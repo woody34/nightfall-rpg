@@ -67,6 +67,7 @@ talks to the REST `/health` endpoint only.
 
 - [docs/planning](docs/planning/README.md): what to build, per phase.
 - [docs/engineering](docs/engineering/README.md): how to build it. Rust standard, architecture, API and database rules.
+- [docs/research](docs/research/README.md): decision research, currently the client engine comparison.
 
 ## Notes
 
