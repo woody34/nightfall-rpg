@@ -1,0 +1,20 @@
+# https://moonrepo.dev/docs/config/toolchains
+$schema: 'https://moonrepo.dev/schemas/toolchains.json'
+
+# Versions come from .prototools (single source of truth).
+proto:
+  version: '0.62.3'
+
+javascript:
+  inheritAliases: true
+  installDependencies: true
+  packageManager: 'pnpm'
+
+node:
+  versionFromPrototools: true
+
+pnpm:
+  versionFromPrototools: true
+
+rust:
+  versionFromPrototools: true

@@ -1,10 +1,12 @@
 $schema: 'https://moonrepo.dev/schemas/project.json'
 language: 'rust'
-type: 'application'
-tags: ['backend']
+layer: 'application'
+stack: 'backend'
+toolchains:
+  default: 'rust'
 
 project:
-  name: 'api'
+  title: 'api'
   description: 'Nightfall game server: axum HTTP + tonic gRPC.'
 
 dependsOn:
@@ -13,6 +15,4 @@ dependsOn:
 tasks:
   dev:
     command: 'cargo run -p nightfall-api'
-    local: true
-    options:
-      persistent: true
+    preset: 'server'

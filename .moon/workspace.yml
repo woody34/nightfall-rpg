@@ -7,7 +7,7 @@ projects:
     - 'packages/*'
 
 vcs:
-  manager: 'git'
+  client: 'git'
   defaultBranch: 'main'
 
 # Tasks defined per-language in .moon/tasks/*.yml are inherited by matching projects.

@@ -14,5 +14,7 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
+    // Phaser alone is ~1.4 MB minified; raise the limit so the warning only fires on real growth.
+    chunkSizeWarningLimit: 2000,
   },
 });

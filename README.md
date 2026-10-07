@@ -10,7 +10,7 @@ apps/
   client/     Low-fidelity Phaser 3 + Vite + TypeScript client
 packages/
   proto/      Shared Protobuf contracts (nightfall.v1)
-.moon/        Workspace, toolchain, and inherited task config
+.moon/        Workspace, toolchains, and inherited task config (moon 2.x)
 ```
 
 ## Prerequisites
@@ -53,3 +53,9 @@ moon check --all          # run every build/test/lint task in the workspace
 Edit `packages/proto/nightfall/v1/*.proto`. The Rust server regenerates bindings on the next
 `cargo build` (see `apps/api/build.rs`). Client bindings are not generated yet; the client currently
 talks to the REST `/health` endpoint only.
+
+## Notes
+
+- This repo uses **moon 2.x**. Config file names and fields differ from moon 1.x docs and examples
+  (`.moon/toolchains.yml` is plural, `layer` replaces `type`, `preset: server` replaces `local: true`).
+- The first `proto use` installs moon, Node, pnpm, and Rust under `~/.proto`. Nothing is installed system-wide.

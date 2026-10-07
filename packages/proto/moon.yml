@@ -1,8 +1,8 @@
 $schema: 'https://moonrepo.dev/schemas/project.json'
 language: 'unknown'
-type: 'library'
-tags: ['proto']
+layer: 'library'
+stack: 'backend'
 
 project:
-  name: 'proto'
+  title: 'proto'
   description: 'Shared Protobuf contracts for the Nightfall gRPC API.'

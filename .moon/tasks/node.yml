@@ -1,5 +1,8 @@
-# Tasks inherited by every project whose language is `javascript`/`typescript`.
+# Tasks inherited by every project using the node toolchain.
 $schema: 'https://moonrepo.dev/schemas/tasks.json'
+
+inheritedBy:
+  toolchains: ['node']
 
 fileGroups:
   sources:
