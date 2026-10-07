@@ -1,0 +1,16 @@
+# Tasks inherited by every project whose language is `javascript`/`typescript`.
+$schema: 'https://moonrepo.dev/schemas/tasks.json'
+
+fileGroups:
+  sources:
+    - 'src/**/*'
+  configs:
+    - '*.{js,json,ts}'
+    - 'tsconfig*.json'
+
+tasks:
+  typecheck:
+    command: 'tsc --noEmit'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'

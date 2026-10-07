@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package nightfall.v1;
+
+// First-pass contract. Expand as the character / combat systems take shape.
+service GameService {
+  // Simple liveness probe for the client.
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  // Returns a playable character for the given account (stub for now).
+  rpc GetCharacter(GetCharacterRequest) returns (Character);
+}
+
+message PingRequest {
+  string client_version = 1;
+}
+
+message PingResponse {
+  string server_version = 1;
+  int64 server_time_ms = 2;
+}
+
+message GetCharacterRequest {
+  string character_id = 1;
+}
+
+enum Race {
+  RACE_UNSPECIFIED = 0;
+  RACE_HUMAN = 1;
+  RACE_ELF = 2;
+  RACE_DARK_ELF = 3;
+  RACE_ORC = 4;
+  RACE_DWARF = 5;
+}
+
+message BaseStats {
+  uint32 str = 1;
+  uint32 dex = 2;
+  uint32 con = 3;
+  uint32 int = 4;
+  uint32 wit = 5;
+  uint32 men = 6;
+}
+
+message Character {
+  string id = 1;
+  string name = 2;
+  Race race = 3;
+  uint32 level = 4;
+  BaseStats stats = 5;
+  Position position = 6;
+}
+
+message Position {
+  float x = 1;
+  float y = 2;
+}

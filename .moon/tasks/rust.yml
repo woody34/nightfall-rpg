@@ -1,0 +1,32 @@
+# Tasks inherited by every project whose language is `rust`.
+$schema: 'https://moonrepo.dev/schemas/tasks.json'
+
+fileGroups:
+  sources:
+    - 'src/**/*'
+    - 'build.rs'
+    - 'Cargo.toml'
+
+tasks:
+  build:
+    command: 'cargo build'
+    inputs:
+      - '@group(sources)'
+      - '/Cargo.lock'
+      - '/Cargo.toml'
+  check:
+    command: 'cargo check'
+    inputs:
+      - '@group(sources)'
+  lint:
+    command: 'cargo clippy -- -D warnings'
+    inputs:
+      - '@group(sources)'
+  format:
+    command: 'cargo fmt --check'
+    inputs:
+      - '@group(sources)'
+  test:
+    command: 'cargo test'
+    inputs:
+      - '@group(sources)'

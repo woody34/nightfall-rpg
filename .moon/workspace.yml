@@ -1,0 +1,13 @@
+# https://moonrepo.dev/docs/config/workspace
+$schema: 'https://moonrepo.dev/schemas/workspace.json'
+
+projects:
+  globs:
+    - 'apps/*'
+    - 'packages/*'
+
+vcs:
+  manager: 'git'
+  defaultBranch: 'main'
+
+# Tasks defined per-language in .moon/tasks/*.yml are inherited by matching projects.

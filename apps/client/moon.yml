@@ -1,0 +1,32 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+language: 'typescript'
+type: 'application'
+tags: ['frontend']
+
+project:
+  name: 'client'
+  description: 'Low-fidelity Phaser client for Nightfall.'
+
+dependsOn:
+  - 'proto'
+
+tasks:
+  dev:
+    command: 'vite'
+    local: true
+    options:
+      persistent: true
+  build:
+    command: 'vite build'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'
+      - 'index.html'
+      - 'public/**/*'
+    outputs:
+      - 'dist'
+  preview:
+    command: 'vite preview'
+    local: true
+    deps:
+      - 'build'
