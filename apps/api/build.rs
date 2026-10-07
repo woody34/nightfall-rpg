@@ -15,7 +15,7 @@ fn main() -> anyhow::Result<()> {
 
     tonic_prost_build::configure()
         .build_server(true)
-        .build_client(false)
+        .build_client(true) // clients are used by the integration tests
         .compile_fds(fds)?;
 
     Ok(())

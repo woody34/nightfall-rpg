@@ -37,6 +37,13 @@ Every phase document follows the same outline so it can be used as a checklist d
 - Server is authoritative for everything. The client renders and sends intent only.
 - Lineage 2 is the reference, not the target. Where its numbers are quoted they are a starting point for tuning, not a spec.
 
+## Engineering standards
+
+How the code is written is governed by [docs/engineering](../engineering/README.md): clean
+architecture layers, the NATS event-bus core, idempotent endpoints, atomic transactions, the
+per-endpoint test matrix, and the Rust standard enforced by rustfmt, clippy, workspace lints,
+and cargo-deny. Those documents win over anything in a phase document about code structure.
+
 ## Cross-cutting decisions
 
 These were made in one phase and bind the others. If a phase document disagrees, the owner listed
@@ -50,6 +57,9 @@ here wins and the other document is the one to fix.
 | Persistence | Phase 0 §3.3 | Postgres via `sqlx`. Write-behind for volatile character state, write-through transactions for anything that moves items or currency. Every item mutation is appended to `item_ledger`. |
 | Randomness | Phase 3 §3.3, Phase 5 §3 | Per-zone seeded `ChaCha12` streams so combat and loot rolls are reproducible from a logged seed. |
 | Stat formulas | Phase 1 §3 | High Five formulas and constants unless a phase doc says otherwise. All numbers quoted from Lineage 2 are tuning starting points. |
+| Event bus | engineering/architecture.md §2 | NATS. Commands on `nightfall.cmd.<aggregate>.<command>`, events on `nightfall.<aggregate>.<event>`. Events are staged in a transactional `outbox` table in the same transaction as the state change. |
+| Idempotency | engineering/api-guidelines.md §2 | Every mutating RPC carries a client UUID `idempotency_key`; the key, a request fingerprint, and the result are stored atomically with the write. |
+| Code layout | engineering/architecture.md §1 | `domain` / `application` / `infrastructure` / `interface` under `apps/api/src`, dependencies inward only. Supersedes the module tree sketched in Phase 0 §6. |
 | Proto layout | Phase 0 §5 | `packages/proto/nightfall/v1/`: `game.proto` (shared messages, Ping, Character), plus one file per domain as the phases introduce them: `world.proto`, `combat.proto`, `items.proto`, `economy.proto`, `social.proto`, `admin.proto`. |
 
 ## Research caveats

@@ -7,29 +7,49 @@ inheritedBy:
 fileGroups:
   sources:
     - 'src/**/*'
+    - 'tests/**/*'
+    - 'migrations/**/*'
     - 'build.rs'
     - 'Cargo.toml'
+  standards:
+    - '/Cargo.toml'
+    - '/Cargo.lock'
+    - '/rustfmt.toml'
+    - '/clippy.toml'
+    - '/deny.toml'
 
 tasks:
   build:
-    command: 'cargo build'
+    command: 'cargo build --all-targets'
     inputs:
       - '@group(sources)'
-      - '/Cargo.lock'
-      - '/Cargo.toml'
+      - '@group(standards)'
   check:
-    command: 'cargo check'
+    command: 'cargo check --all-targets'
     inputs:
       - '@group(sources)'
+      - '@group(standards)'
   lint:
-    command: 'cargo clippy -- -D warnings'
+    command: 'cargo clippy --all-targets -- -D warnings'
     inputs:
       - '@group(sources)'
+      - '@group(standards)'
   format:
-    command: 'cargo fmt --check'
+    command: 'cargo fmt --all -- --check'
     inputs:
       - '@group(sources)'
+      - '/rustfmt.toml'
   test:
     command: 'cargo test'
     inputs:
       - '@group(sources)'
+      - '@group(standards)'
+    env:
+      # Adapter tests run when the compose services are up and skip otherwise.
+      DATABASE_URL: 'postgres://nightfall:nightfall@localhost:5432/nightfall'
+      NATS_URL: 'nats://localhost:4222'
+  deny:
+    command: 'cargo deny check'
+    inputs:
+      - '/Cargo.lock'
+      - '/deny.toml'

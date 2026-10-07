@@ -1,0 +1,23 @@
+//! Infrastructure layer: adapters that implement application ports.
+//!
+//! * `memory`: in-process adapters for unit tests, integration tests, and dependency-free dev.
+//! * `postgres`: sqlx adapters. Every mutating method is one transaction.
+//! * `nats`: event bus over NATS core publish.
+
+pub mod memory;
+pub mod nats;
+pub mod postgres;
+
+use chrono::{DateTime, Utc};
+
+use crate::application::Clock;
+
+/// The real wall clock.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SystemClock;
+
+impl Clock for SystemClock {
+    fn now(&self) -> DateTime<Utc> {
+        Utc::now()
+    }
+}

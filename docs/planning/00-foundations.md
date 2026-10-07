@@ -501,6 +501,13 @@ interest management, and metrics subscribe to these; gameplay code publishes the
 
 ## 6. Rust implementation notes
 
+> **Superseded in part.** The module layout below predates the clean-architecture restructure.
+> The authoritative layout is `docs/engineering/architecture.md` §1 (`domain`, `application`,
+> `infrastructure`, `interface`), the event bus is NATS per `architecture.md` §2, and every
+> mutating endpoint follows `api-guidelines.md` §2 (idempotency) and `database-guidelines.md`
+> §1 (one atomic transaction per repository write). The concurrency model (single world thread,
+> bounded channels, 100 ms tick) and the crate choices below still stand.
+
 ### 6.1 Crates
 
 | Crate | Version (Oct 2026) | Use |

@@ -1,0 +1,44 @@
+# Local infrastructure for development and integration tests.
+#   docker compose up -d        start Postgres and NATS
+#   docker compose down -v      stop and wipe data
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nightfall
+      POSTGRES_PASSWORD: nightfall
+      POSTGRES_DB: nightfall
+    ports:
+      - "5432:5432"
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c work_mem=16MB
+      -c log_min_duration_statement=250ms
+      -c log_lock_waits=on
+      -c autovacuum_vacuum_scale_factor=0.05
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nightfall -d nightfall"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2.11-alpine
+    command: ["--jetstream", "--store_dir", "/data", "--http_port", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
+  natsdata:

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nightfall
+          POSTGRES_PASSWORD: nightfall
+          POSTGRES_DB: nightfall
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U nightfall -d nightfall"
+          --health-interval 2s --health-timeout 3s --health-retries 20
+      nats:
+        image: nats:2.11-alpine
+        ports: ['4222:4222']
+    env:
+      DATABASE_URL: postgres://nightfall:nightfall@localhost:5432/nightfall
+      NATS_URL: nats://localhost:4222
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # moon ci needs history to compute affected projects
+
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Runs build/check/lint/format/test/deny for affected projects only.
+      - name: moon ci
+        run: moon ci --color

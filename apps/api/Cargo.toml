@@ -3,6 +3,15 @@ name = "nightfall-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
+description = "Nightfall game server: axum HTTP + tonic gRPC, clean architecture, event-bus core."
+
+[lints]
+workspace = true
+
+[lib]
+name = "nightfall_api"
+path = "src/lib.rs"
 
 [[bin]]
 name = "nightfall-api"
@@ -10,16 +19,31 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
+async-nats.workspace = true
+async-trait.workspace = true
 axum.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+parking_lot.workspace = true
 prost.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
 tonic.workspace = true
 tonic-prost.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+futures-util.workspace = true
+http-body-util.workspace = true
+reqwest.workspace = true
+tower.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

@@ -24,6 +24,15 @@ proto use
 That installs the pinned versions of moon, Node, pnpm, and Rust from `.prototools`.
 No system `protoc` is needed: the API compiles `.proto` files with `protox` at build time.
 
+## Local infrastructure
+
+```bash
+docker compose up -d      # Postgres 16 on :5432, NATS 2.11 on :4222
+cp .env.example .env      # DATABASE_URL / NATS_URL for the API
+```
+
+Without `DATABASE_URL` / `NATS_URL` the API runs with in-memory adapters and warns at startup.
+
 ## Running
 
 ```bash
@@ -53,6 +62,11 @@ moon check --all          # run every build/test/lint task in the workspace
 Edit `packages/proto/nightfall/v1/*.proto`. The Rust server regenerates bindings on the next
 `cargo build` (see `apps/api/build.rs`). Client bindings are not generated yet; the client currently
 talks to the REST `/health` endpoint only.
+
+## Documentation
+
+- [docs/planning](docs/planning/README.md): what to build, per phase.
+- [docs/engineering](docs/engineering/README.md): how to build it. Rust standard, architecture, API and database rules.
 
 ## Notes
 

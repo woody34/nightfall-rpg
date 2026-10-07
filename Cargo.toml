@@ -6,19 +6,77 @@ members = ["apps/api"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+rust-version = "1.98"
+
+# ---------------------------------------------------------------------------
+# Lints: the code-form coding standard. Every crate opts in with
+# `[lints] workspace = true`. Warnings fail CI (`cargo clippy -- -D warnings`).
+# Thresholds and disallow-lists live in clippy.toml; formatting in rustfmt.toml.
+# ---------------------------------------------------------------------------
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unused_must_use = "deny"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+# Correctness and reliability: these are errors, not style.
+unwrap_used = "deny"            # tests may `#![allow]` this at module level
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"           # use tracing
+print_stderr = "deny"
+indexing_slicing = "warn"       # prefer .get() in non-hot paths
+arithmetic_side_effects = "warn" # game math must state its overflow policy
+float_cmp = "deny"
+large_futures = "warn"
+mem_forget = "deny"
+rc_buffer = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+same_name_method = "warn"
+str_to_string = "warn"
+undocumented_unsafe_blocks = "deny"
+wildcard_enum_match_arm = "warn"
+
+# Pedantic lints we deliberately relax. Each one has a reason.
+module_name_repetitions = "allow"   # `character::CharacterId` is clearer than `character::Id`
+must_use_candidate = "allow"        # too noisy on builders and getters
+missing_errors_doc = "allow"        # error enums are documented at the type, not every fn
+missing_panics_doc = "allow"        # panics are denied by lint, so there is nothing to document
+cast_precision_loss = "allow"       # stat math casts u32 -> f64 constantly and intentionally
 
 [workspace.dependencies]
 anyhow = "1.0"
+async-nats = "0.50"
+async-trait = "0.1"
 axum = "0.8"
+bytes = "1"
+futures-util = { version = "0.3", default-features = false }
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+http-body-util = "0.1"
+parking_lot = "0.12"
 prost = "0.14"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 protox = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring", "postgres", "uuid", "chrono", "migrate", "macros"] }
+thiserror = "2"
 tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["net"] }
 tonic = "0.14"
 tonic-build = "0.14"
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
+tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.7", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v7", "serde"] }

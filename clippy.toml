@@ -1,0 +1,20 @@
+# Clippy configuration. The lint *levels* live in [workspace.lints] in Cargo.toml; this file holds
+# thresholds and disallow-lists that need values.
+
+cognitive-complexity-threshold = 20
+too-many-arguments-threshold = 6
+too-many-lines-threshold = 120
+type-complexity-threshold = 300
+
+# Lint for exported APIs too: this is an application, not a library with an API contract.
+avoid-breaking-exported-api = false
+
+disallowed-methods = [
+  { path = "std::env::set_var", reason = "Configuration is read once at startup in config.rs; never mutate the environment at runtime." },
+  { path = "std::process::exit", reason = "Return an error from main so Drop guards (DB pools, NATS, tracing) flush." },
+  { path = "tokio::task::spawn_blocking", reason = "Use the dedicated worker pool in infrastructure::blocking so concurrency stays bounded." },
+]
+
+disallowed-types = [
+  { path = "std::sync::Mutex", reason = "Use tokio::sync::Mutex in async code, or parking_lot::Mutex for short sync sections, so a held lock can never block the runtime." },
+]
