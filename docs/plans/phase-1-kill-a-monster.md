@@ -14,7 +14,7 @@ Acceptance is one playable loop plus byte-identical headless replay, including a
 | # | Decision | Choice | Rejected | Why |
 |---|----------|--------|----------|-----|
 | D1 | Scope | One level-1 melee monster template, one fixed starter weapon stat block; two instances allowed to demonstrate social aggro | Skills, loot or class progression | Smallest complete combat loop |
-| D2 | Formula authority | High Five formulas/tables from the planning references, transcribed verbatim into TOML under `packages/data/`; the physical damage coefficient is whatever the pinned L2J High Five `Formulas.java` uses for a normal attack (expected **76**; the planning doc's 77 is a transcription to verify), and the attack interval is **500000 / pAtkSpd** (HF), not Interlude's 470000 | Interlude XP/death brackets, simplified linear stats, invented balancing formulas | User's phase decision supersedes conflicting older decisions; source conflicts are enumerated below |
+| D2 | Formula authority | High Five formulas/tables from the planning references, transcribed verbatim into TOML under `packages/data/`; the physical damage coefficient is whatever the pinned L2J High Five `Formulas.java` uses for a normal attack (resolved by E1.1: **76**; the 77 is the crit-additive and skill constant), and the attack interval is **500000 / pAtkSpd** (HF), not Interlude's 470000 | Interlude XP/death brackets, simplified linear stats, invented balancing formulas | User's phase decision supersedes conflicting older decisions; source conflicts are enumerated below |
 | D3 | Arithmetic | Integer/fixed-point only inside `domain/zone`; decimal data compiled before admission, fixed rounding contract (§3.1) | Runtime floating point, client-calculated damage | Same snapshot, inputs and seed produce identical state and bytes |
 | D4 | NPC AI | L2J intention subset: Idle, Active, Attack, ReturnHome, Dead; aggro range, social aggro, hate list, leash, seeded respawn jitter | Behaviour trees, timers outside the actor, UE navigation as authority | Tick-driven, inspectable and replayable |
 | D5 | Durability | All new simulation state in `ZoneState` and `ZoneSnapshot`, all new facts in `AppliedTick`; preserve draft → run → durable ack → release | Combat side effects before the durable gate, replay from session audit | Extends the current actor without a second simulation |
@@ -36,6 +36,12 @@ Acceptance is one playable loop plus byte-identical headless replay, including a
 - Full HF starting profiles/bonus lookup rows and the level-86 XP sentinel are not printed in full.
   E1.1 must complete those from the primary L2J source already cited by the docs, pin its revision,
   and document the missing rows. Do not relabel Interlude profiles as HF or invent missing values.
+- **Resolved by E1.1** against pinned L2J HF (`l2j-server-game@abfde049`,
+  `l2j-server-datapack@3ca488dd`; ledger and errata in [SOURCES](../../packages/data/SOURCES.md)):
+  K = **76**; interval 500000; accuracy/evasion use `sqrt(DEX) * 6` with the source's level
+  additions (superseding the stats §2.4 precedence above); HF stat bonuses are the
+  `statBonus.xml` tables (the docs' `1.009^(s−49)` curves and STR 88 are Ertheia data, E-1);
+  the docs' "HF" XP column is Ertheia too (E-2); weapon stats replace the fist values (E-5).
 - Preserve literal source formulas and table values alongside scaled data, with document/section
   and upstream revision provenance. The one explicit selection (500000 over 470000) stays labelled as an HF-vs-Interlude choice.
   No undocumented tuning or runtime interpolation; inconsistent worked-example rows get explicit
@@ -68,39 +74,42 @@ UI rounding never feeds back into simulation. `isqrt(n)` is the floor integer sq
 
 | Calculation | Data and exact evaluation/rounding |
 |-------------|------------------------------------|
-| Six stat bonuses | HF expressions in stats §2.1 copied verbatim: STR `1.009^(s−49)`, INT `1.01^(s−49.4)`, DEX `1.00456^(s−19.27)`, WIT `1.01383^(s−64.57)`, CON `1.01169^(s−34.80)`, MEN `1.00369^(s+30.45)`. Offline high-precision decimal generation rounds once, nearest half-up, to Q; double precision of the generator until rounded entries agree. Commit every supported index and clamp bounds from the pinned source. |
+| Six stat bonuses | HF `statBonus.xml` 2-decimal table values for indices 0–99 (exact at Q), with their generating comments (`1.036^(STR−34.845)` …) kept as provenance; the generator re-derives each row from its comment in high-precision decimal, doubling precision until rounding agrees, and records disagreements as errata. Lookups outside 0–99 are errors. (The previous `1.009^(s−49)` set is Ertheia, errata E-1.) |
 | Level modifier | `LM_Q = (L+89)*10000`, exact representation of `(L+89)/100`. |
-| P.Atk / P.Def | `A_Q = F((baseAtk_Q+weaponAtk_Q)*STR_Q*LM_Q/Q²)`; `D_Q = F(baseUnarmouredDef_Q*LM_Q/Q)`. No occupied armour slots in this phase. |
+| P.Atk / P.Def | `A_Q = F(atk_Q*STR_Q*LM_Q/Q²)` where `atk` is the weapon's P.Atk when one is held (L2J `<set>` replaces the fist value, E-5) else the class fist P.Atk; `D_Q = F(baseUnarmouredDef_Q*LM_Q/Q)`. No occupied armour slots in this phase. |
 | HP / MP | `n=L−1`; class table values from stats §2.5: `H_Q=baseHP_Q+aHP_Q*n+bHP_Q*n²`, analogously `M_Q`; `maxHP=F(H_Q*CON_Q/Q²)`, `maxMP=F(M_Q*MEN_Q/Q²)`. Reconcile expanded rows with the source tables. |
-| Accuracy / evasion | `root_Q=isqrt(DEX*Q²)`; `acc_Q=5*root_Q+(L+accuracyLevelBonus)*Q+weaponAccuracy_Q`; `eva_Q=min(250*Q,5*root_Q+(L+max(0,L−69))*Q)`. Level additions stored as exact table entries per the precedence above. |
+| Accuracy / evasion | `root_Q=isqrt(DEX*Q²)`; `acc_Q=6*root_Q+L*Q+accAdd_Q[L]+weaponAccuracy_Q`; `eva_Q=min(250*Q,6*root_Q+L*Q+evaAdd_Q[L])`. HF additions as exact per-level entries: accuracy `+(L−69)` above 69 and `+(L−76)` above 77; evasion `+(L−69)` from 70, ×1.2 from 78 (E-3). |
 | Hit | Flat/front condition multiplier is Q. `chance‰=clamp(F((800*Q+20*(acc_Q−eva_Q))/Q),200,980)`. Preserve the docs' comparator: **hit iff roll ≤ chance**, roll uniform `0..999`; thus “80%” nominal is 801/1000 outcomes. Test this boundary explicitly, do not quietly change `>=` to `>`. |
-| Physical crit | HF base crit 4: `crit‰=min(500,F(4*DEX_Q*10/Q))`; crit iff roll `< crit‰`; multiplier 2, additive crit modifiers 0. |
-| Physical damage | `max(1,F(K*A_Q*criticalFactor*(100+j)/(D_Q*100)))` with `K` the source-resolved coefficient (expected 76), integer `j` uniform in `[-r,r]` from the fixed weapon/template random-damage radius. This is the documented physical pipeline with D2's constant; soulshots, position, traits, attributes, PvP and buffs are neutral (1 or 0). No skills. |
-| Attack timing | `speed_Q=min(1500*Q,F(baseAtkSpeed_Q*DEX_Q/Q))`, strictly positive. Exact interval is `500000*Q/speed_Q` ms. Impact after `max(1,C(500000*Q/(2*speed_Q*100)))` ticks; next cycle after `max(1,C(500000*Q/(speed_Q*100)))` ticks. Quantize independently from the exact fraction, never from a rounded millisecond display. |
+| Physical crit | `crit‰=min(500,F(base*DEX_Q*10/Q))`, base = HF fist 4 or the weapon's (Squire's Sword 8); crit iff roll `< crit‰`; multiplier 2, additive crit modifiers 0. |
+| Physical damage | `max(1,F(K*A_Q*criticalFactor*(100+j)/(D_Q*100)))` with `K` = **76** (resolved, `calcPhysDam`), integer `j` uniform in `[-r,r]` from the weapon's random-damage radius (Squire's Sword 10; bare hands `5+isqrt(L)`). This is the documented physical pipeline with D2's constant; soulshots, position, traits, attributes, PvP and buffs are neutral (1 or 0). No skills. |
+| Attack timing | `speed_Q=min(1500*Q,F(baseAtkSpeed_Q*DEX_Q/Q))`, base = weapon speed when held (379) else fist (300), strictly positive. Exact interval is `500000*Q/speed_Q` ms. Impact after `max(1,C(500000*Q/(2*speed_Q*100)))` ticks; next cycle after `max(1,C(500000*Q/(speed_Q*100)))` ticks. Quantize independently from the exact fraction, never from a rounded millisecond display. |
 | Hate | On landed damage `d`, add `F(d*100/(npcLevel+7))`, cap total at `999999999`; track actual damage separately. Auto/social aggro adds 1 hate. |
-| XP / death | HF cumulative XP `X[L]` in `experience.toml`, rate 1 and template reward, no Nightfall level-gap XP multiplier. `loss=F((X[L+1]−X[L])*loss_Q[L]/Q)` then `xp=max(0,xp−loss)`; derive level by threshold search. HF loss is 10% at L1, −0.125 percentage points/level through L49, 4% through L75, 2.5/2/1.5% at L76/77/78, 1% at L79–85. Store every row; e.g. L2 fraction is 98750/Q. |
-| Respawn | NPC delay in integer ticks: `deathTick+10*(delaySeconds+uniform(0..randomSeconds))`, inclusive random endpoints. Player town respawn: `HP=max(1,F(maxHP*65/100))`, MP 0, protection 600 ticks; Attack ends protection. |
+| XP / death | HF cumulative XP `X[L]` in `experience.toml` (L1–85 plus sentinel `X[86]`; XP capped at `X[86]−1`), rate 1 and template reward, no Nightfall level-gap XP multiplier. `loss=F((X[L+1]−X[L])*loss_Q[L]/Q)` then `xp=max(0,xp−loss)`; derive level by threshold search. HF loss is 10% at L1, −0.125 percentage points/level through L49, 4% through L75, 2.5/2/1.5% at L76/77/78, 1% at L79–85. Store every row; e.g. L2 fraction is 98750/Q. |
+| Respawn | NPC delay in integer ticks: `deathTick+10*(delaySeconds+uniform(0..randomSeconds))`, inclusive random endpoints. Player town respawn: `HP=max(1,F(maxHP*65/100))`, MP 0, protection `PlayerSpawnProtection` = 600 **s** = 6000 ticks (E-6); Attack ends protection. |
 
 Worked vectors (tests must assert the integer encodings as well as displayed values):
 
 1. Docs' `LM(20)=1.09` → `1090000`; no-armour P.Def 80 → `87200000` (87.2).
-   HF STR 88 gives bonus `1418259`; inputs base P.Atk 4, weapon 8, L1 yield
-   `F(12000000*1418259*900000/10¹²)=15317197` → 15.317197 P.Atk.
+   HF Human Fighter STR 40 gives `1200000`; Squire's Sword P.Atk 6 at L1:
+   `F(6000000*1200000*900000/10¹²)=6480000` (bare hands 4 → `4320000`).
+   Legacy arithmetic only (Ertheia STR 88, E-1): `F(12000000*1418259*900000/10¹²)=15317197`.
 2. Docs' Human Fighter raw L40 HP/MP: `80+11.765*39+0.065*39²=637.700`,
    `30+5.430*39+0.030*39²=287.400`. With supplied fixture bonuses CON=1.57, MEN=1.28,
    maxima are `floor(1001.189)=1001` HP and `floor(367.872)=367` MP.
-   Those bonuses test arithmetic; they do not label an Interlude profile as an HF character.
+   Those bonuses test arithmetic; the HF table has CON 43 = 1.58 (E-4), giving 1007 HP.
 3. Accuracy 40 versus evasion 35 → 900‰; rolls 900/901 hit/miss. Differences −31/+10
-   clamp to 200/980‰. Fixture DEX bonus 1.10 gives HF crit 44‰: rolls 43/44 crit/normal.
+   clamp to 200/980‰. HF DEX 30 bonus 1.10 gives fist crit 44‰: rolls 43/44 crit/normal;
+   with Squire's Sword (base 8) 88‰. HF Human Fighter L1 accuracy `6*5477225+1Q=33863350`.
    Stats §3.3's Interlude base-44 example instead floors to 48‰; test it only as a labelled legacy vector.
-4. With K=76: P.Atk 100, P.Def 50, spread 0: `76*100/50=152`; crit = 304. Spread −10 gives
-   `floor(136.8)=136`; miss = 0 damage, no crit/spread draw. Damage 152 to an L20 mob adds `floor(152*100/27)=562` hate. Recompute if E1.1 resolves K differently.
+4. K=76 (resolved): P.Atk 100, P.Def 50, spread 0: `76*100/50=152`; crit = 304. Spread −10 gives
+   `floor(136.8)=136`; miss = 0 damage, no crit/spread draw. Damage 152 to an L20 mob adds `floor(152*100/27)=562` hate.
 5. Docs' speed 300: exact interval 1666⅔ ms, impact tick +9, next swing +17.
    Speed 1500: 333⅓ ms, impact +2, next swing +4. Displayed 1667/333 ms is not scheduling input.
+   Squire's Sword at DEX 30: speed `F(379*1.10)=416.9`, impact +6, next swing +12.
 6. Docs' HF thresholds `X[1]=0, X[2]=68, X[3]=363`: XP 60 + reward 10 → 70, level 2.
    Death at L2 loses `floor((363−68)*0.09875)=29`, leaving XP 41 and level 1.
-   At maxHP 126, town respawn restores 81 HP. XP stops at the L85 cap; the pinned L86 sentinel
-   supplies its death-loss span, not an attainable level.
+   At maxHP 126, town respawn restores 81 HP. XP stops at `X[86]−1 = 16890558727` (level 85);
+   the L86 sentinel supplies L85's death-loss span (`F(3710077625*0.01)=37100776`), not a level.
 
 ### 3.2 Commands, state, AI and replay
 
