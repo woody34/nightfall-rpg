@@ -11,8 +11,17 @@ export DATABASE_URL
 ENTITIES=src/infrastructure/postgres/entities
 SCHEMA="entities_gen_$$"
 
-if ! command -v sea-orm-cli >/dev/null; then
-  echo "sea-orm-cli not found. Install: cargo install sea-orm-cli --locked --no-default-features --features codegen,sqlx-postgres,runtime-tokio-rustls" >&2
+PINNED="$(tr -d '[:space:]' < sea-orm-cli.version)"
+INSTALL="cargo install sea-orm-cli --locked --force --version $PINNED --no-default-features --features codegen,sqlx-postgres,runtime-tokio-rustls"
+if ! command -v sea-orm-cli >/dev/null 2>&1; then
+  echo "ERROR: sea-orm-cli is not installed, so entities cannot be generated or verified." >&2
+  echo "Install the pinned version: $INSTALL" >&2
+  exit 127
+fi
+INSTALLED="$(sea-orm-cli --version | awk '{print $2}')"
+if [[ "$INSTALLED" != "$PINNED" ]]; then
+  echo "ERROR: sea-orm-cli $INSTALLED is installed but $PINNED is pinned (apps/api/sea-orm-cli.version); generated entities differ between versions." >&2
+  echo "Install the pinned version: $INSTALL" >&2
   exit 1
 fi
 

@@ -1,5 +1,6 @@
 [package]
 name = "nightfall-api"
+default-run = "nightfall-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,6 +16,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "nightfall-api"
+default-run = "nightfall-api"
 path = "src/main.rs"
 
 [dependencies]
