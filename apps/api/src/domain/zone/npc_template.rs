@@ -3,9 +3,6 @@
 
 use super::{Fixed, Speed, Vec2Fixed};
 
-/// Q scale for fractional stats: 1.0 = `1_000_000`.
-pub const Q: i64 = 1_000_000;
-
 /// Stable template id, equal to the file stem under `packages/data/npcs/`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NpcTemplateId(pub String);
