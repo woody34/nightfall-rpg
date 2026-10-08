@@ -13,6 +13,7 @@
 use std::sync::Arc;
 
 use nightfall_api::infrastructure::memory::{InMemoryCharacterRepository, InMemoryEventBus};
+use nightfall_api::infrastructure::telemetry::Metrics;
 use nightfall_api::infrastructure::SystemClock;
 use nightfall_api::interface::grpc::pb::game_service_client::GameServiceClient;
 use nightfall_api::{bind, build_game_service, serve_grpc, serve_http, Dependencies};
@@ -23,6 +24,7 @@ pub struct TestApp {
     pub grpc: GameServiceClient<Channel>,
     pub characters: Arc<InMemoryCharacterRepository>,
     pub bus: Arc<InMemoryEventBus>,
+    pub metrics: Metrics,
     /// Server tasks; aborted when the app is dropped.
     http_task: tokio::task::JoinHandle<anyhow::Result<()>>,
     grpc_task: tokio::task::JoinHandle<anyhow::Result<()>>,
@@ -32,10 +34,12 @@ impl TestApp {
     pub async fn spawn() -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
         let bus = Arc::new(InMemoryEventBus::default());
+        let metrics = Metrics::detached();
         let deps = Dependencies {
             characters: characters.clone(),
             bus: bus.clone(),
             clock: Arc::new(SystemClock),
+            metrics: metrics.clone(),
         };
         let service = build_game_service(&deps);
 
@@ -45,8 +49,9 @@ impl TestApp {
         let http_addr = http.local_addr().unwrap();
         let grpc_addr = grpc.local_addr().unwrap();
 
-        let http_task = tokio::spawn(serve_http(http));
-        let grpc_task = tokio::spawn(serve_grpc(grpc, service));
+        let http_task = tokio::spawn(serve_http(http, metrics.clone(), std::future::pending()));
+        let grpc_task =
+            tokio::spawn(serve_grpc(grpc, service, metrics.clone(), std::future::pending()));
 
         let grpc = GameServiceClient::connect(format!("http://{grpc_addr}"))
             .await
@@ -56,6 +61,7 @@ impl TestApp {
             grpc,
             characters,
             bus,
+            metrics,
             http_task,
             grpc_task,
         }

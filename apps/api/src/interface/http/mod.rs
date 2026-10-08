@@ -3,12 +3,14 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use axum::{Json, Router};
+use axum::{middleware, Json, Router};
 use serde::Serialize;
 use tower_http::cors::CorsLayer;
-use tower_http::trace::TraceLayer;
 
 use crate::application::AppError;
+use crate::infrastructure::telemetry::{
+    http_metrics, http_trace_layer, metrics_handler, request_id_layers, Metrics,
+};
 
 /// Body of `GET /health`.
 #[derive(Debug, Serialize)]
@@ -26,12 +28,20 @@ async fn health() -> Json<Health> {
     })
 }
 
-/// Builds the router. Takes no dependencies today; use cases will be injected as `State`.
-pub fn router() -> Router {
+/// Builds the router: `/health`, and `/metrics` in Prometheus text format.
+///
+/// Layers, outermost first: request id, trace span, id propagation, CORS, request metrics.
+pub fn router(metrics: Metrics) -> Router {
+    let (set_request_id, propagate_request_id) = request_id_layers();
     Router::new()
         .route("/health", get(health))
+        .route("/metrics", get(metrics_handler))
+        .layer(middleware::from_fn_with_state(metrics.clone(), http_metrics))
         .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http())
+        .layer(propagate_request_id)
+        .layer(http_trace_layer())
+        .layer(set_request_id)
+        .with_state(metrics)
 }
 
 /// Maps application errors to HTTP status codes. Used once REST endpoints exist.

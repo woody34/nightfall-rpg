@@ -95,6 +95,7 @@ impl GameService for GameServiceImpl {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let account_id = uuid::Uuid::parse_str(&req.account_id)
             .map_err(|_| Status::invalid_argument("account_id must be a UUID"))?;
+        crate::infrastructure::telemetry::record_account_id(account_id);
         let race = mapping::race_from_pb(req.race)
             .ok_or_else(|| Status::invalid_argument("race must be specified"))?;
         let c = self

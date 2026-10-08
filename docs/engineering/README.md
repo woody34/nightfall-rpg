@@ -8,6 +8,7 @@ How we build Nightfall. These are binding for every contribution; the planning d
 | [rust-guidelines.md](rust-guidelines.md) | The Rust standard: what is enforced as code (rustfmt, clippy, workspace lints, cargo-deny) and what is reviewed by hand. |
 | [architecture.md](architecture.md) | Clean architecture layers, the event-bus core on NATS, command vs event, the transactional outbox. |
 | [api-guidelines.md](api-guidelines.md) | Endpoint rules: idempotency, error mapping, and the test every endpoint must ship with. |
+| [telemetry](#telemetry) | Logs, traces, metrics, dashboards and alerts: what exists and the rules for adding to it. |
 | [database-guidelines.md](database-guidelines.md) | Postgres rules: atomic transactions, schema conventions, pooling, migrations, maintenance. |
 
 ## The standard as code
@@ -27,6 +28,28 @@ Run everything the CI runs with:
 ```bash
 moon check --all
 ```
+
+## Telemetry
+
+The stack is OpenTelemetry end to end with Grafana LGTM (`grafana/otel-lgtm`, started by
+`docker-compose.yml`) as the backend. Setup and verification commands are in the root
+[README](../../README.md#observability). Rules:
+
+- **Initialise once**, in `main`, with `infrastructure::telemetry::init`; keep the returned
+  guard and `shutdown().await` it after the servers drain so buffered data is flushed. Tests use
+  `Metrics::detached()` and never need a collector.
+- **Metrics live in the catalogue** (`infrastructure/telemetry/metrics.rs`), created once and
+  passed through `Dependencies`. Add an instrument there, a panel to
+  `infra/grafana/dashboards/nightfall-api.json`, and, if it can page someone, a rule in
+  `infra/grafana/alerts/`. Names are `nightfall_` + base unit; labels are low-cardinality
+  (route templates, method names, status codes), never character, account or session ids.
+- **Never record secrets.** Spans take the URL path, not the query or headers. Do not put
+  tokens, tickets or passwords in span fields or log fields.
+- **Correlate.** Every request has a `request_id` on its root span. Handlers that learn the
+  account call `telemetry::record_account_id`. Work handed to another task through a channel
+  carries a `TraceCarrier` so the trace stays whole.
+- **Log with `tracing`**, structured fields over formatted strings. Logs go to stdout and, over
+  OTLP, to Loki.
 
 ## Sources
 

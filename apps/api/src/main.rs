@@ -3,35 +3,92 @@
 use std::sync::Arc;
 
 use nightfall_api::config::Config;
+use nightfall_api::infrastructure::telemetry::{self, TelemetryConfig};
 use nightfall_api::{
     bind, build_game_service, infrastructure, serve_grpc, serve_http, Dependencies,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tokio::sync::watch;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info,tower_http=debug".into()))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let telemetry = telemetry::init(&TelemetryConfig::from_env())?;
 
+    let result = run(telemetry.metrics()).await;
+
+    // Flush buffered spans and metrics whether or not the servers exited cleanly.
+    telemetry.shutdown().await;
+    result
+}
+
+async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
     let cfg = Config::from_env()?;
-    let deps = build_dependencies(&cfg).await?;
+    let mut deps = build_dependencies(&cfg, metrics.clone()).await?;
+    deps.metrics = metrics.clone();
     let service = build_game_service(&deps);
 
     let (http, grpc) = bind(cfg.http_addr, cfg.grpc_addr).await?;
     tracing::info!(http_addr = %cfg.http_addr, grpc_addr = %cfg.grpc_addr, "nightfall-api starting");
 
-    tokio::try_join!(serve_http(http), serve_grpc(grpc, service))?;
+    let (stop_tx, stop_rx) = watch::channel(false);
+    tokio::spawn(async move {
+        shutdown_signal().await;
+        tracing::info!("shutdown signal received, draining");
+        stop_tx.send(true).ok();
+    });
+
+    tokio::try_join!(
+        serve_http(http, metrics.clone(), stopped(stop_rx.clone())),
+        serve_grpc(grpc, service, metrics, stopped(stop_rx)),
+    )?;
+    tracing::info!("nightfall-api stopped");
     Ok(())
 }
 
-async fn build_dependencies(cfg: &Config) -> anyhow::Result<Dependencies> {
+/// Resolves once the shutdown flag is set (or its sender is gone).
+async fn stopped(mut rx: watch::Receiver<bool>) {
+    rx.wait_for(|stop| *stop).await.ok();
+}
+
+/// Resolves on ctrl-c or, on unix, SIGTERM.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        if let Err(e) = tokio::signal::ctrl_c().await {
+            tracing::error!(error = %e, "cannot listen for ctrl-c");
+            std::future::pending::<()>().await;
+        }
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut sig) => {
+                sig.recv().await;
+            },
+            Err(e) => {
+                tracing::error!(error = %e, "cannot listen for SIGTERM");
+                std::future::pending::<()>().await;
+            },
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        () = ctrl_c => {},
+        () = terminate => {},
+    }
+}
+
+async fn build_dependencies(
+    cfg: &Config,
+    metrics: telemetry::Metrics,
+) -> anyhow::Result<Dependencies> {
     let mut deps = Dependencies::in_memory();
 
     if let Some(url) = &cfg.database_url {
         let pool = infrastructure::postgres::connect(url).await?;
-        deps.characters = Arc::new(infrastructure::postgres::PgCharacterRepository::new(pool));
+        deps.characters = Arc::new(
+            infrastructure::postgres::PgCharacterRepository::new(pool).with_metrics(metrics),
+        );
     } else {
         tracing::warn!("DATABASE_URL not set: using in-memory persistence (data is lost on exit)");
     }

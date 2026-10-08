@@ -27,7 +27,7 @@ No system `protoc` is needed: the API compiles `.proto` files with `protox` at b
 ## Local infrastructure
 
 ```bash
-docker compose up -d      # Postgres 16 on :5432, NATS 2.11 on :4222
+docker compose up -d      # Postgres 16 on :5432, NATS 2.11 on :4222, Grafana LGTM on :3300
 cp .env.example .env      # DATABASE_URL / NATS_URL for the API
 ```
 
@@ -41,6 +41,59 @@ moon run api:dev
 ```
 
 The Unreal client is opened from `apps/client-unreal/Nightfall.uproject` in Unreal Editor.
+
+## Observability
+
+`docker compose up -d` also starts `grafana/otel-lgtm` (Grafana, Tempo, Loki, Prometheus and an
+OpenTelemetry collector in one container, decision D6): Grafana at <http://localhost:3300>
+(`admin` / `admin`), OTLP gRPC on `:4317`, OTLP HTTP on `:4318`.
+
+The API exports traces, logs and metrics over OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set
+(see `.env.example`). Without it nothing leaves the process: logs still go to stdout (JSON, or
+human-readable with `TELEMETRY_PRETTY=1`) and `GET /metrics` still serves Prometheus text.
+
+| Signal | Where |
+|--------|-------|
+| Traces | Grafana -> Explore -> Tempo, `{resource.service.name="nightfall-api"}`. One root span per HTTP request (`http.request`) or RPC (`grpc.request` with `rpc.service`, `rpc.method`, `account_id`), all carrying `request_id` (uuid v7, also the `x-request-id` response header). |
+| Logs | Explore -> Loki, `{service_name="nightfall-api"}`, shipped over OTLP by the OpenTelemetry logs bridge. |
+| Metrics | Explore -> Prometheus, or scrape `http://localhost:3000/metrics`. Catalogue in `infrastructure/telemetry/metrics.rs`, all prefixed `nightfall_`. |
+| Dashboard | "Nightfall API", provisioned from `infra/grafana/dashboards/`. |
+| Alerts | Provisioned from `infra/grafana/alerts/`: tick p99 > 50 ms, any dropped WebSocket frame in 5 m, outbox lag > 30 s. |
+
+Metrics whose producers do not exist yet (tick loop, sessions, WebSocket frames, event log,
+outbox relay) are defined and show "No data" until those stories land. The outbox gauges read
+from the `OutboxStatsSource` hook; the relay registers itself with `Metrics::set_outbox_source`.
+To carry a trace across a queue (socket -> zone actor -> broadcast), put a `TraceCarrier` in the
+message; see `infrastructure/telemetry/carrier.rs`.
+
+Requests record the URL **path only**, never the query string or headers (tickets and tokens must
+not reach telemetry); `tests/span_secrets.rs` enforces it.
+
+Verify the pipeline without a browser (API running with the OTLP endpoint set):
+
+```bash
+docker compose up -d lgtm
+infra/scripts/verify-observability.sh      # trace, Loki line, metric sample, /metrics scrape
+```
+
+which runs, against Grafana's datasource proxy:
+
+```bash
+curl -s -u admin:admin -G localhost:3300/api/datasources/proxy/uid/tempo/api/search \
+  --data-urlencode 'q={resource.service.name="nightfall-api"}'
+curl -s -u admin:admin -G localhost:3300/api/datasources/proxy/uid/loki/loki/api/v1/query_range \
+  --data-urlencode 'query={service_name="nightfall-api"}' --data-urlencode limit=1
+curl -s -u admin:admin -G localhost:3300/api/datasources/proxy/uid/prometheus/api/v1/query \
+  --data-urlencode 'query=nightfall_http_requests_total{route="/health"}'
+```
+
+To see an alert fire, push a synthetic slow tick histogram and poll the rule state (pending for
+about a minute, then firing):
+
+```bash
+infra/scripts/push-synthetic-tick.sh 300 &
+curl -s -u admin:admin localhost:3300/api/prometheus/grafana/api/v1/rules | grep -o '"state":"[a-z]*"'
+```
 
 ## Useful tasks
 
