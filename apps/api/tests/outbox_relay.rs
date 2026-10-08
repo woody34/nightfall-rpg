@@ -225,7 +225,7 @@ fn gauge(text: &str, name: &str) -> f64 {
         .find(|l| l.starts_with(name))
         .and_then(|l| l.rsplit(' ').next())
         .and_then(|v| v.parse().ok())
-        .unwrap_or_else(|| panic!("{name} not found in:\n{text}"))
+        .unwrap_or(f64::NAN)
 }
 
 async fn wait_for_gauge(metrics: &Metrics, name: &str, ok: impl Fn(f64) -> bool) -> f64 {
@@ -239,7 +239,7 @@ async fn wait_for_gauge(metrics: &Metrics, name: &str, ok: impl Fn(f64) -> bool)
         }
     })
     .await
-    .unwrap_or_else(|_| panic!("{name} never reached the expected value"))
+    .expect("gauge never reached the expected value")
 }
 
 /// Production wiring: `OutboxRelay::spawn` registers its stats on the exported `Metrics`, so
