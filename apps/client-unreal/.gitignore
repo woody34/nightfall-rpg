@@ -1,9 +1,12 @@
-# Unreal build products and local state. Only Source, Config, Content (.uasset via LFS later) and the .uproject are versioned.
+# Unreal build products and local state. Project-owned Content may be versioned; vendor assets are excluded below.
 Binaries/
 DerivedDataCache/
 Intermediate/
 Saved/
 Build/
+# Third-party downloads and imported/derived vendor assets (matches Vendor/ and Content/Vendor/).
+# LFS does not grant permission to redistribute licensed assets.
+Vendor/
 .vs/
 .vscode/
 .idea/
