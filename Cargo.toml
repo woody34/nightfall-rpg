@@ -58,8 +58,9 @@ async-nats = "0.50"
 async-trait = "0.1"
 axum = "0.8"
 bytes = "1"
-futures-util = { version = "0.3", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
+futures-util = { version = "0.3", default-features = false }
 http-body-util = "0.1"
 opentelemetry = { version = "0.33", default-features = false, features = ["trace", "metrics", "logs"] }
 opentelemetry-appender-tracing = { version = "0.33", default-features = false }
@@ -69,6 +70,8 @@ opentelemetry_sdk = { version = "0.33", default-features = false, features = ["t
 parking_lot = "0.12"
 prometheus = { version = "0.14", default-features = false }
 prost = "0.14"
+proptest = "1"
+rand_chacha = "0.10"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 protox = "0.9"
 sea-orm = { version = "2.0", default-features = false, features = ["runtime-tokio", "sqlx-postgres", "macros", "with-uuid", "with-chrono", "with-json"] }

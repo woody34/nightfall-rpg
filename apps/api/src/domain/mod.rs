@@ -7,6 +7,7 @@
 
 pub mod character;
 pub mod events;
+pub mod zone;
 
 pub use character::{BaseStats, Character, CharacterId, CharacterName, Position, Race};
 pub use events::DomainEvent;

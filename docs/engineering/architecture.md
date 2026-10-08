@@ -98,9 +98,53 @@ consumers still dedupe on the event's aggregate id and a sequence.
 
 ### 2.4 The world simulation
 
-Lives in-process for now (Phase 0 §6: single world thread, bounded `mpsc`, 100 ms tick). It is
-a consumer of commands and a producer of events like everything else, which is what lets it
-move to its own process later without changing the API.
+Each zone is one tokio task, the **zone actor** (`application::zone_actor`), which owns a
+`domain::zone::ZoneState`. Nothing else touches zone state: no `Arc<Mutex<World>>`. It consumes
+commands and produces events like every other system, so it can move to its own process later
+without changing the API. The simulation is deterministic (see `rust-guidelines.md` §7).
+
+```
+ session / admission ──ZoneHandle::send(ZoneInput)──▶ mpsc(1024) ──▶ zone actor
+                                                                       │ every TickSource beat:
+                                                                       │ 1 draft  (ordinals, ≤8/session)
+                                                                       │ 2 TickGate::admit(draft)
+                                                                       │ 3 ZoneState::run_tick
+ subscribers ◀──broadcast(64) Arc<AppliedTick>─────────────────────────┘
+ telemetry   ◀──watch TickStats
+```
+
+- **Inputs.** `ZoneInput { source, seq, command }`. `source` is `System` (admission, eviction,
+  NPCs) or `Session { entity, generation }`. A session may only steer or remove its own entity,
+  and only while its generation is current (`ReplaceSession` fences older sockets). Commands:
+  `SpawnPlayer` (with the loaded character state), `SpawnNpc` (id from the zone RNG),
+  `Despawn`, `ReplaceSession`, `MoveTo` (inside bounds, at most 64 tiles), `StopMove`.
+- **Handle.** `ZoneHandle::send` never blocks: a full queue returns `ZoneSendError::Full` and
+  the session reports `OVERLOADED`. `subscribe()` gives one `Arc<AppliedTick>` per non-idle
+  tick. `snapshot().await` answers at the next tick boundary with nothing deferred. `stats()` is
+  a watch of `TickStats { tick, duration_micros, entities, commands_applied, commands_deferred,
+  gate_holds }`.
+- **Tick.** `TickSource` drives it: `IntervalTicks` (100 ms, missed beats run back to back) in
+  production, `manual_ticks()` for tests and replay. Inputs received before a beat are drafted
+  in receive order, up to 8 per session (the excess waits in order), and get consecutive
+  ordinals. The `TickGate` is awaited before anything is applied. `OpenGate` admits everything.
+  Story 3.2's gate is the acknowledged `JetStream` write of the draft. A refused draft holds the
+  tick: nothing is applied and the same inputs are retried on the next beat.
+- **Output.** `AppliedTick { epoch, tick, server_time_ms, commands, dispositions, events,
+  outputs }`. `commands` (with ordinals and sources) is the replay log's unit. `dispositions`
+  records every refused command. `events` are the zone-wide facts. `outputs` is each player's
+  ordered stream: its own rejections, then AOI despawns, spawns and moves, each in entity-id
+  order. The AOI is the 3x3 block of 32-tile cells, diffed every tick against what the player
+  already knows.
+- **Snapshot.** `ZoneSnapshot` holds full entity state, RNG state, next ordinal, AOI index,
+  `time_origin_ms` and provenance (`schema_version`, `build_id`, `config_hash`,
+  `first_log_seq`). `ZoneState::from_snapshot` validates it. Replaying the logged drafts from
+  it reproduces the same `AppliedTick`s.
+- **Wire.** `interface::zone_mapping` converts to and from `nightfall.v1` world.proto, with
+  one function per message (`spawn_to_pb`, `move_to_pb`, `despawn_to_pb`, `disposition_to_pb`,
+  `observer_output_to_pb`). It is the only place zone values become floats. A spawn of a moving
+  entity becomes `EntitySpawn` and then `EntityMove`. A stopped entity is sent with
+  destination and speed zero. Domain reasons without their own wire value map to `INVALID`,
+  with the domain reason in `detail`.
 
 ## 3. Request lifecycle: `CreateCharacter`
 

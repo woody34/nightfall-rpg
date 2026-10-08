@@ -32,6 +32,7 @@ opentelemetry_sdk.workspace = true
 parking_lot.workspace = true
 prometheus.workspace = true
 prost.workspace = true
+rand_chacha.workspace = true
 sea-orm.workspace = true
 sea-orm-migration.workspace = true
 serde.workspace = true
@@ -51,9 +52,15 @@ tracing-subscriber.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+criterion.workspace = true
 futures-util.workspace = true
 http-body-util.workspace = true
+proptest.workspace = true
 reqwest.workspace = true
+
+[[bench]]
+name = "zone_step"
+harness = false
 
 [build-dependencies]
 anyhow.workspace = true

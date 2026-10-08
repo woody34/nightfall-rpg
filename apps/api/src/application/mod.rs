@@ -7,6 +7,7 @@
 pub mod error;
 pub mod ports;
 pub mod use_cases;
+pub mod zone_actor;
 
 pub use error::AppError;
 pub use ports::{CharacterRepository, Clock, CreateOutcome, EventBus, IdempotencyKey};

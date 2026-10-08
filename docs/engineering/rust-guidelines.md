@@ -106,7 +106,39 @@ pinned in the workspace and matches `.prototools`.
 - Deterministic: seeded RNG, fixed clocks (`Clock` port), fresh schema per Postgres test.
 - Name tests as sentences: `same_key_different_body_is_a_conflict`.
 
-## 7. Documentation
+## 7. Determinism (`domain/zone`)
+
+The zone simulation must replay byte for byte (plan D7, §8 of
+`docs/plans/phase-0b-connected-slice.md`): the same snapshot plus the same applied-command log
+yields the same `AppliedTick` records on any machine and build. Rules for `domain/zone` and
+`application/zone_actor`:
+
+- **No floats.** Positions and lengths are `Fixed` (`i32`, 1/1000 tile). Distances compare
+  exact squared integers (`u128`); movement steps with integer math and a documented
+  rounding rule (`Vec2Fixed::step_toward`) and arrives exactly. Wire floats are converted once,
+  in `interface::zone_mapping`, rounding to the nearest milli-tile after finite/range checks.
+- **No hash-ordered collections.** `BTreeMap` / `BTreeSet` or sorted `Vec`s only, so every
+  iteration order is defined. Events, per-player outputs and AOI diffs are emitted in entity-id
+  and ordinal order.
+- **Time only via `Tick`.** The zone never reads a clock. `server_time_ms` is
+  `time_origin_ms + tick * 100`. The actor's only clock read is a monotonic `Instant` feeding
+  `TickStats::duration_micros`, which never reaches state or output.
+- **Randomness only via the injected generator.** One `ChaCha12Rng` per zone, keyed from
+  `(zone_id, epoch)` with a fixed byte layout. Its full state (key, stream, word position) is in
+  the snapshot. Player entity ids are character ids; every other id comes from the generator.
+- **Every state change is a command.** Commands get an ordinal when drafted; refused commands
+  produce a `Disposition`, never a silent drop. `AppliedTick` is the replay log's unit.
+
+Enforcement: `domain/zone/mod.rs` denies `clippy::float_arithmetic`, `float_cmp`,
+`float_cmp_const`, `lossy_float_literal`, `cast_precision_loss`, `imprecise_flops` and
+`suboptimal_flops` for the whole module, so a float expression fails `moon run api:lint`. The
+test `zone_sources_use_no_nondeterministic_apis` scans every file in the module for float types,
+`HashMap`/`HashSet`, `Instant`/`SystemTime` and ambient RNGs, and `every_zone_source_is_scanned`
+fails if a new file is not in the scan list. `tests/zone_determinism.rs` holds the property
+tests (identical streams across actors and runs, replay of recorded drafts, snapshot
+round-trip, exact arrival).
+
+## 8. Documentation
 
 - `missing_docs` is on. Every public item has a doc comment that says what it is for, and
   for functions, what errors mean.
@@ -114,7 +146,7 @@ pinned in the workspace and matches `.prototools`.
   comments; what the code does belongs in the code.
 - Every `TODO` references an issue or a planning-doc section.
 
-## 8. Dependencies
+## 9. Dependencies
 
 - Declared once in `[workspace.dependencies]` with `default-features = false` where the crate
   has heavy defaults (`sqlx`, `chrono`, `reqwest`), and features listed explicitly.
@@ -122,7 +154,7 @@ pinned in the workspace and matches `.prototools`.
 - Prefer crates already in the tree: `tokio`, `tonic`, `axum`, `sqlx`, `async-nats`, `serde`,
   `thiserror`, `anyhow`, `tracing`, `uuid`, `chrono`, `parking_lot`.
 
-## 9. Patterns we use, by name
+## 10. Patterns we use, by name
 
 From the Rust Design Patterns catalogue:
 
