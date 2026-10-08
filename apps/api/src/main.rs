@@ -2,14 +2,17 @@
 
 use std::sync::Arc;
 
+use nightfall_api::application::replay_log::WatermarkReason;
 use nightfall_api::config::Config;
 use nightfall_api::infrastructure::auth::{KeycloakVerifier, OidcConfig};
 use nightfall_api::infrastructure::memory::TestTokenVerifier;
 use nightfall_api::infrastructure::outbox::{JetStreamPublisher, OutboxRelay};
 use nightfall_api::infrastructure::telemetry::{self, TelemetryConfig};
+use nightfall_api::zone_runtime::{self, ZoneRuntimeConfig};
 use nightfall_api::{
     bind, build_grpc_services, infrastructure, serve_grpc, serve_http, Dependencies,
 };
+use sea_orm::DatabaseConnection;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
@@ -27,8 +30,17 @@ async fn main() -> anyhow::Result<()> {
 async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
     let cfg = Config::from_env()?;
     let shutdown = CancellationToken::new();
-    let (mut deps, relay) = build_dependencies(&cfg, metrics.clone(), &shutdown).await?;
+    let (mut deps, relay, db) = build_dependencies(&cfg, metrics.clone(), &shutdown).await?;
     deps.metrics = metrics.clone();
+    // A new zone epoch every start (plan §8 #5); closed with a watermark on the way out.
+    let zone = zone_runtime::start(
+        &ZoneRuntimeConfig::from_env(),
+        cfg.nats_url.as_deref(),
+        db,
+        deps.clock.clone(),
+        metrics.clone(),
+    )
+    .await?;
     let services = build_grpc_services(&deps);
 
     let (http, grpc) = bind(cfg.http_addr, cfg.grpc_addr).await?;
@@ -46,7 +58,10 @@ async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
         serve_grpc(grpc, services, metrics, stopped(stop_rx)),
     );
 
-    // Servers are down; stop the relay and wait for its in-flight batch.
+    // Servers are down; close the zone epoch, then stop the relay.
+    if let Err(e) = zone.shutdown(WatermarkReason::Shutdown).await {
+        tracing::error!(error = %e, "zone epoch left incomplete");
+    }
     shutdown.cancel();
     if let Some(relay) = relay {
         relay.join().await;
@@ -94,7 +109,7 @@ async fn build_dependencies(
     cfg: &Config,
     metrics: telemetry::Metrics,
     shutdown: &CancellationToken,
-) -> anyhow::Result<(Dependencies, Option<OutboxRelay>)> {
+) -> anyhow::Result<(Dependencies, Option<OutboxRelay>, Option<DatabaseConnection>)> {
     let mut deps = Dependencies::in_memory();
     deps.ws_public_url.clone_from(&cfg.ws_public_url);
     let mut db = None;
@@ -140,7 +155,7 @@ async fn build_dependencies(
         let bus = infrastructure::nats::NatsEventBus::connect(url).await?;
         let client = bus.client().clone();
         deps.bus = Arc::new(bus);
-        if let Some(db) = db {
+        if let Some(db) = db.clone() {
             // The relay is the only publisher of domain events: acknowledged JetStream publish,
             // deduplicated by outbox row id.
             let publisher = JetStreamPublisher::connect(client).await?;
@@ -151,5 +166,5 @@ async fn build_dependencies(
         tracing::warn!("NATS_URL not set: using in-memory event bus");
     }
 
-    Ok((deps, relay))
+    Ok((deps, relay, db))
 }

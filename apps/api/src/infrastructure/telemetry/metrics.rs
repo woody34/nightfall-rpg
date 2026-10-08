@@ -73,8 +73,15 @@ pub struct Metrics {
     pub ws_frames_total: Counter<u64>,
     /// Frames dropped because a client queue was full. No producer yet.
     pub ws_dropped_frames_total: Counter<u64>,
-    /// Time to append one record to the event log. No producer yet.
+    /// Time to append one record (or one pipelined audit batch) to the replay log, by
+    /// `kind` (`applied`, `snapshot`, `watermark`, `session_in`, `session_out`).
     pub eventlog_publish_seconds: Histogram<f64>,
+    /// Failed attempts to append a tick's record; each one is a zone stalling (Story 3.2).
+    pub eventlog_append_failures_total: Counter<u64>,
+    /// Session audit frames dropped (buffer full or not acknowledged). Must stay 0.
+    pub eventlog_audit_dropped_total: Counter<u64>,
+    /// Zones paused because their replay log has been unavailable longer than allowed.
+    pub zones_paused: UpDownCounter<i64>,
     db_query_seconds: Histogram<f64>,
     grpc_requests_total: Counter<u64>,
     http_requests_total: Counter<u64>,
@@ -115,6 +122,18 @@ impl Metrics {
                 .with_description("Time to publish one record to the event log")
                 .with_boundaries(IO_BUCKETS.to_vec())
                 .build(),
+            eventlog_append_failures_total: meter
+                .u64_counter("nightfall_eventlog_append_failures")
+                .with_description("Failed attempts to append a tick record; the zone stalls")
+                .build(),
+            eventlog_audit_dropped_total: meter
+                .u64_counter("nightfall_eventlog_audit_dropped")
+                .with_description("Session audit frames dropped")
+                .build(),
+            zones_paused: meter
+                .i64_up_down_counter("nightfall_zones_paused")
+                .with_description("Zones paused because their replay log is unavailable")
+                .build(),
             db_query_seconds: meter
                 .f64_histogram("nightfall_db_query")
                 .with_unit("s")
@@ -136,6 +155,9 @@ impl Metrics {
         // A counter series that does not exist yet cannot be `increase()`d from zero, so the
         // series an alert depends on are created up front.
         metrics.ws_dropped_frames_total.add(0, &[]);
+        metrics.eventlog_append_failures_total.add(0, &[]);
+        metrics.eventlog_audit_dropped_total.add(0, &[]);
+        metrics.zones_paused.add(0, &[]);
         metrics.record_ws_frames(FrameDirection::In, 0);
         metrics.record_ws_frames(FrameDirection::Out, 0);
         metrics

@@ -10,6 +10,8 @@ use crate::domain::{
     AccountId, Character, CharacterId, DomainEvent, PlayTicket, SessionGeneration, TicketHash,
 };
 
+pub use super::replay_log::{EventLog, ZoneSnapshotStore};
+
 /// Client-supplied key that makes a mutating request safe to retry. Must be a UUID.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IdempotencyKey(Uuid);

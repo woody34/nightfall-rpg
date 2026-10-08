@@ -10,6 +10,7 @@ pub mod config;
 pub mod domain;
 pub mod infrastructure;
 pub mod interface;
+pub mod zone_runtime;
 
 use std::future::Future;
 use std::net::SocketAddr;

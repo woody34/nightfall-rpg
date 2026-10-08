@@ -551,6 +551,73 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Replay log health",
+      "description": "Failed tick-record appends (the zone stalls), zones paused for an unavailable log, and dropped session audit frames. All should be 0.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(nightfall_eventlog_append_failures_total[$__rate_interval]))",
+          "legendFormat": "append failures / s",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(nightfall_zones_paused)",
+          "legendFormat": "zones paused",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(increase(nightfall_eventlog_audit_dropped_total[5m]))",
+          "legendFormat": "audit frames dropped (5 m)",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ],
   "links": [
