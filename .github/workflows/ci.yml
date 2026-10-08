@@ -26,6 +26,7 @@ jobs:
       nats:
         image: nats:2.11-alpine
         ports: ['4222:4222']
+        options: --jetstream
     env:
       DATABASE_URL: postgres://nightfall:nightfall@localhost:5432/nightfall
       NATS_URL: nats://localhost:4222
@@ -40,6 +41,11 @@ jobs:
           auto-install: true
 
       - uses: Swatinem/rust-cache@v2
+
+      # proto installs the Rust toolchain without components; fmt and clippy are required by moon tasks.
+      - name: Install rustfmt and clippy
+        run: rustup component add rustfmt clippy
+
 
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
