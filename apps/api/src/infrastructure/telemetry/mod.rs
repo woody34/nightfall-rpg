@@ -34,6 +34,22 @@ pub use metrics::{FrameDirection, Metrics, OutboxStats, OutboxStatsSource};
 const DEFAULT_FILTER: &str = "info,tower_http=debug,sqlx=warn";
 const METRIC_EXPORT_INTERVAL: Duration = Duration::from_secs(10);
 
+/// The log/span filter: `spec` (normally `RUST_LOG`) or the default, with credential-bearing
+/// dependencies capped at `info` whatever `spec` says. `async_nats` traces the raw `CONNECT`
+/// frame, password included, so it must stay below that level in every build.
+#[must_use]
+pub fn log_filter(spec: Option<&str>) -> EnvFilter {
+    let base = spec
+        .and_then(|s| EnvFilter::try_new(s).ok())
+        .unwrap_or_else(|| EnvFilter::new(DEFAULT_FILTER));
+    // The more specific target is listed too: an explicit `async_nats::connection=trace` in
+    // `spec` would otherwise outrank the crate-wide cap.
+    ["async_nats=info", "async_nats::connection=info"]
+        .into_iter()
+        .filter_map(|d| d.parse().ok())
+        .fold(base, EnvFilter::add_directive)
+}
+
 /// What [`init`] needs. Read from the environment by [`TelemetryConfig::from_env`].
 #[derive(Debug, Clone)]
 pub struct TelemetryConfig {
@@ -206,8 +222,7 @@ pub fn init(cfg: &TelemetryConfig) -> anyhow::Result<TelemetryGuard> {
                 .any(|p| t.starts_with(p))
         }))
     });
-    let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_FILTER));
+    let filter = log_filter(std::env::var("RUST_LOG").ok().as_deref());
 
     // `try_init` fails only when a subscriber already exists; that is fine and expected in tests.
     tracing_subscriber::registry()

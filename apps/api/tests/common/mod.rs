@@ -10,10 +10,12 @@
     clippy::indexing_slicing
 )]
 
+pub mod capture;
 pub mod pg;
 
 use std::sync::Arc;
 
+use nightfall_api::application::CharacterRepository;
 use nightfall_api::infrastructure::memory::{InMemoryCharacterRepository, InMemoryEventBus};
 use nightfall_api::infrastructure::telemetry::Metrics;
 use nightfall_api::infrastructure::SystemClock;
@@ -24,6 +26,7 @@ use tonic::transport::Channel;
 
 pub struct TestApp {
     pub http_base: String,
+    pub grpc_base: String,
     pub grpc: GameServiceClient<Channel>,
     pub session: SessionServiceClient<Channel>,
     pub characters: Arc<InMemoryCharacterRepository>,
@@ -37,10 +40,23 @@ pub struct TestApp {
 impl TestApp {
     pub async fn spawn() -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
+        Self::spawn_with(characters.clone(), characters).await
+    }
+
+    /// Serves `repo` instead of the in-memory repository. `characters` is then an unused
+    /// stand-in, so only use this for tests that never look at it (e.g. failure injection).
+    pub async fn spawn_with_repo(repo: Arc<dyn CharacterRepository>) -> Self {
+        Self::spawn_with(repo, Arc::new(InMemoryCharacterRepository::default())).await
+    }
+
+    async fn spawn_with(
+        repo: Arc<dyn CharacterRepository>,
+        characters: Arc<InMemoryCharacterRepository>,
+    ) -> Self {
         let bus = Arc::new(InMemoryEventBus::default());
         let metrics = Metrics::detached();
         let deps = Dependencies {
-            characters: characters.clone(),
+            characters: repo,
             bus: bus.clone(),
             clock: Arc::new(SystemClock),
             metrics: metrics.clone(),
@@ -65,6 +81,7 @@ impl TestApp {
             .unwrap();
         Self {
             http_base: format!("http://{http_addr}"),
+            grpc_base: format!("http://{grpc_addr}"),
             grpc,
             session,
             characters,

@@ -12,7 +12,7 @@ pub use migrations::Migrator;
 use sea_orm::{DatabaseConnection, SqlxPostgresConnector};
 use sea_orm_migration::MigratorTrait;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
+use sqlx::{Connection, PgPool};
 
 /// Wraps the shared sqlx pool in a `SeaORM` connection. Cheap; both views share connections.
 #[must_use]
@@ -30,8 +30,28 @@ pub async fn connect(database_url: &str) -> anyhow::Result<DatabaseConnection> {
         .acquire_timeout(std::time::Duration::from_secs(5))
         .connect(database_url)
         .await?;
-    let db = connection_from_pool(&pool);
-    Migrator::up(&db, None).await?;
+    migrate(&pool).await?;
     tracing::info!("postgres connected, migrations applied");
-    Ok(db)
+    Ok(connection_from_pool(&pool))
+}
+
+/// Arbitrary fixed key for the migration advisory lock ("NIGHTFAL" as ASCII).
+const MIGRATION_LOCK_KEY: i64 = 0x4e49_4748_5446_414c;
+
+/// Applies pending migrations while holding a Postgres advisory lock, so instances starting
+/// together queue up instead of racing on DDL and `seaql_migrations`; the losers find nothing
+/// left to apply. `sea-orm-migration` takes no lock of its own on Postgres.
+///
+/// The lock is session-scoped and lives on its own connection, which is closed (not returned
+/// to the pool) afterwards: that releases the lock even if the unlock statement fails.
+pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
+    let mut lock_conn = pool.acquire().await?;
+    sqlx::query("SELECT pg_advisory_lock($1)")
+        .bind(MIGRATION_LOCK_KEY)
+        .execute(&mut *lock_conn)
+        .await?;
+    let result = Migrator::up(&connection_from_pool(pool), None).await;
+    lock_conn.detach().close().await.ok();
+    result?;
+    Ok(())
 }

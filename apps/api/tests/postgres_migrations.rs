@@ -3,7 +3,7 @@
 
 mod common;
 
-use nightfall_api::infrastructure::postgres::{connection_from_pool, Migrator};
+use nightfall_api::infrastructure::postgres::{connect, connection_from_pool, migrate, Migrator};
 use sea_orm::{ConnectionTrait, Statement};
 use sea_orm_migration::MigratorTrait;
 use sqlx::Executor;
@@ -67,6 +67,47 @@ async fn upgrade_from_sqlx_schema_keeps_data() {
         .await
         .unwrap();
     assert_eq!(n, 1, "baseline migration must not touch existing data");
+    let applied: i64 = sqlx::query_scalar("SELECT count(*) FROM seaql_migrations")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(applied, 1);
+}
+
+#[tokio::test]
+async fn concurrent_connects_on_a_fresh_database_all_succeed() {
+    let Some(db) = common::pg::fresh_database(None).await else {
+        return;
+    };
+    let attempts = (0..6).map(|_| {
+        tokio::spawn({
+            let url = db.url.clone();
+            async move { connect(&url).await.map(|_| ()) }
+        })
+    });
+    for attempt in attempts {
+        attempt.await.unwrap().unwrap();
+    }
+    db.drop_db().await;
+}
+
+#[tokio::test]
+async fn concurrent_upgrades_from_the_sqlx_schema_all_succeed() {
+    let Some(pool) = common::pg::empty_schema_pool().await else {
+        return;
+    };
+    pool.execute(sqlx::raw_sql(sqlx::AssertSqlSafe(LEGACY_SQL.to_owned())))
+        .await
+        .unwrap();
+    let attempts = (0..6).map(|_| {
+        tokio::spawn({
+            let pool = pool.clone();
+            async move { migrate(&pool).await }
+        })
+    });
+    for attempt in attempts {
+        attempt.await.unwrap().unwrap();
+    }
     let applied: i64 = sqlx::query_scalar("SELECT count(*) FROM seaql_migrations")
         .fetch_one(&pool)
         .await

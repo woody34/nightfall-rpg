@@ -47,6 +47,14 @@ jobs:
         run: rustup component add rustfmt clippy
 
 
+      # Pinned: generated entities differ between CLI versions, so `api:entities-check` needs the
+      # exact version in apps/api/sea-orm-cli.version (entities.sh enforces it).
+      - name: Install sea-orm-cli
+        run: >-
+          cargo install sea-orm-cli --locked
+          --version "$(cat apps/api/sea-orm-cli.version)"
+          --no-default-features --features codegen,sqlx-postgres,runtime-tokio-rustls
+
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
 

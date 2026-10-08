@@ -172,3 +172,43 @@ async fn concurrent_retries_with_same_key_create_exactly_one() {
         .unwrap();
     assert_eq!(n, 1);
 }
+
+async fn count(pool: &PgPool, table: &str) -> i64 {
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT count(*) FROM {table}")))
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
+
+/// The outbox insert is the last write of the transaction. Forcing it to fail (a CHECK that
+/// rejects every new row, in this test's private schema) must undo the character and the key.
+#[tokio::test]
+async fn outbox_insert_failure_rolls_back_character_key_and_event() {
+    let Some(pool) = fresh_pool().await else {
+        return;
+    };
+    pool.execute("ALTER TABLE outbox ADD CONSTRAINT outbox_reject_all CHECK (false) NOT VALID")
+        .await
+        .unwrap();
+    let repo = PgCharacterRepository::new(pool.clone());
+    let c = Character::create(Uuid::nil(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+
+    let err = repo
+        .create_idempotent(&key(KEY_A), "fp", &c)
+        .await
+        .unwrap_err();
+    assert!(matches!(err, RepositoryError::Other(_)), "{err:?}");
+
+    assert_eq!(count(&pool, "characters").await, 0, "character rolled back");
+    assert_eq!(count(&pool, "idempotency_keys").await, 0, "key rolled back");
+    assert_eq!(count(&pool, "outbox").await, 0, "no event staged");
+    assert_eq!(repo.get(c.id).await.unwrap(), None);
+
+    // With the fault removed the same key is usable: nothing was left half-claimed.
+    pool.execute("ALTER TABLE outbox DROP CONSTRAINT outbox_reject_all")
+        .await
+        .unwrap();
+    let out = repo.create_idempotent(&key(KEY_A), "fp", &c).await.unwrap();
+    assert_eq!(out, CreateOutcome::Created(c));
+    assert_eq!(count(&pool, "outbox").await, 1);
+}

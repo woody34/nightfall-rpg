@@ -11,34 +11,8 @@
 
 mod common;
 
-use std::io;
-use std::sync::Arc;
-
+use common::capture::Capture;
 use common::TestApp;
-use parking_lot::Mutex;
-use tracing_subscriber::fmt::MakeWriter;
-
-#[derive(Clone, Default)]
-struct Capture(Arc<Mutex<Vec<u8>>>);
-
-impl io::Write for Capture {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.lock().extend_from_slice(buf);
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl<'a> MakeWriter<'a> for Capture {
-    type Writer = Self;
-
-    fn make_writer(&'a self) -> Self::Writer {
-        self.clone()
-    }
-}
 
 #[tokio::test]
 async fn query_string_and_authorization_header_never_appear_in_spans_or_logs() {
@@ -46,16 +20,7 @@ async fn query_string_and_authorization_header_never_appear_in_spans_or_logs() {
     const HEADER_SECRET: &str = "SENTINEL-BEARER-77d2e0";
 
     let capture = Capture::default();
-    // Thread-local default: #[tokio::test] runs the servers on this thread.
-    let _guard = tracing::subscriber::set_default(
-        tracing_subscriber::fmt()
-            .json()
-            .with_max_level(tracing::Level::TRACE)
-            .with_current_span(true)
-            .with_span_list(true)
-            .with_writer(capture.clone())
-            .finish(),
-    );
+    let _guard = capture.install();
 
     let app = TestApp::spawn().await;
     let res = reqwest::Client::new()
@@ -66,7 +31,7 @@ async fn query_string_and_authorization_header_never_appear_in_spans_or_logs() {
         .unwrap();
     assert_eq!(res.status(), 200);
 
-    let logged = String::from_utf8(capture.0.lock().clone()).unwrap();
+    let logged = capture.text();
     assert!(
         logged.contains("\"http.path\":\"/health\""),
         "request span not captured, test is vacuous:\n{logged}"
