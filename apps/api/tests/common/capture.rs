@@ -16,10 +16,15 @@ impl Capture {
     /// Installs a thread-local subscriber (all levels, spans included) that writes JSON here.
     /// `#[tokio::test]` runs everything on the test thread, so tasks it spawns are captured.
     pub fn install(&self) -> DefaultGuard {
+        self.install_with(tracing_subscriber::EnvFilter::new("trace"))
+    }
+
+    /// Like [`Self::install`], filtered like production would be.
+    pub fn install_with(&self, filter: tracing_subscriber::EnvFilter) -> DefaultGuard {
         tracing::subscriber::set_default(
             tracing_subscriber::fmt()
                 .json()
-                .with_max_level(tracing::Level::TRACE)
+                .with_env_filter(filter)
                 .with_current_span(true)
                 .with_span_list(true)
                 .with_writer(self.clone())

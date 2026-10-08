@@ -13,13 +13,15 @@ mod common;
 use common::capture::Capture;
 use nightfall_api::infrastructure::nats::NatsEventBus;
 use nightfall_api::infrastructure::postgres;
+use nightfall_api::infrastructure::telemetry;
 
 const SENTINEL: &str = "SENTINEL-PASSWORD-9c3e71";
 
 #[tokio::test]
 async fn nats_url_password_never_reaches_logs() {
     let capture = Capture::default();
-    let _guard = capture.install();
+    // Everything the production filter lets through, with the most verbose user setting.
+    let _guard = capture.install_with(telemetry::log_filter(Some("trace")));
 
     // Reachable server (a credential-less server ignores the user info) and an unreachable one,
     // so both the success and failure paths are exercised.
@@ -45,7 +47,8 @@ async fn database_url_password_never_reaches_logs() {
         return;
     };
     let capture = Capture::default();
-    let _guard = capture.install();
+    // Everything the production filter lets through, with the most verbose user setting.
+    let _guard = capture.install_with(telemetry::log_filter(Some("trace")));
 
     postgres::connect(&db.url).await.unwrap();
     let logged = capture.text();
