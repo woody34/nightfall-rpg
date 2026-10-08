@@ -28,6 +28,7 @@ mod aoi;
 mod command;
 mod entity;
 mod fixed;
+mod npc_template;
 mod state;
 
 pub use aoi::{aoi_cells_for, AoiCell, AoiIndex, CellCoord, AOI_CELL_TILES};
@@ -37,6 +38,7 @@ pub use command::{
 };
 pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
 pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
+pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot, Q};
 pub use state::{
     InvalidBounds, RngState, SnapshotError, SnapshotMeta, TickError, ZoneBounds, ZoneId, ZoneSeed,
     ZoneSnapshot, ZoneState, MAX_MOVE_DISTANCE_TILES, SNAPSHOT_SCHEMA_VERSION,
@@ -48,12 +50,13 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 7] = [
+    const SOURCES: [(&str, &str); 8] = [
         ("mod.rs", include_str!("mod.rs")),
         ("aoi.rs", include_str!("aoi.rs")),
         ("command.rs", include_str!("command.rs")),
         ("entity.rs", include_str!("entity.rs")),
         ("fixed.rs", include_str!("fixed.rs")),
+        ("npc_template.rs", include_str!("npc_template.rs")),
         ("state.rs", include_str!("state.rs")),
         ("state_tests.rs", include_str!("state_tests.rs")),
     ];

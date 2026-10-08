@@ -150,6 +150,10 @@ highest the log or `zone_snapshots` knows. `ZoneBootstrap::start` loads the zone
 **snapshot** to the log and its row to `zone_snapshots`, and only then builds the gate (it needs
 the `EpochStarted` proof that writing the snapshot returns) and spawns the actor. Starting NPCs
 enter as `SpawnNpc` commands on the first tick, so they are in the applied log too.
+
+**Data.** TOML under `packages/data/` (layout and units: its README) is parsed in
+`infrastructure::{zone_data, npc_data}` into typed domain values (`NpcTemplate`, `SpawnSlot`, no
+floats), fully validated at startup, and hashed with `DataHash` into `config_hash`.
 `RunningZone::shutdown` stops the actor after its current tick and writes the **watermark**
 (last acknowledged tick, record count, reason `shutdown` or `epoch_end`).
 

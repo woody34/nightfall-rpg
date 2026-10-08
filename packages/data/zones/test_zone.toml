@@ -9,12 +9,36 @@ name = "Test Zone"
 min = [0, 0]
 max = [256, 256]
 
+# Fixed non-combat fixtures: not templates, never attackable (`attackable` must be false).
 [[npcs]]
 name = "Gatekeeper"
+attackable = false
 pos = [128, 128]
 speed = 0
 
 [[npcs]]
 name = "Wanderer"
+attackable = false
 pos = [32, 32]
 speed = 500
+
+# Where a dead player returns (town respawn), whole tiles.
+[safe_point]
+pos = [126, 126]
+
+# Monster spawn slots (plan E3.1): `template` names packages/data/npcs/<template>.toml; `home` in
+# whole tiles; respawn_* omitted = the template's. Slots a and b are 4 tiles apart so social
+# (clan) aggro can be exercised.
+[[spawn_slots]]
+id = "keltir_a"
+template = "keltir"
+home = [100, 100]
+count = 2
+
+[[spawn_slots]]
+id = "keltir_b"
+template = "keltir"
+home = [104, 102]
+count = 1
+respawn_delay_secs = 20
+respawn_random_secs = 5

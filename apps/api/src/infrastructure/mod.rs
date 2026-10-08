@@ -8,12 +8,16 @@
 //! * `outbox`: relay from the `outbox` table to `JetStream`; the only publisher of domain events.
 //! * `secrets`: the OS random source for play tickets.
 //! * `eventlog`: the zone replay log on `JetStream` (and in memory).
+//! * `data_hash`: composite config hash over data files.
+//! * `npc_data`: NPC template and spawn-slot parsing and validation.
 //! * `zone_data`: zone definitions from `packages/data/zones/`.
 
 pub mod auth;
+pub mod data_hash;
 pub mod eventlog;
 pub mod memory;
 pub mod nats;
+pub mod npc_data;
 pub mod outbox;
 pub mod postgres;
 pub mod secrets;
