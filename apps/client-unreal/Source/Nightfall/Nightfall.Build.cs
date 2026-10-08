@@ -32,6 +32,7 @@ public class Nightfall : ModuleRules
 			"ApplicationCore",  // clipboard (copy verification URL)
 			"NavigationSystem",
 			"EngineSettings",   // UGameMapsSettings (content wiring test)
+			"NavigationSystem",   // nav mesh presence check before the local preview
 			"AIModule",     // SimpleMoveToLocation for local click-to-move preview
 		});
 

@@ -1,4 +1,5 @@
 #include "NightfallCharacter.h"
+#include "OwnEntityComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -27,6 +28,8 @@ ANightfallCharacter::ANightfallCharacter()
 	{
 		Body->SetStaticMesh(Cylinder.Object);
 	}
+
+	OwnEntity = CreateDefaultSubobject<UOwnEntityComponent>(TEXT("OwnEntity"));
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);

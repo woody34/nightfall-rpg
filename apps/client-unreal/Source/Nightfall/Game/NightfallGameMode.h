@@ -20,6 +20,9 @@ public:
 
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 
+	/** Spawns the pawn on the player's own EntitySpawn position when known (PlayerStart may be anywhere). */
+	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
+
 	/** Proxy class for server entities (BP_RemoteEntity). */
 	UPROPERTY(EditDefaultsOnly, Category = "Nightfall")
 	TSubclassOf<ARemoteEntityActor> EntityClass;

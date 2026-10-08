@@ -6,6 +6,7 @@
 #include "World/RemoteEntityActor.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Level.h"
+#include "GameFramework/Character.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
@@ -61,6 +62,8 @@ bool FContentWiringTest::RunTest(const FString& Parameters)
 
 	const ANightfallGameMode* Gm = GetDefault<ANightfallGameMode>(GmClass);
 	TestEqual(TEXT("game mode uses BP_NightfallPC"), Gm->PlayerControllerClass.Get(), PcClass);
+	TestTrue(TEXT("game mode pawn is a Character (has a nav movement component)"),
+		Gm->DefaultPawnClass != nullptr && Gm->DefaultPawnClass->IsChildOf(ACharacter::StaticClass()));
 	TestEqual(TEXT("game mode EntityClass is BP_RemoteEntity"), Gm->EntityClass.Get(), RemoteClass);
 
 	UWorld* TestZone = LoadObject<UWorld>(nullptr, TEXT("/Game/Maps/L_TestZone.L_TestZone"));

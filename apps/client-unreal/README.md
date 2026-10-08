@@ -43,6 +43,7 @@ Source/Nightfall/
   World/RemoteEntityActor.*  Visual proxy for a server entity; Blueprint subclass adds the mesh
   World/WorldProxySubsystem.* Spawns/destroys proxies from server events
   NightfallPlayerController.* Click-to-move: raycast, local preview, MoveTo intent
+  Game/OwnEntityComponent.*  On the pawn: reconciles it with EntitySpawn/EntityMove of the player's own entity
   Tests/                     Automation tests (Nightfall.Net.*)
   Generated/                 protoc + protoc-gen-turbolink output, committed. Compiled in TurboLinkGrpc (see below)
   GrpcBridge/                NightfallWire: binary encode/decode of world.proto envelopes, also compiled in TurboLinkGrpc
@@ -53,6 +54,32 @@ Scripts/
   run-tests.sh               Headless automation tests (moon: test-editor); fetches a Keycloak token for EndToEnd
   create-content.sh          Regenerates Content/ headless from create_content.py (moon: create-content)
 ```
+
+## Movement
+
+Diagram: [click to move](../../docs/diagrams/click-to-move-sequence.html).
+
+- **Click:** left mouse (`IMC_Default` maps it to `IA_ClickMove`, both set on `BP_NightfallPC`).
+  `OnClickMove` raycasts the ground, or intersects the ground plane if nothing with collision is hit,
+  then `MoveToWorldLocation` starts `SimpleMoveToLocation` (needs the nav mesh built from
+  `L_TestZone`'s `NavMeshBoundsVolume`; a warning says so when there is none) and sends `MoveTo`.
+- **Units:** the server speaks tiles, the client centimetres: `tile = cm / 100`, `cm = tile * 100`
+  (`UnitsPerTile`, 256x256 tiles = 25600 cm). The server rejects destinations farther than 64 tiles.
+- **Own entity:** the player's entity id is the character id; `ULoginFlowSubsystem` hands it to
+  `UNetClientSubsystem::SetOwnEntityId` when `IssuePlayTicket` succeeds. `UWorldProxySubsystem`
+  spawns no proxy for it. `UOwnEntityComponent` on `ANightfallCharacter` snaps the pawn to the
+  server position when it is more than 3 tiles off (this also places it on its `EntitySpawn` tile,
+  wherever `PlayerStart` is), re-issues the local move when the server destination differs from the
+  click by more than 1 tile, and walks at the server's speed.
+- **Rejections:** `IntentRejected` for the pending `seq` cancels the preview and writes the reason
+  to the on-screen status line.
+- **Logs:** `LogNightfall` at Verbose prints each `MoveTo` (tile), `Ack`, `IntentRejected` and own
+  `EntityMove` (`-ExecCmds="Log LogNightfall Verbose"`).
+- **Headless:** `nf.ClickMove <tileX> <tileY> [delaySeconds]` runs the click path without a mouse, e.g.
+  `-game -nullrhi -DevTokenFile=<file> -ExecCmds="nf.Login, nf.EnterWorld, nf.ClickMove 20 20 10"`.
+- Tests: `Nightfall.Movement.ClickToMove` (no server) and `Nightfall.Movement.EndToEnd` (API running).
+- Building while another editor is open for this engine: add `-NoHotReload` to `Build.sh`, or UBT
+  names the modules `...-0001.so` and the link fails.
 
 ## Installing Unreal on Linux
 

@@ -55,11 +55,11 @@ public:
 
 	static FString NewIdempotencyKey();
 
+	void SetStatus(const FString& Status);
+
 private:
 	/** Runs Call with a valid access token, or fails Callback with Unauthenticated. */
 	void WithFreshToken(TFunction<void()> Call, FResultCallback Fail);
-
-	void SetStatus(const FString& Status);
 
 	UFUNCTION()
 	void HandleConnected();

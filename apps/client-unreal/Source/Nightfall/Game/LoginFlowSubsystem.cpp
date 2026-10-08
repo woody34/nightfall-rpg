@@ -146,6 +146,9 @@ void ULoginFlowSubsystem::EnterWorld(const FString& CharacterId, FResultCallback
 			return;
 		}
 
+		// The server's entity id for a player is the character id.
+		Weak->Net->SetOwnEntityId(CharacterId);
+
 		// Reconnects ask for a brand-new ticket each time (plan §8 #9).
 		Weak->Net->SetTicketProvider([Weak, CharacterId](UNetClientSubsystem::FTicketCallback OnNewTicket)
 		{
@@ -186,6 +189,7 @@ void ULoginFlowSubsystem::LeaveWorld()
 	SelectedCharacterId.Empty();
 	if (Net != nullptr)
 	{
+		Net->SetOwnEntityId(FString());
 		Net->SetTicketProvider(nullptr);
 		Net->Disconnect();
 	}

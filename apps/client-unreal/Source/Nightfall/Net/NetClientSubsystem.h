@@ -13,6 +13,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNetDisconnected, const FString&, 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntitySpawn, const FEntitySpawn&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntityMove, const FEntityMove&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntityDespawn, const FEntityDespawn&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnIntentAck, const FAck&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnIntentRejected, const FIntentRejected&);
 
 /** What a WebSocket upgrade is made from. The ticket rides in Headers, never in Url (plan §8 #7). */
 struct FWsUpgradeRequest
@@ -79,6 +81,14 @@ public:
 	/** Sends a MoveTo intent. Returns the seq the server will ack. */
 	uint32 SendMoveTo(const FNetVec2& Destination);
 
+	/**
+	 * The entity this client controls. The server uses the character id as the player's entity id,
+	 * so the login flow sets it when IssuePlayTicket succeeds. Empty when not in the world.
+	 */
+	void SetOwnEntityId(const FString& EntityId) { OwnEntityId = EntityId; }
+	const FString& GetOwnEntityId() const { return OwnEntityId; }
+	bool IsOwnEntity(const FString& EntityId) const { return !OwnEntityId.IsEmpty() && OwnEntityId.Equals(EntityId, ESearchCase::IgnoreCase); }
+
 	/** Server time estimate for interpolation. Offset is learned from EntityMove timestamps. */
 	int64 EstimatedServerTimeMs() const;
 
@@ -100,6 +110,8 @@ public:
 	FOnEntitySpawn OnEntitySpawn;
 	FOnEntityMove OnEntityMove;
 	FOnEntityDespawn OnEntityDespawn;
+	FOnIntentAck OnIntentAck;
+	FOnIntentRejected OnIntentRejected;
 
 private:
 	void Open(const FString& WsUrl, const FString& PlayTicket);
@@ -123,6 +135,7 @@ private:
 	uint32 NextSeq = 0;
 	uint32 LastAckedSeq = 0;
 	int64 ServerClockOffsetMs = 0;
+	FString OwnEntityId;
 	TArray<uint8> Frame;              // reassembly buffer for fragmented frames
 	FSnapshotBuffer SnapshotBuffer;
 	TMap<FString, FEntitySpawn> KnownEntities;
