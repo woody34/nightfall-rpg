@@ -37,7 +37,9 @@ impl Authenticate {
             | AuthError::UnknownKey
             | AuthError::Invalid(_) => AppError::Unauthenticated(e.to_string()),
         })?;
-        let account = AccountId::parse(&claims.sub)
+        let account = claims
+            .sub
+            .parse::<AccountId>()
             .map_err(|_| AppError::Unauthenticated("token subject is not an account id".into()))?;
         self.ensure_account.execute(account).await?;
         Ok(account)

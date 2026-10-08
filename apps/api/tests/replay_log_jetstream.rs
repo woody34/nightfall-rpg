@@ -95,7 +95,7 @@ async fn applied_records_round_trip_through_jetstream_in_order() {
         .await
         .unwrap();
     assert_eq!(running.epoch(), 1, "a fresh zone starts at epoch 1");
-    let id = EntityId(Uuid::from_u128(1));
+    let id = EntityId::from_uuid(Uuid::from_u128(1));
     running
         .handle()
         .send(ZoneInput::system(ZoneCommand::SpawnPlayer {
@@ -380,7 +380,7 @@ async fn ack_latency() {
         .map(|n| {
             ObserverOutput::Event(ZoneEvent::EntityMove {
                 tick: Tick(1),
-                entity: EntityId(Uuid::from_u128(n)),
+                entity: EntityId::from_uuid(Uuid::from_u128(n)),
                 pos: Vec2Fixed::from_tiles(10, 10),
                 dest: Some(Vec2Fixed::from_tiles(20, 20)),
                 speed: Speed::DEFAULT,
@@ -389,7 +389,7 @@ async fn ack_latency() {
         .collect();
     let busy_outputs: Vec<PlayerOutput> = (0..50_u128)
         .map(|n| PlayerOutput {
-            entity: EntityId(Uuid::from_u128(n)),
+            entity: EntityId::from_uuid(Uuid::from_u128(n)),
             bytes: encode_outputs(&moves),
         })
         .collect();

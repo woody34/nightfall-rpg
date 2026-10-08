@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn move_intent_becomes_move_to_and_requires_a_destination() {
-        let e = EntityId(Uuid::from_u128(1));
+        let e = EntityId::from_uuid(Uuid::from_u128(1));
         let intent = pb::client_message::Intent::MoveTo(pb::MoveToRequest {
             destination: Some(pb::Position { x: 3.5, y: -1.25 }),
         });
@@ -334,7 +334,7 @@ mod tests {
     fn stopped_move_has_a_zero_destination_and_the_given_time() {
         let ev = ZoneEvent::EntityMove {
             tick: Tick(12),
-            entity: EntityId(Uuid::from_u128(1)),
+            entity: EntityId::from_uuid(Uuid::from_u128(1)),
             pos: Vec2Fixed::from_tiles(2, 3),
             dest: None,
             speed: Speed::DEFAULT,
@@ -356,7 +356,7 @@ mod tests {
     fn spawn_of_a_moving_entity_is_followed_by_its_move() {
         let ev = ZoneEvent::EntitySpawn {
             tick: Tick(1),
-            entity: EntityId(Uuid::from_u128(1)),
+            entity: EntityId::from_uuid(Uuid::from_u128(1)),
             kind: EntityKind::Npc,
             name: "wolf".to_owned(),
             pos: Vec2Fixed::from_tiles(1, 1),

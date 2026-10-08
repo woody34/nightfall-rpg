@@ -28,7 +28,7 @@ fn state() -> ZoneState {
 }
 
 fn id(n: u128) -> EntityId {
-    EntityId(Uuid::from_u128(n))
+    EntityId::from_uuid(Uuid::from_u128(n))
 }
 
 fn spawn(n: u128) -> ZoneInput {

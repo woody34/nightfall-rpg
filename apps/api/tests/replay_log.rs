@@ -96,7 +96,7 @@ fn fast_gate() -> GateConfig {
 
 fn player(n: u128) -> ZoneInput {
     ZoneInput::system(ZoneCommand::SpawnPlayer {
-        entity: EntityId(Uuid::from_u128(n)),
+        entity: EntityId::from_uuid(Uuid::from_u128(n)),
         name: format!("p{n}"),
         pos: Vec2Fixed::from_tiles(40, 40),
         speed: Speed::DEFAULT,
@@ -155,11 +155,16 @@ async fn replaying_the_log_from_the_snapshot_reproduces_every_output_byte() {
     zone.handle().send(player(2)).unwrap();
     driver.step().await.unwrap();
     let walk = ZoneCommand::MoveTo {
-        entity: EntityId(Uuid::from_u128(1)),
+        entity: EntityId::from_uuid(Uuid::from_u128(1)),
         dest: Vec2Fixed::from_tiles(60, 45),
     };
     zone.handle()
-        .send(ZoneInput::session(EntityId(Uuid::from_u128(1)), SessionGeneration(1), 1, walk))
+        .send(ZoneInput::session(
+            EntityId::from_uuid(Uuid::from_u128(1)),
+            SessionGeneration(1),
+            1,
+            walk,
+        ))
         .unwrap();
     for _ in 0..30 {
         driver.step().await.unwrap();
@@ -591,7 +596,7 @@ async fn a_full_audit_buffer_or_a_dead_broker_drops_and_counts_frames() {
 // ---- byte-for-byte round trip ---------------------------------------------------------------
 
 fn entity() -> impl Strategy<Value = EntityId> {
-    any::<u128>().prop_map(|n| EntityId(Uuid::from_u128(n)))
+    any::<u128>().prop_map(|n| EntityId::from_uuid(Uuid::from_u128(n)))
 }
 
 fn point() -> impl Strategy<Value = Vec2Fixed> {

@@ -324,7 +324,7 @@ pub(super) fn encode_session_out(r: &SessionOutRecord) -> Vec<u8> {
 }
 
 fn entity_bytes(id: EntityId) -> Vec<u8> {
-    id.0.as_bytes().to_vec()
+    id.as_uuid().as_bytes().to_vec()
 }
 
 fn vec_to_pb(v: Vec2Fixed) -> PbVec {
@@ -551,7 +551,7 @@ fn uuid_from(bytes: &[u8]) -> Result<Uuid, CodecError> {
 }
 
 fn entity_from(bytes: &[u8]) -> Result<EntityId, CodecError> {
-    uuid_from(bytes).map(EntityId)
+    uuid_from(bytes).map(EntityId::from_uuid)
 }
 
 fn vec_from(v: Option<PbVec>) -> Result<Vec2Fixed, CodecError> {

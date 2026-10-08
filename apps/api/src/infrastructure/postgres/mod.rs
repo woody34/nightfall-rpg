@@ -21,6 +21,58 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::{Connection, PgPool};
 pub use zone_snapshot_store::PgZoneSnapshotStore;
 
+/// Lets a `uuid_id!` newtype be used directly in `SeaORM` queries and entity fields by
+/// delegating to the `Uuid` implementations. Lives here, not next to `uuid_id!`, so the domain
+/// layer stays free of persistence crates.
+macro_rules! uuid_id_sea_orm {
+    ($($name:ty),+ $(,)?) => {$(
+        impl From<$name> for sea_orm::Value {
+            fn from(id: $name) -> Self {
+                id.as_uuid().into()
+            }
+        }
+
+        impl sea_orm::TryGetable for $name {
+            fn try_get_by<I: sea_orm::ColIdx>(
+                res: &sea_orm::QueryResult,
+                index: I,
+            ) -> Result<Self, sea_orm::TryGetError> {
+                <uuid::Uuid as sea_orm::TryGetable>::try_get_by(res, index).map(Self::from_uuid)
+            }
+        }
+
+        impl sea_orm::sea_query::ValueType for $name {
+            fn try_from(v: sea_orm::Value) -> Result<Self, sea_orm::sea_query::ValueTypeErr> {
+                <uuid::Uuid as sea_orm::sea_query::ValueType>::try_from(v).map(Self::from_uuid)
+            }
+
+            fn type_name() -> String {
+                stringify!($name).to_owned()
+            }
+
+            fn array_type() -> sea_orm::sea_query::ArrayType {
+                <uuid::Uuid as sea_orm::sea_query::ValueType>::array_type()
+            }
+
+            fn column_type() -> sea_orm::sea_query::ColumnType {
+                <uuid::Uuid as sea_orm::sea_query::ValueType>::column_type()
+            }
+        }
+
+        impl sea_orm::sea_query::Nullable for $name {
+            fn null() -> sea_orm::Value {
+                <uuid::Uuid as sea_orm::sea_query::Nullable>::null()
+            }
+        }
+    )+};
+}
+
+uuid_id_sea_orm!(
+    crate::domain::AccountId,
+    crate::domain::CharacterId,
+    crate::application::IdempotencyKey,
+);
+
 /// Wraps the shared sqlx pool in a `SeaORM` connection. Cheap; both views share connections.
 #[must_use]
 pub fn connection_from_pool(pool: &PgPool) -> DatabaseConnection {

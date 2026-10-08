@@ -641,7 +641,7 @@ impl ZoneState {
     fn random_entity_id(&mut self) -> EntityId {
         let mut bytes = [0_u8; 16];
         self.rng.fill_bytes(&mut bytes);
-        EntityId(uuid::Builder::from_random_bytes(bytes).into_uuid())
+        EntityId::from_uuid(uuid::Builder::from_random_bytes(bytes).into_uuid())
     }
 
     /// The movement phase of a tick, exposed for benchmarks; [`Self::run_tick`] is the

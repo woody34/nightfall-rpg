@@ -1,5 +1,7 @@
 //! Application error type. Interface adapters map this to gRPC status codes and HTTP status.
 
+use std::str::FromStr;
+
 use crate::domain::character::NameError;
 
 /// Every way a use case can fail. Variants are deliberately coarse: they are the contract with
@@ -39,4 +41,13 @@ impl From<NameError> for AppError {
     fn from(e: NameError) -> Self {
         AppError::InvalidArgument(e.to_string())
     }
+}
+
+/// Parses a wire identifier, naming `field` in the `InvalidArgument` message on failure.
+///
+/// # Errors
+/// `InvalidArgument("{field} must be a UUID")` when `raw` is not a UUID.
+pub fn parse_id<T: FromStr>(field: &'static str, raw: &str) -> Result<T, AppError> {
+    raw.parse()
+        .map_err(|_| AppError::InvalidArgument(format!("{field} must be a UUID")))
 }

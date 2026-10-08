@@ -52,6 +52,10 @@ pinned in the workspace and matches `.prototools`.
 - **Newtype every identifier and unit.** `CharacterId(Uuid)`, `IdempotencyKey(Uuid)`,
   `CharacterName(String)`. A function taking two `Uuid`s can have them swapped; one taking a
   `CharacterId` and an `AccountId` cannot.
+  UUID ids are declared with `uuid_id!` (`domain/ids.rs`), never hand-rolled, and parsed at the
+  transport edge with `application::parse_id("field", raw)`, which yields the uniform
+  `InvalidArgument("field must be a UUID")`. `SeaORM` conversions are added in
+  `infrastructure/postgres/mod.rs` via `uuid_id_sea_orm!` so the domain stays persistence-free.
 - **Validate in constructors.** `CharacterName::new` is the only way to get a `CharacterName`,
   so every instance is 3-16 ASCII letters. Code downstream never re-checks.
 - **Enums over booleans and sentinels.** `Race` not `u8`; `CreateOutcome::{Created, Replayed,

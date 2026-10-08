@@ -53,7 +53,7 @@ impl SessionRepository for InMemorySessionRepository {
         ticket: &NewTicket,
     ) -> anyhow::Result<IssueOutcome> {
         let mut s = self.state.lock();
-        let scoped = (ticket.account_id, key.clone());
+        let scoped = (ticket.account_id, *key);
         if let Some((stored_fp, response)) = s.keys.get(&scoped) {
             if stored_fp != fingerprint {
                 return Ok(IssueOutcome::KeyReused);

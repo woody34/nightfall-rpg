@@ -83,7 +83,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
         character: &Character,
     ) -> Result<CreateOutcome, RepositoryError> {
         let mut s = self.state.lock();
-        let scoped = (character.account_id, key.clone());
+        let scoped = (character.account_id, *key);
         if let Some((stored_fp, id)) = s.keys.get(&scoped) {
             if stored_fp != fingerprint {
                 return Ok(CreateOutcome::KeyReused);

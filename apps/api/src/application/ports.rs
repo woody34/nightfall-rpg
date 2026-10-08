@@ -1,20 +1,18 @@
 //! Ports: the traits the application layer needs the outside world to implement.
 
-use std::fmt;
-
-use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
-
+use crate::domain::ids::uuid_id;
 use crate::domain::{
     AccountId, Character, CharacterId, DomainEvent, PlayTicket, SessionGeneration, TicketHash,
 };
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 
 pub use super::replay_log::{EventLog, ZoneSnapshotStore};
 
-/// Client-supplied key that makes a mutating request safe to retry. Must be a UUID.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct IdempotencyKey(Uuid);
+uuid_id!(
+    /// Client-supplied key that makes a mutating request safe to retry. Must be a UUID.
+    IdempotencyKey
+);
 
 impl IdempotencyKey {
     /// Parses the wire form. Empty or non-UUID input is rejected.
@@ -22,21 +20,7 @@ impl IdempotencyKey {
         if raw.is_empty() {
             return Err(IdempotencyKeyError::Missing);
         }
-        Uuid::parse_str(raw)
-            .map(Self)
-            .map_err(|_| IdempotencyKeyError::Invalid)
-    }
-
-    /// Underlying UUID.
-    #[must_use]
-    pub const fn as_uuid(&self) -> Uuid {
-        self.0
-    }
-}
-
-impl fmt::Display for IdempotencyKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        raw.parse().map_err(|_| IdempotencyKeyError::Invalid)
     }
 }
 

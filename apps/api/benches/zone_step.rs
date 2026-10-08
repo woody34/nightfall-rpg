@@ -54,7 +54,7 @@ fn moving_zone(players: bool) -> ZoneState {
     for i in 0..ENTITIES {
         let x = i32::try_from(i % 32).unwrap() * 8;
         let y = i32::try_from(i / 32).unwrap() * 8;
-        let entity = EntityId(Uuid::from_u128(u128::from(i) + 1));
+        let entity = EntityId::from_uuid(Uuid::from_u128(u128::from(i) + 1));
         let pos = Vec2Fixed::from_tiles(x, y);
         let dest = Vec2Fixed::from_tiles(if x < 128 { x + 60 } else { x - 60 }, y);
         let spawn = if players {
