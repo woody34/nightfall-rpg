@@ -1,4 +1,5 @@
 #![allow(
+    deprecated,
     missing_docs,
     unreachable_pub,
     clippy::unwrap_used,
