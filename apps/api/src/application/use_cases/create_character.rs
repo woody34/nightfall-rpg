@@ -133,6 +133,31 @@ mod tests {
         assert!(matches!(err, AppError::AlreadyExists(_)));
     }
 
+    struct Down;
+
+    #[async_trait::async_trait]
+    impl CharacterRepository for Down {
+        async fn get(&self, _id: crate::domain::CharacterId) -> anyhow::Result<Option<Character>> {
+            anyhow::bail!("down")
+        }
+
+        async fn create_idempotent(
+            &self,
+            _key: &IdempotencyKey,
+            _fingerprint: &str,
+            _character: &Character,
+        ) -> Result<CreateOutcome, RepositoryError> {
+            Err(RepositoryError::Other(anyhow::anyhow!("down")))
+        }
+    }
+
+    #[tokio::test]
+    async fn repository_failure_is_an_infrastructure_error() {
+        let uc = CreateCharacter::new(Arc::new(Down));
+        let err = uc.execute(input(KEY_A, "Legolas")).await.unwrap_err();
+        assert!(matches!(err, AppError::Infrastructure(_)), "{err:?}");
+    }
+
     #[tokio::test]
     async fn invalid_name_is_rejected_before_any_port_call() {
         let (uc, repo) = sut();

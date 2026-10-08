@@ -109,11 +109,12 @@ async fn build_dependencies(
 
     let mut relay = None;
     if let Some(url) = &cfg.nats_url {
-        deps.bus = Arc::new(infrastructure::nats::NatsEventBus::connect(url).await?);
+        let bus = infrastructure::nats::NatsEventBus::connect(url).await?;
+        let client = bus.client().clone();
+        deps.bus = Arc::new(bus);
         if let Some(db) = db {
             // The relay is the only publisher of domain events: acknowledged JetStream publish,
             // deduplicated by outbox row id.
-            let client = async_nats::connect(url).await?;
             let publisher = JetStreamPublisher::connect(client).await?;
             relay = Some(OutboxRelay::spawn(db, Arc::new(publisher), &metrics, shutdown.clone()));
             tracing::info!("outbox relay started");

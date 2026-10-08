@@ -9,8 +9,14 @@
 
 mod common;
 
+use std::sync::Arc;
+
+use async_trait::async_trait;
 use common::{TestApp, ACCOUNT, KEY_A, KEY_B};
+use nightfall_api::application::ports::RepositoryError;
+use nightfall_api::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
 use nightfall_api::domain::DomainEvent;
+use nightfall_api::domain::{Character, CharacterId};
 use nightfall_api::interface::grpc::pb::{self, CreateCharacterRequest, GetCharacterRequest};
 use tonic::Code;
 
@@ -32,8 +38,24 @@ async fn creates_character_readable_afterwards_and_publishes_event() {
         .await
         .unwrap()
         .into_inner();
+    // Asserted against literals, not against get_character: a mapping bug shared by both
+    // paths must not cancel out. Orc starting stats are the domain's table.
+    assert!(uuid::Uuid::parse_str(&created.id).is_ok(), "id {}", created.id);
     assert_eq!(created.name, "Thrall");
     assert_eq!(created.race, pb::Race::Orc as i32);
+    assert_eq!(created.level, 1);
+    assert_eq!(
+        created.stats,
+        Some(pb::BaseStats {
+            str: 40,
+            dex: 26,
+            con: 47,
+            int: 18,
+            wit: 12,
+            men: 27,
+        })
+    );
+    assert_eq!(created.position, Some(pb::Position { x: 0.0, y: 0.0 }));
 
     let fetched = app
         .grpc
@@ -132,4 +154,41 @@ async fn bad_name_is_invalid_argument_and_writes_nothing() {
     assert_eq!(err.code(), Code::InvalidArgument);
     assert_eq!(app.characters.len(), 0);
     assert!(app.characters.staged_events().is_empty());
+}
+
+/// A repository whose backing store is down. The error text carries connection details that
+/// must never reach the client.
+struct BrokenRepository;
+
+const LEAK: &str = "postgres://nightfall:hunter2@db.internal:5432/nightfall";
+
+#[async_trait]
+impl CharacterRepository for BrokenRepository {
+    async fn get(&self, _id: CharacterId) -> anyhow::Result<Option<Character>> {
+        anyhow::bail!("connection to {LEAK} refused")
+    }
+
+    async fn create_idempotent(
+        &self,
+        _key: &IdempotencyKey,
+        _fingerprint: &str,
+        _character: &Character,
+    ) -> Result<CreateOutcome, RepositoryError> {
+        Err(RepositoryError::Other(anyhow::anyhow!("connection to {LEAK} refused")))
+    }
+}
+
+#[tokio::test]
+async fn infrastructure_failure_is_a_sanitised_internal_error() {
+    let mut app = TestApp::spawn_with_repo(Arc::new(BrokenRepository)).await;
+    let err = app
+        .grpc
+        .create_character(req(KEY_A, "Thrall"))
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert_eq!(err.message(), "internal error");
+    for leaked in ["hunter2", "db.internal", "postgres://", "refused"] {
+        assert!(!format!("{err:?}").contains(leaked), "{leaked} leaked: {err:?}");
+    }
 }

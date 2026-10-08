@@ -174,10 +174,9 @@ async fn relay_batch(
         .await?;
     let pending = unpublished.count(db).await?;
     stats.pending.store(pending, Ordering::Relaxed);
-    stats.oldest_pending_micros.store(
-        oldest.map_or(0, |r| r.created_at.timestamp_micros().max(1)),
-        Ordering::Relaxed,
-    );
+    stats
+        .oldest_pending_micros
+        .store(oldest.map_or(0, |r| r.created_at.timestamp_micros().max(1)), Ordering::Relaxed);
 
     match failure {
         Some(e) => Err(e),
