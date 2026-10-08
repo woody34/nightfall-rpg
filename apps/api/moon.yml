@@ -16,3 +16,21 @@ tasks:
   dev:
     command: 'cargo run -p nightfall-api'
     preset: 'server'
+  entities:
+    command: 'bash entities.sh'
+    description: 'Regenerate SeaORM entities from the migrations (needs the compose Postgres).'
+    inputs:
+      - 'src/infrastructure/postgres/migrations/**/*'
+      - 'entities.sh'
+    options:
+      cache: false
+      runInCI: false
+  entities-check:
+    command: 'bash entities.sh --check'
+    description: 'Fail if the committed entities differ from a fresh generation.'
+    inputs:
+      - 'src/infrastructure/postgres/migrations/**/*'
+      - 'src/infrastructure/postgres/entities/**/*'
+      - 'entities.sh'
+    options:
+      cache: false

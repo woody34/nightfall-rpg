@@ -48,7 +48,7 @@ pub fn build_game_service(deps: &Dependencies) -> GameServiceImpl {
     GameServiceImpl::new(
         Ping::new(deps.clock.clone()),
         GetCharacter::new(deps.characters.clone()),
-        CreateCharacter::new(deps.characters.clone(), deps.bus.clone()),
+        CreateCharacter::new(deps.characters.clone()),
     )
 }
 

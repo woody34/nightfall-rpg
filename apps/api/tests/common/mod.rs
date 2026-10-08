@@ -10,6 +10,8 @@
     clippy::indexing_slicing
 )]
 
+pub mod pg;
+
 use std::sync::Arc;
 
 use nightfall_api::infrastructure::memory::{InMemoryCharacterRepository, InMemoryEventBus};

@@ -3,9 +3,11 @@
 //! * `memory`: in-process adapters for unit tests, integration tests, and dependency-free dev.
 //! * `postgres`: sqlx adapters. Every mutating method is one transaction.
 //! * `nats`: event bus over NATS core publish.
+//! * `outbox`: relay from the `outbox` table to `JetStream`; the only publisher of domain events.
 
 pub mod memory;
 pub mod nats;
+pub mod outbox;
 pub mod postgres;
 
 use chrono::{DateTime, Utc};

@@ -5,13 +5,15 @@ use parking_lot::Mutex;
 
 use crate::application::ports::RepositoryError;
 use crate::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
-use crate::domain::{Character, CharacterId};
+use crate::domain::{Character, CharacterId, DomainEvent};
 
 #[derive(Default)]
 struct State {
     characters: HashMap<CharacterId, Character>,
     names: HashMap<String, CharacterId>,
     keys: HashMap<IdempotencyKey, (String, CharacterId)>,
+    /// Events staged with each create, standing in for the `outbox` table.
+    outbox: Vec<DomainEvent>,
 }
 
 /// Map-backed repository guarded by one mutex, so each method is atomic like a transaction.
@@ -26,6 +28,12 @@ impl InMemoryCharacterRepository {
         let mut s = self.state.lock();
         s.names.insert(c.name.normalized(), c.id);
         s.characters.insert(c.id, c);
+    }
+
+    /// Events staged for publication, in order (what the Postgres adapter writes to `outbox`).
+    #[must_use]
+    pub fn staged_events(&self) -> Vec<DomainEvent> {
+        self.state.lock().outbox.clone()
     }
 
     /// Number of stored characters.
@@ -73,6 +81,11 @@ impl CharacterRepository for InMemoryCharacterRepository {
         s.keys
             .insert(key.clone(), (fingerprint.to_owned(), character.id));
         s.characters.insert(character.id, character.clone());
+        s.outbox.push(DomainEvent::CharacterCreated {
+            character_id: character.id,
+            account_id: character.account_id,
+            race: character.race,
+        });
         Ok(CreateOutcome::Created(character.clone()))
     }
 }

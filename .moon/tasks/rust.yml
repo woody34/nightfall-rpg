@@ -8,7 +8,6 @@ fileGroups:
   sources:
     - 'src/**/*'
     - 'tests/**/*'
-    - 'migrations/**/*'
     - 'build.rs'
     - 'Cargo.toml'
   standards:

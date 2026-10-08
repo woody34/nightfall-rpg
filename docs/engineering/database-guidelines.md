@@ -1,15 +1,16 @@
 # Database Guidelines
 
-Postgres 16, accessed through `sqlx` 0.9 with runtime-checked queries and embedded migrations.
+Postgres 16, accessed through `SeaORM` 2.x on top of a `sqlx` 0.9 pool, with `sea-orm-migration`
+migrations embedded in the binary (see §3a).
 Reference: Instaclustr's top-10 practices, adapted to a game server.
 
 ## 1. Transactions are atomic, always
 
-- Every repository method that writes is exactly one transaction: `pool.begin()`, all
-  statements, `commit()`. A method that needs two transactions is two methods.
+- Every repository method that writes is exactly one transaction: `db.begin()`
+  (`TransactionTrait`), all statements, `commit()`. A method that needs two transactions is two methods.
 - The transaction includes everything that must be consistent: the state change, the
   idempotency record, and the outbox row. See `PgCharacterRepository::create_idempotent`.
-- `sqlx::Transaction` rolls back on drop. Early `return Err(...)` is therefore safe; explicit
+- `DatabaseTransaction` rolls back on drop. Early `return Err(...)` is therefore safe; explicit
   `rollback()` is only for readability when the error is expected (name taken).
 - Lock ordering: when a transaction touches multiple rows that other transactions also touch
   (trades, Phase 5), lock them `FOR UPDATE` in ascending id order to prevent deadlocks.
@@ -32,8 +33,10 @@ Reference: Instaclustr's top-10 practices, adapted to a game server.
 | `created_at` / `updated_at` on every entity table | Debugging and retention jobs. |
 | Normalized by default; denormalize only with a measured read-path reason | Consistency first; the game's hot path is in-memory anyway. |
 
-Migrations are plain SQL in `apps/api/migrations/`, numbered, embedded with `sqlx::migrate!`,
-and run at startup. Expand/contract for live changes: add the new column, deploy code that
+Migrations live in `apps/api/src/infrastructure/postgres/migrations/` as `sea-orm-migration`
+modules (`mYYYYMMDD_NNNNNN_name.rs`) that execute reviewed plain SQL kept beside them, and run
+at startup via `Migrator::up`. The first migration is a baseline: it no-ops when the tables
+already exist, so databases created by the old sqlx migrator upgrade in place. Expand/contract for live changes: add the new column, deploy code that
 writes both, backfill, deploy code that reads the new one, drop the old. Never rename in place.
 
 ## 3. Queries
@@ -44,6 +47,25 @@ writes both, backfill, deploy code that reads the new one, drop the old. Never r
 - `EXPLAIN (ANALYZE, BUFFERS)` any query that will run per tick or per player action before
   merging. Keep the plan in the PR description.
 - Fetch what you need: `fetch_optional` for by-id, `fetch_one` only when absence is a bug.
+
+## 3a. ORM (SeaORM)
+
+- Entities in `infrastructure/postgres/entities/` are **generated** from the migrated schema by
+  `moon run api:entities` (`sea-orm-cli generate entity`, run against a throwaway schema). They
+  are never hand-edited; change the migration and regenerate. CI runs `api:entities-check`,
+  which fails if regeneration produces a diff.
+- Entities are infrastructure types. They never cross into `application` or `domain`; the
+  repository maps `Model` to domain types.
+- Transactions go through `TransactionTrait` (`db.begin()` / `commit()`); pass `&tx` to every
+  statement. One repository write method is one transaction.
+- Idempotent inserts use `Entity::insert(..).on_conflict(OnConflict::column(..).do_nothing()
+  .to_owned()).try_insert()` and branch on `TryInsertResult`.
+- Constraint violations are matched by constraint *name* through the underlying sqlx
+  `DatabaseError`; the entity API does not expose it.
+- Raw SQL is allowed only through `Statement` with bound parameters (`Statement::from_sql_and_values`).
+  Never interpolate values into SQL text.
+- The `DatabaseConnection` is built from the existing pool
+  (`SqlxPostgresConnector::from_sqlx_postgres_pool`); there is one pool per process.
 
 ## 4. Indexes
 
