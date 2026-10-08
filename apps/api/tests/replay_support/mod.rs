@@ -78,6 +78,10 @@ impl FaultyLog {
 
 #[async_trait]
 impl EventLog for FaultyLog {
+    fn max_record_bytes(&self) -> usize {
+        self.inner.max_record_bytes()
+    }
+
     async fn append_applied(&self, record: &AppliedTickRecord) -> anyhow::Result<Seq> {
         self.attempts.fetch_add(1, Ordering::SeqCst);
         if record.tick.0 >= self.hang_from_tick.load(Ordering::SeqCst) {

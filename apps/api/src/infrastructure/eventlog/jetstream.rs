@@ -2,7 +2,8 @@
 //! watermarks) and `NF_SESSIONS` (audit frames), both file-backed with 7-day retention, created
 //! or updated on startup. Every publish waits for the broker's ack; zone records carry a
 //! `Nats-Msg-Id` so a retry is stored once. Publish latency goes to
-//! `eventlog_publish_seconds{kind}`.
+//! `eventlog_publish_seconds{kind}`. A message (payload plus headers) may not exceed the
+//! server's `max_payload`; [`EventLog::max_record_bytes`] reports the room left for a record.
 
 use std::time::{Duration, Instant};
 
@@ -34,10 +35,14 @@ pub const SESSIONS_STREAM: &str = "NF_SESSIONS";
 /// How long the broker keeps both streams. An epoch's snapshot and log age out together
 /// (they share the stream), so an epoch is replayable for at least this long.
 pub const RETENTION: Duration = Duration::from_hours(7 * 24);
+/// Room kept below `max_payload` for the headers of a record message (`Nats-Msg-Id` is under
+/// 100 bytes).
+pub const HEADER_ROOM: usize = 1024;
 
 /// The `JetStream` replay log.
 #[derive(Clone)]
 pub struct JetStreamEventLog {
+    client: async_nats::Client,
     context: Context,
     zones: stream::Stream,
     metrics: Metrics,
@@ -49,7 +54,7 @@ impl JetStreamEventLog {
     /// Fails if another stream claims overlapping subjects; `NF_EVENTS` must use
     /// `nightfall.*.*` (see `infrastructure::outbox`), not `nightfall.>`.
     pub async fn connect(client: async_nats::Client, metrics: Metrics) -> anyhow::Result<Self> {
-        let context = jetstream::new(client);
+        let context = jetstream::new(client.clone());
         let zones = ensure_stream(&context, ZONES_STREAM, "nightfall.zone.*.*.*").await?;
         ensure_stream(&context, SESSIONS_STREAM, "nightfall.session.*.*").await?;
         let zones = context
@@ -57,6 +62,7 @@ impl JetStreamEventLog {
             .await
             .map_err(|e| anyhow::anyhow!("open stream {ZONES_STREAM}: {e}"))?;
         Ok(Self {
+            client,
             context,
             zones,
             metrics,
@@ -170,6 +176,12 @@ async fn ensure_stream(context: &Context, name: &str, subject: &str) -> anyhow::
 
 #[async_trait]
 impl EventLog for JetStreamEventLog {
+    fn max_record_bytes(&self) -> usize {
+        // The limit the server last announced, so a reconnect to a server with another
+        // `max_payload` is picked up on the next tick.
+        self.client.max_payload().saturating_sub(HEADER_ROOM)
+    }
+
     async fn append_applied(&self, record: &AppliedTickRecord) -> anyhow::Result<Seq> {
         self.publish(
             "applied",

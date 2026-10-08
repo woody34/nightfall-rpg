@@ -13,7 +13,7 @@ mod jetstream;
 mod memory;
 mod metrics;
 
-pub use jetstream::{JetStreamEventLog, RETENTION, SESSIONS_STREAM, ZONES_STREAM};
+pub use jetstream::{JetStreamEventLog, HEADER_ROOM, RETENTION, SESSIONS_STREAM, ZONES_STREAM};
 pub use memory::{InMemoryEventLog, InMemoryZoneSnapshotStore};
 
 use uuid::Uuid;

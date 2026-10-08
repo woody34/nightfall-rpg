@@ -7,7 +7,9 @@
 //!   uint32 zone = 1; uint64 epoch = 2; uint64 tick = 3; int64 server_time_ms = 4;
 //!   repeated Command commands = 5; repeated Disposition dispositions = 6;
 //!   repeated PlayerOutput outputs = 7;
+//!   OutputForm output_form = 8;
 //! }
+//! enum OutputForm { ENCODED = 0; SHA256 = 1; }  // SHA256: outputs too large for one message
 //! message Session { bytes entity = 1; uint64 generation = 2; }   // absent = System source
 //! message Vec2 { sint32 x = 1; sint32 y = 2; }                     // milli-tiles
 //! message Command {
@@ -17,7 +19,9 @@
 //! }
 //! message Disposition { uint64 ordinal = 1; Session session = 2; optional uint32 seq = 3;
 //!                       uint64 tick_seen = 4; Reason reason = 5; }
-//! message PlayerOutput { bytes entity = 1; bytes encoded = 2; }    // encoded = Outputs
+//! message PlayerOutput { bytes entity = 1;
+//!                        bytes encoded = 2;   // Outputs; set when output_form = ENCODED
+//!                        bytes sha256 = 3; }  // SHA-256 of the Outputs bytes; when SHA256
 //! message Outputs { repeated Output items = 1; }
 //! message Output { oneof item { Spawn spawn = 1; Move move = 2; Despawn despawn = 3;
 //!                               Disposition rejected = 4; } }
@@ -34,7 +38,7 @@ use prost::Message;
 use uuid::Uuid;
 
 use super::record::{
-    AppliedTickRecord, CodecError, PlayerOutput, SessionInRecord, SessionOutRecord,
+    AppliedTickRecord, CodecError, OutputForm, PlayerOutput, SessionInRecord, SessionOutRecord,
 };
 use crate::domain::zone::{
     AppliedCommand, CommandSource, Disposition, EntityId, EntityKind, Fixed, ObserverOutput,
@@ -58,6 +62,8 @@ struct PbRecord {
     dispositions: Vec<PbDisposition>,
     #[prost(message, repeated, tag = "7")]
     outputs: Vec<PbPlayerOutput>,
+    #[prost(int32, tag = "8")]
+    output_form: i32,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -170,6 +176,8 @@ struct PbPlayerOutput {
     entity: Vec<u8>,
     #[prost(bytes = "bytes", tag = "2")]
     encoded: Bytes,
+    #[prost(bytes = "bytes", tag = "3")]
+    sha256: Bytes,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -273,6 +281,33 @@ struct PbSessionOut {
 // ---- encoding -------------------------------------------------------------------------------
 
 pub(super) fn encode_record(r: &AppliedTickRecord) -> Vec<u8> {
+    record_to_pb(r).encode_to_vec()
+}
+
+pub(super) fn record_encoded_len(r: &AppliedTickRecord) -> usize {
+    record_to_pb(r).encoded_len()
+}
+
+/// Wire values of [`OutputForm`].
+const fn output_form_to_pb(f: OutputForm) -> i32 {
+    match f {
+        OutputForm::Encoded => 0,
+        OutputForm::Sha256 => 1,
+    }
+}
+
+fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
+    let output = |o: &PlayerOutput| {
+        let (encoded, sha256) = match r.output_form {
+            OutputForm::Encoded => (o.bytes.clone(), Bytes::new()),
+            OutputForm::Sha256 => (Bytes::new(), o.bytes.clone()),
+        };
+        PbPlayerOutput {
+            entity: entity_bytes(o.entity),
+            encoded,
+            sha256,
+        }
+    };
     PbRecord {
         zone: r.zone.0,
         epoch: r.epoch,
@@ -280,16 +315,9 @@ pub(super) fn encode_record(r: &AppliedTickRecord) -> Vec<u8> {
         server_time_ms: r.server_time_ms,
         commands: r.commands.iter().map(command_to_pb).collect(),
         dispositions: r.dispositions.iter().map(disposition_to_pb).collect(),
-        outputs: r
-            .outputs
-            .iter()
-            .map(|o| PbPlayerOutput {
-                entity: entity_bytes(o.entity),
-                encoded: o.bytes.clone(),
-            })
-            .collect(),
+        outputs: r.outputs.iter().map(output).collect(),
+        output_form: output_form_to_pb(r.output_form),
     }
-    .encode_to_vec()
 }
 
 pub(super) fn encode_outputs(items: &[ObserverOutput]) -> Vec<u8> {
@@ -483,8 +511,39 @@ fn err(e: impl std::fmt::Display) -> CodecError {
     CodecError(e.to_string())
 }
 
+fn output_form_from_pb(v: i32) -> Result<OutputForm, CodecError> {
+    match v {
+        0 => Ok(OutputForm::Encoded),
+        1 => Ok(OutputForm::Sha256),
+        other => Err(CodecError(format!("unknown output form {other}"))),
+    }
+}
+
+fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOutput, CodecError> {
+    let fits = match form {
+        OutputForm::Encoded => o.sha256.is_empty(),
+        OutputForm::Sha256 => o.encoded.is_empty() && o.sha256.len() == 32,
+    };
+    if !fits {
+        return Err(CodecError(format!(
+            "player output does not match form {form:?} ({} encoded bytes, {} digest bytes)",
+            o.encoded.len(),
+            o.sha256.len()
+        )));
+    }
+    let bytes = match form {
+        OutputForm::Encoded => o.encoded,
+        OutputForm::Sha256 => o.sha256,
+    };
+    Ok(PlayerOutput {
+        entity: entity_from(&o.entity)?,
+        bytes,
+    })
+}
+
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
     let pb = PbRecord::decode(bytes).map_err(err)?;
+    let output_form = output_form_from_pb(pb.output_form)?;
     Ok(AppliedTickRecord {
         zone: ZoneId(pb.zone),
         epoch: pb.epoch,
@@ -503,13 +562,9 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
         outputs: pb
             .outputs
             .into_iter()
-            .map(|o| {
-                Ok(PlayerOutput {
-                    entity: entity_from(&o.entity)?,
-                    bytes: o.encoded,
-                })
-            })
-            .collect::<Result<_, CodecError>>()?,
+            .map(|o| player_output_from_pb(o, output_form))
+            .collect::<Result<_, _>>()?,
+        output_form,
     })
 }
 

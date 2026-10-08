@@ -6,6 +6,11 @@
 //! After [`GateConfig::max_stall`] without an ack the zone is **paused**: `ZoneHandle::send`
 //! refuses inputs (sessions answer `IntentRejected{OVERLOADED}`) and `zones_paused` goes up,
 //! until an append succeeds again. Only shutdown makes `admit` give up.
+//!
+//! A record larger than the log accepts per message would fail every retry, so before the
+//! first attempt the gate bounds it ([`AppliedTickRecord::bounded`]): a busy tick whose
+//! record is over [`EventLog::max_record_bytes`] is logged with per-player output digests
+//! instead of the outputs, counted in `eventlog_digested_records_total`.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -16,7 +21,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::epoch::EpochStarted;
 use super::port::{EventLog, ReplayLogMetrics};
-use super::record::{AppliedTickRecord, Seq};
+use super::record::{AppliedTickRecord, OutputForm, Seq};
 use crate::application::zone_actor::{GateError, TickGate};
 use crate::domain::zone::{AppliedTick, Tick, ZoneId};
 
@@ -132,7 +137,30 @@ impl DurableTickGate {
                 tick.epoch, tick.tick.0, self.epoch, expected.0
             )));
         }
-        let record = AppliedTickRecord::from_applied(self.zone, tick);
+        let limit = self.log.max_record_bytes();
+        let record = AppliedTickRecord::from_applied(self.zone, tick).bounded(limit);
+        if record.output_form == OutputForm::Sha256 {
+            self.metrics.record_digested();
+            let size = record.encoded_len();
+            if size > limit {
+                // Only commands and dispositions are left; nothing smaller can be written.
+                tracing::error!(
+                    zone = self.zone.0,
+                    tick = tick.tick.0,
+                    size,
+                    limit,
+                    "tick record exceeds the replay log's payload limit even with output digests"
+                );
+            } else {
+                tracing::debug!(
+                    zone = self.zone.0,
+                    tick = tick.tick.0,
+                    size,
+                    limit,
+                    "tick record over the payload limit; outputs logged as SHA-256 digests"
+                );
+            }
+        }
         let mut backoff = self.config.initial_backoff;
         let mut stalled_since: Option<tokio::time::Instant> = None;
         loop {

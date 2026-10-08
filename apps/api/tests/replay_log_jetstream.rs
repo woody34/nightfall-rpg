@@ -22,7 +22,8 @@ use async_nats::jetstream::consumer::{pull, DeliverPolicy};
 use bytes::Bytes;
 use nightfall_api::application::replay_log::{
     encode_snapshot, open_epoch, AppliedTickRecord, EpochStatus, EventLog, GateConfig,
-    NoReplayMetrics, Seq, SessionInRecord, WatermarkReason, ZoneSnapshotRow, ZoneSnapshotStore,
+    NoReplayMetrics, OutputForm, Seq, SessionInRecord, WatermarkReason, ZoneSnapshotRow,
+    ZoneSnapshotStore,
 };
 use nightfall_api::application::zone_actor::{manual_ticks, TickOutcome};
 use nightfall_api::application::zone_bootstrap::ZoneBootstrap;
@@ -67,6 +68,7 @@ fn empty_record(zone: u32, epoch: u64, tick: u64) -> AppliedTickRecord {
         commands: Vec::new(),
         dispositions: Vec::new(),
         outputs: Vec::new(),
+        output_form: OutputForm::Encoded,
     }
 }
 
@@ -362,6 +364,43 @@ async fn zone_snapshot_rows_insert_once_and_record_the_first_seq() {
     assert_eq!(store.latest_epoch(ZoneId(3)).await.unwrap(), Some(9));
     assert_eq!(store.latest_epoch(ZoneId(4)).await.unwrap(), None);
     assert_eq!(store.get(ZoneId(3), 8).await.unwrap(), None);
+}
+
+/// A record over the broker's `max_payload` (about 1.3 MB of output against the 1 MiB
+/// default) fails to publish every time; bounded, it is stored with output digests, reads
+/// back, and replay still tells a one-byte change apart.
+#[tokio::test]
+async fn an_oversized_record_is_stored_with_output_digests() {
+    use nightfall_api::application::replay_log::PlayerOutput;
+    use nightfall_api::infrastructure::eventlog::HEADER_ROOM;
+
+    let Some((client, log)) = jetstream().await else {
+        return;
+    };
+    let limit = log.max_record_bytes();
+    assert_eq!(limit, client.max_payload() - HEADER_ROOM);
+    let zone = unique_zone();
+    let mut record = empty_record(zone, 1, 0);
+    record.outputs = (0..40_u8)
+        .map(|n| PlayerOutput {
+            entity: EntityId(Uuid::from_u128(u128::from(n))),
+            bytes: Bytes::from(vec![n; 32 * 1024]),
+        })
+        .collect();
+    assert!(record.encoded_len() > client.max_payload());
+    assert!(log.append_applied(&record).await.is_err(), "the broker refuses it");
+
+    let bounded = record.clone().bounded(limit);
+    assert_eq!(bounded.output_form, OutputForm::Sha256);
+    log.append_applied(&bounded).await.unwrap();
+    let stored = read_all(log.as_ref(), zone, 1).await;
+    assert_eq!(stored, vec![bounded]);
+    assert!(stored[0].reproduced_by(&record));
+    let mut diverged = record.clone();
+    let mut bytes = diverged.outputs[17].bytes.to_vec();
+    bytes[1000] ^= 1;
+    diverged.outputs[17].bytes = Bytes::from(bytes);
+    assert!(!stored[0].reproduced_by(&diverged));
 }
 
 /// Measures the acknowledged append latency of one tick's record on this machine, for an idle

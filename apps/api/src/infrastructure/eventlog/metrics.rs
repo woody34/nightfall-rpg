@@ -8,6 +8,10 @@ impl ReplayLogMetrics for Metrics {
         self.eventlog_append_failures_total.add(1, &[]);
     }
 
+    fn record_digested(&self) {
+        self.eventlog_digested_records_total.add(1, &[]);
+    }
+
     fn zone_paused(&self, paused: bool) {
         self.zones_paused.add(if paused { 1 } else { -1 }, &[]);
     }

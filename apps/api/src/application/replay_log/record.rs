@@ -9,12 +9,16 @@
 //!   (`#[serde(tag = "type")]`), which non-self-describing formats cannot decode, and protobuf
 //!   is compact, deterministic for these messages (fields in tag order, no maps) and readable
 //!   from any language. Replay compares the encoded bytes.
+//! * A record whose encoding would exceed what the log accepts per message (`JetStream`'s
+//!   `max_payload`) stores each player's output as its SHA-256 instead of the bytes
+//!   ([`OutputForm::Sha256`]); replay digests its re-run output and compares digests.
 //! * The snapshot and the watermark are canonical **JSON** (`serde_json` over types whose maps
 //!   are all ordered), written once per epoch and readable by a human during an incident. The
 //!   same snapshot bytes go to `JetStream` and to Postgres.
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -29,13 +33,28 @@ use crate::domain::zone::{
 #[serde(transparent)]
 pub struct Seq(pub u64);
 
-/// One player's ordered output for one tick, encoded (see [`encode_outputs`]).
+/// One player's ordered output for one tick (see [`encode_outputs`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerOutput {
     /// The observing player.
     pub entity: EntityId,
-    /// [`encode_outputs`] of the player's ordered output items.
+    /// [`encode_outputs`] of the player's ordered output items, or, in a record whose
+    /// [`AppliedTickRecord::output_form`] is [`OutputForm::Sha256`], the 32-byte SHA-256 of
+    /// those bytes.
     pub bytes: Bytes,
+}
+
+/// How an [`AppliedTickRecord`] stores its per-player outputs. Every output of one record has
+/// the same form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OutputForm {
+    /// The [`encode_outputs`] bytes themselves.
+    #[default]
+    Encoded,
+    /// SHA-256 of the [`encode_outputs`] bytes: written when the full record would not fit in
+    /// one log message. Replay compares digests; a divergence is still detected, but the
+    /// stored record cannot show what the player was sent.
+    Sha256,
 }
 
 /// The replay log's unit (plan §8 #2, #3): everything needed to re-run one tick and check it.
@@ -55,8 +74,11 @@ pub struct AppliedTickRecord {
     pub commands: Vec<AppliedCommand>,
     /// The refused subset, in ordinal order.
     pub dispositions: Vec<Disposition>,
-    /// Each player's encoded output, in entity-id order. Replay compares these bytes.
+    /// Each player's output, in entity-id order, in [`Self::output_form`]. Replay compares
+    /// these bytes (see [`Self::reproduced_by`]).
     pub outputs: Vec<PlayerOutput>,
+    /// Whether `outputs` holds the encoded output or its digest.
+    pub output_form: OutputForm,
 }
 
 impl AppliedTickRecord {
@@ -78,7 +100,53 @@ impl AppliedTickRecord {
                     bytes: encode_outputs(items),
                 })
                 .collect(),
+            output_form: OutputForm::Encoded,
         }
+    }
+
+    /// The same record with every player's output replaced by its SHA-256. A record already
+    /// in that form is returned unchanged.
+    #[must_use]
+    pub fn with_output_digests(&self) -> Self {
+        let mut digested = self.clone();
+        if self.output_form == OutputForm::Encoded {
+            for o in &mut digested.outputs {
+                o.bytes = Bytes::copy_from_slice(&Sha256::digest(&o.bytes));
+            }
+            digested.output_form = OutputForm::Sha256;
+        }
+        digested
+    }
+
+    /// The record to append to a log that accepts at most `max_bytes` per record: `self` if
+    /// its encoding fits, otherwise [`Self::with_output_digests`] (which may still not fit if
+    /// the commands alone are too large; the append then fails like any other).
+    #[must_use]
+    pub fn bounded(self, max_bytes: usize) -> Self {
+        if self.encoded_len() <= max_bytes {
+            self
+        } else {
+            self.with_output_digests()
+        }
+    }
+
+    /// Whether `rerun`, the record of re-running this tick from the log (outputs encoded),
+    /// reproduces this one byte for byte. A record stored with [`OutputForm::Sha256`] is
+    /// compared with the digests of the re-run's outputs, so a single changed output byte is
+    /// still a divergence.
+    #[must_use]
+    pub fn reproduced_by(&self, rerun: &Self) -> bool {
+        let rerun = match self.output_form {
+            OutputForm::Encoded => rerun.encode(),
+            OutputForm::Sha256 => rerun.with_output_digests().encode(),
+        };
+        rerun == self.encode()
+    }
+
+    /// Length of [`Self::encode`], without encoding.
+    #[must_use]
+    pub fn encoded_len(&self) -> usize {
+        codec::record_encoded_len(self)
     }
 
     /// Protobuf encoding. Deterministic: equal records give equal bytes.
