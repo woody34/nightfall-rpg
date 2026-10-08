@@ -8,51 +8,18 @@
     clippy::indexing_slicing
 )]
 
+mod common;
+
+use common::pg::migrated_pool as fresh_pool;
 use nightfall_api::application::ports::RepositoryError;
 use nightfall_api::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
-use nightfall_api::domain::{Character, CharacterName, Race};
-use nightfall_api::infrastructure::postgres::{
-    connection_from_pool, Migrator, PgCharacterRepository,
-};
-use sea_orm_migration::MigratorTrait;
-use sqlx::postgres::PgPoolOptions;
+use nightfall_api::domain::{AccountId, Character, CharacterName, Race};
+use nightfall_api::infrastructure::postgres::PgCharacterRepository;
 use sqlx::{Executor, PgPool};
 use uuid::Uuid;
 
-async fn fresh_pool() -> Option<PgPool> {
-    let url = std::env::var("DATABASE_URL").ok()?;
-    let admin = PgPoolOptions::new()
-        .max_connections(2)
-        .connect(&url)
-        .await
-        .unwrap();
-    let schema = format!("test_{}", Uuid::now_v7().simple());
-    admin
-        .execute(sqlx::raw_sql(sqlx::AssertSqlSafe(format!("CREATE SCHEMA {schema}"))))
-        .await
-        .unwrap();
-    let pool = PgPoolOptions::new()
-        .max_connections(4)
-        .after_connect({
-            let schema = schema.clone();
-            move |conn, _| {
-                let schema = schema.clone();
-                Box::pin(async move {
-                    conn.execute(sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
-                        "SET search_path TO {schema}"
-                    ))))
-                    .await?;
-                    Ok(())
-                })
-            }
-        })
-        .connect(&url)
-        .await
-        .unwrap();
-    Migrator::up(&connection_from_pool(&pool), None)
-        .await
-        .unwrap();
-    Some(pool)
+fn owner() -> AccountId {
+    AccountId::from_uuid(Uuid::nil())
 }
 
 fn key(s: &str) -> IdempotencyKey {
@@ -63,12 +30,68 @@ const KEY_A: &str = "0190a7e2-6f4c-7c3b-9f1a-3f4a5b6c7d8e";
 const KEY_B: &str = "0190a7e2-6f4c-7c3b-9f1a-3f4a5b6c7d8f";
 
 #[tokio::test]
+async fn idempotency_record_is_scoped_to_account_and_operation() {
+    let Some(pool) = fresh_pool().await else {
+        return;
+    };
+    let repo = PgCharacterRepository::new(pool.clone());
+    let c = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+    repo.create_idempotent(&key(KEY_A), "fp", &c).await.unwrap();
+
+    let (account, operation, response): (Uuid, String, serde_json::Value) = sqlx::query_as(
+        "SELECT account_id, operation, response FROM idempotency_keys WHERE key = $1",
+    )
+    .bind(Uuid::parse_str(KEY_A).unwrap())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(account, owner().as_uuid());
+    assert_eq!(operation, "create_character");
+    assert_eq!(response, serde_json::json!({ "character_id": c.id.as_uuid() }));
+
+    // The same key from another account is a different request.
+    let other = AccountId::from_uuid(Uuid::from_u128(2));
+    let theirs = Character::create(other, CharacterName::new("Balin").unwrap(), Race::Dwarf);
+    let out = repo
+        .create_idempotent(&key(KEY_A), "fp-other", &theirs)
+        .await
+        .unwrap();
+    assert_eq!(out, CreateOutcome::Created(theirs));
+}
+
+#[tokio::test]
+async fn list_by_account_returns_own_characters_in_creation_order() {
+    let Some(pool) = fresh_pool().await else {
+        return;
+    };
+    let repo = PgCharacterRepository::new(pool);
+    let other = AccountId::from_uuid(Uuid::from_u128(2));
+    let a = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+    let b = Character::create(other, CharacterName::new("Balin").unwrap(), Race::Dwarf);
+    let c = Character::create(owner(), CharacterName::new("Thorin").unwrap(), Race::Dwarf);
+    // Insert out of order: the result is ordered by id (uuid v7 = creation time), not insert.
+    repo.create_idempotent(&key(KEY_A), "a", &c).await.unwrap();
+    repo.create_idempotent(&key(KEY_B), "b", &b).await.unwrap();
+    repo.create_idempotent(&key("0190a7e2-6f4c-7c3b-9f1a-3f4a5b6c7d90"), "c", &a)
+        .await
+        .unwrap();
+
+    assert_eq!(repo.list_by_account(owner()).await.unwrap(), vec![a, c]);
+    assert_eq!(repo.list_by_account(other).await.unwrap(), vec![b]);
+    assert!(repo
+        .list_by_account(AccountId::from_uuid(Uuid::from_u128(3)))
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
 async fn create_then_get_round_trips() {
     let Some(pool) = fresh_pool().await else {
         return;
     };
     let repo = PgCharacterRepository::new(pool.clone());
-    let c = Character::create(Uuid::nil(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+    let c = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
 
     let out = repo.create_idempotent(&key(KEY_A), "fp", &c).await.unwrap();
     assert_eq!(out, CreateOutcome::Created(c.clone()));
@@ -87,10 +110,10 @@ async fn same_key_replays_and_writes_nothing() {
         return;
     };
     let repo = PgCharacterRepository::new(pool.clone());
-    let c = Character::create(Uuid::nil(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+    let c = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
     repo.create_idempotent(&key(KEY_A), "fp", &c).await.unwrap();
 
-    let retry = Character::create(Uuid::nil(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+    let retry = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
     let out = repo
         .create_idempotent(&key(KEY_A), "fp", &retry)
         .await
@@ -110,7 +133,7 @@ async fn same_key_different_fingerprint_is_key_reused() {
         return;
     };
     let repo = PgCharacterRepository::new(pool);
-    let c = Character::create(Uuid::nil(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+    let c = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
     repo.create_idempotent(&key(KEY_A), "fp1", &c)
         .await
         .unwrap();
@@ -127,10 +150,10 @@ async fn duplicate_name_rolls_back_key_and_character() {
         return;
     };
     let repo = PgCharacterRepository::new(pool.clone());
-    let a = Character::create(Uuid::nil(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+    let a = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
     repo.create_idempotent(&key(KEY_A), "fp", &a).await.unwrap();
 
-    let b = Character::create(Uuid::nil(), CharacterName::new("DURIN").unwrap(), Race::Elf);
+    let b = Character::create(owner(), CharacterName::new("DURIN").unwrap(), Race::Elf);
     let err = repo
         .create_idempotent(&key(KEY_B), "fp-b", &b)
         .await
@@ -154,8 +177,7 @@ async fn concurrent_retries_with_same_key_create_exactly_one() {
     for _ in 0..8 {
         let repo = repo.clone();
         handles.push(tokio::spawn(async move {
-            let c =
-                Character::create(Uuid::nil(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+            let c = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
             repo.create_idempotent(&key(KEY_A), "fp", &c).await.unwrap()
         }));
     }
@@ -191,7 +213,7 @@ async fn outbox_insert_failure_rolls_back_character_key_and_event() {
         .await
         .unwrap();
     let repo = PgCharacterRepository::new(pool.clone());
-    let c = Character::create(Uuid::nil(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
+    let c = Character::create(owner(), CharacterName::new("Durin").unwrap(), Race::Dwarf);
 
     let err = repo
         .create_idempotent(&key(KEY_A), "fp", &c)

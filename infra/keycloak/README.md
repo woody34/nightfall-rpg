@@ -91,7 +91,12 @@ grant page's "Yes" button. It is what was used to verify this setup.
 ```bash
 infra/keycloak/device-flow-demo.sh                       # openid profile email
 SCOPE="openid offline_access" infra/keycloak/device-flow-demo.sh   # also an offline refresh token
+OUTPUT=access_token infra/keycloak/device-flow-demo.sh   # print only the raw access token
 ```
+
+The API's `tests/keycloak_device_flow.rs` uses `OUTPUT=access_token` to get a real token and
+calls authenticated RPCs with it; it runs when `KEYCLOAK_URL` is set
+(`KEYCLOAK_URL=http://localhost:8080 moon run api:test`).
 
 ### Expected token claims (abridged)
 

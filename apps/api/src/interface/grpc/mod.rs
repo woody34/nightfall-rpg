@@ -1,16 +1,25 @@
 //! gRPC surface generated from packages/proto.
+//!
+//! Every RPC except `Ping` runs behind [`AuthLayer`]; handlers take the caller from the
+//! request extensions ([`auth::caller`]), never from a request field (Story 1.6).
 
+pub mod auth;
 mod mapping;
 mod session_service;
+mod status;
 
+pub use auth::{AuthLayer, PUBLIC_METHODS};
 pub use session_service::SessionServiceImpl;
 
 use std::sync::Arc;
 
 use tonic::{Request, Response, Status};
 
-use crate::application::use_cases::{CreateCharacter, CreateCharacterInput, GetCharacter, Ping};
-use crate::application::{AppError, IdempotencyKey};
+use crate::application::use_cases::{
+    CreateCharacter, CreateCharacterInput, GetCharacter, ListMyCharacters, Ping,
+};
+use crate::application::IdempotencyKey;
+use status::to_status;
 
 /// Generated protobuf types.
 #[allow(
@@ -36,16 +45,23 @@ pub struct GameServiceImpl {
     ping: Ping,
     get_character: GetCharacter,
     create_character: CreateCharacter,
+    list_my_characters: ListMyCharacters,
 }
 
 impl GameServiceImpl {
     /// Builds the service from its use cases.
     #[must_use]
-    pub fn new(ping: Ping, get_character: GetCharacter, create_character: CreateCharacter) -> Self {
+    pub fn new(
+        ping: Ping,
+        get_character: GetCharacter,
+        create_character: CreateCharacter,
+        list_my_characters: ListMyCharacters,
+    ) -> Self {
         Self {
             ping,
             get_character,
             create_character,
+            list_my_characters,
         }
     }
 
@@ -53,20 +69,6 @@ impl GameServiceImpl {
     #[must_use]
     pub fn into_server(self) -> GameServiceServer<Self> {
         GameServiceServer::new(self)
-    }
-}
-
-/// Maps application errors to canonical gRPC codes. Infrastructure details never leak.
-fn to_status(e: AppError) -> Status {
-    match e {
-        AppError::InvalidArgument(m) => Status::invalid_argument(m),
-        AppError::NotFound { entity, id } => Status::not_found(format!("{entity} {id} not found")),
-        AppError::AlreadyExists(m) => Status::already_exists(m),
-        AppError::IdempotencyConflict => Status::failed_precondition(e.to_string()),
-        AppError::Infrastructure(err) => {
-            tracing::error!(error = ?err, "infrastructure error");
-            Status::internal("internal error")
-        },
     }
 }
 
@@ -84,9 +86,10 @@ impl GameService for GameServiceImpl {
         &self,
         req: Request<GetCharacterRequest>,
     ) -> Result<Response<Character>, Status> {
+        let caller = auth::caller(&req)?;
         let c = self
             .get_character
-            .execute(&req.get_ref().character_id)
+            .execute(caller, &req.get_ref().character_id)
             .await
             .map_err(to_status)?;
         Ok(Response::new(mapping::character_to_pb(&c)))
@@ -96,20 +99,18 @@ impl GameService for GameServiceImpl {
         &self,
         req: Request<CreateCharacterRequest>,
     ) -> Result<Response<Character>, Status> {
+        let caller = auth::caller(&req)?;
+        // `account_id` on the wire is deprecated and ignored: the owner is the caller.
         let req = req.into_inner();
         let idempotency_key = IdempotencyKey::parse(&req.idempotency_key)
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
-        #[allow(deprecated)] // removed in Story 1.6: the account will come from the token
-        let account_id = uuid::Uuid::parse_str(&req.account_id)
-            .map_err(|_| Status::invalid_argument("account_id must be a UUID"))?;
-        crate::infrastructure::telemetry::record_account_id(account_id);
         let race = mapping::race_from_pb(req.race)
             .ok_or_else(|| Status::invalid_argument("race must be specified"))?;
         let c = self
             .create_character
             .execute(CreateCharacterInput {
                 idempotency_key,
-                account_id,
+                account_id: caller,
                 name: req.name,
                 race,
             })
@@ -120,9 +121,17 @@ impl GameService for GameServiceImpl {
 
     async fn list_my_characters(
         &self,
-        _req: Request<ListMyCharactersRequest>,
+        req: Request<ListMyCharactersRequest>,
     ) -> Result<Response<ListMyCharactersResponse>, Status> {
-        Err(Status::unimplemented("Story 1.4"))
+        let caller = auth::caller(&req)?;
+        let characters = self
+            .list_my_characters
+            .execute(caller)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(ListMyCharactersResponse {
+            characters: characters.iter().map(mapping::character_to_pb).collect(),
+        }))
     }
 }
 

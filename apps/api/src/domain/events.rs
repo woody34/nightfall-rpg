@@ -1,10 +1,8 @@
 //! Domain events: facts about something that happened. Published on the event bus after the
 //! transaction that produced them commits (docs/engineering/architecture.md §3).
 
+use super::{AccountId, CharacterId, Race};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-use super::{CharacterId, Race};
 
 /// Every event the domain can emit. Serialized as JSON on the bus with a `type` tag.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,7 +14,7 @@ pub enum DomainEvent {
         /// The new character.
         character_id: CharacterId,
         /// Owning account.
-        account_id: Uuid,
+        account_id: AccountId,
         /// Race chosen.
         race: Race,
     },
@@ -35,13 +33,15 @@ impl DomainEvent {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
 
     #[test]
     fn serializes_with_type_tag() {
         let ev = DomainEvent::CharacterCreated {
             character_id: CharacterId::from_uuid(Uuid::nil()),
-            account_id: Uuid::nil(),
+            account_id: AccountId::from_uuid(Uuid::nil()),
             race: Race::Elf,
         };
         let json = serde_json::to_value(&ev).unwrap();
@@ -55,7 +55,7 @@ mod tests {
     fn subject_follows_naming_convention() {
         let ev = DomainEvent::CharacterCreated {
             character_id: CharacterId::new(),
-            account_id: Uuid::nil(),
+            account_id: AccountId::from_uuid(Uuid::nil()),
             race: Race::Human,
         };
         assert_eq!(ev.subject(), "nightfall.character.created");

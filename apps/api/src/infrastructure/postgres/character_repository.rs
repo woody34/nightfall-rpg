@@ -1,17 +1,19 @@
 use std::future::Future;
 
 use async_trait::async_trait;
-use sea_orm::sea_query::OnConflict;
 use sea_orm::{
-    ActiveValue, DatabaseConnection, DbErr, EntityTrait, RuntimeErr, TransactionTrait,
-    TryInsertResult,
+    ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder,
+    RuntimeErr, TransactionTrait,
 };
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use super::entities::{characters, idempotency_keys, outbox};
+use super::entities::{characters, outbox};
+use super::idempotency::{self, operation, Claim};
 use crate::application::ports::RepositoryError;
 use crate::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
 use crate::domain::{
-    BaseStats, Character, CharacterId, CharacterName, DomainEvent, Position, Race,
+    AccountId, BaseStats, Character, CharacterId, CharacterName, DomainEvent, Position, Race,
 };
 use crate::infrastructure::telemetry::Metrics;
 
@@ -54,7 +56,7 @@ fn model_to_character(m: characters::Model) -> anyhow::Result<Character> {
     let stat = |v: i16| -> anyhow::Result<u32> { Ok(u32::try_from(v)?) };
     Ok(Character {
         id: CharacterId::from_uuid(m.id),
-        account_id: m.account_id,
+        account_id: AccountId::from_uuid(m.account_id),
         name: CharacterName::new(m.name)?,
         race,
         level: u32::try_from(m.level)?,
@@ -73,7 +75,13 @@ fn model_to_character(m: characters::Model) -> anyhow::Result<Character> {
     })
 }
 
-fn is_unique_violation(e: &DbErr, constraint: &str) -> bool {
+/// What a `create_character` idempotency record stores: the id of the created character.
+#[derive(Serialize, Deserialize)]
+struct StoredResponse {
+    character_id: Uuid,
+}
+
+pub(super) fn is_unique_violation(e: &DbErr, constraint: &str) -> bool {
     let (DbErr::Exec(RuntimeErr::SqlxError(e)) | DbErr::Query(RuntimeErr::SqlxError(e))) = e else {
         return false;
     };
@@ -87,7 +95,7 @@ fn character_active_model(c: &Character) -> anyhow::Result<characters::ActiveMod
     }
     Ok(characters::ActiveModel {
         id: set(c.id.as_uuid()),
-        account_id: set(c.account_id),
+        account_id: set(c.account_id.as_uuid()),
         name: set(c.name.as_str().to_owned()),
         name_normalized: set(c.name.normalized()),
         race: set(c.race.as_str().to_owned()),
@@ -114,8 +122,22 @@ impl CharacterRepository for PgCharacterRepository {
             .transpose()
     }
 
+    async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
+        let rows = self
+            .timed(
+                "list_by_account",
+                characters::Entity::find()
+                    .filter(characters::Column::AccountId.eq(account.as_uuid()))
+                    // uuid v7: id order is creation order.
+                    .order_by_asc(characters::Column::Id)
+                    .all(&self.db),
+            )
+            .await?;
+        rows.into_iter().map(model_to_character).collect()
+    }
+
     /// One transaction:
-    /// 1. `INSERT ... ON CONFLICT DO NOTHING` on the idempotency key. The unique index
+    /// 1. Claim `(account, create_character, key)` (`idempotency::claim`). The primary key
     ///    serializes concurrent retries; the loser sees no row and replays.
     /// 2. Insert the character. A unique violation on `characters_name_normalized_key` rolls
     ///    everything back (including the key) and surfaces as `NameTaken`.
@@ -141,33 +163,31 @@ impl PgCharacterRepository {
     ) -> Result<CreateOutcome, RepositoryError> {
         let tx = self.db.begin().await.map_err(anyhow::Error::from)?;
 
-        let claim = idempotency_keys::ActiveModel {
-            key: ActiveValue::Set(key.as_uuid()),
-            fingerprint: ActiveValue::Set(fingerprint.to_owned()),
-            character_id: ActiveValue::Set(character.id.as_uuid()),
-            created_at: ActiveValue::NotSet,
-        };
-        let claimed = idempotency_keys::Entity::insert(claim)
-            .on_conflict(
-                OnConflict::column(idempotency_keys::Column::Key)
-                    .do_nothing()
-                    .to_owned(),
-            )
-            .try_insert()
-            .exec_without_returning(&tx)
-            .await
-            .map_err(anyhow::Error::from)?;
+        let response = serde_json::to_value(StoredResponse {
+            character_id: character.id.as_uuid(),
+        })
+        .map_err(anyhow::Error::from)?;
+        let claim = idempotency::claim(
+            &tx,
+            character.account_id,
+            operation::CREATE_CHARACTER,
+            key,
+            fingerprint,
+            response,
+        )
+        .await?;
 
-        if !matches!(claimed, TryInsertResult::Inserted(1)) {
-            let stored = idempotency_keys::Entity::find_by_id(key.as_uuid())
-                .one(&tx)
-                .await
-                .map_err(anyhow::Error::from)?
-                .ok_or_else(|| anyhow::anyhow!("idempotency key vanished after conflict"))?;
-            if stored.fingerprint != fingerprint {
+        if let Claim::Existing {
+            fingerprint: stored_fp,
+            response,
+        } = claim
+        {
+            if stored_fp != fingerprint {
                 tx.commit().await.map_err(anyhow::Error::from)?;
                 return Ok(CreateOutcome::KeyReused);
             }
+            let stored: StoredResponse =
+                serde_json::from_value(response).map_err(anyhow::Error::from)?;
             let existing = characters::Entity::find_by_id(stored.character_id)
                 .one(&tx)
                 .await

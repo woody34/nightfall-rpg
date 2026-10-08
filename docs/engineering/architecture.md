@@ -35,7 +35,12 @@ The rule, from Kigawas: routers thin, use cases thick, models slim. A handler th
 
 `application::ports` defines:
 
-- `CharacterRepository`: `get`, `create_idempotent`. Each method is one atomic unit of work.
+- `CharacterRepository`: `get`, `list_by_account`, `create_idempotent`. Each method is one
+  atomic unit of work.
+- `AccountRepository`: `record_login` (idempotent upsert).
+- `SessionRepository`: `issue_ticket_idempotent`, `consume_ticket`.
+- `TokenVerifier`: `verify(token) -> Claims` (Keycloak JWKS in production).
+- `SecretGenerator`: `play_ticket()` (OS CSPRNG in production, fixed in tests).
 - `EventBus`: `publish(&DomainEvent)`.
 - `Clock`: `now()`.
 
@@ -148,14 +153,16 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
 
 ## 3. Request lifecycle: `CreateCharacter`
 
-1. `interface::grpc` parses `idempotency_key`, `account_id`, `race` into typed values. Any
-   failure is `INVALID_ARGUMENT` and nothing else runs.
+0. `AuthLayer` verifies the bearer token and puts the caller's `AccountId` in the request
+   extensions (api-guidelines.md section 3a). No token, no handler.
+1. `interface::grpc` reads the caller from the extensions and parses `idempotency_key` and
+   `race` into typed values. Any failure is `INVALID_ARGUMENT` and nothing else runs.
 2. `CreateCharacter::execute` validates the name (domain), builds the aggregate, computes the
    idempotency fingerprint.
-3. `PgCharacterRepository::create_idempotent` runs one transaction: claim key, insert
-   character, stage outbox row, commit. Unique violations map to typed errors.
-4. On `Created`, the use case publishes `CharacterCreated` on NATS. A publish failure is logged,
-   not returned, because the outbox will deliver it.
+3. `PgCharacterRepository::create_idempotent` runs one transaction: claim
+   `(account, create_character, key)`, insert character, stage outbox row, commit. Unique
+   violations map to typed errors.
+4. The outbox relay publishes `CharacterCreated` to JetStream after the commit.
 5. The interface maps the result to `nightfall.v1.Character` or a status code.
 
 Every step has a test: domain constructors (unit), use case with in-memory ports (unit),

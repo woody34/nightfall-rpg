@@ -1,4 +1,3 @@
-#![allow(deprecated)] // account_id is deprecated on the wire but still honoured until Story 1.6
 #![allow(
     missing_docs,
     unreachable_pub,
@@ -12,20 +11,19 @@ mod common;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use common::{TestApp, ACCOUNT, KEY_A, KEY_B};
+use common::{account, other_account, TestApp, KEY_A, KEY_B, OTHER_ACCOUNT};
 use nightfall_api::application::ports::RepositoryError;
 use nightfall_api::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
-use nightfall_api::domain::DomainEvent;
-use nightfall_api::domain::{Character, CharacterId};
+use nightfall_api::domain::{AccountId, Character, CharacterId, DomainEvent};
 use nightfall_api::interface::grpc::pb::{self, CreateCharacterRequest, GetCharacterRequest};
 use tonic::Code;
 
 fn req(key: &str, name: &str) -> CreateCharacterRequest {
     CreateCharacterRequest {
         idempotency_key: key.into(),
-        account_id: ACCOUNT.into(),
         name: name.into(),
         race: pb::Race::Orc as i32,
+        ..Default::default()
     }
 }
 
@@ -69,7 +67,40 @@ async fn creates_character_readable_afterwards_and_publishes_event() {
 
     let events = app.characters.staged_events();
     assert_eq!(events.len(), 1);
-    assert!(matches!(events[0], DomainEvent::CharacterCreated { .. }));
+    assert!(matches!(
+        events[0],
+        DomainEvent::CharacterCreated { account_id, .. } if account_id == AccountId::from_uuid(account())
+    ));
+}
+
+#[tokio::test]
+async fn owner_is_the_caller_and_a_forged_account_id_is_ignored() {
+    let mut app = TestApp::spawn().await;
+    #[allow(deprecated)] // the point of the test: the deprecated field must have no effect
+    let forged = CreateCharacterRequest {
+        account_id: OTHER_ACCOUNT.into(),
+        ..req(KEY_A, "Thrall")
+    };
+    let created = app
+        .grpc
+        .create_character(forged)
+        .await
+        .unwrap()
+        .into_inner();
+
+    let id: CharacterId = created.id.parse().unwrap();
+    let stored = app.characters.get_for_test(id).unwrap();
+    assert_eq!(stored.account_id, AccountId::from_uuid(account()));
+
+    // The account named in the forged field cannot see or read it.
+    let mut other = app.game_as(other_account());
+    let err = other
+        .get_character(GetCharacterRequest {
+            character_id: created.id,
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), Code::PermissionDenied);
 }
 
 #[tokio::test]
@@ -105,6 +136,23 @@ async fn same_key_different_body_is_failed_precondition() {
         .await
         .unwrap_err();
     assert_eq!(err.code(), Code::FailedPrecondition);
+}
+
+#[tokio::test]
+async fn same_key_from_another_account_is_a_different_request() {
+    let mut app = TestApp::spawn().await;
+    app.grpc
+        .create_character(req(KEY_A, "Thrall"))
+        .await
+        .unwrap();
+    let theirs = app
+        .game_as(other_account())
+        .create_character(req(KEY_A, "Garrosh"))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(theirs.name, "Garrosh");
+    assert_eq!(app.characters.len(), 2);
 }
 
 #[tokio::test]
@@ -168,6 +216,10 @@ impl CharacterRepository for BrokenRepository {
         anyhow::bail!("connection to {LEAK} refused")
     }
 
+    async fn list_by_account(&self, _account: AccountId) -> anyhow::Result<Vec<Character>> {
+        anyhow::bail!("connection to {LEAK} refused")
+    }
+
     async fn create_idempotent(
         &self,
         _key: &IdempotencyKey,
@@ -191,4 +243,17 @@ async fn infrastructure_failure_is_a_sanitised_internal_error() {
     for leaked in ["hunter2", "db.internal", "postgres://", "refused"] {
         assert!(!format!("{err:?}").contains(leaked), "{leaked} leaked: {err:?}");
     }
+}
+
+#[tokio::test]
+async fn without_a_token_is_unauthenticated_and_writes_nothing() {
+    let app = TestApp::spawn().await;
+    let err = app
+        .anon_grpc()
+        .create_character(req(KEY_A, "Thrall"))
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), Code::Unauthenticated);
+    assert_eq!(app.characters.len(), 0);
+    assert!(app.accounts.is_empty());
 }

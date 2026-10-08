@@ -16,14 +16,18 @@ retrying.
 | Endpoint kind | How it is idempotent |
 |---------------|----------------------|
 | Reads (`Get*`, `List*`, `Ping`) | Naturally. No key. |
-| Creates and other mutations | Carry `idempotency_key` (client-generated UUID, required). The server stores `(key, fingerprint, result)` in the same transaction as the write. A retry with the same key and the same fingerprint returns the stored result and writes nothing. The same key with a different fingerprint is `FAILED_PRECONDITION`. |
+| Creates and other mutations | Carry `idempotency_key` (client-generated UUID, required). The server stores `(account_id, operation, key, fingerprint, response)` in the same transaction as the write. A retry with the same key and the same fingerprint returns the stored response and writes nothing. The same key with a different fingerprint is `FAILED_PRECONDITION`. Keys are scoped to the calling account and the operation, so two accounts (or two RPCs) never collide on a key. |
 | Deletes | Deleting something already deleted returns success, not `NOT_FOUND`. |
 | State transitions (`EquipItem`, `JoinParty`) | Either carry a key, or be defined so that applying them twice is a no-op (equip an already-equipped item succeeds). State the choice in the RPC comment. |
 
-The fingerprint is the request's semantic content minus anything generated server-side.
-Version it (`v1|...`) so a change in what counts as "the same request" does not break stored keys.
+The fingerprint is the request's semantic content minus anything generated server-side and
+minus the caller (the key is already scoped to the account). Version it (`v1|...`) so a change
+in what counts as "the same request" does not break stored keys.
 
-Keys live in `idempotency_keys` and are retained for 24 hours (Phase 9 cleanup job).
+Keys live in `idempotency_keys` and are retained for 24 hours (Phase 9 cleanup job). The stored
+`response` is what a retry returns: enough to rebuild the original reply exactly (for
+`CreateCharacter` the character id; for `IssuePlayTicket` the whole response, ticket included).
+See database-guidelines.md section 2a.
 
 ## 3. Errors
 
@@ -34,6 +38,8 @@ Keys live in `idempotency_keys` and are retained for 24 hours (Phase 9 cleanup j
 | `InvalidArgument` | `INVALID_ARGUMENT` | 400 |
 | `NotFound` | `NOT_FOUND` | 404 |
 | `AlreadyExists` | `ALREADY_EXISTS` | 409 |
+| `Unauthenticated` | `UNAUTHENTICATED` | 401 |
+| `PermissionDenied` | `PERMISSION_DENIED` | 403 |
 | `IdempotencyConflict` | `FAILED_PRECONDITION` | 409 |
 | `Infrastructure` | `INTERNAL` with the message `internal error` | 500 |
 
@@ -42,6 +48,52 @@ reach the client. Messages for the other variants are safe to show.
 
 Validation happens at the edge before any port is called, so a bad request never opens a
 transaction. The tests assert this (`bad_name_is_invalid_argument_and_writes_nothing`).
+
+## 3a. Authentication
+
+Identity comes from Keycloak (plan decision D1). The server never sees a password; it verifies
+access tokens and nothing else.
+
+**How the caller reaches a use case.**
+
+1. The client sends `authorization: Bearer <access token>` as gRPC metadata.
+2. `interface::grpc::AuthLayer`, a tower layer inside the telemetry layer, runs for every RPC
+   not in `PUBLIC_METHODS`. It is a layer, not a tonic interceptor, because verification
+   awaits (JWKS refresh, the account upsert).
+3. The `Authenticate` use case calls the `TokenVerifier` port (`KeycloakVerifier` in
+   production): RS256 only; `iss`, `aud`, `exp`, `sub` required; `aud` must contain
+   `OIDC_AUDIENCE`; 30 s leeway. Keys come from `OIDC_ISSUER/protocol/openid-connect/certs`,
+   loaded at boot and refreshed on an unknown `kid` at most once per 60 s.
+4. `sub` must be a UUID; it *is* the `AccountId`. `EnsureAccount` upserts the `accounts` row
+   (first login creates it; `last_login_at` moves at most once a minute, so most requests write
+   nothing).
+5. The layer inserts the `AccountId` into the request extensions and records it on the RPC span.
+   Handlers read it with `interface::grpc::auth::caller(&req)` and pass it into the use case
+   input. **No use case takes an account id from a request field**; the deprecated
+   `CreateCharacterRequest.account_id` is ignored.
+
+Any failure in steps 2-4 is `UNAUTHENTICATED` and the handler never runs; an unreachable JWKS or
+database is `INTERNAL`. Ownership is a use-case rule: acting on another account's resource is
+`PERMISSION_DENIED` (`GetCharacter`, `IssuePlayTicket`).
+
+**Public RPCs:** `GameService.Ping` only. A token sent to a public RPC is ignored. Every new RPC
+is authenticated by default; making one public means adding it to `PUBLIC_METHODS` with a
+reason in review.
+
+**Configuration.** `OIDC_ISSUER` unset: every non-public RPC is refused (`DisabledVerifier`),
+so a misconfigured server fails closed. `AUTH_DEV_TOKENS=1` accepts unsigned
+`test:<account_uuid>` tokens instead; local development only. Tests use the same
+`TestTokenVerifier` through `common::TestApp` (`app.grpc` is authenticated as `ACCOUNT`,
+`app.game_as(..)` as anyone, `app.anon_grpc()` as nobody).
+
+**Play ticket lifecycle** (`SessionService.IssuePlayTicket`, plan Revision 1 items 7-9, 17):
+
+| Step | What happens |
+|------|--------------|
+| Issue | Caller must own the character. One transaction: claim the idempotency key with the full response, bump `account_sessions.generation`, store `play_tickets(ticket_hash = SHA-256(ticket), account, character, generation, expires_at = now + 60 s)`. The ticket is 32 random bytes, returned base64url; only its hash is in `play_tickets`. |
+| Retry | Same key, same character: the identical response, even after the ticket was consumed or expired. Same key, other character: `FAILED_PRECONDITION`. Every connection attempt uses a new key. |
+| Present | `Authorization: Bearer <ticket>` on the `/ws` upgrade, never in the URL. Spans record the path only; `span_secrets.rs` asserts a sentinel ticket appears in no span or log. |
+| Consume | `ConsumePlayTicket`: one transaction locks the row and marks it consumed. Malformed, unknown, expired or already consumed: HTTP 401 before the upgrade. Generation older than the account's current one (a newer ticket was issued): `Superseded`, HTTP 409; the ticket is spent either way. Success yields `(account, character, generation)`; the generation fences older sockets of the same account in the zone actor (Epic 4). |
 
 ## 4. Required tests per endpoint
 
@@ -59,7 +111,9 @@ check the list.
 **Integration (`apps/api/tests/<transport>_<endpoint>.rs`, real socket via `common::TestApp`):**
 
 5. Happy path through the wire, asserting every response field.
-6. Each error code the endpoint documents, asserted by `tonic::Code` or HTTP status.
+6. Each error code the endpoint documents, asserted by `tonic::Code` or HTTP status,
+   including `UNAUTHENTICATED` without a token and, for resources with an owner,
+   `PERMISSION_DENIED` as another account.
 7. For mutations: the retry case through the wire.
 8. Read-after-write where applicable (`create` then `get`).
 
@@ -70,8 +124,9 @@ check the list.
 10. Any method with a uniqueness or idempotency guarantee: a concurrent test
     (`concurrent_retries_with_same_key_create_exactly_one`).
 
-Existing examples: `grpc_create_character.rs` (7 cases), `postgres_character_repository.rs`
-(5 cases including concurrency).
+Existing examples: `grpc_create_character.rs` (10 cases, including a forged `account_id`),
+`grpc_issue_play_ticket.rs`, `postgres_character_repository.rs` and
+`postgres_session_repository.rs` (including concurrency).
 
 ## 5. Proto conventions
 

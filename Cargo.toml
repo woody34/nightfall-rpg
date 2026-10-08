@@ -57,11 +57,15 @@ anyhow = "1.0"
 async-nats = "0.50"
 async-trait = "0.1"
 axum = "0.8"
+base64 = "0.22"
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
 futures-util = { version = "0.3", default-features = false }
 http-body-util = "0.1"
+# 9.x verifies with ring (already in the tree via rustls); 10+ needs aws-lc-rs or the `rsa`
+# crate, which carries an unfixed RustSec advisory.
+jsonwebtoken = { version = "9.3", default-features = false }
 opentelemetry = { version = "0.33", default-features = false, features = ["trace", "metrics", "logs"] }
 opentelemetry-appender-tracing = { version = "0.33", default-features = false }
 opentelemetry-otlp = { version = "0.33", default-features = false, features = ["grpc-tonic", "trace", "metrics", "logs"] }
@@ -74,6 +78,7 @@ proptest = "1"
 rand_chacha = "0.10"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 protox = "0.9"
+ring = "0.17"
 sea-orm = { version = "2.0", default-features = false, features = ["runtime-tokio", "sqlx-postgres", "macros", "with-uuid", "with-chrono", "with-json"] }
 sea-orm-migration = { version = "2.0", default-features = false, features = ["runtime-tokio", "sqlx-postgres"] }
 serde = { version = "1.0", features = ["derive"] }

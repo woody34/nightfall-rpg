@@ -8,7 +8,7 @@
 
 mod common;
 
-use common::{TestApp, ACCOUNT, KEY_A};
+use common::{TestApp, KEY_A};
 use nightfall_api::infrastructure::telemetry::{FrameDirection, OutboxStats, OutboxStatsSource};
 use nightfall_api::interface::grpc::pb::{
     CreateCharacterRequest, GetCharacterRequest, IssuePlayTicketRequest, ListMyCharactersRequest,
@@ -25,15 +25,13 @@ async fn scrape(app: &TestApp) -> String {
         .unwrap()
 }
 
-/// A create request. `account_id` is deprecated on the wire but still required until Story 1.6
-/// moves the account into the token; scoped here rather than silencing the whole crate.
-#[allow(deprecated)]
+/// A create request; the owner comes from the caller's token.
 fn create_request(name: &str) -> CreateCharacterRequest {
     CreateCharacterRequest {
         idempotency_key: KEY_A.into(),
-        account_id: ACCOUNT.into(),
         name: name.into(),
         race: 0,
+        ..Default::default()
     }
 }
 
@@ -151,9 +149,13 @@ async fn arbitrary_grpc_paths_share_one_bucketed_series() {
     ];
     for path in junk {
         client.ready().await.unwrap();
+        // Authenticated, so the call gets past the auth layer to the router (UNIMPLEMENTED).
+        let mut req = tonic::Request::new(PingRequest::default());
+        req.metadata_mut()
+            .insert("authorization", format!("Bearer test:{}", common::ACCOUNT).parse().unwrap());
         let res: Result<tonic::Response<PingRequest>, _> = client
             .unary(
-                tonic::Request::new(PingRequest::default()),
+                req,
                 path.parse().unwrap(),
                 tonic_prost::ProstCodec::<PingRequest, PingRequest>::default(),
             )
@@ -211,7 +213,7 @@ async fn every_implemented_rpc_has_a_known_label() {
     app.grpc
         .list_my_characters(ListMyCharactersRequest {})
         .await
-        .unwrap_err();
+        .unwrap();
     app.session
         .issue_play_ticket(IssuePlayTicketRequest::default())
         .await

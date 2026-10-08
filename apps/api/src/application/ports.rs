@@ -6,7 +6,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::domain::{Character, CharacterId, DomainEvent};
+use crate::domain::{
+    AccountId, Character, CharacterId, DomainEvent, PlayTicket, SessionGeneration, TicketHash,
+};
 
 /// Client-supplied key that makes a mutating request safe to retry. Must be a UUID.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -66,7 +68,11 @@ pub trait CharacterRepository: Send + Sync {
     /// Fetches by id.
     async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>>;
 
-    /// Atomically: records `key` with `fingerprint`, inserts `character`, and stages its
+    /// Every character owned by `account`, in creation order (ids are time-ordered).
+    async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>>;
+
+    /// Atomically: records `key` (scoped to `character.account_id` and the operation
+    /// `create_character`) with `fingerprint`, inserts `character`, and stages its
     /// creation event for publication. If `key` already exists, writes nothing and returns
     /// [`CreateOutcome::Replayed`] or [`CreateOutcome::KeyReused`].
     ///
@@ -90,6 +96,181 @@ pub enum RepositoryError {
     /// Anything else.
     #[error(transparent)]
     Other(#[from] anyhow::Error),
+}
+
+/// Verifies bearer tokens issued by the identity provider (plan Revision 1, item 15).
+#[async_trait]
+pub trait TokenVerifier: Send + Sync {
+    /// Verifies `token` (the part after `Bearer `): signature, algorithm, issuer, audience,
+    /// expiry. Returns the claims the game uses.
+    async fn verify(&self, token: &str) -> Result<Claims, AuthError>;
+}
+
+/// What the game reads from a verified access token.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Claims {
+    /// Subject: the identity provider's user id, which is the [`AccountId`].
+    pub sub: String,
+    /// Audiences the token was issued for (contains the configured audience).
+    pub aud: Vec<String>,
+    /// Realm roles (`player`, `gm`, ...).
+    pub roles: Vec<String>,
+    /// Expiry, Unix seconds.
+    pub exp: i64,
+}
+
+/// Why a token was rejected. Every variant except [`AuthError::Unavailable`] is the caller's
+/// problem and maps to `UNAUTHENTICATED`.
+#[derive(Debug, thiserror::Error)]
+pub enum AuthError {
+    /// Not a JWT.
+    #[error("malformed bearer token")]
+    Malformed,
+    /// Past `exp` (plus leeway).
+    #[error("token expired")]
+    Expired,
+    /// Signed with a key id the issuer does not publish.
+    #[error("token signed by an unknown key")]
+    UnknownKey,
+    /// Failed verification: signature, algorithm, issuer, audience, or a missing claim.
+    #[error("invalid token: {0}")]
+    Invalid(&'static str),
+    /// The verifier could not do its job (keys unreachable). Not the caller's fault.
+    #[error("token verification unavailable")]
+    Unavailable(#[source] anyhow::Error),
+}
+
+/// Result of recording a login.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginOutcome {
+    /// First login: the account row was created.
+    Created,
+    /// Known account; `last_login_at` was moved forward.
+    Bumped,
+    /// Known account, seen within the bump interval: nothing was written.
+    Unchanged,
+}
+
+/// Persistence for accounts. Every method is one atomic unit of work.
+#[async_trait]
+pub trait AccountRepository: Send + Sync {
+    /// Creates the account if it does not exist (`created_at = last_login_at = now`);
+    /// otherwise sets `last_login_at = now` only if the stored value is at least
+    /// `min_interval` older. Concurrent first logins create exactly one row.
+    async fn record_login(
+        &self,
+        id: AccountId,
+        now: DateTime<Utc>,
+        min_interval: chrono::Duration,
+    ) -> anyhow::Result<LoginOutcome>;
+}
+
+/// What `IssuePlayTicket` returns, and what is stored under its idempotency key so a retry
+/// gets the identical response.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IssuedTicket {
+    /// The secret. Its `Debug` is redacted.
+    pub ticket: PlayTicket,
+    /// Instant after which the ticket is rejected.
+    pub expires_at: DateTime<Utc>,
+    /// Where the client connects.
+    pub ws_url: String,
+}
+
+/// A ticket to persist, with everything the issue transaction needs.
+#[derive(Debug, Clone)]
+pub struct NewTicket {
+    /// The caller; owns `character_id`.
+    pub account_id: AccountId,
+    /// The character the ticket admits.
+    pub character_id: CharacterId,
+    /// SHA-256 of the secret; the only form stored in the ticket table.
+    pub hash: TicketHash,
+    /// Issue instant.
+    pub issued_at: DateTime<Utc>,
+    /// The full response, stored for idempotent replay.
+    pub response: IssuedTicket,
+}
+
+/// Result of an idempotent ticket issue.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IssueOutcome {
+    /// New ticket stored under the account's new session generation.
+    Issued {
+        /// The response to return.
+        response: IssuedTicket,
+        /// The generation the ticket carries.
+        generation: SessionGeneration,
+    },
+    /// Same key, same fingerprint: the stored response, nothing written.
+    Replayed(IssuedTicket),
+    /// Same key, different fingerprint.
+    KeyReused,
+}
+
+/// A consumed ticket: who may connect, as which character, under which generation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Admission {
+    /// The authenticated account.
+    pub account_id: AccountId,
+    /// The character to spawn.
+    pub character_id: CharacterId,
+    /// Fences older sessions of the same account (plan Revision 1, item 8).
+    pub generation: SessionGeneration,
+}
+
+/// Why a ticket could not be consumed.
+#[derive(Debug, thiserror::Error)]
+pub enum ConsumeError {
+    /// No ticket with this hash.
+    #[error("unknown ticket")]
+    Unknown,
+    /// Already used once.
+    #[error("ticket already consumed")]
+    Consumed,
+    /// Past its expiry.
+    #[error("ticket expired")]
+    Expired,
+    /// A newer ticket was issued for the same account. The ticket is consumed regardless.
+    #[error("ticket superseded by a newer one")]
+    Superseded,
+    /// Anything else.
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
+/// Persistence for play tickets and session generations. Every method is one transaction.
+#[async_trait]
+pub trait SessionRepository: Send + Sync {
+    /// Atomically: claims `key` (scoped to the account and the operation
+    /// `issue_play_ticket`) with `fingerprint` and the full response, bumps the account's
+    /// session generation, and stores the ticket hash with that generation. A known key
+    /// writes nothing and returns [`IssueOutcome::Replayed`] or [`IssueOutcome::KeyReused`].
+    async fn issue_ticket_idempotent(
+        &self,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+        ticket: &NewTicket,
+    ) -> anyhow::Result<IssueOutcome>;
+
+    /// Atomically marks the ticket consumed and returns its admission. Concurrent consumers of
+    /// one ticket: exactly one succeeds.
+    ///
+    /// # Errors
+    /// [`ConsumeError::Unknown`], [`ConsumeError::Consumed`], [`ConsumeError::Expired`]
+    /// (`expires_at <= now`), or [`ConsumeError::Superseded`] when the ticket's generation is
+    /// older than the account's current one.
+    async fn consume_ticket(
+        &self,
+        hash: &TicketHash,
+        now: DateTime<Utc>,
+    ) -> Result<Admission, ConsumeError>;
+}
+
+/// Source of secrets. Tests substitute a fixed one so a sentinel value can be traced.
+pub trait SecretGenerator: Send + Sync {
+    /// A fresh play ticket from a cryptographically secure source.
+    fn play_ticket(&self) -> anyhow::Result<PlayTicket>;
 }
 
 /// Outbound domain events. Implementations must be safe to call after a transaction commits

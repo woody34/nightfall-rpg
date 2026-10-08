@@ -2,6 +2,8 @@
 # Dev-only: runs the full device authorization grant against local Keycloak and
 # automates the browser step by posting the login form with curl.
 # Needs: curl, jq, openssl. See README.md for the manual, step-by-step version.
+# OUTPUT=access_token prints only the raw access token on stdout (used by the API's
+# keycloak_device_flow integration test); the default prints the decoded payload.
 set -euo pipefail
 R=${OIDC_ISSUER:-http://localhost:8080/realms/nightfall}
 USER_NAME=${1:-testplayer}; PASS=${2:-testplayer}
@@ -41,5 +43,6 @@ for _ in $(seq 10); do
 done
 [ "$(jq -r .access_token <<<"$TOK")" != null ] || { echo "$TOK" >&2; exit 1; }
 echo "$TOK" | jq '{token_type, expires_in, refresh_expires_in, scope, has_refresh: (.refresh_token != null)}' >&2
+if [ "${OUTPUT:-}" = access_token ]; then jq -r .access_token <<<"$TOK"; exit 0; fi
 # 4. Decode the access token payload
 jq -r '.access_token | split(".")[1] | gsub("-";"+") | gsub("_";"/") | @base64d | fromjson' <<<"$TOK"

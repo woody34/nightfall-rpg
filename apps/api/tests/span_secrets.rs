@@ -12,7 +12,12 @@
 mod common;
 
 use common::capture::Capture;
-use common::TestApp;
+use common::{account, TestApp, KEY_A};
+use nightfall_api::application::use_cases::ConsumePlayTicket;
+use nightfall_api::domain::{AccountId, Character, CharacterName, PlayTicket, Race};
+use nightfall_api::infrastructure::memory::FixedSecretGenerator;
+use nightfall_api::infrastructure::SystemClock;
+use nightfall_api::interface::grpc::pb::IssuePlayTicketRequest;
 
 #[tokio::test]
 async fn query_string_and_authorization_header_never_appear_in_spans_or_logs() {
@@ -38,4 +43,49 @@ async fn query_string_and_authorization_header_never_appear_in_spans_or_logs() {
     );
     assert!(!logged.contains(QUERY_SECRET), "query string leaked:\n{logged}");
     assert!(!logged.contains(HEADER_SECRET), "header leaked:\n{logged}");
+}
+
+#[tokio::test]
+async fn play_ticket_never_appears_in_spans_or_logs() {
+    const SENTINEL: [u8; 32] = *b"SENTINEL-TICKET-never-log-me-42!";
+    let secret = PlayTicket::from_bytes(SENTINEL).encode();
+
+    let capture = Capture::default();
+    let _guard = capture.install();
+
+    let mut app = TestApp::spawn_with(|deps| {
+        deps.secrets = std::sync::Arc::new(FixedSecretGenerator(SENTINEL));
+    })
+    .await;
+    let c = Character::create(
+        AccountId::from_uuid(account()),
+        CharacterName::new("Aria").unwrap(),
+        Race::Elf,
+    );
+    app.characters.insert_for_test(c.clone());
+    let req = || IssuePlayTicketRequest {
+        idempotency_key: KEY_A.into(),
+        character_id: c.id.to_string(),
+    };
+
+    // Issue, replay, consume, and consume again: every path that touches the ticket.
+    let issued = app
+        .session
+        .issue_play_ticket(req())
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(issued.ticket, secret, "the sentinel really was issued");
+    app.session.issue_play_ticket(req()).await.unwrap();
+    let consume = ConsumePlayTicket::new(app.sessions.clone(), std::sync::Arc::new(SystemClock));
+    consume.execute(&issued.ticket).await.unwrap();
+    consume.execute(&issued.ticket).await.unwrap_err();
+
+    let logged = capture.text();
+    assert!(
+        logged.contains("IssuePlayTicket") && logged.contains("play ticket issued"),
+        "issue spans and logs not captured, test is vacuous:\n{logged}"
+    );
+    assert!(!logged.contains(&secret), "play ticket leaked:\n{logged}");
+    assert!(!logged.contains("SENTINEL-TICKET"), "raw ticket bytes leaked:\n{logged}");
 }

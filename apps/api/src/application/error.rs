@@ -20,6 +20,13 @@ pub enum AppError {
     /// A uniqueness rule was violated.
     #[error("already exists: {0}")]
     AlreadyExists(String),
+    /// The caller is not authenticated: no bearer token, or one that failed verification.
+    #[error("unauthenticated: {0}")]
+    Unauthenticated(String),
+    /// The caller is authenticated but may not act on this resource (another account's
+    /// character).
+    #[error("permission denied: {0}")]
+    PermissionDenied(String),
     /// The idempotency key was reused with a different request body.
     #[error("idempotency key reused with a different request")]
     IdempotencyConflict,

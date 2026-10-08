@@ -9,7 +9,7 @@
 
 use futures_util::StreamExt;
 use nightfall_api::application::EventBus;
-use nightfall_api::domain::{CharacterId, DomainEvent, Race};
+use nightfall_api::domain::{AccountId, CharacterId, DomainEvent, Race};
 use nightfall_api::infrastructure::nats::NatsEventBus;
 use uuid::Uuid;
 
@@ -27,7 +27,7 @@ async fn published_event_arrives_on_its_subject_as_json() {
 
     let event = DomainEvent::CharacterCreated {
         character_id: CharacterId::new(),
-        account_id: Uuid::nil(),
+        account_id: AccountId::from_uuid(Uuid::nil()),
         race: Race::DarkElf,
     };
     bus.publish(&event).await.unwrap();

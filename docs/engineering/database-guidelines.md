@@ -23,7 +23,7 @@ Reference: Instaclustr's top-10 practices, adapted to a game server.
 
 | Rule | Why |
 |------|-----|
-| `uuid` v7 primary keys for entities | Time-ordered, so B-tree inserts append and don't fragment; globally unique for sharding later. |
+| `uuid` v7 primary keys for entities | Time-ordered, so B-tree inserts append and don't fragment; globally unique for sharding later. Exception: `accounts.id` is the identity provider's `sub`. |
 | `bigint GENERATED ALWAYS AS IDENTITY` for logs and outbox | Cheapest sequential key for append-only tables. |
 | `timestamptz` everywhere, never `timestamp` | Unambiguous instants. |
 | `smallint` for stats, `integer` for level and counts, `bigint` for currency | Right-sized; currency as integer (adena units) avoids float precision problems. |
@@ -38,6 +38,31 @@ modules (`mYYYYMMDD_NNNNNN_name.rs`) that execute reviewed plain SQL kept beside
 at startup via `Migrator::up`. The first migration is a baseline: it no-ops when the tables
 already exist, so databases created by the old sqlx migrator upgrade in place. Expand/contract for live changes: add the new column, deploy code that
 writes both, backfill, deploy code that reads the new one, drop the old. Never rename in place.
+
+## 2a. Idempotency records
+
+One table for every mutating operation (api-guidelines.md section 2):
+
+```
+idempotency_keys(account_id uuid, operation text, key uuid, fingerprint text,
+                 response jsonb, created_at timestamptz,
+                 PRIMARY KEY (account_id, operation, key))
+```
+
+- `operation` is the snake-case RPC name (`create_character`, `issue_play_ticket`); the
+  constants live in `infrastructure/postgres/idempotency.rs`. Scoping by account means a client
+  cannot probe or collide with another account's keys.
+- `response` is what a retry returns, written in the same transaction as the state change.
+  Store the minimum that rebuilds the reply exactly: an id when the entity can be re-read
+  (`{"character_id": ...}`), the full reply when it cannot (the play ticket). The response
+  shape is a private serde struct in the repository, so changing it is a code change with a
+  review, never an ad-hoc JSON edit.
+- Use `idempotency::claim(&tx, account, operation, key, fingerprint, response)` as the first
+  statement of the transaction. It is `INSERT ... ON CONFLICT DO NOTHING`; on conflict it reads
+  the stored row, and the repository compares fingerprints (`Replayed` or `KeyReused`). The
+  primary key serializes concurrent retries; the loser waits for the winner's commit.
+- A response may hold a secret only if the secret is short-lived and single-use (the 60 s play
+  ticket). Anything longer-lived is stored hashed and the operation is not replayable.
 
 ## 3. Queries
 

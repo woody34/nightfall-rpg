@@ -5,6 +5,8 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::AccountId;
+
 /// Playable races. Mirrors `nightfall.v1.Race` minus `UNSPECIFIED`, which is a transport
 /// concern and is rejected at the interface boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -266,7 +268,7 @@ pub struct Character {
     /// Stable identity.
     pub id: CharacterId,
     /// Owning account.
-    pub account_id: Uuid,
+    pub account_id: AccountId,
     /// Unique (case-insensitive) display name.
     pub name: CharacterName,
     /// Race, fixed at creation.
@@ -285,7 +287,7 @@ impl Character {
 
     /// Creates a level-1 character with the race's starting stats at the origin.
     #[must_use]
-    pub fn create(account_id: Uuid, name: CharacterName, race: Race) -> Self {
+    pub fn create(account_id: AccountId, name: CharacterName, race: Race) -> Self {
         Self {
             id: CharacterId::new(),
             account_id,
@@ -350,7 +352,11 @@ mod tests {
 
     #[test]
     fn create_starts_at_level_one_with_race_stats() {
-        let c = Character::create(Uuid::nil(), CharacterName::new("Test").unwrap(), Race::Orc);
+        let c = Character::create(
+            AccountId::from_uuid(Uuid::nil()),
+            CharacterName::new("Test").unwrap(),
+            Race::Orc,
+        );
         assert_eq!(c.level, 1);
         assert_eq!(c.stats, Race::Orc.starting_stats());
         assert_eq!(c.position, Position::default());

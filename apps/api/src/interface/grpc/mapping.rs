@@ -52,7 +52,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::domain::CharacterName;
+    use crate::domain::{AccountId, CharacterName};
 
     #[test]
     fn race_round_trips_and_rejects_unspecified() {
@@ -71,7 +71,11 @@ mod tests {
 
     #[test]
     fn character_maps_every_field() {
-        let c = Character::create(Uuid::nil(), CharacterName::new("Frodo").unwrap(), Race::Dwarf);
+        let c = Character::create(
+            AccountId::from_uuid(Uuid::nil()),
+            CharacterName::new("Frodo").unwrap(),
+            Race::Dwarf,
+        );
         let p = character_to_pb(&c);
         assert_eq!(p.id, c.id.to_string());
         assert_eq!(p.name, "Frodo");

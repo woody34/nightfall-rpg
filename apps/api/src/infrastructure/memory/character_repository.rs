@@ -5,13 +5,14 @@ use parking_lot::Mutex;
 
 use crate::application::ports::RepositoryError;
 use crate::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
-use crate::domain::{Character, CharacterId, DomainEvent};
+use crate::domain::{AccountId, Character, CharacterId, DomainEvent};
 
 #[derive(Default)]
 struct State {
     characters: HashMap<CharacterId, Character>,
     names: HashMap<String, CharacterId>,
-    keys: HashMap<IdempotencyKey, (String, CharacterId)>,
+    /// `(account, key)`: keys are scoped to the account, like the Postgres primary key.
+    keys: HashMap<(AccountId, IdempotencyKey), (String, CharacterId)>,
     /// Events staged with each create, standing in for the `outbox` table.
     outbox: Vec<DomainEvent>,
 }
@@ -28,6 +29,12 @@ impl InMemoryCharacterRepository {
         let mut s = self.state.lock();
         s.names.insert(c.name.normalized(), c.id);
         s.characters.insert(c.id, c);
+    }
+
+    /// Reads a character directly. Test helper.
+    #[must_use]
+    pub fn get_for_test(&self, id: CharacterId) -> Option<Character> {
+        self.state.lock().characters.get(&id).cloned()
     }
 
     /// Events staged for publication, in order (what the Postgres adapter writes to `outbox`).
@@ -55,6 +62,20 @@ impl CharacterRepository for InMemoryCharacterRepository {
         Ok(self.state.lock().characters.get(&id).cloned())
     }
 
+    async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
+        let mut out: Vec<Character> = self
+            .state
+            .lock()
+            .characters
+            .values()
+            .filter(|c| c.account_id == account)
+            .cloned()
+            .collect();
+        // Ids are uuid v7, so id order is creation order (the Postgres adapter sorts the same).
+        out.sort_by_key(|c| c.id.as_uuid());
+        Ok(out)
+    }
+
     async fn create_idempotent(
         &self,
         key: &IdempotencyKey,
@@ -62,7 +83,8 @@ impl CharacterRepository for InMemoryCharacterRepository {
         character: &Character,
     ) -> Result<CreateOutcome, RepositoryError> {
         let mut s = self.state.lock();
-        if let Some((stored_fp, id)) = s.keys.get(key) {
+        let scoped = (character.account_id, key.clone());
+        if let Some((stored_fp, id)) = s.keys.get(&scoped) {
             if stored_fp != fingerprint {
                 return Ok(CreateOutcome::KeyReused);
             }
@@ -79,7 +101,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
         }
         s.names.insert(norm, character.id);
         s.keys
-            .insert(key.clone(), (fingerprint.to_owned(), character.id));
+            .insert(scoped, (fingerprint.to_owned(), character.id));
         s.characters.insert(character.id, character.clone());
         s.outbox.push(DomainEvent::CharacterCreated {
             character_id: character.id,

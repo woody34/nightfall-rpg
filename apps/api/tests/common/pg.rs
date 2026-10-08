@@ -99,3 +99,24 @@ impl FreshDb {
         }
     }
 }
+
+/// [`empty_schema_pool`] with every migration applied.
+pub async fn migrated_pool() -> Option<PgPool> {
+    use nightfall_api::infrastructure::postgres::{connection_from_pool, Migrator};
+    use sea_orm_migration::MigratorTrait;
+
+    let pool = empty_schema_pool().await?;
+    Migrator::up(&connection_from_pool(&pool), None)
+        .await
+        .unwrap();
+    Some(pool)
+}
+
+/// Inserts an account row directly (foreign-key target for `account_sessions`).
+pub async fn insert_account(pool: &PgPool, id: Uuid) {
+    sqlx::query("INSERT INTO accounts (id) VALUES ($1)")
+        .bind(id)
+        .execute(pool)
+        .await
+        .unwrap();
+}

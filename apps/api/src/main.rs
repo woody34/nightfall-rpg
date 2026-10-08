@@ -3,10 +3,12 @@
 use std::sync::Arc;
 
 use nightfall_api::config::Config;
+use nightfall_api::infrastructure::auth::{KeycloakVerifier, OidcConfig};
+use nightfall_api::infrastructure::memory::TestTokenVerifier;
 use nightfall_api::infrastructure::outbox::{JetStreamPublisher, OutboxRelay};
 use nightfall_api::infrastructure::telemetry::{self, TelemetryConfig};
 use nightfall_api::{
-    bind, build_game_service, infrastructure, serve_grpc, serve_http, Dependencies,
+    bind, build_grpc_services, infrastructure, serve_grpc, serve_http, Dependencies,
 };
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
@@ -27,7 +29,7 @@ async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
     let shutdown = CancellationToken::new();
     let (mut deps, relay) = build_dependencies(&cfg, metrics.clone(), &shutdown).await?;
     deps.metrics = metrics.clone();
-    let service = build_game_service(&deps);
+    let services = build_grpc_services(&deps);
 
     let (http, grpc) = bind(cfg.http_addr, cfg.grpc_addr).await?;
     tracing::info!(http_addr = %cfg.http_addr, grpc_addr = %cfg.grpc_addr, "nightfall-api starting");
@@ -41,7 +43,7 @@ async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
 
     let served = tokio::try_join!(
         serve_http(http, metrics.clone(), stopped(stop_rx.clone())),
-        serve_grpc(grpc, service, metrics, stopped(stop_rx)),
+        serve_grpc(grpc, services, metrics, stopped(stop_rx)),
     );
 
     // Servers are down; stop the relay and wait for its in-flight batch.
@@ -94,6 +96,7 @@ async fn build_dependencies(
     shutdown: &CancellationToken,
 ) -> anyhow::Result<(Dependencies, Option<OutboxRelay>)> {
     let mut deps = Dependencies::in_memory();
+    deps.ws_public_url.clone_from(&cfg.ws_public_url);
     let mut db = None;
 
     if let Some(url) = &cfg.database_url {
@@ -102,9 +105,34 @@ async fn build_dependencies(
             infrastructure::postgres::PgCharacterRepository::new(conn.clone())
                 .with_metrics(metrics.clone()),
         );
+        deps.accounts = Arc::new(
+            infrastructure::postgres::PgAccountRepository::new(conn.clone())
+                .with_metrics(metrics.clone()),
+        );
+        deps.sessions = Arc::new(
+            infrastructure::postgres::PgSessionRepository::new(conn.clone())
+                .with_metrics(metrics.clone()),
+        );
         db = Some(conn);
     } else {
         tracing::warn!("DATABASE_URL not set: using in-memory persistence (data is lost on exit)");
+    }
+
+    match (&cfg.oidc_issuer, cfg.auth_dev_tokens) {
+        (_, true) => {
+            tracing::warn!("AUTH_DEV_TOKENS=1: accepting unsigned test:<uuid> tokens (dev only)");
+            deps.tokens = Arc::new(TestTokenVerifier);
+        },
+        (Some(issuer), false) => {
+            let oidc = OidcConfig {
+                issuer: issuer.clone(),
+                audience: cfg.oidc_audience.clone(),
+            };
+            deps.tokens = Arc::new(KeycloakVerifier::connect(&oidc).await?);
+        },
+        (None, false) => {
+            tracing::warn!("OIDC_ISSUER not set: authentication disabled, only Ping is served");
+        },
     }
 
     let mut relay = None;

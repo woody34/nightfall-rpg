@@ -4,19 +4,17 @@
 
 use std::sync::Arc;
 
-use uuid::Uuid;
-
 use crate::application::ports::RepositoryError;
 use crate::application::{AppError, CharacterRepository, CreateOutcome, IdempotencyKey};
-use crate::domain::{Character, CharacterName, Race};
+use crate::domain::{AccountId, Character, CharacterName, Race};
 
 /// Validated input. Built by the transport adapter from the wire request.
 #[derive(Debug, Clone)]
 pub struct CreateCharacterInput {
     /// Client retry key.
     pub idempotency_key: IdempotencyKey,
-    /// Owning account.
-    pub account_id: Uuid,
+    /// Owning account: always the verified caller, never a request field.
+    pub account_id: AccountId,
     /// Raw name; validated here.
     pub name: String,
     /// Chosen race.
@@ -73,6 +71,8 @@ impl CreateCharacter {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
     use crate::domain::DomainEvent;
     use crate::infrastructure::memory::InMemoryCharacterRepository;
@@ -85,7 +85,7 @@ mod tests {
     fn input(key: &str, name: &str) -> CreateCharacterInput {
         CreateCharacterInput {
             idempotency_key: IdempotencyKey::parse(key).unwrap(),
-            account_id: Uuid::nil(),
+            account_id: AccountId::from_uuid(Uuid::nil()),
             name: name.to_owned(),
             race: Race::Elf,
         }
@@ -141,6 +141,10 @@ mod tests {
             anyhow::bail!("down")
         }
 
+        async fn list_by_account(&self, _account: AccountId) -> anyhow::Result<Vec<Character>> {
+            anyhow::bail!("down")
+        }
+
         async fn create_idempotent(
             &self,
             _key: &IdempotencyKey,
@@ -156,6 +160,17 @@ mod tests {
         let uc = CreateCharacter::new(Arc::new(Down));
         let err = uc.execute(input(KEY_A, "Legolas")).await.unwrap_err();
         assert!(matches!(err, AppError::Infrastructure(_)), "{err:?}");
+    }
+
+    #[tokio::test]
+    async fn same_key_from_another_account_is_independent() {
+        let (uc, repo) = sut();
+        uc.execute(input(KEY_A, "Legolas")).await.unwrap();
+        let mut other = input(KEY_A, "Gimli");
+        other.account_id = AccountId::from_uuid(Uuid::from_u128(2));
+        let c = uc.execute(other).await.unwrap();
+        assert_eq!(c.name.as_str(), "Gimli", "keys are scoped to the account");
+        assert_eq!(repo.len(), 2);
     }
 
     #[tokio::test]

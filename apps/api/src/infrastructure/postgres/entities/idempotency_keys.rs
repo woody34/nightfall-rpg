@@ -9,8 +9,13 @@ pub struct Model {
     pub key: Uuid,
     #[sea_orm(column_type = "Text")]
     pub fingerprint: String,
-    pub character_id: Uuid,
     pub created_at: DateTimeWithTimeZone,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub account_id: Uuid,
+    #[sea_orm(primary_key, auto_increment = false, column_type = "Text")]
+    pub operation: String,
+    #[sea_orm(column_type = "JsonBinary")]
+    pub response: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
