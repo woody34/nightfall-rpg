@@ -8,6 +8,7 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 | [System architecture](system-architecture.html) | Architecture | Unreal client, four Rust layers, Postgres, NATS, Keycloak and LGTM with development ports. |
 | [Login to zone admission](login-zone-sequence.html) | Sequence | Device flow, `IssuePlayTicket`, ticket-in-header WebSocket upgrade and acknowledged zone admission. |
 | [Deterministic tick and replay](deterministic-tick-replay.html) | Process | Draft → run → durable ack → sockets; unsampled records, shutdown watermark, incomplete-epoch refusal and output comparison. |
+| [Replay tool](replay-tool.html) | Flowchart | JetStream or `.nfr` source, watermark check, rebuild, re-run, digest/byte compare, exit codes. |
 | [Session lifecycle](session-lifecycle.html) | State machine | HTTP admission, active session, recoverable rate limiting, replacement, idle timeout and close codes. |
 | [Persistence model](data-model.html) | ER / data model | All columns of the seven current tables, keys and declared versus logical relationships. |
 | [Module dependencies](module-dependencies.html) | Dependency graph | Composition, shared inner layers and the interface-to-infrastructure telemetry exception. |
@@ -25,9 +26,10 @@ Open locally in a browser; repository viewers may show HTML source instead of re
    monospace and serif when offline.
 4. Keep the types above. No catalog semantic pattern exactly matches these views: session
    handling uses ordinary state-machine transitions; tick/replay uses actor lanes and ordered
-   process steps. The system uses `doc-wide` (1280×720), dependencies use `doc-inline`
+   process steps; the replay tool is a top-down flowchart with a merge dot. The system uses
+   `doc-wide` (1280×720), dependencies use `doc-inline`
    (960×600), and sequence/state/ER use fitted canvases. The process uses the type reference's
-   parametric five-step, four-lane canvas (728×436).
+   parametric five-step, four-lane canvas (728×436); the replay tool a fitted 720×700.
 5. Apply the skill's taste gate: complexity limits, ≤2 general focal elements (the process
    uses its type-specific focal step/node/handoff set), orthogonal connectors, masked labels,
    distinct ports, accessibility, readable type and local horizontal scrolling. Keep each
@@ -58,8 +60,8 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 ## Scope and verification notes
 
 - The tick runs **before** `DurableTickGate::admit`; the ack gates visibility and the next
-  draft. Replay is implemented by library APIs and tested reconstruction, not automatic
-  restart recovery.
+  draft. Replay is the `nightfall-replay` tool over library APIs, not automatic restart
+  recovery.
 - Generations are per account; the live registry replaces sockets by player `EntityId`.
   Rate limiting returns `RATE_LIMITED`; `4429` is a slow-consumer close.
 - The ER view retains every current column, grouping related columns on some rows. SQL

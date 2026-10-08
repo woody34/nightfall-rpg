@@ -36,3 +36,10 @@ tasks:
       - 'entities.sh'
     options:
       cache: false
+  replay-check:
+    command: 'cargo run --quiet --bin nightfall-replay -- --source file --file fixtures/sessions/two-players-v1.nfr'
+    description: 'Replay the checked-in two-player recording; fails on any output divergence.'
+    inputs:
+      - '@group(sources)'
+      - '@group(standards)'
+      - 'fixtures/sessions/**/*'
