@@ -102,6 +102,7 @@ impl GameService for GameServiceImpl {
         #[allow(deprecated)] // removed in Story 1.6: the account will come from the token
         let account_id = uuid::Uuid::parse_str(&req.account_id)
             .map_err(|_| Status::invalid_argument("account_id must be a UUID"))?;
+        crate::infrastructure::telemetry::record_account_id(account_id);
         let race = mapping::race_from_pb(req.race)
             .ok_or_else(|| Status::invalid_argument("race must be specified"))?;
         let c = self

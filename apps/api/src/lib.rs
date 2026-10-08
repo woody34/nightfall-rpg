@@ -11,11 +11,13 @@ pub mod domain;
 pub mod infrastructure;
 pub mod interface;
 
+use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 use application::use_cases::{CreateCharacter, GetCharacter, Ping};
 use application::{CharacterRepository, Clock, EventBus};
+use infrastructure::telemetry::{GrpcTelemetryLayer, Metrics};
 use interface::grpc::{GameServiceImpl, SessionServiceImpl};
 use tokio::net::TcpListener;
 
@@ -28,6 +30,8 @@ pub struct Dependencies {
     pub bus: Arc<dyn EventBus>,
     /// Wall clock.
     pub clock: Arc<dyn Clock>,
+    /// The metric catalogue; `main` replaces it with the exported one.
+    pub metrics: Metrics,
 }
 
 impl Dependencies {
@@ -38,6 +42,7 @@ impl Dependencies {
             characters: Arc::new(infrastructure::memory::InMemoryCharacterRepository::default()),
             bus: Arc::new(infrastructure::memory::InMemoryEventBus::default()),
             clock: Arc::new(infrastructure::SystemClock),
+            metrics: Metrics::detached(),
         }
     }
 }
@@ -52,19 +57,37 @@ pub fn build_game_service(deps: &Dependencies) -> GameServiceImpl {
     )
 }
 
-/// Serves HTTP on an already-bound listener until the task is dropped or the server errors.
-pub async fn serve_http(listener: TcpListener) -> anyhow::Result<()> {
-    axum::serve(listener, interface::http::router()).await?;
+/// Serves HTTP on an already-bound listener until `shutdown` resolves (in-flight requests
+/// finish) or the server errors.
+pub async fn serve_http(
+    listener: TcpListener,
+    metrics: Metrics,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> anyhow::Result<()> {
+    axum::serve(listener, interface::http::router(metrics))
+        .with_graceful_shutdown(shutdown)
+        .await?;
     Ok(())
 }
 
-/// Serves gRPC on an already-bound listener.
-pub async fn serve_grpc(listener: TcpListener, service: GameServiceImpl) -> anyhow::Result<()> {
+/// Serves gRPC on an already-bound listener until `shutdown` resolves.
+pub async fn serve_grpc(
+    listener: TcpListener,
+    service: GameServiceImpl,
+    metrics: Metrics,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> anyhow::Result<()> {
     let incoming = tokio_stream::wrappers::TcpListenerStream::new(listener);
     tonic::transport::Server::builder()
+        .layer(
+            tower::ServiceBuilder::new()
+                .layer(infrastructure::telemetry::request_id_layers().0)
+                .layer(GrpcTelemetryLayer::new(metrics))
+                .into_inner(),
+        )
         .add_service(service.into_server())
         .add_service(SessionServiceImpl.into_server())
-        .serve_with_incoming(incoming)
+        .serve_with_incoming_shutdown(incoming, shutdown)
         .await?;
     Ok(())
 }

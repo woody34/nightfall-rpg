@@ -1,5 +1,6 @@
 # Local infrastructure for development and integration tests.
-#   docker compose up -d        start Postgres and NATS
+#   docker compose up -d        start Postgres, NATS and the Grafana LGTM stack
+#   Grafana: http://localhost:3300 (login admin/admin)
 #   docker compose down -v      stop and wipe data
 services:
   postgres:
@@ -39,6 +40,28 @@ services:
       timeout: 3s
       retries: 20
 
+  # Grafana + Loki + Tempo + Prometheus + OTel collector in one container (decision D6).
+  # Host port 3000 belongs to the API, so Grafana is on 3300.
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "3300:3000"   # Grafana
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - lgtmdata:/data
+      - ./infra/grafana/provisioning/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/nightfall.yaml:ro
+      - ./infra/grafana/dashboards:/var/lib/nightfall/dashboards:ro
+      - ./infra/grafana/alerts/nightfall-api.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/nightfall-api.yaml:ro
+    healthcheck:
+      # The image has no curl or wget; run-all.sh writes this file once every component is up.
+      test: ["CMD-SHELL", "test -f /tmp/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 20s
+
 volumes:
   pgdata:
   natsdata:
+  lgtmdata:

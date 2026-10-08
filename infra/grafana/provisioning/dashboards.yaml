@@ -1,0 +1,9 @@
+apiVersion: 1
+
+providers:
+  - name: Nightfall
+    type: file
+    allowUiUpdates: false
+    options:
+      path: /var/lib/nightfall/dashboards
+      foldersFromFilesStructure: false

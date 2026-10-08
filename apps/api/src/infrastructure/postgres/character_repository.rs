@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use async_trait::async_trait;
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
@@ -7,18 +9,38 @@ use crate::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
 use crate::domain::{
     BaseStats, Character, CharacterId, CharacterName, DomainEvent, Position, Race,
 };
+use crate::infrastructure::telemetry::Metrics;
 
 /// Character persistence in Postgres.
 #[derive(Clone)]
 pub struct PgCharacterRepository {
     pool: PgPool,
+    metrics: Option<Metrics>,
 }
 
 impl PgCharacterRepository {
     /// Wraps a pool.
     #[must_use]
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            metrics: None,
+        }
+    }
+
+    /// Records every query in `db_query_seconds{repo="character",op}`.
+    #[must_use]
+    pub fn with_metrics(mut self, metrics: Metrics) -> Self {
+        self.metrics = Some(metrics);
+        self
+    }
+
+    /// Runs `fut`, timing it when metrics are attached.
+    async fn timed<T>(&self, op: &'static str, fut: impl Future<Output = T>) -> T {
+        match &self.metrics {
+            Some(m) => m.time_db("character", op, fut).await,
+            None => fut.await,
+        }
     }
 }
 
@@ -75,9 +97,13 @@ async fn fetch_by_id(
 #[async_trait]
 impl CharacterRepository for PgCharacterRepository {
     async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>> {
-        let row = sqlx::query(SELECT_CHARACTER_BY_ID)
-            .bind(id.as_uuid())
-            .fetch_optional(&self.pool)
+        let row = self
+            .timed(
+                "get",
+                sqlx::query(SELECT_CHARACTER_BY_ID)
+                    .bind(id.as_uuid())
+                    .fetch_optional(&self.pool),
+            )
             .await?;
         row.as_ref().map(row_to_character).transpose()
     }
@@ -90,6 +116,18 @@ impl CharacterRepository for PgCharacterRepository {
     /// 3. Stage the `CharacterCreated` event in `outbox` so a relay can publish it even if the
     ///    process dies right after commit.
     async fn create_idempotent(
+        &self,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+        character: &Character,
+    ) -> Result<CreateOutcome, RepositoryError> {
+        self.timed("create_idempotent", self.create_idempotent_tx(key, fingerprint, character))
+            .await
+    }
+}
+
+impl PgCharacterRepository {
+    async fn create_idempotent_tx(
         &self,
         key: &IdempotencyKey,
         fingerprint: &str,
