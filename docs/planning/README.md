@@ -44,6 +44,8 @@ architecture layers, the NATS event-bus core, idempotent endpoints, atomic trans
 per-endpoint test matrix, and the Rust standard enforced by rustfmt, clippy, workspace lints,
 and cargo-deny. Those documents win over anything in a phase document about code structure.
 
+See [docs/plans/](../plans/) for phase plans (Phase 0b is complete).
+
 ## Cross-cutting decisions
 
 These were made in one phase and bind the others. If a phase document disagrees, the owner listed

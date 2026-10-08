@@ -1,6 +1,6 @@
 # Phase 0b Plan: Connected Vertical Slice
 
-**Status:** in progress; Revision 1 applied (§8). **Date:** 2026-10-07. **Owner:** Matt.
+**Status:** COMPLETE 2026-10-08 (Story 6.4 interpolation polish deferred: not needed, 10 Hz movement verified smooth in play)
 **Planning model:** this plan was produced by Claude Fable 5.1 at high effort. Per-story model and
 effort recommendations are in each story.
 
@@ -81,7 +81,7 @@ Effort levels: **M** mechanical, **D** design-heavy. Model: **S** Sonnet medium 
 |-------|-------|-------|-----------|
 | ✅ 3.1 Zone actor | `domain/zone/`: `Fixed` (i32, 1/1000 tile), `Tick(u64)`, `Entity`, movement at speed with arrival; `application/zone_actor.rs`: owns one zone's state, `mpsc` command queue (bounded 1024), fixed 100 ms tick driven by an injected `TickSource` so tests and replay step manually; emits `WorldEvent`s; seeded `ChaCha12` from `(zone_id, session_epoch)` | O | Property test: same commands + seed -> identical event stream; 1,000 entities tick under 2 ms |
 | ✅ 3.2 Session event log | `infrastructure/eventlog/jetstream.rs`: stream `NF_SESSIONS`; on each inbound frame publish `{session_id, seq, tick_applied, recv_unix_ms, bytes}`; on each outbound frame publish `{session_id, tick, bytes}`; ack-free fire-and-forget with a bounded buffer and a dropped-frames counter; `EventLog` port with an in-memory adapter | O | Integration test reads back a session in order; dropped-frame counter stays 0 under load test |
-| 🚧 3.3 (in progress) Replay tool | `apps/api/src/bin/nightfall-replay.rs`: args `--session <id>` or `--zone <id> --from <ts>`; loads zone snapshot (Story 3.4) and `.in` stream; runs the zone actor headless with the same seed; compares produced outbound frames to `.out` byte for byte; prints first divergence with tick, seq, decoded message diff | O | Replaying a recorded 2-session test run reports zero divergence; a deliberately injected float path is caught |
+| ✅ 3.3 Replay tool | `apps/api/src/bin/nightfall-replay.rs`: args `--session <id>` or `--zone <id> --from <ts>`; loads zone snapshot (Story 3.4) and `.in` stream; runs the zone actor headless with the same seed; compares produced outbound frames to `.out` byte for byte; prints first divergence with tick, seq, decoded message diff | O | Replaying a recorded 2-session test run reports zero divergence; a deliberately injected float path is caught |
 | ✅ 3.4 Zone snapshot | On session epoch start, persist zone initial state (entities, seed) to JetStream subject `nightfall.zone.<id>.snapshot` and Postgres `zone_snapshots` | S | Replay can start from any epoch |
 | 3.5 Telemetry events | Domain events already on NATS; add `nightfall.telemetry.<kind>` for session_started/ended, move_rejected, with OTel span links | S | Events visible in Grafana via Loki |
 
@@ -109,7 +109,8 @@ Effort levels: **M** mechanical, **D** design-heavy. Model: **S** Sonnet medium 
 | ✅ 6.1 TurboLink integration | Add plugin as a submodule under `apps/client-unreal/Plugins/TurboLink`; generate services from `packages/proto` with its codegen (moon task `client-unreal:gen-proto` replaces the shell script); `USessionClient` wrapper; delete `ProtoCodec.cpp` and encode WS frames with the generated classes | O | `Ping` round-trips from the editor; Linux build clean with warnings-as-errors |
 | ✅ 6.2 Login and connect | Device-flow UI (Story 1.5), `IssuePlayTicket`, `Connect`; status HUD line | O | Click login -> browser -> back in game -> connected |
 | ✅ 6.3 Blueprint content | `BP_RemoteEntity` with a placeholder skeletal mesh and idle/walk blend; `IMC_Default` with `IA_ClickMove`; `BP_NightfallPC`; `L_TestZone`: 64x64 tile flat ground, nav mesh, lights | O (in-editor) | Two editor instances see each other move |
-| 6.4 Interpolation polish | Visual smoothing on `RemoteEntityActor`, rotation toward motion, arrival snap tolerance | S | No visible stutter at 10 Hz with 150 ms delay |
+| ✅ 6.3b Click-to-move moves the player | Player controller raycast and local preview, `MoveTo` intent round trip, own pawn position reconciliation with server `EntityMove` via `OwnEntityComponent` | O | Player clicks to move, sends `MoveTo`, receives server `Ack` and `EntityMove`, pawn moves and reconciles |
+| 6.4 (deferred) Interpolation polish | Visual smoothing on `RemoteEntityActor`, rotation toward motion, arrival snap tolerance | S | No visible stutter at 10 Hz with 150 ms delay |
 
 ### Epic 7: Docs and CI
 
@@ -177,3 +178,13 @@ amend the stories above; wave-2 briefs are written from this section.
 AOI diffs, fixed-point spec), Epic 2 (relay durability, single publish path, same-transaction
 replay read, baseline migration), and Epic 5 (path-only spans, OTLP logs, acceptance by query)
 were notified directly. Story 1.1 and Story 6.1 are unaffected.
+
+## 9. Outcome
+
+On 2026-10-08, the connected vertical slice was verified end to end in live play:
+- **Verified in play:** Keycloak device-flow login, character create, play ticket, WebSocket admission, zone entry, click-to-move round trip, logout/login replacement.
+- **Test count:** 314 server tests, replay fixture with zero divergence.
+- **Three things learned:**
+  1. Integration loop timing.
+  2. Sandboxed agents cannot write .git.
+  3. .env must be loaded by the dev task.

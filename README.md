@@ -2,6 +2,10 @@
 
 A Lineage 2-inspired MMORPG. Monorepo managed by [moon](https://moonrepo.dev).
 
+## Status
+
+The prototype is playable end to end as of 2026-10-08: players can authenticate via Keycloak device authorization, create a character, acquire a single-use play ticket, join a zone over WebSocket, and navigate via click-to-move with server reconciliation and deterministic replay logging. Architecture and verification details are documented in [docs/plans/phase-0b-connected-slice.md](docs/plans/phase-0b-connected-slice.md) and [docs/diagrams/README.md](docs/diagrams/README.md).
+
 ## Layout
 
 ```
