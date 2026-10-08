@@ -27,9 +27,11 @@ No system `protoc` is needed: the API compiles `.proto` files with `protox` at b
 ## Local infrastructure
 
 ```bash
-docker compose up -d      # Postgres 16 on :5432, NATS 2.11 on :4222, Grafana LGTM on :3300
+docker compose up -d      # Postgres 16 on :5432, NATS 2.11 on :4222, Grafana LGTM on :3300, Keycloak on :8080
 cp .env.example .env      # DATABASE_URL / NATS_URL for the API
 ```
+
+Keycloak (OIDC, device flow login) imports the `nightfall` realm on boot; admin console at http://localhost:8080 (admin/admin), dev user `testplayer`/`testplayer`. On an existing Postgres volume, create its database once: `docker compose exec postgres psql -U nightfall -c 'CREATE DATABASE keycloak'`. See `infra/keycloak/README.md`.
 
 Without `DATABASE_URL` / `NATS_URL` the API runs with in-memory adapters and warns at startup.
 

@@ -1,0 +1,109 @@
+{
+  "realm": "nightfall",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 2592000,
+  "ssoSessionMaxLifespan": 2592000,
+  "offlineSessionIdleTimeout": 2592000,
+  "oauth2DeviceCodeLifespan": 600,
+  "oauth2DevicePollingInterval": 5,
+  "roles": {
+    "realm": [
+      {
+        "name": "player",
+        "description": "Regular player"
+      },
+      {
+        "name": "gm",
+        "description": "Game master"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "nightfall-client",
+      "name": "Nightfall game client",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "true",
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "basic",
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ],
+      "protocolMappers": [
+        {
+          "name": "nightfall-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "nightfall-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "nightfall-api",
+      "name": "Nightfall API (resource server)",
+      "enabled": true,
+      "bearerOnly": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "dev-only-nightfall-api-secret"
+    }
+  ],
+  "users": [
+    {
+      "username": "testplayer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "testplayer@example.test",
+      "firstName": "Test",
+      "lastName": "Player",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "testplayer",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-nightfall",
+        "player"
+      ]
+    }
+  ],
+  "defaultRole": {
+    "name": "default-roles-nightfall",
+    "composite": true,
+    "composites": {
+      "realm": [
+        "offline_access",
+        "uma_authorization"
+      ]
+    }
+  }
+}
