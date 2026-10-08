@@ -7,7 +7,8 @@
 /**
  * Visual proxy for one server entity (another player or an NPC). It has no gameplay logic:
  * every tick it asks the snapshot buffer where the server says it is and moves there.
- * Subclass in Blueprint to attach a skeletal mesh and animation blueprint.
+ * BP_RemoteEntity (Content/Blueprints) sets a placeholder mesh on Body; swap in a skeletal mesh
+ * and animation blueprint there later.
  */
 UCLASS(Blueprintable)
 class NIGHTFALL_API ARemoteEntityActor : public AActor
@@ -16,6 +17,10 @@ class NIGHTFALL_API ARemoteEntityActor : public AActor
 
 public:
 	ARemoteEntityActor();
+
+	/** Placeholder visual; no collision. The actor origin is on the ground. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Nightfall")
+	TObjectPtr<class UStaticMeshComponent> Body;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Nightfall")
 	FString EntityId;

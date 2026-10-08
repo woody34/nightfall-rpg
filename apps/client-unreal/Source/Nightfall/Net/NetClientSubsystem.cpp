@@ -2,39 +2,62 @@
 #include "Nightfall.h"
 #include "IWebSocket.h"
 #include "WebSocketsModule.h"
-#include "GenericPlatform/GenericPlatformHttp.h"
-#include "Engine/GameInstance.h"
-#include "Engine/World.h"
-#include "TimerManager.h"
+#include "Containers/Ticker.h"
 
 void UNetClientSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
+	SocketFactory = [](const FWsUpgradeRequest& Request)
+	{
+		return FWebSocketsModule::Get().CreateWebSocket(Request.Url, Request.Protocols, Request.Headers);
+	};
+	Scheduler = [](float DelaySeconds, TFunction<void()> Fn)
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Fn = MoveTemp(Fn)](float)
+		{
+			Fn();
+			return false;   // one shot
+		}), DelaySeconds);
+	};
 }
 
 void UNetClientSubsystem::Deinitialize()
 {
 	Disconnect();
+	TicketProvider = nullptr;
 	Super::Deinitialize();
 }
 
-void UNetClientSubsystem::Connect(const FString& WsBaseUrl, const FString& PlayTicket)
+FWsUpgradeRequest UNetClientSubsystem::MakeUpgradeRequest(const FString& WsUrl, const FString& PlayTicket)
 {
-	BaseUrl = WsBaseUrl;
-	Ticket = PlayTicket;
+	FWsUpgradeRequest Request;
+	Request.Url = WsUrl;
+	// The ticket is a bearer credential: header only, so it never reaches access logs or spans.
+	Request.Headers.Add(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *PlayTicket));
+	return Request;
+}
+
+void UNetClientSubsystem::Connect(const FString& WsUrl, const FString& PlayTicket)
+{
+	CloseSocket();
+	++ConnectGeneration;
 	bWantConnected = true;
+	bReconnectPending = false;
 	ReconnectAttempt = 0;
-	Open();
+	Open(WsUrl, PlayTicket);
 }
 
 void UNetClientSubsystem::Disconnect()
 {
+	++ConnectGeneration;   // cancels a pending reconnect and drops late ticket replies
 	bWantConnected = false;
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ReconnectTimer);
-	}
+	bReconnectPending = false;
+	CloseSocket();
+}
+
+void UNetClientSubsystem::CloseSocket()
+{
 	if (Socket.IsValid())
 	{
 		Socket->OnRawMessage().Clear();
@@ -47,21 +70,24 @@ void UNetClientSubsystem::Disconnect()
 	bConnected = false;
 }
 
-void UNetClientSubsystem::Open()
+void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 {
-	const FString Url = FString::Printf(TEXT("%s/ws?ticket=%s"), *BaseUrl, *FGenericPlatformHttp::UrlEncode(Ticket));
-	Socket = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT(""));
+	CloseSocket();
+	Socket = SocketFactory(MakeUpgradeRequest(WsUrl, PlayTicket));
+	UE_LOG(LogNightfall, Log, TEXT("ws connecting to %s"), *WsUrl);
 
 	Socket->OnConnected().AddLambda([this]()
 	{
 		bConnected = true;
 		ReconnectAttempt = 0;
 		Frame.Reset();
+		KnownEntities.Reset();   // the server re-sends every spawn in our area of interest
 		UE_LOG(LogNightfall, Log, TEXT("ws connected"));
 		OnConnected.Broadcast();
 	});
 	Socket->OnConnectionError().AddLambda([this](const FString& Error)
 	{
+		// A rejected ticket (HTTP 401/409 at the upgrade) also lands here.
 		UE_LOG(LogNightfall, Warning, TEXT("ws connection error: %s"), *Error);
 		bConnected = false;
 		ScheduleReconnect();
@@ -81,13 +107,44 @@ void UNetClientSubsystem::HandleClosed(int32 StatusCode, const FString& Reason, 
 
 void UNetClientSubsystem::ScheduleReconnect()
 {
-	if (!bWantConnected) return;
-	UWorld* World = GetWorld();
-	if (!World) return;
-	// 0.5, 1, 2, 4 ... capped at 10 s (Phase 8 §5.1). The play ticket is single-use; a real
-	// reconnect must first fetch a fresh one over gRPC. That hook lands with the auth slice.
+	if (!bWantConnected || bReconnectPending) return;
+	if (!TicketProvider)
+	{
+		// Play tickets are single-use: retrying with the one we have can never succeed.
+		UE_LOG(LogNightfall, Warning, TEXT("ws: no ticket provider set; not reconnecting"));
+		bWantConnected = false;
+		return;
+	}
+	bReconnectPending = true;
+	// 0.5, 1, 2, 4 ... capped at 10 s (Phase 8 §5.1).
 	const float Delay = FMath::Min(10.f, 0.5f * FMath::Pow(2.f, static_cast<float>(ReconnectAttempt++)));
-	World->GetTimerManager().SetTimer(ReconnectTimer, [this]() { Open(); }, Delay, false);
+	UE_LOG(LogNightfall, Log, TEXT("ws: reconnecting in %.1f s"), Delay);
+	Scheduler(Delay, [Weak = TWeakObjectPtr<UNetClientSubsystem>(this), Gen = ConnectGeneration]()
+	{
+		if (Weak.IsValid() && Weak->ConnectGeneration == Gen)
+		{
+			Weak->Reconnect();
+		}
+	});
+}
+
+void UNetClientSubsystem::Reconnect()
+{
+	bReconnectPending = false;
+	if (!bWantConnected) return;
+	TicketProvider([Weak = TWeakObjectPtr<UNetClientSubsystem>(this), Gen = ConnectGeneration](bool bOk, const FPlayTicket& Ticket)
+	{
+		if (!Weak.IsValid() || Weak->ConnectGeneration != Gen || !Weak->bWantConnected) return;
+		if (bOk)
+		{
+			Weak->Open(Ticket.WsUrl, Ticket.Ticket);
+		}
+		else
+		{
+			UE_LOG(LogNightfall, Warning, TEXT("ws: could not get a play ticket; will retry"));
+			Weak->ScheduleReconnect();
+		}
+	});
 }
 
 void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T BytesRemaining)
@@ -120,6 +177,7 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 		if (E.Spawn.IsSet())
 		{
 			SnapshotBuffer.Push(E.Spawn->EntityId, E.Spawn->Position, EstimatedServerTimeMs());
+			KnownEntities.Add(E.Spawn->EntityId, *E.Spawn);
 			OnEntitySpawn.Broadcast(*E.Spawn);
 		}
 		if (E.Move.IsSet())
@@ -135,6 +193,7 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 		if (E.Despawn.IsSet())
 		{
 			SnapshotBuffer.Remove(E.Despawn->EntityId);
+			KnownEntities.Remove(E.Despawn->EntityId);
 			OnEntityDespawn.Broadcast(*E.Despawn);
 		}
 	}

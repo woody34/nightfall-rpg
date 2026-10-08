@@ -7,10 +7,13 @@
 #include "TurboLinkGrpcManager.h"
 #include "SNightfallV1/GameClient.h"
 #include "SNightfallV1/GameService.h"
+#include "SNightfallV1/SessionClient.h"
+#include "SNightfallV1/SessionService.h"
 
 namespace
 {
 	const TCHAR* const GameServiceName = TEXT("GameService");
+	const TCHAR* const SessionServiceName = TEXT("SessionService");
 
 	ENetError ToNetError(EGrpcResultCode Code)
 	{
@@ -75,6 +78,7 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 	// TurboLink reads endpoints from its own settings object when a service connects. Our ini
 	// section is the source of truth, so mirror it there before connecting.
 	GetMutableDefault<UTurboLinkGrpcConfig>()->ServiceEndPoint.Add(GameServiceName, Endpoint);
+	GetMutableDefault<UTurboLinkGrpcConfig>()->ServiceEndPoint.Add(SessionServiceName, Endpoint);
 
 	if (Manager == nullptr)
 	{
@@ -92,7 +96,18 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 	Client->OnPingResponse.AddDynamic(this, &USessionClient::HandlePing);
 	Client->OnGetCharacterResponse.AddDynamic(this, &USessionClient::HandleGetCharacter);
 	Client->OnCreateCharacterResponse.AddDynamic(this, &USessionClient::HandleCreateCharacter);
-	UE_LOG(LogNightfall, Log, TEXT("SessionClient: GameService at %s"), *Endpoint);
+	Client->OnListMyCharactersResponse.AddDynamic(this, &USessionClient::HandleListMyCharacters);
+
+	SessionService = Cast<USessionService>(Manager->MakeService(SessionServiceName));
+	if (SessionService == nullptr)
+	{
+		UE_LOG(LogNightfall, Error, TEXT("SessionClient: could not create SessionService"));
+		return;
+	}
+	SessionService->Connect();
+	SessionServiceClient = SessionService->MakeClient();
+	SessionServiceClient->OnIssuePlayTicketResponse.AddDynamic(this, &USessionClient::HandleIssuePlayTicket);
+	UE_LOG(LogNightfall, Log, TEXT("SessionClient: GameService and SessionService at %s"), *Endpoint);
 }
 
 void USessionClient::Deinitialize()
@@ -101,6 +116,23 @@ void USessionClient::Deinitialize()
 	PendingPing.Empty();
 	PendingGetCharacter.Empty();
 	PendingCreateCharacter.Empty();
+	PendingListMyCharacters.Empty();
+	PendingIssuePlayTicket.Empty();
+
+	if (SessionServiceClient != nullptr)
+	{
+		SessionServiceClient->Shutdown();
+		if (SessionService != nullptr)
+		{
+			SessionService->RemoveClient(SessionServiceClient);
+		}
+	}
+	if (Manager != nullptr && SessionService != nullptr)
+	{
+		Manager->ReleaseService(SessionService);
+	}
+	SessionServiceClient = nullptr;
+	SessionService = nullptr;
 
 	if (Client != nullptr)
 	{
@@ -120,10 +152,10 @@ void USessionClient::Deinitialize()
 	Super::Deinitialize();
 }
 
-FGrpcMetaData USessionClient::MakeMetaData() const
+FGrpcMetaData USessionClient::MakeMetaData(bool bAuthenticated) const
 {
 	FGrpcMetaData MetaData;
-	if (!BearerToken.IsEmpty())
+	if (bAuthenticated && !BearerToken.IsEmpty())
 	{
 		// gRPC metadata keys are lowercase on the wire.
 		MetaData.MetaData.Add(TEXT("authorization"), FString::Printf(TEXT("Bearer %s"), *BearerToken));
@@ -131,9 +163,9 @@ FGrpcMetaData USessionClient::MakeMetaData() const
 	return MetaData;
 }
 
-bool USessionClient::EnsureClient(const TFunctionRef<void(const FNetResult&)>& Fail) const
+bool USessionClient::EnsureClient(const UObject* ServiceClient, const TFunctionRef<void(const FNetResult&)>& Fail)
 {
-	if (Client != nullptr)
+	if (ServiceClient != nullptr)
 	{
 		return true;
 	}
@@ -146,7 +178,7 @@ bool USessionClient::EnsureClient(const TFunctionRef<void(const FNetResult&)>& F
 
 void USessionClient::Ping(FPingCallback Callback)
 {
-	if (!EnsureClient([&](const FNetResult& R) { Callback(R, FGrpcNightfallV1PingResponse()); }))
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1PingResponse()); }))
 	{
 		return;
 	}
@@ -155,12 +187,13 @@ void USessionClient::Ping(FPingCallback Callback)
 
 	const FGrpcContextHandle Handle = Client->InitPing();
 	PendingPing.Add(Handle.Value, MoveTemp(Callback));
-	Client->Ping(Handle, Request, MakeMetaData(), CallTimeoutSeconds);
+	// Ping is the one unauthenticated RPC; it never carries the token.
+	Client->Ping(Handle, Request, MakeMetaData(/*bAuthenticated=*/false), CallTimeoutSeconds);
 }
 
 void USessionClient::GetCharacter(const FString& CharacterId, FCharacterCallback Callback)
 {
-	if (!EnsureClient([&](const FNetResult& R) { Callback(R, FGrpcNightfallV1Character()); }))
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1Character()); }))
 	{
 		return;
 	}
@@ -169,18 +202,40 @@ void USessionClient::GetCharacter(const FString& CharacterId, FCharacterCallback
 
 	const FGrpcContextHandle Handle = Client->InitGetCharacter();
 	PendingGetCharacter.Add(Handle.Value, MoveTemp(Callback));
-	Client->GetCharacter(Handle, Request, MakeMetaData(), CallTimeoutSeconds);
+	Client->GetCharacter(Handle, Request, MakeMetaData(/*bAuthenticated=*/true), CallTimeoutSeconds);
 }
 
 void USessionClient::CreateCharacter(const FGrpcNightfallV1CreateCharacterRequest& Request, FCharacterCallback Callback)
 {
-	if (!EnsureClient([&](const FNetResult& R) { Callback(R, FGrpcNightfallV1Character()); }))
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1Character()); }))
 	{
 		return;
 	}
 	const FGrpcContextHandle Handle = Client->InitCreateCharacter();
 	PendingCreateCharacter.Add(Handle.Value, MoveTemp(Callback));
-	Client->CreateCharacter(Handle, Request, MakeMetaData(), CallTimeoutSeconds);
+	Client->CreateCharacter(Handle, Request, MakeMetaData(/*bAuthenticated=*/true), CallTimeoutSeconds);
+}
+
+void USessionClient::ListMyCharacters(FCharacterListCallback Callback)
+{
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); }))
+	{
+		return;
+	}
+	const FGrpcContextHandle Handle = Client->InitListMyCharacters();
+	PendingListMyCharacters.Add(Handle.Value, MoveTemp(Callback));
+	Client->ListMyCharacters(Handle, FGrpcNightfallV1ListMyCharactersRequest(), MakeMetaData(/*bAuthenticated=*/true), CallTimeoutSeconds);
+}
+
+void USessionClient::IssuePlayTicket(const FGrpcNightfallV1IssuePlayTicketRequest& Request, FPlayTicketCallback Callback)
+{
+	if (!EnsureClient(SessionServiceClient, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1IssuePlayTicketResponse()); }))
+	{
+		return;
+	}
+	const FGrpcContextHandle Handle = SessionServiceClient->InitIssuePlayTicket();
+	PendingIssuePlayTicket.Add(Handle.Value, MoveTemp(Callback));
+	SessionServiceClient->IssuePlayTicket(Handle, Request, MakeMetaData(/*bAuthenticated=*/true), CallTimeoutSeconds);
 }
 
 void USessionClient::K2_Ping(FOnNetPingDone OnDone)
@@ -207,6 +262,22 @@ void USessionClient::K2_CreateCharacter(const FGrpcNightfallV1CreateCharacterReq
 	});
 }
 
+void USessionClient::K2_ListMyCharacters(FOnNetCharacterListDone OnDone)
+{
+	ListMyCharacters([OnDone](const FNetResult& Result, const TArray<FGrpcNightfallV1Character>& Characters)
+	{
+		OnDone.ExecuteIfBound(Result, Characters);
+	});
+}
+
+void USessionClient::K2_IssuePlayTicket(const FGrpcNightfallV1IssuePlayTicketRequest& Request, FOnNetPlayTicketDone OnDone)
+{
+	IssuePlayTicket(Request, [OnDone](const FNetResult& Result, const FGrpcNightfallV1IssuePlayTicketResponse& Ticket)
+	{
+		OnDone.ExecuteIfBound(Result, Ticket);
+	});
+}
+
 void USessionClient::HandlePing(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1PingResponse& Response)
 {
 	Complete(PendingPing, Handle.Value, Result, Response);
@@ -220,4 +291,32 @@ void USessionClient::HandleGetCharacter(FGrpcContextHandle Handle, const FGrpcRe
 void USessionClient::HandleCreateCharacter(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1Character& Response)
 {
 	Complete(PendingCreateCharacter, Handle.Value, Result, Response);
+}
+
+void USessionClient::HandleListMyCharacters(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListMyCharactersResponse& Response)
+{
+	FCharacterListCallback Callback;
+	if (!PendingListMyCharacters.RemoveAndCopyValue(Handle.Value, Callback))
+	{
+		return;
+	}
+	const FNetResult NetResult = FNetResult::FromGrpc(Result);
+	// The generated response holds shared pointers (repeated message field); hand out values.
+	TArray<FGrpcNightfallV1Character> Characters;
+	if (NetResult.IsOk())
+	{
+		for (const TSharedPtr<FGrpcNightfallV1Character>& Character : Response.Characters)
+		{
+			if (Character.IsValid())
+			{
+				Characters.Add(*Character);
+			}
+		}
+	}
+	Callback(NetResult, Characters);
+}
+
+void USessionClient::HandleIssuePlayTicket(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1IssuePlayTicketResponse& Response)
+{
+	Complete(PendingIssuePlayTicket, Handle.Value, Result, Response);
 }
