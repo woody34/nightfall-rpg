@@ -6,6 +6,10 @@
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ClientMessage, ::nightfall::v1::ClientMessage)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1MoveToRequest, ::nightfall::v1::MoveToRequest)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1StopMoveRequest, ::nightfall::v1::StopMoveRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SetTargetRequest, ::nightfall::v1::SetTargetRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1AttackRequest, ::nightfall::v1::AttackRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1StopAttackRequest, ::nightfall::v1::StopAttackRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1RespawnRequest, ::nightfall::v1::RespawnRequest)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ServerMessage, ::nightfall::v1::ServerMessage)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1Ack, ::nightfall::v1::Ack)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1IntentRejected, ::nightfall::v1::IntentRejected)
@@ -13,21 +17,34 @@ DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1WorldEvent, ::nightfall::v1::WorldEvent)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntitySpawn, ::nightfall::v1::EntitySpawn)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntityMove, ::nightfall::v1::EntityMove)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntityDespawn, ::nightfall::v1::EntityDespawn)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1AttackResult, ::nightfall::v1::AttackResult)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntityDied, ::nightfall::v1::EntityDied)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntityRespawned, ::nightfall::v1::EntityRespawned)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1StatsChanged, ::nightfall::v1::StatsChanged)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1XpGained, ::nightfall::v1::XpGained)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1LevelUp, ::nightfall::v1::LevelUp)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1TargetChanged, ::nightfall::v1::TargetChanged)
 
 FGrpcNightfallV1ClientMessageIntent UGrpcNightfallV1ClientMessageIntentHelperLibrary::MakeIntent(EGrpcNightfallV1ClientMessageIntent IntentCase, 
-    FGrpcNightfallV1MoveToRequest MoveTo, FGrpcNightfallV1StopMoveRequest StopMove 
+    FGrpcNightfallV1MoveToRequest MoveTo, FGrpcNightfallV1StopMoveRequest StopMove, FGrpcNightfallV1SetTargetRequest SetTarget, 
+    FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn 
 )
 {
     FGrpcNightfallV1ClientMessageIntent Intent;
     Intent.IntentCase = IntentCase;
     Intent.MoveTo = MakeShareable(new FGrpcNightfallV1MoveToRequest(MoveTo));
     Intent.StopMove = MakeShareable(new FGrpcNightfallV1StopMoveRequest(StopMove));
+    Intent.SetTarget = MakeShareable(new FGrpcNightfallV1SetTargetRequest(SetTarget));
+    Intent.Attack = MakeShareable(new FGrpcNightfallV1AttackRequest(Attack));
+    Intent.StopAttack = MakeShareable(new FGrpcNightfallV1StopAttackRequest(StopAttack));
+    Intent.Respawn = MakeShareable(new FGrpcNightfallV1RespawnRequest(Respawn));
 
     return Intent;
 }
 
 void UGrpcNightfallV1ClientMessageIntentHelperLibrary::BreakIntent(const FGrpcNightfallV1ClientMessageIntent& Intent, EGrpcNightfallV1ClientMessageIntent& IntentCase, 
-    FGrpcNightfallV1MoveToRequest& MoveTo, FGrpcNightfallV1StopMoveRequest& StopMove 
+    FGrpcNightfallV1MoveToRequest& MoveTo, FGrpcNightfallV1StopMoveRequest& StopMove, FGrpcNightfallV1SetTargetRequest& SetTarget, 
+    FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn 
 )
 {
     IntentCase = Intent.IntentCase;
@@ -38,6 +55,22 @@ void UGrpcNightfallV1ClientMessageIntentHelperLibrary::BreakIntent(const FGrpcNi
     if(Intent.StopMove.Get()) 
     {
         StopMove = *(Intent.StopMove.Get());
+    }
+    if(Intent.SetTarget.Get()) 
+    {
+        SetTarget = *(Intent.SetTarget.Get());
+    }
+    if(Intent.Attack.Get()) 
+    {
+        Attack = *(Intent.Attack.Get());
+    }
+    if(Intent.StopAttack.Get()) 
+    {
+        StopAttack = *(Intent.StopAttack.Get());
+    }
+    if(Intent.Respawn.Get()) 
+    {
+        Respawn = *(Intent.Respawn.Get());
     }
 }
 
@@ -74,7 +107,10 @@ void UGrpcNightfallV1ServerMessagePayloadHelperLibrary::BreakPayload(const FGrpc
 }
 
 FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::MakeEvent(EGrpcNightfallV1WorldEventEvent EventCase, 
-    FGrpcNightfallV1EntitySpawn Spawn, FGrpcNightfallV1EntityMove Move, FGrpcNightfallV1EntityDespawn Despawn 
+    FGrpcNightfallV1EntitySpawn Spawn, FGrpcNightfallV1EntityMove Move, FGrpcNightfallV1EntityDespawn Despawn, 
+    FGrpcNightfallV1AttackResult AttackResult, FGrpcNightfallV1EntityDied EntityDied, FGrpcNightfallV1EntityRespawned EntityRespawned, 
+    FGrpcNightfallV1StatsChanged StatsChanged, FGrpcNightfallV1XpGained XpGained, FGrpcNightfallV1LevelUp LevelUp, 
+    FGrpcNightfallV1TargetChanged TargetChanged 
 )
 {
     FGrpcNightfallV1WorldEventEvent Event;
@@ -82,12 +118,22 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     Event.Spawn = MakeShareable(new FGrpcNightfallV1EntitySpawn(Spawn));
     Event.Move = MakeShareable(new FGrpcNightfallV1EntityMove(Move));
     Event.Despawn = MakeShareable(new FGrpcNightfallV1EntityDespawn(Despawn));
+    Event.AttackResult = MakeShareable(new FGrpcNightfallV1AttackResult(AttackResult));
+    Event.EntityDied = MakeShareable(new FGrpcNightfallV1EntityDied(EntityDied));
+    Event.EntityRespawned = MakeShareable(new FGrpcNightfallV1EntityRespawned(EntityRespawned));
+    Event.StatsChanged = MakeShareable(new FGrpcNightfallV1StatsChanged(StatsChanged));
+    Event.XpGained = MakeShareable(new FGrpcNightfallV1XpGained(XpGained));
+    Event.LevelUp = MakeShareable(new FGrpcNightfallV1LevelUp(LevelUp));
+    Event.TargetChanged = MakeShareable(new FGrpcNightfallV1TargetChanged(TargetChanged));
 
     return Event;
 }
 
 void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfallV1WorldEventEvent& Event, EGrpcNightfallV1WorldEventEvent& EventCase, 
-    FGrpcNightfallV1EntitySpawn& Spawn, FGrpcNightfallV1EntityMove& Move, FGrpcNightfallV1EntityDespawn& Despawn 
+    FGrpcNightfallV1EntitySpawn& Spawn, FGrpcNightfallV1EntityMove& Move, FGrpcNightfallV1EntityDespawn& Despawn, 
+    FGrpcNightfallV1AttackResult& AttackResult, FGrpcNightfallV1EntityDied& EntityDied, FGrpcNightfallV1EntityRespawned& EntityRespawned, 
+    FGrpcNightfallV1StatsChanged& StatsChanged, FGrpcNightfallV1XpGained& XpGained, FGrpcNightfallV1LevelUp& LevelUp, 
+    FGrpcNightfallV1TargetChanged& TargetChanged 
 )
 {
     EventCase = Event.EventCase;
@@ -102,6 +148,34 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     if(Event.Despawn.Get()) 
     {
         Despawn = *(Event.Despawn.Get());
+    }
+    if(Event.AttackResult.Get()) 
+    {
+        AttackResult = *(Event.AttackResult.Get());
+    }
+    if(Event.EntityDied.Get()) 
+    {
+        EntityDied = *(Event.EntityDied.Get());
+    }
+    if(Event.EntityRespawned.Get()) 
+    {
+        EntityRespawned = *(Event.EntityRespawned.Get());
+    }
+    if(Event.StatsChanged.Get()) 
+    {
+        StatsChanged = *(Event.StatsChanged.Get());
+    }
+    if(Event.XpGained.Get()) 
+    {
+        XpGained = *(Event.XpGained.Get());
+    }
+    if(Event.LevelUp.Get()) 
+    {
+        LevelUp = *(Event.LevelUp.Get());
+    }
+    if(Event.TargetChanged.Get()) 
+    {
+        TargetChanged = *(Event.TargetChanged.Get());
     }
 }
 

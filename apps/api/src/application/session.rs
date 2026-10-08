@@ -787,7 +787,11 @@ impl<'a> Actor<'a> {
                     ZoneCommand::SpawnNpc { .. }
                     | ZoneCommand::Despawn { .. }
                     | ZoneCommand::MoveTo { .. }
-                    | ZoneCommand::StopMove { .. } => false,
+                    | ZoneCommand::StopMove { .. }
+                    | ZoneCommand::SetTarget { .. }
+                    | ZoneCommand::Attack { .. }
+                    | ZoneCommand::StopAttack { .. }
+                    | ZoneCommand::Respawn { .. } => false,
                 }
         })?;
         Some(!tick.dispositions.iter().any(|d| d.ordinal == mine.ordinal))

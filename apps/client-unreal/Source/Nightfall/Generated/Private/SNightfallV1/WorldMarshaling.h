@@ -13,6 +13,18 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1MoveToRequest* in, ::nightfall::v1:
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::StopMoveRequest* in, FGrpcNightfallV1StopMoveRequest* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StopMoveRequest* in, ::nightfall::v1::StopMoveRequest* out);
 
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SetTargetRequest* in, FGrpcNightfallV1SetTargetRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SetTargetRequest* in, ::nightfall::v1::SetTargetRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackRequest* in, FGrpcNightfallV1AttackRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackRequest* in, ::nightfall::v1::AttackRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::StopAttackRequest* in, FGrpcNightfallV1StopAttackRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StopAttackRequest* in, ::nightfall::v1::StopAttackRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::RespawnRequest* in, FGrpcNightfallV1RespawnRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1RespawnRequest* in, ::nightfall::v1::RespawnRequest* out);
+
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ServerMessage* in, FGrpcNightfallV1ServerMessage* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ServerMessage* in, ::nightfall::v1::ServerMessage* out);
 
@@ -33,4 +45,25 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityMove* in, ::nightfall::v1::En
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityDespawn* in, FGrpcNightfallV1EntityDespawn* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityDespawn* in, ::nightfall::v1::EntityDespawn* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackResult* in, FGrpcNightfallV1AttackResult* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackResult* in, ::nightfall::v1::AttackResult* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityDied* in, FGrpcNightfallV1EntityDied* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityDied* in, ::nightfall::v1::EntityDied* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityRespawned* in, FGrpcNightfallV1EntityRespawned* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityRespawned* in, ::nightfall::v1::EntityRespawned* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::StatsChanged* in, FGrpcNightfallV1StatsChanged* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::StatsChanged* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::XpGained* in, FGrpcNightfallV1XpGained* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1XpGained* in, ::nightfall::v1::XpGained* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::LevelUp* in, FGrpcNightfallV1LevelUp* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1LevelUp* in, ::nightfall::v1::LevelUp* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::TargetChanged* in, FGrpcNightfallV1TargetChanged* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1TargetChanged* in, ::nightfall::v1::TargetChanged* out);
 

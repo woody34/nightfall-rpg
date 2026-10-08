@@ -74,4 +74,24 @@ pub struct Entity {
     /// For players, the generation of the session that owns the entity. Always the default
     /// for NPCs.
     pub generation: SessionGeneration,
+    /// Minimal E2.1 selection/eligibility state; full combat state follows in E2.2.
+    #[serde(default, skip_serializing_if = "TargetingState::is_default")]
+    pub targeting: TargetingState,
+}
+
+/// Selection and eligibility needed for intent validation. Existing NPCs default to noncombat.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct TargetingState {
+    /// Current selection; None means cleared.
+    pub target: Option<EntityId>,
+    /// Dead entities cannot select or be selected.
+    pub dead: bool,
+    /// Explicit opt-in for combat NPCs; players are never attackable in this phase.
+    pub attackable: bool,
+}
+
+impl TargetingState {
+    fn is_default(&self) -> bool {
+        self == &Self::default()
+    }
 }

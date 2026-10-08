@@ -138,6 +138,15 @@ fn assert_output_order(t: &AppliedTick) {
             ObserverOutput::Event(ZoneEvent::EntityDespawn { entity, .. }) => (1, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, .. }) => (2, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntityMove { entity, .. }) => (3, 0, Some(*entity)),
+            ObserverOutput::Event(
+                e @ (ZoneEvent::AttackResult { .. }
+                | ZoneEvent::EntityDied { .. }
+                | ZoneEvent::EntityRespawned { .. }
+                | ZoneEvent::StatsChanged { .. }
+                | ZoneEvent::XpGained { .. }
+                | ZoneEvent::LevelUp { .. }
+                | ZoneEvent::TargetChanged { .. }),
+            ) => (4, 0, Some(e.entity())),
         };
         let ranks: Vec<_> = out.iter().map(rank).collect();
         let mut canonical = ranks.clone();

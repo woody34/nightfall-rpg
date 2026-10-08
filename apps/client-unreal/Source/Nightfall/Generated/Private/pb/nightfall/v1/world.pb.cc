@@ -84,6 +84,63 @@ struct StopMoveRequestDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 StopMoveRequestDefaultTypeInternal _StopMoveRequest_default_instance_;
 template <typename>
+PROTOBUF_CONSTEXPR SetTargetRequest::SetTargetRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SetTargetRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SetTargetRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SetTargetRequestDefaultTypeInternal() {}
+  union {
+    SetTargetRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SetTargetRequestDefaultTypeInternal _SetTargetRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR AttackRequest::AttackRequest(
+    ::_pbi::ConstantInitialized) {}
+struct AttackRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR AttackRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~AttackRequestDefaultTypeInternal() {}
+  union {
+    AttackRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 AttackRequestDefaultTypeInternal _AttackRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR StopAttackRequest::StopAttackRequest(
+    ::_pbi::ConstantInitialized) {}
+struct StopAttackRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR StopAttackRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~StopAttackRequestDefaultTypeInternal() {}
+  union {
+    StopAttackRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 StopAttackRequestDefaultTypeInternal _StopAttackRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR RespawnRequest::RespawnRequest(
+    ::_pbi::ConstantInitialized) {}
+struct RespawnRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR RespawnRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~RespawnRequestDefaultTypeInternal() {}
+  union {
+    RespawnRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 RespawnRequestDefaultTypeInternal _RespawnRequest_default_instance_;
+template <typename>
 PROTOBUF_CONSTEXPR ServerMessage::ServerMessage(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_.payload_)*/{}
@@ -228,10 +285,180 @@ struct EntityDespawnDefaultTypeInternal {
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 EntityDespawnDefaultTypeInternal _EntityDespawn_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR AttackResult::AttackResult(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.attacker_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.target_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.outcome_)*/ 0
+
+  , /*decltype(_impl_.damage_)*/ 0u
+
+  , /*decltype(_impl_.target_hp_after_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct AttackResultDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR AttackResultDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~AttackResultDefaultTypeInternal() {}
+  union {
+    AttackResult _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 AttackResultDefaultTypeInternal _AttackResult_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR EntityDied::EntityDied(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.killer_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct EntityDiedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR EntityDiedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~EntityDiedDefaultTypeInternal() {}
+  union {
+    EntityDied _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 EntityDiedDefaultTypeInternal _EntityDied_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR EntityRespawned::EntityRespawned(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.position_)*/nullptr
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.hp_)*/ 0u
+} {}
+struct EntityRespawnedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR EntityRespawnedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~EntityRespawnedDefaultTypeInternal() {}
+  union {
+    EntityRespawned _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 EntityRespawnedDefaultTypeInternal _EntityRespawned_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR StatsChanged::StatsChanged(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.hp_)*/ 0u
+
+  , /*decltype(_impl_.max_hp_)*/ 0u
+
+  , /*decltype(_impl_.mp_)*/ 0u
+
+  , /*decltype(_impl_.max_mp_)*/ 0u
+
+  , /*decltype(_impl_.level_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct StatsChangedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR StatsChangedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~StatsChangedDefaultTypeInternal() {}
+  union {
+    StatsChanged _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 StatsChangedDefaultTypeInternal _StatsChanged_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR XpGained::XpGained(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.amount_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.total_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct XpGainedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR XpGainedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~XpGainedDefaultTypeInternal() {}
+  union {
+    XpGained _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 XpGainedDefaultTypeInternal _XpGained_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR LevelUp::LevelUp(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.level_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct LevelUpDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR LevelUpDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~LevelUpDefaultTypeInternal() {}
+  union {
+    LevelUp _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 LevelUpDefaultTypeInternal _LevelUp_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR TargetChanged::TargetChanged(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.target_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct TargetChangedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR TargetChangedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~TargetChangedDefaultTypeInternal() {}
+  union {
+    TargetChanged _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TargetChangedDefaultTypeInternal _TargetChanged_default_instance_;
 }  // namespace v1
 }  // namespace nightfall
-static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fworld_2eproto[10];
-static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[2];
+static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fworld_2eproto[21];
+static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[3];
 static constexpr const ::_pb::ServiceDescriptor**
     file_level_service_descriptors_nightfall_2fv1_2fworld_2eproto = nullptr;
 const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(
@@ -247,6 +474,10 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClientMessage, _impl_.seq_),
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClientMessage, _impl_.intent_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::MoveToRequest, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::MoveToRequest, _internal_metadata_),
@@ -260,6 +491,39 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     0,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StopMoveRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SetTargetRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SetTargetRequest, _impl_.entity_id_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StopAttackRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RespawnRequest, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
     ~0u,  // no _weak_field_map_
@@ -307,6 +571,13 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,  // no _inlined_string_donated_
     ~0u,  // no _split_
     ~0u,  // no sizeof(Split)
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
@@ -358,26 +629,127 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,  // no _split_
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDespawn, _impl_.entity_id_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.attacker_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.target_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.outcome_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.damage_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.target_hp_after_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDied, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDied, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDied, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDied, _impl_.killer_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_.position_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_.hp_),
+    ~0u,
+    ~0u,
+    0,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.hp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.max_hp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.mp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.max_mp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.level_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::XpGained, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::XpGained, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::XpGained, _impl_.amount_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::XpGained, _impl_.total_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LevelUp, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LevelUp, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LevelUp, _impl_.level_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_.target_),
 };
 
 static const ::_pbi::MigrationSchema
     schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
         { 0, -1, -1, sizeof(::nightfall::v1::ClientMessage)},
-        { 12, 21, -1, sizeof(::nightfall::v1::MoveToRequest)},
-        { 22, -1, -1, sizeof(::nightfall::v1::StopMoveRequest)},
-        { 30, -1, -1, sizeof(::nightfall::v1::ServerMessage)},
-        { 42, -1, -1, sizeof(::nightfall::v1::Ack)},
-        { 52, -1, -1, sizeof(::nightfall::v1::IntentRejected)},
-        { 63, -1, -1, sizeof(::nightfall::v1::WorldEvent)},
-        { 75, 88, -1, sizeof(::nightfall::v1::EntitySpawn)},
-        { 93, 107, -1, sizeof(::nightfall::v1::EntityMove)},
-        { 113, -1, -1, sizeof(::nightfall::v1::EntityDespawn)},
+        { 16, 25, -1, sizeof(::nightfall::v1::MoveToRequest)},
+        { 26, -1, -1, sizeof(::nightfall::v1::StopMoveRequest)},
+        { 34, -1, -1, sizeof(::nightfall::v1::SetTargetRequest)},
+        { 43, -1, -1, sizeof(::nightfall::v1::AttackRequest)},
+        { 51, -1, -1, sizeof(::nightfall::v1::StopAttackRequest)},
+        { 59, -1, -1, sizeof(::nightfall::v1::RespawnRequest)},
+        { 67, -1, -1, sizeof(::nightfall::v1::ServerMessage)},
+        { 79, -1, -1, sizeof(::nightfall::v1::Ack)},
+        { 89, -1, -1, sizeof(::nightfall::v1::IntentRejected)},
+        { 100, -1, -1, sizeof(::nightfall::v1::WorldEvent)},
+        { 119, 132, -1, sizeof(::nightfall::v1::EntitySpawn)},
+        { 137, 151, -1, sizeof(::nightfall::v1::EntityMove)},
+        { 157, -1, -1, sizeof(::nightfall::v1::EntityDespawn)},
+        { 166, -1, -1, sizeof(::nightfall::v1::AttackResult)},
+        { 180, -1, -1, sizeof(::nightfall::v1::EntityDied)},
+        { 191, 203, -1, sizeof(::nightfall::v1::EntityRespawned)},
+        { 207, -1, -1, sizeof(::nightfall::v1::StatsChanged)},
+        { 221, -1, -1, sizeof(::nightfall::v1::XpGained)},
+        { 232, -1, -1, sizeof(::nightfall::v1::LevelUp)},
+        { 242, -1, -1, sizeof(::nightfall::v1::TargetChanged)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
     &::nightfall::v1::_ClientMessage_default_instance_._instance,
     &::nightfall::v1::_MoveToRequest_default_instance_._instance,
     &::nightfall::v1::_StopMoveRequest_default_instance_._instance,
+    &::nightfall::v1::_SetTargetRequest_default_instance_._instance,
+    &::nightfall::v1::_AttackRequest_default_instance_._instance,
+    &::nightfall::v1::_StopAttackRequest_default_instance_._instance,
+    &::nightfall::v1::_RespawnRequest_default_instance_._instance,
     &::nightfall::v1::_ServerMessage_default_instance_._instance,
     &::nightfall::v1::_Ack_default_instance_._instance,
     &::nightfall::v1::_IntentRejected_default_instance_._instance,
@@ -385,44 +757,90 @@ static const ::_pb::Message* const file_default_instances[] = {
     &::nightfall::v1::_EntitySpawn_default_instance_._instance,
     &::nightfall::v1::_EntityMove_default_instance_._instance,
     &::nightfall::v1::_EntityDespawn_default_instance_._instance,
+    &::nightfall::v1::_AttackResult_default_instance_._instance,
+    &::nightfall::v1::_EntityDied_default_instance_._instance,
+    &::nightfall::v1::_EntityRespawned_default_instance_._instance,
+    &::nightfall::v1::_StatsChanged_default_instance_._instance,
+    &::nightfall::v1::_XpGained_default_instance_._instance,
+    &::nightfall::v1::_LevelUp_default_instance_._instance,
+    &::nightfall::v1::_TargetChanged_default_instance_._instance,
 };
 const char descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
     "\n\030nightfall/v1/world.proto\022\014nightfall.v1"
-    "\032\027nightfall/v1/game.proto\"\212\001\n\rClientMess"
+    "\032\027nightfall/v1/game.proto\"\330\002\n\rClientMess"
     "age\022\013\n\003seq\030\001 \001(\r\022.\n\007move_to\030\n \001(\0132\033.nigh"
     "tfall.v1.MoveToRequestH\000\0222\n\tstop_move\030\013 "
-    "\001(\0132\035.nightfall.v1.StopMoveRequestH\000B\010\n\006"
-    "intent\"<\n\rMoveToRequest\022+\n\013destination\030\001"
-    " \001(\0132\026.nightfall.v1.Position\"\021\n\017StopMove"
-    "Request\"\231\001\n\rServerMessage\022 \n\003ack\030\001 \001(\0132\021"
-    ".nightfall.v1.AckH\000\022)\n\005event\030\002 \001(\0132\030.nig"
-    "htfall.v1.WorldEventH\000\0220\n\010rejected\030\003 \001(\013"
-    "2\034.nightfall.v1.IntentRejectedH\000B\t\n\007payl"
-    "oad\" \n\003Ack\022\013\n\003seq\030\001 \001(\r\022\014\n\004tick\030\002 \001(\004\"Y\n"
-    "\016IntentRejected\022\013\n\003seq\030\001 \001(\r\022*\n\006reason\030\002"
-    " \001(\0162\032.nightfall.v1.RejectReason\022\016\n\006deta"
-    "il\030\003 \001(\t\"\233\001\n\nWorldEvent\022*\n\005spawn\030\001 \001(\0132\031"
-    ".nightfall.v1.EntitySpawnH\000\022(\n\004move\030\002 \001("
-    "\0132\030.nightfall.v1.EntityMoveH\000\022.\n\007despawn"
-    "\030\003 \001(\0132\033.nightfall.v1.EntityDespawnH\000B\007\n"
-    "\005event\"\234\001\n\013EntitySpawn\022\021\n\tentity_id\030\001 \001("
-    "\t\022\014\n\004name\030\002 \001(\t\022(\n\010position\030\003 \001(\0132\026.nigh"
-    "tfall.v1.Position\022&\n\004kind\030\004 \001(\0162\030.nightf"
-    "all.v1.EntityKind\022\032\n\022session_generation\030"
-    "\005 \001(\r\"\253\001\n\nEntityMove\022\021\n\tentity_id\030\001 \001(\t\022"
-    "(\n\010position\030\002 \001(\0132\026.nightfall.v1.Positio"
-    "n\022+\n\013destination\030\003 \001(\0132\026.nightfall.v1.Po"
-    "sition\022\r\n\005speed\030\004 \001(\002\022\026\n\016server_time_ms\030"
-    "\005 \001(\003\022\014\n\004tick\030\006 \001(\004\"\"\n\rEntityDespawn\022\021\n\t"
-    "entity_id\030\001 \001(\t*\344\001\n\014RejectReason\022\035\n\031REJE"
-    "CT_REASON_UNSPECIFIED\020\000\022\037\n\033REJECT_REASON"
-    "_OUT_OF_BOUNDS\020\001\022\031\n\025REJECT_REASON_TOO_FA"
-    "R\020\002\022 \n\034REJECT_REASON_UNKNOWN_ENTITY\020\003\022\034\n"
-    "\030REJECT_REASON_OVERLOADED\020\004\022\036\n\032REJECT_RE"
-    "ASON_RATE_LIMITED\020\005\022\031\n\025REJECT_REASON_INV"
-    "ALID\020\006*V\n\nEntityKind\022\033\n\027ENTITY_KIND_UNSP"
-    "ECIFIED\020\000\022\026\n\022ENTITY_KIND_PLAYER\020\001\022\023\n\017ENT"
-    "ITY_KIND_NPC\020\002b\006proto3"
+    "\001(\0132\035.nightfall.v1.StopMoveRequestH\000\0224\n\n"
+    "set_target\030\014 \001(\0132\036.nightfall.v1.SetTarge"
+    "tRequestH\000\022-\n\006attack\030\r \001(\0132\033.nightfall.v"
+    "1.AttackRequestH\000\0226\n\013stop_attack\030\016 \001(\0132\037"
+    ".nightfall.v1.StopAttackRequestH\000\022/\n\007res"
+    "pawn\030\017 \001(\0132\034.nightfall.v1.RespawnRequest"
+    "H\000B\010\n\006intent\"<\n\rMoveToRequest\022+\n\013destina"
+    "tion\030\001 \001(\0132\026.nightfall.v1.Position\"\021\n\017St"
+    "opMoveRequest\"%\n\020SetTargetRequest\022\021\n\tent"
+    "ity_id\030\001 \001(\t\"\017\n\rAttackRequest\"\023\n\021StopAtt"
+    "ackRequest\"\020\n\016RespawnRequest\"\231\001\n\rServerM"
+    "essage\022 \n\003ack\030\001 \001(\0132\021.nightfall.v1.AckH\000"
+    "\022)\n\005event\030\002 \001(\0132\030.nightfall.v1.WorldEven"
+    "tH\000\0220\n\010rejected\030\003 \001(\0132\034.nightfall.v1.Int"
+    "entRejectedH\000B\t\n\007payload\" \n\003Ack\022\013\n\003seq\030\001"
+    " \001(\r\022\014\n\004tick\030\002 \001(\004\"Y\n\016IntentRejected\022\013\n\003"
+    "seq\030\001 \001(\r\022*\n\006reason\030\002 \001(\0162\032.nightfall.v1"
+    ".RejectReason\022\016\n\006detail\030\003 \001(\t\"\200\004\n\nWorldE"
+    "vent\022*\n\005spawn\030\001 \001(\0132\031.nightfall.v1.Entit"
+    "ySpawnH\000\022(\n\004move\030\002 \001(\0132\030.nightfall.v1.En"
+    "tityMoveH\000\022.\n\007despawn\030\003 \001(\0132\033.nightfall."
+    "v1.EntityDespawnH\000\0223\n\rattack_result\030\004 \001("
+    "\0132\032.nightfall.v1.AttackResultH\000\022/\n\013entit"
+    "y_died\030\005 \001(\0132\030.nightfall.v1.EntityDiedH\000"
+    "\0229\n\020entity_respawned\030\006 \001(\0132\035.nightfall.v"
+    "1.EntityRespawnedH\000\0223\n\rstats_changed\030\007 \001"
+    "(\0132\032.nightfall.v1.StatsChangedH\000\022+\n\txp_g"
+    "ained\030\010 \001(\0132\026.nightfall.v1.XpGainedH\000\022)\n"
+    "\010level_up\030\t \001(\0132\025.nightfall.v1.LevelUpH\000"
+    "\0225\n\016target_changed\030\n \001(\0132\033.nightfall.v1."
+    "TargetChangedH\000B\007\n\005event\"\234\001\n\013EntitySpawn"
+    "\022\021\n\tentity_id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022(\n\010pos"
+    "ition\030\003 \001(\0132\026.nightfall.v1.Position\022&\n\004k"
+    "ind\030\004 \001(\0162\030.nightfall.v1.EntityKind\022\032\n\022s"
+    "ession_generation\030\005 \001(\r\"\253\001\n\nEntityMove\022\021"
+    "\n\tentity_id\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.ni"
+    "ghtfall.v1.Position\022+\n\013destination\030\003 \001(\013"
+    "2\026.nightfall.v1.Position\022\r\n\005speed\030\004 \001(\002\022"
+    "\026\n\016server_time_ms\030\005 \001(\003\022\014\n\004tick\030\006 \001(\004\"\"\n"
+    "\rEntityDespawn\022\021\n\tentity_id\030\001 \001(\t\"\225\001\n\014At"
+    "tackResult\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002"
+    " \001(\t\022\014\n\004tick\030\003 \001(\004\022,\n\007outcome\030\004 \001(\0162\033.ni"
+    "ghtfall.v1.AttackOutcome\022\016\n\006damage\030\005 \001(\r"
+    "\022\027\n\017target_hp_after\030\006 \001(\r\":\n\nEntityDied\022"
+    "\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022\016\n\006killer\030"
+    "\003 \001(\t\"e\n\017EntityRespawned\022\016\n\006entity\030\001 \001(\t"
+    "\022\014\n\004tick\030\002 \001(\004\022(\n\010position\030\003 \001(\0132\026.night"
+    "fall.v1.Position\022\n\n\002hp\030\004 \001(\r\"e\n\014StatsCha"
+    "nged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006max_"
+    "hp\030\003 \001(\r\022\n\n\002mp\030\004 \001(\r\022\016\n\006max_mp\030\005 \001(\r\022\r\n\005"
+    "level\030\006 \001(\r\"9\n\010XpGained\022\016\n\006entity\030\001 \001(\t\022"
+    "\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\"(\n\007LevelU"
+    "p\022\016\n\006entity\030\001 \001(\t\022\r\n\005level\030\002 \001(\r\"/\n\rTarg"
+    "etChanged\022\016\n\006entity\030\001 \001(\t\022\016\n\006target\030\002 \001("
+    "\t*\264\003\n\014RejectReason\022\035\n\031REJECT_REASON_UNSP"
+    "ECIFIED\020\000\022\037\n\033REJECT_REASON_OUT_OF_BOUNDS"
+    "\020\001\022\031\n\025REJECT_REASON_TOO_FAR\020\002\022 \n\034REJECT_"
+    "REASON_UNKNOWN_ENTITY\020\003\022\034\n\030REJECT_REASON"
+    "_OVERLOADED\020\004\022\036\n\032REJECT_REASON_RATE_LIMI"
+    "TED\020\005\022\031\n\025REJECT_REASON_INVALID\020\006\022\034\n\030REJE"
+    "CT_REASON_DEAD_ACTOR\020\007\022\'\n#REJECT_REASON_"
+    "NON_ATTACKABLE_TARGET\020\010\022#\n\037REJECT_REASON"
+    "_TARGET_NOT_IN_AOI\020\t\022\036\n\032REJECT_REASON_OU"
+    "T_OF_RANGE\020\n\022\033\n\027REJECT_REASON_PROTECTED\020"
+    "\013\022%\n!REJECT_REASON_NOT_YET_IMPLEMENTED\020\014"
+    "*V\n\nEntityKind\022\033\n\027ENTITY_KIND_UNSPECIFIE"
+    "D\020\000\022\026\n\022ENTITY_KIND_PLAYER\020\001\022\023\n\017ENTITY_KI"
+    "ND_NPC\020\002*y\n\rAttackOutcome\022\036\n\032ATTACK_OUTC"
+    "OME_UNSPECIFIED\020\000\022\027\n\023ATTACK_OUTCOME_MISS"
+    "\020\001\022\026\n\022ATTACK_OUTCOME_HIT\020\002\022\027\n\023ATTACK_OUT"
+    "COME_CRIT\020\003b\006proto3"
 };
 static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fworld_2eproto_deps[1] =
     {
@@ -432,13 +850,13 @@ static ::absl::once_flag descriptor_table_nightfall_2fv1_2fworld_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fworld_2eproto = {
     false,
     false,
-    1422,
+    2979,
     descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto,
     "nightfall/v1/world.proto",
     &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
     descriptor_table_nightfall_2fv1_2fworld_2eproto_deps,
     1,
-    10,
+    21,
     schemas,
     file_default_instances,
     TableStruct_nightfall_2fv1_2fworld_2eproto::offsets,
@@ -479,6 +897,12 @@ bool RejectReason_IsValid(int value) {
     case 4:
     case 5:
     case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+    case 12:
       return true;
     default:
       return false;
@@ -498,6 +922,21 @@ bool EntityKind_IsValid(int value) {
       return false;
   }
 }
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* AttackOutcome_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fworld_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[2];
+}
+bool AttackOutcome_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+      return true;
+    default:
+      return false;
+  }
+}
 // ===================================================================
 
 class ClientMessage::_Internal {
@@ -506,6 +945,10 @@ class ClientMessage::_Internal {
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClientMessage, _impl_._oneof_case_);
   static const ::nightfall::v1::MoveToRequest& move_to(const ClientMessage* msg);
   static const ::nightfall::v1::StopMoveRequest& stop_move(const ClientMessage* msg);
+  static const ::nightfall::v1::SetTargetRequest& set_target(const ClientMessage* msg);
+  static const ::nightfall::v1::AttackRequest& attack(const ClientMessage* msg);
+  static const ::nightfall::v1::StopAttackRequest& stop_attack(const ClientMessage* msg);
+  static const ::nightfall::v1::RespawnRequest& respawn(const ClientMessage* msg);
 };
 
 const ::nightfall::v1::MoveToRequest&
@@ -515,6 +958,22 @@ ClientMessage::_Internal::move_to(const ClientMessage* msg) {
 const ::nightfall::v1::StopMoveRequest&
 ClientMessage::_Internal::stop_move(const ClientMessage* msg) {
   return *msg->_impl_.intent_.stop_move_;
+}
+const ::nightfall::v1::SetTargetRequest&
+ClientMessage::_Internal::set_target(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.set_target_;
+}
+const ::nightfall::v1::AttackRequest&
+ClientMessage::_Internal::attack(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.attack_;
+}
+const ::nightfall::v1::StopAttackRequest&
+ClientMessage::_Internal::stop_attack(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.stop_attack_;
+}
+const ::nightfall::v1::RespawnRequest&
+ClientMessage::_Internal::respawn(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.respawn_;
 }
 void ClientMessage::set_allocated_move_to(::nightfall::v1::MoveToRequest* move_to) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
@@ -546,6 +1005,66 @@ void ClientMessage::set_allocated_stop_move(::nightfall::v1::StopMoveRequest* st
   }
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.stop_move)
 }
+void ClientMessage::set_allocated_set_target(::nightfall::v1::SetTargetRequest* set_target) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (set_target) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(set_target);
+    if (message_arena != submessage_arena) {
+      set_target = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, set_target, submessage_arena);
+    }
+    set_has_set_target();
+    _impl_.intent_.set_target_ = set_target;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.set_target)
+}
+void ClientMessage::set_allocated_attack(::nightfall::v1::AttackRequest* attack) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (attack) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(attack);
+    if (message_arena != submessage_arena) {
+      attack = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, attack, submessage_arena);
+    }
+    set_has_attack();
+    _impl_.intent_.attack_ = attack;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.attack)
+}
+void ClientMessage::set_allocated_stop_attack(::nightfall::v1::StopAttackRequest* stop_attack) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (stop_attack) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(stop_attack);
+    if (message_arena != submessage_arena) {
+      stop_attack = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, stop_attack, submessage_arena);
+    }
+    set_has_stop_attack();
+    _impl_.intent_.stop_attack_ = stop_attack;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.stop_attack)
+}
+void ClientMessage::set_allocated_respawn(::nightfall::v1::RespawnRequest* respawn) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (respawn) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(respawn);
+    if (message_arena != submessage_arena) {
+      respawn = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, respawn, submessage_arena);
+    }
+    set_has_respawn();
+    _impl_.intent_.respawn_ = respawn;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.respawn)
+}
 ClientMessage::ClientMessage(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -573,6 +1092,26 @@ ClientMessage::ClientMessage(const ClientMessage& from)
     case kStopMove: {
       _this->_internal_mutable_stop_move()->::nightfall::v1::StopMoveRequest::MergeFrom(
           from._internal_stop_move());
+      break;
+    }
+    case kSetTarget: {
+      _this->_internal_mutable_set_target()->::nightfall::v1::SetTargetRequest::MergeFrom(
+          from._internal_set_target());
+      break;
+    }
+    case kAttack: {
+      _this->_internal_mutable_attack()->::nightfall::v1::AttackRequest::MergeFrom(
+          from._internal_attack());
+      break;
+    }
+    case kStopAttack: {
+      _this->_internal_mutable_stop_attack()->::nightfall::v1::StopAttackRequest::MergeFrom(
+          from._internal_stop_attack());
+      break;
+    }
+    case kRespawn: {
+      _this->_internal_mutable_respawn()->::nightfall::v1::RespawnRequest::MergeFrom(
+          from._internal_respawn());
       break;
     }
     case INTENT_NOT_SET: {
@@ -629,6 +1168,30 @@ void ClientMessage::clear_intent() {
       }
       break;
     }
+    case kSetTarget: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.set_target_;
+      }
+      break;
+    }
+    case kAttack: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.attack_;
+      }
+      break;
+    }
+    case kStopAttack: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.stop_attack_;
+      }
+      break;
+    }
+    case kRespawn: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.respawn_;
+      }
+      break;
+    }
     case INTENT_NOT_SET: {
       break;
     }
@@ -676,6 +1239,42 @@ const char* ClientMessage::_InternalParse(const char* ptr, ::_pbi::ParseContext*
       case 11:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
           ptr = ctx->ParseMessage(_internal_mutable_stop_move(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SetTargetRequest set_target = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 98)) {
+          ptr = ctx->ParseMessage(_internal_mutable_set_target(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.AttackRequest attack = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 106)) {
+          ptr = ctx->ParseMessage(_internal_mutable_attack(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.StopAttackRequest stop_attack = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 114)) {
+          ptr = ctx->ParseMessage(_internal_mutable_stop_attack(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.RespawnRequest respawn = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 122)) {
+          ptr = ctx->ParseMessage(_internal_mutable_respawn(), ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -730,6 +1329,30 @@ failure:
           _Internal::stop_move(this).GetCachedSize(), target, stream);
       break;
     }
+    case kSetTarget: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(12, _Internal::set_target(this),
+          _Internal::set_target(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kAttack: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(13, _Internal::attack(this),
+          _Internal::attack(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kStopAttack: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(14, _Internal::stop_attack(this),
+          _Internal::stop_attack(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kRespawn: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(15, _Internal::respawn(this),
+          _Internal::respawn(this).GetCachedSize(), target, stream);
+      break;
+    }
     default: ;
   }
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -769,6 +1392,34 @@ failure:
           *_impl_.intent_.stop_move_);
       break;
     }
+    // .nightfall.v1.SetTargetRequest set_target = 12;
+    case kSetTarget: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.set_target_);
+      break;
+    }
+    // .nightfall.v1.AttackRequest attack = 13;
+    case kAttack: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.attack_);
+      break;
+    }
+    // .nightfall.v1.StopAttackRequest stop_attack = 14;
+    case kStopAttack: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.stop_attack_);
+      break;
+    }
+    // .nightfall.v1.RespawnRequest respawn = 15;
+    case kRespawn: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.respawn_);
+      break;
+    }
     case INTENT_NOT_SET: {
       break;
     }
@@ -803,6 +1454,26 @@ void ClientMessage::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::
     case kStopMove: {
       _this->_internal_mutable_stop_move()->::nightfall::v1::StopMoveRequest::MergeFrom(
           from._internal_stop_move());
+      break;
+    }
+    case kSetTarget: {
+      _this->_internal_mutable_set_target()->::nightfall::v1::SetTargetRequest::MergeFrom(
+          from._internal_set_target());
+      break;
+    }
+    case kAttack: {
+      _this->_internal_mutable_attack()->::nightfall::v1::AttackRequest::MergeFrom(
+          from._internal_attack());
+      break;
+    }
+    case kStopAttack: {
+      _this->_internal_mutable_stop_attack()->::nightfall::v1::StopAttackRequest::MergeFrom(
+          from._internal_stop_attack());
+      break;
+    }
+    case kRespawn: {
+      _this->_internal_mutable_respawn()->::nightfall::v1::RespawnRequest::MergeFrom(
+          from._internal_respawn());
       break;
     }
     case INTENT_NOT_SET: {
@@ -1083,6 +1754,316 @@ const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*StopMoveRequest::GetClassData(
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
       file_level_metadata_nightfall_2fv1_2fworld_2eproto[2]);
+}
+// ===================================================================
+
+class SetTargetRequest::_Internal {
+ public:
+};
+
+SetTargetRequest::SetTargetRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SetTargetRequest)
+}
+SetTargetRequest::SetTargetRequest(const SetTargetRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SetTargetRequest* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_id_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity_id().empty()) {
+    _this->_impl_.entity_id_.Set(from._internal_entity_id(), _this->GetArenaForAllocation());
+  }
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SetTargetRequest)
+}
+
+inline void SetTargetRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_id_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SetTargetRequest::~SetTargetRequest() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SetTargetRequest)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SetTargetRequest::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_id_.Destroy();
+}
+
+void SetTargetRequest::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SetTargetRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SetTargetRequest)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_id_.ClearToEmpty();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SetTargetRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity_id();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SetTargetRequest.entity_id"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SetTargetRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SetTargetRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity_id = 1;
+  if (!this->_internal_entity_id().empty()) {
+    const std::string& _s = this->_internal_entity_id();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SetTargetRequest.entity_id");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SetTargetRequest)
+  return target;
+}
+
+::size_t SetTargetRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SetTargetRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity_id = 1;
+  if (!this->_internal_entity_id().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity_id());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SetTargetRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SetTargetRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SetTargetRequest::GetClassData() const { return &_class_data_; }
+
+
+void SetTargetRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SetTargetRequest*>(&to_msg);
+  auto& from = static_cast<const SetTargetRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SetTargetRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity_id().empty()) {
+    _this->_internal_set_entity_id(from._internal_entity_id());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SetTargetRequest::CopyFrom(const SetTargetRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SetTargetRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SetTargetRequest::IsInitialized() const {
+  return true;
+}
+
+void SetTargetRequest::InternalSwap(SetTargetRequest* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_id_, lhs_arena,
+                                       &other->_impl_.entity_id_, rhs_arena);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SetTargetRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[3]);
+}
+// ===================================================================
+
+class AttackRequest::_Internal {
+ public:
+};
+
+AttackRequest::AttackRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase(arena) {
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.AttackRequest)
+}
+AttackRequest::AttackRequest(const AttackRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase() {
+  AttackRequest* const _this = this; (void)_this;
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.AttackRequest)
+}
+
+
+
+
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData AttackRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl,
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl,
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*AttackRequest::GetClassData() const { return &_class_data_; }
+
+
+
+
+
+
+
+::PROTOBUF_NAMESPACE_ID::Metadata AttackRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[4]);
+}
+// ===================================================================
+
+class StopAttackRequest::_Internal {
+ public:
+};
+
+StopAttackRequest::StopAttackRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase(arena) {
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.StopAttackRequest)
+}
+StopAttackRequest::StopAttackRequest(const StopAttackRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase() {
+  StopAttackRequest* const _this = this; (void)_this;
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.StopAttackRequest)
+}
+
+
+
+
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData StopAttackRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl,
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl,
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*StopAttackRequest::GetClassData() const { return &_class_data_; }
+
+
+
+
+
+
+
+::PROTOBUF_NAMESPACE_ID::Metadata StopAttackRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[5]);
+}
+// ===================================================================
+
+class RespawnRequest::_Internal {
+ public:
+};
+
+RespawnRequest::RespawnRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase(arena) {
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.RespawnRequest)
+}
+RespawnRequest::RespawnRequest(const RespawnRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase() {
+  RespawnRequest* const _this = this; (void)_this;
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.RespawnRequest)
+}
+
+
+
+
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData RespawnRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl,
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl,
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*RespawnRequest::GetClassData() const { return &_class_data_; }
+
+
+
+
+
+
+
+::PROTOBUF_NAMESPACE_ID::Metadata RespawnRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[6]);
 }
 // ===================================================================
 
@@ -1446,7 +2427,7 @@ void ServerMessage::InternalSwap(ServerMessage* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata ServerMessage::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[3]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[7]);
 }
 // ===================================================================
 
@@ -1653,7 +2634,7 @@ void Ack::InternalSwap(Ack* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Ack::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[4]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[8]);
 }
 // ===================================================================
 
@@ -1920,7 +2901,7 @@ void IntentRejected::InternalSwap(IntentRejected* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata IntentRejected::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[5]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[9]);
 }
 // ===================================================================
 
@@ -1931,6 +2912,13 @@ class WorldEvent::_Internal {
   static const ::nightfall::v1::EntitySpawn& spawn(const WorldEvent* msg);
   static const ::nightfall::v1::EntityMove& move(const WorldEvent* msg);
   static const ::nightfall::v1::EntityDespawn& despawn(const WorldEvent* msg);
+  static const ::nightfall::v1::AttackResult& attack_result(const WorldEvent* msg);
+  static const ::nightfall::v1::EntityDied& entity_died(const WorldEvent* msg);
+  static const ::nightfall::v1::EntityRespawned& entity_respawned(const WorldEvent* msg);
+  static const ::nightfall::v1::StatsChanged& stats_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::XpGained& xp_gained(const WorldEvent* msg);
+  static const ::nightfall::v1::LevelUp& level_up(const WorldEvent* msg);
+  static const ::nightfall::v1::TargetChanged& target_changed(const WorldEvent* msg);
 };
 
 const ::nightfall::v1::EntitySpawn&
@@ -1944,6 +2932,34 @@ WorldEvent::_Internal::move(const WorldEvent* msg) {
 const ::nightfall::v1::EntityDespawn&
 WorldEvent::_Internal::despawn(const WorldEvent* msg) {
   return *msg->_impl_.event_.despawn_;
+}
+const ::nightfall::v1::AttackResult&
+WorldEvent::_Internal::attack_result(const WorldEvent* msg) {
+  return *msg->_impl_.event_.attack_result_;
+}
+const ::nightfall::v1::EntityDied&
+WorldEvent::_Internal::entity_died(const WorldEvent* msg) {
+  return *msg->_impl_.event_.entity_died_;
+}
+const ::nightfall::v1::EntityRespawned&
+WorldEvent::_Internal::entity_respawned(const WorldEvent* msg) {
+  return *msg->_impl_.event_.entity_respawned_;
+}
+const ::nightfall::v1::StatsChanged&
+WorldEvent::_Internal::stats_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.stats_changed_;
+}
+const ::nightfall::v1::XpGained&
+WorldEvent::_Internal::xp_gained(const WorldEvent* msg) {
+  return *msg->_impl_.event_.xp_gained_;
+}
+const ::nightfall::v1::LevelUp&
+WorldEvent::_Internal::level_up(const WorldEvent* msg) {
+  return *msg->_impl_.event_.level_up_;
+}
+const ::nightfall::v1::TargetChanged&
+WorldEvent::_Internal::target_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.target_changed_;
 }
 void WorldEvent::set_allocated_spawn(::nightfall::v1::EntitySpawn* spawn) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
@@ -1990,6 +3006,111 @@ void WorldEvent::set_allocated_despawn(::nightfall::v1::EntityDespawn* despawn) 
   }
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.despawn)
 }
+void WorldEvent::set_allocated_attack_result(::nightfall::v1::AttackResult* attack_result) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (attack_result) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(attack_result);
+    if (message_arena != submessage_arena) {
+      attack_result = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, attack_result, submessage_arena);
+    }
+    set_has_attack_result();
+    _impl_.event_.attack_result_ = attack_result;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.attack_result)
+}
+void WorldEvent::set_allocated_entity_died(::nightfall::v1::EntityDied* entity_died) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (entity_died) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(entity_died);
+    if (message_arena != submessage_arena) {
+      entity_died = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, entity_died, submessage_arena);
+    }
+    set_has_entity_died();
+    _impl_.event_.entity_died_ = entity_died;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.entity_died)
+}
+void WorldEvent::set_allocated_entity_respawned(::nightfall::v1::EntityRespawned* entity_respawned) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (entity_respawned) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(entity_respawned);
+    if (message_arena != submessage_arena) {
+      entity_respawned = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, entity_respawned, submessage_arena);
+    }
+    set_has_entity_respawned();
+    _impl_.event_.entity_respawned_ = entity_respawned;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.entity_respawned)
+}
+void WorldEvent::set_allocated_stats_changed(::nightfall::v1::StatsChanged* stats_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (stats_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(stats_changed);
+    if (message_arena != submessage_arena) {
+      stats_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, stats_changed, submessage_arena);
+    }
+    set_has_stats_changed();
+    _impl_.event_.stats_changed_ = stats_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.stats_changed)
+}
+void WorldEvent::set_allocated_xp_gained(::nightfall::v1::XpGained* xp_gained) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (xp_gained) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(xp_gained);
+    if (message_arena != submessage_arena) {
+      xp_gained = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, xp_gained, submessage_arena);
+    }
+    set_has_xp_gained();
+    _impl_.event_.xp_gained_ = xp_gained;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.xp_gained)
+}
+void WorldEvent::set_allocated_level_up(::nightfall::v1::LevelUp* level_up) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (level_up) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(level_up);
+    if (message_arena != submessage_arena) {
+      level_up = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, level_up, submessage_arena);
+    }
+    set_has_level_up();
+    _impl_.event_.level_up_ = level_up;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.level_up)
+}
+void WorldEvent::set_allocated_target_changed(::nightfall::v1::TargetChanged* target_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (target_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(target_changed);
+    if (message_arena != submessage_arena) {
+      target_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, target_changed, submessage_arena);
+    }
+    set_has_target_changed();
+    _impl_.event_.target_changed_ = target_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.target_changed)
+}
 WorldEvent::WorldEvent(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -2019,6 +3140,41 @@ WorldEvent::WorldEvent(const WorldEvent& from)
     case kDespawn: {
       _this->_internal_mutable_despawn()->::nightfall::v1::EntityDespawn::MergeFrom(
           from._internal_despawn());
+      break;
+    }
+    case kAttackResult: {
+      _this->_internal_mutable_attack_result()->::nightfall::v1::AttackResult::MergeFrom(
+          from._internal_attack_result());
+      break;
+    }
+    case kEntityDied: {
+      _this->_internal_mutable_entity_died()->::nightfall::v1::EntityDied::MergeFrom(
+          from._internal_entity_died());
+      break;
+    }
+    case kEntityRespawned: {
+      _this->_internal_mutable_entity_respawned()->::nightfall::v1::EntityRespawned::MergeFrom(
+          from._internal_entity_respawned());
+      break;
+    }
+    case kStatsChanged: {
+      _this->_internal_mutable_stats_changed()->::nightfall::v1::StatsChanged::MergeFrom(
+          from._internal_stats_changed());
+      break;
+    }
+    case kXpGained: {
+      _this->_internal_mutable_xp_gained()->::nightfall::v1::XpGained::MergeFrom(
+          from._internal_xp_gained());
+      break;
+    }
+    case kLevelUp: {
+      _this->_internal_mutable_level_up()->::nightfall::v1::LevelUp::MergeFrom(
+          from._internal_level_up());
+      break;
+    }
+    case kTargetChanged: {
+      _this->_internal_mutable_target_changed()->::nightfall::v1::TargetChanged::MergeFrom(
+          from._internal_target_changed());
       break;
     }
     case EVENT_NOT_SET: {
@@ -2079,6 +3235,48 @@ void WorldEvent::clear_event() {
       }
       break;
     }
+    case kAttackResult: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.attack_result_;
+      }
+      break;
+    }
+    case kEntityDied: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.entity_died_;
+      }
+      break;
+    }
+    case kEntityRespawned: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.entity_respawned_;
+      }
+      break;
+    }
+    case kStatsChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.stats_changed_;
+      }
+      break;
+    }
+    case kXpGained: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.xp_gained_;
+      }
+      break;
+    }
+    case kLevelUp: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.level_up_;
+      }
+      break;
+    }
+    case kTargetChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.target_changed_;
+      }
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -2125,6 +3323,69 @@ const char* WorldEvent::_InternalParse(const char* ptr, ::_pbi::ParseContext* ct
       case 3:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
           ptr = ctx->ParseMessage(_internal_mutable_despawn(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.AttackResult attack_result = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 34)) {
+          ptr = ctx->ParseMessage(_internal_mutable_attack_result(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EntityDied entity_died = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
+          ptr = ctx->ParseMessage(_internal_mutable_entity_died(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EntityRespawned entity_respawned = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          ptr = ctx->ParseMessage(_internal_mutable_entity_respawned(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.StatsChanged stats_changed = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
+          ptr = ctx->ParseMessage(_internal_mutable_stats_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.XpGained xp_gained = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 66)) {
+          ptr = ctx->ParseMessage(_internal_mutable_xp_gained(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.LevelUp level_up = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
+          ptr = ctx->ParseMessage(_internal_mutable_level_up(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.TargetChanged target_changed = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 82)) {
+          ptr = ctx->ParseMessage(_internal_mutable_target_changed(), ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -2178,6 +3439,48 @@ failure:
           _Internal::despawn(this).GetCachedSize(), target, stream);
       break;
     }
+    case kAttackResult: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(4, _Internal::attack_result(this),
+          _Internal::attack_result(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kEntityDied: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(5, _Internal::entity_died(this),
+          _Internal::entity_died(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kEntityRespawned: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(6, _Internal::entity_respawned(this),
+          _Internal::entity_respawned(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kStatsChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(7, _Internal::stats_changed(this),
+          _Internal::stats_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kXpGained: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(8, _Internal::xp_gained(this),
+          _Internal::xp_gained(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kLevelUp: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(9, _Internal::level_up(this),
+          _Internal::level_up(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kTargetChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(10, _Internal::target_changed(this),
+          _Internal::target_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
     default: ;
   }
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2218,6 +3521,55 @@ failure:
           *_impl_.event_.despawn_);
       break;
     }
+    // .nightfall.v1.AttackResult attack_result = 4;
+    case kAttackResult: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.attack_result_);
+      break;
+    }
+    // .nightfall.v1.EntityDied entity_died = 5;
+    case kEntityDied: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.entity_died_);
+      break;
+    }
+    // .nightfall.v1.EntityRespawned entity_respawned = 6;
+    case kEntityRespawned: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.entity_respawned_);
+      break;
+    }
+    // .nightfall.v1.StatsChanged stats_changed = 7;
+    case kStatsChanged: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.stats_changed_);
+      break;
+    }
+    // .nightfall.v1.XpGained xp_gained = 8;
+    case kXpGained: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.xp_gained_);
+      break;
+    }
+    // .nightfall.v1.LevelUp level_up = 9;
+    case kLevelUp: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.level_up_);
+      break;
+    }
+    // .nightfall.v1.TargetChanged target_changed = 10;
+    case kTargetChanged: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.target_changed_);
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -2256,6 +3608,41 @@ void WorldEvent::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PRO
           from._internal_despawn());
       break;
     }
+    case kAttackResult: {
+      _this->_internal_mutable_attack_result()->::nightfall::v1::AttackResult::MergeFrom(
+          from._internal_attack_result());
+      break;
+    }
+    case kEntityDied: {
+      _this->_internal_mutable_entity_died()->::nightfall::v1::EntityDied::MergeFrom(
+          from._internal_entity_died());
+      break;
+    }
+    case kEntityRespawned: {
+      _this->_internal_mutable_entity_respawned()->::nightfall::v1::EntityRespawned::MergeFrom(
+          from._internal_entity_respawned());
+      break;
+    }
+    case kStatsChanged: {
+      _this->_internal_mutable_stats_changed()->::nightfall::v1::StatsChanged::MergeFrom(
+          from._internal_stats_changed());
+      break;
+    }
+    case kXpGained: {
+      _this->_internal_mutable_xp_gained()->::nightfall::v1::XpGained::MergeFrom(
+          from._internal_xp_gained());
+      break;
+    }
+    case kLevelUp: {
+      _this->_internal_mutable_level_up()->::nightfall::v1::LevelUp::MergeFrom(
+          from._internal_level_up());
+      break;
+    }
+    case kTargetChanged: {
+      _this->_internal_mutable_target_changed()->::nightfall::v1::TargetChanged::MergeFrom(
+          from._internal_target_changed());
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -2284,7 +3671,7 @@ void WorldEvent::InternalSwap(WorldEvent* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata WorldEvent::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[6]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[10]);
 }
 // ===================================================================
 
@@ -2659,7 +4046,7 @@ void EntitySpawn::InternalSwap(EntitySpawn* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata EntitySpawn::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[7]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[11]);
 }
 // ===================================================================
 
@@ -3082,7 +4469,7 @@ void EntityMove::InternalSwap(EntityMove* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata EntityMove::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[8]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[12]);
 }
 // ===================================================================
 
@@ -3278,7 +4665,2073 @@ void EntityDespawn::InternalSwap(EntityDespawn* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata EntityDespawn::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[9]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[13]);
+}
+// ===================================================================
+
+class AttackResult::_Internal {
+ public:
+};
+
+AttackResult::AttackResult(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.AttackResult)
+}
+AttackResult::AttackResult(const AttackResult& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  AttackResult* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.attacker_) {}
+
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.outcome_) {}
+
+    , decltype(_impl_.damage_) {}
+
+    , decltype(_impl_.target_hp_after_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.attacker_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.attacker_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_attacker().empty()) {
+    _this->_impl_.attacker_.Set(from._internal_attacker(), _this->GetArenaForAllocation());
+  }
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_target().empty()) {
+    _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.tick_, &from._impl_.tick_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.target_hp_after_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.target_hp_after_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.AttackResult)
+}
+
+inline void AttackResult::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.attacker_) {}
+
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.outcome_) { 0 }
+
+    , decltype(_impl_.damage_) { 0u }
+
+    , decltype(_impl_.target_hp_after_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.attacker_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.attacker_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+AttackResult::~AttackResult() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.AttackResult)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void AttackResult::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.attacker_.Destroy();
+  _impl_.target_.Destroy();
+}
+
+void AttackResult::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void AttackResult::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.AttackResult)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.attacker_.ClearToEmpty();
+  _impl_.target_.ClearToEmpty();
+  ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.target_hp_after_) -
+      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.target_hp_after_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* AttackResult::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string attacker = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_attacker();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.AttackResult.attacker"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string target = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_target();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.AttackResult.target"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.AttackOutcome outcome = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_outcome(static_cast<::nightfall::v1::AttackOutcome>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 damage = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.damage_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 target_hp_after = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.target_hp_after_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* AttackResult::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.AttackResult)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string attacker = 1;
+  if (!this->_internal_attacker().empty()) {
+    const std::string& _s = this->_internal_attacker();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.AttackResult.attacker");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // string target = 2;
+  if (!this->_internal_target().empty()) {
+    const std::string& _s = this->_internal_target();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.AttackResult.target");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  // uint64 tick = 3;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_tick(), target);
+  }
+
+  // .nightfall.v1.AttackOutcome outcome = 4;
+  if (this->_internal_outcome() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        4, this->_internal_outcome(), target);
+  }
+
+  // uint32 damage = 5;
+  if (this->_internal_damage() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_damage(), target);
+  }
+
+  // uint32 target_hp_after = 6;
+  if (this->_internal_target_hp_after() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_target_hp_after(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.AttackResult)
+  return target;
+}
+
+::size_t AttackResult::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.AttackResult)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string attacker = 1;
+  if (!this->_internal_attacker().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_attacker());
+  }
+
+  // string target = 2;
+  if (!this->_internal_target().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_target());
+  }
+
+  // uint64 tick = 3;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // .nightfall.v1.AttackOutcome outcome = 4;
+  if (this->_internal_outcome() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_outcome());
+  }
+
+  // uint32 damage = 5;
+  if (this->_internal_damage() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_damage());
+  }
+
+  // uint32 target_hp_after = 6;
+  if (this->_internal_target_hp_after() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_hp_after());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData AttackResult::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    AttackResult::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*AttackResult::GetClassData() const { return &_class_data_; }
+
+
+void AttackResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<AttackResult*>(&to_msg);
+  auto& from = static_cast<const AttackResult&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.AttackResult)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_attacker().empty()) {
+    _this->_internal_set_attacker(from._internal_attacker());
+  }
+  if (!from._internal_target().empty()) {
+    _this->_internal_set_target(from._internal_target());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_outcome() != 0) {
+    _this->_internal_set_outcome(from._internal_outcome());
+  }
+  if (from._internal_damage() != 0) {
+    _this->_internal_set_damage(from._internal_damage());
+  }
+  if (from._internal_target_hp_after() != 0) {
+    _this->_internal_set_target_hp_after(from._internal_target_hp_after());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void AttackResult::CopyFrom(const AttackResult& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.AttackResult)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool AttackResult::IsInitialized() const {
+  return true;
+}
+
+void AttackResult::InternalSwap(AttackResult* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.attacker_, lhs_arena,
+                                       &other->_impl_.attacker_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
+                                       &other->_impl_.target_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(AttackResult, _impl_.target_hp_after_)
+      + sizeof(AttackResult::_impl_.target_hp_after_)
+      - PROTOBUF_FIELD_OFFSET(AttackResult, _impl_.tick_)>(
+          reinterpret_cast<char*>(&_impl_.tick_),
+          reinterpret_cast<char*>(&other->_impl_.tick_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata AttackResult::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[14]);
+}
+// ===================================================================
+
+class EntityDied::_Internal {
+ public:
+};
+
+EntityDied::EntityDied(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.EntityDied)
+}
+EntityDied::EntityDied(const EntityDied& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  EntityDied* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.killer_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  _impl_.killer_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.killer_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_killer().empty()) {
+    _this->_impl_.killer_.Set(from._internal_killer(), _this->GetArenaForAllocation());
+  }
+  _this->_impl_.tick_ = from._impl_.tick_;
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.EntityDied)
+}
+
+inline void EntityDied::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.killer_) {}
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.killer_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.killer_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+EntityDied::~EntityDied() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.EntityDied)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void EntityDied::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+  _impl_.killer_.Destroy();
+}
+
+void EntityDied::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void EntityDied::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.EntityDied)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  _impl_.killer_.ClearToEmpty();
+  _impl_.tick_ = ::uint64_t{0u};
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* EntityDied::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.EntityDied.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string killer = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          auto str = _internal_mutable_killer();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.EntityDied.killer"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* EntityDied::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.EntityDied)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.EntityDied.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint64 tick = 2;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        2, this->_internal_tick(), target);
+  }
+
+  // string killer = 3;
+  if (!this->_internal_killer().empty()) {
+    const std::string& _s = this->_internal_killer();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.EntityDied.killer");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.EntityDied)
+  return target;
+}
+
+::size_t EntityDied::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.EntityDied)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // string killer = 3;
+  if (!this->_internal_killer().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_killer());
+  }
+
+  // uint64 tick = 2;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData EntityDied::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    EntityDied::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*EntityDied::GetClassData() const { return &_class_data_; }
+
+
+void EntityDied::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<EntityDied*>(&to_msg);
+  auto& from = static_cast<const EntityDied&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.EntityDied)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (!from._internal_killer().empty()) {
+    _this->_internal_set_killer(from._internal_killer());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void EntityDied::CopyFrom(const EntityDied& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.EntityDied)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool EntityDied::IsInitialized() const {
+  return true;
+}
+
+void EntityDied::InternalSwap(EntityDied* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.killer_, lhs_arena,
+                                       &other->_impl_.killer_, rhs_arena);
+
+  swap(_impl_.tick_, other->_impl_.tick_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata EntityDied::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[15]);
+}
+// ===================================================================
+
+class EntityRespawned::_Internal {
+ public:
+  using HasBits = decltype(std::declval<EntityRespawned>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(EntityRespawned, _impl_._has_bits_);
+  static const ::nightfall::v1::Position& position(const EntityRespawned* msg);
+  static void set_has_position(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+const ::nightfall::v1::Position&
+EntityRespawned::_Internal::position(const EntityRespawned* msg) {
+  return *msg->_impl_.position_;
+}
+void EntityRespawned::clear_position() {
+  if (_impl_.position_ != nullptr) _impl_.position_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+EntityRespawned::EntityRespawned(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.EntityRespawned)
+}
+EntityRespawned::EntityRespawned(const EntityRespawned& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  EntityRespawned* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.position_){nullptr}
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.hp_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.position_ = new ::nightfall::v1::Position(*from._impl_.position_);
+  }
+  ::memcpy(&_impl_.tick_, &from._impl_.tick_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.hp_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.hp_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.EntityRespawned)
+}
+
+inline void EntityRespawned::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.position_){nullptr}
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.hp_) { 0u }
+
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+EntityRespawned::~EntityRespawned() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.EntityRespawned)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void EntityRespawned::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.position_;
+}
+
+void EntityRespawned::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void EntityRespawned::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.EntityRespawned)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.position_ != nullptr);
+    _impl_.position_->Clear();
+  }
+  ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.hp_) -
+      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.hp_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* EntityRespawned::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.EntityRespawned.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.Position position = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          ptr = ctx->ParseMessage(_internal_mutable_position(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hp = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* EntityRespawned::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.EntityRespawned)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.EntityRespawned.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint64 tick = 2;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        2, this->_internal_tick(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .nightfall.v1.Position position = 3;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(3, _Internal::position(this),
+        _Internal::position(this).GetCachedSize(), target, stream);
+  }
+
+  // uint32 hp = 4;
+  if (this->_internal_hp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_hp(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.EntityRespawned)
+  return target;
+}
+
+::size_t EntityRespawned::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.EntityRespawned)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // .nightfall.v1.Position position = 3;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.position_);
+  }
+
+  // uint64 tick = 2;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint32 hp = 4;
+  if (this->_internal_hp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hp());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData EntityRespawned::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    EntityRespawned::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*EntityRespawned::GetClassData() const { return &_class_data_; }
+
+
+void EntityRespawned::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<EntityRespawned*>(&to_msg);
+  auto& from = static_cast<const EntityRespawned&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.EntityRespawned)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_position()->::nightfall::v1::Position::MergeFrom(
+        from._internal_position());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_hp() != 0) {
+    _this->_internal_set_hp(from._internal_hp());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void EntityRespawned::CopyFrom(const EntityRespawned& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.EntityRespawned)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool EntityRespawned::IsInitialized() const {
+  return true;
+}
+
+void EntityRespawned::InternalSwap(EntityRespawned* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(EntityRespawned, _impl_.hp_)
+      + sizeof(EntityRespawned::_impl_.hp_)
+      - PROTOBUF_FIELD_OFFSET(EntityRespawned, _impl_.position_)>(
+          reinterpret_cast<char*>(&_impl_.position_),
+          reinterpret_cast<char*>(&other->_impl_.position_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata EntityRespawned::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[16]);
+}
+// ===================================================================
+
+class StatsChanged::_Internal {
+ public:
+};
+
+StatsChanged::StatsChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.StatsChanged)
+}
+StatsChanged::StatsChanged(const StatsChanged& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  StatsChanged* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.hp_) {}
+
+    , decltype(_impl_.max_hp_) {}
+
+    , decltype(_impl_.mp_) {}
+
+    , decltype(_impl_.max_mp_) {}
+
+    , decltype(_impl_.level_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.hp_, &from._impl_.hp_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.level_) -
+    reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.level_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.StatsChanged)
+}
+
+inline void StatsChanged::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.hp_) { 0u }
+
+    , decltype(_impl_.max_hp_) { 0u }
+
+    , decltype(_impl_.mp_) { 0u }
+
+    , decltype(_impl_.max_mp_) { 0u }
+
+    , decltype(_impl_.level_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+StatsChanged::~StatsChanged() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.StatsChanged)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void StatsChanged::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+}
+
+void StatsChanged::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void StatsChanged::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.StatsChanged)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  ::memset(&_impl_.hp_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.level_) -
+      reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.level_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* StatsChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.StatsChanged.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hp = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 max_hp = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.max_hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 mp = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.mp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 max_mp = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.max_mp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 level = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* StatsChanged::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.StatsChanged)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.StatsChanged.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 hp = 2;
+  if (this->_internal_hp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_hp(), target);
+  }
+
+  // uint32 max_hp = 3;
+  if (this->_internal_max_hp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_max_hp(), target);
+  }
+
+  // uint32 mp = 4;
+  if (this->_internal_mp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_mp(), target);
+  }
+
+  // uint32 max_mp = 5;
+  if (this->_internal_max_mp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_max_mp(), target);
+  }
+
+  // uint32 level = 6;
+  if (this->_internal_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_level(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.StatsChanged)
+  return target;
+}
+
+::size_t StatsChanged::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.StatsChanged)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // uint32 hp = 2;
+  if (this->_internal_hp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hp());
+  }
+
+  // uint32 max_hp = 3;
+  if (this->_internal_max_hp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_max_hp());
+  }
+
+  // uint32 mp = 4;
+  if (this->_internal_mp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_mp());
+  }
+
+  // uint32 max_mp = 5;
+  if (this->_internal_max_mp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_max_mp());
+  }
+
+  // uint32 level = 6;
+  if (this->_internal_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_level());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData StatsChanged::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    StatsChanged::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*StatsChanged::GetClassData() const { return &_class_data_; }
+
+
+void StatsChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<StatsChanged*>(&to_msg);
+  auto& from = static_cast<const StatsChanged&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.StatsChanged)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (from._internal_hp() != 0) {
+    _this->_internal_set_hp(from._internal_hp());
+  }
+  if (from._internal_max_hp() != 0) {
+    _this->_internal_set_max_hp(from._internal_max_hp());
+  }
+  if (from._internal_mp() != 0) {
+    _this->_internal_set_mp(from._internal_mp());
+  }
+  if (from._internal_max_mp() != 0) {
+    _this->_internal_set_max_mp(from._internal_max_mp());
+  }
+  if (from._internal_level() != 0) {
+    _this->_internal_set_level(from._internal_level());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void StatsChanged::CopyFrom(const StatsChanged& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.StatsChanged)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool StatsChanged::IsInitialized() const {
+  return true;
+}
+
+void StatsChanged::InternalSwap(StatsChanged* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.level_)
+      + sizeof(StatsChanged::_impl_.level_)
+      - PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.hp_)>(
+          reinterpret_cast<char*>(&_impl_.hp_),
+          reinterpret_cast<char*>(&other->_impl_.hp_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata StatsChanged::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[17]);
+}
+// ===================================================================
+
+class XpGained::_Internal {
+ public:
+};
+
+XpGained::XpGained(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.XpGained)
+}
+XpGained::XpGained(const XpGained& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  XpGained* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.amount_) {}
+
+    , decltype(_impl_.total_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.amount_, &from._impl_.amount_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.total_) -
+    reinterpret_cast<char*>(&_impl_.amount_)) + sizeof(_impl_.total_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.XpGained)
+}
+
+inline void XpGained::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.amount_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.total_) { ::uint64_t{0u} }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+XpGained::~XpGained() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.XpGained)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void XpGained::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+}
+
+void XpGained::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void XpGained::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.XpGained)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  ::memset(&_impl_.amount_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.total_) -
+      reinterpret_cast<char*>(&_impl_.amount_)) + sizeof(_impl_.total_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* XpGained::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.XpGained.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 amount = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.amount_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 total = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.total_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* XpGained::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.XpGained)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.XpGained.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint64 amount = 2;
+  if (this->_internal_amount() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        2, this->_internal_amount(), target);
+  }
+
+  // uint64 total = 3;
+  if (this->_internal_total() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_total(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.XpGained)
+  return target;
+}
+
+::size_t XpGained::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.XpGained)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // uint64 amount = 2;
+  if (this->_internal_amount() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_amount());
+  }
+
+  // uint64 total = 3;
+  if (this->_internal_total() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_total());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData XpGained::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    XpGained::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*XpGained::GetClassData() const { return &_class_data_; }
+
+
+void XpGained::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<XpGained*>(&to_msg);
+  auto& from = static_cast<const XpGained&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.XpGained)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (from._internal_amount() != 0) {
+    _this->_internal_set_amount(from._internal_amount());
+  }
+  if (from._internal_total() != 0) {
+    _this->_internal_set_total(from._internal_total());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void XpGained::CopyFrom(const XpGained& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.XpGained)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool XpGained::IsInitialized() const {
+  return true;
+}
+
+void XpGained::InternalSwap(XpGained* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(XpGained, _impl_.total_)
+      + sizeof(XpGained::_impl_.total_)
+      - PROTOBUF_FIELD_OFFSET(XpGained, _impl_.amount_)>(
+          reinterpret_cast<char*>(&_impl_.amount_),
+          reinterpret_cast<char*>(&other->_impl_.amount_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata XpGained::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[18]);
+}
+// ===================================================================
+
+class LevelUp::_Internal {
+ public:
+};
+
+LevelUp::LevelUp(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.LevelUp)
+}
+LevelUp::LevelUp(const LevelUp& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  LevelUp* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.level_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  _this->_impl_.level_ = from._impl_.level_;
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.LevelUp)
+}
+
+inline void LevelUp::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.level_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+LevelUp::~LevelUp() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.LevelUp)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void LevelUp::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+}
+
+void LevelUp::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void LevelUp::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.LevelUp)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  _impl_.level_ = 0u;
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* LevelUp::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.LevelUp.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 level = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* LevelUp::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.LevelUp)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.LevelUp.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 level = 2;
+  if (this->_internal_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_level(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.LevelUp)
+  return target;
+}
+
+::size_t LevelUp::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.LevelUp)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // uint32 level = 2;
+  if (this->_internal_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_level());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData LevelUp::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    LevelUp::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*LevelUp::GetClassData() const { return &_class_data_; }
+
+
+void LevelUp::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<LevelUp*>(&to_msg);
+  auto& from = static_cast<const LevelUp&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.LevelUp)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (from._internal_level() != 0) {
+    _this->_internal_set_level(from._internal_level());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void LevelUp::CopyFrom(const LevelUp& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.LevelUp)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool LevelUp::IsInitialized() const {
+  return true;
+}
+
+void LevelUp::InternalSwap(LevelUp* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+
+  swap(_impl_.level_, other->_impl_.level_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata LevelUp::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[19]);
+}
+// ===================================================================
+
+class TargetChanged::_Internal {
+ public:
+};
+
+TargetChanged::TargetChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.TargetChanged)
+}
+TargetChanged::TargetChanged(const TargetChanged& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  TargetChanged* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.target_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_target().empty()) {
+    _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
+  }
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.TargetChanged)
+}
+
+inline void TargetChanged::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.target_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+TargetChanged::~TargetChanged() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.TargetChanged)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void TargetChanged::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+  _impl_.target_.Destroy();
+}
+
+void TargetChanged::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void TargetChanged::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.TargetChanged)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  _impl_.target_.ClearToEmpty();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* TargetChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.TargetChanged.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string target = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_target();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.TargetChanged.target"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* TargetChanged::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.TargetChanged)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.TargetChanged.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // string target = 2;
+  if (!this->_internal_target().empty()) {
+    const std::string& _s = this->_internal_target();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.TargetChanged.target");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.TargetChanged)
+  return target;
+}
+
+::size_t TargetChanged::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.TargetChanged)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // string target = 2;
+  if (!this->_internal_target().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_target());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData TargetChanged::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    TargetChanged::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*TargetChanged::GetClassData() const { return &_class_data_; }
+
+
+void TargetChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<TargetChanged*>(&to_msg);
+  auto& from = static_cast<const TargetChanged&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.TargetChanged)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (!from._internal_target().empty()) {
+    _this->_internal_set_target(from._internal_target());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void TargetChanged::CopyFrom(const TargetChanged& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.TargetChanged)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool TargetChanged::IsInitialized() const {
+  return true;
+}
+
+void TargetChanged::InternalSwap(TargetChanged* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
+                                       &other->_impl_.target_, rhs_arena);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata TargetChanged::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[20]);
 }
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace v1
@@ -3295,6 +6748,22 @@ Arena::CreateMaybeMessage< ::nightfall::v1::MoveToRequest >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::nightfall::v1::StopMoveRequest*
 Arena::CreateMaybeMessage< ::nightfall::v1::StopMoveRequest >(Arena* arena) {
   return Arena::CreateMessageInternal< ::nightfall::v1::StopMoveRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SetTargetRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::SetTargetRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SetTargetRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::AttackRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::AttackRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::AttackRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::StopAttackRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::StopAttackRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::StopAttackRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::RespawnRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::RespawnRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::RespawnRequest >(arena);
 }
 template<> PROTOBUF_NOINLINE ::nightfall::v1::ServerMessage*
 Arena::CreateMaybeMessage< ::nightfall::v1::ServerMessage >(Arena* arena) {
@@ -3323,6 +6792,34 @@ Arena::CreateMaybeMessage< ::nightfall::v1::EntityMove >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::nightfall::v1::EntityDespawn*
 Arena::CreateMaybeMessage< ::nightfall::v1::EntityDespawn >(Arena* arena) {
   return Arena::CreateMessageInternal< ::nightfall::v1::EntityDespawn >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::AttackResult*
+Arena::CreateMaybeMessage< ::nightfall::v1::AttackResult >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::AttackResult >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::EntityDied*
+Arena::CreateMaybeMessage< ::nightfall::v1::EntityDied >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::EntityDied >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::EntityRespawned*
+Arena::CreateMaybeMessage< ::nightfall::v1::EntityRespawned >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::EntityRespawned >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::StatsChanged*
+Arena::CreateMaybeMessage< ::nightfall::v1::StatsChanged >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::StatsChanged >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::XpGained*
+Arena::CreateMaybeMessage< ::nightfall::v1::XpGained >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::XpGained >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::LevelUp*
+Arena::CreateMaybeMessage< ::nightfall::v1::LevelUp >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::LevelUp >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::TargetChanged*
+Arena::CreateMaybeMessage< ::nightfall::v1::TargetChanged >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::TargetChanged >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 // @@protoc_insertion_point(global_scope)

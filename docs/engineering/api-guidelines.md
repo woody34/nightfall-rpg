@@ -151,6 +151,26 @@ Other refusals: non-binary, undecodable, or empty-intent frames are `INVALID`; a
 coordinate is `OUT_OF_BOUNDS` at the edge; the zone answers `OUT_OF_BOUNDS` (outside the
 256x256 fixture zone), `TOO_FAR` (more than 64 tiles) and `UNKNOWN_ENTITY` itself.
 
+**Combat contract (Phase 1 E2.1).** These intents use the same authentication, session identity,
+generation fence, seq/rate checks, queue and per-tick budget as movement. A malformed target
+UUID is rejected at the edge; an empty string clears selection. The zone checks actor life,
+target existence, AOI and attackability in that order. Players and dead/noncombat NPCs are
+non-attackable. Repeating a valid selection with a fresh seq Acks without another event.
+Target selection is owner-only and follows responses and AOI output in the ordered stream.
+
+| Kind | New messages / reasons | Contract |
+|------|------------------------|----------|
+| Intents | `SetTarget`, `Attack`, `StopAttack`, `Respawn` | No client actor/stat/damage inputs. Attack enables repeats on the current target; repeated enables never reset a cycle. |
+| Events | `AttackResult`, `EntityDied`, `EntityRespawned`, `StatsChanged`, `XpGained`, `LevelUp`, `TargetChanged` | Whole HP/MP/damage, u64 XP, ticks of 100 ms; stats, XP and selection are owner-only. |
+| Reasons | `DEAD_ACTOR`, `NON_ATTACKABLE_TARGET`, `TARGET_NOT_IN_AOI`, `OUT_OF_RANGE`, `PROTECTED`, `NOT_YET_IMPLEMENTED` | Unknown target uses `UNKNOWN_ENTITY`; malformed UUID uses `INVALID`; dead target uses `NON_ATTACKABLE_TARGET`. |
+
+Attack/stop/respawn are E2.1 stubs: they reach the zone's applied log and return exactly one
+`NOT_YET_IMPLEMENTED` rejection, with no combat state change. Selection/attack/stop by a dead
+actor return `DEAD_ACTOR`. Range/protection are mapped contract values for E2.3/E2.4, not
+active checks yet; selection alone neither attacks nor checks melee range. Full cycle/state,
+life incarnation and event-index publication follows in E2.2. No repository port is added;
+§4 adapter tests are therefore inapplicable to this story.
+
 **Close codes** (only after the upgrade):
 
 | Code | Meaning | Client should |

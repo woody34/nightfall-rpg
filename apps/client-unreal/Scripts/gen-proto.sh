@@ -7,6 +7,16 @@
 # the tools on first use (Linux; ~10 minutes once).
 set -euo pipefail
 
+# Contract-only work can regenerate committed bindings without installing libraries, touching
+# submodule metadata, or building Unreal. Tools must already be installed in this mode.
+GENERATE_ONLY=false
+if [ "${1:-}" = "--generate-only" ]; then
+  GENERATE_ONLY=true
+elif [ "$#" -ne 0 ]; then
+  echo "usage: $0 [--generate-only]" >&2
+  exit 2
+fi
+
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CLIENT="$(cd "$HERE/.." && pwd)"
 PROTO_ROOT="$(cd "$CLIENT/../../packages/proto" && pwd)"
@@ -15,6 +25,10 @@ TOOLS="${NIGHTFALL_PROTO_TOOLS:-$HOME/.cache/nightfall/proto-tools}"
 FIX_DIR="$CLIENT/Plugins/TurboLink/Tools"
 
 if [ ! -x "$TOOLS/bin/protoc" ] || [ ! -x "$TOOLS/bin/grpc_cpp_plugin" ] || [ ! -x "$TOOLS/bin/protoc-gen-turbolink" ]; then
+  if [ "$GENERATE_ONLY" = true ]; then
+    echo "--generate-only requires existing proto tools in $TOOLS/bin" >&2
+    exit 1
+  fi
   bash "$HERE/install-proto-tools.sh"
 fi
 
@@ -44,5 +58,7 @@ while IFS= read -r -d '' f; do
   { tr -d '\r' < "$fix"; cat "$f"; } > "$f.tmp" && mv "$f.tmp" "$f"
 done < <(find "$OUT/Private/pb" \( -name '*.pb.h' -o -name '*.pb.cc' \) ! -name '*.grpc.pb.*' -print0)
 
-bash "$HERE/setup-turbolink.sh"
+if [ "$GENERATE_ONLY" = false ]; then
+  bash "$HERE/setup-turbolink.sh"
+fi
 echo "generated $(find "$OUT" -type f ! -name .ubtignore | wc -l) files into $OUT"

@@ -487,6 +487,10 @@ impl ZoneState {
         match cmd {
             ZoneCommand::MoveTo { entity: target, .. }
             | ZoneCommand::StopMove { entity: target }
+            | ZoneCommand::SetTarget { entity: target, .. }
+            | ZoneCommand::Attack { entity: target }
+            | ZoneCommand::StopAttack { entity: target }
+            | ZoneCommand::Respawn { entity: target }
             | ZoneCommand::Despawn { entity: target }
                 if *target == entity =>
             {
@@ -498,6 +502,10 @@ impl ZoneState {
             },
             ZoneCommand::MoveTo { .. }
             | ZoneCommand::StopMove { .. }
+            | ZoneCommand::SetTarget { .. }
+            | ZoneCommand::Attack { .. }
+            | ZoneCommand::StopAttack { .. }
+            | ZoneCommand::Respawn { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
@@ -540,6 +548,23 @@ impl ZoneState {
                 // The new session knows nothing yet: the AOI diff resends everything.
                 self.known.remove(entity);
                 Ok(Vec::new())
+            },
+            ZoneCommand::SetTarget { entity, target } => self.set_target(tick, *entity, *target),
+            ZoneCommand::Attack { entity } | ZoneCommand::StopAttack { entity } => {
+                let actor = self
+                    .entities
+                    .get(entity)
+                    .ok_or(RejectReason::UnknownEntity)?;
+                if actor.targeting.dead {
+                    return Err(RejectReason::DeadActor);
+                }
+                Err(RejectReason::NotYetImplemented)
+            },
+            ZoneCommand::Respawn { entity } => {
+                self.entities
+                    .get(entity)
+                    .ok_or(RejectReason::UnknownEntity)?;
+                Err(RejectReason::NotYetImplemented)
             },
             ZoneCommand::MoveTo { entity, dest } => self.move_to(*entity, *dest),
             ZoneCommand::StopMove { entity } => {
@@ -590,6 +615,7 @@ impl ZoneState {
                 dest: None,
                 speed,
                 generation,
+                targeting: super::TargetingState::default(),
             },
         );
         Ok(vec![ZoneEvent::EntitySpawn {
@@ -613,6 +639,46 @@ impl ZoneState {
             },
             None => Vec::new(),
         }
+    }
+
+    fn set_target(
+        &mut self,
+        tick: Tick,
+        entity: EntityId,
+        target: Option<EntityId>,
+    ) -> Result<Vec<ZoneEvent>, RejectReason> {
+        let actor = self
+            .entities
+            .get(&entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        if actor.targeting.dead {
+            return Err(RejectReason::DeadActor);
+        }
+        if let Some(id) = target {
+            let selected = self.entities.get(&id).ok_or(RejectReason::UnknownEntity)?;
+            if !self.aoi.in_aoi(actor.pos).any(|visible| visible == id) {
+                return Err(RejectReason::TargetNotInAoi);
+            }
+            if selected.kind == EntityKind::Player
+                || selected.targeting.dead
+                || !selected.targeting.attackable
+            {
+                return Err(RejectReason::NonAttackableTarget);
+            }
+        }
+        if actor.targeting.target == target {
+            return Ok(Vec::new());
+        }
+        let actor = self
+            .entities
+            .get_mut(&entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        actor.targeting.target = target;
+        Ok(vec![ZoneEvent::TargetChanged {
+            tick,
+            entity,
+            target,
+        }])
     }
 
     fn move_to(
@@ -716,6 +782,12 @@ impl ZoneState {
                 diff_into(&mut out, tick, before, view, entities);
                 before.clone_from(&view.ids);
             }
+            // Selection is private to its actor; append facts after AOI output so a spawn
+            // always precedes a fact referring to a newly visible target.
+            out.extend(events.iter().filter(|event| matches!(event,
+                ZoneEvent::TargetChanged { entity, target, .. }
+                    if *entity == player.id && target.is_none_or(|id| view.ids.binary_search(&id).is_ok())
+            )).cloned().map(ObserverOutput::Event));
             if !out.is_empty() {
                 outputs.insert(player.id, out);
             }

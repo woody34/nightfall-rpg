@@ -128,6 +128,28 @@ pub enum ZoneCommand {
         /// Target point; inside the bounds and within [`super::MAX_MOVE_DISTANCE_TILES`].
         dest: Vec2Fixed,
     },
+    /// Select or clear a live attackable NPC in the actor's AOI. Repeats are no-ops.
+    SetTarget {
+        /// Session-owned actor.
+        entity: EntityId,
+        /// None clears selection.
+        target: Option<EntityId>,
+    },
+    /// Enable attacks on the current target; repeating never resets a cycle. E2.1 records a `NotYetImplemented` disposition.
+    Attack {
+        /// Session-owned actor.
+        entity: EntityId,
+    },
+    /// Disable attacks; repeating is harmless. E2.1 records a `NotYetImplemented` disposition.
+    StopAttack {
+        /// Session-owned actor.
+        entity: EntityId,
+    },
+    /// Request town respawn for a dead actor. E2.1 records a `NotYetImplemented` disposition.
+    Respawn {
+        /// Session-owned actor.
+        entity: EntityId,
+    },
     /// Stop where it stands.
     StopMove {
         /// Who stops.
@@ -145,7 +167,11 @@ impl ZoneCommand {
             | Self::Despawn { entity }
             | Self::ReplaceSession { entity, .. }
             | Self::MoveTo { entity, .. }
-            | Self::StopMove { entity } => Some(*entity),
+            | Self::StopMove { entity }
+            | Self::SetTarget { entity, .. }
+            | Self::Attack { entity }
+            | Self::StopAttack { entity }
+            | Self::Respawn { entity } => Some(*entity),
             Self::SpawnNpc { .. } => None,
         }
     }
@@ -155,7 +181,19 @@ impl ZoneCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RejectReason {
-    /// The entity is not in this zone.
+    /// the actor is dead and cannot perform this intent.
+    DeadActor,
+    /// target is dead, a player, or a noncombat NPC.
+    NonAttackableTarget,
+    /// existing target is outside the actor's 3x3-cell AOI.
+    TargetNotInAoi,
+    /// target is outside melee range at impact; distinct from move `TOO_FAR`.
+    OutOfRange,
+    /// target has active respawn protection.
+    Protected,
+    /// intent recorded, but its behaviour is not implemented yet.
+    NotYetImplemented,
+    /// The actor or selected target is not in this zone.
     UnknownEntity,
     /// The target position is outside the zone bounds.
     OutOfBounds,
@@ -178,6 +216,14 @@ impl RejectReason {
     #[must_use]
     pub const fn detail(self) -> &'static str {
         match self {
+            Self::DeadActor => "the actor is dead and cannot perform this intent",
+            Self::NonAttackableTarget => "target is dead, a player, or a noncombat NPC",
+            Self::TargetNotInAoi => "existing target is outside the actor's 3x3-cell AOI",
+            Self::OutOfRange => {
+                "target is outside melee range at impact; distinct from move TOO_FAR"
+            },
+            Self::Protected => "target has active respawn protection",
+            Self::NotYetImplemented => "intent recorded, but its behaviour is not implemented yet",
             Self::UnknownEntity => "entity is not in this zone",
             Self::OutOfBounds => "position is outside the zone bounds",
             Self::TooFar => "destination is further than one move may cover",
@@ -224,6 +270,88 @@ pub struct AppliedCommand {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)] // names mirror the proto messages one to one
 pub enum ZoneEvent {
+    /// Authoritative attack result fact.
+    AttackResult {
+        /// attacker UUID.
+        attacker: EntityId,
+        /// target UUID.
+        target: EntityId,
+        /// impact tick; 100 ms per tick.
+        tick: Tick,
+        /// MISS, HIT or CRIT; UNSPECIFIED is invalid.
+        outcome: AttackOutcome,
+        /// whole HP removed; zero on MISS.
+        damage: u32,
+        /// authoritative remaining whole HP after impact.
+        target_hp_after: u32,
+    },
+    /// Authoritative entity died fact.
+    EntityDied {
+        /// dead entity UUID.
+        entity: EntityId,
+        /// death tick.
+        tick: Tick,
+        /// killing entity UUID; empty if no killer.
+        killer: Option<EntityId>,
+    },
+    /// Authoritative entity respawned fact.
+    EntityRespawned {
+        /// respawned entity UUID.
+        entity: EntityId,
+        /// respawn tick.
+        tick: Tick,
+        /// authoritative safe point in tile units.
+        position: Vec2Fixed,
+        /// restored whole HP.
+        hp: u32,
+    },
+    /// Authoritative stats changed fact.
+    StatsChanged {
+        /// Tick of the fact.
+        tick: Tick,
+        /// owner UUID; this event is owner-only (MP is private).
+        entity: EntityId,
+        /// current whole HP, zero when dead.
+        hp: u32,
+        /// maximum whole HP.
+        max_hp: u32,
+        /// current whole MP.
+        mp: u32,
+        /// maximum whole MP.
+        max_mp: u32,
+        /// current level, including decreases after death.
+        level: u32,
+    },
+    /// Authoritative xp gained fact.
+    XpGained {
+        /// Tick of the fact.
+        tick: Tick,
+        /// owner UUID; this event is owner-only.
+        entity: EntityId,
+        /// whole XP actually awarded after the level-85 cap.
+        amount: u64,
+        /// authoritative cumulative whole XP after award.
+        total: u64,
+    },
+    /// Authoritative level up fact.
+    LevelUp {
+        /// Tick of the fact.
+        tick: Tick,
+        /// levelled entity UUID.
+        entity: EntityId,
+        /// newly attained level; one event per crossed threshold.
+        level: u32,
+    },
+    /// Authoritative target changed fact.
+    TargetChanged {
+        /// Tick of the fact.
+        tick: Tick,
+        /// selecting actor UUID; owner-only.
+        entity: EntityId,
+        /// selected target UUID; empty means cleared.
+        target: Option<EntityId>,
+    },
+
     /// An entity appeared (in the zone, or in an observer's AOI). Carries full movement state
     /// so an observer can render an entity that is already walking.
     EntitySpawn {
@@ -273,7 +401,14 @@ impl ZoneEvent {
         match self {
             Self::EntitySpawn { tick, .. }
             | Self::EntityMove { tick, .. }
-            | Self::EntityDespawn { tick, .. } => *tick,
+            | Self::EntityDespawn { tick, .. }
+            | Self::AttackResult { tick, .. }
+            | Self::EntityDied { tick, .. }
+            | Self::EntityRespawned { tick, .. }
+            | Self::StatsChanged { tick, .. }
+            | Self::XpGained { tick, .. }
+            | Self::LevelUp { tick, .. }
+            | Self::TargetChanged { tick, .. } => *tick,
         }
     }
 
@@ -283,7 +418,14 @@ impl ZoneEvent {
         match self {
             Self::EntitySpawn { entity, .. }
             | Self::EntityMove { entity, .. }
-            | Self::EntityDespawn { entity, .. } => *entity,
+            | Self::EntityDespawn { entity, .. }
+            | Self::EntityDied { entity, .. }
+            | Self::EntityRespawned { entity, .. }
+            | Self::StatsChanged { entity, .. }
+            | Self::XpGained { entity, .. }
+            | Self::LevelUp { entity, .. }
+            | Self::TargetChanged { entity, .. } => *entity,
+            Self::AttackResult { attacker, .. } => *attacker,
         }
     }
 }
@@ -341,7 +483,7 @@ pub struct AppliedTick {
     pub events: Vec<ZoneEvent>,
     /// Per-player ordered output: responses to its own commands (acks and rejections, in
     /// ordinal order), then AOI despawns, AOI spawns, and moves of known entities, each group
-    /// in entity-id order. Only players with non-empty output appear. A session sends exactly
+    /// in entity-id order, then owner target changes in causal order. Only players with non-empty output appear. A session sends exactly
     /// this, in this order (plan §8 #6).
     pub outputs: BTreeMap<EntityId, Vec<ObserverOutput>>,
 }
@@ -352,4 +494,16 @@ impl AppliedTick {
     pub fn is_idle(&self) -> bool {
         self.commands.is_empty() && self.events.is_empty() && self.outputs.is_empty()
     }
+}
+
+/// Physical hit outcome, excluding the invalid wire UNSPECIFIED value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttackOutcome {
+    /// No damage; no crit or spread roll.
+    Miss,
+    /// Landed normal damage.
+    Hit,
+    /// Landed critical damage.
+    Crit,
 }

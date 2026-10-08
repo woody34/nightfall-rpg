@@ -26,6 +26,9 @@ pub enum MappingError {
     /// The `oneof intent` was empty.
     #[error("intent is required")]
     MissingIntent,
+    /// Target is neither empty nor a UUID.
+    #[error("target must be a UUID or empty")]
+    InvalidTarget,
     /// `MoveTo` without a destination.
     #[error("destination is required")]
     MissingDestination,
@@ -41,7 +44,9 @@ impl MappingError {
     pub const fn reject_reason(self) -> pb::RejectReason {
         match self {
             Self::InvalidCoordinate => pb::RejectReason::OutOfBounds,
-            Self::MissingIntent | Self::MissingDestination => pb::RejectReason::Invalid,
+            Self::InvalidTarget | Self::MissingIntent | Self::MissingDestination => {
+                pb::RejectReason::Invalid
+            },
         }
     }
 }
@@ -131,6 +136,20 @@ pub fn command_from_pb(
             })
         },
         pb::client_message::Intent::StopMove(_) => Ok(ZoneCommand::StopMove { entity }),
+        pb::client_message::Intent::SetTarget(req) => Ok(ZoneCommand::SetTarget {
+            entity,
+            target: if req.entity_id.is_empty() {
+                None
+            } else {
+                Some(EntityId::from_uuid(
+                    uuid::Uuid::parse_str(&req.entity_id)
+                        .map_err(|_| MappingError::InvalidTarget)?,
+                ))
+            },
+        }),
+        pb::client_message::Intent::Attack(_) => Ok(ZoneCommand::Attack { entity }),
+        pb::client_message::Intent::StopAttack(_) => Ok(ZoneCommand::StopAttack { entity }),
+        pb::client_message::Intent::Respawn(_) => Ok(ZoneCommand::Respawn { entity }),
     }
 }
 
@@ -230,6 +249,85 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             *tick,
             server_time_ms,
         )],
+        ZoneEvent::AttackResult {
+            attacker,
+            target,
+            tick,
+            outcome,
+            damage,
+            target_hp_after,
+            ..
+        } => vec![world(Event::AttackResult(pb::AttackResult {
+            attacker: attacker.to_string(),
+            target: target.to_string(),
+            tick: tick.0,
+            outcome: match outcome {
+                crate::domain::zone::AttackOutcome::Miss => pb::AttackOutcome::Miss,
+                crate::domain::zone::AttackOutcome::Hit => pb::AttackOutcome::Hit,
+                crate::domain::zone::AttackOutcome::Crit => pb::AttackOutcome::Crit,
+            }
+            .into(),
+            damage: *damage,
+            target_hp_after: *target_hp_after,
+        }))],
+        ZoneEvent::EntityDied {
+            entity,
+            tick,
+            killer,
+            ..
+        } => vec![world(Event::EntityDied(pb::EntityDied {
+            entity: entity.to_string(),
+            tick: tick.0,
+            killer: killer.map(|id| id.to_string()).unwrap_or_default(),
+        }))],
+        ZoneEvent::EntityRespawned {
+            entity,
+            tick,
+            position,
+            hp,
+            ..
+        } => vec![world(Event::EntityRespawned(pb::EntityRespawned {
+            entity: entity.to_string(),
+            tick: tick.0,
+            position: Some(position_to_pb(*position)),
+            hp: *hp,
+        }))],
+        ZoneEvent::StatsChanged {
+            entity,
+            hp,
+            max_hp,
+            mp,
+            max_mp,
+            level,
+            ..
+        } => vec![world(Event::StatsChanged(pb::StatsChanged {
+            entity: entity.to_string(),
+            hp: *hp,
+            max_hp: *max_hp,
+            mp: *mp,
+            max_mp: *max_mp,
+            level: *level,
+        }))],
+        ZoneEvent::XpGained {
+            entity,
+            amount,
+            total,
+            ..
+        } => vec![world(Event::XpGained(pb::XpGained {
+            entity: entity.to_string(),
+            amount: *amount,
+            total: *total,
+        }))],
+        ZoneEvent::LevelUp { entity, level, .. } => vec![world(Event::LevelUp(pb::LevelUp {
+            entity: entity.to_string(),
+            level: *level,
+        }))],
+        ZoneEvent::TargetChanged { entity, target, .. } => {
+            vec![world(Event::TargetChanged(pb::TargetChanged {
+                entity: entity.to_string(),
+                target: target.map(|id| id.to_string()).unwrap_or_default(),
+            }))]
+        },
         ZoneEvent::EntityDespawn { entity, .. } => vec![despawn_to_pb(*entity)],
     }
 }
@@ -240,6 +338,12 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
 #[must_use]
 pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
     match r {
+        RejectReason::DeadActor => pb::RejectReason::DeadActor,
+        RejectReason::NonAttackableTarget => pb::RejectReason::NonAttackableTarget,
+        RejectReason::TargetNotInAoi => pb::RejectReason::TargetNotInAoi,
+        RejectReason::OutOfRange => pb::RejectReason::OutOfRange,
+        RejectReason::Protected => pb::RejectReason::Protected,
+        RejectReason::NotYetImplemented => pb::RejectReason::NotYetImplemented,
         RejectReason::OutOfBounds => pb::RejectReason::OutOfBounds,
         RejectReason::TooFar => pb::RejectReason::TooFar,
         RejectReason::UnknownEntity => pb::RejectReason::UnknownEntity,
@@ -460,5 +564,262 @@ mod tests {
                 if r.reason == i32::from(pb::RejectReason::TooFar)
         ));
         assert_eq!(disposition_to_pb(&Disposition { seq: None, ..d }), None);
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::float_cmp)]
+mod combat_tests {
+    use super::*;
+    use crate::domain::zone::AttackOutcome;
+    fn id(n: u128) -> EntityId {
+        EntityId::from_uuid(uuid::Uuid::from_u128(n))
+    }
+
+    #[test]
+    fn attack_result_all_fields_round_trip() {
+        let event = ZoneEvent::AttackResult {
+            attacker: id(1),
+            target: id(2),
+            tick: Tick(31),
+            outcome: AttackOutcome::Crit,
+            damage: 25,
+            target_hp_after: 26,
+        };
+        let expected = pb::WorldEvent {
+            event: Some(Event::AttackResult(pb::AttackResult {
+                attacker: id(1).to_string(),
+                target: id(2).to_string(),
+                tick: 31,
+                outcome: pb::AttackOutcome::Crit.into(),
+                damage: 25,
+                target_hp_after: 26,
+            })),
+        };
+        assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
+        let frame = pb::ServerMessage {
+            payload: Some(pb::server_message::Payload::Event(expected)),
+        };
+        assert_eq!(pb::ServerMessage::decode(frame.encode_to_vec().as_slice()).unwrap(), frame);
+    }
+
+    #[test]
+    fn entity_died_all_fields_round_trip() {
+        let event = ZoneEvent::EntityDied {
+            entity: id(1),
+            tick: Tick(31),
+            killer: Some(id(3)),
+        };
+        let expected = pb::WorldEvent {
+            event: Some(Event::EntityDied(pb::EntityDied {
+                entity: id(1).to_string(),
+                tick: 31,
+                killer: id(3).to_string(),
+            })),
+        };
+        assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
+        let frame = pb::ServerMessage {
+            payload: Some(pb::server_message::Payload::Event(expected)),
+        };
+        assert_eq!(pb::ServerMessage::decode(frame.encode_to_vec().as_slice()).unwrap(), frame);
+    }
+
+    #[test]
+    fn entity_respawned_all_fields_round_trip() {
+        let event = ZoneEvent::EntityRespawned {
+            entity: id(1),
+            tick: Tick(31),
+            position: Vec2Fixed::from_tiles(23, 24),
+            hp: 24,
+        };
+        let expected = pb::WorldEvent {
+            event: Some(Event::EntityRespawned(pb::EntityRespawned {
+                entity: id(1).to_string(),
+                tick: 31,
+                position: Some(pb::Position { x: 23.0, y: 24.0 }),
+                hp: 24,
+            })),
+        };
+        assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
+        let frame = pb::ServerMessage {
+            payload: Some(pb::server_message::Payload::Event(expected)),
+        };
+        assert_eq!(pb::ServerMessage::decode(frame.encode_to_vec().as_slice()).unwrap(), frame);
+    }
+
+    #[test]
+    fn stats_changed_all_fields_round_trip() {
+        let event = ZoneEvent::StatsChanged {
+            tick: Tick(31),
+            entity: id(1),
+            hp: 22,
+            max_hp: 23,
+            mp: 24,
+            max_mp: 25,
+            level: 26,
+        };
+        let expected = pb::WorldEvent {
+            event: Some(Event::StatsChanged(pb::StatsChanged {
+                entity: id(1).to_string(),
+                hp: 22,
+                max_hp: 23,
+                mp: 24,
+                max_mp: 25,
+                level: 26,
+            })),
+        };
+        assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
+        let frame = pb::ServerMessage {
+            payload: Some(pb::server_message::Payload::Event(expected)),
+        };
+        assert_eq!(pb::ServerMessage::decode(frame.encode_to_vec().as_slice()).unwrap(), frame);
+    }
+
+    #[test]
+    fn xp_gained_all_fields_round_trip() {
+        let event = ZoneEvent::XpGained {
+            tick: Tick(31),
+            entity: id(1),
+            amount: u64::MAX,
+            total: u64::MAX,
+        };
+        let expected = pb::WorldEvent {
+            event: Some(Event::XpGained(pb::XpGained {
+                entity: id(1).to_string(),
+                amount: u64::MAX,
+                total: u64::MAX,
+            })),
+        };
+        assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
+        let frame = pb::ServerMessage {
+            payload: Some(pb::server_message::Payload::Event(expected)),
+        };
+        assert_eq!(pb::ServerMessage::decode(frame.encode_to_vec().as_slice()).unwrap(), frame);
+    }
+
+    #[test]
+    fn level_up_all_fields_round_trip() {
+        let event = ZoneEvent::LevelUp {
+            tick: Tick(31),
+            entity: id(1),
+            level: 22,
+        };
+        let expected = pb::WorldEvent {
+            event: Some(Event::LevelUp(pb::LevelUp {
+                entity: id(1).to_string(),
+                level: 22,
+            })),
+        };
+        assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
+        let frame = pb::ServerMessage {
+            payload: Some(pb::server_message::Payload::Event(expected)),
+        };
+        assert_eq!(pb::ServerMessage::decode(frame.encode_to_vec().as_slice()).unwrap(), frame);
+    }
+
+    #[test]
+    fn target_changed_all_fields_round_trip() {
+        let event = ZoneEvent::TargetChanged {
+            tick: Tick(31),
+            entity: id(1),
+            target: Some(id(2)),
+        };
+        let expected = pb::WorldEvent {
+            event: Some(Event::TargetChanged(pb::TargetChanged {
+                entity: id(1).to_string(),
+                target: id(2).to_string(),
+            })),
+        };
+        assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
+        let frame = pb::ServerMessage {
+            payload: Some(pb::server_message::Payload::Event(expected)),
+        };
+        assert_eq!(pb::ServerMessage::decode(frame.encode_to_vec().as_slice()).unwrap(), frame);
+    }
+
+    #[test]
+    fn new_intents_round_trip_and_always_use_session_actor() {
+        use pb::client_message::Intent;
+        for (intent, expected) in [
+            (
+                Intent::SetTarget(pb::SetTargetRequest {
+                    entity_id: id(2).to_string(),
+                }),
+                ZoneCommand::SetTarget {
+                    entity: id(1),
+                    target: Some(id(2)),
+                },
+            ),
+            (
+                Intent::SetTarget(pb::SetTargetRequest {
+                    entity_id: String::new(),
+                }),
+                ZoneCommand::SetTarget {
+                    entity: id(1),
+                    target: None,
+                },
+            ),
+            (Intent::Attack(pb::AttackRequest {}), ZoneCommand::Attack { entity: id(1) }),
+            (
+                Intent::StopAttack(pb::StopAttackRequest {}),
+                ZoneCommand::StopAttack { entity: id(1) },
+            ),
+            (Intent::Respawn(pb::RespawnRequest {}), ZoneCommand::Respawn { entity: id(1) }),
+        ] {
+            let original = pb::ClientMessage {
+                seq: 123,
+                intent: Some(intent),
+            };
+            let decoded = pb::ClientMessage::decode(original.encode_to_vec().as_slice()).unwrap();
+            assert_eq!(original, decoded);
+            assert_eq!(command_from_pb(id(1), decoded.intent.as_ref()).unwrap(), expected);
+        }
+        assert_eq!(
+            command_from_pb(
+                id(1),
+                Some(&Intent::SetTarget(pb::SetTargetRequest {
+                    entity_id: "bad-id".into()
+                }))
+            ),
+            Err(MappingError::InvalidTarget)
+        );
+    }
+
+    #[test]
+    fn all_attack_outcomes_and_new_reasons_round_trip() {
+        for outcome in [
+            pb::AttackOutcome::Miss,
+            pb::AttackOutcome::Hit,
+            pb::AttackOutcome::Crit,
+        ] {
+            let event = pb::AttackResult {
+                attacker: id(1).to_string(),
+                target: id(2).to_string(),
+                tick: 23,
+                outcome: outcome.into(),
+                damage: 0,
+                target_hp_after: 100,
+            };
+            assert_eq!(pb::AttackResult::decode(event.encode_to_vec().as_slice()).unwrap(), event);
+        }
+        for (domain, wire) in [
+            (RejectReason::DeadActor, pb::RejectReason::DeadActor),
+            (RejectReason::NonAttackableTarget, pb::RejectReason::NonAttackableTarget),
+            (RejectReason::TargetNotInAoi, pb::RejectReason::TargetNotInAoi),
+            (RejectReason::OutOfRange, pb::RejectReason::OutOfRange),
+            (RejectReason::Protected, pb::RejectReason::Protected),
+            (RejectReason::NotYetImplemented, pb::RejectReason::NotYetImplemented),
+        ] {
+            assert_eq!(reject_reason_to_pb(domain), wire);
+            let event = pb::IntentRejected {
+                seq: 25,
+                reason: wire.into(),
+                detail: domain.detail().into(),
+            };
+            assert_eq!(
+                pb::IntentRejected::decode(event.encode_to_vec().as_slice()).unwrap(),
+                event
+            );
+        }
     }
 }
