@@ -22,7 +22,8 @@ use super::replay_log::{
 };
 use super::zone_actor::{TickOutcome, TickSource, ZoneActor, ZoneHandle};
 use crate::domain::zone::{
-    Speed, Vec2Fixed, ZoneBounds, ZoneCommand, ZoneId, ZoneInput, ZoneSeed, ZoneState,
+    NpcTemplate, SpawnSlot, Speed, Vec2Fixed, ZoneBounds, ZoneCommand, ZoneId, ZoneInput, ZoneSeed,
+    ZoneState,
 };
 
 /// How long shutdown waits for the actor to finish its current tick.
@@ -50,6 +51,12 @@ pub struct ZoneDefinition {
     pub bounds: ZoneBounds,
     /// NPCs spawned on the first tick, in this order.
     pub npcs: Vec<NpcSpawn>,
+    /// Attackable monster templates, ordered by id.
+    pub npc_templates: Vec<NpcTemplate>,
+    /// Monster spawn slots, in file order.
+    pub spawn_slots: Vec<SpawnSlot>,
+    /// Where dead players return.
+    pub safe_point: Vec2Fixed,
     /// Hash of the definition's source, recorded in every snapshot's provenance.
     pub config_hash: String,
 }
