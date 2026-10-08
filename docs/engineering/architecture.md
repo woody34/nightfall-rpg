@@ -207,15 +207,42 @@ the watermark names only acknowledged ticks if shutdown interrupts a stalled gat
 An epoch without a completion watermark (crash, failure to stop, or failed watermark write)
 is incomplete and **not replayable**. Per-session audit is separate and best effort (below).
 
-**Replay** (library path exercised in `tests/replay_log.rs`, not automatic restart recovery)
-opens an epoch with `open_epoch`, which refuses one without a watermark
-(`EpochStatus::Incomplete`, e.g. after a crash) or without a snapshot (`Missing`), and checks as
-it streams that ticks are contiguous from the snapshot to the watermark (`Gap`, `Truncated`).
+**Replay** (the tool below, not automatic restart recovery) opens an epoch with `open_epoch`,
+which refuses one without a watermark (`EpochStatus::Incomplete`, e.g. after a crash) or without
+a snapshot (`Missing`), and checks as it streams that ticks are contiguous from the snapshot to
+the watermark (`Gap`, `Truncated`).
 
 **Audit.** `SessionAuditWriter::record_in / record_out` never block: frames go to a bounded
 buffer (16 Ki) drained in pipelined batches. A full buffer or an unacknowledged frame is
 dropped and counted in `eventlog_audit_dropped_total` (alert `nf-audit-dropped`). Replay never
 depends on these frames.
+
+#### Replay tool
+
+Story 3.3. Flow: [replay tool diagram](../diagrams/replay-tool.html). Code:
+`application::replay` (`verify_epoch`, `TickRunner`, `Divergence`),
+`infrastructure::eventlog::Recording` (`.nfr` files), `src/bin/nightfall-replay.rs`.
+
+```bash
+nightfall-replay --zone 1 --epoch 3                 # or --latest; reads NATS_URL / --nats
+nightfall-replay --source file --file two-players-v1.nfr
+nightfall-replay ... --session <entity-id> --out /tmp/div   # verify one player; dump divergence
+nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-players-v1.nfr
+```
+
+| Exit | Meaning |
+|---|---|
+| 0 | every tick matched; prints ticks, players, bytes compared, time |
+| 1 | divergence: tick, ordinals, session, decoded recorded vs produced output |
+| 2 | usage, I/O, missing epoch, gap or truncated log |
+| 3 | epoch incomplete (no watermark); `export` refuses it too |
+
+`--session` takes the player's entity id (its character id) and selects whose outputs are
+compared; every command is still applied. `.nfr` = `NFREPLAY` magic, `u32` format version, zlib
+protobuf of snapshot, records and watermark (`recording.rs`). `moon run api:replay-check`
+replays `apps/api/fixtures/sessions/two-players-v1.nfr` (141 ticks, two players, an
+out-of-bounds rejection, a `StopMove`); CI runs it on every push. Re-record with
+`examples/record_session.rs` only for an intended behaviour change, and bump the file name.
 
 ### 2.6 Sessions and zones
 

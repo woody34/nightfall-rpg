@@ -1,4 +1,5 @@
-//! Replay-log adapters (architecture.md §2.5): `JetStream` for real, memory for tests.
+//! Replay-log adapters (architecture.md §2.5): `JetStream` for real, memory for tests, and
+//! [`Recording`] files (`.nfr`) for replay without a broker.
 //!
 //! Subjects (token counts never collide with `NF_EVENTS`' `nightfall.*.*`):
 //!
@@ -12,9 +13,11 @@
 mod jetstream;
 mod memory;
 mod metrics;
+mod recording;
 
 pub use jetstream::{JetStreamEventLog, HEADER_ROOM, RETENTION, SESSIONS_STREAM, ZONES_STREAM};
 pub use memory::{InMemoryEventLog, InMemoryZoneSnapshotStore};
+pub use recording::{Recording, RECORDING_FORMAT_VERSION};
 
 use uuid::Uuid;
 

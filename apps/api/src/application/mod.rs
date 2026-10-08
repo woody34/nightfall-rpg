@@ -6,6 +6,7 @@
 
 pub mod error;
 pub mod ports;
+pub mod replay;
 pub mod replay_log;
 pub mod session;
 pub mod trace;

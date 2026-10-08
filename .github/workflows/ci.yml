@@ -93,7 +93,7 @@ jobs:
       - name: moon ci
         run: >-
           moon ci --force --color api:build api:check api:lint api:format
-          api:test api:deny api:entities-check
+          api:test api:deny api:entities-check api:replay-check
 
       - name: Verify telemetry in LGTM
         run: |
