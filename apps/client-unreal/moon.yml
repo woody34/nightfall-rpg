@@ -1,0 +1,27 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+language: 'unknown'
+layer: 'application'
+stack: 'frontend'
+
+project:
+  title: 'client-unreal'
+  description: 'Unreal Engine 5 thin client. Builds require UE_ROOT to point at an Unreal install.'
+
+dependsOn:
+  - 'proto'
+
+# UE builds are driven by the engine's own tooling. These wrap it so `moon run client-unreal:build`
+# works on a machine with the engine installed. They are not run in CI (no engine there yet).
+tasks:
+  build-editor:
+    command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh NightfallEditor Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex"'
+    preset: 'utility'
+  build:
+    command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh Nightfall Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex"'
+    preset: 'utility'
+  editor:
+    command: 'bash -c "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor $PWD/Nightfall.uproject"'
+    preset: 'server'
+  gen-proto:
+    command: 'bash Scripts/gen-proto.sh'
+    preset: 'utility'

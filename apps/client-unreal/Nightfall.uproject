@@ -1,0 +1,31 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "Nightfall MMORPG thin client. Server-authoritative; talks to the Rust API over WebSocket + protobuf and gRPC.",
+	"Modules": [
+		{
+			"Name": "Nightfall",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine",
+				"CoreUObject"
+			]
+		}
+	],
+	"Plugins": [
+		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] },
+		{ "Name": "EnhancedInput", "Enabled": true },
+		{ "Name": "CommonUI", "Enabled": true },
+		{ "Name": "ModelViewViewModel", "Enabled": true },
+		{ "Name": "OnlineSubsystem", "Enabled": false },
+		{ "Name": "OnlineSubsystemUtils", "Enabled": false },
+		{ "Name": "GameplayAbilities", "Enabled": false }
+	],
+	"TargetPlatforms": [
+		"Windows",
+		"Linux",
+		"Mac"
+	]
+}

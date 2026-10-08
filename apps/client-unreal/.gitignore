@@ -1,0 +1,20 @@
+# Unreal build products and local state. Only Source, Config, Content (.uasset via LFS later) and the .uproject are versioned.
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+.vs/
+.vscode/
+.idea/
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.sln
+*.suo
+*.xcodeproj
+*.xcworkspace
+*.code-workspace
+# Generated protobuf code is produced by Scripts/gen-proto.sh; commit it so the editor builds without protoc.
+!Source/Nightfall/Generated/

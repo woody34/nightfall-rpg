@@ -5,10 +5,8 @@
 # Rust
 target/
 
-# Node
-node_modules/
-dist/
-*.tsbuildinfo
+# Unreal (apps/client-unreal has its own .gitignore for Binaries/Intermediate/Saved)
+*.sln
 
 # env / editor
 .env
@@ -18,3 +16,6 @@ dist/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# stray installers
+*.deb

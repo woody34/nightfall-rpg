@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package nightfall.v1;
+
+import "nightfall/v1/game.proto";
+
+// Real-time channel envelopes (Phase 0 §3.2). These are NOT gRPC messages: one ClientMessage
+// or ServerMessage is sent per binary WebSocket frame on GET /ws?ticket=...
+//
+// Field numbers are mirrored by hand in apps/client-unreal/Source/Nightfall/Net/ProtoCodec.h
+// until protoc-generated C++ replaces it. Never renumber; reserve removed fields.
+
+message ClientMessage {
+  uint32 seq = 1;                       // echoed in Ack; monotonically increasing per session
+  oneof intent {
+    MoveToRequest move_to = 10;
+    StopMoveRequest stop_move = 11;
+  }
+}
+
+message MoveToRequest {
+  Position destination = 1;             // tile units
+}
+
+message StopMoveRequest {}
+
+message ServerMessage {
+  oneof payload {
+    Ack ack = 1;
+    WorldEvent event = 2;
+  }
+}
+
+message Ack {
+  uint32 seq = 1;
+}
+
+message WorldEvent {
+  oneof event {
+    EntitySpawn spawn = 1;
+    EntityMove move = 2;
+    EntityDespawn despawn = 3;
+  }
+}
+
+enum EntityKind {
+  ENTITY_KIND_UNSPECIFIED = 0;
+  ENTITY_KIND_PLAYER = 1;
+  ENTITY_KIND_NPC = 2;
+}
+
+message EntitySpawn {
+  string entity_id = 1;
+  string name = 2;
+  Position position = 3;
+  EntityKind kind = 4;
+}
+
+message EntityMove {
+  string entity_id = 1;
+  Position position = 2;                // where the entity is at server_time_ms
+  Position destination = 3;             // where it is heading (zero when stopped)
+  float speed = 4;                      // tiles per second
+  int64 server_time_ms = 5;             // authoritative timestamp for interpolation
+}
+
+message EntityDespawn {
+  string entity_id = 1;
+}

@@ -44,9 +44,6 @@ jobs:
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
 
-      - name: Install JS dependencies
-        run: pnpm install --frozen-lockfile
-
       # Runs build/check/lint/format/test/deny for affected projects only.
       - name: moon ci
         run: moon ci --color

@@ -5,7 +5,10 @@ use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
     let proto_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../packages/proto");
-    let files = [proto_root.join("nightfall/v1/game.proto")];
+    let files = [
+        proto_root.join("nightfall/v1/game.proto"),
+        proto_root.join("nightfall/v1/world.proto"),
+    ];
 
     for f in &files {
         println!("cargo:rerun-if-changed={}", f.display());

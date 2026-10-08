@@ -1,11 +1,37 @@
 # Client Engine Comparison: Bevy vs Godot vs Unreal
 
-**Date:** 2026-10-07. **Status:** recommendation, not yet decided.
+**Date:** 2026-10-07. **Status:** DECIDED 2026-10-07: Unreal Engine 5 (see §0).
 **Question:** which engine should the real Nightfall client be built in, replacing the Phaser prototype?
 
 Detailed per-engine matrices (32 rows each, with sources) are in
 [engine-bevy.md](engine-bevy.md), [engine-godot.md](engine-godot.md), and
 [engine-unreal.md](engine-unreal.md). This document is the synthesis.
+
+## 0. Decision: Unreal Engine 5, thin client over the Rust server
+
+The recommendation in §5 (Godot) was reviewed and overruled on two grounds the scorecard
+underweighted:
+
+1. **The networking objection does not apply to a thin client.** Replication, GAS, Iris, and the
+   dedicated server are optional. A client that holds a WebSocket to the Rust server and drives
+   pawns from snapshots uses none of them. That is how the genre is built: Lineage 2 itself was an
+   Unreal Engine 2 client against NCSoft's own C++ server, and Throne and Liberty and Aion 2 follow
+   the same shape on UE4 and UE5.
+2. **Visual quality is mostly the asset floor, and Unreal's floor is far higher.** Megascans,
+   MetaHuman, the Game Animation Sample, Lumen without baking, and a marketplace of complete
+   environments are what let a solo developer ship something that looks like a modern MMO.
+   Godot and Bevy games look mediocre because their authors build that floor themselves.
+
+Accepted costs: C++ and Blueprints on the client (the Rust domain crate stays server-side, which a
+thin client wants anyway; protobuf is generated for C++ from the same `.proto` files), a slower
+daily iteration loop than Rust, no browser client, a ~300 MB install floor, and a UE6 migration
+around 2028.
+
+Consequences:
+- The Phaser client is retired. The browser is not a target.
+- The client lives in `apps/client-unreal`. Architecture and first slice are in its README.
+- `docs/planning/08-client-presentation.md` is superseded where it assumes Phaser; its
+  server-facing decisions (snapshot cadence, interpolation window, SystemMessage ids) stand.
 
 ## 1. Context that drives the decision
 
@@ -91,7 +117,7 @@ real MMOs. It still loses for this project on three counts that no feature can o
 - **No browser path at all**, and UE6 with Verse will make today's Actor and Blueprint code
   legacy by 2028. Rust reuse is FFI-only; `unreal-rust` is dead.
 
-## 5. Recommendation: Godot 4 with Rust via gdext for the desktop client
+## 5. Original recommendation (superseded by §0): Godot 4 with Rust via gdext
 
 Godot covers 24 of the 32 rows natively and stably, including the two where Bevy is weakest
 (editor, data-heavy UI). The specific shape:

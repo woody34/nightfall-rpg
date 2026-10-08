@@ -33,7 +33,7 @@ Every phase document follows the same outline so it can be used as a checklist d
 
 ## Conventions
 
-- Stack: Rust + axum (HTTP) + tonic (gRPC) server, Phaser 3 + TypeScript client, protobuf contracts in `packages/proto`.
+- Stack: Rust + axum (HTTP) + tonic (gRPC) server, Unreal Engine 5 thin client (C++), protobuf contracts in `packages/proto`.
 - Server is authoritative for everything. The client renders and sends intent only.
 - Lineage 2 is the reference, not the target. Where its numbers are quoted they are a starting point for tuning, not a spec.
 
@@ -51,7 +51,8 @@ here wins and the other document is the one to fix.
 
 | Decision | Owner | Summary |
 |----------|-------|---------|
-| Real-time transport | Phase 0 §3.2 | One WebSocket at `GET /ws?ticket=…` on the axum listener, one protobuf `ClientMessage` / `ServerMessage` per binary frame. gRPC (tonic + `tonic-web`, Connect-ES in the browser) is for request/response only. There are no bidi gRPC streams: gRPC-Web cannot client-stream. |
+| Client engine | research/engine-comparison.md §0 | Unreal Engine 5 thin client. No replication, no GAS, no UE server: pawns are driven from server snapshots over the Phase 0 WebSocket. Phaser retired 2026-10-07. |
+| Real-time transport | Phase 0 §3.2 | One WebSocket at `GET /ws?ticket=…` on the axum listener, one protobuf `ClientMessage` / `ServerMessage` per binary frame. gRPC (tonic) is for request/response only; the Unreal client calls it natively, so `tonic-web` is no longer required. |
 | Tick rate | Phase 0 §3.2 | 100 ms server tick (10 Hz), 10 Hz world deltas to clients, client interpolates remote entities over 100-200 ms. |
 | Game data format | Phase 0 §3.4 | TOML in `packages/data/`, loaded at boot into immutable structs behind `ArcSwap`, validated with cross-reference checks, hot-reloaded in dev. |
 | Persistence | Phase 0 §3.3 | Postgres via `sqlx`. Write-behind for volatile character state, write-through transactions for anything that moves items or currency. Every item mutation is appended to `item_ledger`. |

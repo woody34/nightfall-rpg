@@ -5,16 +5,5 @@ $schema: 'https://moonrepo.dev/schemas/toolchains.json'
 proto:
   version: '0.62.3'
 
-javascript:
-  inheritAliases: true
-  installDependencies: true
-  packageManager: 'pnpm'
-
-node:
-  versionFromPrototools: true
-
-pnpm:
-  versionFromPrototools: true
-
 rust:
   versionFromPrototools: true

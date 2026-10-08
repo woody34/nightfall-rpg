@@ -6,6 +6,13 @@ layout) for the Phaser 3 client in `apps/client`.
 
 ---
 
+> **Partially superseded (2026-10-07).** The client engine is now Unreal Engine 5, not Phaser
+> (`docs/research/engine-comparison.md` §0). Sections on Phaser scenes, Preact HUD, Connect-ES,
+> tilemaps, and the TypeScript layout no longer apply. What still binds the server: 10 Hz
+> snapshots, 100-200 ms interpolation window, server-authoritative click-to-move with `MoveTo`
+> intents and `seq` acks, `SystemMessage{id, params}` localization, and the `ClientMessage` /
+> `ServerMessage` envelopes. The Unreal client design lives in `apps/client-unreal/README.md`.
+
 ## 1. Purpose and scope
 
 **Delivers**
