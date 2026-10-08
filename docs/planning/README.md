@@ -49,19 +49,24 @@ and cargo-deny. Those documents win over anything in a phase document about code
 These were made in one phase and bind the others. If a phase document disagrees, the owner listed
 here wins and the other document is the one to fix.
 
-| Decision | Owner | Summary |
-|----------|-------|---------|
-| Client engine | research/engine-comparison.md §0 | Unreal Engine 5 thin client. No replication, no GAS, no UE server: pawns are driven from server snapshots over the Phase 0 WebSocket. Phaser retired 2026-10-07. |
-| Real-time transport | Phase 0 §3.2 | One WebSocket at `GET /ws?ticket=…` on the axum listener, one protobuf `ClientMessage` / `ServerMessage` per binary frame. gRPC (tonic) is for request/response only; the Unreal client calls it natively, so `tonic-web` is no longer required. |
-| Tick rate | Phase 0 §3.2 | 100 ms server tick (10 Hz), 10 Hz world deltas to clients, client interpolates remote entities over 100-200 ms. |
-| Game data format | Phase 0 §3.4 | TOML in `packages/data/`, loaded at boot into immutable structs behind `ArcSwap`, validated with cross-reference checks, hot-reloaded in dev. |
-| Persistence | Phase 0 §3.3 | Postgres via `sqlx`. Write-behind for volatile character state, write-through transactions for anything that moves items or currency. Every item mutation is appended to `item_ledger`. |
-| Randomness | Phase 3 §3.3, Phase 5 §3 | Per-zone seeded `ChaCha12` streams so combat and loot rolls are reproducible from a logged seed. |
-| Stat formulas | Phase 1 §3 | High Five formulas and constants unless a phase doc says otherwise. All numbers quoted from Lineage 2 are tuning starting points. |
-| Event bus | engineering/architecture.md §2 | NATS. Commands on `nightfall.cmd.<aggregate>.<command>`, events on `nightfall.<aggregate>.<event>`. Events are staged in a transactional `outbox` table in the same transaction as the state change. |
-| Idempotency | engineering/api-guidelines.md §2 | Every mutating RPC carries a client UUID `idempotency_key`; the key, a request fingerprint, and the result are stored atomically with the write. |
-| Code layout | engineering/architecture.md §1 | `domain` / `application` / `infrastructure` / `interface` under `apps/api/src`, dependencies inward only. Supersedes the module tree sketched in Phase 0 §6. |
-| Proto layout | Phase 0 §5 | `packages/proto/nightfall/v1/`: `game.proto` (shared messages, Ping, Character), plus one file per domain as the phases introduce them: `world.proto`, `combat.proto`, `items.proto`, `economy.proto`, `social.proto`, `admin.proto`. |
+| Decision                     | Owner                                | Summary |
+|------------------------------|--------------------------------------|---------|
+| Client engine                | research/engine-comparison.md §0     | Unreal Engine 5 thin client. No replication, no GAS, no UE server: pawns are driven from server snapshots over the Phase 0 WebSocket. Phaser retired 2026-10-07. |
+| Real-time transport          | Phase 0 §3.2                         | One WebSocket at `GET /ws?ticket=…` on the axum listener, one protobuf `ClientMessage` / `ServerMessage` per binary frame. gRPC (tonic) is for request/response only; the Unreal client calls it natively via TurboLink. |
+| Tick rate                    | Phase 0 §3.2                         | 100 ms server tick (10 Hz), 10 Hz world deltas to clients, client interpolates remote entities over 100-200 ms. |
+| Game data format             | Phase 0 §3.4                         | TOML in `packages/data/`, loaded at boot into immutable structs behind `ArcSwap`, validated with cross-reference checks, hot-reloaded in dev. |
+| Persistence                  | Phase 0 §3.3                         | Postgres via `sqlx`. Write-behind for volatile character state, write-through transactions for anything that moves items or currency. Every item mutation is appended to `item_ledger`. |
+| Randomness                   | Phase 3 §3.3, Phase 5 §3             | Per-zone seeded `ChaCha12` streams so combat and loot rolls are reproducible from a logged seed. |
+| Stat formulas                | Phase 1 §3                           | High Five formulas and constants unless a phase doc says otherwise. All numbers quoted from Lineage 2 are tuning starting points. |
+| Event bus                    | engineering/architecture.md §2       | NATS. Commands on `nightfall.cmd.<aggregate>.<command>`, events on `nightfall.<aggregate>.<event>`. Events are staged in a transactional `outbox` table in the same transaction as the state change. |
+| Idempotency                  | engineering/api-guidelines.md §2     | Every mutating RPC carries a client UUID `idempotency_key`; the key, a request fingerprint, and the result are stored atomically with the write. |
+| Code layout                  | engineering/architecture.md §1       | `domain` / `application` / `infrastructure` / `interface` under `apps/api/src`, dependencies inward only. Supersedes the module tree sketched in Phase 0 §6. |
+| Proto layout                 | Phase 0 §5                           | `packages/proto/nightfall/v1/`: `game.proto` (shared messages, Ping, Character), plus one file per domain as the phases introduce them: `world.proto`, `combat.proto`, `items.proto`, `economy.proto`, `social.proto`, `admin.proto`. |
+| Identity                     | plans/phase-0b-connected-slice.md §2 | Keycloak self-hosted in Compose with realm as code; client authenticates via OAuth 2.0 Device Authorization Grant and the server validates JWTs without storing credentials. |
+| ORM                          | plans/phase-0b-connected-slice.md §2 | SeaORM on the existing sqlx pool with `sea-orm-migration` and CI-generated entities, preserving transactional repository ports. |
+| Session event log and replay | plans/phase-0b-connected-slice.md §2, §8 | NATS JetStream. The zone actor is the single writer of the replay log (`nightfall.zone.<zone>.<epoch>.applied`, one acknowledged record per tick); per-session `.in`/`.out` logs are for audit. Replay re-runs the zone actor from a tick-boundary snapshot and asserts byte-identical output. |
+| Telemetry backend            | plans/phase-0b-connected-slice.md §2 | Grafana LGTM all-in-one in Compose, ingesting OTLP traces, metrics, and structured logs exported from the server. |
+| Determinism                  | plans/phase-0b-connected-slice.md §2 | Fixed 100 ms tick with `i32` fixed-point coordinates (1/1000 tile), tick-stamped commands, and per-zone seeded `ChaCha12` RNG to guarantee bit-exact replay. |
 
 ## Research caveats
 
