@@ -45,7 +45,7 @@ async fn creates_character_readable_afterwards_and_publishes_event() {
         .into_inner();
     assert_eq!(fetched, created);
 
-    let events = app.bus.published();
+    let events = app.characters.staged_events();
     assert_eq!(events.len(), 1);
     assert!(matches!(events[0], DomainEvent::CharacterCreated { .. }));
 }
@@ -67,7 +67,7 @@ async fn retry_with_same_key_returns_same_character_and_no_second_event() {
         .into_inner();
     assert_eq!(a, b);
     assert_eq!(app.characters.len(), 1);
-    assert_eq!(app.bus.published().len(), 1);
+    assert_eq!(app.characters.staged_events().len(), 1);
 }
 
 #[tokio::test]
@@ -131,5 +131,5 @@ async fn bad_name_is_invalid_argument_and_writes_nothing() {
         .unwrap_err();
     assert_eq!(err.code(), Code::InvalidArgument);
     assert_eq!(app.characters.len(), 0);
-    assert!(app.bus.published().is_empty());
+    assert!(app.characters.staged_events().is_empty());
 }

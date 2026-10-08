@@ -84,12 +84,17 @@ non-Rust consumer appears.
 A process can die between committing a transaction and publishing its event. So:
 
 1. The repository inserts the event into `outbox` in the same transaction as the state change.
-2. The use case publishes directly after commit (fast path).
-3. A relay (Phase 0 follow-up) polls `outbox WHERE published_at IS NULL`, publishes, and marks
-   rows. Duplicates are possible; consumers dedupe on the event's aggregate id and a sequence.
+2. The use case does not publish. The relay (`infrastructure/outbox/relay.rs`) is the only
+   publisher of domain events, so there is a single path and no duplicate-publish race.
+3. The relay polls `outbox WHERE published_at IS NULL ORDER BY id LIMIT 100 FOR UPDATE SKIP
+   LOCKED` in a transaction (250 ms poll, exponential backoff to 5 s on failure), publishes each
+   row to `JetStream` stream `NF_EVENTS` (`nightfall.>`) and waits for the ack, sending
+   `Nats-Msg-Id = outbox.id` so the broker drops a retry after a crash between publish and
+   mark. `published_at` is set only after the ack. Several relays can run side by side.
+   ``RelayStats` exposes `outbox_pending` and the last publish lag for telemetry.
 
-Step 3 is not implemented yet; the table and the insert are, so no event can be lost once the
-relay exists.
+Delivery is at-least-once with broker-side dedupe inside the stream's duplicate window;
+consumers still dedupe on the event's aggregate id and a sequence.
 
 ### 2.4 The world simulation
 

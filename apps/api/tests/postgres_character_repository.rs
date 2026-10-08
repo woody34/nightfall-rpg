@@ -11,7 +11,10 @@
 use nightfall_api::application::ports::RepositoryError;
 use nightfall_api::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
 use nightfall_api::domain::{Character, CharacterName, Race};
-use nightfall_api::infrastructure::postgres::{PgCharacterRepository, MIGRATOR};
+use nightfall_api::infrastructure::postgres::{
+    connection_from_pool, Migrator, PgCharacterRepository,
+};
+use sea_orm_migration::MigratorTrait;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Executor, PgPool};
 use uuid::Uuid;
@@ -46,7 +49,9 @@ async fn fresh_pool() -> Option<PgPool> {
         .connect(&url)
         .await
         .unwrap();
-    MIGRATOR.run(&pool).await.unwrap();
+    Migrator::up(&connection_from_pool(&pool), None)
+        .await
+        .unwrap();
     Some(pool)
 }
 
