@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use nightfall_api::application::replay_log::WatermarkReason;
+use nightfall_api::application::zone_registry::ZoneRegistry;
 use nightfall_api::config::Config;
 use nightfall_api::infrastructure::auth::{KeycloakVerifier, OidcConfig};
 use nightfall_api::infrastructure::memory::TestTokenVerifier;
@@ -10,7 +11,8 @@ use nightfall_api::infrastructure::outbox::{JetStreamPublisher, OutboxRelay};
 use nightfall_api::infrastructure::telemetry::{self, TelemetryConfig};
 use nightfall_api::zone_runtime::{self, ZoneRuntimeConfig};
 use nightfall_api::{
-    bind, build_grpc_services, infrastructure, serve_grpc, serve_http, Dependencies,
+    bind, build_grpc_services, build_http_router, infrastructure, serve_grpc, serve_http,
+    start_realtime, Dependencies,
 };
 use sea_orm::DatabaseConnection;
 use tokio::sync::watch;
@@ -43,6 +45,11 @@ async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
     .await?;
     let services = build_grpc_services(&deps);
 
+    let zones = ZoneRegistry::from_handle(zone.handle().clone());
+    let sessions_shutdown = CancellationToken::new();
+    let realtime = start_realtime(&deps, zones, sessions_shutdown.clone());
+    let router = build_http_router(&deps, &realtime);
+
     let (http, grpc) = bind(cfg.http_addr, cfg.grpc_addr).await?;
     tracing::info!(http_addr = %cfg.http_addr, grpc_addr = %cfg.grpc_addr, "nightfall-api starting");
 
@@ -50,11 +57,13 @@ async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
     tokio::spawn(async move {
         shutdown_signal().await;
         tracing::info!("shutdown signal received, draining");
+        // Upgraded sockets are not drained by the HTTP server; close them (1001) now.
+        sessions_shutdown.cancel();
         stop_tx.send(true).ok();
     });
 
     let served = tokio::try_join!(
-        serve_http(http, metrics.clone(), stopped(stop_rx.clone())),
+        serve_http(http, router, stopped(stop_rx.clone())),
         serve_grpc(grpc, services, metrics, stopped(stop_rx)),
     );
 
@@ -112,6 +121,10 @@ async fn build_dependencies(
 ) -> anyhow::Result<(Dependencies, Option<OutboxRelay>, Option<DatabaseConnection>)> {
     let mut deps = Dependencies::in_memory();
     deps.ws_public_url.clone_from(&cfg.ws_public_url);
+    deps.session_limits.max_sessions_per_ip = cfg.ws_max_sessions_per_ip;
+    // TODO(plan Story 3.2): the JetStream session audit adapter replaces this.
+    tracing::warn!("session audit log not wired yet: per-session frames are not recorded");
+    deps.audit = Arc::new(infrastructure::memory::DiscardSessionAudit);
     let mut db = None;
 
     if let Some(url) = &cfg.database_url {

@@ -26,6 +26,7 @@ axum.workspace = true
 base64.workspace = true
 bytes.workspace = true
 chrono.workspace = true
+futures-util.workspace = true
 jsonwebtoken.workspace = true
 opentelemetry.workspace = true
 opentelemetry-appender-tracing.workspace = true
@@ -60,11 +61,11 @@ uuid.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
-futures-util.workspace = true
 http-body-util.workspace = true
 jsonwebtoken = { workspace = true, features = ["use_pem"] }
 proptest.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
+tokio-tungstenite.workspace = true
 
 [[bench]]
 name = "zone_step"

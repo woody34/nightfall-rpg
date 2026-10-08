@@ -16,18 +16,25 @@
 
 pub mod capture;
 pub mod pg;
+pub mod ws;
 
 use std::sync::Arc;
 
+use nightfall_api::application::zone_actor::{IntervalTicks, ZoneHandle};
+use nightfall_api::application::zone_registry::ZoneRegistry;
 use nightfall_api::application::{CharacterRepository, TokenVerifier};
 use nightfall_api::infrastructure::memory::{
-    InMemoryAccountRepository, InMemoryCharacterRepository, InMemoryEventBus,
+    InMemoryAccountRepository, InMemoryCharacterRepository, InMemoryEventBus, InMemorySessionAudit,
     InMemorySessionRepository, TestTokenVerifier,
 };
 use nightfall_api::infrastructure::telemetry::Metrics;
 use nightfall_api::interface::grpc::pb::game_service_client::GameServiceClient;
 use nightfall_api::interface::grpc::pb::session_service_client::SessionServiceClient;
-use nightfall_api::{bind, build_grpc_services, serve_grpc, serve_http, Dependencies};
+use nightfall_api::{
+    bind, build_grpc_services, build_http_router, serve_grpc, serve_http, start_realtime,
+    Dependencies,
+};
+use tokio_util::sync::CancellationToken;
 use tonic::metadata::MetadataValue;
 use tonic::service::interceptor::InterceptedService;
 use tonic::service::Interceptor;
@@ -72,6 +79,14 @@ pub struct TestApp {
     pub sessions: Arc<InMemorySessionRepository>,
     pub bus: Arc<InMemoryEventBus>,
     pub metrics: Metrics,
+    /// Every session's frames, as the session layer recorded them.
+    pub audit: Arc<InMemorySessionAudit>,
+    /// The fixture zone `/ws` sessions play in (real 100 ms ticks).
+    pub zone: ZoneHandle,
+    /// `ws://127.0.0.1:<port>/ws`.
+    pub ws_url: String,
+    /// Closes every session (1001) when cancelled; cancelled on drop.
+    pub sessions_shutdown: CancellationToken,
     channel: Channel,
     /// Server tasks; aborted when the app is dropped.
     http_task: tokio::task::JoinHandle<anyhow::Result<()>>,
@@ -96,6 +111,7 @@ impl TestApp {
         let accounts = Arc::new(InMemoryAccountRepository::default());
         let sessions = Arc::new(InMemorySessionRepository::default());
         let bus = Arc::new(InMemoryEventBus::default());
+        let audit = Arc::new(InMemorySessionAudit::default());
         let metrics = Metrics::detached();
         let mut deps = Dependencies::in_memory();
         deps.characters = characters.clone();
@@ -104,8 +120,14 @@ impl TestApp {
         deps.bus = bus.clone();
         deps.metrics = metrics.clone();
         deps.tokens = Arc::new(TestTokenVerifier) as Arc<dyn TokenVerifier>;
+        deps.audit = audit.clone();
         customize(&mut deps);
         let services = build_grpc_services(&deps);
+        let zones = ZoneRegistry::start_fixture(1_000_000, IntervalTicks::new()).unwrap();
+        let zone = zones.fixture().clone();
+        let sessions_shutdown = CancellationToken::new();
+        let realtime = start_realtime(&deps, zones, sessions_shutdown.clone());
+        let router = build_http_router(&deps, &realtime);
 
         let (http, grpc) = bind("127.0.0.1:0".parse().unwrap(), "127.0.0.1:0".parse().unwrap())
             .await
@@ -113,7 +135,7 @@ impl TestApp {
         let http_addr = http.local_addr().unwrap();
         let grpc_addr = grpc.local_addr().unwrap();
 
-        let http_task = tokio::spawn(serve_http(http, metrics.clone(), std::future::pending()));
+        let http_task = tokio::spawn(serve_http(http, router, std::future::pending()));
         let grpc_task =
             tokio::spawn(serve_grpc(grpc, services, metrics.clone(), std::future::pending()));
 
@@ -125,6 +147,10 @@ impl TestApp {
         let me = Bearer::account(account());
         Self {
             http_base: format!("http://{http_addr}"),
+            ws_url: format!("ws://{http_addr}/ws"),
+            audit,
+            zone,
+            sessions_shutdown,
             grpc_base: format!("http://{grpc_addr}"),
             grpc: GameServiceClient::with_interceptor(channel.clone(), me.clone()),
             session: SessionServiceClient::with_interceptor(channel.clone(), me),
@@ -172,6 +198,7 @@ impl TestApp {
 
 impl Drop for TestApp {
     fn drop(&mut self) {
+        self.sessions_shutdown.cancel();
         self.http_task.abort();
         self.grpc_task.abort();
     }

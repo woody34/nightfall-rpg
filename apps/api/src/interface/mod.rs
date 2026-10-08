@@ -3,4 +3,5 @@
 
 pub mod grpc;
 pub mod http;
+pub mod ws;
 pub mod zone_mapping;

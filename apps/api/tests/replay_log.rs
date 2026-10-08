@@ -953,3 +953,15 @@ fn garbage_is_a_codec_error_not_a_panic() {
     bytes.extend_from_slice(&[0x40, 0x01]);
     assert!(AppliedTickRecord::decode(&bytes).is_err());
 }
+
+#[test]
+fn accepted_output_round_trips_every_field() {
+    let outputs = vec![ObserverOutput::Accepted {
+        ordinal: Ordinal(u64::MAX),
+        seq: u32::MAX,
+        tick: Tick(42),
+    }];
+    let encoded = encode_outputs(&outputs);
+    assert_eq!(decode_outputs(&encoded).unwrap(), outputs);
+    assert_eq!(encode_outputs(&decode_outputs(&encoded).unwrap()), encoded);
+}

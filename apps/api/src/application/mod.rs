@@ -7,12 +7,15 @@
 pub mod error;
 pub mod ports;
 pub mod replay_log;
+pub mod session;
+pub mod trace;
 pub mod use_cases;
 pub mod zone_actor;
 pub mod zone_bootstrap;
+pub mod zone_registry;
 
 pub use error::{parse_id, AppError};
 pub use ports::{
     AccountRepository, CharacterRepository, Clock, CreateOutcome, EventBus, IdempotencyKey,
-    SecretGenerator, SessionRepository, TokenVerifier,
+    SecretGenerator, SessionAudit, SessionRepository, TokenVerifier,
 };

@@ -16,17 +16,21 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use application::session::{SessionContext, SessionLimits, SessionRegistry};
 use application::use_cases::{
-    Authenticate, CreateCharacter, EnsureAccount, GetCharacter, IssuePlayTicket, ListMyCharacters,
-    Ping,
+    Authenticate, ConsumePlayTicket, CreateCharacter, EnsureAccount, GetCharacter, IssuePlayTicket,
+    ListMyCharacters, Ping,
 };
+use application::zone_registry::ZoneRegistry;
 use application::{
-    AccountRepository, CharacterRepository, Clock, EventBus, SecretGenerator, SessionRepository,
-    TokenVerifier,
+    AccountRepository, CharacterRepository, Clock, EventBus, SecretGenerator, SessionAudit,
+    SessionRepository, TokenVerifier,
 };
-use infrastructure::telemetry::{GrpcTelemetryLayer, Metrics};
+use infrastructure::telemetry::{record_tick_stats, GrpcTelemetryLayer, Metrics};
 use interface::grpc::{AuthLayer, GameServiceImpl, SessionServiceImpl};
+use interface::ws::{ProstCodec, WsState};
 use tokio::net::TcpListener;
+use tokio_util::sync::CancellationToken;
 
 /// Default public WebSocket address returned by `IssuePlayTicket` (`WS_PUBLIC_URL`).
 pub const DEFAULT_WS_PUBLIC_URL: &str = "ws://localhost:3000/ws";
@@ -52,6 +56,10 @@ pub struct Dependencies {
     pub metrics: Metrics,
     /// Public WebSocket URL handed to clients with each play ticket.
     pub ws_public_url: String,
+    /// Per-session frame audit of the real-time channel.
+    pub audit: Arc<dyn SessionAudit>,
+    /// Per-session limits of the real-time channel.
+    pub session_limits: SessionLimits,
 }
 
 impl Dependencies {
@@ -71,6 +79,8 @@ impl Dependencies {
             clock: Arc::new(infrastructure::SystemClock),
             metrics: Metrics::detached(),
             ws_public_url: DEFAULT_WS_PUBLIC_URL.to_owned(),
+            audit: Arc::new(infrastructure::memory::InMemorySessionAudit::default()),
+            session_limits: SessionLimits::default(),
         }
     }
 }
@@ -111,14 +121,56 @@ pub fn build_grpc_services(deps: &Dependencies) -> GrpcServices {
     }
 }
 
+/// The real-time channel: the running zones and what every session shares.
+pub struct Realtime {
+    /// The zones players are in.
+    pub zones: ZoneRegistry,
+    /// Shared by every session.
+    pub sessions: Arc<SessionContext>,
+}
+
+/// Wires the session layer to `zones` and starts recording tick durations. Sessions close with
+/// 1001 when `shutdown` is cancelled. Must be called inside a tokio runtime.
+#[must_use]
+pub fn start_realtime(
+    deps: &Dependencies,
+    zones: ZoneRegistry,
+    shutdown: CancellationToken,
+) -> Realtime {
+    let zone = zones.fixture().clone();
+    tokio::spawn(record_tick_stats(zone.stats(), deps.metrics.clone()));
+    let sessions = Arc::new(SessionContext {
+        zone,
+        registry: SessionRegistry::default(),
+        audit: deps.audit.clone(),
+        metrics: Arc::new(deps.metrics.clone()),
+        codec: Arc::new(ProstCodec),
+        limits: deps.session_limits,
+        shutdown,
+    });
+    Realtime { zones, sessions }
+}
+
+/// The HTTP router: health, metrics and the `/ws` real-time channel.
+pub fn build_http_router(deps: &Dependencies, realtime: &Realtime) -> axum::Router {
+    let ws = WsState::new(
+        ConsumePlayTicket::new(deps.sessions.clone(), deps.clock.clone()),
+        GetCharacter::new(deps.characters.clone()),
+        realtime.sessions.clone(),
+    );
+    interface::http::router(deps.metrics.clone(), interface::ws::routes(ws))
+}
+
 /// Serves HTTP on an already-bound listener until `shutdown` resolves (in-flight requests
-/// finish) or the server errors.
+/// finish) or the server errors. Upgraded sockets are not drained here: they close when
+/// the session shutdown token passed to [`start_realtime`] is cancelled.
 pub async fn serve_http(
     listener: TcpListener,
-    metrics: Metrics,
+    router: axum::Router,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
-    axum::serve(listener, interface::http::router(metrics))
+    // Peer addresses feed the per-IP session limit.
+    axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown)
         .await?;
     Ok(())

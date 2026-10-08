@@ -2,9 +2,11 @@
 
 use crate::domain::ids::uuid_id;
 use crate::domain::{
-    AccountId, Character, CharacterId, DomainEvent, PlayTicket, SessionGeneration, TicketHash,
+    AccountId, Character, CharacterId, DomainEvent, PlayTicket, SessionGeneration, SessionId,
+    TicketHash,
 };
 use async_trait::async_trait;
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 
 pub use super::replay_log::{EventLog, ZoneSnapshotStore};
@@ -265,6 +267,24 @@ pub trait SecretGenerator: Send + Sync {
 pub trait EventBus: Send + Sync {
     /// Publishes one event on its subject.
     async fn publish(&self, event: &DomainEvent) -> anyhow::Result<()>;
+}
+
+/// The per-session audit log of the real-time channel (plan D5, §8 #3): every inbound frame
+/// as received and every outbound frame as sent, in order, per session.
+///
+/// Called on the socket path, so implementations must not block or await: buffer and drop
+/// (counting the loss) rather than slow a session down. The zone's applied-tick log, not this,
+/// is what replay re-runs; this log is for audit and for picking which session's output a
+/// replay verifies. Story 3.2 supplies the `JetStream` adapter
+/// (`nightfall.session.<id>.in` / `.out`); `InMemorySessionAudit` serves tests and dev.
+pub trait SessionAudit: Send + Sync {
+    /// One inbound frame, as received, before any validation. `seq` is the decoded
+    /// `ClientMessage.seq`, or `None` when the frame could not be decoded (oversize,
+    /// malformed, not binary).
+    fn record_in(&self, session: SessionId, seq: Option<u32>, frame: &Bytes);
+
+    /// One outbound frame, in the order the session queued it for the socket.
+    fn record_out(&self, session: SessionId, frame: &Bytes);
 }
 
 /// Wall clock, abstracted so time-dependent use cases are deterministic in tests.

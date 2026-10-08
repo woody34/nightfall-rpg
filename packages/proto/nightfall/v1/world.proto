@@ -5,7 +5,9 @@ package nightfall.v1;
 import "nightfall/v1/game.proto";
 
 // Real-time channel envelopes (Phase 0 §3.2). These are NOT gRPC messages: one ClientMessage
-// or ServerMessage is sent per binary WebSocket frame on GET /ws?ticket=...
+// or ServerMessage is sent per binary WebSocket frame on GET /ws. The play ticket goes in the
+// upgrade request's `Authorization: Bearer <ticket>` header, never the URL. Handshake statuses
+// and close codes: docs/engineering/api-guidelines.md, "Real-time channel".
 //
 // Resource limits enforced per session by the server (Phase 0b plan §8 item 12):
 //   * max frame size:           4096 bytes; larger frames are rejected before decoding.
@@ -53,9 +55,9 @@ message ServerMessage {
   }
 }
 
-// The intent with this `seq` was ACCEPTED and will be applied on tick `tick`. It is not yet
-// applied when the Ack is sent; the effect becomes visible in the EntityMove stamped with
-// that tick. An accepted intent is never later rejected.
+// The intent with this `seq` was ACCEPTED and applied on tick `tick`. The Ack is sent with
+// that tick's output, ahead of its events; the effect is visible in the EntityMove stamped
+// with that tick. An accepted intent is never later rejected.
 message Ack {
   uint32 seq = 1;
   uint64 tick = 2;                      // tick on which the intent is applied

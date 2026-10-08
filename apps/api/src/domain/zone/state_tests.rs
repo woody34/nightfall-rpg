@@ -64,6 +64,7 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
     for out in t.outputs.values() {
         let rank = |o: &ObserverOutput| match o {
             ObserverOutput::Rejected(d) => (0, d.ordinal.0, None),
+            ObserverOutput::Accepted { ordinal, .. } => (0, ordinal.0, None),
             ObserverOutput::Event(ZoneEvent::EntityDespawn { entity, .. }) => (1, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, .. }) => (2, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntityMove { entity, .. }) => (3, 0, Some(*entity)),
@@ -209,7 +210,12 @@ fn movement_emits_every_tick_and_arrival_once() {
         speed: Speed::DEFAULT,
     };
     assert_eq!(t.events, vec![first.clone()]);
-    assert_eq!(t.outputs[&id(1)], vec![ObserverOutput::Event(first)]);
+    let ack = ObserverOutput::Accepted {
+        ordinal: t.commands[0].ordinal,
+        seq: t.commands[0].seq.unwrap(),
+        tick: Tick(1),
+    };
+    assert_eq!(t.outputs[&id(1)], vec![ack, ObserverOutput::Event(first)]);
     let t = run(&mut z, Vec::new());
     assert_eq!(
         t.events,
@@ -223,6 +229,62 @@ fn movement_emits_every_tick_and_arrival_once() {
     );
     assert!(run(&mut z, Vec::new()).is_idle());
     assert_eq!(z.next_tick(), Tick(4));
+}
+
+#[test]
+fn responses_come_first_in_ordinal_order_then_events() {
+    let mut z = zone();
+    run(&mut z, vec![spawn_player(1, 10, 10)]);
+    let mv = |seq, x| {
+        ZoneInput::session(
+            id(1),
+            GEN1,
+            seq,
+            ZoneCommand::MoveTo {
+                entity: id(1),
+                dest: Vec2Fixed::from_tiles(x, 10),
+            },
+        )
+    };
+    // Accepted, refused (too far), accepted: one response each, in the order sent.
+    let t = run(&mut z, vec![mv(1, 12), mv(2, 200), mv(3, 11)]);
+    let own = &t.outputs[&id(1)];
+    let heads: Vec<(u32, bool)> = own
+        .iter()
+        .filter_map(|o| match o {
+            ObserverOutput::Accepted { seq, tick, .. } => {
+                assert_eq!(*tick, Tick(1));
+                Some((*seq, true))
+            },
+            ObserverOutput::Rejected(d) => Some((d.seq.unwrap(), false)),
+            ObserverOutput::Event(_) => None,
+        })
+        .collect();
+    assert_eq!(heads, vec![(1, true), (2, false), (3, true)]);
+    assert!(matches!(own.as_slice(), [_, _, _, ObserverOutput::Event(_)]));
+    assert_output_order(&t);
+}
+
+#[test]
+fn system_commands_and_unsequenced_session_commands_get_no_ack() {
+    let mut z = zone();
+    let t = run(&mut z, vec![spawn_player(1, 10, 10), spawn_player(2, 11, 11)]);
+    assert!(t.outputs[&id(1)]
+        .iter()
+        .all(|o| matches!(o, ObserverOutput::Event(_))));
+    let leave = ZoneInput {
+        source: CommandSource::Session {
+            entity: id(2),
+            generation: GEN1,
+        },
+        seq: None,
+        command: ZoneCommand::Despawn { entity: id(2) },
+    };
+    let t = run(&mut z, vec![leave]);
+    assert!(t.dispositions.is_empty());
+    assert!(t.outputs[&id(1)]
+        .iter()
+        .all(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntityDespawn { .. }))));
 }
 
 #[test]
@@ -329,7 +391,7 @@ fn replacement_fences_the_old_session_and_resends_the_aoi() {
         .iter()
         .map(|o| match o {
             ObserverOutput::Event(e) => e.entity(),
-            ObserverOutput::Rejected(_) => NIL,
+            ObserverOutput::Rejected(_) | ObserverOutput::Accepted { .. } => NIL,
         })
         .collect();
     assert_eq!(spawned, vec![id(1), id(2)]);

@@ -235,8 +235,12 @@ async fn a_paused_zone_refuses_inputs() {
     tx.send_replace(true);
     assert!(zone.is_paused());
     assert!(matches!(zone.send(spawn(2)), Err(ZoneSendError::Paused(_))));
+    assert!(matches!(
+        zone.send_traced(spawn(2), TraceCarrier::current()),
+        Err(ZoneSendError::Paused(_))
+    ));
     tx.send_replace(false);
-    zone.send(spawn(2)).unwrap();
+    zone.send_traced(spawn(2), TraceCarrier::current()).unwrap();
 }
 
 #[tokio::test]

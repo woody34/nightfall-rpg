@@ -10,16 +10,23 @@
 
 use std::future::Future;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use opentelemetry::metrics::{Counter, Histogram, Meter, UpDownCounter};
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use parking_lot::RwLock;
 use prometheus::{Encoder, Registry, TextEncoder};
+use tokio::sync::watch;
 
-/// Tick budget is 100 ms; buckets run 1 ms to 500 ms.
-const TICK_BUCKETS: &[f64] = &[0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5];
+use crate::application::session::SessionMetrics;
+use crate::application::zone_actor::TickStats;
+
+/// Tick budget is 100 ms; buckets run 0.25 ms to 500 ms, fine at the low end where a healthy
+/// zone lives so a p99 can be read off them.
+const TICK_BUCKETS: &[f64] = &[
+    0.000_25, 0.000_5, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5,
+];
 /// Database and event-log latencies.
 const IO_BUCKETS: &[f64] = &[
     0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 1.0,
@@ -65,13 +72,15 @@ type SharedSource = Arc<RwLock<Option<Arc<dyn OutboxStatsSource>>>>;
 /// All instruments. Cloning is cheap (handles are reference counted).
 #[derive(Clone)]
 pub struct Metrics {
-    /// Wall time of one simulation tick. No producer until the tick loop exists.
+    /// Wall time of one simulation tick, recorded from the zone actor's `TickStats` by
+    /// [`record_tick_stats`].
     pub tick_duration_seconds: Histogram<f64>,
-    /// Connected sessions. Increment on connect, decrement on disconnect. No producer yet.
+    /// Connected sessions; the session actor moves it on start and end.
     pub sessions_active: UpDownCounter<i64>,
-    /// WebSocket frames by direction. No producer yet.
+    /// WebSocket frames by direction: counted when read from and written to a socket.
     pub ws_frames_total: Counter<u64>,
-    /// Frames dropped because a client queue was full. No producer yet.
+    /// Frames dropped because a session's outbound queue was full (the session is then closed
+    /// with 4429).
     pub ws_dropped_frames_total: Counter<u64>,
     /// Time to append one record (or one pipelined audit batch) to the replay log, by
     /// `kind` (`applied`, `snapshot`, `watermark`, `session_in`, `session_out`).
@@ -248,6 +257,40 @@ impl Metrics {
 
     pub(super) fn provider(&self) -> &SdkMeterProvider {
         &self.provider
+    }
+}
+
+impl SessionMetrics for Metrics {
+    fn session_opened(&self) {
+        self.sessions_active.add(1, &[]);
+    }
+
+    fn session_closed(&self) {
+        self.sessions_active.add(-1, &[]);
+    }
+
+    fn frames_in(&self, n: u64) {
+        self.record_ws_frames(FrameDirection::In, n);
+    }
+
+    fn frames_out(&self, n: u64) {
+        self.record_ws_frames(FrameDirection::Out, n);
+    }
+
+    fn frames_dropped(&self, n: u64) {
+        self.ws_dropped_frames_total.add(n, &[]);
+    }
+}
+
+/// Records every tick's duration from the zone actor's stats watch into
+/// `tick_duration_seconds` until the zone stops. A watch keeps only the latest value, so a
+/// recorder that falls more than a tick behind skips samples; at 10 Hz it does not.
+pub async fn record_tick_stats(mut stats: watch::Receiver<TickStats>, metrics: Metrics) {
+    while stats.changed().await.is_ok() {
+        let micros = stats.borrow_and_update().duration_micros;
+        metrics
+            .tick_duration_seconds
+            .record(Duration::from_micros(micros).as_secs_f64(), &[]);
     }
 }
 

@@ -24,7 +24,8 @@
 //!                        bytes sha256 = 3; }  // SHA-256 of the Outputs bytes; when SHA256
 //! message Outputs { repeated Output items = 1; }
 //! message Output { oneof item { Spawn spawn = 1; Move move = 2; Despawn despawn = 3;
-//!                               Disposition rejected = 4; } }
+//!                               Disposition rejected = 4; Accepted accepted = 5; } }
+//! message Accepted { uint32 seq = 1; uint64 tick = 2; uint64 ordinal = 3; }
 //! message SessionIn  { bytes session = 1; uint64 seq = 2; uint32 zone = 3; uint64 epoch = 4;
 //!                      uint64 tick_seen = 5; int64 recv_unix_ms = 6; bytes frame = 7; }
 //! message SessionOut { bytes session = 1; uint32 zone = 2; uint64 epoch = 3; uint64 tick = 4;
@@ -188,7 +189,7 @@ struct PbOutputs {
 
 #[derive(Clone, PartialEq, Message)]
 struct PbOutput {
-    #[prost(oneof = "PbOutputItem", tags = "1, 2, 3, 4")]
+    #[prost(oneof = "PbOutputItem", tags = "1, 2, 3, 4, 5")]
     item: Option<PbOutputItem>,
 }
 
@@ -202,6 +203,18 @@ enum PbOutputItem {
     Despawn(PbDespawnEvent),
     #[prost(message, tag = "4")]
     Rejected(PbDisposition),
+    #[prost(message, tag = "5")]
+    Accepted(PbAccepted),
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbAccepted {
+    #[prost(uint64, tag = "3")]
+    ordinal: u64,
+    #[prost(uint32, tag = "1")]
+    seq: u32,
+    #[prost(uint64, tag = "2")]
+    tick: u64,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -462,6 +475,11 @@ const fn kind_to_pb(k: EntityKind) -> i32 {
 
 fn output_to_pb(o: &ObserverOutput) -> PbOutput {
     let item = match o {
+        ObserverOutput::Accepted { ordinal, seq, tick } => PbOutputItem::Accepted(PbAccepted {
+            ordinal: ordinal.0,
+            seq: *seq,
+            tick: tick.0,
+        }),
         ObserverOutput::Rejected(d) => PbOutputItem::Rejected(disposition_to_pb(d)),
         ObserverOutput::Event(ZoneEvent::EntitySpawn {
             tick,
@@ -682,6 +700,11 @@ fn kind_from_pb(v: i32) -> Result<EntityKind, CodecError> {
 
 fn output_from_pb(o: PbOutput) -> Result<ObserverOutput, CodecError> {
     Ok(match o.item {
+        Some(PbOutputItem::Accepted(a)) => ObserverOutput::Accepted {
+            ordinal: Ordinal(a.ordinal),
+            seq: a.seq,
+            tick: Tick(a.tick),
+        },
         None => return Err(CodecError("output without an item".to_owned())),
         Some(PbOutputItem::Rejected(d)) => ObserverOutput::Rejected(disposition_from_pb(d)?),
         Some(PbOutputItem::Spawn(s)) => ObserverOutput::Event(ZoneEvent::EntitySpawn {

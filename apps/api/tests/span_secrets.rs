@@ -89,3 +89,36 @@ async fn play_ticket_never_appears_in_spans_or_logs() {
     assert!(!logged.contains(&secret), "play ticket leaked:\n{logged}");
     assert!(!logged.contains("SENTINEL-TICKET"), "raw ticket bytes leaked:\n{logged}");
 }
+
+#[tokio::test]
+async fn play_ticket_on_the_ws_upgrade_never_appears_in_spans_or_logs() {
+    const SENTINEL: [u8; 32] = *b"SENTINEL-WS-TICKET-never-log-42!";
+    let secret = PlayTicket::from_bytes(SENTINEL).encode();
+
+    let capture = Capture::default();
+    let _guard = capture.install();
+
+    let app = TestApp::spawn_with(|deps| {
+        deps.secrets = std::sync::Arc::new(FixedSecretGenerator(SENTINEL));
+    })
+    .await;
+    let p = common::ws::seed_player(&app, "Aria", 10.0, 10.0);
+    let issued = common::ws::ticket(&app, &p).await;
+    assert_eq!(issued, secret, "the sentinel really was issued");
+
+    // Admitted, then refused as consumed: both paths that read the header.
+    let mut ws = common::ws::connect(&app, &secret).await.expect("admitted");
+    ws.send(&common::ws::stop_move(1)).await;
+    ws.until(|m| common::ws::ack(m).is_some()).await;
+    assert_eq!(common::ws::connect(&app, &secret).await.err(), Some(401));
+    ws.close().await;
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    let logged = capture.text();
+    assert!(
+        logged.contains("\"http.path\":\"/ws\"") && logged.contains("ws.session"),
+        "ws spans not captured, test is vacuous:\n{logged}"
+    );
+    assert!(!logged.contains(&secret), "play ticket leaked:\n{logged}");
+    assert!(!logged.contains("SENTINEL-WS"), "raw ticket bytes leaked:\n{logged}");
+}

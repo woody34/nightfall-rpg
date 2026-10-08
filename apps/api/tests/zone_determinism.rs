@@ -134,6 +134,7 @@ fn assert_output_order(t: &AppliedTick) {
     for out in t.outputs.values() {
         let rank = |o: &ObserverOutput| match o {
             ObserverOutput::Rejected(d) => (0, d.ordinal.0, None),
+            ObserverOutput::Accepted { ordinal, .. } => (0, ordinal.0, None),
             ObserverOutput::Event(ZoneEvent::EntityDespawn { entity, .. }) => (1, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, .. }) => (2, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntityMove { entity, .. }) => (3, 0, Some(*entity)),

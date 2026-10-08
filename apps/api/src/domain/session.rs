@@ -82,6 +82,12 @@ impl TicketHash {
     }
 }
 
+crate::domain::ids::uuid_id!(
+    /// Identity of one WebSocket session, minted at upgrade. Keys the per-session audit log;
+    /// never a metric label.
+    SessionId
+);
+
 /// Per-account admission counter. Every issued ticket bumps it; a ticket (and, in Epic 4, a
 /// socket) carrying an older generation than the account's current one has been superseded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

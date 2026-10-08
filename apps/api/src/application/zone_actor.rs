@@ -34,9 +34,10 @@ use thiserror::Error;
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::time::MissedTickBehavior;
 
+use super::trace::TraceCarrier;
 use crate::domain::zone::{
-    AppliedTick, CommandSource, EntityId, Tick, TickError, ZoneInput, ZoneSnapshot, ZoneState,
-    TICK_MS,
+    AppliedTick, CommandSource, EntityId, Ordinal, Tick, TickError, ZoneInput, ZoneSnapshot,
+    ZoneState, TICK_MS,
 };
 
 /// Capacity of the inbound queue. When full, [`ZoneHandle::send`] fails with
@@ -236,10 +237,18 @@ pub enum ZoneSendError {
 #[error("zone actor has stopped")]
 pub struct ActorStopped;
 
+/// An input on the queue, with the trace it was sent from (plan §8 #18). The carrier never
+/// reaches the draft, the state or the log: it only parents the actor's `zone.apply` span.
+#[derive(Debug)]
+struct Queued {
+    input: ZoneInput,
+    trace: Option<TraceCarrier>,
+}
+
 /// Cheap, cloneable access to a running zone.
 #[derive(Debug, Clone)]
 pub struct ZoneHandle {
-    commands: mpsc::Sender<ZoneInput>,
+    commands: mpsc::Sender<Queued>,
     snapshots: mpsc::Sender<oneshot::Sender<ZoneSnapshot>>,
     ticks: broadcast::Sender<Arc<AppliedTick>>,
     stats: watch::Receiver<TickStats>,
@@ -251,12 +260,36 @@ impl ZoneHandle {
     /// in the order sent. Refused with [`ZoneSendError::Paused`] while the gate reports the
     /// zone paused.
     pub fn send(&self, input: ZoneInput) -> Result<(), ZoneSendError> {
+        self.enqueue(Queued { input, trace: None })
+    }
+
+    /// [`Self::send`], continuing the trace in `trace`: the actor records a `zone.apply` span
+    /// parented on it when the command is applied, so one intent is one trace from socket to
+    /// broadcast.
+    pub fn send_traced(&self, input: ZoneInput, trace: TraceCarrier) -> Result<(), ZoneSendError> {
+        self.enqueue(Queued {
+            input,
+            trace: Some(trace),
+        })
+    }
+
+    /// Queues an input, waiting for room if the queue is full. For lifecycle commands
+    /// (spawn, replace, despawn) that must not be lost to a momentary burst; player intents
+    /// use [`Self::send`] and are refused with `OVERLOADED` instead.
+    pub async fn send_wait(&self, input: ZoneInput) -> Result<(), ActorStopped> {
+        self.commands
+            .send(Queued { input, trace: None })
+            .await
+            .map_err(|_| ActorStopped)
+    }
+
+    fn enqueue(&self, q: Queued) -> Result<(), ZoneSendError> {
         if *self.paused.borrow() {
-            return Err(ZoneSendError::Paused(input));
+            return Err(ZoneSendError::Paused(q.input));
         }
-        self.commands.try_send(input).map_err(|e| match e {
-            mpsc::error::TrySendError::Full(i) => ZoneSendError::Full(i),
-            mpsc::error::TrySendError::Closed(i) => ZoneSendError::Closed(i),
+        self.commands.try_send(q).map_err(|e| match e {
+            mpsc::error::TrySendError::Full(q) => ZoneSendError::Full(q.input),
+            mpsc::error::TrySendError::Closed(q) => ZoneSendError::Closed(q.input),
         })
     }
 
@@ -297,11 +330,11 @@ pub struct ZoneActor<T, G> {
     state: ZoneState,
     ticks: T,
     gate: G,
-    commands: mpsc::Receiver<ZoneInput>,
+    commands: mpsc::Receiver<Queued>,
     commands_closed: bool,
     snapshots: mpsc::Receiver<oneshot::Sender<ZoneSnapshot>>,
     waiting_snapshots: Vec<oneshot::Sender<ZoneSnapshot>>,
-    pending: VecDeque<ZoneInput>,
+    pending: VecDeque<Queued>,
     /// A tick that ran but whose record the gate has not admitted yet. While set, no new tick
     /// is drafted and no snapshot is taken.
     unrecorded: Option<Arc<AppliedTick>>,
@@ -427,10 +460,21 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let admitted = self.select_admitted();
         let inputs: Vec<ZoneInput> = admitted
             .iter()
-            .filter_map(|i| self.pending.get(*i).cloned())
+            .filter_map(|i| self.pending.get(*i).map(|q| q.input.clone()))
             .collect();
         let draft = self.state.draft(inputs);
         let tick = draft.tick;
+        // Draft order is admitted order, so the n-th command is the n-th admitted input.
+        let traces: Vec<(Ordinal, TraceCarrier)> = draft
+            .commands
+            .iter()
+            .zip(&admitted)
+            .filter_map(|(c, i)| {
+                let trace = self.pending.get(*i)?.trace.clone()?;
+                Some((c.ordinal, trace))
+            })
+            .collect();
+
         let applied = draft.commands.len();
         let mut index = 0_usize;
         let mut next_admitted = admitted.iter().peekable();
@@ -440,6 +484,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             keep
         });
         let record = self.state.run_tick(draft).map_err(|e| (tick, e))?;
+        trace_applied(&record, &traces);
         Ok((Arc::new(record), applied))
     }
 
@@ -447,7 +492,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     fn collect(&mut self) {
         while self.pending.len() < PENDING_LIMIT {
             match self.commands.try_recv() {
-                Ok(input) => self.pending.push_back(input),
+                Ok(queued) => self.pending.push_back(queued),
                 Err(mpsc::error::TryRecvError::Empty) => break,
                 Err(mpsc::error::TryRecvError::Disconnected) => {
                     self.commands_closed = true;
@@ -461,8 +506,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     fn select_admitted(&self) -> Vec<usize> {
         let mut per_session: BTreeMap<EntityId, usize> = BTreeMap::new();
         let mut admitted = Vec::new();
-        for (i, input) in self.pending.iter().enumerate() {
-            if let CommandSource::Session { entity, .. } = input.source {
+        for (i, queued) in self.pending.iter().enumerate() {
+            if let CommandSource::Session { entity, .. } = queued.input.source {
                 let used = per_session.entry(entity).or_default();
                 if *used >= SESSION_COMMANDS_PER_TICK {
                     continue;
@@ -484,6 +529,23 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             commands_deferred: self.pending.len(),
             gate_holds: self.gate_holds,
         });
+    }
+}
+
+/// One `zone.apply` span per traced command, parented on the span it was sent from, with the
+/// tick and whether it was accepted. The sending session continues the same trace when it
+/// delivers the response (`ws.deliver`).
+fn trace_applied(record: &AppliedTick, traces: &[(Ordinal, TraceCarrier)]) {
+    for (ordinal, trace) in traces {
+        let accepted = !record.dispositions.iter().any(|d| d.ordinal == *ordinal);
+        let span = tracing::info_span!(
+            parent: trace.span(),
+            "zone.apply",
+            tick = record.tick.0,
+            ordinal = ordinal.0,
+            accepted,
+        );
+        span.in_scope(|| tracing::debug!("zone command applied"));
     }
 }
 
