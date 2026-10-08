@@ -3,7 +3,8 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+
+use crate::domain::ids::uuid_id;
 
 use super::command::SessionGeneration;
 use super::fixed::{Speed, Vec2Fixed};
@@ -40,16 +41,10 @@ impl fmt::Display for Tick {
     }
 }
 
-/// Identity of an entity in a zone. Players use their character id; NPCs get one at spawn.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct EntityId(pub Uuid);
-
-impl fmt::Display for EntityId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
+uuid_id!(
+    /// Identity of an entity in a zone. Players use their character id; NPCs get one at spawn.
+    EntityId
+);
 
 /// What an entity is. Mirrors `nightfall.v1.EntityKind` minus `UNSPECIFIED`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

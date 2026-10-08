@@ -8,6 +8,7 @@
 pub mod account;
 pub mod character;
 pub mod events;
+pub(crate) mod ids;
 pub mod session;
 pub mod zone;
 

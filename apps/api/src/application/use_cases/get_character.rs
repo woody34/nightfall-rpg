@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::application::{AppError, CharacterRepository};
+use crate::application::{parse_id, AppError, CharacterRepository};
 use crate::domain::{AccountId, Character, CharacterId};
 
 /// The get-character use case.
@@ -24,9 +24,7 @@ impl GetCharacter {
     /// `InvalidArgument` for a malformed id, `NotFound`, or `PermissionDenied` when the
     /// character belongs to another account.
     pub async fn execute(&self, caller: AccountId, raw_id: &str) -> Result<Character, AppError> {
-        let id: CharacterId = raw_id
-            .parse()
-            .map_err(|_| AppError::InvalidArgument("character_id must be a UUID".into()))?;
+        let id: CharacterId = parse_id("character_id", raw_id)?;
         let character = self
             .characters
             .get(id)

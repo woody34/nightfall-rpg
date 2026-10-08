@@ -9,7 +9,7 @@ pub mod ports;
 pub mod use_cases;
 pub mod zone_actor;
 
-pub use error::AppError;
+pub use error::{parse_id, AppError};
 pub use ports::{
     AccountRepository, CharacterRepository, Clock, CreateOutcome, EventBus, IdempotencyKey,
     SecretGenerator, SessionRepository, TokenVerifier,

@@ -3,8 +3,8 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
+use super::ids::uuid_id;
 use super::AccountId;
 
 /// Playable races. Mirrors `nightfall.v1.Race` minus `UNSPECIFIED`, which is a transport
@@ -131,49 +131,10 @@ impl BaseStats {
     }
 }
 
-/// Newtype over the character's UUID (v7, time-ordered, so it indexes well in Postgres).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CharacterId(Uuid);
-
-impl CharacterId {
-    /// Generates a fresh time-ordered id.
-    #[must_use]
-    pub fn new() -> Self {
-        Self(Uuid::now_v7())
-    }
-
-    /// Wraps an existing UUID (from storage or the wire).
-    #[must_use]
-    pub const fn from_uuid(id: Uuid) -> Self {
-        Self(id)
-    }
-
-    /// The underlying UUID.
-    #[must_use]
-    pub const fn as_uuid(&self) -> Uuid {
-        self.0
-    }
-}
-
-impl Default for CharacterId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl fmt::Display for CharacterId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl std::str::FromStr for CharacterId {
-    type Err = uuid::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Uuid::parse_str(s).map(Self)
-    }
-}
+uuid_id!(
+    /// Newtype over the character's UUID (v7, time-ordered, so it indexes well in Postgres).
+    CharacterId
+);
 
 /// Why a name was rejected.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -303,6 +264,8 @@ impl Character {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
 
     #[test]

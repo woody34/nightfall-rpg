@@ -39,7 +39,7 @@ fn fresh(epoch: u64) -> ZoneState {
 }
 
 fn id(n: u8) -> EntityId {
-    EntityId(Uuid::from_u128(u128::from(n) + 1))
+    EntityId::from_uuid(Uuid::from_u128(u128::from(n) + 1))
 }
 
 fn point() -> impl Strategy<Value = Vec2Fixed> {

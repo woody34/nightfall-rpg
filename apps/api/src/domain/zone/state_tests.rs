@@ -23,7 +23,7 @@ fn zone() -> ZoneState {
 }
 
 fn id(n: u128) -> EntityId {
-    EntityId(Uuid::from_u128(n))
+    EntityId::from_uuid(Uuid::from_u128(n))
 }
 
 fn run(z: &mut ZoneState, inputs: Vec<ZoneInput>) -> AppliedTick {
@@ -143,7 +143,7 @@ fn npc_ids_come_from_the_seeded_rng() {
     assert_eq!(a, ids(7));
     assert_ne!(a, ids(8));
     assert_ne!(a[0], a[1]);
-    assert_eq!(a[0].0.get_version_num(), 4);
+    assert_eq!(a[0].as_uuid().get_version_num(), 4);
 }
 
 #[test]
@@ -368,7 +368,7 @@ fn replacement_fences_the_old_session_and_resends_the_aoi() {
     assert_eq!(reasons(&t), vec![RejectReason::NotAPlayer]);
 }
 
-const NIL: EntityId = EntityId(Uuid::nil());
+const NIL: EntityId = EntityId::from_uuid(Uuid::nil());
 
 #[test]
 fn aoi_diffs_spawn_and_despawn_as_entities_cross_cells() {

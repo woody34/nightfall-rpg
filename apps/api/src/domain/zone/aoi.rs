@@ -199,8 +199,8 @@ mod tests {
 
     #[test]
     fn index_tracks_moves_across_cell_edges() {
-        let a = EntityId(Uuid::from_u128(1));
-        let b = EntityId(Uuid::from_u128(2));
+        let a = EntityId::from_uuid(Uuid::from_u128(1));
+        let b = EntityId::from_uuid(Uuid::from_u128(2));
         let mut idx = AoiIndex::default();
         idx.insert(a, at(31_999, 0));
         idx.insert(b, at(100_000, 0));

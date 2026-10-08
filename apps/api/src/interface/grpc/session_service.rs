@@ -6,7 +6,7 @@ use super::pb::session_service_server::{SessionService, SessionServiceServer};
 use super::pb::{IssuePlayTicketRequest, IssuePlayTicketResponse};
 use super::{auth, status::to_status};
 use crate::application::use_cases::{IssuePlayTicket, IssuePlayTicketInput};
-use crate::application::IdempotencyKey;
+use crate::application::{parse_id, IdempotencyKey};
 use crate::domain::CharacterId;
 
 /// `SessionService` implementation.
@@ -38,10 +38,8 @@ impl SessionService for SessionServiceImpl {
         let req = req.into_inner();
         let idempotency_key = IdempotencyKey::parse(&req.idempotency_key)
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
-        let character_id: CharacterId = req
-            .character_id
-            .parse()
-            .map_err(|_| Status::invalid_argument("character_id must be a UUID"))?;
+        let character_id: CharacterId =
+            parse_id("character_id", &req.character_id).map_err(to_status)?;
         let issued = self
             .issue_play_ticket
             .execute(IssuePlayTicketInput {
