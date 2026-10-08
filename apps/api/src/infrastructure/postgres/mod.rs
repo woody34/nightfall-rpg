@@ -9,6 +9,7 @@ pub mod entities;
 mod idempotency;
 mod migrations;
 mod session_repository;
+mod zone_snapshot_store;
 
 pub use account_repository::PgAccountRepository;
 pub use character_repository::PgCharacterRepository;
@@ -18,6 +19,7 @@ use sea_orm_migration::MigratorTrait;
 pub use session_repository::PgSessionRepository;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Connection, PgPool};
+pub use zone_snapshot_store::PgZoneSnapshotStore;
 
 /// Wraps the shared sqlx pool in a `SeaORM` connection. Cheap; both views share connections.
 #[must_use]

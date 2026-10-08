@@ -143,3 +143,95 @@ groups:
             type: gt
             params:
             - 30
+  - uid: nf-zone-paused
+    title: Zone paused (replay log unavailable)
+    condition: C
+    for: 0s
+    noDataState: OK
+    execErrState: Error
+    isPaused: false
+    labels:
+      severity: dev
+      service: nightfall-api
+    annotations:
+      summary: '{{ $values.B.Value }} zone(s) paused'
+      description: A zone could not get its tick records acknowledged by JetStream for longer than
+        the gate's max stall, so it stopped advancing and refuses inputs as OVERLOADED. Check NATS.
+    dashboardUid: nightfall-api
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: sum(nightfall_zones_paused)
+        instant: true
+        range: false
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: dropNN
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 0
+  - uid: nf-audit-dropped
+    title: Session audit frames dropped
+    condition: C
+    for: 0s
+    noDataState: OK
+    execErrState: Error
+    isPaused: false
+    labels:
+      severity: dev
+      service: nightfall-api
+    annotations:
+      summary: '{{ $values.B.Value }} audit frames dropped in 5 m'
+      description: The session audit log (NF_SESSIONS) fell behind or JetStream refused frames.
+        Replay is unaffected (it uses the zone log), but the audit trail has a gap.
+    dashboardUid: nightfall-api
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: sum(increase(nightfall_eventlog_audit_dropped_total[5m]))
+        instant: true
+        range: false
+    - refId: B
+      datasourceUid: __expr__
+      model:
+        refId: B
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: dropNN
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: B
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 0

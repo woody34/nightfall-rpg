@@ -21,13 +21,15 @@ pub struct JetStreamPublisher {
 }
 
 impl JetStreamPublisher {
-    /// Creates the `NF_EVENTS` stream (subjects `nightfall.>`) if it does not exist.
+    /// Creates (or updates to this configuration) the `NF_EVENTS` stream. Its subjects are
+    /// `nightfall.*.*`, exactly the `nightfall.<aggregate>.<event>` shape, so it never overlaps
+    /// the replay log's `NF_ZONES` (5 tokens) and `NF_SESSIONS` (4 tokens).
     pub async fn connect(client: async_nats::Client) -> anyhow::Result<Self> {
         let context = jetstream::new(client);
         context
-            .get_or_create_stream(stream::Config {
+            .create_or_update_stream(stream::Config {
                 name: EVENTS_STREAM.to_owned(),
-                subjects: vec!["nightfall.>".to_owned()],
+                subjects: vec!["nightfall.*.*".to_owned()],
                 ..Default::default()
             })
             .await

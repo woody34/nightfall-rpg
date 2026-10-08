@@ -2,17 +2,24 @@
 //! [`ZoneInput`]s on a bounded queue, and runs one tick per beat of an injected
 //! [`TickSource`].
 //!
-//! Each tick has two phases (plan §8 #2, #3):
+//! Each tick has three phases (plan §8 #2, #3; architecture.md §2.5):
 //!
 //! 1. **Draft.** Take this tick's inputs in receive order, at most
 //!    [`SESSION_COMMANDS_PER_TICK`] per session (the excess waits, in order, for the next tick),
-//!    and assign them ordinals: an [`AppliedTickDraft`].
-//! 2. **Gate.** Await the injected [`TickGate`]. Story 3.2 makes this the acknowledged
-//!    `JetStream` write of the draft, so nothing is applied that is not durably logged. If the
-//!    gate refuses, nothing is applied, the tick does not advance, and the inputs are retried
-//!    on the next beat.
-//! 3. **Commit.** [`ZoneState::run_tick`] applies the draft, moves entities and diffs every
-//!    player's AOI. The resulting [`AppliedTick`] is broadcast as one batch.
+//!    and assign them ordinals: an [`AppliedTickDraft`](crate::domain::zone::AppliedTickDraft).
+//! 2. **Run.** [`ZoneState::run_tick`] applies the draft, moves entities and diffs every
+//!    player's AOI into an [`AppliedTick`]. Nothing has left the actor yet.
+//! 3. **Gate.** Await the injected [`TickGate`] with the finished record. Story 3.2's
+//!    `DurableTickGate` makes this the acknowledged `JetStream` append of the tick's record,
+//!    so nothing is released that is not durably logged. Only then is the record broadcast.
+//!    If the gate refuses, the record is kept, nothing is broadcast, no later tick is drafted,
+//!    and the same record is offered again on the next beat.
+//!
+//! The gate sees the whole record rather than the draft because the record carries each
+//! player's encoded output, which replay compares byte for byte and which only exists after
+//! the tick has run. Running before the gate is safe: the state lives only in this task, a
+//! snapshot is never taken while a record is unrecorded, and a crash loses the in-memory state
+//! together with the unlogged tick, so the log and everything anyone observed always agree.
 //!
 //! The actor never reads a clock for anything that reaches state or output: tick numbers come
 //! from the state, `server_time_ms` from the zone's time origin. The one clock read is a
@@ -28,8 +35,8 @@ use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::time::MissedTickBehavior;
 
 use crate::domain::zone::{
-    AppliedTick, AppliedTickDraft, CommandSource, EntityId, Tick, ZoneInput, ZoneSnapshot,
-    ZoneState, TICK_MS,
+    AppliedTick, CommandSource, EntityId, Tick, TickError, ZoneInput, ZoneSnapshot, ZoneState,
+    TICK_MS,
 };
 
 /// Capacity of the inbound queue. When full, [`ZoneHandle::send`] fails with
@@ -63,9 +70,10 @@ pub trait TickSource: Send + 'static {
 /// What one beat of the tick source did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TickOutcome {
-    /// The tick ran and its record was broadcast (if not idle).
+    /// The tick ran, the gate admitted its record, and it was broadcast (if not idle).
     Ran(Tick),
-    /// The gate refused the draft; the zone did not advance.
+    /// The gate refused the tick's record: nothing was released and no later tick runs until
+    /// the same record is admitted.
     Held(Tick),
 }
 
@@ -158,31 +166,35 @@ impl TickSource for ManualTicks {
 
 /// Why a tick was not admitted.
 #[derive(Debug, Error)]
-#[error("tick gate refused the draft: {0}")]
+#[error("tick gate refused the record: {0}")]
 pub struct GateError(pub String);
 
-/// Admission control between drafting and applying a tick (plan §8 #2).
+/// Admission control between running a tick and releasing it (plan §8 #2).
 ///
-/// The actor awaits `admit` with the draft before applying anything. `Ok` lets the tick
-/// commit; `Err` holds it: the zone does not advance and the same inputs are drafted again on
-/// the next beat (with the same ordinals, since nothing was consumed). Story 3.2 implements
-/// this as the acknowledged `JetStream` publish of the applied-command record, so the log is
-/// always ahead of the state. Implementations must be quick; the tick budget is 100 ms.
+/// The actor awaits `admit` with the finished record before broadcasting it or drafting the
+/// next tick. `Ok` releases it; `Err` holds it: nothing is broadcast, the zone does not move on,
+/// and the same record is offered again on the next beat. `DurableTickGate`
+/// (`application::replay_log`) implements this as the acknowledged `JetStream` append of the
+/// tick's record, so the log is always ahead of anything observable. A durable gate may also
+/// wait (retrying) inside `admit`; the actor simply stalls. The tick budget is 100 ms.
 pub trait TickGate: Send + Sync + 'static {
-    /// Admits or holds one draft.
-    fn admit(&self, draft: &AppliedTickDraft)
-        -> impl Future<Output = Result<(), GateError>> + Send;
+    /// Admits or holds one tick's record.
+    fn admit(&self, tick: &AppliedTick) -> impl Future<Output = Result<(), GateError>> + Send;
+
+    /// `true` while the zone is degraded (the gate has been unable to admit for longer than
+    /// it tolerates). [`ZoneHandle::send`] refuses inputs with [`ZoneSendError::Paused`] then.
+    /// Default: never paused.
+    fn paused(&self) -> watch::Receiver<bool> {
+        watch::channel(false).1
+    }
 }
 
-/// Admits everything. The default until the event log exists.
+/// Admits everything. For tests and replay, where nothing needs to be logged.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OpenGate;
 
 impl TickGate for OpenGate {
-    fn admit(
-        &self,
-        _draft: &AppliedTickDraft,
-    ) -> impl Future<Output = Result<(), GateError>> + Send {
+    fn admit(&self, _tick: &AppliedTick) -> impl Future<Output = Result<(), GateError>> + Send {
         std::future::ready(Ok(()))
     }
 }
@@ -210,6 +222,10 @@ pub enum ZoneSendError {
     /// The queue is full: tell the client `OVERLOADED` and carry on.
     #[error("zone command queue is full")]
     Full(ZoneInput),
+    /// The zone is paused because its replay log is unavailable: tell the client
+    /// `OVERLOADED`. Nothing is queued, so nothing is applied unlogged.
+    #[error("zone is paused: its replay log is unavailable")]
+    Paused(ZoneInput),
     /// The actor has stopped.
     #[error("zone actor has stopped")]
     Closed(ZoneInput),
@@ -227,12 +243,17 @@ pub struct ZoneHandle {
     snapshots: mpsc::Sender<oneshot::Sender<ZoneSnapshot>>,
     ticks: broadcast::Sender<Arc<AppliedTick>>,
     stats: watch::Receiver<TickStats>,
+    paused: watch::Receiver<bool>,
 }
 
 impl ZoneHandle {
     /// Queues an input for the next tick without waiting. Inputs from one handle are applied
-    /// in the order sent.
+    /// in the order sent. Refused with [`ZoneSendError::Paused`] while the gate reports the
+    /// zone paused.
     pub fn send(&self, input: ZoneInput) -> Result<(), ZoneSendError> {
+        if *self.paused.borrow() {
+            return Err(ZoneSendError::Paused(input));
+        }
         self.commands.try_send(input).map_err(|e| match e {
             mpsc::error::TrySendError::Full(i) => ZoneSendError::Full(i),
             mpsc::error::TrySendError::Closed(i) => ZoneSendError::Closed(i),
@@ -258,6 +279,17 @@ impl ZoneHandle {
     pub fn stats(&self) -> watch::Receiver<TickStats> {
         self.stats.clone()
     }
+
+    /// Whether the zone is currently paused (see [`TickGate::paused`]).
+    #[must_use]
+    pub fn is_paused(&self) -> bool {
+        *self.paused.borrow()
+    }
+
+    /// Resolves once the actor task has ended.
+    pub async fn stopped(&self) {
+        self.commands.closed().await;
+    }
 }
 
 /// The task that owns a zone. Construct with [`ZoneActor::spawn`].
@@ -270,6 +302,9 @@ pub struct ZoneActor<T, G> {
     snapshots: mpsc::Receiver<oneshot::Sender<ZoneSnapshot>>,
     waiting_snapshots: Vec<oneshot::Sender<ZoneSnapshot>>,
     pending: VecDeque<ZoneInput>,
+    /// A tick that ran but whose record the gate has not admitted yet. While set, no new tick
+    /// is drafted and no snapshot is taken.
+    unrecorded: Option<Arc<AppliedTick>>,
     out: broadcast::Sender<Arc<AppliedTick>>,
     stats: watch::Sender<TickStats>,
     gate_holds: u64,
@@ -291,6 +326,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (snap_tx, snap_rx) = mpsc::channel(8);
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
+        let paused = gate.paused();
         let actor = Self {
             state,
             ticks,
@@ -300,6 +336,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             snapshots: snap_rx,
             waiting_snapshots: Vec::new(),
             pending: VecDeque::new(),
+            unrecorded: None,
             out: out_tx.clone(),
             stats: stats_tx,
             gate_holds: 0,
@@ -310,6 +347,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             snapshots: snap_tx,
             ticks: out_tx,
             stats: stats_rx,
+            paused,
         }
     }
 
@@ -328,7 +366,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                     let outcome = self.tick().await;
                     self.ticks.tick_done(outcome);
                     self.answer_snapshots();
-                    if self.commands_closed && self.pending.is_empty() {
+                    if self.commands_closed && self.pending.is_empty() && self.unrecorded.is_none() {
                         break;
                     }
                 },
@@ -337,9 +375,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         tracing::debug!(zone = self.state.seed().zone.0, "zone actor stopped");
     }
 
-    /// Snapshots are only taken at a tick boundary with nothing deferred.
+    /// Snapshots are only taken at a tick boundary with nothing deferred and nothing
+    /// unrecorded.
     fn answer_snapshots(&mut self) {
-        if self.pending.is_empty() && !self.waiting_snapshots.is_empty() {
+        if self.pending.is_empty()
+            && self.unrecorded.is_none()
+            && !self.waiting_snapshots.is_empty()
+        {
             let snap = self.state.snapshot();
             for reply in self.waiting_snapshots.drain(..) {
                 let _ = reply.send(snap.clone());
@@ -351,6 +393,37 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         // Metrics only (see module docs).
         let started = Instant::now();
         self.collect();
+        let (record, applied) = match self.unrecorded.take() {
+            Some(record) => (record, 0),
+            None => match self.run_next() {
+                Ok(ran) => ran,
+                Err((tick, e)) => {
+                    // Unreachable by construction: the draft came from this state just above.
+                    tracing::error!(tick = tick.0, error = %e, "draft did not continue the zone");
+                    self.publish_stats(tick, started, 0);
+                    return TickOutcome::Ran(tick);
+                },
+            },
+        };
+        let tick = record.tick;
+
+        if let Err(e) = self.gate.admit(&record).await {
+            self.gate_holds = self.gate_holds.saturating_add(1);
+            tracing::warn!(tick = tick.0, error = %e, "tick held by gate");
+            self.unrecorded = Some(record);
+            self.publish_stats(tick, started, 0);
+            return TickOutcome::Held(tick);
+        }
+        if !record.is_idle() {
+            // No subscribers is fine: nobody is connected yet.
+            let _ = self.out.send(record);
+        }
+        self.publish_stats(tick, started, applied);
+        TickOutcome::Ran(tick)
+    }
+
+    /// Drafts and runs the next tick, consuming its inputs from `pending`.
+    fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
         let admitted = self.select_admitted();
         let inputs: Vec<ZoneInput> = admitted
             .iter()
@@ -358,13 +431,6 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             .collect();
         let draft = self.state.draft(inputs);
         let tick = draft.tick;
-
-        if let Err(e) = self.gate.admit(&draft).await {
-            self.gate_holds = self.gate_holds.saturating_add(1);
-            tracing::warn!(tick = tick.0, error = %e, "tick held by gate");
-            self.publish_stats(tick, started, 0);
-            return TickOutcome::Held(tick);
-        }
         let applied = draft.commands.len();
         let mut index = 0_usize;
         let mut next_admitted = admitted.iter().peekable();
@@ -373,21 +439,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             index = index.saturating_add(1);
             keep
         });
-
-        match self.state.run_tick(draft) {
-            Ok(record) => {
-                if !record.is_idle() {
-                    // No subscribers is fine: nobody is connected yet.
-                    let _ = self.out.send(Arc::new(record));
-                }
-            },
-            Err(e) => {
-                // Unreachable by construction: the draft came from this state just above.
-                tracing::error!(tick = tick.0, error = %e, "draft did not continue the zone");
-            },
-        }
-        self.publish_stats(tick, started, applied);
-        TickOutcome::Ran(tick)
+        let record = self.state.run_tick(draft).map_err(|e| (tick, e))?;
+        Ok((Arc::new(record), applied))
     }
 
     /// Moves queued inputs into `pending`, up to [`PENDING_LIMIT`].

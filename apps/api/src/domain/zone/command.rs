@@ -299,9 +299,9 @@ pub enum ObserverOutput {
 }
 
 /// Phase one of a tick: this tick's inputs with their ordinals assigned, before anything is
-/// applied. The zone actor hands it to its `TickGate` (Story 3.2 makes that a durable,
-/// acknowledged write) and only then commits it with [`super::ZoneState::run_tick`]. Replay
-/// rebuilds drafts from the log and commits them the same way.
+/// applied. The zone actor commits it with [`super::ZoneState::run_tick`] and hands the
+/// resulting [`AppliedTick`] to its `TickGate` (the durable, acknowledged log append) before
+/// releasing anything. Replay rebuilds drafts from the log and commits them the same way.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppliedTickDraft {
     /// The zone's epoch.

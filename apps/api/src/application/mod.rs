@@ -6,8 +6,10 @@
 
 pub mod error;
 pub mod ports;
+pub mod replay_log;
 pub mod use_cases;
 pub mod zone_actor;
+pub mod zone_bootstrap;
 
 pub use error::AppError;
 pub use ports::{

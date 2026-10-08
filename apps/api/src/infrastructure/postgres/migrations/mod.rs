@@ -9,6 +9,7 @@ use sea_orm_migration::prelude::*;
 mod m20260101_000001_characters;
 mod m20261007_000002_accounts;
 mod m20261007_000003_play_tickets;
+mod m20261007_000004_zone_snapshots;
 
 /// All migrations in application order.
 #[derive(Debug, Clone, Copy)]
@@ -21,6 +22,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260101_000001_characters::Migration),
             Box::new(m20261007_000002_accounts::Migration),
             Box::new(m20261007_000003_play_tickets::Migration),
+            Box::new(m20261007_000004_zone_snapshots::Migration),
         ]
     }
 }

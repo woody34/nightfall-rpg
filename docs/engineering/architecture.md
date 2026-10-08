@@ -43,6 +43,7 @@ The rule, from Kigawas: routers thin, use cases thick, models slim. A handler th
 - `SecretGenerator`: `play_ticket()` (OS CSPRNG in production, fixed in tests).
 - `EventBus`: `publish(&DomainEvent)`.
 - `Clock`: `now()`.
+- `EventLog`, `ZoneSnapshotStore`: the zone replay log and its Postgres epoch index (§2.5).
 
 Adapters are chosen at the composition root and injected as `Arc<dyn Port>` via
 `Dependencies`. Tests build `Dependencies` with in-memory adapters; `main` builds it from
@@ -93,7 +94,7 @@ A process can die between committing a transaction and publishing its event. So:
    publisher of domain events, so there is a single path and no duplicate-publish race.
 3. The relay polls `outbox WHERE published_at IS NULL ORDER BY id LIMIT 100 FOR UPDATE SKIP
    LOCKED` in a transaction (250 ms poll, exponential backoff to 5 s on failure), publishes each
-   row to `JetStream` stream `NF_EVENTS` (`nightfall.>`) and waits for the ack, sending
+   row to `JetStream` stream `NF_EVENTS` (`nightfall.*.*`) and waits for the ack, sending
    `Nats-Msg-Id = outbox.id` so the broker drops a retry after a crash between publish and
    mark. `published_at` is set only after the ack. Several relays can run side by side.
    ``RelayStats` exposes `outbox_pending` and the last publish lag for telemetry.
@@ -112,8 +113,8 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
  session / admission ──ZoneHandle::send(ZoneInput)──▶ mpsc(1024) ──▶ zone actor
                                                                        │ every TickSource beat:
                                                                        │ 1 draft  (ordinals, ≤8/session)
-                                                                       │ 2 TickGate::admit(draft)
-                                                                       │ 3 ZoneState::run_tick
+                                                                       │ 2 ZoneState::run_tick
+                                                                       │ 3 TickGate::admit(tick) (log ack)
  subscribers ◀──broadcast(64) Arc<AppliedTick>─────────────────────────┘
  telemetry   ◀──watch TickStats
 ```
@@ -131,9 +132,11 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
 - **Tick.** `TickSource` drives it: `IntervalTicks` (100 ms, missed beats run back to back) in
   production, `manual_ticks()` for tests and replay. Inputs received before a beat are drafted
   in receive order, up to 8 per session (the excess waits in order), and get consecutive
-  ordinals. The `TickGate` is awaited before anything is applied. `OpenGate` admits everything.
-  Story 3.2's gate is the acknowledged `JetStream` write of the draft. A refused draft holds the
-  tick: nothing is applied and the same inputs are retried on the next beat.
+  ordinals. The tick runs, then the `TickGate` is awaited with the finished `AppliedTick`
+  before anything is broadcast or the next tick is drafted. `OpenGate` admits everything (tests,
+  replay); `DurableTickGate` is the acknowledged `JetStream` append of the tick's record (§2.5).
+  A refused record holds the zone: nothing is released, no snapshot is taken, and the same
+  record is offered again on the next beat. A paused zone refuses `send` with `Paused`.
 - **Output.** `AppliedTick { epoch, tick, server_time_ms, commands, dispositions, events,
   outputs }`. `commands` (with ordinals and sources) is the replay log's unit. `dispositions`
   records every refused command. `events` are the zone-wide facts. `outputs` is each player's
@@ -150,6 +153,71 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
   entity becomes `EntitySpawn` and then `EntityMove`. A stopped entity is sent with
   destination and speed zero. Domain reasons without their own wire value map to `INVALID`,
   with the domain reason in `detail`.
+
+### 2.5 Replay log
+
+Stories 3.2 and 3.4 (plan §8 #2-#6). The zone actor is the **single writer** of its zone's
+replay log; per-session logs are audit only. Code: `application::replay_log` (records, codec,
+`EventLog` port, `DurableTickGate`, `SessionAuditWriter`, `open_epoch`),
+`application::zone_bootstrap`, `infrastructure::eventlog` (`JetStream`, memory),
+`infrastructure::postgres::PgZoneSnapshotStore`.
+
+**Epoch lifecycle.** One epoch per zone run; a restart is a new epoch, numbered one past the
+highest the log or `zone_snapshots` knows. `ZoneBootstrap::start` loads the zone definition
+(`packages/data/zones/*.toml`, hashed into `config_hash`), builds tick 0's state, writes the
+**snapshot** to the log and its row to `zone_snapshots`, and only then builds the gate (it needs
+the `EpochStarted` proof that writing the snapshot returns) and spawns the actor. Starting NPCs
+enter as `SpawnNpc` commands on the first tick, so they are in the applied log too.
+`RunningZone::shutdown` stops the actor after its current tick and writes the **watermark**
+(last acknowledged tick, record count, reason `shutdown` or `epoch_end`).
+
+```
+ nightfall.zone.<zone>.<epoch>.snapshot   ── once, before anything else of the epoch
+ nightfall.zone.<zone>.<epoch>.applied    ── one record per tick, ticks contiguous from the
+                                             snapshot's tick, idle ticks included
+ nightfall.zone.<zone>.<epoch>.watermark  ── once, after the actor stopped
+ nightfall.session.<session>.in / .out    ── audit frames (NF_SESSIONS), best effort
+```
+
+**Streams.** `NF_ZONES` (`nightfall.zone.*.*.*`) and `NF_SESSIONS` (`nightfall.session.*.*`),
+file storage, `max_age` 7 days, created or updated on startup. `NF_EVENTS` is
+`nightfall.*.*` (domain events only), so no two streams overlap. Zone publishes carry
+`Nats-Msg-Id` (`<zone>/<epoch>/<tick>` for records; the subject for snapshot and watermark) and
+the broker drops a retry inside its 2-minute duplicate window. **Retention:** an epoch's
+snapshot and its log live in the same stream and age out together, so an epoch is replayable
+for at least 7 days; `zone_snapshots` rows are kept at least as long.
+
+**Record.** `AppliedTickRecord { zone, epoch, tick, server_time_ms, commands (ordinal, source,
+seq, command), dispositions, outputs }`, where `outputs` is each player's ordered output
+encoded with `encode_outputs`, in entity-id order. Replay re-runs `commands` from the snapshot
+and compares the re-encoded record **byte for byte**. Encoding: protobuf through hand-derived
+`prost` messages (schema in `replay_log/codec.rs`); serde with bincode was rejected because the
+zone's internally tagged serde enums cannot be decoded by non-self-describing formats. The
+snapshot and watermark are canonical JSON (written once per epoch, readable in an incident);
+`zone_snapshots.snapshot` holds the same bytes as the log message, plus
+`jetstream_snapshot_seq`, `jetstream_first_seq` (filled once the first record is acked),
+`time_origin_ms`, `build_id`, `config_hash` and `schema_version`.
+
+**The gate.** `DurableTickGate::admit` appends the tick's record and returns only on the
+`JetStream` ack; the actor releases the tick (broadcast) and drafts the next one only after
+that. The tick runs before the gate because the record contains the outputs; nothing it
+computed is visible until the ack, and a crash loses the in-memory state together with the
+unlogged tick, so the log is always ahead of everything observed. On failure the gate retries
+with exponential backoff (10 ms to 1 s) while the zone stalls, counting
+`eventlog_append_failures_total` and logging a warning per attempt. After `max_stall` (5 s)
+the zone is **paused** (`zones_paused`, alert `nf-zone-paused`): `ZoneHandle::send` returns
+`Paused` and sessions answer `IntentRejected{OVERLOADED}`; it resumes on the next ack. Shutdown
+makes a stalled gate give up, so the watermark names only acknowledged ticks. Measured on the
+dev box: acked append p50 ≈ 0.09 ms idle, ≈ 0.14 ms for a 48 KB busy tick (p99 < 0.5 ms).
+
+**Replay** opens an epoch with `open_epoch`, which refuses one without a watermark
+(`EpochStatus::Incomplete`, e.g. after a crash) or without a snapshot (`Missing`), and checks as
+it streams that ticks are contiguous from the snapshot to the watermark (`Gap`, `Truncated`).
+
+**Audit.** `SessionAuditWriter::record_in / record_out` never block: frames go to a bounded
+buffer (16 Ki) drained in pipelined batches. A full buffer or an unacknowledged frame is
+dropped and counted in `eventlog_audit_dropped_total` (alert `nf-audit-dropped`). Replay never
+depends on these frames.
 
 ## 3. Request lifecycle: `CreateCharacter`
 

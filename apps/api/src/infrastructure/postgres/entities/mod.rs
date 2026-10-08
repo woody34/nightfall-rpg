@@ -8,3 +8,4 @@ pub mod characters;
 pub mod idempotency_keys;
 pub mod outbox;
 pub mod play_tickets;
+pub mod zone_snapshots;

@@ -162,10 +162,7 @@ async fn snapshots_wait_for_a_boundary_without_deferred_commands() {
 struct SwitchGate(Arc<AtomicBool>);
 
 impl TickGate for SwitchGate {
-    fn admit(
-        &self,
-        _draft: &AppliedTickDraft,
-    ) -> impl Future<Output = Result<(), GateError>> + Send {
+    fn admit(&self, _tick: &AppliedTick) -> impl Future<Output = Result<(), GateError>> + Send {
         std::future::ready(if self.0.load(Ordering::SeqCst) {
             Err(GateError("log unavailable".to_owned()))
         } else {
@@ -175,7 +172,7 @@ impl TickGate for SwitchGate {
 }
 
 #[tokio::test]
-async fn a_held_tick_applies_nothing_and_retries_the_same_inputs() {
+async fn a_held_tick_releases_nothing_and_offers_the_same_record_again() {
     let closed = Arc::new(AtomicBool::new(true));
     let (ticks, driver) = manual_ticks();
     let zone = ZoneActor::spawn_gated(state(), ticks, SwitchGate(closed.clone()));
@@ -185,12 +182,61 @@ async fn a_held_tick_applies_nothing_and_retries_the_same_inputs() {
     assert_eq!(driver.step().await, Ok(TickOutcome::Held(Tick(0))));
     assert_eq!(zone.stats().borrow().gate_holds, 2);
     assert!(rx.try_recv().is_err());
+    zone.send(spawn(2)).unwrap();
 
     closed.store(false, Ordering::SeqCst);
     assert_eq!(driver.step().await, Ok(TickOutcome::Ran(Tick(0))));
     let t = rx.recv().await.unwrap();
-    assert_eq!(t.commands.len(), 1);
+    assert_eq!(t.commands.len(), 1, "inputs sent while held wait for the next tick");
     assert_eq!(t.commands[0].ordinal, Ordinal(0));
+    assert_eq!(driver.step().await, Ok(TickOutcome::Ran(Tick(1))));
+    assert_eq!(rx.recv().await.unwrap().commands[0].ordinal, Ordinal(1));
+}
+
+#[tokio::test]
+async fn no_snapshot_is_taken_while_a_record_is_unrecorded() {
+    let closed = Arc::new(AtomicBool::new(true));
+    let (ticks, driver) = manual_ticks();
+    let zone = ZoneActor::spawn_gated(state(), ticks, SwitchGate(closed.clone()));
+    zone.send(spawn(1)).unwrap();
+    driver.step().await.unwrap();
+    let pending = tokio::spawn({
+        let zone = zone.clone();
+        async move { zone.snapshot().await }
+    });
+    tokio::task::yield_now().await;
+    driver.step().await.unwrap();
+    assert!(!pending.is_finished());
+    closed.store(false, Ordering::SeqCst);
+    driver.step().await.unwrap();
+    let snap = pending.await.unwrap().unwrap();
+    assert_eq!((snap.tick, snap.entities.len()), (Tick(1), 1));
+}
+
+/// Reports the zone paused.
+struct PausedGate(watch::Sender<bool>);
+
+impl TickGate for PausedGate {
+    fn admit(&self, _tick: &AppliedTick) -> impl Future<Output = Result<(), GateError>> + Send {
+        std::future::ready(Ok(()))
+    }
+
+    fn paused(&self) -> watch::Receiver<bool> {
+        self.0.subscribe()
+    }
+}
+
+#[tokio::test]
+async fn a_paused_zone_refuses_inputs() {
+    let (ticks, _driver) = manual_ticks();
+    let (tx, _) = watch::channel(false);
+    let zone = ZoneActor::spawn_gated(state(), ticks, PausedGate(tx.clone()));
+    zone.send(spawn(1)).unwrap();
+    tx.send_replace(true);
+    assert!(zone.is_paused());
+    assert!(matches!(zone.send(spawn(2)), Err(ZoneSendError::Paused(_))));
+    tx.send_replace(false);
+    zone.send(spawn(2)).unwrap();
 }
 
 #[tokio::test]

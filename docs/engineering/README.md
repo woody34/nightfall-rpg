@@ -6,7 +6,7 @@ How we build Nightfall. These are binding for every contribution; the planning d
 | Document | Covers |
 |----------|--------|
 | [rust-guidelines.md](rust-guidelines.md) | The Rust standard: what is enforced as code (rustfmt, clippy, workspace lints, cargo-deny) and what is reviewed by hand. |
-| [architecture.md](architecture.md) | Clean architecture layers, the event-bus core on NATS, command vs event, the transactional outbox. |
+| [architecture.md](architecture.md) | Clean architecture layers, the event-bus core on NATS, command vs event, the transactional outbox, the zone actor and its replay log. |
 | [api-guidelines.md](api-guidelines.md) | Endpoint rules: idempotency, error mapping, and the test every endpoint must ship with. |
 | [telemetry](#telemetry) | Logs, traces, metrics, dashboards and alerts: what exists and the rules for adding to it. |
 | [database-guidelines.md](database-guidelines.md) | Postgres rules: atomic transactions, schema conventions, pooling, migrations, maintenance. |
@@ -50,6 +50,21 @@ The stack is OpenTelemetry end to end with Grafana LGTM (`grafana/otel-lgtm`, st
   carries a `TraceCarrier` so the trace stays whole.
 - **Log with `tracing`**, structured fields over formatted strings. Logs go to stdout and, over
   OTLP, to Loki.
+
+## Replay log
+
+Binding rules for anything that changes zone state (architecture.md §2.5):
+
+- **Logged before visible.** Nothing a zone tick produced is broadcast, and no later tick runs,
+  until that tick's record is acknowledged by `JetStream`. Never bypass `DurableTickGate` in
+  production; `OpenGate` is for tests and replay only.
+- **Every change is a command in the applied log.** Starting content, joins, leaves and
+  replacements are `ZoneCommand`s, never direct state edits, so the log is a complete input
+  history. The log is never sampled.
+- **Snapshot first, watermark last.** An epoch's snapshot precedes its first record (enforced
+  by `EpochStarted`); replay refuses an epoch without a watermark.
+- **Record formats are append-only.** Never renumber a protobuf tag or reject reason in
+  `replay_log/codec.rs`; bump `SNAPSHOT_SCHEMA_VERSION` on any snapshot change.
 
 ## Sources
 

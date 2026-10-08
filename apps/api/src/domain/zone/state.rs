@@ -129,7 +129,7 @@ impl ZoneBounds {
 }
 
 /// Provenance of a snapshot. Placeholders until the build pipeline and config loader fill
-/// them (Story 3.4); replay compares them and warns on mismatch.
+/// them; replay compares them and warns on mismatch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SnapshotMeta {
     /// [`SNAPSHOT_SCHEMA_VERSION`] at the time of writing.
@@ -138,7 +138,9 @@ pub struct SnapshotMeta {
     pub build_id: String,
     /// Hash of the zone configuration (bounds, spawn tables) the epoch ran with.
     pub config_hash: String,
-    /// `JetStream` sequence of the epoch's first applied-tick record, once Story 3.2 logs them.
+    /// `JetStream` sequence of the epoch's first applied-tick record. `None` in the epoch-start
+    /// snapshot, which is published before that record exists; the `zone_snapshots` row
+    /// carries it (`jetstream_first_seq`) once the first record is acknowledged.
     pub first_log_seq: Option<u64>,
 }
 

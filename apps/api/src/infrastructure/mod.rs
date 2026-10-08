@@ -7,14 +7,18 @@
 //! * `telemetry`: tracing subscriber, OpenTelemetry export, metric catalogue.
 //! * `outbox`: relay from the `outbox` table to `JetStream`; the only publisher of domain events.
 //! * `secrets`: the OS random source for play tickets.
+//! * `eventlog`: the zone replay log on `JetStream` (and in memory).
+//! * `zone_data`: zone definitions from `packages/data/zones/`.
 
 pub mod auth;
+pub mod eventlog;
 pub mod memory;
 pub mod nats;
 pub mod outbox;
 pub mod postgres;
 pub mod secrets;
 pub mod telemetry;
+pub mod zone_data;
 
 use chrono::{DateTime, Utc};
 
