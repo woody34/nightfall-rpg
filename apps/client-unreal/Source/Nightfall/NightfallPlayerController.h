@@ -34,6 +34,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Nightfall")
 	float UnitsPerTile = 100.f;
 
+	/** Distance from the pawn's origin down to the ground (capsule half height), for the plane fallback. */
+	UPROPERTY(EditDefaultsOnly, Category = "Nightfall")
+	float GroundOffset = 96.f;
+
+public:
+	/**
+	 * The click path after the raycast: previews the move locally and sends MoveTo with the
+	 * destination converted from world cm to tiles. Returns the intent's seq (0 if not sent).
+	 */
+	uint32 MoveToWorldLocation(const FVector& Target);
+
 private:
 	void OnClickMove();
 };

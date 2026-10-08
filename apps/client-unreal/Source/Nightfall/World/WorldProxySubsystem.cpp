@@ -42,6 +42,10 @@ void UWorldProxySubsystem::HandleSpawn(const FEntitySpawn& Spawn)
 {
 	if (Entities.Contains(Spawn.EntityId)) return;
 	UWorld* World = GetWorld();
+	// The player's own entity is the controlled pawn (UOwnEntityComponent), not a proxy.
+	const UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+	const UNetClientSubsystem* Net = GI ? GI->GetSubsystem<UNetClientSubsystem>() : nullptr;
+	if (Net && Net->IsOwnEntity(Spawn.EntityId)) return;
 	if (!World || !EntityClass) 
 	{
 		UE_LOG(LogNightfall, Warning, TEXT("EntityClass not set; cannot spawn %s"), *Spawn.EntityId);

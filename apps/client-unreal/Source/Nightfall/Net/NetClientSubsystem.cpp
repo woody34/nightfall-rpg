@@ -164,12 +164,15 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 	if (Msg.Ack.IsSet())
 	{
 		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Ack->Seq);
+		UE_LOG(LogNightfall, Verbose, TEXT("ws: ack seq %u (applies on tick %llu)"), Msg.Ack->Seq, Msg.Ack->Tick);
+		OnIntentAck.Broadcast(*Msg.Ack);
 	}
 	if (Msg.Rejected.IsSet())
 	{
 		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Rejected->Seq);
 		UE_LOG(LogNightfall, Warning, TEXT("ws: intent %u rejected (reason %u): %s"),
 			Msg.Rejected->Seq, Msg.Rejected->Reason, *Msg.Rejected->Detail);
+		OnIntentRejected.Broadcast(*Msg.Rejected);
 	}
 	if (Msg.Event.IsSet())
 	{
@@ -204,6 +207,8 @@ uint32 UNetClientSubsystem::SendMoveTo(const FNetVec2& Destination)
 	FClientMessage Msg;
 	Msg.Seq = ++NextSeq;
 	Msg.MoveTo = FMoveToIntent{ Destination };
+	UE_LOG(LogNightfall, Verbose, TEXT("ws: send MoveTo seq %u to tile (%.2f, %.2f)%s"),
+		Msg.Seq, Destination.X, Destination.Y, bConnected ? TEXT("") : TEXT(" [not connected: dropped]"));
 	Send(Msg);
 	return Msg.Seq;
 }

@@ -7,6 +7,7 @@
 class UCameraComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
+class UOwnEntityComponent;
 
 /**
  * The local player's pawn: a capsule with a placeholder body and a fixed top-down camera, walked
@@ -28,4 +29,8 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Nightfall")
 	TObjectPtr<UStaticMeshComponent> Body;
+
+	/** Reconciles this pawn with the server's view of the player's own entity. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Nightfall")
+	TObjectPtr<UOwnEntityComponent> OwnEntity;
 };
