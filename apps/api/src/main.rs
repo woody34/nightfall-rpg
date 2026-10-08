@@ -100,7 +100,7 @@ async fn build_dependencies(
         let conn = infrastructure::postgres::connect(url).await?;
         deps.characters = Arc::new(
             infrastructure::postgres::PgCharacterRepository::new(conn.clone())
-                .with_metrics(metrics),
+                .with_metrics(metrics.clone()),
         );
         db = Some(conn);
     } else {
@@ -115,7 +115,7 @@ async fn build_dependencies(
             // deduplicated by outbox row id.
             let client = async_nats::connect(url).await?;
             let publisher = JetStreamPublisher::connect(client).await?;
-            relay = Some(OutboxRelay::spawn(db, Arc::new(publisher), shutdown.clone()));
+            relay = Some(OutboxRelay::spawn(db, Arc::new(publisher), &metrics, shutdown.clone()));
             tracing::info!("outbox relay started");
         }
     } else {

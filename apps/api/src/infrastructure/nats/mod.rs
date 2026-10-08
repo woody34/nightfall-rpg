@@ -5,6 +5,20 @@ use async_trait::async_trait;
 use crate::application::EventBus;
 use crate::domain::DomainEvent;
 
+/// `host:port` of each server in a (possibly comma-separated) NATS URL, with userinfo, scheme,
+/// path and query dropped, so it is safe to log. Unparseable entries become `<invalid>`.
+#[must_use]
+pub fn redact_servers(url: &str) -> String {
+    url.split(',')
+        .map(|part| {
+            part.trim()
+                .parse::<async_nats::ServerAddr>()
+                .map_or_else(|_| "<invalid>".to_owned(), |a| format!("{}:{}", a.host(), a.port()))
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 /// Publishes domain events as JSON on `nightfall.<aggregate>.<event>` subjects.
 #[derive(Clone)]
 pub struct NatsEventBus {
@@ -15,7 +29,7 @@ impl NatsEventBus {
     /// Connects to `url` (e.g. `nats://localhost:4222`).
     pub async fn connect(url: &str) -> anyhow::Result<Self> {
         let client = async_nats::connect(url).await?;
-        tracing::info!(url, "connected to NATS");
+        tracing::info!(servers = %redact_servers(url), "connected to NATS");
         Ok(Self { client })
     }
 
@@ -38,5 +52,21 @@ impl EventBus for NatsEventBus {
         let payload = serde_json::to_vec(event)?;
         self.client.publish(event.subject(), payload.into()).await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn redaction_keeps_only_host_and_port() {
+        assert_eq!(redact_servers("nats://user:s3cret@nats.internal:4223"), "nats.internal:4223");
+        assert_eq!(redact_servers("nats://tok3n@localhost"), "localhost:4222");
+        assert_eq!(
+            redact_servers("nats://a:b@one:1,nats://c:d@two:2"),
+            "one:1,two:2"
+        );
+        assert_eq!(redact_servers("not a url ://"), "<invalid>");
     }
 }

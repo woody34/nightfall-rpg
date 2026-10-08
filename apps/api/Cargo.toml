@@ -16,7 +16,6 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "nightfall-api"
-default-run = "nightfall-api"
 path = "src/main.rs"
 
 [dependencies]

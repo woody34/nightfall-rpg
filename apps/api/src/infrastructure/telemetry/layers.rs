@@ -108,6 +108,27 @@ pub fn record_account_id(account_id: uuid::Uuid) {
     Span::current().record("account_id", field::display(account_id));
 }
 
+/// Every RPC the server implements, as `(service, method)`. Keep in sync with
+/// `packages/proto/nightfall/v1/*.proto`; `tests/metrics.rs` exercises both services.
+const KNOWN_RPCS: &[(&str, &str)] = &[
+    ("nightfall.v1.GameService", "Ping"),
+    ("nightfall.v1.GameService", "GetCharacter"),
+    ("nightfall.v1.GameService", "CreateCharacter"),
+    ("nightfall.v1.GameService", "ListMyCharacters"),
+    ("nightfall.v1.SessionService", "IssuePlayTicket"),
+];
+
+/// Maps a request path (`/pkg.Service/Method`) to its fixed `(service, method)` labels, or
+/// `None` for anything that is not a real RPC. Paths are client-controlled, so only these
+/// constants may become metric labels or span names; everything else is bucketed as `unknown`.
+fn known_rpc(path: &str) -> Option<(&'static str, &'static str)> {
+    let (service, method) = path.strip_prefix('/')?.split_once('/')?;
+    KNOWN_RPCS
+        .iter()
+        .find(|(s, m)| *s == service && *m == method)
+        .copied()
+}
+
 /// Tower layer for the tonic server. See the module docs.
 #[derive(Clone)]
 pub struct GrpcTelemetryLayer {
@@ -164,9 +185,7 @@ where
         let mut inner = std::mem::replace(&mut self.inner, clone);
         let metrics = self.metrics.clone();
 
-        let path = req.uri().path().trim_start_matches('/');
-        let (service, method) = path.rsplit_once('/').unwrap_or(("unknown", path));
-        let (service, method) = (service.to_owned(), method.to_owned());
+        let (service, method) = known_rpc(req.uri().path()).unwrap_or(("unknown", "unknown"));
         let span = tracing::info_span!(
             "grpc.request",
             otel.kind = "server",
@@ -194,11 +213,42 @@ where
                         .map_or(tonic::Code::Ok, tonic::Code::from);
                     let code = format!("{code:?}");
                     span.record("rpc.grpc.status_code", code.as_str());
-                    metrics.record_grpc(&service, &method, &code);
+                    metrics.record_grpc(service, method, &code);
                     Ok(res)
                 }
             }
             .instrument(span),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_paths_map_to_fixed_labels() {
+        assert_eq!(
+            known_rpc("/nightfall.v1.GameService/Ping"),
+            Some(("nightfall.v1.GameService", "Ping"))
+        );
+    }
+
+    #[test]
+    fn everything_else_is_unknown() {
+        for path in [
+            "",
+            "/",
+            "/Ping",
+            "/nightfall.v1.GameService",
+            "/nightfall.v1.GameService/",
+            "/nightfall.v1.GameService/Nope",
+            "/nightfall.v1.GameService/Ping/extra",
+            "/other.Service/Ping",
+            "nightfall.v1.GameService/Ping",
+            "/random-4f1c9a/xyz",
+        ] {
+            assert_eq!(known_rpc(path), None, "{path}");
+        }
     }
 }

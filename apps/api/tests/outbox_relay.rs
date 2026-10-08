@@ -19,6 +19,7 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use nightfall_api::infrastructure::outbox::{JetStreamPublisher, OutboxPublisher, OutboxRelay};
 use nightfall_api::infrastructure::postgres::{connection_from_pool, Migrator};
+use nightfall_api::infrastructure::telemetry::Metrics;
 use parking_lot::Mutex;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigratorTrait;
@@ -109,7 +110,7 @@ async fn failed_publish_leaves_row_unpublished_then_retries() {
         ..Default::default()
     });
     let token = CancellationToken::new();
-    let relay = OutboxRelay::spawn(db, publisher.clone(), token.clone());
+    let relay = OutboxRelay::spawn(db, publisher.clone(), &Metrics::detached(), token.clone());
 
     // First attempt fails: the row must still be pending.
     tokio::time::timeout(Duration::from_secs(5), async {
@@ -124,7 +125,7 @@ async fn failed_publish_leaves_row_unpublished_then_retries() {
     // Backoff elapses, retry succeeds, row is marked.
     wait_until_drained(&pool).await;
     assert_eq!(*publisher.published.lock(), vec![id]);
-    assert!(relay.stats().last_publish_lag_seconds() >= 0.0);
+    assert!(relay.stats().oldest_pending_age_seconds().abs() < f64::EPSILON);
     assert_eq!(relay.stats().pending(), 0);
     stop(relay, token).await;
 }
@@ -144,8 +145,8 @@ async fn concurrent_relays_never_double_publish() {
         ..Default::default()
     });
     let token = CancellationToken::new();
-    let a = OutboxRelay::spawn(db.clone(), publisher.clone(), token.clone());
-    let b = OutboxRelay::spawn(db, publisher.clone(), token.clone());
+    let a = OutboxRelay::spawn(db.clone(), publisher.clone(), &Metrics::detached(), token.clone());
+    let b = OutboxRelay::spawn(db, publisher.clone(), &Metrics::detached(), token.clone());
     wait_until_drained(&pool).await;
     stop(a, token.clone()).await;
     stop(b, token).await;
@@ -171,7 +172,7 @@ async fn staged_row_is_published_to_jetstream_and_marked() {
 
     let publisher = Arc::new(JetStreamPublisher::connect(client).await.unwrap());
     let token = CancellationToken::new();
-    let relay = OutboxRelay::spawn(db, publisher, token.clone());
+    let relay = OutboxRelay::spawn(db, publisher, &Metrics::detached(), token.clone());
     let msg = tokio::time::timeout(Duration::from_secs(10), sub.next())
         .await
         .unwrap()
@@ -203,7 +204,7 @@ async fn crash_after_publish_before_mark_is_deduped_and_row_ends_marked() {
 
     // Restart: the retry carries the same Nats-Msg-Id, so the broker drops it.
     let token = CancellationToken::new();
-    let relay = OutboxRelay::spawn(db, publisher, token.clone());
+    let relay = OutboxRelay::spawn(db, publisher, &Metrics::detached(), token.clone());
     wait_until_drained(&pool).await;
     stop(relay, token).await;
 
@@ -216,4 +217,65 @@ async fn crash_after_publish_before_mark_is_deduped_and_row_ends_marked() {
     let mut subjects = stream.info_with_subjects(&subject).await.unwrap();
     let (_, stored) = subjects.next().await.unwrap().unwrap();
     assert_eq!(stored, 1, "the retried publish must be deduplicated by the broker");
+}
+
+/// Value of the unlabelled-by-us gauge `name` in a Prometheus exposition.
+fn gauge(text: &str, name: &str) -> f64 {
+    text.lines()
+        .find(|l| l.starts_with(name))
+        .and_then(|l| l.rsplit(' ').next())
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_else(|| panic!("{name} not found in:\n{text}"))
+}
+
+async fn wait_for_gauge(metrics: &Metrics, name: &str, ok: impl Fn(f64) -> bool) -> f64 {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let v = gauge(&metrics.render().unwrap(), name);
+            if ok(v) {
+                return v;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("{name} never reached the expected value"))
+}
+
+/// Production wiring: `OutboxRelay::spawn` registers its stats on the exported `Metrics`, so
+/// the Prometheus exposition (the same instruments OTLP exports) shows the real outbox state.
+#[tokio::test]
+async fn gauges_track_a_stalled_relay_even_while_publishes_fail_then_reset_when_drained() {
+    let Some((pool, db)) = migrated().await else {
+        return;
+    };
+    for _ in 0..2 {
+        stage(&pool, "nightfall.test.gauges").await;
+    }
+    // Backdate so the expected lag is far above scheduling noise.
+    sqlx::query("UPDATE outbox SET created_at = now() - interval '40 seconds'")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let metrics = Metrics::detached();
+    let publisher = Arc::new(FakePublisher {
+        fail_first: 4,
+        ..Default::default()
+    });
+    let token = CancellationToken::new();
+    let relay = OutboxRelay::spawn(db, publisher.clone(), &metrics, token.clone());
+
+    // Broker is failing: rows stay pending and the lag is the oldest row's age, not zero.
+    let pending = wait_for_gauge(&metrics, "nightfall_outbox_pending", |v| v >= 2.0).await;
+    assert!((pending - 2.0).abs() < f64::EPSILON);
+    let lag = gauge(&metrics.render().unwrap(), "nightfall_outbox_lag_seconds");
+    assert!((40.0..70.0).contains(&lag), "lag {lag}");
+    assert!(publisher.published.lock().is_empty());
+
+    // Broker recovers: the outbox drains and both gauges return to zero.
+    wait_until_drained(&pool).await;
+    wait_for_gauge(&metrics, "nightfall_outbox_pending", |v| v == 0.0).await;
+    wait_for_gauge(&metrics, "nightfall_outbox_lag_seconds", |v| v == 0.0).await;
+    stop(relay, token).await;
 }

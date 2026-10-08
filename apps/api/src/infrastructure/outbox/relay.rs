@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,18 +14,20 @@ use tokio_util::sync::CancellationToken;
 
 use super::OutboxPublisher;
 use crate::infrastructure::postgres::entities::outbox;
+use crate::infrastructure::telemetry::{Metrics, OutboxStats, OutboxStatsSource};
 
 const BATCH_SIZE: u64 = 100;
 const POLL_INTERVAL: Duration = Duration::from_millis(250);
 const MAX_BACKOFF: Duration = Duration::from_secs(5);
 
-/// Relay gauges, readable from any thread. The telemetry epic maps these onto
-/// `outbox_pending` and `outbox_lag_seconds`.
+/// Relay gauges, readable from any thread; they back `outbox_pending` and
+/// `outbox_lag_seconds` (see [`OutboxStatsSource`]).
 #[derive(Debug, Default)]
 pub struct RelayStats {
     pending: AtomicU64,
-    /// Lag of the most recent publish, in microseconds (age of the row when it was sent).
-    last_lag_micros: AtomicU64,
+    /// Creation time (unix microseconds) of the oldest unpublished row; 0 when none. Lag is
+    /// derived from it when read, so it keeps growing even if the relay is stuck mid-poll.
+    oldest_pending_micros: AtomicI64,
 }
 
 impl RelayStats {
@@ -35,10 +37,25 @@ impl RelayStats {
         self.pending.load(Ordering::Relaxed)
     }
 
-    /// Seconds between a row being staged and the relay publishing it, for the last row sent.
+    /// Age in seconds of the oldest unpublished row; 0 when the outbox is empty.
     #[must_use]
-    pub fn last_publish_lag_seconds(&self) -> f64 {
-        self.last_lag_micros.load(Ordering::Relaxed) as f64 / 1_000_000.0
+    pub fn oldest_pending_age_seconds(&self) -> f64 {
+        match self.oldest_pending_micros.load(Ordering::Relaxed) {
+            0 => 0.0,
+            created => {
+                let age = Utc::now().timestamp_micros().saturating_sub(created).max(0);
+                age as f64 / 1_000_000.0
+            },
+        }
+    }
+}
+
+impl OutboxStatsSource for RelayStats {
+    fn snapshot(&self) -> OutboxStats {
+        OutboxStats {
+            pending: self.pending(),
+            lag_seconds: self.oldest_pending_age_seconds(),
+        }
     }
 }
 
@@ -49,14 +66,17 @@ pub struct OutboxRelay {
 }
 
 impl OutboxRelay {
-    /// Spawns the relay. It runs until `shutdown` is cancelled.
+    /// Spawns the relay and registers its stats as the source of `metrics`' outbox gauges.
+    /// It runs until `shutdown` is cancelled.
     #[must_use]
     pub fn spawn(
         db: DatabaseConnection,
         publisher: Arc<dyn OutboxPublisher>,
+        metrics: &Metrics,
         shutdown: CancellationToken,
     ) -> Self {
         let stats = Arc::new(RelayStats::default());
+        metrics.set_outbox_source(stats.clone());
         let task = tokio::spawn(run(db, publisher, shutdown, stats.clone()));
         Self { stats, task }
     }
@@ -127,9 +147,6 @@ async fn relay_batch(
         match publisher.publish(&row.subject, row.id, payload).await {
             Ok(()) => {
                 done.push(row.id);
-                let lag = Utc::now().signed_duration_since(row.created_at);
-                let micros = u64::try_from(lag.num_microseconds().unwrap_or(0)).unwrap_or(0);
-                stats.last_lag_micros.store(micros, Ordering::Relaxed);
             },
             Err(e) => {
                 failure = Some(e.context(format!("publish outbox row {}", row.id)));
@@ -147,11 +164,20 @@ async fn relay_batch(
     }
     tx.commit().await?;
 
-    let pending = outbox::Entity::find()
-        .filter(outbox::Column::PublishedAt.is_null())
-        .count(db)
+    // Refreshed on every poll, including ones that hit a publish failure, so a stalled relay
+    // shows a growing lag and a drained outbox shows zero.
+    let unpublished = outbox::Entity::find().filter(outbox::Column::PublishedAt.is_null());
+    let oldest = unpublished
+        .clone()
+        .order_by_asc(outbox::Column::Id)
+        .one(db)
         .await?;
+    let pending = unpublished.count(db).await?;
     stats.pending.store(pending, Ordering::Relaxed);
+    stats.oldest_pending_micros.store(
+        oldest.map_or(0, |r| r.created_at.timestamp_micros().max(1)),
+        Ordering::Relaxed,
+    );
 
     match failure {
         Some(e) => Err(e),
