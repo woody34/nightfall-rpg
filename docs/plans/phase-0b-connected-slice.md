@@ -127,7 +127,7 @@ About four weeks of focused work. Stories marked S can run as parallel sessions 
 
 | # | Risk | Mitigation |
 |---|------|------------|
-| R1 | TurboLink's last release (v1.4.2, 2025-11-24) targets UE 5.6 and 5.7; 5.8 and the Linux clang-20 toolchain are unverified | Story 6.1 first task is a spike: build the sample project on 5.8 Linux in one day. If it fails, fall back to vendoring grpc++ (plan B, +1 week) or to HTTP/JSON for unary calls (plan C, the rejected D3 alternative). |
+| R1 | TurboLink's last release (v1.4.2, 2025-11-24) targets UE 5.6 and 5.7; 5.8 and the Linux clang-20 toolchain are unverified | Story 6.1 first task is a spike: build the sample project on 5.8 Linux in one day. If it fails, fall back to vendoring grpc++ (plan B, +1 week) or to HTTP/JSON for unary calls (plan C, the rejected D3 alternative). **Retired 2026-10-08:** the Story 6.1 spike built TurboLink v1.4.2 on UE 5.8.3 Linux / clang 20 and Ping round-trips; see the spike log in `apps/client-unreal/README.md`. Residual: TurboLink uses an API deprecated in 5.8, so it needs a patch before the next engine upgrade. |
 | R2 | Determinism leaks (floats, HashMap iteration order, time reads) | `domain/zone` denies float arithmetic by lint; `BTreeMap` only; all time comes from `Tick`; replay test in CI on a fixture session. |
 | R3 | JetStream publish latency on the tick path | Fire-and-forget through a bounded channel on a separate task; dropped-frame metric; replay reports gaps explicitly. |
 | R4 | Keycloak device flow UX in Unreal | Fallback: paste-a-token developer login behind a config flag for local work. |

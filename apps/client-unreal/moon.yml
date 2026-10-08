@@ -13,15 +13,36 @@ dependsOn:
 # UE builds are driven by the engine's own tooling. These wrap it so `moon run client-unreal:build`
 # works on a machine with the engine installed. They are not run in CI (no engine there yet).
 tasks:
+  # Submodule, TurboLink's prebuilt gRPC/protobuf libraries (~900 MB, cached) and the links that
+  # compile Source/Nightfall/Generated inside the TurboLinkGrpc module. Fast when already done.
+  setup:
+    command: 'bash Scripts/setup-turbolink.sh'
+    preset: 'utility'
   build-editor:
     command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh NightfallEditor Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex"'
+    deps: ['~:setup']
     preset: 'utility'
   build:
     command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh Nightfall Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex"'
+    deps: ['~:setup']
+    preset: 'utility'
+  # Headless automation tests. Nightfall.Net.SessionClient.Ping needs the API running (api:dev).
+  test-editor:
+    command: 'bash Scripts/run-tests.sh'
+    deps: ['~:build-editor']
     preset: 'utility'
   editor:
     command: 'bash -c "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor $PWD/Nightfall.uproject"'
     preset: 'server'
+  # Regenerates Source/Nightfall/Generated from packages/proto with protoc-gen-turbolink. Builds
+  # the Linux generator tools on first use (Scripts/install-proto-tools.sh, ~10 minutes once).
   gen-proto:
     command: 'bash Scripts/gen-proto.sh'
+    inputs:
+      - '/packages/proto/**/*.proto'
+      - 'Scripts/gen-proto.sh'
+      - 'Scripts/install-proto-tools.sh'
+    outputs:
+      - 'Source/Nightfall/Generated/Public'
+      - 'Source/Nightfall/Generated/Private'
     preset: 'utility'

@@ -21,7 +21,8 @@
 		{ "Name": "ModelViewViewModel", "Enabled": true },
 		{ "Name": "OnlineSubsystem", "Enabled": false },
 		{ "Name": "OnlineSubsystemUtils", "Enabled": false },
-		{ "Name": "GameplayAbilities", "Enabled": false }
+		{ "Name": "GameplayAbilities", "Enabled": false },
+		{ "Name": "TurboLink", "Enabled": true }
 	],
 	"TargetPlatforms": [
 		"Windows",

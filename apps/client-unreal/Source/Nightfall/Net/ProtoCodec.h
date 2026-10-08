@@ -5,10 +5,9 @@
 // Wire types the client sends and receives. Mirrors packages/proto/nightfall/v1/world.proto.
 // The structs here are the client's view; the codec maps them to protobuf bytes.
 //
-// STATUS: ProtoCodec.cpp is a hand-written minimal protobuf wire codec covering only the
-// messages below, so the project builds before protoc-generated code and the protobuf-lite
-// runtime are wired in (Scripts/gen-proto.sh, ThirdParty module). The field numbers are the
-// contract and must match world.proto exactly. Replace the implementation, keep the interface.
+// ProtoCodec.cpp converts these to TurboLink's generated FGrpcNightfallV1* structs and serialises
+// them with protoc-generated code (Scripts/gen-proto.sh) through NightfallWire, which lives in the
+// TurboLinkGrpc module next to the protobuf runtime. Gameplay code keeps using these structs.
 
 struct FNetVec2
 {
@@ -33,6 +32,7 @@ struct FEntitySpawn
 	FString Name;          // 2
 	FNetVec2 Position;     // 3
 	uint32 Kind = 0;       // 4: 1 player, 2 npc
+	uint32 SessionGeneration = 0; // 5: higher replaces an earlier entity of the same account
 };
 
 struct FEntityMove
@@ -42,6 +42,7 @@ struct FEntityMove
 	FNetVec2 Destination;  // 3
 	float Speed = 0.f;     // 4
 	int64 ServerTimeMs = 0;// 5
+	uint64 Tick = 0;       // 6
 };
 
 struct FEntityDespawn
@@ -56,10 +57,24 @@ struct FWorldEvent
 	TOptional<FEntityDespawn> Despawn; // WorldEvent.despawn = 3
 };
 
+struct FAck
+{
+	uint32 Seq = 0;        // 1
+	uint64 Tick = 0;       // 2: tick on which the intent is applied
+};
+
+struct FIntentRejected
+{
+	uint32 Seq = 0;        // 1
+	uint32 Reason = 0;     // 2: nightfall.v1.RejectReason
+	FString Detail;        // 3: for logs only
+};
+
 struct FServerMessage
 {
-	TOptional<uint32> AckSeq;          // ServerMessage.ack = 1 -> Ack.seq = 1
-	TOptional<FWorldEvent> Event;      // ServerMessage.event = 2
+	TOptional<FAck> Ack;                  // ServerMessage.ack = 1
+	TOptional<FWorldEvent> Event;         // ServerMessage.event = 2
+	TOptional<FIntentRejected> Rejected;  // ServerMessage.rejected = 3
 };
 
 namespace NightfallProto

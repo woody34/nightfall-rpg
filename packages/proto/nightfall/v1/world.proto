@@ -19,8 +19,8 @@ import "nightfall/v1/game.proto";
 // Time: the zone runs a fixed 100 ms tick. `server_time_ms = time_origin_ms + tick * 100`;
 // it is derived from the tick, never read from a clock, so replays are byte-identical.
 //
-// Field numbers are mirrored by hand in apps/client-unreal/Source/Nightfall/Net/ProtoCodec.h
-// until protoc-generated C++ replaces it. Never renumber; reserve removed fields.
+// The Unreal client encodes them with generated code (apps/client-unreal/Scripts/gen-proto.sh).
+// Never renumber; reserve removed fields.
 
 // Client-to-server envelope. Exactly one intent is set; a frame with none set is answered
 // with IntentRejected{INVALID}.
