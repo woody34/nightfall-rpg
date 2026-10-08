@@ -107,6 +107,13 @@ impl TestApp {
     /// Like [`TestApp::spawn`], letting the test replace adapters first (a real token
     /// verifier, a fixed secret generator). The in-memory repositories stay observable.
     pub async fn spawn_with(customize: impl FnOnce(&mut Dependencies)) -> Self {
+        Self::spawn_with_zone(customize, crate::common::fixture_zone()).await
+    }
+
+    pub async fn spawn_with_zone(
+        customize: impl FnOnce(&mut Dependencies),
+        state: nightfall_api::domain::zone::ZoneState,
+    ) -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
         let accounts = Arc::new(InMemoryAccountRepository::default());
         let sessions = Arc::new(InMemorySessionRepository::default());
@@ -123,7 +130,9 @@ impl TestApp {
         deps.audit = audit.clone();
         customize(&mut deps);
         let services = build_grpc_services(&deps);
-        let zones = ZoneRegistry::start_fixture(1_000_000, IntervalTicks::new()).unwrap();
+        let zones = ZoneRegistry::from_handle(
+            nightfall_api::application::zone_actor::ZoneActor::spawn(state, IntervalTicks::new()),
+        );
         let zone = zones.fixture().clone();
         let sessions_shutdown = CancellationToken::new();
         let realtime = start_realtime(&deps, zones, sessions_shutdown.clone());
@@ -217,4 +226,8 @@ pub fn account() -> Uuid {
 
 pub fn other_account() -> Uuid {
     Uuid::parse_str(OTHER_ACCOUNT).unwrap()
+}
+
+pub fn fixture_zone() -> nightfall_api::domain::zone::ZoneState {
+    nightfall_api::application::zone_registry::fixture_state(1_000_000).unwrap()
 }

@@ -15,7 +15,11 @@
 //! message Command {
 //!   uint64 ordinal = 1; Session session = 2; optional uint32 seq = 3;
 //!   oneof kind { SpawnPlayer spawn_player = 4; SpawnNpc spawn_npc = 5; EntityRef despawn = 6;
-//!                Replace replace_session = 7; MoveTo move_to = 8; EntityRef stop_move = 9; }
+//!                Replace replace_session = 7; MoveTo move_to = 8; EntityRef stop_move = 9;
+//!                SetTarget set_target = 10; EntityRef attack = 11;
+//!                EntityRef stop_attack = 12; EntityRef respawn = 13; }
+//! }
+//! message SetTarget { bytes entity = 1; optional bytes target = 2;
 //! }
 //! message Disposition { uint64 ordinal = 1; Session session = 2; optional uint32 seq = 3;
 //!                       uint64 tick_seen = 4; Reason reason = 5; }
@@ -24,7 +28,11 @@
 //!                        bytes sha256 = 3; }  // SHA-256 of the Outputs bytes; when SHA256
 //! message Outputs { repeated Output items = 1; }
 //! message Output { oneof item { Spawn spawn = 1; Move move = 2; Despawn despawn = 3;
-//!                               Disposition rejected = 4; Accepted accepted = 5; } }
+//!                               Disposition rejected = 4; Accepted accepted = 5;
+//!                               AttackResult attack_result = 6; EntityDied entity_died = 7;
+//!                               EntityRespawned entity_respawned = 8; StatsChanged stats_changed = 9;
+//!                               XpGained xp_gained = 10; LevelUp level_up = 11;
+//!                               TargetChanged target_changed = 12; } }
 //! message Accepted { uint32 seq = 1; uint64 tick = 2; uint64 ordinal = 3; }
 //! message SessionIn  { bytes session = 1; uint64 seq = 2; uint32 zone = 3; uint64 epoch = 4;
 //!                      uint64 tick_seen = 5; int64 recv_unix_ms = 6; bytes frame = 7; }
@@ -91,7 +99,7 @@ struct PbCommand {
     session: Option<PbSession>,
     #[prost(uint32, optional, tag = "3")]
     seq: Option<u32>,
-    #[prost(oneof = "PbCommandKind", tags = "4, 5, 6, 7, 8, 9")]
+    #[prost(oneof = "PbCommandKind", tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13")]
     kind: Option<PbCommandKind>,
 }
 
@@ -109,6 +117,14 @@ enum PbCommandKind {
     MoveTo(PbMoveTo),
     #[prost(message, tag = "9")]
     StopMove(PbEntityRef),
+    #[prost(message, tag = "10")]
+    SetTarget(PbSetTarget),
+    #[prost(message, tag = "11")]
+    Attack(PbEntityRef),
+    #[prost(message, tag = "12")]
+    StopAttack(PbEntityRef),
+    #[prost(message, tag = "13")]
+    Respawn(PbEntityRef),
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -189,7 +205,7 @@ struct PbOutputs {
 
 #[derive(Clone, PartialEq, Message)]
 struct PbOutput {
-    #[prost(oneof = "PbOutputItem", tags = "1, 2, 3, 4, 5")]
+    #[prost(oneof = "PbOutputItem", tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12")]
     item: Option<PbOutputItem>,
 }
 
@@ -205,6 +221,20 @@ enum PbOutputItem {
     Rejected(PbDisposition),
     #[prost(message, tag = "5")]
     Accepted(PbAccepted),
+    #[prost(message, tag = "6")]
+    AttackResult(PbAttackResult),
+    #[prost(message, tag = "7")]
+    EntityDied(PbEntityDied),
+    #[prost(message, tag = "8")]
+    EntityRespawned(PbEntityRespawned),
+    #[prost(message, tag = "9")]
+    StatsChanged(PbStatsChanged),
+    #[prost(message, tag = "10")]
+    XpGained(PbXpGained),
+    #[prost(message, tag = "11")]
+    LevelUp(PbLevelUp),
+    #[prost(message, tag = "12")]
+    TargetChanged(PbTargetChanged),
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -385,6 +415,14 @@ fn source_to_pb(source: CommandSource) -> Option<PbSession> {
     }
 }
 
+#[derive(Clone, PartialEq, Message)]
+struct PbSetTarget {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(bytes = "vec", optional, tag = "2")]
+    target: Option<Vec<u8>>,
+}
+
 fn command_to_pb(c: &AppliedCommand) -> PbCommand {
     let kind = match &c.command {
         ZoneCommand::SpawnPlayer {
@@ -418,6 +456,19 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             entity: entity_bytes(*entity),
             dest: Some(vec_to_pb(*dest)),
         }),
+        ZoneCommand::SetTarget { entity, target } => PbCommandKind::SetTarget(PbSetTarget {
+            entity: entity_bytes(*entity),
+            target: target.map(entity_bytes),
+        }),
+        ZoneCommand::Attack { entity } => PbCommandKind::Attack(PbEntityRef {
+            entity: entity_bytes(*entity),
+        }),
+        ZoneCommand::StopAttack { entity } => PbCommandKind::StopAttack(PbEntityRef {
+            entity: entity_bytes(*entity),
+        }),
+        ZoneCommand::Respawn { entity } => PbCommandKind::Respawn(PbEntityRef {
+            entity: entity_bytes(*entity),
+        }),
         ZoneCommand::StopMove { entity } => PbCommandKind::StopMove(PbEntityRef {
             entity: entity_bytes(*entity),
         }),
@@ -440,6 +491,12 @@ const fn reason_to_pb(r: RejectReason) -> i32 {
         RejectReason::NotPermitted => 5,
         RejectReason::StaleSession => 6,
         RejectReason::NotAPlayer => 7,
+        RejectReason::DeadActor => 8,
+        RejectReason::NonAttackableTarget => 9,
+        RejectReason::TargetNotInAoi => 10,
+        RejectReason::OutOfRange => 11,
+        RejectReason::Protected => 12,
+        RejectReason::NotYetImplemented => 13,
     }
 }
 
@@ -452,6 +509,13 @@ fn reason_from_pb(v: i32) -> Result<RejectReason, CodecError> {
         5 => RejectReason::NotPermitted,
         6 => RejectReason::StaleSession,
         7 => RejectReason::NotAPlayer,
+        8 => RejectReason::DeadActor,
+        9 => RejectReason::NonAttackableTarget,
+        10 => RejectReason::TargetNotInAoi,
+        11 => RejectReason::OutOfRange,
+        12 => RejectReason::Protected,
+        13 => RejectReason::NotYetImplemented,
+
         other => return Err(CodecError(format!("unknown reject reason {other}"))),
     })
 }
@@ -473,8 +537,182 @@ const fn kind_to_pb(k: EntityKind) -> i32 {
     }
 }
 
+#[derive(Clone, PartialEq, Message)]
+struct PbAttackResult {
+    #[prost(bytes = "vec", tag = "1")]
+    attacker: Vec<u8>,
+    #[prost(bytes = "vec", tag = "2")]
+    target: Vec<u8>,
+    #[prost(uint64, tag = "3")]
+    tick: u64,
+    #[prost(int32, tag = "4")]
+    outcome: i32,
+    #[prost(uint32, tag = "5")]
+    damage: u32,
+    #[prost(uint32, tag = "6")]
+    target_hp_after: u32,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbEntityDied {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(uint64, tag = "2")]
+    tick: u64,
+    #[prost(bytes = "vec", optional, tag = "3")]
+    killer: Option<Vec<u8>>,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbEntityRespawned {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(uint64, tag = "2")]
+    tick: u64,
+    #[prost(message, optional, tag = "3")]
+    position: Option<PbVec>,
+    #[prost(uint32, tag = "4")]
+    hp: u32,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbStatsChanged {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(uint32, tag = "2")]
+    hp: u32,
+    #[prost(uint32, tag = "3")]
+    max_hp: u32,
+    #[prost(uint32, tag = "4")]
+    mp: u32,
+    #[prost(uint32, tag = "5")]
+    max_mp: u32,
+    #[prost(uint32, tag = "6")]
+    level: u32,
+    #[prost(uint64, tag = "7")]
+    tick: u64,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbXpGained {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(uint64, tag = "2")]
+    amount: u64,
+    #[prost(uint64, tag = "3")]
+    total: u64,
+    #[prost(uint64, tag = "4")]
+    tick: u64,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbLevelUp {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(uint32, tag = "2")]
+    level: u32,
+    #[prost(uint64, tag = "3")]
+    tick: u64,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbTargetChanged {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(bytes = "vec", optional, tag = "2")]
+    target: Option<Vec<u8>>,
+    #[prost(uint64, tag = "3")]
+    tick: u64,
+}
+
+#[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn output_to_pb(o: &ObserverOutput) -> PbOutput {
     let item = match o {
+        ObserverOutput::Event(ZoneEvent::AttackResult {
+            attacker,
+            target,
+            tick,
+            outcome,
+            damage,
+            target_hp_after,
+        }) => PbOutputItem::AttackResult(PbAttackResult {
+            attacker: entity_bytes(*attacker),
+            target: entity_bytes(*target),
+            tick: tick.0,
+            outcome: match outcome {
+                crate::domain::zone::AttackOutcome::Miss => 1,
+                crate::domain::zone::AttackOutcome::Hit => 2,
+                crate::domain::zone::AttackOutcome::Crit => 3,
+            },
+            damage: *damage,
+            target_hp_after: *target_hp_after,
+        }),
+        ObserverOutput::Event(ZoneEvent::EntityDied {
+            entity,
+            tick,
+            killer,
+        }) => PbOutputItem::EntityDied(PbEntityDied {
+            entity: entity_bytes(*entity),
+            tick: tick.0,
+            killer: killer.map(entity_bytes),
+        }),
+        ObserverOutput::Event(ZoneEvent::EntityRespawned {
+            entity,
+            tick,
+            position,
+            hp,
+        }) => PbOutputItem::EntityRespawned(PbEntityRespawned {
+            entity: entity_bytes(*entity),
+            tick: tick.0,
+            position: Some(vec_to_pb(*position)),
+            hp: *hp,
+        }),
+        ObserverOutput::Event(ZoneEvent::StatsChanged {
+            entity,
+            hp,
+            max_hp,
+            mp,
+            max_mp,
+            level,
+            tick,
+        }) => PbOutputItem::StatsChanged(PbStatsChanged {
+            entity: entity_bytes(*entity),
+            hp: *hp,
+            max_hp: *max_hp,
+            mp: *mp,
+            max_mp: *max_mp,
+            level: *level,
+            tick: tick.0,
+        }),
+        ObserverOutput::Event(ZoneEvent::XpGained {
+            entity,
+            amount,
+            total,
+            tick,
+        }) => PbOutputItem::XpGained(PbXpGained {
+            entity: entity_bytes(*entity),
+            amount: *amount,
+            total: *total,
+            tick: tick.0,
+        }),
+        ObserverOutput::Event(ZoneEvent::LevelUp {
+            entity,
+            level,
+            tick,
+        }) => PbOutputItem::LevelUp(PbLevelUp {
+            entity: entity_bytes(*entity),
+            level: *level,
+            tick: tick.0,
+        }),
+        ObserverOutput::Event(ZoneEvent::TargetChanged {
+            entity,
+            target,
+            tick,
+        }) => PbOutputItem::TargetChanged(PbTargetChanged {
+            entity: entity_bytes(*entity),
+            target: target.map(entity_bytes),
+            tick: tick.0,
+        }),
         ObserverOutput::Accepted { ordinal, seq, tick } => PbOutputItem::Accepted(PbAccepted {
             ordinal: ordinal.0,
             seq: *seq,
@@ -668,6 +906,19 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
             entity: entity_from(&m.entity)?,
             dest: vec_from(m.dest)?,
         },
+        Some(PbCommandKind::SetTarget(r)) => ZoneCommand::SetTarget {
+            entity: entity_from(&r.entity)?,
+            target: r.target.map(|id| entity_from(&id)).transpose()?,
+        },
+        Some(PbCommandKind::Attack(r)) => ZoneCommand::Attack {
+            entity: entity_from(&r.entity)?,
+        },
+        Some(PbCommandKind::StopAttack(r)) => ZoneCommand::StopAttack {
+            entity: entity_from(&r.entity)?,
+        },
+        Some(PbCommandKind::Respawn(r)) => ZoneCommand::Respawn {
+            entity: entity_from(&r.entity)?,
+        },
         Some(PbCommandKind::StopMove(r)) => ZoneCommand::StopMove {
             entity: entity_from(&r.entity)?,
         },
@@ -700,6 +951,57 @@ fn kind_from_pb(v: i32) -> Result<EntityKind, CodecError> {
 
 fn output_from_pb(o: PbOutput) -> Result<ObserverOutput, CodecError> {
     Ok(match o.item {
+        Some(PbOutputItem::AttackResult(e)) => ObserverOutput::Event(ZoneEvent::AttackResult {
+            attacker: entity_from(&e.attacker)?,
+            target: entity_from(&e.target)?,
+            tick: Tick(e.tick),
+            outcome: match e.outcome {
+                1 => crate::domain::zone::AttackOutcome::Miss,
+                2 => crate::domain::zone::AttackOutcome::Hit,
+                3 => crate::domain::zone::AttackOutcome::Crit,
+                other => return Err(CodecError(format!("unknown attack outcome {other}"))),
+            },
+            damage: e.damage,
+            target_hp_after: e.target_hp_after,
+        }),
+        Some(PbOutputItem::EntityDied(e)) => ObserverOutput::Event(ZoneEvent::EntityDied {
+            entity: entity_from(&e.entity)?,
+            tick: Tick(e.tick),
+            killer: e.killer.map(|id| entity_from(&id)).transpose()?,
+        }),
+        Some(PbOutputItem::EntityRespawned(e)) => {
+            ObserverOutput::Event(ZoneEvent::EntityRespawned {
+                entity: entity_from(&e.entity)?,
+                tick: Tick(e.tick),
+                position: vec_from(e.position)?,
+                hp: e.hp,
+            })
+        },
+        Some(PbOutputItem::StatsChanged(e)) => ObserverOutput::Event(ZoneEvent::StatsChanged {
+            entity: entity_from(&e.entity)?,
+            hp: e.hp,
+            max_hp: e.max_hp,
+            mp: e.mp,
+            max_mp: e.max_mp,
+            level: e.level,
+            tick: Tick(e.tick),
+        }),
+        Some(PbOutputItem::XpGained(e)) => ObserverOutput::Event(ZoneEvent::XpGained {
+            entity: entity_from(&e.entity)?,
+            amount: e.amount,
+            total: e.total,
+            tick: Tick(e.tick),
+        }),
+        Some(PbOutputItem::LevelUp(e)) => ObserverOutput::Event(ZoneEvent::LevelUp {
+            entity: entity_from(&e.entity)?,
+            level: e.level,
+            tick: Tick(e.tick),
+        }),
+        Some(PbOutputItem::TargetChanged(e)) => ObserverOutput::Event(ZoneEvent::TargetChanged {
+            entity: entity_from(&e.entity)?,
+            target: e.target.map(|id| entity_from(&id)).transpose()?,
+            tick: Tick(e.tick),
+        }),
         Some(PbOutputItem::Accepted(a)) => ObserverOutput::Accepted {
             ordinal: Ordinal(a.ordinal),
             seq: a.seq,
@@ -729,4 +1031,142 @@ fn output_from_pb(o: PbOutput) -> Result<ObserverOutput, CodecError> {
             entity: entity_from(&d.entity)?,
         }),
     })
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod combat_tests {
+    use super::*;
+    use crate::domain::zone::AttackOutcome;
+    fn id(n: u128) -> EntityId {
+        EntityId::from_uuid(uuid::Uuid::from_u128(n))
+    }
+
+    #[test]
+    fn attack_result_durable_round_trip() {
+        let event = ObserverOutput::Event(ZoneEvent::AttackResult {
+            attacker: id(1),
+            target: id(2),
+            tick: Tick(31),
+            outcome: AttackOutcome::Crit,
+            damage: 25,
+            target_hp_after: 26,
+        });
+        let encoded = output_to_pb(&event).encode_to_vec();
+        assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    #[test]
+    fn entity_died_durable_round_trip() {
+        let event = ObserverOutput::Event(ZoneEvent::EntityDied {
+            entity: id(1),
+            tick: Tick(31),
+            killer: Some(id(3)),
+        });
+        let encoded = output_to_pb(&event).encode_to_vec();
+        assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    #[test]
+    fn entity_respawned_durable_round_trip() {
+        let event = ObserverOutput::Event(ZoneEvent::EntityRespawned {
+            entity: id(1),
+            tick: Tick(31),
+            position: Vec2Fixed::from_tiles(23, 24),
+            hp: 24,
+        });
+        let encoded = output_to_pb(&event).encode_to_vec();
+        assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    #[test]
+    fn stats_changed_durable_round_trip() {
+        let event = ObserverOutput::Event(ZoneEvent::StatsChanged {
+            tick: Tick(31),
+            entity: id(1),
+            hp: 22,
+            max_hp: 23,
+            mp: 24,
+            max_mp: 25,
+            level: 26,
+        });
+        let encoded = output_to_pb(&event).encode_to_vec();
+        assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    #[test]
+    fn xp_gained_durable_round_trip() {
+        let event = ObserverOutput::Event(ZoneEvent::XpGained {
+            tick: Tick(31),
+            entity: id(1),
+            amount: u64::MAX,
+            total: u64::MAX,
+        });
+        let encoded = output_to_pb(&event).encode_to_vec();
+        assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    #[test]
+    fn level_up_durable_round_trip() {
+        let event = ObserverOutput::Event(ZoneEvent::LevelUp {
+            tick: Tick(31),
+            entity: id(1),
+            level: 22,
+        });
+        let encoded = output_to_pb(&event).encode_to_vec();
+        assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    #[test]
+    fn target_changed_durable_round_trip() {
+        let event = ObserverOutput::Event(ZoneEvent::TargetChanged {
+            tick: Tick(31),
+            entity: id(1),
+            target: Some(id(2)),
+        });
+        let encoded = output_to_pb(&event).encode_to_vec();
+        assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    #[test]
+    fn combat_commands_and_reasons_durable_round_trip() {
+        for command in [
+            ZoneCommand::SetTarget {
+                entity: id(1),
+                target: Some(id(2)),
+            },
+            ZoneCommand::SetTarget {
+                entity: id(1),
+                target: None,
+            },
+            ZoneCommand::Attack { entity: id(1) },
+            ZoneCommand::StopAttack { entity: id(1) },
+            ZoneCommand::Respawn { entity: id(1) },
+        ] {
+            let applied = AppliedCommand {
+                ordinal: Ordinal(7),
+                source: CommandSource::Session {
+                    entity: id(1),
+                    generation: SessionGeneration(3),
+                },
+                seq: Some(5),
+                command,
+            };
+            let encoded = command_to_pb(&applied).encode_to_vec();
+            assert_eq!(
+                command_from_pb(PbCommand::decode(encoded.as_slice()).unwrap()).unwrap(),
+                applied
+            );
+        }
+        for reason in [
+            RejectReason::DeadActor,
+            RejectReason::NonAttackableTarget,
+            RejectReason::TargetNotInAoi,
+            RejectReason::OutOfRange,
+            RejectReason::Protected,
+            RejectReason::NotYetImplemented,
+        ] {
+            assert_eq!(reason_from_pb(reason_to_pb(reason)).unwrap(), reason);
+        }
+    }
 }

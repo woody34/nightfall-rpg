@@ -32,10 +32,10 @@ mod state;
 
 pub use aoi::{aoi_cells_for, AoiCell, AoiIndex, CellCoord, AOI_CELL_TILES};
 pub use command::{
-    AppliedCommand, AppliedTick, AppliedTickDraft, CommandSource, Disposition, ObserverOutput,
-    Ordinal, RejectReason, SessionGeneration, ZoneCommand, ZoneEvent, ZoneInput,
+    AppliedCommand, AppliedTick, AppliedTickDraft, AttackOutcome, CommandSource, Disposition,
+    ObserverOutput, Ordinal, RejectReason, SessionGeneration, ZoneCommand, ZoneEvent, ZoneInput,
 };
-pub use entity::{Entity, EntityId, EntityKind, Tick, TICK_MS};
+pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
 pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
 pub use state::{
     InvalidBounds, RngState, SnapshotError, SnapshotMeta, TickError, ZoneBounds, ZoneId, ZoneSeed,

@@ -31,6 +31,10 @@ message ClientMessage {
   oneof intent {
     MoveToRequest move_to = 10;
     StopMoveRequest stop_move = 11;
+    SetTargetRequest set_target = 12; // select or clear the session actor's target
+    AttackRequest attack = 13;       // enable auto-attack on the current target
+    StopAttackRequest stop_attack = 14; // disable auto-attack
+    RespawnRequest respawn = 15;     // request town respawn for the session actor
   }
 }
 
@@ -45,6 +49,29 @@ message MoveToRequest {
 // accepted (Ack) and emits no event.
 message StopMoveRequest {}
 
+// Select a live attackable NPC in the actor's 3x3-cell AOI; players cannot attack players.
+// Repeating the same selection is a no-op. Clearing/changing cancels a pending swing.
+// Rejections: INVALID (malformed UUID), UNKNOWN_ENTITY, DEAD_ACTOR,
+// NON_ATTACKABLE_TARGET (including dead target), TARGET_NOT_IN_AOI.
+message SetTargetRequest {
+  string entity_id = 1; // target UUID; empty clears selection (nullable target)
+}
+
+// Enable auto-attack on the current target, chase into melee range, then repeat.
+// Repeated enables with a fresh seq must not reset cooldown or create an extra swing.
+// Actor identity is supplied by the session. Attack ends the actor's respawn protection.
+// E2.1 records this command with NOT_YET_IMPLEMENTED; E2.3 supplies combat behaviour.
+message AttackRequest {}
+
+// Disable auto-attack and cancel the pending swing; repeated stops are a no-op.
+// E2.1 records this command with NOT_YET_IMPLEMENTED.
+message StopAttackRequest {}
+
+// Respawn a dead actor at the town safe point: floor(65% maxHP), minimum 1 HP, MP 0,
+// protection for 600 ticks. Repeating must never revive a living actor or charge twice.
+// E2.1 records this command with NOT_YET_IMPLEMENTED; E2.4 supplies respawn behaviour.
+message RespawnRequest {}
+
 // Server-to-client envelope. Per session the server emits one ordered stream of Acks,
 // rejections and world events.
 message ServerMessage {
@@ -56,8 +83,8 @@ message ServerMessage {
 }
 
 // The intent with this `seq` was ACCEPTED and applied on tick `tick`. The Ack is sent with
-// that tick's output, ahead of its events; the effect is visible in the EntityMove stamped
-// with that tick. An accepted intent is never later rejected.
+// that tick's output, ahead of its world events. An idempotent no-op has no event.
+// An accepted intent is never later rejected.
 message Ack {
   uint32 seq = 1;
   uint64 tick = 2;                      // tick on which the intent is applied
@@ -75,10 +102,17 @@ enum RejectReason {
   REJECT_REASON_UNSPECIFIED = 0;
   REJECT_REASON_OUT_OF_BOUNDS = 1;      // destination outside the zone or not finite
   REJECT_REASON_TOO_FAR = 2;            // destination beyond the allowed move distance
-  REJECT_REASON_UNKNOWN_ENTITY = 3;     // the session's entity is not (or no longer) in the zone
+  REJECT_REASON_UNKNOWN_ENTITY = 3;     // actor or selected target is not (or no longer) in the zone
   REJECT_REASON_OVERLOADED = 4;         // server-side queue full; retry later
   REJECT_REASON_RATE_LIMITED = 5;       // more than 30 frames/s on this session
   REJECT_REASON_INVALID = 6;            // malformed: no intent set, oversize, bad field
+  REJECT_REASON_DEAD_ACTOR = 7; // the actor is dead and cannot perform this intent
+  REJECT_REASON_NON_ATTACKABLE_TARGET = 8; // target is dead, a player, or a noncombat NPC
+  REJECT_REASON_TARGET_NOT_IN_AOI = 9; // existing target is outside the actor's 3x3-cell AOI
+  REJECT_REASON_OUT_OF_RANGE = 10; // target is outside melee range at impact; distinct from move TOO_FAR
+  REJECT_REASON_PROTECTED = 11; // target has active respawn protection
+  REJECT_REASON_NOT_YET_IMPLEMENTED = 12; // intent recorded, but its behaviour is not implemented yet
+
 }
 
 message WorldEvent {
@@ -86,6 +120,14 @@ message WorldEvent {
     EntitySpawn spawn = 1;
     EntityMove move = 2;
     EntityDespawn despawn = 3;
+    AttackResult attack_result = 4; // authoritative combat fact
+    EntityDied entity_died = 5; // authoritative combat fact
+    EntityRespawned entity_respawned = 6; // authoritative combat fact
+    StatsChanged stats_changed = 7; // authoritative combat fact
+    XpGained xp_gained = 8; // authoritative combat fact
+    LevelUp level_up = 9; // authoritative combat fact
+    TargetChanged target_changed = 10; // authoritative combat fact
+
   }
 }
 
@@ -119,4 +161,66 @@ message EntityMove {
 
 message EntityDespawn {
   string entity_id = 1;
+}
+
+// Physical attack outcome; a miss consumes no crit or damage-spread roll.
+enum AttackOutcome {
+  ATTACK_OUTCOME_UNSPECIFIED = 0;
+  ATTACK_OUTCOME_MISS = 1;
+  ATTACK_OUTCOME_HIT = 2;
+  ATTACK_OUTCOME_CRIT = 3;
+}
+
+// Authoritative attack result fact; responses precede facts, spawns precede references.
+message AttackResult {
+  string attacker = 1; // attacker UUID
+  string target = 2; // target UUID
+  uint64 tick = 3; // impact tick; 100 ms per tick
+  AttackOutcome outcome = 4; // MISS, HIT or CRIT; UNSPECIFIED is invalid
+  uint32 damage = 5; // whole HP removed; zero on MISS
+  uint32 target_hp_after = 6; // authoritative remaining whole HP after impact
+}
+
+// Authoritative entity died fact; responses precede facts, spawns precede references.
+message EntityDied {
+  string entity = 1; // dead entity UUID
+  uint64 tick = 2; // death tick
+  string killer = 3; // killing entity UUID; empty if no killer
+}
+
+// Authoritative entity respawned fact; responses precede facts, spawns precede references.
+message EntityRespawned {
+  string entity = 1; // respawned entity UUID
+  uint64 tick = 2; // respawn tick
+  Position position = 3; // authoritative safe point in tile units
+  uint32 hp = 4; // restored whole HP
+}
+
+// Authoritative stats changed fact; responses precede facts, spawns precede references.
+message StatsChanged {
+  string entity = 1; // owner UUID; this event is owner-only (MP is private)
+  uint32 hp = 2; // current whole HP, zero when dead
+  uint32 max_hp = 3; // maximum whole HP
+  uint32 mp = 4; // current whole MP
+  uint32 max_mp = 5; // maximum whole MP
+  uint32 level = 6; // current level, including decreases after death
+}
+
+// Authoritative xp gained fact; responses precede facts, spawns precede references.
+message XpGained {
+  string entity = 1; // owner UUID; this event is owner-only
+  uint64 amount = 2; // whole XP actually awarded after the level-85 cap
+  uint64 total = 3; // authoritative cumulative whole XP after award
+}
+
+// Authoritative level up fact; responses precede facts, spawns precede references.
+message LevelUp {
+  string entity = 1; // levelled entity UUID
+  uint32 level = 2; // newly attained level; one event per crossed threshold
+}
+
+// Authoritative target changed fact; responses precede facts, spawns precede references.
+message TargetChanged {
+  string entity = 1; // selecting actor UUID; owner-only
+  string target = 2; // selected target UUID; empty means cleared
 }

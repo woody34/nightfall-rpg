@@ -68,6 +68,15 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
             ObserverOutput::Event(ZoneEvent::EntityDespawn { entity, .. }) => (1, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, .. }) => (2, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntityMove { entity, .. }) => (3, 0, Some(*entity)),
+            ObserverOutput::Event(
+                e @ (ZoneEvent::AttackResult { .. }
+                | ZoneEvent::EntityDied { .. }
+                | ZoneEvent::EntityRespawned { .. }
+                | ZoneEvent::StatsChanged { .. }
+                | ZoneEvent::XpGained { .. }
+                | ZoneEvent::LevelUp { .. }
+                | ZoneEvent::TargetChanged { .. }),
+            ) => (4, 0, Some(e.entity())),
         };
         let ranks: Vec<_> = out.iter().map(rank).collect();
         let mut sorted = ranks.clone();
@@ -627,4 +636,213 @@ fn seed_key_layout_is_fixed() {
     assert_eq!(&key[..20], b"nightfall.zone.rng.1");
     assert_eq!(&key[20..24], &[4, 3, 2, 1]);
     assert_eq!(&key[24..], &[5, 0, 0, 0, 0, 0, 0, 0]);
+}
+
+#[test]
+fn targeting_validates_before_mutation_and_repeats_are_silent() {
+    let mut z = zone();
+    run(
+        &mut z,
+        vec![
+            spawn_player(1, 10, 10),
+            spawn_player(2, 10, 10),
+            ZoneInput::system(ZoneCommand::SpawnNpc {
+                name: "combat fixture".into(),
+                pos: Vec2Fixed::from_tiles(11, 10),
+                speed: Speed::DEFAULT,
+            }),
+        ],
+    );
+    let npc = z
+        .entities
+        .values()
+        .find(|e| e.kind == EntityKind::Npc)
+        .unwrap()
+        .id;
+    let select = |target| {
+        ZoneInput::session(
+            id(1),
+            GEN1,
+            1,
+            ZoneCommand::SetTarget {
+                entity: id(1),
+                target,
+            },
+        )
+    };
+    for (target, reason) in [
+        (id(999), RejectReason::UnknownEntity),
+        (id(2), RejectReason::NonAttackableTarget),
+        (npc, RejectReason::NonAttackableTarget),
+    ] {
+        let before = z.snapshot();
+        let t = run(&mut z, vec![select(Some(target))]);
+        assert_eq!(reasons(&t), vec![reason]);
+        assert!(t.events.is_empty());
+        assert_eq!(before.entities, z.snapshot().entities);
+        assert_eq!(before.rng, z.snapshot().rng);
+    }
+    z.entities.get_mut(&npc).unwrap().targeting.attackable = true;
+    let t = run(&mut z, vec![select(Some(npc)), select(Some(npc))]);
+    assert!(t.dispositions.is_empty());
+    assert_eq!(
+        t.events,
+        vec![ZoneEvent::TargetChanged {
+            tick: t.tick,
+            entity: id(1),
+            target: Some(npc)
+        }]
+    );
+    let out = &t.outputs[&id(1)];
+    assert!(matches!(
+        out.as_slice(),
+        [
+            ObserverOutput::Accepted { .. },
+            ObserverOutput::Accepted { .. },
+            ObserverOutput::Event(ZoneEvent::TargetChanged { .. })
+        ]
+    ));
+    assert!(!t.outputs.contains_key(&id(2)), "selection is owner-only");
+    let restored = ZoneState::from_snapshot(z.snapshot()).unwrap();
+    assert_eq!(restored.entity(id(1)).unwrap().targeting.target, Some(npc));
+    let t = run(&mut z, vec![select(None), select(None)]);
+    assert_eq!(t.events.len(), 1);
+    assert_eq!(z.entity(id(1)).unwrap().targeting.target, None);
+}
+
+#[test]
+fn combat_commands_are_fenced_and_stubs_do_not_change_state_or_rng() {
+    let mut z = zone();
+    run(&mut z, vec![spawn_player(1, 10, 10), spawn_player(2, 10, 10)]);
+    for command in [
+        ZoneCommand::SetTarget {
+            entity: id(1),
+            target: None,
+        },
+        ZoneCommand::Attack { entity: id(1) },
+        ZoneCommand::StopAttack { entity: id(1) },
+        ZoneCommand::Respawn { entity: id(1) },
+    ] {
+        for (actor, generation, reason) in [
+            (id(2), GEN1, RejectReason::NotPermitted),
+            (id(1), SessionGeneration(0), RejectReason::StaleSession),
+        ] {
+            let before = z.snapshot();
+            let t = run(&mut z, vec![ZoneInput::session(actor, generation, 1, command.clone())]);
+            assert_eq!(reasons(&t), vec![reason]);
+            assert_eq!(before.entities, z.snapshot().entities);
+            assert_eq!(before.rng, z.snapshot().rng);
+            assert!(t.events.is_empty());
+        }
+    }
+    for command in [
+        ZoneCommand::Attack { entity: id(1) },
+        ZoneCommand::StopAttack { entity: id(1) },
+        ZoneCommand::Respawn { entity: id(1) },
+    ] {
+        let before = z.snapshot();
+        let t = run(
+            &mut z,
+            vec![
+                ZoneInput::session(id(1), GEN1, 2, command.clone()),
+                ZoneInput::session(id(1), GEN1, 3, command),
+            ],
+        );
+        assert_eq!(reasons(&t), vec![RejectReason::NotYetImplemented; 2]);
+        assert_eq!(t.commands.len(), 2);
+        assert_eq!(before.entities, z.snapshot().entities);
+        assert_eq!(before.rng, z.snapshot().rng);
+        assert!(t.events.is_empty());
+    }
+}
+
+#[test]
+fn combat_validation_rejects_dead_or_missing_actor_and_dead_or_distant_target() {
+    let mut z = zone();
+    run(
+        &mut z,
+        vec![
+            spawn_player(1, 10, 10),
+            ZoneInput::system(ZoneCommand::SpawnNpc {
+                name: "target".into(),
+                pos: Vec2Fixed::from_tiles(11, 10),
+                speed: Speed::DEFAULT,
+            }),
+        ],
+    );
+    let npc = z
+        .entities
+        .values()
+        .find(|e| e.kind == EntityKind::Npc)
+        .unwrap()
+        .id;
+    z.entities.get_mut(&npc).unwrap().targeting.attackable = true;
+    for command in [
+        ZoneCommand::SetTarget {
+            entity: id(1),
+            target: Some(npc),
+        },
+        ZoneCommand::Attack { entity: id(1) },
+        ZoneCommand::StopAttack { entity: id(1) },
+    ] {
+        z.entities.get_mut(&id(1)).unwrap().targeting.dead = true;
+        let before = z.snapshot();
+        let t = run(&mut z, vec![ZoneInput::session(id(1), GEN1, 1, command)]);
+        assert_eq!(reasons(&t), vec![RejectReason::DeadActor]);
+        assert_eq!(before.entities, z.snapshot().entities);
+        assert_eq!(before.rng, z.snapshot().rng);
+        assert!(t.events.is_empty());
+    }
+    let t = run(
+        &mut z,
+        vec![ZoneInput::session(
+            id(1),
+            GEN1,
+            2,
+            ZoneCommand::Respawn { entity: id(1) },
+        )],
+    );
+    assert_eq!(reasons(&t), vec![RejectReason::NotYetImplemented]);
+    assert!(z.entity(id(1)).unwrap().targeting.dead);
+    for command in [
+        ZoneCommand::SetTarget {
+            entity: id(999),
+            target: None,
+        },
+        ZoneCommand::Attack { entity: id(999) },
+        ZoneCommand::StopAttack { entity: id(999) },
+        ZoneCommand::Respawn { entity: id(999) },
+    ] {
+        let t = run(&mut z, vec![ZoneInput::session(id(999), GEN1, 3, command)]);
+        assert_eq!(reasons(&t), vec![RejectReason::UnknownEntity]);
+        assert!(t.events.is_empty());
+    }
+    z.entities.get_mut(&id(1)).unwrap().targeting.dead = false;
+    z.entities.get_mut(&npc).unwrap().targeting.dead = true;
+    let select = ZoneInput::session(
+        id(1),
+        GEN1,
+        4,
+        ZoneCommand::SetTarget {
+            entity: id(1),
+            target: Some(npc),
+        },
+    );
+    let before = z.snapshot();
+    let t = run(&mut z, vec![select.clone()]);
+    assert_eq!(reasons(&t), vec![RejectReason::NonAttackableTarget]);
+    assert_eq!(before.entities, z.snapshot().entities);
+    assert_eq!(before.rng, z.snapshot().rng);
+    assert!(t.events.is_empty());
+    let e = z.entities.get_mut(&npc).unwrap();
+    z.aoi.remove(npc, e.pos);
+    e.pos = Vec2Fixed::from_tiles(200, 10);
+    e.targeting.dead = false;
+    z.aoi.insert(npc, e.pos);
+    let before = z.snapshot();
+    let t = run(&mut z, vec![select]);
+    assert_eq!(reasons(&t), vec![RejectReason::TargetNotInAoi]);
+    assert_eq!(before.entities, z.snapshot().entities);
+    assert_eq!(before.rng, z.snapshot().rng);
+    assert!(t.events.is_empty());
 }

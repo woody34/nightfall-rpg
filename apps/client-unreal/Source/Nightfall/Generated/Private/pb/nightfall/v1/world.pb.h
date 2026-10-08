@@ -63,56 +63,111 @@ namespace v1 {
 class Ack;
 struct AckDefaultTypeInternal;
 extern AckDefaultTypeInternal _Ack_default_instance_;
+class AttackRequest;
+struct AttackRequestDefaultTypeInternal;
+extern AttackRequestDefaultTypeInternal _AttackRequest_default_instance_;
+class AttackResult;
+struct AttackResultDefaultTypeInternal;
+extern AttackResultDefaultTypeInternal _AttackResult_default_instance_;
 class ClientMessage;
 struct ClientMessageDefaultTypeInternal;
 extern ClientMessageDefaultTypeInternal _ClientMessage_default_instance_;
 class EntityDespawn;
 struct EntityDespawnDefaultTypeInternal;
 extern EntityDespawnDefaultTypeInternal _EntityDespawn_default_instance_;
+class EntityDied;
+struct EntityDiedDefaultTypeInternal;
+extern EntityDiedDefaultTypeInternal _EntityDied_default_instance_;
 class EntityMove;
 struct EntityMoveDefaultTypeInternal;
 extern EntityMoveDefaultTypeInternal _EntityMove_default_instance_;
+class EntityRespawned;
+struct EntityRespawnedDefaultTypeInternal;
+extern EntityRespawnedDefaultTypeInternal _EntityRespawned_default_instance_;
 class EntitySpawn;
 struct EntitySpawnDefaultTypeInternal;
 extern EntitySpawnDefaultTypeInternal _EntitySpawn_default_instance_;
 class IntentRejected;
 struct IntentRejectedDefaultTypeInternal;
 extern IntentRejectedDefaultTypeInternal _IntentRejected_default_instance_;
+class LevelUp;
+struct LevelUpDefaultTypeInternal;
+extern LevelUpDefaultTypeInternal _LevelUp_default_instance_;
 class MoveToRequest;
 struct MoveToRequestDefaultTypeInternal;
 extern MoveToRequestDefaultTypeInternal _MoveToRequest_default_instance_;
+class RespawnRequest;
+struct RespawnRequestDefaultTypeInternal;
+extern RespawnRequestDefaultTypeInternal _RespawnRequest_default_instance_;
 class ServerMessage;
 struct ServerMessageDefaultTypeInternal;
 extern ServerMessageDefaultTypeInternal _ServerMessage_default_instance_;
+class SetTargetRequest;
+struct SetTargetRequestDefaultTypeInternal;
+extern SetTargetRequestDefaultTypeInternal _SetTargetRequest_default_instance_;
+class StatsChanged;
+struct StatsChangedDefaultTypeInternal;
+extern StatsChangedDefaultTypeInternal _StatsChanged_default_instance_;
+class StopAttackRequest;
+struct StopAttackRequestDefaultTypeInternal;
+extern StopAttackRequestDefaultTypeInternal _StopAttackRequest_default_instance_;
 class StopMoveRequest;
 struct StopMoveRequestDefaultTypeInternal;
 extern StopMoveRequestDefaultTypeInternal _StopMoveRequest_default_instance_;
+class TargetChanged;
+struct TargetChangedDefaultTypeInternal;
+extern TargetChangedDefaultTypeInternal _TargetChanged_default_instance_;
 class WorldEvent;
 struct WorldEventDefaultTypeInternal;
 extern WorldEventDefaultTypeInternal _WorldEvent_default_instance_;
+class XpGained;
+struct XpGainedDefaultTypeInternal;
+extern XpGainedDefaultTypeInternal _XpGained_default_instance_;
 }  // namespace v1
 }  // namespace nightfall
 PROTOBUF_NAMESPACE_OPEN
 template <>
 ::nightfall::v1::Ack* Arena::CreateMaybeMessage<::nightfall::v1::Ack>(Arena*);
 template <>
+::nightfall::v1::AttackRequest* Arena::CreateMaybeMessage<::nightfall::v1::AttackRequest>(Arena*);
+template <>
+::nightfall::v1::AttackResult* Arena::CreateMaybeMessage<::nightfall::v1::AttackResult>(Arena*);
+template <>
 ::nightfall::v1::ClientMessage* Arena::CreateMaybeMessage<::nightfall::v1::ClientMessage>(Arena*);
 template <>
 ::nightfall::v1::EntityDespawn* Arena::CreateMaybeMessage<::nightfall::v1::EntityDespawn>(Arena*);
 template <>
+::nightfall::v1::EntityDied* Arena::CreateMaybeMessage<::nightfall::v1::EntityDied>(Arena*);
+template <>
 ::nightfall::v1::EntityMove* Arena::CreateMaybeMessage<::nightfall::v1::EntityMove>(Arena*);
+template <>
+::nightfall::v1::EntityRespawned* Arena::CreateMaybeMessage<::nightfall::v1::EntityRespawned>(Arena*);
 template <>
 ::nightfall::v1::EntitySpawn* Arena::CreateMaybeMessage<::nightfall::v1::EntitySpawn>(Arena*);
 template <>
 ::nightfall::v1::IntentRejected* Arena::CreateMaybeMessage<::nightfall::v1::IntentRejected>(Arena*);
 template <>
+::nightfall::v1::LevelUp* Arena::CreateMaybeMessage<::nightfall::v1::LevelUp>(Arena*);
+template <>
 ::nightfall::v1::MoveToRequest* Arena::CreateMaybeMessage<::nightfall::v1::MoveToRequest>(Arena*);
+template <>
+::nightfall::v1::RespawnRequest* Arena::CreateMaybeMessage<::nightfall::v1::RespawnRequest>(Arena*);
 template <>
 ::nightfall::v1::ServerMessage* Arena::CreateMaybeMessage<::nightfall::v1::ServerMessage>(Arena*);
 template <>
+::nightfall::v1::SetTargetRequest* Arena::CreateMaybeMessage<::nightfall::v1::SetTargetRequest>(Arena*);
+template <>
+::nightfall::v1::StatsChanged* Arena::CreateMaybeMessage<::nightfall::v1::StatsChanged>(Arena*);
+template <>
+::nightfall::v1::StopAttackRequest* Arena::CreateMaybeMessage<::nightfall::v1::StopAttackRequest>(Arena*);
+template <>
 ::nightfall::v1::StopMoveRequest* Arena::CreateMaybeMessage<::nightfall::v1::StopMoveRequest>(Arena*);
 template <>
+::nightfall::v1::TargetChanged* Arena::CreateMaybeMessage<::nightfall::v1::TargetChanged>(Arena*);
+template <>
 ::nightfall::v1::WorldEvent* Arena::CreateMaybeMessage<::nightfall::v1::WorldEvent>(Arena*);
+template <>
+::nightfall::v1::XpGained* Arena::CreateMaybeMessage<::nightfall::v1::XpGained>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 
 namespace nightfall {
@@ -125,6 +180,12 @@ enum RejectReason : int {
   REJECT_REASON_OVERLOADED = 4,
   REJECT_REASON_RATE_LIMITED = 5,
   REJECT_REASON_INVALID = 6,
+  REJECT_REASON_DEAD_ACTOR = 7,
+  REJECT_REASON_NON_ATTACKABLE_TARGET = 8,
+  REJECT_REASON_TARGET_NOT_IN_AOI = 9,
+  REJECT_REASON_OUT_OF_RANGE = 10,
+  REJECT_REASON_PROTECTED = 11,
+  REJECT_REASON_NOT_YET_IMPLEMENTED = 12,
   RejectReason_INT_MIN_SENTINEL_DO_NOT_USE_ =
       std::numeric_limits<::int32_t>::min(),
   RejectReason_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -133,8 +194,8 @@ enum RejectReason : int {
 
 bool RejectReason_IsValid(int value);
 constexpr RejectReason RejectReason_MIN = static_cast<RejectReason>(0);
-constexpr RejectReason RejectReason_MAX = static_cast<RejectReason>(6);
-constexpr int RejectReason_ARRAYSIZE = 6 + 1;
+constexpr RejectReason RejectReason_MAX = static_cast<RejectReason>(12);
+constexpr int RejectReason_ARRAYSIZE = 12 + 1;
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
 RejectReason_descriptor();
 template <typename T>
@@ -147,7 +208,7 @@ const std::string& RejectReason_Name(T value) {
 template <>
 inline const std::string& RejectReason_Name(RejectReason value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<RejectReason_descriptor,
-                                                 0, 6>(
+                                                 0, 12>(
       static_cast<int>(value));
 }
 inline bool RejectReason_Parse(absl::string_view name, RejectReason* value) {
@@ -186,6 +247,40 @@ inline const std::string& EntityKind_Name(EntityKind value) {
 inline bool EntityKind_Parse(absl::string_view name, EntityKind* value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<EntityKind>(
       EntityKind_descriptor(), name, value);
+}
+enum AttackOutcome : int {
+  ATTACK_OUTCOME_UNSPECIFIED = 0,
+  ATTACK_OUTCOME_MISS = 1,
+  ATTACK_OUTCOME_HIT = 2,
+  ATTACK_OUTCOME_CRIT = 3,
+  AttackOutcome_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::min(),
+  AttackOutcome_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::max(),
+};
+
+bool AttackOutcome_IsValid(int value);
+constexpr AttackOutcome AttackOutcome_MIN = static_cast<AttackOutcome>(0);
+constexpr AttackOutcome AttackOutcome_MAX = static_cast<AttackOutcome>(3);
+constexpr int AttackOutcome_ARRAYSIZE = 3 + 1;
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
+AttackOutcome_descriptor();
+template <typename T>
+const std::string& AttackOutcome_Name(T value) {
+  static_assert(std::is_same<T, AttackOutcome>::value ||
+                    std::is_integral<T>::value,
+                "Incorrect type passed to AttackOutcome_Name().");
+  return AttackOutcome_Name(static_cast<AttackOutcome>(value));
+}
+template <>
+inline const std::string& AttackOutcome_Name(AttackOutcome value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<AttackOutcome_descriptor,
+                                                 0, 3>(
+      static_cast<int>(value));
+}
+inline bool AttackOutcome_Parse(absl::string_view name, AttackOutcome* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<AttackOutcome>(
+      AttackOutcome_descriptor(), name, value);
 }
 
 // ===================================================================
@@ -247,6 +342,10 @@ class ClientMessage final :
   enum IntentCase {
     kMoveTo = 10,
     kStopMove = 11,
+    kSetTarget = 12,
+    kAttack = 13,
+    kStopAttack = 14,
+    kRespawn = 15,
     INTENT_NOT_SET = 0,
   };
 
@@ -330,6 +429,10 @@ class ClientMessage final :
     kSeqFieldNumber = 1,
     kMoveToFieldNumber = 10,
     kStopMoveFieldNumber = 11,
+    kSetTargetFieldNumber = 12,
+    kAttackFieldNumber = 13,
+    kStopAttackFieldNumber = 14,
+    kRespawnFieldNumber = 15,
   };
   // uint32 seq = 1;
   void clear_seq() ;
@@ -377,6 +480,78 @@ class ClientMessage final :
   void unsafe_arena_set_allocated_stop_move(
       ::nightfall::v1::StopMoveRequest* stop_move);
   ::nightfall::v1::StopMoveRequest* unsafe_arena_release_stop_move();
+  // .nightfall.v1.SetTargetRequest set_target = 12;
+  bool has_set_target() const;
+  private:
+  bool _internal_has_set_target() const;
+
+  public:
+  void clear_set_target() ;
+  const ::nightfall::v1::SetTargetRequest& set_target() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SetTargetRequest* release_set_target();
+  ::nightfall::v1::SetTargetRequest* mutable_set_target();
+  void set_allocated_set_target(::nightfall::v1::SetTargetRequest* set_target);
+  private:
+  const ::nightfall::v1::SetTargetRequest& _internal_set_target() const;
+  ::nightfall::v1::SetTargetRequest* _internal_mutable_set_target();
+  public:
+  void unsafe_arena_set_allocated_set_target(
+      ::nightfall::v1::SetTargetRequest* set_target);
+  ::nightfall::v1::SetTargetRequest* unsafe_arena_release_set_target();
+  // .nightfall.v1.AttackRequest attack = 13;
+  bool has_attack() const;
+  private:
+  bool _internal_has_attack() const;
+
+  public:
+  void clear_attack() ;
+  const ::nightfall::v1::AttackRequest& attack() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::AttackRequest* release_attack();
+  ::nightfall::v1::AttackRequest* mutable_attack();
+  void set_allocated_attack(::nightfall::v1::AttackRequest* attack);
+  private:
+  const ::nightfall::v1::AttackRequest& _internal_attack() const;
+  ::nightfall::v1::AttackRequest* _internal_mutable_attack();
+  public:
+  void unsafe_arena_set_allocated_attack(
+      ::nightfall::v1::AttackRequest* attack);
+  ::nightfall::v1::AttackRequest* unsafe_arena_release_attack();
+  // .nightfall.v1.StopAttackRequest stop_attack = 14;
+  bool has_stop_attack() const;
+  private:
+  bool _internal_has_stop_attack() const;
+
+  public:
+  void clear_stop_attack() ;
+  const ::nightfall::v1::StopAttackRequest& stop_attack() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::StopAttackRequest* release_stop_attack();
+  ::nightfall::v1::StopAttackRequest* mutable_stop_attack();
+  void set_allocated_stop_attack(::nightfall::v1::StopAttackRequest* stop_attack);
+  private:
+  const ::nightfall::v1::StopAttackRequest& _internal_stop_attack() const;
+  ::nightfall::v1::StopAttackRequest* _internal_mutable_stop_attack();
+  public:
+  void unsafe_arena_set_allocated_stop_attack(
+      ::nightfall::v1::StopAttackRequest* stop_attack);
+  ::nightfall::v1::StopAttackRequest* unsafe_arena_release_stop_attack();
+  // .nightfall.v1.RespawnRequest respawn = 15;
+  bool has_respawn() const;
+  private:
+  bool _internal_has_respawn() const;
+
+  public:
+  void clear_respawn() ;
+  const ::nightfall::v1::RespawnRequest& respawn() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::RespawnRequest* release_respawn();
+  ::nightfall::v1::RespawnRequest* mutable_respawn();
+  void set_allocated_respawn(::nightfall::v1::RespawnRequest* respawn);
+  private:
+  const ::nightfall::v1::RespawnRequest& _internal_respawn() const;
+  ::nightfall::v1::RespawnRequest* _internal_mutable_respawn();
+  public:
+  void unsafe_arena_set_allocated_respawn(
+      ::nightfall::v1::RespawnRequest* respawn);
+  ::nightfall::v1::RespawnRequest* unsafe_arena_release_respawn();
   void clear_intent();
   IntentCase intent_case() const;
   // @@protoc_insertion_point(class_scope:nightfall.v1.ClientMessage)
@@ -384,6 +559,10 @@ class ClientMessage final :
   class _Internal;
   void set_has_move_to();
   void set_has_stop_move();
+  void set_has_set_target();
+  void set_has_attack();
+  void set_has_stop_attack();
+  void set_has_respawn();
 
   inline bool has_intent() const;
   inline void clear_has_intent();
@@ -398,6 +577,10 @@ class ClientMessage final :
         ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized _constinit_;
       ::nightfall::v1::MoveToRequest* move_to_;
       ::nightfall::v1::StopMoveRequest* stop_move_;
+      ::nightfall::v1::SetTargetRequest* set_target_;
+      ::nightfall::v1::AttackRequest* attack_;
+      ::nightfall::v1::StopAttackRequest* stop_attack_;
+      ::nightfall::v1::RespawnRequest* respawn_;
     } intent_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::uint32_t _oneof_case_[1];
@@ -691,6 +874,543 @@ class StopMoveRequest final :
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
 };// -------------------------------------------------------------------
 
+class SetTargetRequest final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SetTargetRequest) */ {
+ public:
+  inline SetTargetRequest() : SetTargetRequest(nullptr) {}
+  ~SetTargetRequest() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SetTargetRequest(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SetTargetRequest(const SetTargetRequest& from);
+  SetTargetRequest(SetTargetRequest&& from) noexcept
+    : SetTargetRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline SetTargetRequest& operator=(const SetTargetRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SetTargetRequest& operator=(SetTargetRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SetTargetRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SetTargetRequest* internal_default_instance() {
+    return reinterpret_cast<const SetTargetRequest*>(
+               &_SetTargetRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    3;
+
+  friend void swap(SetTargetRequest& a, SetTargetRequest& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SetTargetRequest* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SetTargetRequest* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SetTargetRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SetTargetRequest>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SetTargetRequest& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SetTargetRequest& from) {
+    SetTargetRequest::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SetTargetRequest* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SetTargetRequest";
+  }
+  protected:
+  explicit SetTargetRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityIdFieldNumber = 1,
+  };
+  // string entity_id = 1;
+  void clear_entity_id() ;
+  const std::string& entity_id() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity_id(Arg_&& arg, Args_... args);
+  std::string* mutable_entity_id();
+  PROTOBUF_NODISCARD std::string* release_entity_id();
+  void set_allocated_entity_id(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity_id() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity_id(
+      const std::string& value);
+  std::string* _internal_mutable_entity_id();
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SetTargetRequest)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_id_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class AttackRequest final :
+    public ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase /* @@protoc_insertion_point(class_definition:nightfall.v1.AttackRequest) */ {
+ public:
+  inline AttackRequest() : AttackRequest(nullptr) {}
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR AttackRequest(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  AttackRequest(const AttackRequest& from);
+  AttackRequest(AttackRequest&& from) noexcept
+    : AttackRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline AttackRequest& operator=(const AttackRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline AttackRequest& operator=(AttackRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const AttackRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const AttackRequest* internal_default_instance() {
+    return reinterpret_cast<const AttackRequest*>(
+               &_AttackRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    4;
+
+  friend void swap(AttackRequest& a, AttackRequest& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(AttackRequest* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(AttackRequest* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  AttackRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<AttackRequest>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyFrom;
+  inline void CopyFrom(const AttackRequest& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl(*this, from);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeFrom;
+  void MergeFrom(const AttackRequest& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl(*this, from);
+  }
+  public:
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.AttackRequest";
+  }
+  protected:
+  explicit AttackRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // @@protoc_insertion_point(class_scope:nightfall.v1.AttackRequest)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+  };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class StopAttackRequest final :
+    public ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase /* @@protoc_insertion_point(class_definition:nightfall.v1.StopAttackRequest) */ {
+ public:
+  inline StopAttackRequest() : StopAttackRequest(nullptr) {}
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR StopAttackRequest(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  StopAttackRequest(const StopAttackRequest& from);
+  StopAttackRequest(StopAttackRequest&& from) noexcept
+    : StopAttackRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline StopAttackRequest& operator=(const StopAttackRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline StopAttackRequest& operator=(StopAttackRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const StopAttackRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const StopAttackRequest* internal_default_instance() {
+    return reinterpret_cast<const StopAttackRequest*>(
+               &_StopAttackRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    5;
+
+  friend void swap(StopAttackRequest& a, StopAttackRequest& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(StopAttackRequest* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(StopAttackRequest* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  StopAttackRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<StopAttackRequest>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyFrom;
+  inline void CopyFrom(const StopAttackRequest& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl(*this, from);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeFrom;
+  void MergeFrom(const StopAttackRequest& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl(*this, from);
+  }
+  public:
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.StopAttackRequest";
+  }
+  protected:
+  explicit StopAttackRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // @@protoc_insertion_point(class_scope:nightfall.v1.StopAttackRequest)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+  };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class RespawnRequest final :
+    public ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase /* @@protoc_insertion_point(class_definition:nightfall.v1.RespawnRequest) */ {
+ public:
+  inline RespawnRequest() : RespawnRequest(nullptr) {}
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR RespawnRequest(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  RespawnRequest(const RespawnRequest& from);
+  RespawnRequest(RespawnRequest&& from) noexcept
+    : RespawnRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline RespawnRequest& operator=(const RespawnRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline RespawnRequest& operator=(RespawnRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const RespawnRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const RespawnRequest* internal_default_instance() {
+    return reinterpret_cast<const RespawnRequest*>(
+               &_RespawnRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    6;
+
+  friend void swap(RespawnRequest& a, RespawnRequest& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(RespawnRequest* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(RespawnRequest* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  RespawnRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<RespawnRequest>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyFrom;
+  inline void CopyFrom(const RespawnRequest& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl(*this, from);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeFrom;
+  void MergeFrom(const RespawnRequest& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl(*this, from);
+  }
+  public:
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.RespawnRequest";
+  }
+  protected:
+  explicit RespawnRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // @@protoc_insertion_point(class_scope:nightfall.v1.RespawnRequest)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+  };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
 class ServerMessage final :
     public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.ServerMessage) */ {
  public:
@@ -754,7 +1474,7 @@ class ServerMessage final :
                &_ServerMessage_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    3;
+    7;
 
   friend void swap(ServerMessage& a, ServerMessage& b) {
     a.Swap(&b);
@@ -971,7 +1691,7 @@ class Ack final :
                &_Ack_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    4;
+    8;
 
   friend void swap(Ack& a, Ack& b) {
     a.Swap(&b);
@@ -1138,7 +1858,7 @@ class IntentRejected final :
                &_IntentRejected_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    5;
+    9;
 
   friend void swap(IntentRejected& a, IntentRejected& b) {
     a.Swap(&b);
@@ -1326,6 +2046,13 @@ class WorldEvent final :
     kSpawn = 1,
     kMove = 2,
     kDespawn = 3,
+    kAttackResult = 4,
+    kEntityDied = 5,
+    kEntityRespawned = 6,
+    kStatsChanged = 7,
+    kXpGained = 8,
+    kLevelUp = 9,
+    kTargetChanged = 10,
     EVENT_NOT_SET = 0,
   };
 
@@ -1334,7 +2061,7 @@ class WorldEvent final :
                &_WorldEvent_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    6;
+    10;
 
   friend void swap(WorldEvent& a, WorldEvent& b) {
     a.Swap(&b);
@@ -1409,6 +2136,13 @@ class WorldEvent final :
     kSpawnFieldNumber = 1,
     kMoveFieldNumber = 2,
     kDespawnFieldNumber = 3,
+    kAttackResultFieldNumber = 4,
+    kEntityDiedFieldNumber = 5,
+    kEntityRespawnedFieldNumber = 6,
+    kStatsChangedFieldNumber = 7,
+    kXpGainedFieldNumber = 8,
+    kLevelUpFieldNumber = 9,
+    kTargetChangedFieldNumber = 10,
   };
   // .nightfall.v1.EntitySpawn spawn = 1;
   bool has_spawn() const;
@@ -1464,6 +2198,132 @@ class WorldEvent final :
   void unsafe_arena_set_allocated_despawn(
       ::nightfall::v1::EntityDespawn* despawn);
   ::nightfall::v1::EntityDespawn* unsafe_arena_release_despawn();
+  // .nightfall.v1.AttackResult attack_result = 4;
+  bool has_attack_result() const;
+  private:
+  bool _internal_has_attack_result() const;
+
+  public:
+  void clear_attack_result() ;
+  const ::nightfall::v1::AttackResult& attack_result() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::AttackResult* release_attack_result();
+  ::nightfall::v1::AttackResult* mutable_attack_result();
+  void set_allocated_attack_result(::nightfall::v1::AttackResult* attack_result);
+  private:
+  const ::nightfall::v1::AttackResult& _internal_attack_result() const;
+  ::nightfall::v1::AttackResult* _internal_mutable_attack_result();
+  public:
+  void unsafe_arena_set_allocated_attack_result(
+      ::nightfall::v1::AttackResult* attack_result);
+  ::nightfall::v1::AttackResult* unsafe_arena_release_attack_result();
+  // .nightfall.v1.EntityDied entity_died = 5;
+  bool has_entity_died() const;
+  private:
+  bool _internal_has_entity_died() const;
+
+  public:
+  void clear_entity_died() ;
+  const ::nightfall::v1::EntityDied& entity_died() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EntityDied* release_entity_died();
+  ::nightfall::v1::EntityDied* mutable_entity_died();
+  void set_allocated_entity_died(::nightfall::v1::EntityDied* entity_died);
+  private:
+  const ::nightfall::v1::EntityDied& _internal_entity_died() const;
+  ::nightfall::v1::EntityDied* _internal_mutable_entity_died();
+  public:
+  void unsafe_arena_set_allocated_entity_died(
+      ::nightfall::v1::EntityDied* entity_died);
+  ::nightfall::v1::EntityDied* unsafe_arena_release_entity_died();
+  // .nightfall.v1.EntityRespawned entity_respawned = 6;
+  bool has_entity_respawned() const;
+  private:
+  bool _internal_has_entity_respawned() const;
+
+  public:
+  void clear_entity_respawned() ;
+  const ::nightfall::v1::EntityRespawned& entity_respawned() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EntityRespawned* release_entity_respawned();
+  ::nightfall::v1::EntityRespawned* mutable_entity_respawned();
+  void set_allocated_entity_respawned(::nightfall::v1::EntityRespawned* entity_respawned);
+  private:
+  const ::nightfall::v1::EntityRespawned& _internal_entity_respawned() const;
+  ::nightfall::v1::EntityRespawned* _internal_mutable_entity_respawned();
+  public:
+  void unsafe_arena_set_allocated_entity_respawned(
+      ::nightfall::v1::EntityRespawned* entity_respawned);
+  ::nightfall::v1::EntityRespawned* unsafe_arena_release_entity_respawned();
+  // .nightfall.v1.StatsChanged stats_changed = 7;
+  bool has_stats_changed() const;
+  private:
+  bool _internal_has_stats_changed() const;
+
+  public:
+  void clear_stats_changed() ;
+  const ::nightfall::v1::StatsChanged& stats_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::StatsChanged* release_stats_changed();
+  ::nightfall::v1::StatsChanged* mutable_stats_changed();
+  void set_allocated_stats_changed(::nightfall::v1::StatsChanged* stats_changed);
+  private:
+  const ::nightfall::v1::StatsChanged& _internal_stats_changed() const;
+  ::nightfall::v1::StatsChanged* _internal_mutable_stats_changed();
+  public:
+  void unsafe_arena_set_allocated_stats_changed(
+      ::nightfall::v1::StatsChanged* stats_changed);
+  ::nightfall::v1::StatsChanged* unsafe_arena_release_stats_changed();
+  // .nightfall.v1.XpGained xp_gained = 8;
+  bool has_xp_gained() const;
+  private:
+  bool _internal_has_xp_gained() const;
+
+  public:
+  void clear_xp_gained() ;
+  const ::nightfall::v1::XpGained& xp_gained() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::XpGained* release_xp_gained();
+  ::nightfall::v1::XpGained* mutable_xp_gained();
+  void set_allocated_xp_gained(::nightfall::v1::XpGained* xp_gained);
+  private:
+  const ::nightfall::v1::XpGained& _internal_xp_gained() const;
+  ::nightfall::v1::XpGained* _internal_mutable_xp_gained();
+  public:
+  void unsafe_arena_set_allocated_xp_gained(
+      ::nightfall::v1::XpGained* xp_gained);
+  ::nightfall::v1::XpGained* unsafe_arena_release_xp_gained();
+  // .nightfall.v1.LevelUp level_up = 9;
+  bool has_level_up() const;
+  private:
+  bool _internal_has_level_up() const;
+
+  public:
+  void clear_level_up() ;
+  const ::nightfall::v1::LevelUp& level_up() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::LevelUp* release_level_up();
+  ::nightfall::v1::LevelUp* mutable_level_up();
+  void set_allocated_level_up(::nightfall::v1::LevelUp* level_up);
+  private:
+  const ::nightfall::v1::LevelUp& _internal_level_up() const;
+  ::nightfall::v1::LevelUp* _internal_mutable_level_up();
+  public:
+  void unsafe_arena_set_allocated_level_up(
+      ::nightfall::v1::LevelUp* level_up);
+  ::nightfall::v1::LevelUp* unsafe_arena_release_level_up();
+  // .nightfall.v1.TargetChanged target_changed = 10;
+  bool has_target_changed() const;
+  private:
+  bool _internal_has_target_changed() const;
+
+  public:
+  void clear_target_changed() ;
+  const ::nightfall::v1::TargetChanged& target_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::TargetChanged* release_target_changed();
+  ::nightfall::v1::TargetChanged* mutable_target_changed();
+  void set_allocated_target_changed(::nightfall::v1::TargetChanged* target_changed);
+  private:
+  const ::nightfall::v1::TargetChanged& _internal_target_changed() const;
+  ::nightfall::v1::TargetChanged* _internal_mutable_target_changed();
+  public:
+  void unsafe_arena_set_allocated_target_changed(
+      ::nightfall::v1::TargetChanged* target_changed);
+  ::nightfall::v1::TargetChanged* unsafe_arena_release_target_changed();
   void clear_event();
   EventCase event_case() const;
   // @@protoc_insertion_point(class_scope:nightfall.v1.WorldEvent)
@@ -1472,6 +2332,13 @@ class WorldEvent final :
   void set_has_spawn();
   void set_has_move();
   void set_has_despawn();
+  void set_has_attack_result();
+  void set_has_entity_died();
+  void set_has_entity_respawned();
+  void set_has_stats_changed();
+  void set_has_xp_gained();
+  void set_has_level_up();
+  void set_has_target_changed();
 
   inline bool has_event() const;
   inline void clear_has_event();
@@ -1486,6 +2353,13 @@ class WorldEvent final :
       ::nightfall::v1::EntitySpawn* spawn_;
       ::nightfall::v1::EntityMove* move_;
       ::nightfall::v1::EntityDespawn* despawn_;
+      ::nightfall::v1::AttackResult* attack_result_;
+      ::nightfall::v1::EntityDied* entity_died_;
+      ::nightfall::v1::EntityRespawned* entity_respawned_;
+      ::nightfall::v1::StatsChanged* stats_changed_;
+      ::nightfall::v1::XpGained* xp_gained_;
+      ::nightfall::v1::LevelUp* level_up_;
+      ::nightfall::v1::TargetChanged* target_changed_;
     } event_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::uint32_t _oneof_case_[1];
@@ -1551,7 +2425,7 @@ class EntitySpawn final :
                &_EntitySpawn_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    7;
+    11;
 
   friend void swap(EntitySpawn& a, EntitySpawn& b) {
     a.Swap(&b);
@@ -1779,7 +2653,7 @@ class EntityMove final :
                &_EntityMove_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    8;
+    12;
 
   friend void swap(EntityMove& a, EntityMove& b) {
     a.Swap(&b);
@@ -2013,7 +2887,7 @@ class EntityDespawn final :
                &_EntityDespawn_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    9;
+    13;
 
   friend void swap(EntityDespawn& a, EntityDespawn& b) {
     a.Swap(&b);
@@ -2116,6 +2990,1424 @@ class EntityDespawn final :
   typedef void DestructorSkippable_;
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_id_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class AttackResult final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.AttackResult) */ {
+ public:
+  inline AttackResult() : AttackResult(nullptr) {}
+  ~AttackResult() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR AttackResult(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  AttackResult(const AttackResult& from);
+  AttackResult(AttackResult&& from) noexcept
+    : AttackResult() {
+    *this = ::std::move(from);
+  }
+
+  inline AttackResult& operator=(const AttackResult& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline AttackResult& operator=(AttackResult&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const AttackResult& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const AttackResult* internal_default_instance() {
+    return reinterpret_cast<const AttackResult*>(
+               &_AttackResult_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    14;
+
+  friend void swap(AttackResult& a, AttackResult& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(AttackResult* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(AttackResult* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  AttackResult* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<AttackResult>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const AttackResult& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const AttackResult& from) {
+    AttackResult::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(AttackResult* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.AttackResult";
+  }
+  protected:
+  explicit AttackResult(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kAttackerFieldNumber = 1,
+    kTargetFieldNumber = 2,
+    kTickFieldNumber = 3,
+    kOutcomeFieldNumber = 4,
+    kDamageFieldNumber = 5,
+    kTargetHpAfterFieldNumber = 6,
+  };
+  // string attacker = 1;
+  void clear_attacker() ;
+  const std::string& attacker() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_attacker(Arg_&& arg, Args_... args);
+  std::string* mutable_attacker();
+  PROTOBUF_NODISCARD std::string* release_attacker();
+  void set_allocated_attacker(std::string* ptr);
+
+  private:
+  const std::string& _internal_attacker() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_attacker(
+      const std::string& value);
+  std::string* _internal_mutable_attacker();
+
+  public:
+  // string target = 2;
+  void clear_target() ;
+  const std::string& target() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  std::string* mutable_target();
+  PROTOBUF_NODISCARD std::string* release_target();
+  void set_allocated_target(std::string* ptr);
+
+  private:
+  const std::string& _internal_target() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_target(
+      const std::string& value);
+  std::string* _internal_mutable_target();
+
+  public:
+  // uint64 tick = 3;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // .nightfall.v1.AttackOutcome outcome = 4;
+  void clear_outcome() ;
+  ::nightfall::v1::AttackOutcome outcome() const;
+  void set_outcome(::nightfall::v1::AttackOutcome value);
+
+  private:
+  ::nightfall::v1::AttackOutcome _internal_outcome() const;
+  void _internal_set_outcome(::nightfall::v1::AttackOutcome value);
+
+  public:
+  // uint32 damage = 5;
+  void clear_damage() ;
+  ::uint32_t damage() const;
+  void set_damage(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_damage() const;
+  void _internal_set_damage(::uint32_t value);
+
+  public:
+  // uint32 target_hp_after = 6;
+  void clear_target_hp_after() ;
+  ::uint32_t target_hp_after() const;
+  void set_target_hp_after(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_hp_after() const;
+  void _internal_set_target_hp_after(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.AttackResult)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr attacker_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
+    ::uint64_t tick_;
+    int outcome_;
+    ::uint32_t damage_;
+    ::uint32_t target_hp_after_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class EntityDied final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.EntityDied) */ {
+ public:
+  inline EntityDied() : EntityDied(nullptr) {}
+  ~EntityDied() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR EntityDied(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  EntityDied(const EntityDied& from);
+  EntityDied(EntityDied&& from) noexcept
+    : EntityDied() {
+    *this = ::std::move(from);
+  }
+
+  inline EntityDied& operator=(const EntityDied& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline EntityDied& operator=(EntityDied&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const EntityDied& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const EntityDied* internal_default_instance() {
+    return reinterpret_cast<const EntityDied*>(
+               &_EntityDied_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    15;
+
+  friend void swap(EntityDied& a, EntityDied& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(EntityDied* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(EntityDied* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  EntityDied* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<EntityDied>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const EntityDied& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const EntityDied& from) {
+    EntityDied::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(EntityDied* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.EntityDied";
+  }
+  protected:
+  explicit EntityDied(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kKillerFieldNumber = 3,
+    kTickFieldNumber = 2,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // string killer = 3;
+  void clear_killer() ;
+  const std::string& killer() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_killer(Arg_&& arg, Args_... args);
+  std::string* mutable_killer();
+  PROTOBUF_NODISCARD std::string* release_killer();
+  void set_allocated_killer(std::string* ptr);
+
+  private:
+  const std::string& _internal_killer() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_killer(
+      const std::string& value);
+  std::string* _internal_mutable_killer();
+
+  public:
+  // uint64 tick = 2;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.EntityDied)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr killer_;
+    ::uint64_t tick_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class EntityRespawned final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.EntityRespawned) */ {
+ public:
+  inline EntityRespawned() : EntityRespawned(nullptr) {}
+  ~EntityRespawned() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR EntityRespawned(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  EntityRespawned(const EntityRespawned& from);
+  EntityRespawned(EntityRespawned&& from) noexcept
+    : EntityRespawned() {
+    *this = ::std::move(from);
+  }
+
+  inline EntityRespawned& operator=(const EntityRespawned& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline EntityRespawned& operator=(EntityRespawned&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const EntityRespawned& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const EntityRespawned* internal_default_instance() {
+    return reinterpret_cast<const EntityRespawned*>(
+               &_EntityRespawned_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    16;
+
+  friend void swap(EntityRespawned& a, EntityRespawned& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(EntityRespawned* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(EntityRespawned* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  EntityRespawned* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<EntityRespawned>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const EntityRespawned& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const EntityRespawned& from) {
+    EntityRespawned::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(EntityRespawned* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.EntityRespawned";
+  }
+  protected:
+  explicit EntityRespawned(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kPositionFieldNumber = 3,
+    kTickFieldNumber = 2,
+    kHpFieldNumber = 4,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // .nightfall.v1.Position position = 3;
+  bool has_position() const;
+  void clear_position() ;
+  const ::nightfall::v1::Position& position() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::Position* release_position();
+  ::nightfall::v1::Position* mutable_position();
+  void set_allocated_position(::nightfall::v1::Position* position);
+  private:
+  const ::nightfall::v1::Position& _internal_position() const;
+  ::nightfall::v1::Position* _internal_mutable_position();
+  public:
+  void unsafe_arena_set_allocated_position(
+      ::nightfall::v1::Position* position);
+  ::nightfall::v1::Position* unsafe_arena_release_position();
+  // uint64 tick = 2;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint32 hp = 4;
+  void clear_hp() ;
+  ::uint32_t hp() const;
+  void set_hp(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_hp() const;
+  void _internal_set_hp(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.EntityRespawned)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::nightfall::v1::Position* position_;
+    ::uint64_t tick_;
+    ::uint32_t hp_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class StatsChanged final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.StatsChanged) */ {
+ public:
+  inline StatsChanged() : StatsChanged(nullptr) {}
+  ~StatsChanged() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR StatsChanged(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  StatsChanged(const StatsChanged& from);
+  StatsChanged(StatsChanged&& from) noexcept
+    : StatsChanged() {
+    *this = ::std::move(from);
+  }
+
+  inline StatsChanged& operator=(const StatsChanged& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline StatsChanged& operator=(StatsChanged&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const StatsChanged& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const StatsChanged* internal_default_instance() {
+    return reinterpret_cast<const StatsChanged*>(
+               &_StatsChanged_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    17;
+
+  friend void swap(StatsChanged& a, StatsChanged& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(StatsChanged* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(StatsChanged* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  StatsChanged* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<StatsChanged>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const StatsChanged& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const StatsChanged& from) {
+    StatsChanged::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(StatsChanged* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.StatsChanged";
+  }
+  protected:
+  explicit StatsChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kHpFieldNumber = 2,
+    kMaxHpFieldNumber = 3,
+    kMpFieldNumber = 4,
+    kMaxMpFieldNumber = 5,
+    kLevelFieldNumber = 6,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // uint32 hp = 2;
+  void clear_hp() ;
+  ::uint32_t hp() const;
+  void set_hp(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_hp() const;
+  void _internal_set_hp(::uint32_t value);
+
+  public:
+  // uint32 max_hp = 3;
+  void clear_max_hp() ;
+  ::uint32_t max_hp() const;
+  void set_max_hp(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_max_hp() const;
+  void _internal_set_max_hp(::uint32_t value);
+
+  public:
+  // uint32 mp = 4;
+  void clear_mp() ;
+  ::uint32_t mp() const;
+  void set_mp(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_mp() const;
+  void _internal_set_mp(::uint32_t value);
+
+  public:
+  // uint32 max_mp = 5;
+  void clear_max_mp() ;
+  ::uint32_t max_mp() const;
+  void set_max_mp(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_max_mp() const;
+  void _internal_set_max_mp(::uint32_t value);
+
+  public:
+  // uint32 level = 6;
+  void clear_level() ;
+  ::uint32_t level() const;
+  void set_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_level() const;
+  void _internal_set_level(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.StatsChanged)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::uint32_t hp_;
+    ::uint32_t max_hp_;
+    ::uint32_t mp_;
+    ::uint32_t max_mp_;
+    ::uint32_t level_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class XpGained final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.XpGained) */ {
+ public:
+  inline XpGained() : XpGained(nullptr) {}
+  ~XpGained() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR XpGained(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  XpGained(const XpGained& from);
+  XpGained(XpGained&& from) noexcept
+    : XpGained() {
+    *this = ::std::move(from);
+  }
+
+  inline XpGained& operator=(const XpGained& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline XpGained& operator=(XpGained&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const XpGained& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const XpGained* internal_default_instance() {
+    return reinterpret_cast<const XpGained*>(
+               &_XpGained_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    18;
+
+  friend void swap(XpGained& a, XpGained& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(XpGained* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(XpGained* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  XpGained* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<XpGained>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const XpGained& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const XpGained& from) {
+    XpGained::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(XpGained* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.XpGained";
+  }
+  protected:
+  explicit XpGained(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kAmountFieldNumber = 2,
+    kTotalFieldNumber = 3,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // uint64 amount = 2;
+  void clear_amount() ;
+  ::uint64_t amount() const;
+  void set_amount(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_amount() const;
+  void _internal_set_amount(::uint64_t value);
+
+  public:
+  // uint64 total = 3;
+  void clear_total() ;
+  ::uint64_t total() const;
+  void set_total(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_total() const;
+  void _internal_set_total(::uint64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.XpGained)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::uint64_t amount_;
+    ::uint64_t total_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class LevelUp final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.LevelUp) */ {
+ public:
+  inline LevelUp() : LevelUp(nullptr) {}
+  ~LevelUp() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR LevelUp(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  LevelUp(const LevelUp& from);
+  LevelUp(LevelUp&& from) noexcept
+    : LevelUp() {
+    *this = ::std::move(from);
+  }
+
+  inline LevelUp& operator=(const LevelUp& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline LevelUp& operator=(LevelUp&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const LevelUp& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const LevelUp* internal_default_instance() {
+    return reinterpret_cast<const LevelUp*>(
+               &_LevelUp_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    19;
+
+  friend void swap(LevelUp& a, LevelUp& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(LevelUp* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(LevelUp* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  LevelUp* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<LevelUp>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const LevelUp& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const LevelUp& from) {
+    LevelUp::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(LevelUp* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.LevelUp";
+  }
+  protected:
+  explicit LevelUp(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kLevelFieldNumber = 2,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // uint32 level = 2;
+  void clear_level() ;
+  ::uint32_t level() const;
+  void set_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_level() const;
+  void _internal_set_level(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.LevelUp)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::uint32_t level_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class TargetChanged final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.TargetChanged) */ {
+ public:
+  inline TargetChanged() : TargetChanged(nullptr) {}
+  ~TargetChanged() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR TargetChanged(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  TargetChanged(const TargetChanged& from);
+  TargetChanged(TargetChanged&& from) noexcept
+    : TargetChanged() {
+    *this = ::std::move(from);
+  }
+
+  inline TargetChanged& operator=(const TargetChanged& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline TargetChanged& operator=(TargetChanged&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const TargetChanged& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const TargetChanged* internal_default_instance() {
+    return reinterpret_cast<const TargetChanged*>(
+               &_TargetChanged_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    20;
+
+  friend void swap(TargetChanged& a, TargetChanged& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(TargetChanged* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(TargetChanged* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  TargetChanged* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<TargetChanged>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const TargetChanged& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const TargetChanged& from) {
+    TargetChanged::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(TargetChanged* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.TargetChanged";
+  }
+  protected:
+  explicit TargetChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kTargetFieldNumber = 2,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // string target = 2;
+  void clear_target() ;
+  const std::string& target() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  std::string* mutable_target();
+  PROTOBUF_NODISCARD std::string* release_target();
+  void set_allocated_target(std::string* ptr);
+
+  private:
+  const std::string& _internal_target() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_target(
+      const std::string& value);
+  std::string* _internal_mutable_target();
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.TargetChanged)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -2306,6 +4598,302 @@ inline ::nightfall::v1::StopMoveRequest* ClientMessage::mutable_stop_move() {
   return _msg;
 }
 
+// .nightfall.v1.SetTargetRequest set_target = 12;
+inline bool ClientMessage::has_set_target() const {
+  return intent_case() == kSetTarget;
+}
+inline bool ClientMessage::_internal_has_set_target() const {
+  return intent_case() == kSetTarget;
+}
+inline void ClientMessage::set_has_set_target() {
+  _impl_._oneof_case_[0] = kSetTarget;
+}
+inline void ClientMessage::clear_set_target() {
+  if (intent_case() == kSetTarget) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.set_target_;
+    }
+    clear_has_intent();
+  }
+}
+inline ::nightfall::v1::SetTargetRequest* ClientMessage::release_set_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.set_target)
+  if (intent_case() == kSetTarget) {
+    clear_has_intent();
+    ::nightfall::v1::SetTargetRequest* temp = _impl_.intent_.set_target_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.set_target_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SetTargetRequest& ClientMessage::_internal_set_target() const {
+  return intent_case() == kSetTarget
+      ? *_impl_.intent_.set_target_
+      : reinterpret_cast<::nightfall::v1::SetTargetRequest&>(::nightfall::v1::_SetTargetRequest_default_instance_);
+}
+inline const ::nightfall::v1::SetTargetRequest& ClientMessage::set_target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.set_target)
+  return _internal_set_target();
+}
+inline ::nightfall::v1::SetTargetRequest* ClientMessage::unsafe_arena_release_set_target() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.set_target)
+  if (intent_case() == kSetTarget) {
+    clear_has_intent();
+    ::nightfall::v1::SetTargetRequest* temp = _impl_.intent_.set_target_;
+    _impl_.intent_.set_target_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_set_target(::nightfall::v1::SetTargetRequest* set_target) {
+  clear_intent();
+  if (set_target) {
+    set_has_set_target();
+    _impl_.intent_.set_target_ = set_target;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.set_target)
+}
+inline ::nightfall::v1::SetTargetRequest* ClientMessage::_internal_mutable_set_target() {
+  if (intent_case() != kSetTarget) {
+    clear_intent();
+    set_has_set_target();
+    _impl_.intent_.set_target_ = CreateMaybeMessage< ::nightfall::v1::SetTargetRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.set_target_;
+}
+inline ::nightfall::v1::SetTargetRequest* ClientMessage::mutable_set_target() {
+  ::nightfall::v1::SetTargetRequest* _msg = _internal_mutable_set_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.set_target)
+  return _msg;
+}
+
+// .nightfall.v1.AttackRequest attack = 13;
+inline bool ClientMessage::has_attack() const {
+  return intent_case() == kAttack;
+}
+inline bool ClientMessage::_internal_has_attack() const {
+  return intent_case() == kAttack;
+}
+inline void ClientMessage::set_has_attack() {
+  _impl_._oneof_case_[0] = kAttack;
+}
+inline void ClientMessage::clear_attack() {
+  if (intent_case() == kAttack) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.attack_;
+    }
+    clear_has_intent();
+  }
+}
+inline ::nightfall::v1::AttackRequest* ClientMessage::release_attack() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.attack)
+  if (intent_case() == kAttack) {
+    clear_has_intent();
+    ::nightfall::v1::AttackRequest* temp = _impl_.intent_.attack_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.attack_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::AttackRequest& ClientMessage::_internal_attack() const {
+  return intent_case() == kAttack
+      ? *_impl_.intent_.attack_
+      : reinterpret_cast<::nightfall::v1::AttackRequest&>(::nightfall::v1::_AttackRequest_default_instance_);
+}
+inline const ::nightfall::v1::AttackRequest& ClientMessage::attack() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.attack)
+  return _internal_attack();
+}
+inline ::nightfall::v1::AttackRequest* ClientMessage::unsafe_arena_release_attack() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.attack)
+  if (intent_case() == kAttack) {
+    clear_has_intent();
+    ::nightfall::v1::AttackRequest* temp = _impl_.intent_.attack_;
+    _impl_.intent_.attack_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_attack(::nightfall::v1::AttackRequest* attack) {
+  clear_intent();
+  if (attack) {
+    set_has_attack();
+    _impl_.intent_.attack_ = attack;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.attack)
+}
+inline ::nightfall::v1::AttackRequest* ClientMessage::_internal_mutable_attack() {
+  if (intent_case() != kAttack) {
+    clear_intent();
+    set_has_attack();
+    _impl_.intent_.attack_ = CreateMaybeMessage< ::nightfall::v1::AttackRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.attack_;
+}
+inline ::nightfall::v1::AttackRequest* ClientMessage::mutable_attack() {
+  ::nightfall::v1::AttackRequest* _msg = _internal_mutable_attack();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.attack)
+  return _msg;
+}
+
+// .nightfall.v1.StopAttackRequest stop_attack = 14;
+inline bool ClientMessage::has_stop_attack() const {
+  return intent_case() == kStopAttack;
+}
+inline bool ClientMessage::_internal_has_stop_attack() const {
+  return intent_case() == kStopAttack;
+}
+inline void ClientMessage::set_has_stop_attack() {
+  _impl_._oneof_case_[0] = kStopAttack;
+}
+inline void ClientMessage::clear_stop_attack() {
+  if (intent_case() == kStopAttack) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.stop_attack_;
+    }
+    clear_has_intent();
+  }
+}
+inline ::nightfall::v1::StopAttackRequest* ClientMessage::release_stop_attack() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.stop_attack)
+  if (intent_case() == kStopAttack) {
+    clear_has_intent();
+    ::nightfall::v1::StopAttackRequest* temp = _impl_.intent_.stop_attack_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.stop_attack_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::StopAttackRequest& ClientMessage::_internal_stop_attack() const {
+  return intent_case() == kStopAttack
+      ? *_impl_.intent_.stop_attack_
+      : reinterpret_cast<::nightfall::v1::StopAttackRequest&>(::nightfall::v1::_StopAttackRequest_default_instance_);
+}
+inline const ::nightfall::v1::StopAttackRequest& ClientMessage::stop_attack() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.stop_attack)
+  return _internal_stop_attack();
+}
+inline ::nightfall::v1::StopAttackRequest* ClientMessage::unsafe_arena_release_stop_attack() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.stop_attack)
+  if (intent_case() == kStopAttack) {
+    clear_has_intent();
+    ::nightfall::v1::StopAttackRequest* temp = _impl_.intent_.stop_attack_;
+    _impl_.intent_.stop_attack_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_stop_attack(::nightfall::v1::StopAttackRequest* stop_attack) {
+  clear_intent();
+  if (stop_attack) {
+    set_has_stop_attack();
+    _impl_.intent_.stop_attack_ = stop_attack;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.stop_attack)
+}
+inline ::nightfall::v1::StopAttackRequest* ClientMessage::_internal_mutable_stop_attack() {
+  if (intent_case() != kStopAttack) {
+    clear_intent();
+    set_has_stop_attack();
+    _impl_.intent_.stop_attack_ = CreateMaybeMessage< ::nightfall::v1::StopAttackRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.stop_attack_;
+}
+inline ::nightfall::v1::StopAttackRequest* ClientMessage::mutable_stop_attack() {
+  ::nightfall::v1::StopAttackRequest* _msg = _internal_mutable_stop_attack();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.stop_attack)
+  return _msg;
+}
+
+// .nightfall.v1.RespawnRequest respawn = 15;
+inline bool ClientMessage::has_respawn() const {
+  return intent_case() == kRespawn;
+}
+inline bool ClientMessage::_internal_has_respawn() const {
+  return intent_case() == kRespawn;
+}
+inline void ClientMessage::set_has_respawn() {
+  _impl_._oneof_case_[0] = kRespawn;
+}
+inline void ClientMessage::clear_respawn() {
+  if (intent_case() == kRespawn) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.respawn_;
+    }
+    clear_has_intent();
+  }
+}
+inline ::nightfall::v1::RespawnRequest* ClientMessage::release_respawn() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.respawn)
+  if (intent_case() == kRespawn) {
+    clear_has_intent();
+    ::nightfall::v1::RespawnRequest* temp = _impl_.intent_.respawn_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.respawn_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::RespawnRequest& ClientMessage::_internal_respawn() const {
+  return intent_case() == kRespawn
+      ? *_impl_.intent_.respawn_
+      : reinterpret_cast<::nightfall::v1::RespawnRequest&>(::nightfall::v1::_RespawnRequest_default_instance_);
+}
+inline const ::nightfall::v1::RespawnRequest& ClientMessage::respawn() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.respawn)
+  return _internal_respawn();
+}
+inline ::nightfall::v1::RespawnRequest* ClientMessage::unsafe_arena_release_respawn() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.respawn)
+  if (intent_case() == kRespawn) {
+    clear_has_intent();
+    ::nightfall::v1::RespawnRequest* temp = _impl_.intent_.respawn_;
+    _impl_.intent_.respawn_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_respawn(::nightfall::v1::RespawnRequest* respawn) {
+  clear_intent();
+  if (respawn) {
+    set_has_respawn();
+    _impl_.intent_.respawn_ = respawn;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.respawn)
+}
+inline ::nightfall::v1::RespawnRequest* ClientMessage::_internal_mutable_respawn() {
+  if (intent_case() != kRespawn) {
+    clear_intent();
+    set_has_respawn();
+    _impl_.intent_.respawn_ = CreateMaybeMessage< ::nightfall::v1::RespawnRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.respawn_;
+}
+inline ::nightfall::v1::RespawnRequest* ClientMessage::mutable_respawn() {
+  ::nightfall::v1::RespawnRequest* _msg = _internal_mutable_respawn();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.respawn)
+  return _msg;
+}
+
 inline bool ClientMessage::has_intent() const {
   return intent_case() != INTENT_NOT_SET;
 }
@@ -2406,6 +4994,69 @@ inline void MoveToRequest::set_allocated_destination(::nightfall::v1::Position* 
 // -------------------------------------------------------------------
 
 // StopMoveRequest
+
+// -------------------------------------------------------------------
+
+// SetTargetRequest
+
+// string entity_id = 1;
+inline void SetTargetRequest::clear_entity_id() {
+  _impl_.entity_id_.ClearToEmpty();
+}
+inline const std::string& SetTargetRequest::entity_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SetTargetRequest.entity_id)
+  return _internal_entity_id();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SetTargetRequest::set_entity_id(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_id_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SetTargetRequest.entity_id)
+}
+inline std::string* SetTargetRequest::mutable_entity_id() {
+  std::string* _s = _internal_mutable_entity_id();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SetTargetRequest.entity_id)
+  return _s;
+}
+inline const std::string& SetTargetRequest::_internal_entity_id() const {
+  return _impl_.entity_id_.Get();
+}
+inline void SetTargetRequest::_internal_set_entity_id(const std::string& value) {
+  ;
+
+
+  _impl_.entity_id_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SetTargetRequest::_internal_mutable_entity_id() {
+  ;
+  return _impl_.entity_id_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SetTargetRequest::release_entity_id() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SetTargetRequest.entity_id)
+  return _impl_.entity_id_.Release();
+}
+inline void SetTargetRequest::set_allocated_entity_id(std::string* value) {
+  _impl_.entity_id_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_id_.IsDefault()) {
+          _impl_.entity_id_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SetTargetRequest.entity_id)
+}
+
+// -------------------------------------------------------------------
+
+// AttackRequest
+
+// -------------------------------------------------------------------
+
+// StopAttackRequest
+
+// -------------------------------------------------------------------
+
+// RespawnRequest
 
 // -------------------------------------------------------------------
 
@@ -3003,6 +5654,524 @@ inline ::nightfall::v1::EntityDespawn* WorldEvent::mutable_despawn() {
   return _msg;
 }
 
+// .nightfall.v1.AttackResult attack_result = 4;
+inline bool WorldEvent::has_attack_result() const {
+  return event_case() == kAttackResult;
+}
+inline bool WorldEvent::_internal_has_attack_result() const {
+  return event_case() == kAttackResult;
+}
+inline void WorldEvent::set_has_attack_result() {
+  _impl_._oneof_case_[0] = kAttackResult;
+}
+inline void WorldEvent::clear_attack_result() {
+  if (event_case() == kAttackResult) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.attack_result_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::AttackResult* WorldEvent::release_attack_result() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.attack_result)
+  if (event_case() == kAttackResult) {
+    clear_has_event();
+    ::nightfall::v1::AttackResult* temp = _impl_.event_.attack_result_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.attack_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::AttackResult& WorldEvent::_internal_attack_result() const {
+  return event_case() == kAttackResult
+      ? *_impl_.event_.attack_result_
+      : reinterpret_cast<::nightfall::v1::AttackResult&>(::nightfall::v1::_AttackResult_default_instance_);
+}
+inline const ::nightfall::v1::AttackResult& WorldEvent::attack_result() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.attack_result)
+  return _internal_attack_result();
+}
+inline ::nightfall::v1::AttackResult* WorldEvent::unsafe_arena_release_attack_result() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.attack_result)
+  if (event_case() == kAttackResult) {
+    clear_has_event();
+    ::nightfall::v1::AttackResult* temp = _impl_.event_.attack_result_;
+    _impl_.event_.attack_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_attack_result(::nightfall::v1::AttackResult* attack_result) {
+  clear_event();
+  if (attack_result) {
+    set_has_attack_result();
+    _impl_.event_.attack_result_ = attack_result;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.attack_result)
+}
+inline ::nightfall::v1::AttackResult* WorldEvent::_internal_mutable_attack_result() {
+  if (event_case() != kAttackResult) {
+    clear_event();
+    set_has_attack_result();
+    _impl_.event_.attack_result_ = CreateMaybeMessage< ::nightfall::v1::AttackResult >(GetArenaForAllocation());
+  }
+  return _impl_.event_.attack_result_;
+}
+inline ::nightfall::v1::AttackResult* WorldEvent::mutable_attack_result() {
+  ::nightfall::v1::AttackResult* _msg = _internal_mutable_attack_result();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.attack_result)
+  return _msg;
+}
+
+// .nightfall.v1.EntityDied entity_died = 5;
+inline bool WorldEvent::has_entity_died() const {
+  return event_case() == kEntityDied;
+}
+inline bool WorldEvent::_internal_has_entity_died() const {
+  return event_case() == kEntityDied;
+}
+inline void WorldEvent::set_has_entity_died() {
+  _impl_._oneof_case_[0] = kEntityDied;
+}
+inline void WorldEvent::clear_entity_died() {
+  if (event_case() == kEntityDied) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.entity_died_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::EntityDied* WorldEvent::release_entity_died() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.entity_died)
+  if (event_case() == kEntityDied) {
+    clear_has_event();
+    ::nightfall::v1::EntityDied* temp = _impl_.event_.entity_died_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.entity_died_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EntityDied& WorldEvent::_internal_entity_died() const {
+  return event_case() == kEntityDied
+      ? *_impl_.event_.entity_died_
+      : reinterpret_cast<::nightfall::v1::EntityDied&>(::nightfall::v1::_EntityDied_default_instance_);
+}
+inline const ::nightfall::v1::EntityDied& WorldEvent::entity_died() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.entity_died)
+  return _internal_entity_died();
+}
+inline ::nightfall::v1::EntityDied* WorldEvent::unsafe_arena_release_entity_died() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.entity_died)
+  if (event_case() == kEntityDied) {
+    clear_has_event();
+    ::nightfall::v1::EntityDied* temp = _impl_.event_.entity_died_;
+    _impl_.event_.entity_died_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_entity_died(::nightfall::v1::EntityDied* entity_died) {
+  clear_event();
+  if (entity_died) {
+    set_has_entity_died();
+    _impl_.event_.entity_died_ = entity_died;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.entity_died)
+}
+inline ::nightfall::v1::EntityDied* WorldEvent::_internal_mutable_entity_died() {
+  if (event_case() != kEntityDied) {
+    clear_event();
+    set_has_entity_died();
+    _impl_.event_.entity_died_ = CreateMaybeMessage< ::nightfall::v1::EntityDied >(GetArenaForAllocation());
+  }
+  return _impl_.event_.entity_died_;
+}
+inline ::nightfall::v1::EntityDied* WorldEvent::mutable_entity_died() {
+  ::nightfall::v1::EntityDied* _msg = _internal_mutable_entity_died();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.entity_died)
+  return _msg;
+}
+
+// .nightfall.v1.EntityRespawned entity_respawned = 6;
+inline bool WorldEvent::has_entity_respawned() const {
+  return event_case() == kEntityRespawned;
+}
+inline bool WorldEvent::_internal_has_entity_respawned() const {
+  return event_case() == kEntityRespawned;
+}
+inline void WorldEvent::set_has_entity_respawned() {
+  _impl_._oneof_case_[0] = kEntityRespawned;
+}
+inline void WorldEvent::clear_entity_respawned() {
+  if (event_case() == kEntityRespawned) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.entity_respawned_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::EntityRespawned* WorldEvent::release_entity_respawned() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.entity_respawned)
+  if (event_case() == kEntityRespawned) {
+    clear_has_event();
+    ::nightfall::v1::EntityRespawned* temp = _impl_.event_.entity_respawned_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.entity_respawned_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EntityRespawned& WorldEvent::_internal_entity_respawned() const {
+  return event_case() == kEntityRespawned
+      ? *_impl_.event_.entity_respawned_
+      : reinterpret_cast<::nightfall::v1::EntityRespawned&>(::nightfall::v1::_EntityRespawned_default_instance_);
+}
+inline const ::nightfall::v1::EntityRespawned& WorldEvent::entity_respawned() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.entity_respawned)
+  return _internal_entity_respawned();
+}
+inline ::nightfall::v1::EntityRespawned* WorldEvent::unsafe_arena_release_entity_respawned() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.entity_respawned)
+  if (event_case() == kEntityRespawned) {
+    clear_has_event();
+    ::nightfall::v1::EntityRespawned* temp = _impl_.event_.entity_respawned_;
+    _impl_.event_.entity_respawned_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_entity_respawned(::nightfall::v1::EntityRespawned* entity_respawned) {
+  clear_event();
+  if (entity_respawned) {
+    set_has_entity_respawned();
+    _impl_.event_.entity_respawned_ = entity_respawned;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.entity_respawned)
+}
+inline ::nightfall::v1::EntityRespawned* WorldEvent::_internal_mutable_entity_respawned() {
+  if (event_case() != kEntityRespawned) {
+    clear_event();
+    set_has_entity_respawned();
+    _impl_.event_.entity_respawned_ = CreateMaybeMessage< ::nightfall::v1::EntityRespawned >(GetArenaForAllocation());
+  }
+  return _impl_.event_.entity_respawned_;
+}
+inline ::nightfall::v1::EntityRespawned* WorldEvent::mutable_entity_respawned() {
+  ::nightfall::v1::EntityRespawned* _msg = _internal_mutable_entity_respawned();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.entity_respawned)
+  return _msg;
+}
+
+// .nightfall.v1.StatsChanged stats_changed = 7;
+inline bool WorldEvent::has_stats_changed() const {
+  return event_case() == kStatsChanged;
+}
+inline bool WorldEvent::_internal_has_stats_changed() const {
+  return event_case() == kStatsChanged;
+}
+inline void WorldEvent::set_has_stats_changed() {
+  _impl_._oneof_case_[0] = kStatsChanged;
+}
+inline void WorldEvent::clear_stats_changed() {
+  if (event_case() == kStatsChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.stats_changed_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::StatsChanged* WorldEvent::release_stats_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.stats_changed)
+  if (event_case() == kStatsChanged) {
+    clear_has_event();
+    ::nightfall::v1::StatsChanged* temp = _impl_.event_.stats_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.stats_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::StatsChanged& WorldEvent::_internal_stats_changed() const {
+  return event_case() == kStatsChanged
+      ? *_impl_.event_.stats_changed_
+      : reinterpret_cast<::nightfall::v1::StatsChanged&>(::nightfall::v1::_StatsChanged_default_instance_);
+}
+inline const ::nightfall::v1::StatsChanged& WorldEvent::stats_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.stats_changed)
+  return _internal_stats_changed();
+}
+inline ::nightfall::v1::StatsChanged* WorldEvent::unsafe_arena_release_stats_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.stats_changed)
+  if (event_case() == kStatsChanged) {
+    clear_has_event();
+    ::nightfall::v1::StatsChanged* temp = _impl_.event_.stats_changed_;
+    _impl_.event_.stats_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_stats_changed(::nightfall::v1::StatsChanged* stats_changed) {
+  clear_event();
+  if (stats_changed) {
+    set_has_stats_changed();
+    _impl_.event_.stats_changed_ = stats_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.stats_changed)
+}
+inline ::nightfall::v1::StatsChanged* WorldEvent::_internal_mutable_stats_changed() {
+  if (event_case() != kStatsChanged) {
+    clear_event();
+    set_has_stats_changed();
+    _impl_.event_.stats_changed_ = CreateMaybeMessage< ::nightfall::v1::StatsChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.stats_changed_;
+}
+inline ::nightfall::v1::StatsChanged* WorldEvent::mutable_stats_changed() {
+  ::nightfall::v1::StatsChanged* _msg = _internal_mutable_stats_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.stats_changed)
+  return _msg;
+}
+
+// .nightfall.v1.XpGained xp_gained = 8;
+inline bool WorldEvent::has_xp_gained() const {
+  return event_case() == kXpGained;
+}
+inline bool WorldEvent::_internal_has_xp_gained() const {
+  return event_case() == kXpGained;
+}
+inline void WorldEvent::set_has_xp_gained() {
+  _impl_._oneof_case_[0] = kXpGained;
+}
+inline void WorldEvent::clear_xp_gained() {
+  if (event_case() == kXpGained) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.xp_gained_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::XpGained* WorldEvent::release_xp_gained() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.xp_gained)
+  if (event_case() == kXpGained) {
+    clear_has_event();
+    ::nightfall::v1::XpGained* temp = _impl_.event_.xp_gained_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.xp_gained_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::XpGained& WorldEvent::_internal_xp_gained() const {
+  return event_case() == kXpGained
+      ? *_impl_.event_.xp_gained_
+      : reinterpret_cast<::nightfall::v1::XpGained&>(::nightfall::v1::_XpGained_default_instance_);
+}
+inline const ::nightfall::v1::XpGained& WorldEvent::xp_gained() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.xp_gained)
+  return _internal_xp_gained();
+}
+inline ::nightfall::v1::XpGained* WorldEvent::unsafe_arena_release_xp_gained() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.xp_gained)
+  if (event_case() == kXpGained) {
+    clear_has_event();
+    ::nightfall::v1::XpGained* temp = _impl_.event_.xp_gained_;
+    _impl_.event_.xp_gained_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_xp_gained(::nightfall::v1::XpGained* xp_gained) {
+  clear_event();
+  if (xp_gained) {
+    set_has_xp_gained();
+    _impl_.event_.xp_gained_ = xp_gained;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.xp_gained)
+}
+inline ::nightfall::v1::XpGained* WorldEvent::_internal_mutable_xp_gained() {
+  if (event_case() != kXpGained) {
+    clear_event();
+    set_has_xp_gained();
+    _impl_.event_.xp_gained_ = CreateMaybeMessage< ::nightfall::v1::XpGained >(GetArenaForAllocation());
+  }
+  return _impl_.event_.xp_gained_;
+}
+inline ::nightfall::v1::XpGained* WorldEvent::mutable_xp_gained() {
+  ::nightfall::v1::XpGained* _msg = _internal_mutable_xp_gained();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.xp_gained)
+  return _msg;
+}
+
+// .nightfall.v1.LevelUp level_up = 9;
+inline bool WorldEvent::has_level_up() const {
+  return event_case() == kLevelUp;
+}
+inline bool WorldEvent::_internal_has_level_up() const {
+  return event_case() == kLevelUp;
+}
+inline void WorldEvent::set_has_level_up() {
+  _impl_._oneof_case_[0] = kLevelUp;
+}
+inline void WorldEvent::clear_level_up() {
+  if (event_case() == kLevelUp) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.level_up_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::LevelUp* WorldEvent::release_level_up() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.level_up)
+  if (event_case() == kLevelUp) {
+    clear_has_event();
+    ::nightfall::v1::LevelUp* temp = _impl_.event_.level_up_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.level_up_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::LevelUp& WorldEvent::_internal_level_up() const {
+  return event_case() == kLevelUp
+      ? *_impl_.event_.level_up_
+      : reinterpret_cast<::nightfall::v1::LevelUp&>(::nightfall::v1::_LevelUp_default_instance_);
+}
+inline const ::nightfall::v1::LevelUp& WorldEvent::level_up() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.level_up)
+  return _internal_level_up();
+}
+inline ::nightfall::v1::LevelUp* WorldEvent::unsafe_arena_release_level_up() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.level_up)
+  if (event_case() == kLevelUp) {
+    clear_has_event();
+    ::nightfall::v1::LevelUp* temp = _impl_.event_.level_up_;
+    _impl_.event_.level_up_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_level_up(::nightfall::v1::LevelUp* level_up) {
+  clear_event();
+  if (level_up) {
+    set_has_level_up();
+    _impl_.event_.level_up_ = level_up;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.level_up)
+}
+inline ::nightfall::v1::LevelUp* WorldEvent::_internal_mutable_level_up() {
+  if (event_case() != kLevelUp) {
+    clear_event();
+    set_has_level_up();
+    _impl_.event_.level_up_ = CreateMaybeMessage< ::nightfall::v1::LevelUp >(GetArenaForAllocation());
+  }
+  return _impl_.event_.level_up_;
+}
+inline ::nightfall::v1::LevelUp* WorldEvent::mutable_level_up() {
+  ::nightfall::v1::LevelUp* _msg = _internal_mutable_level_up();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.level_up)
+  return _msg;
+}
+
+// .nightfall.v1.TargetChanged target_changed = 10;
+inline bool WorldEvent::has_target_changed() const {
+  return event_case() == kTargetChanged;
+}
+inline bool WorldEvent::_internal_has_target_changed() const {
+  return event_case() == kTargetChanged;
+}
+inline void WorldEvent::set_has_target_changed() {
+  _impl_._oneof_case_[0] = kTargetChanged;
+}
+inline void WorldEvent::clear_target_changed() {
+  if (event_case() == kTargetChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.target_changed_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::TargetChanged* WorldEvent::release_target_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.target_changed)
+  if (event_case() == kTargetChanged) {
+    clear_has_event();
+    ::nightfall::v1::TargetChanged* temp = _impl_.event_.target_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.target_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::TargetChanged& WorldEvent::_internal_target_changed() const {
+  return event_case() == kTargetChanged
+      ? *_impl_.event_.target_changed_
+      : reinterpret_cast<::nightfall::v1::TargetChanged&>(::nightfall::v1::_TargetChanged_default_instance_);
+}
+inline const ::nightfall::v1::TargetChanged& WorldEvent::target_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.target_changed)
+  return _internal_target_changed();
+}
+inline ::nightfall::v1::TargetChanged* WorldEvent::unsafe_arena_release_target_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.target_changed)
+  if (event_case() == kTargetChanged) {
+    clear_has_event();
+    ::nightfall::v1::TargetChanged* temp = _impl_.event_.target_changed_;
+    _impl_.event_.target_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_target_changed(::nightfall::v1::TargetChanged* target_changed) {
+  clear_event();
+  if (target_changed) {
+    set_has_target_changed();
+    _impl_.event_.target_changed_ = target_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.target_changed)
+}
+inline ::nightfall::v1::TargetChanged* WorldEvent::_internal_mutable_target_changed() {
+  if (event_case() != kTargetChanged) {
+    clear_event();
+    set_has_target_changed();
+    _impl_.event_.target_changed_ = CreateMaybeMessage< ::nightfall::v1::TargetChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.target_changed_;
+}
+inline ::nightfall::v1::TargetChanged* WorldEvent::mutable_target_changed() {
+  ::nightfall::v1::TargetChanged* _msg = _internal_mutable_target_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.target_changed)
+  return _msg;
+}
+
 inline bool WorldEvent::has_event() const {
   return event_case() != EVENT_NOT_SET;
 }
@@ -3564,6 +6733,888 @@ inline void EntityDespawn::set_allocated_entity_id(std::string* value) {
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EntityDespawn.entity_id)
 }
 
+// -------------------------------------------------------------------
+
+// AttackResult
+
+// string attacker = 1;
+inline void AttackResult::clear_attacker() {
+  _impl_.attacker_.ClearToEmpty();
+}
+inline const std::string& AttackResult::attacker() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackResult.attacker)
+  return _internal_attacker();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void AttackResult::set_attacker(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.attacker_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackResult.attacker)
+}
+inline std::string* AttackResult::mutable_attacker() {
+  std::string* _s = _internal_mutable_attacker();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.AttackResult.attacker)
+  return _s;
+}
+inline const std::string& AttackResult::_internal_attacker() const {
+  return _impl_.attacker_.Get();
+}
+inline void AttackResult::_internal_set_attacker(const std::string& value) {
+  ;
+
+
+  _impl_.attacker_.Set(value, GetArenaForAllocation());
+}
+inline std::string* AttackResult::_internal_mutable_attacker() {
+  ;
+  return _impl_.attacker_.Mutable( GetArenaForAllocation());
+}
+inline std::string* AttackResult::release_attacker() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.AttackResult.attacker)
+  return _impl_.attacker_.Release();
+}
+inline void AttackResult::set_allocated_attacker(std::string* value) {
+  _impl_.attacker_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.attacker_.IsDefault()) {
+          _impl_.attacker_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.AttackResult.attacker)
+}
+
+// string target = 2;
+inline void AttackResult::clear_target() {
+  _impl_.target_.ClearToEmpty();
+}
+inline const std::string& AttackResult::target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackResult.target)
+  return _internal_target();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void AttackResult::set_target(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackResult.target)
+}
+inline std::string* AttackResult::mutable_target() {
+  std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.AttackResult.target)
+  return _s;
+}
+inline const std::string& AttackResult::_internal_target() const {
+  return _impl_.target_.Get();
+}
+inline void AttackResult::_internal_set_target(const std::string& value) {
+  ;
+
+
+  _impl_.target_.Set(value, GetArenaForAllocation());
+}
+inline std::string* AttackResult::_internal_mutable_target() {
+  ;
+  return _impl_.target_.Mutable( GetArenaForAllocation());
+}
+inline std::string* AttackResult::release_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.AttackResult.target)
+  return _impl_.target_.Release();
+}
+inline void AttackResult::set_allocated_target(std::string* value) {
+  _impl_.target_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.target_.IsDefault()) {
+          _impl_.target_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.AttackResult.target)
+}
+
+// uint64 tick = 3;
+inline void AttackResult::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t AttackResult::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackResult.tick)
+  return _internal_tick();
+}
+inline void AttackResult::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackResult.tick)
+}
+inline ::uint64_t AttackResult::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void AttackResult::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// .nightfall.v1.AttackOutcome outcome = 4;
+inline void AttackResult::clear_outcome() {
+  _impl_.outcome_ = 0;
+}
+inline ::nightfall::v1::AttackOutcome AttackResult::outcome() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackResult.outcome)
+  return _internal_outcome();
+}
+inline void AttackResult::set_outcome(::nightfall::v1::AttackOutcome value) {
+   _internal_set_outcome(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackResult.outcome)
+}
+inline ::nightfall::v1::AttackOutcome AttackResult::_internal_outcome() const {
+  return static_cast<::nightfall::v1::AttackOutcome>(_impl_.outcome_);
+}
+inline void AttackResult::_internal_set_outcome(::nightfall::v1::AttackOutcome value) {
+  ;
+  _impl_.outcome_ = value;
+}
+
+// uint32 damage = 5;
+inline void AttackResult::clear_damage() {
+  _impl_.damage_ = 0u;
+}
+inline ::uint32_t AttackResult::damage() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackResult.damage)
+  return _internal_damage();
+}
+inline void AttackResult::set_damage(::uint32_t value) {
+  _internal_set_damage(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackResult.damage)
+}
+inline ::uint32_t AttackResult::_internal_damage() const {
+  return _impl_.damage_;
+}
+inline void AttackResult::_internal_set_damage(::uint32_t value) {
+  ;
+  _impl_.damage_ = value;
+}
+
+// uint32 target_hp_after = 6;
+inline void AttackResult::clear_target_hp_after() {
+  _impl_.target_hp_after_ = 0u;
+}
+inline ::uint32_t AttackResult::target_hp_after() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackResult.target_hp_after)
+  return _internal_target_hp_after();
+}
+inline void AttackResult::set_target_hp_after(::uint32_t value) {
+  _internal_set_target_hp_after(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackResult.target_hp_after)
+}
+inline ::uint32_t AttackResult::_internal_target_hp_after() const {
+  return _impl_.target_hp_after_;
+}
+inline void AttackResult::_internal_set_target_hp_after(::uint32_t value) {
+  ;
+  _impl_.target_hp_after_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// EntityDied
+
+// string entity = 1;
+inline void EntityDied::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& EntityDied::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntityDied.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EntityDied::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntityDied.entity)
+}
+inline std::string* EntityDied::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EntityDied.entity)
+  return _s;
+}
+inline const std::string& EntityDied::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void EntityDied::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EntityDied::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EntityDied::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EntityDied.entity)
+  return _impl_.entity_.Release();
+}
+inline void EntityDied::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EntityDied.entity)
+}
+
+// uint64 tick = 2;
+inline void EntityDied::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t EntityDied::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntityDied.tick)
+  return _internal_tick();
+}
+inline void EntityDied::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntityDied.tick)
+}
+inline ::uint64_t EntityDied::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void EntityDied::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// string killer = 3;
+inline void EntityDied::clear_killer() {
+  _impl_.killer_.ClearToEmpty();
+}
+inline const std::string& EntityDied::killer() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntityDied.killer)
+  return _internal_killer();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EntityDied::set_killer(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.killer_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntityDied.killer)
+}
+inline std::string* EntityDied::mutable_killer() {
+  std::string* _s = _internal_mutable_killer();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EntityDied.killer)
+  return _s;
+}
+inline const std::string& EntityDied::_internal_killer() const {
+  return _impl_.killer_.Get();
+}
+inline void EntityDied::_internal_set_killer(const std::string& value) {
+  ;
+
+
+  _impl_.killer_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EntityDied::_internal_mutable_killer() {
+  ;
+  return _impl_.killer_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EntityDied::release_killer() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EntityDied.killer)
+  return _impl_.killer_.Release();
+}
+inline void EntityDied::set_allocated_killer(std::string* value) {
+  _impl_.killer_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.killer_.IsDefault()) {
+          _impl_.killer_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EntityDied.killer)
+}
+
+// -------------------------------------------------------------------
+
+// EntityRespawned
+
+// string entity = 1;
+inline void EntityRespawned::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& EntityRespawned::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntityRespawned.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EntityRespawned::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntityRespawned.entity)
+}
+inline std::string* EntityRespawned::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EntityRespawned.entity)
+  return _s;
+}
+inline const std::string& EntityRespawned::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void EntityRespawned::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EntityRespawned::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EntityRespawned::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EntityRespawned.entity)
+  return _impl_.entity_.Release();
+}
+inline void EntityRespawned::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EntityRespawned.entity)
+}
+
+// uint64 tick = 2;
+inline void EntityRespawned::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t EntityRespawned::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntityRespawned.tick)
+  return _internal_tick();
+}
+inline void EntityRespawned::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntityRespawned.tick)
+}
+inline ::uint64_t EntityRespawned::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void EntityRespawned::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// .nightfall.v1.Position position = 3;
+inline bool EntityRespawned::has_position() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.position_ != nullptr);
+  return value;
+}
+inline const ::nightfall::v1::Position& EntityRespawned::_internal_position() const {
+  const ::nightfall::v1::Position* p = _impl_.position_;
+  return p != nullptr ? *p : reinterpret_cast<const ::nightfall::v1::Position&>(
+      ::nightfall::v1::_Position_default_instance_);
+}
+inline const ::nightfall::v1::Position& EntityRespawned::position() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntityRespawned.position)
+  return _internal_position();
+}
+inline void EntityRespawned::unsafe_arena_set_allocated_position(
+    ::nightfall::v1::Position* position) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.position_);
+  }
+  _impl_.position_ = position;
+  if (position) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.EntityRespawned.position)
+}
+inline ::nightfall::v1::Position* EntityRespawned::release_position() {
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::nightfall::v1::Position* temp = _impl_.position_;
+  _impl_.position_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::nightfall::v1::Position* EntityRespawned::unsafe_arena_release_position() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EntityRespawned.position)
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::nightfall::v1::Position* temp = _impl_.position_;
+  _impl_.position_ = nullptr;
+  return temp;
+}
+inline ::nightfall::v1::Position* EntityRespawned::_internal_mutable_position() {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  if (_impl_.position_ == nullptr) {
+    auto* p = CreateMaybeMessage<::nightfall::v1::Position>(GetArenaForAllocation());
+    _impl_.position_ = p;
+  }
+  return _impl_.position_;
+}
+inline ::nightfall::v1::Position* EntityRespawned::mutable_position() {
+  ::nightfall::v1::Position* _msg = _internal_mutable_position();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EntityRespawned.position)
+  return _msg;
+}
+inline void EntityRespawned::set_allocated_position(::nightfall::v1::Position* position) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete reinterpret_cast< ::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.position_);
+  }
+  if (position) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(position));
+    if (message_arena != submessage_arena) {
+      position = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, position, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.position_ = position;
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EntityRespawned.position)
+}
+
+// uint32 hp = 4;
+inline void EntityRespawned::clear_hp() {
+  _impl_.hp_ = 0u;
+}
+inline ::uint32_t EntityRespawned::hp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntityRespawned.hp)
+  return _internal_hp();
+}
+inline void EntityRespawned::set_hp(::uint32_t value) {
+  _internal_set_hp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntityRespawned.hp)
+}
+inline ::uint32_t EntityRespawned::_internal_hp() const {
+  return _impl_.hp_;
+}
+inline void EntityRespawned::_internal_set_hp(::uint32_t value) {
+  ;
+  _impl_.hp_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// StatsChanged
+
+// string entity = 1;
+inline void StatsChanged::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& StatsChanged::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void StatsChanged::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.entity)
+}
+inline std::string* StatsChanged::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.StatsChanged.entity)
+  return _s;
+}
+inline const std::string& StatsChanged::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void StatsChanged::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* StatsChanged::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* StatsChanged::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.StatsChanged.entity)
+  return _impl_.entity_.Release();
+}
+inline void StatsChanged::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.StatsChanged.entity)
+}
+
+// uint32 hp = 2;
+inline void StatsChanged::clear_hp() {
+  _impl_.hp_ = 0u;
+}
+inline ::uint32_t StatsChanged::hp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.hp)
+  return _internal_hp();
+}
+inline void StatsChanged::set_hp(::uint32_t value) {
+  _internal_set_hp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.hp)
+}
+inline ::uint32_t StatsChanged::_internal_hp() const {
+  return _impl_.hp_;
+}
+inline void StatsChanged::_internal_set_hp(::uint32_t value) {
+  ;
+  _impl_.hp_ = value;
+}
+
+// uint32 max_hp = 3;
+inline void StatsChanged::clear_max_hp() {
+  _impl_.max_hp_ = 0u;
+}
+inline ::uint32_t StatsChanged::max_hp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.max_hp)
+  return _internal_max_hp();
+}
+inline void StatsChanged::set_max_hp(::uint32_t value) {
+  _internal_set_max_hp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.max_hp)
+}
+inline ::uint32_t StatsChanged::_internal_max_hp() const {
+  return _impl_.max_hp_;
+}
+inline void StatsChanged::_internal_set_max_hp(::uint32_t value) {
+  ;
+  _impl_.max_hp_ = value;
+}
+
+// uint32 mp = 4;
+inline void StatsChanged::clear_mp() {
+  _impl_.mp_ = 0u;
+}
+inline ::uint32_t StatsChanged::mp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.mp)
+  return _internal_mp();
+}
+inline void StatsChanged::set_mp(::uint32_t value) {
+  _internal_set_mp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.mp)
+}
+inline ::uint32_t StatsChanged::_internal_mp() const {
+  return _impl_.mp_;
+}
+inline void StatsChanged::_internal_set_mp(::uint32_t value) {
+  ;
+  _impl_.mp_ = value;
+}
+
+// uint32 max_mp = 5;
+inline void StatsChanged::clear_max_mp() {
+  _impl_.max_mp_ = 0u;
+}
+inline ::uint32_t StatsChanged::max_mp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.max_mp)
+  return _internal_max_mp();
+}
+inline void StatsChanged::set_max_mp(::uint32_t value) {
+  _internal_set_max_mp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.max_mp)
+}
+inline ::uint32_t StatsChanged::_internal_max_mp() const {
+  return _impl_.max_mp_;
+}
+inline void StatsChanged::_internal_set_max_mp(::uint32_t value) {
+  ;
+  _impl_.max_mp_ = value;
+}
+
+// uint32 level = 6;
+inline void StatsChanged::clear_level() {
+  _impl_.level_ = 0u;
+}
+inline ::uint32_t StatsChanged::level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.level)
+  return _internal_level();
+}
+inline void StatsChanged::set_level(::uint32_t value) {
+  _internal_set_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.level)
+}
+inline ::uint32_t StatsChanged::_internal_level() const {
+  return _impl_.level_;
+}
+inline void StatsChanged::_internal_set_level(::uint32_t value) {
+  ;
+  _impl_.level_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// XpGained
+
+// string entity = 1;
+inline void XpGained::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& XpGained::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.XpGained.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void XpGained::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.XpGained.entity)
+}
+inline std::string* XpGained::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.XpGained.entity)
+  return _s;
+}
+inline const std::string& XpGained::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void XpGained::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* XpGained::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* XpGained::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.XpGained.entity)
+  return _impl_.entity_.Release();
+}
+inline void XpGained::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.XpGained.entity)
+}
+
+// uint64 amount = 2;
+inline void XpGained::clear_amount() {
+  _impl_.amount_ = ::uint64_t{0u};
+}
+inline ::uint64_t XpGained::amount() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.XpGained.amount)
+  return _internal_amount();
+}
+inline void XpGained::set_amount(::uint64_t value) {
+  _internal_set_amount(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.XpGained.amount)
+}
+inline ::uint64_t XpGained::_internal_amount() const {
+  return _impl_.amount_;
+}
+inline void XpGained::_internal_set_amount(::uint64_t value) {
+  ;
+  _impl_.amount_ = value;
+}
+
+// uint64 total = 3;
+inline void XpGained::clear_total() {
+  _impl_.total_ = ::uint64_t{0u};
+}
+inline ::uint64_t XpGained::total() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.XpGained.total)
+  return _internal_total();
+}
+inline void XpGained::set_total(::uint64_t value) {
+  _internal_set_total(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.XpGained.total)
+}
+inline ::uint64_t XpGained::_internal_total() const {
+  return _impl_.total_;
+}
+inline void XpGained::_internal_set_total(::uint64_t value) {
+  ;
+  _impl_.total_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// LevelUp
+
+// string entity = 1;
+inline void LevelUp::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& LevelUp::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.LevelUp.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void LevelUp::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.LevelUp.entity)
+}
+inline std::string* LevelUp::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.LevelUp.entity)
+  return _s;
+}
+inline const std::string& LevelUp::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void LevelUp::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* LevelUp::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* LevelUp::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.LevelUp.entity)
+  return _impl_.entity_.Release();
+}
+inline void LevelUp::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.LevelUp.entity)
+}
+
+// uint32 level = 2;
+inline void LevelUp::clear_level() {
+  _impl_.level_ = 0u;
+}
+inline ::uint32_t LevelUp::level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.LevelUp.level)
+  return _internal_level();
+}
+inline void LevelUp::set_level(::uint32_t value) {
+  _internal_set_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.LevelUp.level)
+}
+inline ::uint32_t LevelUp::_internal_level() const {
+  return _impl_.level_;
+}
+inline void LevelUp::_internal_set_level(::uint32_t value) {
+  ;
+  _impl_.level_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// TargetChanged
+
+// string entity = 1;
+inline void TargetChanged::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& TargetChanged::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.TargetChanged.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void TargetChanged::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.TargetChanged.entity)
+}
+inline std::string* TargetChanged::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.TargetChanged.entity)
+  return _s;
+}
+inline const std::string& TargetChanged::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void TargetChanged::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* TargetChanged::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* TargetChanged::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.TargetChanged.entity)
+  return _impl_.entity_.Release();
+}
+inline void TargetChanged::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.TargetChanged.entity)
+}
+
+// string target = 2;
+inline void TargetChanged::clear_target() {
+  _impl_.target_.ClearToEmpty();
+}
+inline const std::string& TargetChanged::target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.TargetChanged.target)
+  return _internal_target();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void TargetChanged::set_target(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.TargetChanged.target)
+}
+inline std::string* TargetChanged::mutable_target() {
+  std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.TargetChanged.target)
+  return _s;
+}
+inline const std::string& TargetChanged::_internal_target() const {
+  return _impl_.target_.Get();
+}
+inline void TargetChanged::_internal_set_target(const std::string& value) {
+  ;
+
+
+  _impl_.target_.Set(value, GetArenaForAllocation());
+}
+inline std::string* TargetChanged::_internal_mutable_target() {
+  ;
+  return _impl_.target_.Mutable( GetArenaForAllocation());
+}
+inline std::string* TargetChanged::release_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.TargetChanged.target)
+  return _impl_.target_.Release();
+}
+inline void TargetChanged::set_allocated_target(std::string* value) {
+  _impl_.target_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.target_.IsDefault()) {
+          _impl_.target_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.TargetChanged.target)
+}
+
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif  // __GNUC__
@@ -3586,6 +7637,12 @@ struct is_proto_enum<::nightfall::v1::EntityKind> : std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::EntityKind>() {
   return ::nightfall::v1::EntityKind_descriptor();
+}
+template <>
+struct is_proto_enum<::nightfall::v1::AttackOutcome> : std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::AttackOutcome>() {
+  return ::nightfall::v1::AttackOutcome_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE

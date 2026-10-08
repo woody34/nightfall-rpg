@@ -229,9 +229,9 @@ impl SessionCodec for ProstCodec {
         let command = command_from_pb(entity, msg.intent.as_ref()).map_err(|e| {
             let reason = match e {
                 MappingError::InvalidCoordinate => SessionReject::OutOfBounds,
-                MappingError::MissingIntent | MappingError::MissingDestination => {
-                    SessionReject::Invalid
-                },
+                MappingError::InvalidTarget
+                | MappingError::MissingIntent
+                | MappingError::MissingDestination => SessionReject::Invalid,
             };
             (reason, mapping_detail(e))
         });
@@ -265,6 +265,7 @@ impl SessionCodec for ProstCodec {
 
 const fn mapping_detail(e: MappingError) -> &'static str {
     match e {
+        MappingError::InvalidTarget => "target must be a UUID or empty",
         MappingError::MissingIntent => "intent is required",
         MappingError::MissingDestination => "destination is required",
         MappingError::InvalidCoordinate => "coordinate is not a finite tile position",
