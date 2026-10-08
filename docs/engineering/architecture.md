@@ -199,12 +199,13 @@ other. Chunking a record across several messages was rejected: it would turn one
 into several, complicate dedupe, `epoch_status` and `read_epoch`, and the full outputs of a tick
 that large are not worth the stall risk.
 
-**The gate.** The [tick diagram](../diagrams/deterministic-tick-replay.html) carries the
-ordering and failure path. The record includes outputs, so the tick runs before the ack;
-computed state is private until release. Append retries back off from 10 ms to 1 s. After
-5 s the zone pauses (`zones_paused`, alert `nf-zone-paused`), and sessions answer
-`IntentRejected{OVERLOADED}`; the next ack resumes it. Shutdown interrupts a stalled gate,
-so the watermark names only acknowledged ticks.
+**Durability rules.** Follow the [tick and replay diagram](../diagrams/deterministic-tick-replay.html)
+for ordering and failure handling. Every applied tick record, including idle ticks, is
+acknowledged before its outputs are released or the next tick is drafted. **Never sample
+applied records.** Clean shutdown writes a completion watermark after the actor stops;
+the watermark names only acknowledged ticks if shutdown interrupts a stalled gate.
+An epoch without a completion watermark (crash, failure to stop, or failed watermark write)
+is incomplete and **not replayable**. Per-session audit is separate and best effort (below).
 
 **Replay** (library path exercised in `tests/replay_log.rs`, not automatic restart recovery)
 opens an epoch with `open_epoch`, which refuses one without a watermark

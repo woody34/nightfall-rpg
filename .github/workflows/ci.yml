@@ -26,15 +26,46 @@ jobs:
       nats:
         image: nats:2.11-alpine
         ports: ['4222:4222']
-        options: --jetstream
+        command: --jetstream --http_port 8222
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8222/healthz"
+          --health-interval 2s --health-timeout 3s --health-retries 20
+      lgtm:
+        image: grafana/otel-lgtm:latest
+        ports: ['3300:3000', '4317:4317', '4318:4318']
+        options: >-
+          --health-cmd "test -f /tmp/ready"
+          --health-interval 5s --health-timeout 3s --health-retries 40
     env:
       DATABASE_URL: postgres://nightfall:nightfall@localhost:5432/nightfall
       NATS_URL: nats://localhost:4222
+      KEYCLOAK_URL: http://localhost:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # moon ci needs history to compute affected projects
+          fetch-depth: 0 # retain history for local/optional affected-task comparisons
+
+      # Realm bind mount needs checkout first. CI uses an ephemeral dev-file store.
+      - name: Start Keycloak
+        run: |
+          docker run -d --name ci-keycloak -p 8080:8080 \
+            -e KC_DB=dev-file -e KC_HEALTH_ENABLED=true \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+            -v "$GITHUB_WORKSPACE/infra/keycloak/realm-nightfall.json:/opt/keycloak/data/import/realm-nightfall.json:ro" \
+            --health-cmd="bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000 && printf \"GET /health/ready HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"UP\" <&3'" \
+            --health-interval=5s --health-timeout=5s --health-retries=40 --health-start-period=20s \
+            quay.io/keycloak/keycloak:26.8.0 start-dev --import-realm
+          for attempt in {1..60}; do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' ci-keycloak)" = healthy ]; then
+              curl --fail --silent --show-error "$KEYCLOAK_URL/realms/nightfall/.well-known/openid-configuration" >/dev/null
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs ci-keycloak
+          exit 1
 
       - uses: moonrepo/setup-toolchain@v0
         with:
@@ -45,7 +76,6 @@ jobs:
       # proto installs the Rust toolchain without components; fmt and clippy are required by moon tasks.
       - name: Install rustfmt and clippy
         run: rustup component add rustfmt clippy
-
 
       # Pinned: generated entities differ between CLI versions, so `api:entities-check` needs the
       # exact version in apps/api/sea-orm-cli.version (entities.sh enforces it).
@@ -58,6 +88,30 @@ jobs:
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
 
-      # Runs build/check/lint/format/test/deny for affected projects only.
+      # Explicit API targets exclude Unreal editor tasks. Force service acceptance and
+      # entity drift checks even for workflow/infra-only changes or a warm task cache.
       - name: moon ci
-        run: moon ci --color
+        run: >-
+          moon ci --force --color api:build api:check api:lint api:format
+          api:test api:deny api:entities-check
+
+      - name: Verify telemetry in LGTM
+        run: |
+          cargo run -p nightfall-api --bin nightfall-api > /tmp/nightfall-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true; wait "$api_pid" || true; cat /tmp/nightfall-api.log' EXIT
+          for attempt in {1..60}; do
+            if curl --fail --silent http://localhost:3000/health >/dev/null; then
+              bash infra/scripts/verify-observability.sh
+              exit 0
+            fi
+            kill -0 "$api_pid"
+            sleep 2
+          done
+          exit 1
+
+      - name: Keycloak diagnostics and cleanup
+        if: always()
+        run: |
+          docker logs ci-keycloak || true
+          docker rm -f ci-keycloak || true

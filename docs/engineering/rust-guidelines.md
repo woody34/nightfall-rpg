@@ -112,9 +112,9 @@ pinned in the workspace and matches `.prototools`.
 
 ## 7. Determinism (`domain/zone`)
 
-The zone simulation must replay byte for byte (plan D7, §8 of
+The zone simulation targets byte-for-byte replay (plan D7, §8 of
 `docs/plans/phase-0b-connected-slice.md`): the same snapshot plus the same applied-command log
-yields the same `AppliedTick` records on any machine and build. Rules for `domain/zone` and
+should reproduce the same `AppliedTick` records. Rules for `domain/zone` and
 `application/zone_actor`:
 
 - **No floats.** Positions and lengths are `Fixed` (`i32`, 1/1000 tile). Distances compare
@@ -133,14 +133,20 @@ yields the same `AppliedTick` records on any machine and build. Rules for `domai
 - **Every state change is a command.** Commands get an ordinal when drafted; refused commands
   produce a `Disposition`, never a silent drop. `AppliedTick` is the replay log's unit.
 
-Enforcement: `domain/zone/mod.rs` denies `clippy::float_arithmetic`, `float_cmp`,
-`float_cmp_const`, `lossy_float_literal`, `cast_precision_loss`, `imprecise_flops` and
-`suboptimal_flops` for the whole module, so a float expression fails `moon run api:lint`. The
-test `zone_sources_use_no_nondeterministic_apis` scans every file in the module for float types,
-`HashMap`/`HashSet`, `Instant`/`SystemTime` and ambient RNGs, and `every_zone_source_is_scanned`
-fails if a new file is not in the scan list. `tests/zone_determinism.rs` holds the property
-tests (identical streams across actors and runs, replay of recorded drafts, snapshot
-round-trip, exact arrival).
+Enforcement is scoped to `domain/zone`, not the actor or the whole crate:
+
+- `mod.rs` denies Clippy's `float_arithmetic`, `float_cmp`, `float_cmp_const`,
+  `lossy_float_literal`, `cast_precision_loss`, `imprecise_flops` and `suboptimal_flops`.
+  `api:lint` rejects operations those lints detect; this is not a blanket Rust float-type ban.
+- `zone_sources_use_no_nondeterministic_apis` scans embedded source lines, discards text from
+  the first `//`, and rejects substrings `f32`, `f64`, `HashMap`, `HashSet`, `Instant`,
+  `SystemTime`, `thread_rng`, `OsRng`, `rand::random`, and `from_entropy`. This is a text
+  check, not name resolution or an exhaustive ban on all nondeterministic APIs.
+- `every_zone_source_is_scanned` compares the embedded list with `.rs` files directly in
+  `domain/zone`; a new file there must be listed. It does not recursively scan subdirectories.
+- `tests/zone_determinism.rs` checks identical streams across actors/runs, recorded-draft
+  replay, snapshot round-trips and exact movement. These tests do not prove equivalence
+  across all machines or builds.
 
 ## 8. Documentation
 

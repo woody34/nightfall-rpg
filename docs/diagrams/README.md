@@ -7,7 +7,7 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 |---|---|---|
 | [System architecture](system-architecture.html) | Architecture | Unreal client, four Rust layers, Postgres, NATS, Keycloak and LGTM with development ports. |
 | [Login to zone admission](login-zone-sequence.html) | Sequence | Device flow, `IssuePlayTicket`, ticket-in-header WebSocket upgrade and acknowledged zone admission. |
-| [Deterministic tick and replay](deterministic-tick-replay.html) | Process | Draft → run → durable ack → sockets, plus snapshot/log reconstruction and output comparison. |
+| [Deterministic tick and replay](deterministic-tick-replay.html) | Process | Draft → run → durable ack → sockets; unsampled records, shutdown watermark, incomplete-epoch refusal and output comparison. |
 | [Session lifecycle](session-lifecycle.html) | State machine | HTTP admission, active session, recoverable rate limiting, replacement, idle timeout and close codes. |
 | [Persistence model](data-model.html) | ER / data model | All columns of the seven current tables, keys and declared versus logical relationships. |
 | [Module dependencies](module-dependencies.html) | Dependency graph | Composition, shared inner layers and the interface-to-infrastructure telemetry exception. |

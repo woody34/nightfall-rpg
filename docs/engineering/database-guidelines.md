@@ -79,6 +79,9 @@ idempotency_keys(account_id uuid, operation text, key uuid, fingerprint text,
   `moon run api:entities` (`sea-orm-cli generate entity`, run against a throwaway schema). They
   are never hand-edited; change the migration and regenerate. CI runs `api:entities-check`,
   which fails if regeneration produces a diff.
+- Run migrations through `infrastructure::postgres::migrate`: it holds the session-scoped
+  Postgres advisory lock `0x4e49_4748_5446_414c` while `Migrator::up` runs. The dedicated
+  lock connection is closed afterwards, releasing the lock; concurrent starters serialize.
 - Entities are infrastructure types. They never cross into `application` or `domain`; the
   repository maps `Model` to domain types.
 - Transactions go through `TransactionTrait` (`db.begin()` / `commit()`); pass `&tx` to every

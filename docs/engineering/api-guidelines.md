@@ -134,7 +134,7 @@ decides itself (below), sent when the refused frame arrives. This stream is what
 records and what replay compares (plan §8 #6). Every intent gets exactly one `Ack` or one
 `IntentRejected` with its `seq`.
 
-**Limits** (constants in `application::session`, mirrored in the world.proto header):
+**Limits** (`application::session::SessionLimits::default`; transport caps in `interface::ws`):
 
 | Limit | Value | When exceeded |
 |-------|-------|---------------|
@@ -144,8 +144,8 @@ records and what replay compares (plan §8 #6). Every intent gets exactly one `A
 | Idle | 60 s without any inbound frame (pings count) | close 4408 |
 | Zone queue | 1024 inputs per zone | `IntentRejected{OVERLOADED}`; session stays open |
 | Per-tick budget | 8 intents per session per tick | deferred in order to later ticks (a later `Ack.tick`) |
-| Outbound queue | 256 frames per session | frame dropped, `ws_dropped_frames_total` +1, close 4429 |
-| Sessions per IP | 10 (`WS_MAX_SESSIONS_PER_IP`) | HTTP 429 before the upgrade |
+| Outbound queue | 256 frames per session; 100 ms grace for the writer to drain | If still full after grace: frame dropped, `ws_dropped_frames_total` +1, close 4429 |
+| Sessions per IP | 10 by default (`SessionLimits::max_sessions_per_ip`; includes upgrades in progress) | HTTP 429 before the upgrade |
 
 Other refusals: non-binary, undecodable, or empty-intent frames are `INVALID`; a non-finite
 coordinate is `OUT_OF_BOUNDS` at the edge; the zone answers `OUT_OF_BOUNDS` (outside the
@@ -161,6 +161,9 @@ coordinate is `OUT_OF_BOUNDS` at the edge; the zone answers `OUT_OF_BOUNDS` (out
 | 4408 | Idle timeout | reconnect when the player acts |
 | 4409 | Stale generation or replaced by a newer session of the same player entity | stop; do not reconnect automatically |
 | 4429 | Not reading fast enough (outbound queue full, or a whole broadcast buffer behind) | reconnect with a fresh ticket; the AOI is resent |
+
+The writer allows 1 s to send a close frame before dropping the socket. A transport failure
+or client disconnect sends no application close code.
 
 Every reconnect uses a new ticket from `IssuePlayTicket` with a new idempotency key.
 
