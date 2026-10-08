@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 
 use super::{
     applied_msg_id, applied_subject, session_subject, snapshot_subject, watermark_subject,
+    HEADER_ROOM,
 };
 use crate::application::replay_log::{
     decode_snapshot, encode_snapshot, AppliedTickRecord, EpochStatus, EventLog, RecordStream, Seq,
@@ -46,12 +47,32 @@ impl Log {
 }
 
 /// The replay log in a `Vec`.
-#[derive(Default)]
 pub struct InMemoryEventLog {
     log: Mutex<Log>,
+    max_record_bytes: usize,
 }
 
+impl Default for InMemoryEventLog {
+    /// Accepts records up to the size `JetStream` would with its default 1 MiB `max_payload`.
+    fn default() -> Self {
+        Self::with_max_record_bytes(DEFAULT_MAX_PAYLOAD.saturating_sub(HEADER_ROOM))
+    }
+}
+
+/// NATS' default `max_payload`.
+const DEFAULT_MAX_PAYLOAD: usize = 1024 * 1024;
+
 impl InMemoryEventLog {
+    /// A log that, like a broker with a smaller `max_payload`, refuses applied records whose
+    /// encoding is longer than `max_record_bytes`.
+    #[must_use]
+    pub fn with_max_record_bytes(max_record_bytes: usize) -> Self {
+        Self {
+            log: Mutex::default(),
+            max_record_bytes,
+        }
+    }
+
     /// Every stored message's sequence and subject, in order. For ordering assertions.
     #[must_use]
     pub fn subjects(&self) -> Vec<(Seq, String)> {
@@ -88,11 +109,22 @@ impl InMemoryEventLog {
 
 #[async_trait]
 impl EventLog for InMemoryEventLog {
+    fn max_record_bytes(&self) -> usize {
+        self.max_record_bytes
+    }
+
     async fn append_applied(&self, record: &AppliedTickRecord) -> anyhow::Result<Seq> {
+        let payload = record.encode();
+        anyhow::ensure!(
+            payload.len() <= self.max_record_bytes,
+            "record of {} bytes exceeds the limit of {}",
+            payload.len(),
+            self.max_record_bytes
+        );
         Ok(self.log.lock().append(
             applied_subject(record.zone, record.epoch),
             Some(applied_msg_id(record.zone, record.epoch, record.tick)),
-            record.encode(),
+            payload,
         ))
     }
 

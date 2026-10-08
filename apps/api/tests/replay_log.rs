@@ -26,8 +26,8 @@ use std::time::Duration;
 use bytes::Bytes;
 use nightfall_api::application::replay_log::{
     decode_outputs, encode_outputs, open_epoch, AppliedTickRecord, EpochStatus, EventLog,
-    GateConfig, NoReplayMetrics, PlayerOutput, ReplayError, SessionAuditWriter, SessionInRecord,
-    SessionOutRecord, Watermark, WatermarkReason, ZoneSnapshotStore,
+    GateConfig, NoReplayMetrics, OutputForm, PlayerOutput, ReplayError, SessionAuditWriter,
+    SessionInRecord, SessionOutRecord, Watermark, WatermarkReason, ZoneSnapshotStore,
 };
 use nightfall_api::application::zone_actor::{manual_ticks, ManualTickDriver, TickOutcome};
 use nightfall_api::application::zone_bootstrap::{RunningZone, ZoneBootstrap};
@@ -53,7 +53,11 @@ struct Rig {
 
 impl Rig {
     fn new() -> Self {
-        let mem = Arc::new(InMemoryEventLog::default());
+        Self::with_log(InMemoryEventLog::default())
+    }
+
+    fn with_log(mem: InMemoryEventLog) -> Self {
+        let mem = Arc::new(mem);
         Self {
             faulty: Arc::new(FaultyLog::new(mem.clone())),
             mem,
@@ -189,6 +193,139 @@ async fn replaying_the_log_from_the_snapshot_reproduces_every_output_byte() {
         compared += record.outputs.len();
     }
     assert!(compared > 10, "the walk produced per-player output to compare");
+}
+
+/// Re-runs each record of a complete epoch from its snapshot; returns `(recorded, rerun)`
+/// pairs, the re-run with its outputs encoded.
+async fn rerun_epoch(
+    log: &dyn EventLog,
+    epoch: u64,
+) -> Vec<(AppliedTickRecord, AppliedTickRecord)> {
+    let mut opened = open_epoch(log, ZoneId(ZONE), epoch).await.unwrap();
+    let mut state = ZoneState::from_snapshot(opened.snapshot.snapshot.clone()).unwrap();
+    let mut pairs = Vec::new();
+    while let Some(record) = opened.records.next().await {
+        let record = record.unwrap();
+        let draft = nightfall_api::domain::zone::AppliedTickDraft {
+            epoch: record.epoch,
+            tick: record.tick,
+            commands: record.commands.clone(),
+        };
+        let rerun = AppliedTickRecord::from_applied(ZoneId(ZONE), &state.run_tick(draft).unwrap());
+        pairs.push((record, rerun));
+    }
+    pairs
+}
+
+/// Flips the last bit of one player's output.
+fn flip_one_byte(record: &mut AppliedTickRecord, player: usize) {
+    let mut bytes = record.outputs[player].bytes.to_vec();
+    *bytes.last_mut().unwrap() ^= 1;
+    record.outputs[player].bytes = Bytes::from(bytes);
+}
+
+#[tokio::test]
+async fn an_oversized_tick_is_logged_with_output_digests_and_the_zone_keeps_running() {
+    // A broker that takes at most 4 KiB per record. Twenty players spawning on one spot each
+    // see every spawn, so tick 0's full record is several times that.
+    const LIMIT: usize = 4096;
+    let rig = Rig::with_log(InMemoryEventLog::with_max_record_bytes(LIMIT));
+    let (zone, driver) = rig.start().await;
+    for n in 1..=20 {
+        zone.handle().send(player(n)).unwrap();
+    }
+    for _ in 0..10 {
+        assert!(matches!(driver.step().await.unwrap(), TickOutcome::Ran(_)));
+    }
+    assert_eq!(rig.faulty.attempts.load(Ordering::SeqCst), 10, "no append was retried");
+    let epoch = zone.epoch();
+    zone.shutdown(WatermarkReason::Shutdown).await.unwrap();
+
+    let pairs = rerun_epoch(rig.mem.as_ref(), epoch).await;
+    assert_eq!(pairs.len(), 10);
+    let (busy, busy_rerun) = &pairs[0];
+    assert!(busy_rerun.encoded_len() > LIMIT, "the full record would not fit");
+    assert!(
+        rig.mem.append_applied(busy_rerun).await.is_err(),
+        "the log refuses it, so without the bound the zone would stall"
+    );
+    assert_eq!(busy.output_form, OutputForm::Sha256);
+    assert_eq!(busy.outputs.len(), 20);
+    assert!(busy.outputs.iter().all(|o| o.bytes.len() == 32));
+    assert!(busy.encode().len() <= LIMIT);
+    assert_eq!(busy.commands, busy_rerun.commands, "commands are always kept in full");
+    assert_eq!(pairs[9].0.output_form, OutputForm::Encoded, "quiet ticks keep full outputs");
+    for (record, rerun) in &pairs {
+        assert!(record.reproduced_by(rerun), "tick {:?} diverged", record.tick);
+    }
+}
+
+#[tokio::test]
+async fn replay_detects_a_one_byte_divergence_in_a_digested_record() {
+    let rig = Rig::with_log(InMemoryEventLog::with_max_record_bytes(4096));
+    let (zone, driver) = rig.start().await;
+    for n in 1..=20 {
+        zone.handle().send(player(n)).unwrap();
+    }
+    driver.step().await.unwrap();
+    let epoch = zone.epoch();
+    zone.shutdown(WatermarkReason::Shutdown).await.unwrap();
+
+    let (recorded, rerun) = rerun_epoch(rig.mem.as_ref(), epoch).await.remove(0);
+    assert_eq!(recorded.output_form, OutputForm::Sha256);
+    assert!(recorded.reproduced_by(&rerun));
+    for player in [0, 7, 19] {
+        let mut diverged = rerun.clone();
+        flip_one_byte(&mut diverged, player);
+        assert!(!recorded.reproduced_by(&diverged), "player {player}'s changed byte was missed");
+    }
+    // A changed command or a corrupted stored digest is a divergence too.
+    let mut diverged = rerun.clone();
+    diverged.commands.pop();
+    assert!(!recorded.reproduced_by(&diverged));
+    let mut corrupted = recorded.clone();
+    flip_one_byte(&mut corrupted, 3);
+    assert!(!corrupted.reproduced_by(&rerun));
+}
+
+#[test]
+fn bounded_keeps_a_record_that_fits_and_digests_one_that_does_not() {
+    let mut record = empty_record(1, 2);
+    record.outputs = (0..4_u128)
+        .map(|n| PlayerOutput {
+            entity: EntityId::from_uuid(Uuid::from_u128(n)),
+            bytes: Bytes::from(vec![u8::try_from(n).unwrap(); 200]),
+        })
+        .collect();
+    let len = record.encoded_len();
+    assert_eq!(len, record.encode().len());
+    assert_eq!(record.clone().bounded(len), record);
+    let digested = record.clone().bounded(len - 1);
+    assert_eq!(digested, record.with_output_digests());
+    assert_eq!(digested.output_form, OutputForm::Sha256);
+    assert_eq!(digested.with_output_digests(), digested, "digesting twice changes nothing");
+    assert!(digested.encoded_len() < 4 * 60);
+    // A full record is never "reproduced" by a re-run that differs from it.
+    let mut diverged = record.clone();
+    flip_one_byte(&mut diverged, 2);
+    assert!(record.reproduced_by(&record));
+    assert!(!record.reproduced_by(&diverged));
+}
+
+#[test]
+fn a_record_with_encoded_outputs_keeps_the_original_wire_format() {
+    // Field 8 (output_form) is omitted at its default, so records written before digests
+    // existed and records written now with full outputs are byte-identical.
+    let mut record = empty_record(1, 2);
+    assert_eq!(record.encode(), vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02]);
+    record.outputs.push(PlayerOutput {
+        entity: EntityId::from_uuid(Uuid::from_u128(1)),
+        bytes: Bytes::from_static(&[0xAA]),
+    });
+    let mut expected = vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02, 0x3a, 0x15, 0x0a, 0x10];
+    expected.extend_from_slice(Uuid::from_u128(1).as_bytes());
+    expected.extend_from_slice(&[0x12, 0x01, 0xAA]);
+    assert_eq!(record.encode(), expected);
 }
 
 #[tokio::test]
@@ -458,6 +595,7 @@ fn empty_record(epoch: u64, tick: u64) -> AppliedTickRecord {
         commands: Vec::new(),
         dispositions: Vec::new(),
         outputs: Vec::new(),
+        output_form: OutputForm::Encoded,
     }
 }
 
@@ -748,6 +886,7 @@ fn record() -> impl Strategy<Value = (AppliedTickRecord, Vec<Vec<ObserverOutput>
                 commands,
                 dispositions,
                 outputs,
+                output_form: OutputForm::Encoded,
             };
             (record, outs.into_iter().map(|(_, items)| items).collect())
         })
@@ -769,6 +908,17 @@ proptest! {
     }
 
     #[test]
+    fn digested_records_round_trip_and_match_their_full_form((record, _outputs) in record()) {
+        let digested = record.with_output_digests();
+        let bytes = digested.encode();
+        let decoded = AppliedTickRecord::decode(&bytes).unwrap();
+        prop_assert_eq!(&decoded, &digested);
+        prop_assert_eq!(decoded.encode(), bytes);
+        prop_assert_eq!(decoded.output_form, OutputForm::Sha256);
+        prop_assert!(decoded.reproduced_by(&record));
+    }
+
+    #[test]
     fn audit_frames_round_trip_byte_for_byte(n in any::<u64>(), frame in proptest::collection::vec(any::<u8>(), 0..64)) {
         let mut r = audit_in(n % 1000);
         r.frame = Bytes::from(frame);
@@ -784,4 +934,22 @@ fn garbage_is_a_codec_error_not_a_panic() {
     assert!(AppliedTickRecord::decode(&[0xff, 0xff, 0xff]).is_err());
     // A command with no kind.
     assert!(AppliedTickRecord::decode(&[0x2a, 0x02, 0x08, 0x01]).is_err());
+    // An unknown output form (field 8 = 7).
+    let mut bytes = empty_record(1, 2).encode();
+    bytes.extend_from_slice(&[0x40, 0x07]);
+    assert!(AppliedTickRecord::decode(&bytes).is_err());
+    // A digest that is not 32 bytes.
+    let mut short = empty_record(1, 2);
+    short.output_form = OutputForm::Sha256;
+    short.outputs.push(PlayerOutput {
+        entity: EntityId::from_uuid(Uuid::from_u128(1)),
+        bytes: Bytes::from_static(&[1, 2, 3]),
+    });
+    assert!(AppliedTickRecord::decode(&short.encode()).is_err());
+    // Output bytes in a record flagged as digested (or a digest in a full one).
+    let mut full = short.clone();
+    full.output_form = OutputForm::Encoded;
+    let mut bytes = full.encode();
+    bytes.extend_from_slice(&[0x40, 0x01]);
+    assert!(AppliedTickRecord::decode(&bytes).is_err());
 }

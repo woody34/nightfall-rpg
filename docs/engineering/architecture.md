@@ -188,8 +188,8 @@ snapshot and its log live in the same stream and age out together, so an epoch i
 for at least 7 days; `zone_snapshots` rows are kept at least as long.
 
 **Record.** `AppliedTickRecord { zone, epoch, tick, server_time_ms, commands (ordinal, source,
-seq, command), dispositions, outputs }`, where `outputs` is each player's ordered output
-encoded with `encode_outputs`, in entity-id order. Replay re-runs `commands` from the snapshot
+seq, command), dispositions, outputs, output_form }`, where `outputs` is each player's ordered
+output encoded with `encode_outputs` (or its digest, below), in entity-id order. Replay re-runs `commands` from the snapshot
 and compares the re-encoded record **byte for byte**. Encoding: protobuf through hand-derived
 `prost` messages (schema in `replay_log/codec.rs`); serde with bincode was rejected because the
 zone's internally tagged serde enums cannot be decoded by non-self-describing formats. The
@@ -197,6 +197,25 @@ snapshot and watermark are canonical JSON (written once per epoch, readable in a
 `zone_snapshots.snapshot` holds the same bytes as the log message, plus
 `jetstream_snapshot_seq`, `jetstream_first_seq` (filled once the first record is acked),
 `time_origin_ms`, `build_id`, `config_hash` and `schema_version`.
+
+**Record size bound.** A record grows with players × AOI population (≈ 48 KB for 50 players
+each seeing 20 moves); around a thousand entities it would pass NATS `max_payload` (1 MiB by
+default, payload plus headers), and an append that can never fit would stall and then pause
+the zone forever. So before the first attempt the gate calls `AppliedTickRecord::bounded`
+with `EventLog::max_record_bytes()` (JetStream: the `max_payload` the server last announced,
+less 1 KiB for headers): if the encoding is over it, every player's output is replaced by its
+**SHA-256** and the record carries `output_form = SHA256` (protobuf field 8; per-player digests
+in `PlayerOutput.sha256`, field 3). Commands and dispositions are always stored in full, so
+replay still re-runs the tick; `AppliedTickRecord::reproduced_by` digests the re-run's outputs
+for such a record and compares the encodings, so a single changed output byte is still a
+divergence. What is lost is the ability to *show* a digested tick's outputs from the log alone
+(re-run it to see them). Each one counts `eventlog_digested_records_total`. Full-output records
+encode exactly as before (field 8 is omitted at its default), and old records decode as
+`ENCODED`. If even the digested record is over the limit (only commands and dispositions are
+left, bounded by the 1024-input queue) the gate logs an error and the append fails like any
+other. Chunking a record across several messages was rejected: it would turn one acked append
+into several, complicate dedupe, `epoch_status` and `read_epoch`, and the full outputs of a tick
+that large are not worth the stall risk.
 
 **The gate.** `DurableTickGate::admit` appends the tick's record and returns only on the
 `JetStream` ack; the actor releases the tick (broadcast) and drafts the next one only after

@@ -80,6 +80,8 @@ pub struct Metrics {
     pub eventlog_append_failures_total: Counter<u64>,
     /// Session audit frames dropped (buffer full or not acknowledged). Must stay 0.
     pub eventlog_audit_dropped_total: Counter<u64>,
+    /// Tick records too large for one log message, stored with per-player output digests.
+    pub eventlog_digested_records_total: Counter<u64>,
     /// Zones paused because their replay log has been unavailable longer than allowed.
     pub zones_paused: UpDownCounter<i64>,
     db_query_seconds: Histogram<f64>,
@@ -130,6 +132,10 @@ impl Metrics {
                 .u64_counter("nightfall_eventlog_audit_dropped")
                 .with_description("Session audit frames dropped")
                 .build(),
+            eventlog_digested_records_total: meter
+                .u64_counter("nightfall_eventlog_digested_records")
+                .with_description("Tick records stored with output digests (too large)")
+                .build(),
             zones_paused: meter
                 .i64_up_down_counter("nightfall_zones_paused")
                 .with_description("Zones paused because their replay log is unavailable")
@@ -157,6 +163,7 @@ impl Metrics {
         metrics.ws_dropped_frames_total.add(0, &[]);
         metrics.eventlog_append_failures_total.add(0, &[]);
         metrics.eventlog_audit_dropped_total.add(0, &[]);
+        metrics.eventlog_digested_records_total.add(0, &[]);
         metrics.zones_paused.add(0, &[]);
         metrics.record_ws_frames(FrameDirection::In, 0);
         metrics.record_ws_frames(FrameDirection::Out, 0);

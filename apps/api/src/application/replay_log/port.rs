@@ -23,6 +23,11 @@ pub type RecordStream = Pin<Box<dyn Stream<Item = anyhow::Result<AppliedTickReco
 /// stores it once (broker-side dedupe on `Nats-Msg-Id`).
 #[async_trait]
 pub trait EventLog: Send + Sync {
+    /// The largest encoded [`AppliedTickRecord`] one append can store (`JetStream`: the
+    /// server's `max_payload` less room for headers). A larger append fails every time, so
+    /// the gate shrinks such a record with [`AppliedTickRecord::bounded`] first.
+    fn max_record_bytes(&self) -> usize;
+
     /// Appends one tick's record. Durable and acknowledged.
     async fn append_applied(&self, record: &AppliedTickRecord) -> anyhow::Result<Seq>;
 
@@ -104,6 +109,10 @@ pub trait ZoneSnapshotStore: Send + Sync {
 pub trait ReplayLogMetrics: Send + Sync {
     /// One failed attempt to append an applied record (the zone is stalling).
     fn append_failed(&self) {}
+
+    /// One tick's record was too large for the log and was stored with its outputs as
+    /// SHA-256 digests.
+    fn record_digested(&self) {}
 
     /// The zone entered (`true`) or left (`false`) the paused state.
     fn zone_paused(&self, _paused: bool) {}

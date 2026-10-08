@@ -22,6 +22,6 @@ pub use port::{
 };
 pub use record::{
     decode_outputs, decode_snapshot, encode_outputs, encode_snapshot, AppliedTickRecord,
-    CodecError, EpochStatus, PlayerOutput, Seq, SessionInRecord, SessionOutRecord, StoredSnapshot,
-    Watermark, WatermarkReason,
+    CodecError, EpochStatus, OutputForm, PlayerOutput, Seq, SessionInRecord, SessionOutRecord,
+    StoredSnapshot, Watermark, WatermarkReason,
 };
