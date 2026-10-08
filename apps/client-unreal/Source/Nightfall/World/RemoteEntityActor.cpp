@@ -1,9 +1,17 @@
 #include "RemoteEntityActor.h"
 #include "Net/NetClientSubsystem.h"
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
 
 ARemoteEntityActor::ARemoteEntityActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	Body = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Body"));
+	Body->SetupAttachment(RootComponent);
+	Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Body->SetRelativeLocation(FVector(0.f, 0.f, 95.f));
+	Body->SetRelativeScale3D(FVector(0.8f, 0.8f, 1.9f));   // sized for the engine's 100 cm shapes
 }
 
 void ARemoteEntityActor::Bind(UNetClientSubsystem* InNet)

@@ -17,7 +17,7 @@ public class Nightfall : ModuleRules
 			"UMG",
 			"CommonUI",
 			"WebSockets",   // IWebSocket: the real-time channel to the Rust server
-			"HTTP",         // health/ready probes
+			"HTTP",         // OIDC device flow and token refresh (Auth/AuthSubsystem)
 			"TurboLinkGrpc", // gRPC channel + generated nightfall.v1 classes (Scripts/gen-proto.sh)
 			"DeveloperSettings",
 			"Json",
@@ -28,7 +28,10 @@ public class Nightfall : ModuleRules
 		{
 			"Slate",
 			"SlateCore",
+			"CommonInput",      // FUIInputConfig for the login screen
+			"ApplicationCore",  // clipboard (copy verification URL)
 			"NavigationSystem",
+			"EngineSettings",   // UGameMapsSettings (content wiring test)
 			"AIModule",     // SimpleMoveToLocation for local click-to-move preview
 		});
 

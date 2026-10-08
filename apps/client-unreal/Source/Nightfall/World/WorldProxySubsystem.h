@@ -17,7 +17,7 @@ public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
 
-	/** Blueprint class to spawn for entities; set from the GameMode or a config actor. */
+	/** Blueprint class to spawn for entities; ANightfallGameMode sets it from its EntityClass in InitGame. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nightfall")
 	TSubclassOf<class ARemoteEntityActor> EntityClass;
 

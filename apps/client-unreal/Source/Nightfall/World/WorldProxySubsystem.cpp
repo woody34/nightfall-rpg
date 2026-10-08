@@ -13,6 +13,13 @@ void UWorldProxySubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	if (!Net) return;
 	SpawnHandle = Net->OnEntitySpawn.AddUObject(this, &UWorldProxySubsystem::HandleSpawn);
 	DespawnHandle = Net->OnEntityDespawn.AddUObject(this, &UWorldProxySubsystem::HandleDespawn);
+
+	// The socket connects before this map loads (login -> connect -> travel), so the spawns for
+	// everything already around us arrived while no world was listening.
+	for (const TPair<FString, FEntitySpawn>& Known : Net->GetKnownEntities())
+	{
+		HandleSpawn(Known.Value);
+	}
 }
 
 void UWorldProxySubsystem::Deinitialize()

@@ -31,6 +31,11 @@ tasks:
     command: 'bash Scripts/run-tests.sh'
     deps: ['~:build-editor']
     preset: 'utility'
+  # Regenerates Content/{Input,Blueprints,UI,Maps} headless from Scripts/create_content.py.
+  create-content:
+    command: 'bash Scripts/create-content.sh'
+    deps: ['~:build-editor']
+    preset: 'utility'
   editor:
     command: 'bash -c "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor $PWD/Nightfall.uproject"'
     preset: 'server'
