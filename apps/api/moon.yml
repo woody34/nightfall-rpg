@@ -16,6 +16,8 @@ tasks:
   dev:
     command: 'cargo run -p nightfall-api'
     preset: 'server'
+    options:
+      envFile: '/.env'   # repo-root .env (copy from .env.example); missing file is fine
   entities:
     command: 'bash entities.sh'
     description: 'Regenerate SeaORM entities from the migrations (needs the compose Postgres).'
