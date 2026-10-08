@@ -34,6 +34,7 @@ public class Nightfall : ModuleRules
 		// Generated protobuf code (Scripts/gen-proto.sh) and the vendored protobuf-lite runtime.
 		// Until the ThirdParty module exists, ProtoCodec.cpp carries a minimal hand-written wire
 		// codec for the envelope so the client links without protobuf. See Net/ProtoCodec.h.
+		PublicIncludePaths.Add(ModuleDirectory);   // so "Net/..." and "Nightfall.h" resolve from subfolders
 		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Generated"));
 
 		// Warnings are errors, matching the Rust side's -D warnings policy.

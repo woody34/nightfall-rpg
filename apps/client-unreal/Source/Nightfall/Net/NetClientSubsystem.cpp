@@ -2,6 +2,7 @@
 #include "Nightfall.h"
 #include "IWebSocket.h"
 #include "WebSocketsModule.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "TimerManager.h"

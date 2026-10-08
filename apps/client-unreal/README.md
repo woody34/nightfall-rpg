@@ -44,11 +44,28 @@ Epic requires an account. Two routes:
   (<https://www.unrealengine.com/ue-on-github>), clone `EpicGames/UnrealEngine` at the `5.8`
   branch, then `./Setup.sh && ./GenerateProjectFiles.sh && make`. Budget 1-3 hours and ~200 GB.
 
-Then:
+The prebuilt zip does **not** include Epic's Linux compiler toolchain, and Unreal Build Tool
+will refuse to compile without it ("Platform Linux is not a valid platform to build. SDK
+validation failed"). Download the native toolchain the engine asks for (5.8 wants
+`v26_clang-20.1.8-rockylinux8`, 1.5 GB) and point `LINUX_MULTIARCH_ROOT` at it:
 
 ```bash
-export UE_ROOT=~/UnrealEngine
-sudo apt install -y clang lld            # UBT uses the engine's bundled clang, but the system one helps tooling
+mkdir -p ~/UnrealToolchains
+curl -L https://cdn.unrealengine.com/Toolchain_Linux/native-linux-v26_clang-20.1.8-rockylinux8.tar.gz | tar -xz -C ~/UnrealToolchains
+```
+
+Then in `~/.bashrc`:
+
+```bash
+export UE_ROOT="$HOME/Linux_Unreal_Engine_5.8.3"
+export LINUX_MULTIARCH_ROOT="$HOME/UnrealToolchains/v26_clang-20.1.8-rockylinux8"
+```
+
+Launch the bare editor from inside its binaries directory the first time; this build resolves
+`Engine/Content` relative to the working directory and crashes on ICU data otherwise:
+
+```bash
+cd $UE_ROOT/Engine/Binaries/Linux && ./UnrealEditor
 ```
 
 ## First build
@@ -79,8 +96,7 @@ subclass of `NightfallPlayerController`.
 6. **Replace the hand-written codec** with protoc output plus vendored protobuf-lite once a
    second message family (combat) arrives. Field numbers do not change.
 
-## Not verified yet
+## Build status
 
-This scaffold was written without an Unreal install on the authoring machine. Expect a handful
-of compile fixes on first build (include paths, API renames in 5.8). The codec, buffer, and
-subsystem logic are straightforward and were written against the documented 5.x APIs.
+Compiles clean with `bWarningsAsErrors` on UE 5.8.3 Linux (2026-10-07). Runtime behaviour is
+unverified until the server's `/ws` endpoint exists.
