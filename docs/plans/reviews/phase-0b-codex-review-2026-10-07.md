@@ -1,0 +1,62 @@
+# Independent review of the Phase 0b plan (OpenAI Codex, read-only, 2026-10-07)
+
+Requested by the architect before implementation. Dispositions are in `../phase-0b-connected-slice.md` §8.
+
+**Verdict: major revision.** D1–D7 remain fixed; the following gaps block secure connection, complete replay, or story acceptance.
+
+1. **Blocker — Stories 1.2–1.4: authenticated identity does not govern existing character operations.**  
+   [The gRPC handler](/home/matt-woodruff/repos/nightfall-rpg/apps/api/src/interface/grpc/mod.rs:93) trusts `CreateCharacterRequest.account_id`; `GetCharacter` has no caller identity or ownership check. Adding an interceptor alone leaves this behavior intact. **Fix:** derive account identity from verified request extensions, enforce ownership in character/ticket use cases, and test forged account IDs and another account’s character. Add typed authentication/authorization errors and transport mappings.
+
+2. **Blocker — Stories 3.2–3.3, 7.2: deliberate log loss contradicts perfect replay.**  
+   Fire-and-forget publication and a bounded dropping buffer cannot guarantee every frame is retained. A zero counter during one load test does not cover crashes, broker outages, or rejected publications; losing the final records may leave no detectable sequence gap. **Fix:** acknowledge durable publication, retry with stable record IDs, and define admission/backpressure behavior that prevents unrecorded simulation progress or output. Record durable completion watermarks; incomplete recordings must fail replay verification. Test broker failure, saturation, and process death.
+
+3. **Blocker — Stories 3.1–3.3: per-session sequences cannot reconstruct zone execution order.**  
+   Two sessions can submit commands in the same tick; neither `tick_applied` nor receive timestamps establish their application order. JetStream publication order from independent tasks need not match actor order. **Fix:** have the zone actor assign and record `(zone_epoch, tick, command_ordinal)` at application, with an explicit tick cutoff and bounded command budget. Replay all participating sessions in that order; `--session` should select the output being checked, not exclude other players’ inputs.
+
+4. **Blocker — Stories 3.2–3.4, 4.1–4.2: lifecycle inputs are absent from the recording.**  
+   Joins, character loads, disconnects, replacement logins, and outbound-queue eviction change world state without a `ClientMessage`. A zone-only replay cannot recreate these from `.in` frames. **Fix:** record ordered lifecycle/control events, including loaded character state and externally generated IDs. Give rejected or malformed inputs an explicit disposition instead of requiring a nonexistent `tick_applied`.
+
+5. **Blocker — Stories 3.3–3.4: epoch and snapshot boundaries are undefined.**  
+   “Session epoch” is ambiguous for a shared zone. Entities plus seed omit active movement, consumed RNG state, session sequence state, AOI state, and pending commands. There is no snapshot-to-log cursor or atomicity rule across Postgres and JetStream. Seven-day retention can also remove inputs needed by an older initial snapshot. **Fix:** define one zone epoch and a tick-boundary snapshot with complete replay state, log watermark, time origin, and build/schema/config identifiers. Specify snapshot subject capture, crash-safe publication, retention/checkpoint rules, and epoch lookup for both CLI modes.
+
+6. **High — Stories 3.1–3.3, 4.1, 4.3: deterministic zone events do not guarantee identical outbound bytes.**  
+   `EntityMove.server_time_ms` needs a recorded time origin; independently emitted acknowledgements and broadcasts can interleave differently. Existing [ID generation](/home/matt-woodruff/repos/nightfall-rpg/apps/api/src/domain/character.rs:140) reads time/randomness, and `SystemClock` remains available outside `domain/zone`. **Fix:** derive gameplay timestamps from recorded epoch time plus tick, inject or record generated IDs, and replay the same session/AOI/encoding pipeline. Define a single ordered output stream per session, including acknowledgements and rejections, and distinguish generated output from socket delivery.
+
+7. **High — Stories 1.4, 4.1, 5.1: query-string tickets would enter traces.**  
+   [The HTTP router](/home/matt-woodruff/repos/nightfall-rpg/apps/api/src/interface/http/mod.rs:34) installs the default trace layer; its span includes the full request URI. [Tower source](https://docs.rs/tower-http/latest/src/tower_http/trace/make_span.rs.html). **Fix:** install an allow-listed span builder that records only the path, redact credentials from proxy/client errors and telemetry, and test using a recognizable ticket sentinel. Specify cryptographically random tickets, protected storage, and TLS outside loopback development.
+
+8. **High — Stories 1.4, 4.1–4.2: single-use tickets do not enforce single-session ownership.**  
+   Two different valid tickets can concurrently admit the same account. Ticket consumption, socket upgrade, and actor admission are separate operations; late cleanup from an old socket could remove its replacement. Foundations already require one character online per account. **Fix:** define an account session reservation/generation, serialize replacement through the zone actor, fence stale commands and disconnects, and expire failed admissions. Test concurrent distinct tickets and failure after consumption.
+
+9. **High — Stories 1.4, 6.2: idempotent issuance and reconnect have no compatible lifecycle.**  
+   A retry with the same key must return the same ticket, including after consumption or expiry. The existing [reconnect loop](/home/matt-woodruff/repos/nightfall-rpg/apps/client-unreal/Source/Nightfall/Net/NetClientSubsystem.cpp:82) reuses the consumed ticket. The current idempotency table stores only `character_id`. **Fix:** add ticket-specific persisted results scoped by account, operation, and key. Retries of one issuance reuse its key; each new connection attempt obtains a fresh ticket with a new key. Specify uncertain-upgrade recovery without reactivating consumed tickets.
+
+10. **High — Stories 2.1, 3.1, 4.3, 7.2: fixed-point conversion and arithmetic are unspecified.**  
+    Existing domain positions are `f32`, database positions are `real`, and protobuf positions/speed are floats. A lint inside `domain/zone` does not define boundary conversion or prevent integer overflow and rounding drift. **Fix:** specify finite/range validation, quantization and rounding, persisted integer units, widened distance intermediates, integer normalization, fractional movement accumulation, and arrival behavior. Preserve protobuf field compatibility through explicit boundary conversion or new fields; test extreme coordinates, diagonals, and sub-unit speeds.
+
+11. **High — Stories 1.3–1.5, 4.1–4.3, 6.1–6.2: the connected-client contract is incomplete.**  
+    Current protobufs expose only `GameService`; no ticket RPC exists. Login has no assigned character creation/selection path, and `EnsureAccount` has no defined invocation point. [The world contract](/home/matt-woodruff/repos/nightfall-rpg/packages/proto/nightfall/v1/world.proto:34) cannot report a rejected intent; `StopMove` exists without planned handling. **Fix:** add a prerequisite contract task covering authenticated account provisioning, character acquisition, ticket response fields, acknowledgement semantics, rejection messages, and `StopMove` behavior. Update code generation and acceptance tests before client implementation.
+
+12. **High — Stories 3.1, 4.1, 4.4: bounded queues do not bound client resource consumption.**  
+    The plan omits frame/message byte limits, rate limits, idle timeouts, and behavior when the 1,024-command queue fills. One session can monopolize processing or force large allocations before decoding. **Fix:** enforce bounded message reassembly and per-session/IP admission limits, carry forward foundations’ inbound rate limit, and specify fair per-tick budgets plus overload rejection/disconnection. Test flooding alongside normal clients.
+
+13. **High — Stories 4.2–4.3: AOI is specified only at connection time.**  
+    Movement across cells needs updates for both the moving observer and observed entities. Otherwise clients retain entities outside interest or receive movement for unknown entities. With an aligned 64×64 zone and 32-tile cells, all four cells are neighbors, so the outside-AOI acceptance case also needs a larger fixture. **Fix:** maintain deterministic known-entity sets each tick; emit ordered spawn/despawn differences and include current movement state when an already-moving entity becomes visible.
+
+14. **High — Story 2.2: relay publication lacks a durable success boundary.**  
+    [The current NATS adapter](/home/matt-woodruff/repos/nightfall-rpg/apps/api/src/infrastructure/nats/mod.rs:39) uses Core publish. Marking the outbox row afterward does not prove durable broker storage. Direct publication plus relay publication also duplicates events, while payloads lack the sequence mentioned by the engineering deduplication rule. **Fix:** use acknowledged durable publication for relayed subjects, retain rows until acknowledgement, and give both paths the same stable event identity. Test failure after publication but before marking, not only before publication.
+
+15. **Medium — Stories 1.1–1.3: JWT acceptance and account provisioning need an executable integration contract.**  
+    A locally signed fixture does not prove the realm issues an access token with the configured audience. JWKS refresh and account writes also cannot be awaited inside a synchronous [tonic interceptor](https://docs.rs/tonic/latest/tonic/service/trait.Interceptor.html). **Fix:** explicitly configure the API audience and subject mapping; use asynchronous middleware/use cases or a preloaded verifier cache. Specify algorithm/token-type restrictions, required claims, bounded unknown-key refresh, and failure behavior. Test a real device-flow token, rotation, invalid signatures, and concurrent first login.
+
+16. **Medium — Story 2.1: migration adoption is not covered by unchanged adapter tests.**  
+    Startup and test fixtures currently invoke the sqlx migrator. Wrapping the same SQL in a new migration system needs an explicit baseline for existing databases. The repository also commits and then opens another transaction on the replay branch, contradicting the one-transaction guideline. **Fix:** define migration ownership and baseline conversion, verify compatible SeaORM/sqlx pool types, and keep replay reads within their original transaction. Test both fresh installation and upgrade from the current schema; update the shared test harness deliberately.
+
+17. **Medium — Story 4.1: handshake failure acceptance criteria mix HTTP and WebSocket errors.**  
+    A rejected upgrade returns HTTP; close code `4401` requires an established WebSocket. [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html). **Fix:** reject invalid/reused tickets before upgrade with a documented HTTP status and test that response. Reserve WebSocket close codes for failures after upgrade; add typed application errors to support the chosen mappings.
+
+18. **Medium — Stories 3.5, 5.1–5.3: telemetry producers have no complete ingestion path.**  
+    Publishing NATS events does not place them in Loki, and JSON stdout needs a collector. The plan also omits propagation across command queues and a policy for broadcasts caused by several commands. **Fix:** assign explicit NATS-to-log handling, stdout/OTLP log ingestion, metrics scraping, and queue-carried trace context. Verify an actual trace, Loki event, metric sample, and firing alert.
+
+19. **Medium — Stories 3.3, 5.1, 6.1, 7.3: ordering and CI can report completion prematurely.**  
+    Replay depends on snapshots and the session/AOI pipeline; the telemetry trace criterion depends on `MoveTo`; the TurboLink feasibility spike occurs after server implementation. [CI’s NATS service](/home/matt-woodruff/repos/nightfall-rpg/.github/workflows/ci.yml:26) lacks JetStream enablement. **Fix:** move the TurboLink spike and protocol contract first, implement snapshot/log semantics before replay, and defer end-to-end acceptance until Epic 4 exists. Enable JetStream in CI and require fresh multi-session capture/replay with failure injection alongside the checked-in fixture.

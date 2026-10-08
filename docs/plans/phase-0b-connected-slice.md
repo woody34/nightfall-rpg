@@ -1,6 +1,6 @@
 # Phase 0b Plan: Connected Vertical Slice
 
-**Status:** approved for refinement, not started. **Date:** 2026-10-07. **Owner:** Matt.
+**Status:** in progress; Revision 1 applied (§8). **Date:** 2026-10-07. **Owner:** Matt.
 **Planning model:** this plan was produced by Claude Fable 5.1 at high effort. Per-story model and
 effort recommendations are in each story.
 
@@ -137,3 +137,36 @@ About four weeks of focused work. Stories marked S can run as parallel sessions 
 
 Combat, items, chat, multiple zones, client prediction beyond the local move preview,
 production deployment, client-side frame recording (D4), event-log archival to object storage.
+
+## 8. Revision 1 (2026-10-07): dispositions of the independent review
+
+An independent read-only review by Codex (`reviews/phase-0b-codex-review-2026-10-07.md`) returned
+"major revision" with 19 findings. Decisions D1-D7 stand. The dispositions below are binding and
+amend the stories above; wave-2 briefs are written from this section.
+
+| # | Finding (short) | Disposition | Amendment |
+|---|-----------------|-------------|-----------|
+| 1 | Handlers trust `account_id` in requests; no ownership checks | **Accept** | New Story 1.6: `AccountId` comes only from verified request extensions; `GetCharacter`, `CreateCharacter`, `IssuePlayTicket` enforce ownership; `AppError::Unauthenticated` / `PermissionDenied` map to `UNAUTHENTICATED` / `PERMISSION_DENIED`; tests for forged ids and another account's character. |
+| 2 | Fire-and-forget event log cannot guarantee retention | **Accept** | Story 3.2 rewritten: JetStream publishes are **acknowledged**. The zone actor does not apply a tick's commands until that tick's applied-command record is acked, and does not release a tick's outbound batch until its record is acked (admission gated on durability; local ack latency is sub-millisecond). Each epoch log carries a **completion watermark**; replay refuses incomplete recordings. Tests: broker down, broker slow, process killed mid-tick. |
+| 3 | Per-session seqs cannot reconstruct cross-session order | **Accept** | The **zone actor is the single writer** of the replay log: subject `nightfall.zone.<zone>.<epoch>.applied`, one record per tick containing `(epoch, tick, [commands in application order with ordinal])`. Per-session `.in` / `.out` logs remain for audit and for selecting which session's output to verify (`--session` selects, never filters inputs). |
+| 4 | Lifecycle inputs (join, load, disconnect, eviction) not recorded | **Accept** | Every state change is a `ZoneCommand` (Spawn carries the loaded character state; Despawn; Replace-session) and therefore appears in the applied log. Rejected or malformed inputs get a `Disposition` record (tick seen, reason) instead of `tick_applied`. |
+| 5 | Epoch and snapshot undefined | **Accept** | One **epoch per zone**, started when the zone actor starts (restart = new epoch). Snapshot is taken at a tick boundary with no pending commands and contains: entities with full movement state, RNG state bytes, next command ordinal, AOI index (derivable but included), the JetStream sequence of the first log record, `time_origin_ms`, build id, config hash, schema version. Published to `nightfall.zone.<zone>.<epoch>.snapshot` **before** the first applied record. Retention: logs and snapshots of an epoch are kept together ≥ 7 days. |
+| 6 | Deterministic events do not imply identical bytes | **Accept** | `server_time_ms = time_origin_ms + tick × 100`, never a clock read. Entity ids for players are their character ids (inputs); any other id comes from the seeded RNG. The zone actor's broadcast stage produces **one ordered output stream per session** (acks, rejections, events) and that stream is what replay compares; socket delivery is metered separately. `SystemClock` is forbidden in `domain/zone` and `application/zone_actor`. |
+| 7 | Query-string ticket leaks into trace spans | **Accept** | The play ticket is sent in the WebSocket upgrade's `Authorization: Bearer` header, not the URL (Unreal's `IWebSocket` supports upgrade headers). HTTP span builder records path only, never query or headers; a test uses a sentinel ticket and asserts it appears in no span or log. Tickets are 32 random bytes, stored hashed. TLS required outside loopback. |
+| 8 | Single-use tickets do not enforce one session per account | **Accept** | `account_sessions` reservation with a **generation** number; a new admission for an account bumps the generation and the zone actor serializes replacement (despawn old, spawn new, as commands); stale sockets are fenced by generation and their disconnect cannot remove the replacement. Tests: two concurrent valid tickets; failure after consumption. |
+| 9 | Idempotent ticket issuance vs reconnect | **Accept** | Generic `idempotency_keys` table keyed `(account_id, operation, key)` with the stored response; a retry returns the same ticket even after consumption. Each connection attempt requests a fresh ticket with a new key; the client never reuses a consumed ticket (fixes the current reconnect loop). |
+| 10 | Fixed-point conversion unspecified | **Accept** | Wire keeps float `Position` for now; the boundary quantizes to the nearest milli-tile after finite/range validation and rejects NaN/inf/out-of-bounds. Postgres stores integer milli-tiles (migration changes `pos_x/pos_y` to `integer`). Distances use i64 intermediates; speed is milli-tiles per tick with exact arrival; direction normalisation is integer (no sqrt: step along the vector using i64 scaled math with a documented rounding rule). Tests at i32 extremes, diagonals, sub-unit speeds. |
+| 11 | Connected-client contract incomplete | **Accept** | New **Story 0.1 (contract first)**: `session.proto` (`SessionService.IssuePlayTicket`), `game.proto` gains `ListMyCharacters`, `world.proto` gains `IntentRejected{seq, reason}`, documented `Ack` semantics (applied vs accepted), and `StopMove` handling. Lands before Story 6.1's codegen step and before Epic 4. |
+| 12 | No per-client resource bounds | **Accept** | Max frame 4 KiB (reject larger before decode), 30 frames/s per session (token bucket), idle timeout 60 s, 10 concurrent upgrades per IP. Queue full → `IntentRejected{overloaded}`, not disconnect. Per-tick command budget per session (8); excess deferred to the next tick in order. Flood test with a well-behaved neighbour. |
+| 13 | AOI only at join | **Accept** | Each tick the zone actor maintains a per-session known-entity set and emits ordered `EntitySpawn`/`EntityDespawn` diffs as observers or observed cross cells; a spawn for an already-moving entity carries its destination and speed. Fixture zone is 256×256 tiles so "outside AOI" is testable. |
+| 14 | Relay publication not durable; direct + relay publish duplicates | **Accept** | Domain events are published **only** by the relay (the use case no longer publishes directly). Relay uses acknowledged JetStream publish with `Nats-Msg-Id = outbox.id` for broker-side dedupe; rows are marked only after ack. Test: crash after publish before mark. |
+| 15 | JWT verification cannot await in a sync interceptor | **Accept** | Verification is an async tower layer, not a tonic interceptor; JWKS cache preloaded at boot with bounded refresh on unknown kid. Integration test obtains a real token from the Compose Keycloak via the device flow automation from Story 1.1. |
+| 16 | Migration baseline; replay read outside the transaction | **Accept** | Story 2.1 adds a baseline migration that no-ops on databases already at the current schema; `create_idempotent` reads the replayed character inside the same transaction. |
+| 17 | HTTP vs WebSocket error semantics mixed | **Accept** | Invalid, expired, or reused ticket → HTTP 401 before upgrade; account already connected → 409 and replacement proceeds per #8; close codes only after upgrade. |
+| 18 | Telemetry ingestion path incomplete | **Accept** | Logs go to LGTM over OTLP (tracing-opentelemetry log bridge), not via stdout scraping; trace context is carried on zone commands so a `MoveTo` trace spans socket → actor → broadcast. Acceptance: one real trace, one Loki line, one metric sample, one firing alert, all verified by API query. |
+| 19 | Sequencing and CI | **Accept in part** | TurboLink spike already runs first. Story 0.1 precedes codegen and Epic 4. Replay acceptance moves after Epic 4. CI's NATS gets `--jetstream`. Replay CI runs on a fresh multi-session capture with failure injection plus the checked-in fixture. |
+
+**Effect on in-flight work.** Story 3.1 (ordinal stamping, applied-log shape, snapshot contents,
+AOI diffs, fixed-point spec), Epic 2 (relay durability, single publish path, same-transaction
+replay read, baseline migration), and Epic 5 (path-only spans, OTLP logs, acceptance by query)
+were notified directly. Story 1.1 and Story 6.1 are unaffected.
