@@ -69,3 +69,19 @@ These guidelines distil the following references. Where they conflict, this docu
   <https://jdno.dev/designing-an-api-for-a-video-game/>
 - Instaclustr, "Top 10 PostgreSQL best practices for 2025".
   <https://www.instaclustr.com/education/postgresql/top-10-postgresql-best-practices-for-2025/>
+
+## Parallel sessions and worktrees
+
+Every agent session that writes code runs in its own git worktree under `.claude/worktrees/`
+on its own branch, so two writers never touch the same files. Each worktree carries its own
+Rust `target/` directory (3-10 GB after a full build), so worktrees are removed as soon as their
+branch is merged:
+
+```bash
+git worktree remove --force .claude/worktrees/<name> && git worktree prune
+```
+
+Merged remote branches are deleted; local branches stay so a session can be resumed. Read-only
+reviewers (Codex) run against the main checkout in a read-only sandbox and need no worktree.
+Repo policy: no pull requests; the architect merges branches into `main` after lint and tests
+pass on the merged tree, then removes the worktree.
