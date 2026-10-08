@@ -1,3 +1,4 @@
+#![allow(deprecated)] // account_id is deprecated on the wire but still honoured until Story 1.6
 #![allow(
     missing_docs,
     unreachable_pub,

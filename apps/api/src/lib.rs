@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use application::use_cases::{CreateCharacter, GetCharacter, Ping};
 use application::{CharacterRepository, Clock, EventBus};
-use interface::grpc::GameServiceImpl;
+use interface::grpc::{GameServiceImpl, SessionServiceImpl};
 use tokio::net::TcpListener;
 
 /// The ports the server needs, already bound to adapters.
@@ -63,6 +63,7 @@ pub async fn serve_grpc(listener: TcpListener, service: GameServiceImpl) -> anyh
     let incoming = tokio_stream::wrappers::TcpListenerStream::new(listener);
     tonic::transport::Server::builder()
         .add_service(service.into_server())
+        .add_service(SessionServiceImpl.into_server())
         .serve_with_incoming(incoming)
         .await?;
     Ok(())

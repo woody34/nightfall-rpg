@@ -1,6 +1,9 @@
 //! gRPC surface generated from packages/proto.
 
 mod mapping;
+mod session_service;
+
+pub use session_service::SessionServiceImpl;
 
 use std::sync::Arc;
 
@@ -23,7 +26,10 @@ pub mod pb {
 }
 
 use pb::game_service_server::{GameService, GameServiceServer};
-use pb::{Character, CreateCharacterRequest, GetCharacterRequest, PingRequest, PingResponse};
+use pb::{
+    Character, CreateCharacterRequest, GetCharacterRequest, ListMyCharactersRequest,
+    ListMyCharactersResponse, PingRequest, PingResponse,
+};
 
 /// `GameService` implementation. Holds use cases, nothing else.
 pub struct GameServiceImpl {
@@ -93,6 +99,7 @@ impl GameService for GameServiceImpl {
         let req = req.into_inner();
         let idempotency_key = IdempotencyKey::parse(&req.idempotency_key)
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
+        #[allow(deprecated)] // removed in Story 1.6: the account will come from the token
         let account_id = uuid::Uuid::parse_str(&req.account_id)
             .map_err(|_| Status::invalid_argument("account_id must be a UUID"))?;
         let race = mapping::race_from_pb(req.race)
@@ -108,6 +115,13 @@ impl GameService for GameServiceImpl {
             .await
             .map_err(to_status)?;
         Ok(Response::new(mapping::character_to_pb(&c)))
+    }
+
+    async fn list_my_characters(
+        &self,
+        _req: Request<ListMyCharactersRequest>,
+    ) -> Result<Response<ListMyCharactersResponse>, Status> {
+        Err(Status::unimplemented("Story 1.4"))
     }
 }
 

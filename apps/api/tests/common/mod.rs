@@ -15,12 +15,14 @@ use std::sync::Arc;
 use nightfall_api::infrastructure::memory::{InMemoryCharacterRepository, InMemoryEventBus};
 use nightfall_api::infrastructure::SystemClock;
 use nightfall_api::interface::grpc::pb::game_service_client::GameServiceClient;
+use nightfall_api::interface::grpc::pb::session_service_client::SessionServiceClient;
 use nightfall_api::{bind, build_game_service, serve_grpc, serve_http, Dependencies};
 use tonic::transport::Channel;
 
 pub struct TestApp {
     pub http_base: String,
     pub grpc: GameServiceClient<Channel>,
+    pub session: SessionServiceClient<Channel>,
     pub characters: Arc<InMemoryCharacterRepository>,
     pub bus: Arc<InMemoryEventBus>,
     /// Server tasks; aborted when the app is dropped.
@@ -51,9 +53,13 @@ impl TestApp {
         let grpc = GameServiceClient::connect(format!("http://{grpc_addr}"))
             .await
             .unwrap();
+        let session = SessionServiceClient::connect(format!("http://{grpc_addr}"))
+            .await
+            .unwrap();
         Self {
             http_base: format!("http://{http_addr}"),
             grpc,
+            session,
             characters,
             bus,
             http_task,

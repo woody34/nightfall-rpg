@@ -7,9 +7,23 @@ import "nightfall/v1/game.proto";
 // Real-time channel envelopes (Phase 0 §3.2). These are NOT gRPC messages: one ClientMessage
 // or ServerMessage is sent per binary WebSocket frame on GET /ws?ticket=...
 //
+// Resource limits enforced per session by the server (Phase 0b plan §8 item 12):
+//   * max frame size:           4096 bytes; larger frames are rejected before decoding.
+//   * rate limit:               30 frames per second per session (token bucket); excess
+//                               intents are answered with IntentRejected{RATE_LIMITED}.
+//   * idle timeout:             60 s without any inbound frame closes the socket.
+//   * per-tick command budget:  8 commands per session per tick; the excess is deferred to
+//                               the next tick in order (and is therefore Acked with a later
+//                               `tick`).
+//
+// Time: the zone runs a fixed 100 ms tick. `server_time_ms = time_origin_ms + tick * 100`;
+// it is derived from the tick, never read from a clock, so replays are byte-identical.
+//
 // Field numbers are mirrored by hand in apps/client-unreal/Source/Nightfall/Net/ProtoCodec.h
 // until protoc-generated C++ replaces it. Never renumber; reserve removed fields.
 
+// Client-to-server envelope. Exactly one intent is set; a frame with none set is answered
+// with IntentRejected{INVALID}.
 message ClientMessage {
   uint32 seq = 1;                       // echoed in Ack; monotonically increasing per session
   oneof intent {
@@ -18,21 +32,51 @@ message ClientMessage {
   }
 }
 
+// Walk to `destination`. Answered by exactly one Ack or one IntentRejected with the same
+// `seq`. Rejections: OUT_OF_BOUNDS (outside the zone or non-finite), INVALID.
 message MoveToRequest {
   Position destination = 1;             // tile units
 }
 
+// Stop moving. Clears the entity's destination; the entity then emits one final EntityMove
+// with `destination` zero and `speed` zero. Stopping an already stationary entity is
+// accepted (Ack) and emits no event.
 message StopMoveRequest {}
 
+// Server-to-client envelope. Per session the server emits one ordered stream of Acks,
+// rejections and world events.
 message ServerMessage {
   oneof payload {
     Ack ack = 1;
     WorldEvent event = 2;
+    IntentRejected rejected = 3;
   }
 }
 
+// The intent with this `seq` was ACCEPTED and will be applied on tick `tick`. It is not yet
+// applied when the Ack is sent; the effect becomes visible in the EntityMove stamped with
+// that tick. An accepted intent is never later rejected.
 message Ack {
   uint32 seq = 1;
+  uint64 tick = 2;                      // tick on which the intent is applied
+}
+
+// The intent with this `seq` was REJECTED and will never be applied. The session stays open.
+// Exactly one of Ack or IntentRejected is sent per intent.
+message IntentRejected {
+  uint32 seq = 1;
+  RejectReason reason = 2;
+  string detail = 3;                    // human-readable, for logs; not for branching
+}
+
+enum RejectReason {
+  REJECT_REASON_UNSPECIFIED = 0;
+  REJECT_REASON_OUT_OF_BOUNDS = 1;      // destination outside the zone or not finite
+  REJECT_REASON_TOO_FAR = 2;            // destination beyond the allowed move distance
+  REJECT_REASON_UNKNOWN_ENTITY = 3;     // the session's entity is not (or no longer) in the zone
+  REJECT_REASON_OVERLOADED = 4;         // server-side queue full; retry later
+  REJECT_REASON_RATE_LIMITED = 5;       // more than 30 frames/s on this session
+  REJECT_REASON_INVALID = 6;            // malformed: no intent set, oversize, bad field
 }
 
 message WorldEvent {
@@ -49,11 +93,16 @@ enum EntityKind {
   ENTITY_KIND_NPC = 2;
 }
 
+// An entity entered the receiving session's area of interest (or the zone, or was replaced).
 message EntitySpawn {
   string entity_id = 1;
   string name = 2;
   Position position = 3;
   EntityKind kind = 4;
+  // Generation of the account session that owns this entity. A new admission for an account
+  // bumps it; a spawn with a higher generation replaces any earlier entity of that account,
+  // and anything stamped with a lower generation is stale and must be discarded.
+  uint32 session_generation = 5;
 }
 
 message EntityMove {
@@ -61,7 +110,9 @@ message EntityMove {
   Position position = 2;                // where the entity is at server_time_ms
   Position destination = 3;             // where it is heading (zero when stopped)
   float speed = 4;                      // tiles per second
-  int64 server_time_ms = 5;             // authoritative timestamp for interpolation
+  int64 server_time_ms = 5;             // authoritative timestamp for interpolation;
+                                        // = time_origin_ms + tick * 100
+  uint64 tick = 6;                      // zone tick this state is valid at
 }
 
 message EntityDespawn {

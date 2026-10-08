@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package nightfall.v1;
+
+// Admission to the real-time channel. Caller identity ALWAYS comes from the verified bearer
+// token on the gRPC call, never from a request field.
+service SessionService {
+  // Issues a single-use play ticket for one of the caller's characters. The client then opens
+  // `ws_url` and presents the ticket in the upgrade request's `Authorization: Bearer <ticket>`
+  // header (never in the URL, so it cannot leak into logs or traces).
+  //
+  // Ticket: 32 random bytes, base64url without padding. Single-use: the first successful
+  // WebSocket upgrade consumes it; invalid, expired or reused tickets get HTTP 401 before the
+  // upgrade.
+  //
+  // Idempotency: keyed on `idempotency_key`, scoped to the calling account. A retry with the
+  // same key returns the SAME ticket, even after that ticket has been consumed (the retry
+  // does not mint a new one and the returned ticket will be rejected at the WebSocket). Every
+  // new connection attempt, including a reconnect, MUST use a new key.
+  //
+  // Errors: UNAUTHENTICATED (missing or invalid bearer token), INVALID_ARGUMENT (malformed
+  // key or character_id), PERMISSION_DENIED (character owned by another account), NOT_FOUND
+  // (no such character), FAILED_PRECONDITION (key reused with a different body).
+  rpc IssuePlayTicket(IssuePlayTicketRequest) returns (IssuePlayTicketResponse);
+}
+
+message IssuePlayTicketRequest {
+  string idempotency_key = 1;  // client-generated UUID, required; new per connection attempt
+  string character_id = 2;     // UUID of a character owned by the caller
+}
+
+message IssuePlayTicketResponse {
+  string ticket = 1;           // opaque; 32 random bytes, base64url; treat as a secret
+  int64 expires_at_ms = 2;     // wall-clock unix ms after which the ticket is rejected
+  string ws_url = 3;           // where to connect, e.g. wss://host/ws (no ticket in the URL)
+}

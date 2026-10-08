@@ -13,13 +13,35 @@ service GameService {
   // Simple liveness probe for the client.
   rpc Ping(PingRequest) returns (PingResponse);
 
-  // Returns a character by id. NOT_FOUND if it does not exist.
+  // Returns a character by id.
+  //
+  // Idempotency: read-only, naturally idempotent, no key.
+  // Errors: UNAUTHENTICATED (missing or invalid bearer token), INVALID_ARGUMENT (malformed
+  // id), PERMISSION_DENIED (the character belongs to another account), NOT_FOUND (no such
+  // character).
   rpc GetCharacter(GetCharacterRequest) returns (Character);
 
-  // Creates a character. Idempotent on `idempotency_key`: a retry with the same key and the
-  // same account returns the character created the first time. ALREADY_EXISTS if the name is
-  // taken by a different request.
+  // Creates a character for the account identified by the verified bearer token.
+  //
+  // Idempotency: keyed on `idempotency_key`. A retry with the same key and the same body
+  // returns the character created the first time and performs no second side effect.
+  // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad key, name, or unspecified race),
+  // ALREADY_EXISTS (name taken by a different request), FAILED_PRECONDITION (key reused with
+  // a different body).
   rpc CreateCharacter(CreateCharacterRequest) returns (Character);
+
+  // Lists the characters owned by the account identified by the verified bearer token, in
+  // creation order. An account with no characters gets an empty list, not an error.
+  //
+  // Idempotency: read-only, naturally idempotent, no key.
+  // Errors: UNAUTHENTICATED (missing or invalid bearer token).
+  rpc ListMyCharacters(ListMyCharactersRequest) returns (ListMyCharactersResponse);
+}
+
+message ListMyCharactersRequest {}
+
+message ListMyCharactersResponse {
+  repeated Character characters = 1;
 }
 
 message PingRequest {
@@ -32,12 +54,15 @@ message PingResponse {
 }
 
 message GetCharacterRequest {
-  string character_id = 1;
+  string character_id = 1;  // UUID
 }
 
 message CreateCharacterRequest {
   string idempotency_key = 1;  // client-generated UUID, required
-  string account_id = 2;
+  // DEPRECATED: the account always comes from the verified bearer token, never from the
+  // request. Servers ignore this field once Story 1.6 lands; clients must not send it. The
+  // field number stays allocated and must never be reused.
+  string account_id = 2 [deprecated = true];
   string name = 3;
   Race race = 4;
 }
