@@ -1,6 +1,7 @@
 # Local infrastructure for development and integration tests.
-#   docker compose up -d        start Postgres, NATS and the Grafana LGTM stack
+#   docker compose up -d        start Postgres, NATS, Keycloak and the Grafana LGTM stack
 #   Grafana: http://localhost:3300 (login admin/admin)
+#   Keycloak: http://localhost:8080 (login admin/admin)
 #   docker compose down -v      stop and wipe data
 services:
   postgres:
@@ -20,6 +21,8 @@ services:
       -c autovacuum_vacuum_scale_factor=0.05
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Creates the `keycloak` database on first init only (see the file for existing volumes).
+      - ./infra/postgres/init-keycloak.sql:/docker-entrypoint-initdb.d/init-keycloak.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U nightfall -d nightfall"]
       interval: 2s
@@ -58,6 +61,40 @@ services:
       test: ["CMD-SHELL", "test -f /tmp/ready"]
       interval: 5s
       timeout: 3s
+      retries: 40
+
+  # Identity provider (OIDC). Dev mode only: http, no hostname checks.
+  # Admin console: http://localhost:8080 (KEYCLOAK_ADMIN / KEYCLOAK_ADMIN_PASSWORD, default admin/admin).
+  # See infra/keycloak/README.md.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: nightfall
+      KC_DB_PASSWORD: nightfall
+      KC_HTTP_PORT: "8080"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infra/keycloak/realm-nightfall.json:/opt/keycloak/data/import/realm-nightfall.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl; probe the management port (9000) with bash.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3 &&
+          grep -q '"status": "UP"' <&3
+      interval: 5s
+      timeout: 5s
       retries: 40
       start_period: 20s
 
