@@ -104,9 +104,15 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 		return;
 	}
 
-	if (Msg.AckSeq.IsSet())
+	if (Msg.Ack.IsSet())
 	{
-		LastAckedSeq = FMath::Max(LastAckedSeq, *Msg.AckSeq);
+		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Ack->Seq);
+	}
+	if (Msg.Rejected.IsSet())
+	{
+		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Rejected->Seq);
+		UE_LOG(LogNightfall, Warning, TEXT("ws: intent %u rejected (reason %u): %s"),
+			Msg.Rejected->Seq, Msg.Rejected->Reason, *Msg.Rejected->Detail);
 	}
 	if (Msg.Event.IsSet())
 	{

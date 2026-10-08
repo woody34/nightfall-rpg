@@ -1,5 +1,4 @@
 using UnrealBuildTool;
-using System.IO;
 
 public class Nightfall : ModuleRules
 {
@@ -18,7 +17,9 @@ public class Nightfall : ModuleRules
 			"UMG",
 			"CommonUI",
 			"WebSockets",   // IWebSocket: the real-time channel to the Rust server
-			"HTTP",         // health/ready probes; gRPC comes later via a dedicated module
+			"HTTP",         // health/ready probes
+			"TurboLinkGrpc", // gRPC channel + generated nightfall.v1 classes (Scripts/gen-proto.sh)
+			"DeveloperSettings",
 			"Json",
 			"JsonUtilities",
 		});
@@ -31,11 +32,10 @@ public class Nightfall : ModuleRules
 			"AIModule",     // SimpleMoveToLocation for local click-to-move preview
 		});
 
-		// Generated protobuf code (Scripts/gen-proto.sh) and the vendored protobuf-lite runtime.
-		// Until the ThirdParty module exists, ProtoCodec.cpp carries a minimal hand-written wire
-		// codec for the envelope so the client links without protobuf. See Net/ProtoCodec.h.
+		// Generated/ and GrpcBridge/ carry a .ubtignore: they are compiled inside the TurboLinkGrpc
+		// module (Scripts/setup-turbolink.sh links them there), never here. This module reaches
+		// them through TurboLinkGrpc's public headers and must not link protobuf or gRPC itself.
 		PublicIncludePaths.Add(ModuleDirectory);   // so "Net/..." and "Nightfall.h" resolve from subfolders
-		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Generated"));
 
 		// Warnings are errors, matching the Rust side's -D warnings policy.
 		bWarningsAsErrors = true;
