@@ -5,10 +5,15 @@
 //! D7). Inbound floats are rounded to the nearest 1/1000 tile once, at the edge, so everything
 //! downstream (including replay of the recorded inbound bytes) is integer and deterministic.
 
+use bytes::Bytes;
+use prost::Message as _;
 use thiserror::Error;
 
 use super::grpc::pb;
 use pb::world_event::Event;
+
+use crate::application::session::PlayerSpawn;
+use crate::domain::Character;
 
 use crate::domain::zone::{
     Disposition, EntityId, EntityKind, Fixed, ObserverOutput, RejectReason, SessionGeneration,
@@ -87,6 +92,17 @@ pub fn speed_to_tiles_per_second(s: Speed) -> f32 {
     let v = (f64::from(s.milli_tiles_per_tick()) * ticks_per_second as f64
         / f64::from(UNITS_PER_TILE)) as f32;
     v
+}
+
+/// What a loaded character spawns as: its id as the entity id (plan §8 #6), its saved
+/// position rounded to the nearest milli-tile, default speed.
+pub fn player_spawn(c: &Character) -> Result<PlayerSpawn, MappingError> {
+    Ok(PlayerSpawn {
+        entity: EntityId(c.id.as_uuid()),
+        name: c.name.as_str().to_owned(),
+        pos: Vec2Fixed::new(tiles_to_fixed(c.position.x)?, tiles_to_fixed(c.position.y)?),
+        speed: Speed::DEFAULT,
+    })
 }
 
 /// Domain entity kind to the wire enum value.
@@ -256,6 +272,12 @@ pub fn observer_output_to_pb(o: &ObserverOutput, server_time_ms: i64) -> Vec<pb:
                 payload: Some(Payload::Event(w)),
             })
             .collect(),
+        ObserverOutput::Accepted { seq, tick, .. } => vec![pb::ServerMessage {
+            payload: Some(Payload::Ack(pb::Ack {
+                seq: *seq,
+                tick: tick.0,
+            })),
+        }],
         ObserverOutput::Rejected(d) => disposition_to_pb(d)
             .map(|r| pb::ServerMessage {
                 payload: Some(Payload::Rejected(r)),
@@ -263,6 +285,18 @@ pub fn observer_output_to_pb(o: &ObserverOutput, server_time_ms: i64) -> Vec<pb:
             .into_iter()
             .collect(),
     }
+}
+
+/// A player's whole output for one tick as encoded `ServerMessage` frames, in order: one
+/// binary WebSocket frame each. The session sends exactly these bytes (plan §8 #6) and replay
+/// compares them.
+#[must_use]
+pub fn encode_observer_outputs(outputs: &[ObserverOutput], server_time_ms: i64) -> Vec<Bytes> {
+    outputs
+        .iter()
+        .flat_map(|o| observer_output_to_pb(o, server_time_ms))
+        .map(|m| Bytes::from(m.encode_to_vec()))
+        .collect()
 }
 
 #[cfg(test)]
@@ -376,6 +410,26 @@ mod tests {
                 }
             ]
         ));
+    }
+
+    #[test]
+    fn accepted_commands_become_acks_with_the_applied_tick() {
+        let out = ObserverOutput::Accepted {
+            ordinal: Ordinal(3),
+            seq: 41,
+            tick: Tick(9),
+        };
+        assert_eq!(
+            observer_output_to_pb(&out, 0),
+            vec![pb::ServerMessage {
+                payload: Some(pb::server_message::Payload::Ack(pb::Ack { seq: 41, tick: 9 })),
+            }]
+        );
+        let frames = encode_observer_outputs(&[out], 0);
+        let decoded = pb::ServerMessage::decode(frames[0].as_ref()).unwrap();
+        assert!(
+            matches!(decoded.payload, Some(pb::server_message::Payload::Ack(a)) if a.seq == 41)
+        );
     }
 
     #[test]

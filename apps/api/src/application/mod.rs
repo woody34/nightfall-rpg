@@ -6,11 +6,14 @@
 
 pub mod error;
 pub mod ports;
+pub mod session;
+pub mod trace;
 pub mod use_cases;
 pub mod zone_actor;
+pub mod zone_registry;
 
 pub use error::AppError;
 pub use ports::{
     AccountRepository, CharacterRepository, Clock, CreateOutcome, EventBus, IdempotencyKey,
-    SecretGenerator, SessionRepository, TokenVerifier,
+    SecretGenerator, SessionAudit, SessionRepository, TokenVerifier,
 };

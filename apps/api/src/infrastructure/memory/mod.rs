@@ -6,6 +6,7 @@ mod character_repository;
 mod clock;
 mod event_bus;
 mod secrets;
+mod session_audit;
 mod session_repository;
 mod token_verifier;
 
@@ -14,5 +15,6 @@ pub use character_repository::InMemoryCharacterRepository;
 pub use clock::ManualClock;
 pub use event_bus::InMemoryEventBus;
 pub use secrets::{FixedSecretGenerator, SequentialSecretGenerator};
+pub use session_audit::{AuditedFrame, DiscardSessionAudit, InMemorySessionAudit};
 pub use session_repository::InMemorySessionRepository;
 pub use token_verifier::TestTokenVerifier;

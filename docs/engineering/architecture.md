@@ -42,6 +42,8 @@ The rule, from Kigawas: routers thin, use cases thick, models slim. A handler th
 - `TokenVerifier`: `verify(token) -> Claims` (Keycloak JWKS in production).
 - `SecretGenerator`: `play_ticket()` (OS CSPRNG in production, fixed in tests).
 - `EventBus`: `publish(&DomainEvent)`.
+- `SessionAudit`: `record_in(session, seq, frame)`, `record_out(session, frame)`; never blocks
+  (the real-time channel's per-session audit log).
 - `Clock`: `now()`.
 
 Adapters are chosen at the composition root and injected as `Arc<dyn Port>` via
@@ -124,7 +126,9 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
   `SpawnPlayer` (with the loaded character state), `SpawnNpc` (id from the zone RNG),
   `Despawn`, `ReplaceSession`, `MoveTo` (inside bounds, at most 64 tiles), `StopMove`.
 - **Handle.** `ZoneHandle::send` never blocks: a full queue returns `ZoneSendError::Full` and
-  the session reports `OVERLOADED`. `subscribe()` gives one `Arc<AppliedTick>` per non-idle
+  the session reports `OVERLOADED`. `send_traced` also carries a `TraceCarrier` (never part of
+  the input or the log) so the actor's `zone.apply` span joins the sender's trace.
+  `send_wait` waits for room; only lifecycle commands (spawn, replace, despawn) use it. `subscribe()` gives one `Arc<AppliedTick>` per non-idle
   tick. `snapshot().await` answers at the next tick boundary with nothing deferred. `stats()` is
   a watch of `TickStats { tick, duration_micros, entities, commands_applied, commands_deferred,
   gate_holds }`.
@@ -137,8 +141,9 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
 - **Output.** `AppliedTick { epoch, tick, server_time_ms, commands, dispositions, events,
   outputs }`. `commands` (with ordinals and sources) is the replay log's unit. `dispositions`
   records every refused command. `events` are the zone-wide facts. `outputs` is each player's
-  ordered stream: its own rejections, then AOI despawns, spawns and moves, each in entity-id
-  order. The AOI is the 3x3 block of 32-tile cells, diffed every tick against what the player
+  ordered stream: responses to its own commands (`Accepted` for each applied command that
+  carries a `seq`, `Rejected` for each refused one, in ordinal order), then AOI despawns,
+  spawns and moves, each in entity-id order. A session sends exactly this stream. The AOI is the 3x3 block of 32-tile cells, diffed every tick against what the player
   already knows.
 - **Snapshot.** `ZoneSnapshot` holds full entity state, RNG state, next ordinal, AOI index,
   `time_origin_ms` and provenance (`schema_version`, `build_id`, `config_hash`,
@@ -150,6 +155,16 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
   entity becomes `EntitySpawn` and then `EntityMove`. A stopped entity is sent with
   destination and speed zero. Domain reasons without their own wire value map to `INVALID`,
   with the domain reason in `detail`.
+
+### 2.5 Sessions and zones
+
+`application::session` runs one actor per WebSocket (api-guidelines.md section 3b);
+`interface::ws` supplies the axum socket halves and the protobuf codec through the
+`FrameSource`, `FrameSink` and `SessionCodec` traits, so the session logic has no transport or
+wire dependency. `SessionRegistry` records which session owns each player entity and queues
+lifecycle commands under one lock, so the zone sees admissions and departures in the order the
+registry decided them. `application::zone_registry::ZoneRegistry` starts the one fixture zone
+(256x256 tiles, in memory, a new epoch per start) until Story 3.4's bootstrap replaces it.
 
 ## 3. Request lifecycle: `CreateCharacter`
 
@@ -167,6 +182,40 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
 
 Every step has a test: domain constructors (unit), use case with in-memory ports (unit),
 repository against Postgres (adapter), the endpoint through a real socket (integration).
+
+## 3a. Request lifecycle: `MoveTo` over the WebSocket
+
+0. **Handshake** (`interface::ws::upgrade`, once per socket). Per-IP slot (429), play ticket
+   from `Authorization: Bearer` consumed by `ConsumePlayTicket` (401/409), character loaded by
+   `GetCharacter` and converted to zone units by `zone_mapping::player_spawn`. Upgrade; the
+   session actor subscribes to the zone's broadcast, then `SessionRegistry::admit` queues
+   `SpawnPlayer` or `ReplaceSession`. Nothing is forwarded until that command's tick arrives.
+1. **Frame in** (session actor). The binary frame is counted (`ws_frames_total{in}`) and
+   audited (`SessionAudit::record_in`). Then, in order: decode with prost (only if at most
+   4096 bytes); `seq` must exceed the last (else close 4400); token bucket (else
+   `RATE_LIMITED`); size, binary and decode checks (else `INVALID`); `zone_mapping` turns
+   `MoveToRequest` into `ZoneCommand::MoveTo`, rounding the float destination to milli-tiles
+   (non-finite: `OUT_OF_BOUNDS`). Every refusal here is an `IntentRejected` queued at once.
+2. **To the zone.** A root span `ws.frame{seq}` is opened and its `TraceCarrier` rides with
+   `ZoneInput::session(entity, generation, seq, MoveTo)` through `ZoneHandle::send_traced`. A
+   full queue is `OVERLOADED`.
+3. **Tick** (zone actor, next 100 ms beat). The input is drafted with an ordinal (at most 8 per
+   session per tick), admitted by the `TickGate`, and applied by `ZoneState::run_tick`:
+   authorised against the session's generation, checked against bounds and the 64-tile limit,
+   then the movement phase takes the first step and the AOI diff runs. The player's output
+   for the tick is `Accepted{seq, tick}` (or `Rejected`) followed by its `EntityMove`s. The
+   actor records `zone.apply` under the carried span and broadcasts the `AppliedTick`.
+4. **Frames out** (every session in range). Each session takes its player's output from the
+   tick, encodes it with `zone_mapping` (`server_time_ms = time_origin_ms + tick * 100`, never a
+   clock read), records `ws.deliver` under the intent's trace, audits each frame
+   (`record_out`) and queues it on its outbound `mpsc(256)`. A full queue drops the frame,
+   counts it, and closes 4429.
+5. **Socket** (writer task). Frames are written in queue order and counted
+   (`ws_frames_total{out}`). Later ticks emit one `EntityMove` per tick while the entity walks
+   and a final one on arrival (destination and speed zero).
+
+Every step has a test: domain (`state_tests.rs`: acks and order), actor (`session_tests.rs`:
+admission, 4429, `OVERLOADED`, replacement), wire (`ws_session.rs`, `ws_trace.rs`).
 
 ## 4. Adding a feature
 

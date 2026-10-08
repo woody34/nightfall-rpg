@@ -29,20 +29,22 @@ async fn health() -> Json<Health> {
     })
 }
 
-/// Builds the router: `/health`, and `/metrics` in Prometheus text format.
+/// Builds the router: `/health`, `/metrics` in Prometheus text format, and `routes` (the
+/// `/ws` channel), all behind the same layers.
 ///
 /// Layers, outermost first: request id, trace span, id propagation, CORS, request metrics.
-pub fn router(metrics: Metrics) -> Router {
+pub fn router(metrics: Metrics, routes: Router) -> Router {
     let (set_request_id, propagate_request_id) = request_id_layers();
     Router::new()
         .route("/health", get(health))
         .route("/metrics", get(metrics_handler))
-        .layer(middleware::from_fn_with_state(metrics.clone(), http_metrics))
+        .with_state(metrics.clone())
+        .merge(routes)
+        .layer(middleware::from_fn_with_state(metrics, http_metrics))
         .layer(CorsLayer::permissive())
         .layer(propagate_request_id)
         .layer(http_trace_layer())
         .layer(set_request_id)
-        .with_state(metrics)
 }
 
 /// Maps application errors to HTTP status codes. Used once REST endpoints exist.

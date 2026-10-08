@@ -4,7 +4,6 @@
 //! Nothing is exported over the network unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set, so tests
 //! and dependency-free dev run without a collector.
 
-mod carrier;
 mod layers;
 mod metrics;
 
@@ -24,12 +23,14 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
-pub use carrier::TraceCarrier;
+/// Lives in the application layer, which carries it on zone inputs; re-exported here because
+/// it is the telemetry contract for crossing queues.
+pub use crate::application::trace::TraceCarrier;
 pub use layers::{
     http_metrics, http_trace_layer, metrics_handler, record_account_id, request_id_layers,
     GrpcTelemetryLayer, UuidV7RequestId,
 };
-pub use metrics::{FrameDirection, Metrics, OutboxStats, OutboxStatsSource};
+pub use metrics::{record_tick_stats, FrameDirection, Metrics, OutboxStats, OutboxStatsSource};
 
 const DEFAULT_FILTER: &str = "info,tower_http=debug,sqlx=warn";
 const METRIC_EXPORT_INTERVAL: Duration = Duration::from_secs(10);

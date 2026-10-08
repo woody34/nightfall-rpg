@@ -436,7 +436,8 @@ impl ZoneState {
             self.next_ordinal = Ordinal(c.ordinal.0.saturating_add(1));
         }
         events.extend(self.step(tick));
-        let outputs = self.observe(tick, &dispositions, &events);
+        let responses = responses(tick, &draft.commands, &dispositions);
+        let outputs = self.observe(tick, responses, &events);
         self.next_tick = tick.next();
         Ok(AppliedTick {
             epoch: draft.epoch,
@@ -671,7 +672,7 @@ impl ZoneState {
     }
 
     /// Builds each player's ordered output for the tick and updates what it knows. Order per
-    /// player: its own dispositions (ordinal order), AOI despawns, AOI spawns, then the
+    /// player: responses to its own commands (ordinal order), AOI despawns, AOI spawns, then the
     /// end-of-tick state of known entities that moved; each group in entity-id order. Players
     /// are visited in id order. Nothing here depends on anything but state and inputs.
     ///
@@ -681,7 +682,7 @@ impl ZoneState {
     fn observe(
         &mut self,
         tick: Tick,
-        dispositions: &[Disposition],
+        mut responses: BTreeMap<CommandSource, Vec<ObserverOutput>>,
         events: &[ZoneEvent],
     ) -> BTreeMap<EntityId, Vec<ObserverOutput>> {
         let mut moved: Vec<EntityId> = events
@@ -691,13 +692,6 @@ impl ZoneState {
             .collect();
         moved.sort_unstable();
         moved.dedup();
-        let mut rejected: BTreeMap<CommandSource, Vec<ObserverOutput>> = BTreeMap::new();
-        for d in dispositions {
-            rejected
-                .entry(d.source)
-                .or_default()
-                .push(ObserverOutput::Rejected(*d));
-        }
         let entities = &self.entities;
         self.known.retain(|id, _| entities.contains_key(id));
         let mut views: BTreeMap<CellCoord, CellView> = BTreeMap::new();
@@ -707,7 +701,9 @@ impl ZoneState {
                 entity: player.id,
                 generation: player.generation,
             };
-            let mut out = rejected.remove(&source).unwrap_or_default();
+            // Keyed by the full source, so a fenced (older) session's responses never reach
+            // the current one.
+            let mut out = responses.remove(&source).unwrap_or_default();
             let view = views
                 .entry(CellCoord::of(player.pos))
                 .or_insert_with(|| CellView::build(&self.aoi, entities, player.pos, &moved, tick));
@@ -724,6 +720,33 @@ impl ZoneState {
         }
         outputs
     }
+}
+
+/// Each session's responses for the tick, keyed by source, in ordinal order: an
+/// [`ObserverOutput::Accepted`] for every applied command that carries a `seq`, an
+/// [`ObserverOutput::Rejected`] for every refused one. `dispositions` is in ordinal order, as
+/// `commands` is.
+fn responses(
+    tick: Tick,
+    commands: &[AppliedCommand],
+    dispositions: &[Disposition],
+) -> BTreeMap<CommandSource, Vec<ObserverOutput>> {
+    let mut out: BTreeMap<CommandSource, Vec<ObserverOutput>> = BTreeMap::new();
+    let mut refused = dispositions.iter().peekable();
+    for c in commands {
+        let response = match refused.next_if(|d| d.ordinal == c.ordinal) {
+            Some(d) => Some(ObserverOutput::Rejected(*d)),
+            None => c.seq.map(|seq| ObserverOutput::Accepted {
+                ordinal: c.ordinal,
+                seq,
+                tick,
+            }),
+        };
+        if let (CommandSource::Session { .. }, Some(r)) = (c.source, response) {
+            out.entry(c.source).or_default().push(r);
+        }
+    }
+    out
 }
 
 /// One cell's AOI at the end of a tick: who is visible (sorted) and the moves among them.

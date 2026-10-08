@@ -5,14 +5,15 @@
 //! message is created, put it in the message, and parent the consumer's span on it:
 //!
 //! ```ignore
-//! // socket task
-//! let cmd = ZoneCommand { intent, trace: TraceCarrier::current() };
-//! tx.send(cmd).await?;
+//! // socket task, inside the `ws.frame` span
+//! zone.send_traced(input, TraceCarrier::current())?;
 //!
-//! // zone actor
-//! let span = tracing::info_span!(parent: cmd.trace.span(), "zone.apply_move");
-//! async { /* ... */ }.instrument(span).await;
+//! // zone actor, after the tick ran
+//! let _apply = tracing::info_span!(parent: carrier.span(), "zone.apply").entered();
 //! ```
+//!
+//! It lives in the application layer because the zone actor and the session carry it; it is
+//! re-exported as `infrastructure::telemetry::TraceCarrier`.
 //!
 //! The carrier holds a `tracing::Span`, so the whole chain lands in one trace with the original
 //! request as root. It is in-process only; it is not serialised into the event log.

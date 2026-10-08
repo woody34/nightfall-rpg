@@ -294,6 +294,16 @@ impl ZoneEvent {
 pub enum ObserverOutput {
     /// A world event visible to this observer.
     Event(ZoneEvent),
+    /// One of this observer's own commands was accepted and applied on `tick`. Becomes
+    /// `nightfall.v1.Ack`. Only commands that carry a session `seq` are acknowledged.
+    Accepted {
+        /// The accepted command's ordinal.
+        ordinal: Ordinal,
+        /// The issuing session's message seq.
+        seq: u32,
+        /// The tick it was applied on.
+        tick: Tick,
+    },
     /// One of this observer's own commands was refused.
     Rejected(Disposition),
 }
@@ -329,9 +339,10 @@ pub struct AppliedTick {
     pub dispositions: Vec<Disposition>,
     /// Zone-wide world events in the order they happened.
     pub events: Vec<ZoneEvent>,
-    /// Per-player ordered output: own dispositions, then AOI despawns, AOI spawns, and moves
-    /// of known entities, each group in entity-id order. Only players with non-empty output
-    /// appear.
+    /// Per-player ordered output: responses to its own commands (acks and rejections, in
+    /// ordinal order), then AOI despawns, AOI spawns, and moves of known entities, each group
+    /// in entity-id order. Only players with non-empty output appear. A session sends exactly
+    /// this, in this order (plan §8 #6).
     pub outputs: BTreeMap<EntityId, Vec<ObserverOutput>>,
 }
 

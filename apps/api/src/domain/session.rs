@@ -82,6 +82,43 @@ impl TicketHash {
     }
 }
 
+/// Identity of one WebSocket session (one socket, from upgrade to close). Time-ordered UUID v7,
+/// minted by the server at upgrade. Keys the per-session audit log; never a metric label.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SessionId(uuid::Uuid);
+
+impl SessionId {
+    /// A fresh id.
+    #[must_use]
+    pub fn new() -> Self {
+        Self(uuid::Uuid::now_v7())
+    }
+
+    /// Wraps a stored id.
+    #[must_use]
+    pub const fn from_uuid(id: uuid::Uuid) -> Self {
+        Self(id)
+    }
+
+    /// The underlying UUID.
+    #[must_use]
+    pub const fn as_uuid(&self) -> uuid::Uuid {
+        self.0
+    }
+}
+
+impl Default for SessionId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Display for SessionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// Per-account admission counter. Every issued ticket bumps it; a ticket (and, in Epic 4, a
 /// socket) carrying an older generation than the account's current one has been superseded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

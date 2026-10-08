@@ -23,11 +23,14 @@ pub struct Config {
     pub auth_dev_tokens: bool,
     /// Public WebSocket URL returned with each play ticket.
     pub ws_public_url: String,
+    /// Concurrent WebSocket sessions per client IP. Default 10 (world.proto); raised only for
+    /// load tests that run every client from one address.
+    pub ws_max_sessions_per_ip: usize,
 }
 
 impl Config {
     /// Reads `HTTP_ADDR`, `GRPC_ADDR`, `DATABASE_URL`, `NATS_URL`, `OIDC_ISSUER`,
-    /// `OIDC_AUDIENCE`, `AUTH_DEV_TOKENS`, `WS_PUBLIC_URL`.
+    /// `OIDC_AUDIENCE`, `AUTH_DEV_TOKENS`, `WS_PUBLIC_URL`, `WS_MAX_SESSIONS_PER_IP`.
     pub fn from_env() -> anyhow::Result<Self> {
         let http_addr = std::env::var("HTTP_ADDR")
             .unwrap_or_else(|_| "0.0.0.0:3000".into())
@@ -50,6 +53,10 @@ impl Config {
                 .ok()
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| crate::DEFAULT_WS_PUBLIC_URL.into()),
+            ws_max_sessions_per_ip: match std::env::var("WS_MAX_SESSIONS_PER_IP") {
+                Ok(v) if !v.is_empty() => v.parse()?,
+                _ => crate::application::session::MAX_SESSIONS_PER_IP,
+            },
         })
     }
 }
