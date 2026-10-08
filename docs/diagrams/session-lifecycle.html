@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session lifecycle · Nightfall</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;   /* white-smoke */
+      --color-ink:     #2d3142;   /* jet-black */
+      --color-muted:   #4f5d75;   /* blue-slate */
+      --color-accent:  #eb6c36;   /* atomic-tangerine */
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1080px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 16px; max-width: 100ch; }
+    .notes p + p { margin-top: 8px; }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+    /* The SVG holds its readable width (min-width == the viewBox width, so the
+       type ramp is never silently scaled down). This wrapper lets a narrow
+       screen scroll the diagram instead of the whole page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 1080px; display: block; }
+    /* Paper has no scrollbar, so the local scroller would clip instead of
+       scroll. Let the diagram scale down to the sheet: smaller but whole
+       beats sharp but cut off. Must come after the svg rule above - a media
+       query adds no specificity, so a later plain rule would win. */
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · State machine · Minimal light</p>
+    <h1>Session lifecycle</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1080 728" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="session-lifecycle-title session-lifecycle-desc">
+        <title id="session-lifecycle-title">Session lifecycle</title>
+        <desc id="session-lifecycle-desc">The WebSocket progresses from HTTP admission to zone admission and active output; rate limiting is recoverable, while replacement, idle timeout and other session ends close the socket.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+</marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+</marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+</marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <circle cx="52" cy="152" r="6" fill="#2d3142"/>
+<line x1="60" y1="152" x2="100" y2="152" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="300" y1="152" x2="420" y2="152" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="333.2" y="130" width="53.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="360" y="140" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">HTTP 101</text>
+<line x1="620" y1="152" x2="740" y2="152" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="640.2" y="130" width="79.60000000000001" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="680" y="140" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">TICK ACCEPTED</text>
+<path d="M 840,204 V 280" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="854.8" y="234" width="74.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="892" y="244" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">EMPTY BUCKET</text>
+<path d="M 940,324 H 980 Q 988,324 988,316 V 112 Q 988,104 980,104 H 920 Q 912,104 912,112 V 120" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="903.6" y="82" width="84.8" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="946" y="92" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">TOKEN REFILLED</text>
+<line x1="840" y1="368" x2="840" y2="484" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="861.4" y="410" width="69.2" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="896" y="420" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">QUEUE STALL</text>
+<path d="M 740,176 H 708 Q 700,176 700,184 V 484" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="656.0" y="422" width="32" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="672" y="432" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">END</text>
+<line x1="520" y1="204" x2="520" y2="484" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="530.2" y="410" width="79.60000000000001" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="570" y="420" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">END / REFUSED</text>
+<path d="M 200,204 V 368" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="210.8" y="290" width="74.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="248" y="300" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">HTTP REFUSAL</text>
+<rect x="100" y="120" width="200" height="84" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="100" y="120" width="200" height="84" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="108" y="128" width="32" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="124.0" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">HTTP</text>
+<text x="200.0" y="156" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Connecting</text>
+<text x="200.0" y="172" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">GET /ws · play ticket</text>
+<rect x="420" y="120" width="200" height="84" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="420" y="120" width="200" height="84" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="428" y="128" width="52" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="454.0" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">UPGRADED</text>
+<text x="520.0" y="156" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Awaiting admission</text>
+<text x="520.0" y="172" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">SpawnPlayer /</text>
+<text x="520.0" y="186" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">ReplaceSession</text>
+<rect x="740" y="120" width="200" height="84" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="740" y="120" width="200" height="84" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<rect x="748" y="128" width="32" height="12" rx="2" fill="none" stroke="#eb6c36"/>
+<text x="764.0" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">OPEN</text>
+<text x="840.0" y="156" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Admitted</text>
+<text x="840.0" y="172" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">forward player outputs</text>
+<rect x="740" y="280" width="200" height="88" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="740" y="280" width="200" height="88" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="748" y="288" width="57" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="776.5" y="297" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">CONDITION</text>
+<text x="840.0" y="316" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Rate limited</text>
+<text x="840.0" y="332" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">IntentRejected</text>
+<text x="840.0" y="346" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">RATE_LIMITED; stays open</text>
+<rect x="100" y="368" width="232" height="112" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="100" y="368" width="232" height="112" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+<rect x="108" y="376" width="52" height="12" rx="2" fill="none" stroke="#4f5d75"/>
+<text x="134.0" y="385" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">HTTP END</text>
+<text x="216.0" y="404" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Upgrade refused</text>
+<text x="216.0" y="420" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">400/426 · 429 · 401</text>
+<text x="216.0" y="434" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">409 · 404/403 · 500</text>
+<text x="216.0" y="448" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">no WebSocket close code</text>
+<rect x="420" y="484" width="520" height="120" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="420" y="484" width="520" height="120" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+<rect x="428" y="492" width="62" height="12" rx="2" fill="none" stroke="#4f5d75"/>
+<text x="459.0" y="501" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">SOCKET END</text>
+<text x="680.0" y="520" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Closed</text>
+<text x="680.0" y="536" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">4409  Replaced: newer generation of this entity</text>
+<text x="680.0" y="550" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">4408  Idle timeout: 60 s without inbound frames</text>
+<text x="680.0" y="564" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">4400 seq regression · 4429 slow consumer</text>
+<text x="680.0" y="578" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">1001 shutdown · 1011 admission/zone failure</text>
+<line x1="40" y1="656" x2="1040" y2="656" stroke="#bfc0c0" stroke-width="1.2"/>
+<line x1="40" y1="680" x2="68" y2="680" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="80" y="683" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Guard / transition</text>
+<rect x="248" y="672" width="24" height="16" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<text x="284" y="683" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Active session</text>
+
+      </svg>
+    </div>
+    <div class="notes">
+<p>Conceptual states derived from <code>run_session</code> and <code>Actor::admitted</code>. <strong>END</strong> applies while awaiting admission or admitted: shutdown, stale/replaced generation, idle timeout, non-increasing <code>seq</code>, slow consumer, zone loss or client disconnect. Admission refusal is specific to the waiting state. Client close/read failure is <code>ClientGone</code> and sends no server close code.</p>
+<p>The bucket permits 30 frames/s, burst 30; exhaustion rejects the frame, not the connection. Rejections can themselves fill the outbound queue and lead to <code>4429</code>. All inbound frames, including ping/pong, reset the 60-second idle timer. The same checks run before zone admission; rate limiting is drawn once.</p>
+<p>Ticket generations are per account; the live <code>SessionRegistry</code> is keyed by player <code>EntityId</code>. It cancels the older socket when a newer generation takes over that entity. Stale commands and late despawns are fenced by generation. Reconnect requires a newly issued ticket.</p>
+<p>Source: <a href="../../apps/api/src/application/session.rs">session.rs</a> · <a href="../../apps/api/src/interface/ws.rs">ws.rs</a> · <a href="../../apps/api/src/infrastructure/postgres/session_repository.rs">session_repository.rs</a>.</p>
+</div>
+  </div>
+</body>
+</html>

@@ -171,6 +171,9 @@ Output is deterministic: regenerating unchanged protos produces no diff.
 
 ## Login and connect (Stories 1.5 and 6.2)
 
+[Device login → play ticket → WebSocket → zone admission](../../docs/diagrams/login-zone-sequence.html)
+shows the client/server exchange.
+
 Plan decision D1: Keycloak, OAuth 2.0 **device authorization grant** (RFC 8628) with PKCE S256.
 The game never sees a password and needs no embedded browser.
 

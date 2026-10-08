@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System architecture · Nightfall</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;   /* white-smoke */
+      --color-ink:     #2d3142;   /* jet-black */
+      --color-muted:   #4f5d75;   /* blue-slate */
+      --color-accent:  #eb6c36;   /* atomic-tangerine */
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1280px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 16px; max-width: 100ch; }
+    .notes p + p { margin-top: 8px; }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+    /* The SVG holds its readable width (min-width == the viewBox width, so the
+       type ramp is never silently scaled down). This wrapper lets a narrow
+       screen scroll the diagram instead of the whole page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 1280px; display: block; }
+    /* Paper has no scrollbar, so the local scroller would clip instead of
+       scroll. Let the diagram scale down to the sheet: smaller but whole
+       beats sharp but cut off. Must come after the svg rule above - a media
+       query adds no specificity, so a later plain rule would win. */
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · Architecture · Minimal light</p>
+    <h1>System architecture</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="system-architecture-title system-architecture-desc">
+        <title id="system-architecture-title">System architecture</title>
+        <desc id="system-architecture-desc">The Unreal client authenticates with Keycloak and calls the layered Rust API, whose adapters persist to Postgres, append to JetStream and export telemetry to LGTM.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+</marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+</marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+</marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <rect x="292" y="228" width="680" height="376" rx="8" fill="rgba(45,49,66,0.02)" stroke="#bfc0c0"/>
+<text x="308" y="248" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">APPS/API · RUST AUTHORITATIVE SERVER</text>
+<line x1="224" y1="332" x2="320" y2="332" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="242.6" y="310" width="58.800000000000004" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="272" y="320" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">GRPC / WS</text>
+<path d="M 132,280 V 124 Q 132,116 140,116 H 560" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="313.4" y="94" width="69.2" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="348" y="104" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">DEVICE FLOW</text>
+<line x1="520" y1="332" x2="560" y2="332" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="660" y1="384" x2="660" y2="464" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="760" y1="332" x2="800" y2="332" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="761.0" y="310" width="38.0" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="780" y="320" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">PORTS</text>
+<path d="M 880,280 V 124 Q 880,116 872,116 H 760" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="803.6" y="94" width="32.8" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="820" y="104" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">JWKS</text>
+<path d="M 952,308 H 992 Q 1000,308 1000,300 V 156 Q 1000,148 1008,148 H 1040" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="952" y1="336" x2="1040" y2="336" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="958.8" y="314" width="74.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="996" y="324" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">ACKED APPEND</text>
+<path d="M 952,360 H 968 Q 976,360 976,368 V 524 Q 976,532 984,532 H 1040" fill="none" stroke="#2e5aa8" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-link)"/>
+<rect x="991.6" y="510" width="32.8" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="1008" y="520" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">OTLP</text>
+<rect x="40" y="280" width="184" height="104" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="40" y="280" width="184" height="104" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="48" y="288" width="42" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="69.0" y="297" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">CLIENT</text>
+<text x="132.0" y="316" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Unreal Engine 5</text>
+<text x="132.0" y="332" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">TurboLink · protobuf</text>
+<text x="132.0" y="346" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">snapshot interpolation</text>
+<rect x="320" y="280" width="200" height="104" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="320" y="280" width="200" height="104" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="328" y="288" width="32" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="344.0" y="297" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">WIRE</text>
+<text x="420.0" y="316" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">interface</text>
+<text x="420.0" y="332" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">tonic :50051</text>
+<text x="420.0" y="346" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">axum :3000 · GET /ws</text>
+<rect x="560" y="280" width="200" height="104" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="560" y="280" width="200" height="104" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<rect x="568" y="288" width="42" height="12" rx="2" fill="none" stroke="#eb6c36"/>
+<text x="589.0" y="297" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">POLICY</text>
+<text x="660.0" y="316" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">application</text>
+<text x="660.0" y="332" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">use cases · session</text>
+<text x="660.0" y="346" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">zone_actor · replay_log</text>
+<rect x="800" y="280" width="152" height="104" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="800" y="280" width="152" height="104" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="808" y="288" width="47" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="831.5" y="297" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">ADAPTER</text>
+<text x="876.0" y="316" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">infrastructure</text>
+<text x="876.0" y="332" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">SeaORM · outbox</text>
+<text x="876.0" y="346" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">auth · telemetry</text>
+<rect x="560" y="464" width="200" height="104" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="560" y="464" width="200" height="104" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+<rect x="568" y="472" width="62" height="12" rx="2" fill="none" stroke="#4f5d75"/>
+<text x="599.0" y="481" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">SIMULATION</text>
+<text x="660.0" y="500" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">domain</text>
+<text x="660.0" y="516" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">ZoneState::run_tick</text>
+<text x="660.0" y="530" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">fixed point · no I/O</text>
+<rect x="560" y="60" width="200" height="112" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="560" y="60" width="200" height="112" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)"/>
+<rect x="568" y="68" width="32" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.30)"/>
+<text x="584.0" y="77" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">OIDC</text>
+<text x="660.0" y="96" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Keycloak</text>
+<text x="660.0" y="112" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">:8080 /realms/nightfall</text>
+<text x="660.0" y="126" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">client: nightfall-client</text>
+<text x="660.0" y="140" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">aud: nightfall-api</text>
+<rect x="1040" y="100" width="200" height="96" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="1040" y="100" width="200" height="96" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+<rect x="1048" y="108" width="37" height="12" rx="2" fill="none" stroke="#4f5d75"/>
+<text x="1066.5" y="117" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">STORE</text>
+<text x="1140.0" y="136" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Postgres</text>
+<text x="1140.0" y="152" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">:5432 · SeaORM</text>
+<text x="1140.0" y="166" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">outbox + epoch index</text>
+<rect x="1040" y="280" width="200" height="112" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="1040" y="280" width="200" height="112" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+<rect x="1048" y="288" width="32" height="12" rx="2" fill="none" stroke="#4f5d75"/>
+<text x="1064.0" y="297" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">LOG</text>
+<text x="1140.0" y="316" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">NATS JetStream</text>
+<text x="1140.0" y="332" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">:4222 · monitor :8222</text>
+<text x="1140.0" y="346" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">NF_EVENTS · NF_ZONES</text>
+<text x="1140.0" y="360" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">NF_SESSIONS</text>
+<rect x="1040" y="484" width="200" height="112" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="1040" y="484" width="200" height="112" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)"/>
+<rect x="1048" y="492" width="47" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.30)"/>
+<text x="1071.5" y="501" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">OBSERVE</text>
+<text x="1140.0" y="520" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Grafana LGTM</text>
+<text x="1140.0" y="536" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">OTLP gRPC :4317</text>
+<text x="1140.0" y="550" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">OTLP HTTP :4318</text>
+<text x="1140.0" y="564" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">Grafana host :3300</text>
+<line x1="40" y1="640" x2="1240" y2="640" stroke="#bfc0c0" stroke-width="1.2"/>
+<line x1="40" y1="664" x2="68" y2="664" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="80" y="667" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Runtime call / data</text>
+<line x1="220" y1="664" x2="248" y2="664" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<text x="260" y="667" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">HTTP / API</text>
+<line x1="400" y1="664" x2="428" y2="664" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<text x="440" y="667" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Telemetry export</text>
+
+      </svg>
+    </div>
+    <div class="notes">
+<p>Development ports shown. The four server boxes group modules, not separate services. Zone commands use in-process <code>mpsc</code>; NATS carries the transactional outbox, replay log and best-effort session audit. The outbox relay waits for the publish ack before marking a row published.</p>
+<p>
+<code>NF_EVENTS → nightfall.*.*</code> (currently <code>nightfall.character.created</code>); <code>NF_ZONES → nightfall.zone.*.*.*</code>; <code>NF_SESSIONS → nightfall.session.*.*</code>. These subject sets do not overlap.</p>
+<p>LGTM groups Grafana, Loki, Tempo and the metrics backend; the local <code>grafana/otel-lgtm</code> image uses Prometheus. Keycloak also stores its own database in the local Postgres service (edge omitted).</p>
+<p>Source: <a href="../../apps/api/src/config.rs">config.rs</a> · <a href="../../apps/api/src/lib.rs">lib.rs</a> · <a href="../../apps/api/src/main.rs">main.rs</a> · <a href="../../docker-compose.yml">docker-compose.yml</a>.</p>
+</div>
+  </div>
+</body>
+</html>

@@ -98,6 +98,9 @@ so a misconfigured server fails closed. `AUTH_DEV_TOKENS=1` accepts unsigned
 
 ## 3b. Real-time channel
 
+Diagrams: [device login and zone admission](../diagrams/login-zone-sequence.html) ·
+[session lifecycle and close codes](../diagrams/session-lifecycle.html).
+
 `GET /ws` on the axum listener carries one protobuf message per **binary** frame:
 `nightfall.v1.ClientMessage` up, `nightfall.v1.ServerMessage` down
 (`packages/proto/nightfall/v1/world.proto`). `interface::ws` does the handshake and the wire
@@ -117,8 +120,8 @@ be refused is refused before the upgrade, as an HTTP status, in this order:
 | Any port failing | 500 |
 
 On success the socket is upgraded and the session joins the zone: `SpawnPlayer` for the first
-session of the character, `ReplaceSession` when an older session of the account is live. The
-older socket is closed with 4409 at once; the zone fences its commands and its late `Despawn`
+session of the character, `ReplaceSession` when an older generation owns that same player
+entity. The older socket is closed with 4409 at once; the zone fences its commands and its late `Despawn`
 by generation, so it can never move or remove the replacement (plan §8 #8). The first frames a
 session receives are its AOI: its own `EntitySpawn` (with `session_generation`), then every
 entity in the 3x3 cells around it.
@@ -156,7 +159,7 @@ coordinate is `OUT_OF_BOUNDS` at the edge; the zone answers `OUT_OF_BOUNDS` (out
 | 1011 | Admission refused by the zone (for example a saved position outside it) or zone stopped | report; reconnect with backoff |
 | 4400 | `seq` did not increase | fix the client; reconnect |
 | 4408 | Idle timeout | reconnect when the player acts |
-| 4409 | Replaced by a newer session of the same account | stop; do not reconnect automatically |
+| 4409 | Stale generation or replaced by a newer session of the same player entity | stop; do not reconnect automatically |
 | 4429 | Not reading fast enough (outbound queue full, or a whole broadcast buffer behind) | reconnect with a fresh ticket; the AOI is resent |
 
 Every reconnect uses a new ticket from `IssuePlayTicket` with a new idempotency key.

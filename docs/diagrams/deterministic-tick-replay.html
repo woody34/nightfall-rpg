@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Run, acknowledge, then release · Nightfall</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;   /* white-smoke */
+      --color-ink:     #2d3142;   /* jet-black */
+      --color-muted:   #4f5d75;   /* blue-slate */
+      --color-accent:  #eb6c36;   /* atomic-tangerine */
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 960px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 16px; max-width: 100ch; }
+    .notes p + p { margin-top: 8px; }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+    /* The SVG holds its readable width (min-width == the viewBox width, so the
+       type ramp is never silently scaled down). This wrapper lets a narrow
+       screen scroll the diagram instead of the whole page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 728px; display: block; }
+    /* Paper has no scrollbar, so the local scroller would clip instead of
+       scroll. Let the diagram scale down to the sheet: smaller but whole
+       beats sharp but cut off. Must come after the svg rule above - a media
+       query adds no specificity, so a later plain rule would win. */
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · Process · Minimal light</p>
+    <h1>Run, acknowledge, then release</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 728 436" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="deterministic-tick-replay-title deterministic-tick-replay-desc">
+        <title id="deterministic-tick-replay-title">Run, acknowledge, then release</title>
+        <desc id="deterministic-tick-replay-desc">Live inputs are drafted and run before the durable log ack releases outputs, while replay restores a snapshot and re-runs the applied log for byte comparison.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+</marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+</marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+</marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <line x1="0" y1="36" x2="728" y2="36" stroke="#bfc0c0" stroke-width="1.2"/>
+<text x="70" y="80" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">SESSION</text>
+<rect x="140" y="116" width="588" height="80" rx="0" fill="rgba(45,49,66,0.018)" stroke="none"/>
+<line x1="0" y1="116" x2="728" y2="116" stroke="#bfc0c0" stroke-width="1.2"/>
+<text x="70" y="160" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">ZONE ACTOR</text>
+<line x1="0" y1="196" x2="728" y2="196" stroke="#bfc0c0" stroke-width="1.2"/>
+<text x="70" y="240" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">DURABLE LOG</text>
+<line x1="0" y1="276" x2="728" y2="276" stroke="#bfc0c0" stroke-width="1.2"/>
+<text x="70" y="320" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">REPLAY</text>
+<line x1="140" y1="36" x2="140" y2="356" stroke="#bfc0c0" stroke-width="1.2"/>
+<rect x="190" y="8" width="16" height="16" rx="8" fill="#ececec" stroke="none"/>
+<text x="198" y="20" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#2d3142">1</text>
+<text x="198" y="32" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">INPUT</text>
+<rect x="302" y="8" width="16" height="16" rx="8" fill="#ececec" stroke="none"/>
+<text x="310" y="20" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#2d3142">2</text>
+<text x="310" y="32" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">DRAFT</text>
+<rect x="414" y="8" width="16" height="16" rx="8" fill="#ececec" stroke="none"/>
+<text x="422" y="20" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#2d3142">3</text>
+<text x="422" y="32" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">RUN</text>
+<rect x="526" y="8" width="16" height="16" rx="8" fill="rgba(235,108,54,0.20)" stroke="none"/>
+<text x="534" y="20" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#eb6c36">4</text>
+<text x="534" y="32" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">COMMIT</text>
+<rect x="638" y="8" width="16" height="16" rx="8" fill="#ececec" stroke="none"/>
+<text x="646" y="20" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#2d3142">5</text>
+<text x="646" y="32" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">DELIVER</text>
+<path d="M 248,76 H 302 Q 310,76 310,84 V 124" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="360" y1="156" x2="372" y2="156" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M 472,156 H 526 Q 534,156 534,164 V 204" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<path d="M 584,236 H 638 Q 646,236 646,228 V 108" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<line x1="248" y1="316" x2="260" y2="316" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="360" y1="316" x2="372" y2="316" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="472" y1="316" x2="484" y2="316" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="148" y="44" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="148" y="44" width="100" height="64" rx="6" fill="#ffffff" stroke="#4f5d75"/>
+<rect x="152" y="48" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="164" y="56" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">SES</text>
+<text x="198" y="72" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">ZoneInput</text>
+<text x="198" y="86" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">source + seq</text>
+<text x="198" y="100" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">mpsc(1024)</text>
+<rect x="260" y="124" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="260" y="124" width="100" height="64" rx="6" fill="#ffffff" stroke="#4f5d75"/>
+<rect x="264" y="128" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="276" y="136" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">ZON</text>
+<text x="310" y="152" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Draft</text>
+<text x="310" y="166" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">ordinals</text>
+<text x="310" y="180" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">8 / session</text>
+<rect x="372" y="124" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="372" y="124" width="100" height="64" rx="6" fill="#ffffff" stroke="#4f5d75"/>
+<rect x="376" y="128" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="388" y="136" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">ZON</text>
+<text x="422" y="152" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">run_tick</text>
+<text x="422" y="166" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">AppliedTick</text>
+<text x="422" y="180" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">fixed point</text>
+<rect x="484" y="204" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="484" y="204" width="100" height="64" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<rect x="488" y="208" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="500" y="216" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">LOG</text>
+<text x="534" y="232" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Gate ack</text>
+<text x="534" y="246" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">tick record</text>
+<text x="534" y="260" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">JetStream</text>
+<rect x="596" y="44" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="596" y="44" width="100" height="64" rx="6" fill="#ffffff" stroke="#4f5d75"/>
+<rect x="600" y="48" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="612" y="56" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">SES</text>
+<text x="646" y="72" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Sockets</text>
+<text x="646" y="86" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">player outputs</text>
+<text x="646" y="100" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">protobuf</text>
+<rect x="148" y="284" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="148" y="284" width="100" height="64" rx="6" fill="#ffffff" stroke="#4f5d75"/>
+<rect x="152" y="288" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="164" y="296" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">REP</text>
+<text x="198" y="312" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Epoch log</text>
+<text x="198" y="326" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">snapshot + log</text>
+<text x="198" y="340" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">NF_ZONES</text>
+<rect x="260" y="284" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="260" y="284" width="100" height="64" rx="6" fill="#ffffff" stroke="#4f5d75"/>
+<rect x="264" y="288" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="276" y="296" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">REP</text>
+<text x="310" y="312" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">open_epoch</text>
+<text x="310" y="326" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">watermark</text>
+<text x="310" y="340" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">contiguous</text>
+<rect x="372" y="284" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="372" y="284" width="100" height="64" rx="6" fill="#ffffff" stroke="#4f5d75"/>
+<rect x="376" y="288" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="388" y="296" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">REP</text>
+<text x="422" y="312" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">run_tick</text>
+<text x="422" y="326" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">logged drafts</text>
+<text x="422" y="340" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">from_snapshot</text>
+<rect x="484" y="284" width="100" height="64" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="484" y="284" width="100" height="64" rx="6" fill="#ffffff" stroke="#4f5d75"/>
+<rect x="488" y="288" width="24" height="10" rx="2" fill="#ececec" stroke="none"/>
+<text x="500" y="296" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">REP</text>
+<text x="534" y="312" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Compare</text>
+<text x="534" y="326" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">bytes / SHA256</text>
+<text x="534" y="340" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">reproduced_by</text>
+<line x1="0" y1="356" x2="728" y2="356" stroke="#bfc0c0" stroke-width="1.2"/>
+<text x="144" y="372" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">STEPS</text>
+<text x="204" y="372" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">1 input · 2 draft · 3 run · 4 commit · 5 deliver</text>
+<text x="144" y="393" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">PAYLOAD</text>
+<text x="204" y="393" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Named in nodes; no generic data-type chips</text>
+<text x="144" y="414" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">FLOW</text>
+<line x1="204" y1="410" x2="232" y2="410" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="240" y="414" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">handoff</text>
+<line x1="340" y1="410" x2="368" y2="410" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<text x="376" y="414" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">durability boundary</text>
+
+      </svg>
+    </div>
+    <div class="notes">
+<p>
+<code>AppliedTickDraft → ZoneState::run_tick → AppliedTick → DurableTickGate::admit</code>. Every 100 ms, inputs are drafted in receive order, with at most 8 per session; excess waits. The gate appends <code>AppliedTickRecord</code> and awaits the JetStream ack. Only then does the actor broadcast non-idle ticks; sessions encode their player’s ordered outputs and the writer sends them to sockets. Idle ticks are still logged.</p>
+<p>Append failure holds the same record: no broadcast, next draft or snapshot. Backoff is 10 ms–1 s; after 5 s the zone pauses and sessions reject intents with <code>OVERLOADED</code>. A successful ack resumes it.</p>
+<p>
+<strong>Replay:</strong> <code>open_epoch</code> requires a snapshot and completion watermark, and checks contiguous records. <code>ZoneState::from_snapshot</code> restores state; <code>run_tick</code> re-runs recorded drafts. <code>AppliedTickRecord::reproduced_by</code> compares encodings, hashing outputs when the stored record uses <code>SHA256</code>. This is a library/test path, not an automatic restart recovery service.</p>
+<p>
+<code>NF_ZONES: nightfall.zone.&lt;zone&gt;.&lt;epoch&gt;.{snapshot,applied,watermark}</code>. The Postgres <code>zone_snapshots</code> row indexes the epoch-start snapshot. Best-effort <code>NF_SESSIONS</code> audit frames are not replay inputs.</p>
+<p>Source: <a href="../../apps/api/src/application/zone_actor.rs">zone_actor.rs</a> · <a href="../../apps/api/src/application/replay_log/gate.rs">gate.rs</a> · <a href="../../apps/api/src/application/replay_log/epoch.rs">epoch.rs</a> · <a href="../../apps/api/tests/replay_log.rs">replay_log.rs</a>.</p>
+</div>
+  </div>
+</body>
+</html>

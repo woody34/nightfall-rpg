@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>From device login to zone admission · Nightfall</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;   /* white-smoke */
+      --color-ink:     #2d3142;   /* jet-black */
+      --color-muted:   #4f5d75;   /* blue-slate */
+      --color-accent:  #eb6c36;   /* atomic-tangerine */
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1280px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 16px; max-width: 100ch; }
+    .notes p + p { margin-top: 8px; }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+    /* The SVG holds its readable width (min-width == the viewBox width, so the
+       type ramp is never silently scaled down). This wrapper lets a narrow
+       screen scroll the diagram instead of the whole page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 1280px; display: block; }
+    /* Paper has no scrollbar, so the local scroller would clip instead of
+       scroll. Let the diagram scale down to the sheet: smaller but whole
+       beats sharp but cut off. Must come after the svg rule above - a media
+       query adds no specificity, so a later plain rule would win. */
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · Sequence · Minimal light</p>
+    <h1>From device login to zone admission</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1280 808" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="login-zone-sequence-title login-zone-sequence-desc">
+        <title id="login-zone-sequence-title">From device login to zone admission</title>
+        <desc id="login-zone-sequence-desc">A player authorizes the device, the client exchanges its access token for a play ticket, and the upgraded WebSocket receives zone output only after admission is applied and logged.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+</marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+</marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+</marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <line x1="120" y1="108" x2="120" y2="708" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<line x1="360" y1="108" x2="360" y2="708" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<line x1="600" y1="108" x2="600" y2="708" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<line x1="840" y1="108" x2="840" y2="708" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<line x1="1120" y1="108" x2="1120" y2="708" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<rect x="836" y="416" width="8" height="44" rx="0" fill="#ececec" stroke="#4f5d75"/>
+<rect x="836" y="516" width="8" height="176" rx="0" fill="#ececec" stroke="#4f5d75"/>
+<rect x="1116" y="604" width="8" height="44" rx="0" fill="#ececec" stroke="#4f5d75"/>
+<line x1="360" y1="148" x2="600" y2="148" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="450.6" y="126" width="58.800000000000004" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="480.0" y="136" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">01 DEVICE</text>
+<line x1="600" y1="204" x2="360" y2="204" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="442.8" y="182" width="74.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="480.0" y="192" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">02 USER CODE</text>
+<line x1="120" y1="260" x2="600" y2="260" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="450.6" y="238" width="58.800000000000004" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="480" y="248" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">03 VERIFY</text>
+<line x1="360" y1="316" x2="600" y2="316" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="440.2" y="294" width="79.60000000000001" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="480.0" y="304" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">04 POLL TOKEN</text>
+<line x1="600" y1="360" x2="360" y2="360" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="450.6" y="338" width="58.800000000000004" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="480.0" y="348" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">05 TOKENS</text>
+<line x1="360" y1="416" x2="840" y2="416" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="680.2" y="394" width="79.60000000000001" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="720" y="404" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">06 TICKET RPC</text>
+<line x1="840" y1="460" x2="360" y2="460" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="450.6" y="438" width="58.800000000000004" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="480" y="448" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">07 TICKET</text>
+<line x1="360" y1="516" x2="840" y2="516" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="688.0" y="494" width="64.0" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="720" y="504" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">08 GET /WS</text>
+<line x1="840" y1="560" x2="360" y2="560" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="445.4" y="538" width="69.2" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="480" y="548" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">09 HTTP 101</text>
+<line x1="840" y1="604" x2="1120" y2="604" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="953.2" y="582" width="53.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="980.0" y="592" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">10 ADMIT</text>
+<line x1="1120" y1="648" x2="840" y2="648" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="940.2" y="626" width="79.60000000000001" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="980.0" y="636" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">11 TICK ACKED</text>
+<line x1="840" y1="692" x2="360" y2="692" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<rect x="458.4" y="670" width="43.2" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="480" y="680" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">12 AOI</text>
+<rect x="40" y="40" width="160" height="68" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="40" y="40" width="160" height="68" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<text x="120.0" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Player browser</text>
+<text x="120.0" y="92" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">verification URL</text>
+<rect x="280" y="40" width="160" height="68" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="280" y="40" width="160" height="68" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<text x="360.0" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Unreal client</text>
+<text x="360.0" y="92" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">Auth / Session / Net</text>
+<rect x="520" y="40" width="160" height="68" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="520" y="40" width="160" height="68" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)"/>
+<text x="600.0" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Keycloak</text>
+<text x="600.0" y="92" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">:8080</text>
+<rect x="760" y="40" width="160" height="68" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="760" y="40" width="160" height="68" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<text x="840.0" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Rust API</text>
+<text x="840.0" y="92" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">gRPC + GET /ws</text>
+<rect x="1040" y="40" width="160" height="68" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="1040" y="40" width="160" height="68" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<text x="1120.0" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Zone actor</text>
+<text x="1120.0" y="92" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">100 ms / tick</text>
+<line x1="40" y1="736" x2="1240" y2="736" stroke="#bfc0c0" stroke-width="1.2"/>
+<line x1="40" y1="760" x2="68" y2="760" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<text x="80" y="763" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Request</text>
+<line x1="220" y1="760" x2="248" y2="760" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<text x="260" y="763" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Return</text>
+<line x1="400" y1="760" x2="428" y2="760" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<text x="440" y="763" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Admitted output</text>
+
+      </svg>
+    </div>
+    <div class="notes">
+<p>
+<strong>01–05:</strong> <code>UAuthSubsystem</code> POSTs to <code>{OidcIssuer}/protocol/openid-connect/auth/device</code> with PKCE S256, displays <code>user_code</code> and the verification URL, then polls <code>/protocol/openid-connect/token</code> with the device-code grant. The player authorizes in a browser; polling continues until success or failure.</p>
+<p>
+<strong>06–09:</strong> After character selection, <code>SessionService.IssuePlayTicket</code> sends the access-token bearer, <code>character_id</code> and a fresh <code>idempotency_key</code>. The response contains <code>ticket</code>, <code>expires_at</code> and <code>ws_url</code>. <code>UNetClientSubsystem</code> upgrades using <code>Authorization: Bearer &lt;ticket&gt;</code>. The API consumes the single-use, 60-second ticket and loads the owned character before HTTP 101.</p>
+<p>
+<strong>10–12:</strong> Subscribe first; <code>SessionRegistry::admit</code> queues <code>SpawnPlayer</code> or <code>ReplaceSession</code>. Once its tick is applied and durably acknowledged, the session forwards per-player AOI output as protobuf binary frames. Happy path only: character-list RPCs, polling retries, JWKS and repository calls are folded into their actors.</p>
+<p>Source: <a href="../../apps/client-unreal/Source/Nightfall/Auth/AuthSubsystem.cpp">AuthSubsystem.cpp</a> · <a href="../../apps/client-unreal/Source/Nightfall/Net/NetClientSubsystem.cpp">NetClientSubsystem.cpp</a> · <a href="../../apps/api/src/interface/ws.rs">ws.rs</a> · <a href="../../apps/api/src/application/session.rs">session.rs</a>.</p>
+</div>
+  </div>
+</body>
+</html>

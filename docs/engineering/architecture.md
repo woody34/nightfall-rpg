@@ -2,21 +2,15 @@
 
 ## 1. Layers
 
-Clean architecture, four layers, dependencies point inward only:
+[System architecture](../diagrams/system-architecture.html) shows the client, server and
+external services with development ports. [Module dependencies](../diagrams/module-dependencies.html)
+shows the four layers and their actual imports.
 
-```
-apps/api/src/
-  domain/          Entities, value objects, domain events, domain errors.
-                   No framework, DB, transport, or runtime imports.
-  application/     Use cases (one per endpoint) and ports (traits the use cases need).
-                   Depends on domain only.
-  infrastructure/  Adapters implementing ports: memory, postgres (sqlx), nats.
-                   Depends on application and domain.
-  interface/       Inbound adapters: http (axum), grpc (tonic). Parse, call one use case,
-                   map result/error to the wire. Depends on application and domain.
-  lib.rs           `Dependencies` (ports bound to adapters) and server builders.
-  main.rs          Composition root: config -> adapters -> servers.
-```
+Dependencies should point inward: interface and infrastructure depend on application and
+domain. `main.rs`, `lib.rs` and `zone_runtime.rs` compose adapters and servers; `config.rs`
+reads process settings. Current exception: `interface::http` and `interface::grpc::auth`
+import infrastructure telemetry helpers. Application orchestration uses Tokio and tracing;
+domain remains independent of the runtime, transport and database.
 
 The rule, from Kigawas: routers thin, use cases thick, models slim. A handler that contains an
 `if` about business state is in the wrong layer.
@@ -53,23 +47,12 @@ Adapters are chosen at the composition root and injected as `Arc<dyn Port>` via
 
 ## 2. The event-bus core
 
-Following jdno's design: the API does not mutate the world directly. Two buses connect three
-independent systems.
-
-```
-  client ──gRPC/WS──▶ API (interface + application)
-                        │ commands                     ▲ events
-                        ▼                              │
-                    command bus ──▶ world simulation ──▶ event bus ──▶ API, projections,
-                    (NATS)            (tick loop)         (NATS)        chat, telemetry
-```
-
-- **Command**: an intent that may be rejected. `MoveTo`, `UseSkill`, `CreateCharacter`.
-  Validated by a use case, then either applied in a transaction (account/character data) or
-  forwarded to the simulation (world state).
-- **Event**: a fact that already happened. `CharacterCreated`, `EntityMoved`, `SkillCast`.
-  Published after the state change is durable. Consumers are idempotent because delivery is
-  at-least-once.
+The current runtime has two distinct paths, shown in the
+[system diagram](../diagrams/system-architecture.html): transactional character creation
+stages its domain event in the Postgres outbox; world commands enter the zone actor through an
+in-process bounded `mpsc` queue. NATS JetStream persists domain events, applied ticks and
+session audit frames. A NATS command bus is a future distribution option, not the current
+zone-input path.
 
 ### 2.1 Why NATS
 
@@ -82,12 +65,16 @@ independent systems.
 
 ### 2.2 Subjects
 
-`nightfall.<aggregate>.<event>` for events, `nightfall.cmd.<aggregate>.<command>` for commands.
-Snake case. The subject is a method on the event (`DomainEvent::subject`), so it cannot drift
-from the type. Payload is JSON with a `type` tag today; switch to protobuf on the bus when a
+`nightfall.<aggregate>.<event>` for domain events; currently `nightfall.character.created`.
+A future command-subject convention is `nightfall.cmd.<aggregate>.<command>`; no zone commands
+are published there today. Domain-event subjects come from `DomainEvent::subject`. Payload is JSON with a `type` tag today; switch to protobuf on the bus when a
 non-Rust consumer appears.
 
 ### 2.3 Transactional outbox
+
+[Persistence data model](../diagrams/data-model.html) shows every current table column,
+composite key and declared foreign key. SeaORM adapters implement the repository ports.
+Dashed account relationships in the diagram are application associations, not SQL constraints.
 
 A process can die between committing a transaction and publishing its event. So:
 
@@ -99,7 +86,7 @@ A process can die between committing a transaction and publishing its event. So:
    row to `JetStream` stream `NF_EVENTS` (`nightfall.*.*`) and waits for the ack, sending
    `Nats-Msg-Id = outbox.id` so the broker drops a retry after a crash between publish and
    mark. `published_at` is set only after the ack. Several relays can run side by side.
-   ``RelayStats` exposes `outbox_pending` and the last publish lag for telemetry.
+   `RelayStats` exposes `outbox_pending` and the last publish lag for telemetry.
 
 Delivery is at-least-once with broker-side dedupe inside the stream's duplicate window;
 consumers still dedupe on the event's aggregate id and a sequence.
@@ -107,19 +94,13 @@ consumers still dedupe on the event's aggregate id and a sequence.
 ### 2.4 The world simulation
 
 Each zone is one tokio task, the **zone actor** (`application::zone_actor`), which owns a
-`domain::zone::ZoneState`. Nothing else touches zone state: no `Arc<Mutex<World>>`. It consumes
-commands and produces events like every other system, so it can move to its own process later
-without changing the API. The simulation is deterministic (see `rust-guidelines.md` §7).
+`domain::zone::ZoneState`. Nothing else touches zone state: no `Arc<Mutex<World>>`. It receives
+in-process commands and produces applied ticks. Moving it to another process would require a
+transport adapter for that boundary. The simulation is deterministic (see `rust-guidelines.md` §7).
 
-```
- session / admission ──ZoneHandle::send(ZoneInput)──▶ mpsc(1024) ──▶ zone actor
-                                                                       │ every TickSource beat:
-                                                                       │ 1 draft  (ordinals, ≤8/session)
-                                                                       │ 2 ZoneState::run_tick
-                                                                       │ 3 TickGate::admit(tick) (log ack)
- subscribers ◀──broadcast(64) Arc<AppliedTick>─────────────────────────┘
- telemetry   ◀──watch TickStats
-```
+[Deterministic tick and replay](../diagrams/deterministic-tick-replay.html) shows the live
+pipeline and reconstruction path. The actor drafts, runs, awaits the durable log ack, then
+releases output. A failed append holds the same record and prevents the next draft or snapshot.
 
 - **Inputs.** `ZoneInput { source, seq, command }`. `source` is `System` (admission, eviction,
   NPCs) or `Session { entity, generation }`. A session may only steer or remove its own entity,
@@ -133,14 +114,10 @@ without changing the API. The simulation is deterministic (see `rust-guidelines.
   tick. `snapshot().await` answers at the next tick boundary with nothing deferred. `stats()` is
   a watch of `TickStats { tick, duration_micros, entities, commands_applied, commands_deferred,
   gate_holds }`.
-- **Tick.** `TickSource` drives it: `IntervalTicks` (100 ms, missed beats run back to back) in
-  production, `manual_ticks()` for tests and replay. Inputs received before a beat are drafted
-  in receive order, up to 8 per session (the excess waits in order), and get consecutive
-  ordinals. The tick runs, then the `TickGate` is awaited with the finished `AppliedTick`
-  before anything is broadcast or the next tick is drafted. `OpenGate` admits everything (tests,
-  replay); `DurableTickGate` is the acknowledged `JetStream` append of the tick's record (§2.5).
-  A refused record holds the zone: nothing is released, no snapshot is taken, and the same
-  record is offered again on the next beat. A paused zone refuses `send` with `Paused`.
+- **Tick.** `IntervalTicks` supplies 100 ms beats (missed beats run back to back);
+  `manual_ticks()` drives tests. Drafts take receive-order inputs, at most 8 per session,
+  with consecutive ordinals; excess waits. `OpenGate` is the test gate and
+  `DurableTickGate` waits for JetStream (§2.5). Idle ticks are logged but not broadcast.
 - **Output.** `AppliedTick { epoch, tick, server_time_ms, commands, dispositions, events,
   outputs }`. `commands` (with ordinals and sources) is the replay log's unit. `dispositions`
   records every refused command. `events` are the zone-wide facts. `outputs` is each player's
@@ -222,19 +199,15 @@ other. Chunking a record across several messages was rejected: it would turn one
 into several, complicate dedupe, `epoch_status` and `read_epoch`, and the full outputs of a tick
 that large are not worth the stall risk.
 
-**The gate.** `DurableTickGate::admit` appends the tick's record and returns only on the
-`JetStream` ack; the actor releases the tick (broadcast) and drafts the next one only after
-that. The tick runs before the gate because the record contains the outputs; nothing it
-computed is visible until the ack, and a crash loses the in-memory state together with the
-unlogged tick, so the log is always ahead of everything observed. On failure the gate retries
-with exponential backoff (10 ms to 1 s) while the zone stalls, counting
-`eventlog_append_failures_total` and logging a warning per attempt. After `max_stall` (5 s)
-the zone is **paused** (`zones_paused`, alert `nf-zone-paused`): `ZoneHandle::send` returns
-`Paused` and sessions answer `IntentRejected{OVERLOADED}`; it resumes on the next ack. Shutdown
-makes a stalled gate give up, so the watermark names only acknowledged ticks. Measured on the
-dev box: acked append p50 ≈ 0.09 ms idle, ≈ 0.14 ms for a 48 KB busy tick (p99 < 0.5 ms).
+**The gate.** The [tick diagram](../diagrams/deterministic-tick-replay.html) carries the
+ordering and failure path. The record includes outputs, so the tick runs before the ack;
+computed state is private until release. Append retries back off from 10 ms to 1 s. After
+5 s the zone pauses (`zones_paused`, alert `nf-zone-paused`), and sessions answer
+`IntentRejected{OVERLOADED}`; the next ack resumes it. Shutdown interrupts a stalled gate,
+so the watermark names only acknowledged ticks.
 
-**Replay** opens an epoch with `open_epoch`, which refuses one without a watermark
+**Replay** (library path exercised in `tests/replay_log.rs`, not automatic restart recovery)
+opens an epoch with `open_epoch`, which refuses one without a watermark
 (`EpochStatus::Incomplete`, e.g. after a crash) or without a snapshot (`Missing`), and checks as
 it streams that ticks are contiguous from the snapshot to the watermark (`Gap`, `Truncated`).
 
@@ -245,13 +218,21 @@ depends on these frames.
 
 ### 2.6 Sessions and zones
 
+[Device login → zone admission](../diagrams/login-zone-sequence.html) follows the access
+token, single-use play ticket and ticket-in-header upgrade.
+[Session lifecycle](../diagrams/session-lifecycle.html) separates HTTP refusals, admission,
+recoverable rate limiting and WebSocket close codes.
+
 `application::session` runs one actor per WebSocket (api-guidelines.md section 3b);
 `interface::ws` supplies the axum socket halves and the protobuf codec through the
 `FrameSource`, `FrameSink` and `SessionCodec` traits, so the session logic has no transport or
 wire dependency. `SessionRegistry` records which session owns each player entity and queues
 lifecycle commands under one lock, so the zone sees admissions and departures in the order the
-registry decided them. `application::zone_registry::ZoneRegistry` routes sessions to the zone handle started by
-`ZoneBootstrap`, preserving the durable replay log and epoch lifecycle described above.
+registry decided them. The registry is keyed by player `EntityId`: a newer generation replaces
+that entity's current socket. Ticket generations are per account; this is not a live,
+account-wide eviction across different characters. `ZoneBootstrap` starts the fixture zone;
+`ZoneRegistry` retains its handle, and `start_realtime` currently binds sessions to
+`zones.fixture()`. Restart opens a new epoch.
 
 ## 3. Request lifecycle: `CreateCharacter`
 
@@ -272,11 +253,8 @@ repository against Postgres (adapter), the endpoint through a real socket (integ
 
 ## 3a. Request lifecycle: `MoveTo` over the WebSocket
 
-0. **Handshake** (`interface::ws::upgrade`, once per socket). Per-IP slot (429), play ticket
-   from `Authorization: Bearer` consumed by `ConsumePlayTicket` (401/409), character loaded by
-   `GetCharacter` and converted to zone units by `zone_mapping::player_spawn`. Upgrade; the
-   session actor subscribes to the zone's broadcast, then `SessionRegistry::admit` queues
-   `SpawnPlayer` or `ReplaceSession`. Nothing is forwarded until that command's tick arrives.
+0. **Admission.** Follow the [login sequence](../diagrams/login-zone-sequence.html);
+   the [session state machine](../diagrams/session-lifecycle.html) covers refusal and closure.
 1. **Frame in** (session actor). The binary frame is counted (`ws_frames_total{in}`) and
    audited (`SessionAudit::record_in`). Then, in order: decode with prost (only if at most
    4096 bytes); `seq` must exceed the last (else close 4400); token bucket (else
@@ -287,11 +265,12 @@ repository against Postgres (adapter), the endpoint through a real socket (integ
    `ZoneInput::session(entity, generation, seq, MoveTo)` through `ZoneHandle::send_traced`. A
    full queue is `OVERLOADED`.
 3. **Tick** (zone actor, next 100 ms beat). The input is drafted with an ordinal (at most 8 per
-   session per tick), admitted by the `TickGate`, and applied by `ZoneState::run_tick`:
+   session per tick) and applied by `ZoneState::run_tick`:
    authorised against the session's generation, checked against bounds and the 64-tile limit,
    then the movement phase takes the first step and the AOI diff runs. The player's output
    for the tick is `Accepted{seq, tick}` (or `Rejected`) followed by its `EntityMove`s. The
-   actor records `zone.apply` under the carried span and broadcasts the `AppliedTick`.
+   actor records `zone.apply` under the carried span, awaits `TickGate::admit` with the
+   finished record, then broadcasts the `AppliedTick` after the ack.
 4. **Frames out** (every session in range). Each session takes its player's output from the
    tick, encodes it with `zone_mapping` (`server_time_ms = time_origin_ms + tick * 100`, never a
    clock read), records `ws.deliver` under the intent's trace, audits each frame
