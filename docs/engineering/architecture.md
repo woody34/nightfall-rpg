@@ -340,16 +340,19 @@ depends on these frames.
 `infrastructure::eventlog::EventLogSessionAudit` implements the socket `SessionAudit` port
 with that writer, wrapped by the existing `CheckpointAudit`. The composition root awaits
 `JetStreamEventLog::connect` (including `NF_SESSIONS` creation) before starting either writer
-or accepting sockets. Without `NATS_URL`, game frames are discarded with an explicit warning.
-The audit key is the fresh socket UUID, not the character/player UUID; `.in`/`.out` subjects
-retain its compact (32 hex digit) representation. Subjects and protobuf
-records are unchanged: raw inbound bytes are field 7, raw outbound bytes field 5. Inbound
-receive time is sampled on the calling path; undecodable sequences use zero in the existing
-uint64 field. Zone/epoch/next-tick metadata accompanies inbound frames; outbound records use
-their producing tick (latest zone tick for a session-local rejection). Authentication stays
-at the HTTP upgrade/gRPC edge and never enters this game-frame audit. Shutdown closes sessions,
-then flushes buffered audit frames, aborting the worker with a warning after five seconds if
-the broker does not finish acknowledging. `.checkpoint` subjects and JSON data are unchanged.
+or accepting sockets. Without `NATS_URL`, `DiscardSessionAudit` discards game frames with an
+explicit warning without starting an audit worker. The audit key is the fresh socket UUID,
+not the character/player UUID; `.in`/`.out` subjects retain its compact (32 hex digit)
+representation. Subjects and protobuf records are unchanged: raw inbound bytes are field 7,
+raw outbound bytes field 5. Inbound receive time is sampled on the calling path; undecodable
+sequences use zero in the existing uint64 field. Zone/epoch/next-tick metadata accompanies
+inbound frames; outbound records use their producing tick (latest zone tick for a session-local
+rejection). Authentication stays at the HTTP upgrade/gRPC edge and never enters this game-frame
+audit. Shutdown closes sessions, then flushes buffered audit frames, aborting the worker with
+a warning after five seconds if the broker does not finish acknowledging; remaining buffered
+frames may be lost. `eventlog_audit_dropped_total` counts drops from queue saturation and
+unacknowledged appends only, not frames abandoned in an aborted worker. `.checkpoint` subjects
+and JSON data are unchanged.
 
 #### Replay tool
 
