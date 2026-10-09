@@ -129,6 +129,10 @@ public:
 	uint32 GetLastSentSeq() const { return NextSeq; }
 	void SetSocketFactoryForTesting(FSocketFactory Factory) { SocketFactory = MoveTemp(Factory); }
 	void SetSchedulerForTesting(FScheduler InScheduler) { Scheduler = MoveTemp(InScheduler); }
+#if !UE_BUILD_SHIPPING
+	/** nf.DropSocket (test only): loses the socket as a network failure would; the normal reconnect follows. */
+	void DropSocketForTesting();
+#endif
 
 	UPROPERTY(BlueprintAssignable, Category = "Nightfall|Net")
 	FOnNetConnected OnConnected;

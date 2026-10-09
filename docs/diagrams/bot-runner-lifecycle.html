@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot runner lifecycle · Nightfall</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;   /* white-smoke */
+      --color-ink:     #2d3142;   /* jet-black */
+      --color-muted:   #4f5d75;   /* blue-slate */
+      --color-accent:  #eb6c36;   /* atomic-tangerine */
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1080px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 16px; max-width: 100ch; }
+    .notes p + p { margin-top: 8px; }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+    /* The SVG holds its readable width (min-width == the viewBox width, so the
+       type ramp is never silently scaled down). This wrapper lets a narrow
+       screen scroll the diagram instead of the whole page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 1080px; display: block; }
+    /* Paper has no scrollbar, so the local scroller would clip instead of
+       scroll. Let the diagram scale down to the sheet: smaller but whole
+       beats sharp but cut off. Must come after the svg rule above - a media
+       query adds no specificity, so a later plain rule would win. */
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · State machine · Minimal light</p>
+    <h1>Bot runner lifecycle</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1080 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="bot-runner-lifecycle-title bot-runner-lifecycle-desc">
+        <title id="bot-runner-lifecycle-title">Bot runner lifecycle</title>
+        <desc id="bot-runner-lifecycle-desc">A headless client with -BotScenario parses its scenario, waits for a world, runs one step per tick, then writes JUnit and exits 0 only when every step passed and the log and ensure sentinel saw nothing unallowed; without the flag the runner stays inert.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+</marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+</marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+</marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+<circle cx="52" cy="172" r="6" fill="#2d3142"/>
+<line x1="58" y1="172" x2="140" y2="172" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="62.3" y="152" width="73.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="99" y="162" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">BOTSCENARIO=</text>
+<path d="M 52,178 V 334 Q 52,342 60,342 H 100" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="60.3" y="242" width="47.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="84" y="252" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">NO FLAG</text>
+<line x1="340" y1="172" x2="420" y2="172" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="358.9" y="152" width="42.2" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="380" y="162" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">PARSED</text>
+<line x1="620" y1="172" x2="700" y2="172" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="628.5" y="152" width="63.0" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="660" y="162" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">BEGUN PLAY</text>
+<path d="M 780,120 V 92 Q 780,84 788,84 H 852 Q 860,84 860,92 V 120" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="791.1" y="62" width="57.8" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="820" y="72" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">NEXT TICK</text>
+<line x1="860" y1="224" x2="860" y2="480" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="868.7" y="310" width="78.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="908" y="320" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">DONE · FAILED</text>
+<path d="M 620,344 H 772 Q 780,344 780,352 V 480" fill="none" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="661.9" y="324" width="68.2" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="696" y="334" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">UNALLOWED N</text>
+<path d="M 300,224 V 528 Q 300,536 308,536 H 700" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="307.9" y="442" width="68.2" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="342" y="452" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">PARSE ERROR</text>
+<line x1="940" y1="516" x2="990" y2="516" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="940" y1="556" x2="990" y2="556" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="140" y="120" width="200" height="104" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="140" y="120" width="200" height="104" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="148" y="128" width="32" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="163.9" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">FLAG</text>
+<text x="240.0" y="160" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Armed</text>
+<text x="240.0" y="176" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">open .log · start sentinel</text>
+<text x="240.0" y="190" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">load .allow · nf.DropSocket</text>
+<text x="240.0" y="204" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">parse .nfs · test:&lt;uuid&gt;</text>
+<rect x="100" y="300" width="160" height="84" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="100" y="300" width="160" height="84" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+<rect x="108" y="308" width="47" height="12" rx="2" fill="none" stroke="#4f5d75"/>
+<text x="131.7" y="317" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">NO FLAG</text>
+<text x="180.0" y="340" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Inert</text>
+<text x="180.0" y="356" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">game runs unchanged</text>
+<text x="180.0" y="370" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">(and in shipping)</text>
+<rect x="420" y="120" width="200" height="104" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="420" y="120" width="200" height="104" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="428" y="128" width="32" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="443.9" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">TICK</text>
+<text x="520.0" y="160" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Waiting for world</text>
+<text x="520.0" y="176" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">every core tick until</text>
+<text x="520.0" y="190" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">the world has begun play</text>
+<rect x="700" y="120" width="240" height="104" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="700" y="120" width="240" height="104" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="708" y="128" width="32" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="723.9" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">TICK</text>
+<text x="820.0" y="160" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Running steps</text>
+<text x="820.0" y="176" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">Command · Expect now</text>
+<text x="820.0" y="190" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">WaitFor poll · Sleep</text>
+<text x="820.0" y="204" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">Within budget</text>
+<rect x="420" y="296" width="200" height="96" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="420" y="296" width="200" height="96" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<rect x="428" y="304" width="53" height="12" rx="2" fill="none" stroke="#eb6c36"/>
+<text x="454.3" y="313" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">SENTINEL</text>
+<text x="520.0" y="336" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Log and ensure sentinel</text>
+<text x="520.0" y="352" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">Error/Fatal in LogNightfall,</text>
+<text x="520.0" y="366" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">LogTurboLink, LogNet* · ensures</text>
+<rect x="700" y="480" width="240" height="112" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="700" y="480" width="240" height="112" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<rect x="708" y="488" width="47" height="12" rx="2" fill="none" stroke="#eb6c36"/>
+<text x="731.7" y="497" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">VERDICT</text>
+<text x="820.0" y="520" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Report and exit</text>
+<text x="820.0" y="536" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">&lt;scenario&gt;.xml · flush .log</text>
+<text x="820.0" y="550" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">exit 0 only if steps passed</text>
+<text x="820.0" y="564" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">and 0 unallowed lines</text>
+<circle cx="1000" cy="516" r="8" fill="none" stroke="#2d3142" stroke-width="1.2"/>
+<circle cx="1000" cy="516" r="5" fill="#2d3142"/>
+<text x="1000" y="538" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">exit 0 · pass</text>
+<circle cx="1000" cy="556" r="8" fill="none" stroke="#2d3142" stroke-width="1.2"/>
+<circle cx="1000" cy="556" r="5" fill="#2d3142"/>
+<text x="1000" y="578" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">exit 1 · fail</text>
+<line x1="40" y1="640" x2="1040" y2="640" stroke="#bfc0c0" stroke-width="1.2"/>
+<line x1="40" y1="664" x2="68" y2="664" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="80" y="667" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Transition</text>
+<line x1="200" y1="664" x2="228" y2="664" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<text x="240" y="667" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Count feeds the verdict</text>
+<rect x="420" y="656" width="24" height="16" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<text x="456" y="667" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Decides the exit code (plan D6)</text>
+<circle cx="672" cy="664" r="8" fill="none" stroke="#2d3142" stroke-width="1.2"/><circle cx="672" cy="664" r="5" fill="#2d3142"/>
+<text x="688" y="667" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Process exit (RequestExitWithStatus)</text>
+
+      </svg>
+    </div>
+    <div class="notes">
+<p><code>UBotScenarioRunner</code> is a game-instance subsystem in a <code>-game -nullrhi -nosound -unattended</code> client. <strong>Armed</strong> happens in <code>Initialize</code>: the scenario path resolves (absolute, launch dir, project dir), the run log <code>&lt;out&gt;/&lt;scenario&gt;.log</code> opens (<code>-BotOutDir</code>, default <code>Saved/Sim</code>), the sentinel hooks <code>GLog</code> and <code>OnEnsureFailed</code>, <code>&lt;scenario&gt;.allow</code> loads, the test-only <code>nf.DropSocket</code> registers, and every parse error is collected (unknown predicate, bad arguments, missing timeout, unknown <code>nf.*</code> command, second <code>nf.Within</code>). Without <code>-DevToken</code> / <code>-DevTokenFile</code>, <code>nf.Login</code> gets a fresh <code>test:&lt;uuid&gt;</code> account.</p>
+<p><strong>Running steps</strong>: commands run through the console; <code>nf.Expect</code> must hold now; <code>nf.WaitFor</code> polls once per tick and, when it holds, the next step runs on the following tick, or fails at its timeout with the last observed value; <code>nf.Within</code> is enforced on every tick. The first failure ends the run and later assertions are reported as skipped. Not drawn: from Armed, Waiting or Running, an engine shutdown (<code>Deinitialize</code>) aborts the run as failed and still goes to Report.</p>
+<p><strong>Report</strong> writes <code>&lt;scenario&gt;.xml</code>: one testcase per <code>nf.WaitFor</code> / <code>nf.Expect</code>, plus <code>nf.Within</code> and <code>log and ensure sentinel</code>; a parse failure is one <code>parse scenario</code> testcase. The sentinel runs from Armed to exit; any Error/Fatal line in the watched categories or any ensure not on the allow-list makes the exit code 1 even when every step passed.</p>
+<p>Source: <a href="../../apps/client-unreal/Source/Nightfall/Bot/BotScenarioRunner.cpp">BotScenarioRunner.cpp</a> · <a href="../../apps/client-unreal/Source/Nightfall/Bot/BotSteps.cpp">BotSteps.cpp</a> · <a href="../../apps/client-unreal/Source/Nightfall/Bot/BotLogSentinel.cpp">BotLogSentinel.cpp</a> · <a href="../../apps/client-unreal/Source/Nightfall/Bot/BotPredicates.cpp">BotPredicates.cpp</a> · plan <a href="../plans/phase-1a-simulation-testing.md">phase-1a-simulation-testing.md</a> §3.</p>
+</div>
+  </div>
+</body>
+</html>
