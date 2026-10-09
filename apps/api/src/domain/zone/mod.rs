@@ -74,8 +74,8 @@ pub use stat_sheet::{
 };
 pub use state::{
     CheckpointRequestSnapshot, CheckpointSnapshot, InvalidBounds, NpcHate, RngState, SnapshotError,
-    SnapshotMeta, TickError, ZoneBounds, ZoneId, ZoneSeed, ZoneSnapshot, ZoneState,
-    MAX_MOVE_DISTANCE_TILES, SNAPSHOT_SCHEMA_VERSION,
+    SnapshotMeta, StateDigestVersion, TickError, ZoneBounds, ZoneId, ZoneSeed, ZoneSnapshot,
+    ZoneState, MAX_MOVE_DISTANCE_TILES, SNAPSHOT_SCHEMA_VERSION,
 };
 
 #[cfg(test)]
@@ -84,7 +84,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 21] = [
+    const SOURCES: [(&str, &str); 22] = [
         ("mod.rs", include_str!("mod.rs")),
         ("ai.rs", include_str!("ai.rs")),
         ("ai_tests.rs", include_str!("ai_tests.rs")),
@@ -104,6 +104,7 @@ mod tests {
         ("stat_sheet.rs", include_str!("stat_sheet.rs")),
         ("stat_tests.rs", include_str!("stat_tests.rs")),
         ("state.rs", include_str!("state.rs")),
+        ("state_digest.rs", include_str!("state_digest.rs")),
         ("state_combat.rs", include_str!("state_combat.rs")),
         ("state_tests.rs", include_str!("state_tests.rs")),
     ];

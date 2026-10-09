@@ -293,6 +293,13 @@ snapshot and watermark are canonical JSON (readable in an incident);
 `jetstream_snapshot_seq`, `jetstream_first_seq` (filled once the first record is acked),
 `time_origin_ms`, `build_id`, `config_hash` and `schema_version`.
 
+**State digest versions (E6.5).** Snapshot schema 6 stores `digest_version`; absent in
+schemas 4/5 means JSON v1. Record schema 3 retains JSON v1, schema 4 selects binary v2;
+replay rejects a snapshot/record digest-version mismatch. New epochs use binary v2:
+SHA-256 over an explicit little-endian, length-prefixed layout (`state_digest.rs`), with
+ordered entities, hate and spawn members, plus counters and RNG. Legacy epochs keep the
+JSON algorithm on restore; output bytes are unchanged and snapshots remain JSON.
+
 **Record size bound.** A record grows with players × AOI population (≈ 48 KB for 50 players
 each seeing 20 moves); around a thousand entities it would pass NATS `max_payload` (1 MiB by
 default, payload plus headers), and an append that can never fit would stall and then pause

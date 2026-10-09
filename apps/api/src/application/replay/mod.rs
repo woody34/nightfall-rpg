@@ -163,7 +163,9 @@ fn compare(
     if !events_match {
         return Err(Mismatch::Events);
     }
-    if recorded.state_digest != rerun.state_digest {
+    if recorded.digest_version != rerun.digest_version
+        || recorded.state_digest != rerun.state_digest
+    {
         return Err(Mismatch::StateDigest);
     }
     let selected = |e: &EntityId| session.is_none_or(|s| s == *e);

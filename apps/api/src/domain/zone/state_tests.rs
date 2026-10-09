@@ -866,3 +866,122 @@ fn combat_validation_rejects_dead_or_missing_actor_and_dead_or_distant_target() 
     assert_eq!(before.rng, z.snapshot().rng);
     assert!(t.events.is_empty());
 }
+
+/// The pre-E6.5 per-observer algorithm, kept as an output-byte oracle for cell sharing.
+fn unshared_outputs(
+    state: &ZoneState,
+    tick: Tick,
+    mut replies: BTreeMap<CommandSource, Vec<ObserverOutput>>,
+    events: &[ZoneEvent],
+) -> BTreeMap<EntityId, Vec<ObserverOutput>> {
+    let mut moved: Vec<_> = events
+        .iter()
+        .filter(|event| matches!(event, ZoneEvent::EntityMove { .. }))
+        .map(ZoneEvent::entity)
+        .collect();
+    moved.sort_unstable();
+    moved.dedup();
+    let mut result = BTreeMap::new();
+    for player in state
+        .entities
+        .values()
+        .filter(|e| e.kind == EntityKind::Player)
+    {
+        let mut out = replies
+            .remove(&CommandSource::Session {
+                entity: player.id,
+                generation: player.generation,
+            })
+            .unwrap_or_default();
+        let view = CellView::build(
+            &state.aoi,
+            &state.entities,
+            player.pos,
+            &moved,
+            tick,
+            CellFacts::default(),
+        );
+        let before = state
+            .known
+            .get(&player.id)
+            .map_or(&[][..], |(_, ids)| ids.as_ref());
+        diff_into(&mut out, tick, before, &view, &state.entities);
+        out.extend(
+            events
+                .iter()
+                .filter(|event| fact_visible(event, player.id, &view.ids))
+                .cloned()
+                .map(ObserverOutput::Event),
+        );
+        if !out.is_empty() {
+            result.insert(player.id, out);
+        }
+    }
+    result
+}
+
+proptest::proptest! {
+    #[test]
+    fn shared_cell_outputs_match_unshared_bytes(
+        layout in proptest::collection::vec((0..8_i32, 0..8_i32, proptest::bool::ANY,
+            proptest::bool::ANY, proptest::bool::ANY), 1..24),
+    ) {
+        let mut previous = zone();
+        let mut current = zone();
+        let mut before = Vec::new();
+        let mut after = Vec::new();
+        for (i, (old_cell, new_cell, existed, remains, _)) in layout.iter().enumerate() {
+            let n = i as u128;
+            if *existed { before.push(spawn_player(n, old_cell.saturating_mul(32), 0)); }
+            if *remains { after.push(spawn_player(n, new_cell.saturating_mul(32), 0)); }
+        }
+        run(&mut previous, before);
+        run(&mut current, after);
+        current.known = previous.known;
+        let tick = Tick(1);
+        let mut events = Vec::new();
+        let mut replies = BTreeMap::new();
+        for (i, (_, _, _, _, replaced)) in layout.iter().enumerate() {
+            let entity = id(i as u128);
+            if *replaced { current.known.remove(&entity); }
+            // Interleaved public and private facts exercise causal-order merging, including
+            // owner facts whose target is outside that owner's final AOI.
+            events.push(ZoneEvent::XpGained { tick, entity, amount: 1, total: 1 });
+            events.push(ZoneEvent::EntityDied { tick, entity, killer: None, incarnation: 1 });
+            events.push(ZoneEvent::TargetChanged { tick, entity, target: Some(id(0)) });
+            events.push(ZoneEvent::AttackCancelled {
+                tick, attacker: entity, target: id(0), reason: SwingCancel::TargetLost,
+            });
+            if let Some(e) = current.entities.get(&entity) {
+                events.push(ZoneEvent::EntityMove { tick, entity, pos: e.pos, dest: e.dest, speed: e.speed });
+                replies.insert(CommandSource::Session { entity, generation: GEN1 },
+                    vec![ObserverOutput::Accepted { tick, ordinal: Ordinal(0), seq: 1 }]);
+            }
+        }
+        let encode = |outputs: BTreeMap<EntityId, Vec<ObserverOutput>>| {
+            outputs.into_iter().map(|(id, out)| (id,
+                crate::application::replay_log::encode_outputs(&out))).collect::<BTreeMap<_, _>>()
+        };
+        let expected = encode(unshared_outputs(&current, tick, replies.clone(), &events));
+        let actual = encode(current.observe(tick, replies, &events));
+        proptest::prop_assert_eq!(actual, expected);
+    }
+}
+
+#[test]
+fn snapshots_without_a_digest_version_keep_json_across_restores() {
+    for schema in [4, 5] {
+        let mut snapshot = serde_json::to_value(zone().snapshot()).unwrap();
+        let meta = snapshot["meta"].as_object_mut().unwrap();
+        meta.insert("schema_version".to_owned(), schema.into());
+        meta.remove("digest_version");
+        let mut state =
+            ZoneState::from_snapshot(serde_json::from_value(snapshot).unwrap()).unwrap();
+        assert_eq!(state.snapshot().meta.digest_version, StateDigestVersion::JsonV1);
+        let upgraded = state.snapshot();
+        assert_eq!(upgraded.meta.schema_version, SNAPSHOT_SCHEMA_VERSION);
+        let mut restored = ZoneState::from_snapshot(upgraded).unwrap();
+        assert_eq!(run(&mut state, vec![]), run(&mut restored, vec![]));
+        assert_eq!(state.state_digest(), state.json_state_digest());
+    }
+}

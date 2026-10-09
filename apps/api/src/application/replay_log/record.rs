@@ -85,6 +85,8 @@ pub struct AppliedTickRecord {
     pub events: Bytes,
     /// SHA-256 of the canonical end-of-tick state ([`AppliedTick::state_digest`]).
     pub state_digest: Bytes,
+    /// State encoding, selected by the record schema (3: JSON v1, 4: binary v2).
+    pub digest_version: crate::domain::zone::StateDigestVersion,
 }
 
 impl AppliedTickRecord {
@@ -109,6 +111,7 @@ impl AppliedTickRecord {
             output_form: OutputForm::Encoded,
             events: encode_events(&tick.events),
             state_digest: Bytes::copy_from_slice(&tick.state_digest),
+            digest_version: tick.digest_version,
         }
     }
 
