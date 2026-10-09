@@ -1,4 +1,5 @@
 # covers: 1 E5.2, 1a 3.6
+# fixture: phase1a-late-entry
 # 1-late-entry-b (with 1-late-entry-a): waits out of view while A walks to the keltir meadow and
 # starts fighting, then walks in. The keltir spawns that arrive on its AOI entry must carry the
 # fight's state (wounded HP, dead, or a later life), and the next hit on a wounded one must

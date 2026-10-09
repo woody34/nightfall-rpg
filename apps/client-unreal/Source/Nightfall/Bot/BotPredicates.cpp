@@ -815,6 +815,22 @@ void FBotPredicateRegistry::RegisterBuiltins()
 		} });
 	};
 
+	RegisterFlag(TEXT("last_target_same_life"), TEXT("Previously selected NPC projection still has its selected incarnation"),
+		[](const FBotContext& C)
+		{
+			const UCombatStateSubsystem* Combat = C.Combat();
+			const FCombatEntity* E = Combat && C.Observations ? Combat->FindEntity(C.Observations->LastTargetId) : nullptr;
+			return E && C.Observations->LastTargetIncarnation > 0 && E->Incarnation == C.Observations->LastTargetIncarnation;
+		});
+	RegisterFlag(TEXT("last_target_hp_matches_spawn"), TEXT("Reconstructed NPC projection HP/life matches its new admission spawn"),
+		[](const FBotContext& C)
+		{
+			const UNetClientSubsystem* N = C.Net();
+			const UCombatStateSubsystem* Combat = C.Combat();
+			const FEntitySpawn* S = N && C.Observations ? N->GetKnownEntities().Find(C.Observations->LastTargetId) : nullptr;
+			const FCombatEntity* E = Combat && S ? Combat->FindEntity(S->EntityId) : nullptr;
+			return E && E->Hp == S->Hp && E->Incarnation == S->LifeIncarnation && E->bDead == S->bDead;
+		});
 	RegisterFlag(TEXT("last_target_despawned"), TEXT("Previously selected NPC corpse left the cache and proxy registry"),
 		[](const FBotContext& C)
 		{

@@ -1,4 +1,5 @@
 # covers: 1 E4.2, 1 E5.2, 1 E6.1, 1a E3.6
+# fixture: phase1a-late-entry
 # 1-late-entry-a (with 1-late-entry-b, run-sim-multi.sh): A fights at the keltir meadow; B walks
 # in mid-fight and checks the spawns it receives carry the current HP and life. A also drops its
 # socket mid-fight: XP shows "--" until the next StatsChanged, then the pre-drop total.
@@ -44,6 +45,7 @@ nf.WaitFor target_hits_since_mark >= 1 10 # a new hit continues from the wounded
 # Drop the socket mid-fight. The server despawns a dropped session's player
 # (SessionRegistry::leave), so the fight ends and the reconnect is a new admission: spawns and
 # StatsChanged are re-sent, the selection is not.
+nf.Expect target_wounded          # durable third fixture guarantees a live fight before dropping
 nf.DropSocket
 nf.WaitFor reconnects >= 1 20      # 0.5 s backoff + play ticket (5 s gRPC deadline), 3x
 nf.WaitFor in_world 15
@@ -53,6 +55,8 @@ nf.Expect xp_known_before_stats == 0
 nf.Expect xp_restored              # the pre-drop total
 nf.Expect own_level_matches_xp
 nf.Expect target == none
+nf.Expect last_target_same_life
+nf.Expect last_target_hp_matches_spawn
 nf.Expect attack_state == idle
 nf.WaitFor proxies >= 1 3          # the meadow is re-sent
 nf.Within 240

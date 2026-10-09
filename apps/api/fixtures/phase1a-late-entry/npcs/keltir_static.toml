@@ -1,0 +1,29 @@
+# Simulation-only passive fixture: movement is 0.01 tile/s, bounding wander below 1 tile during entry.
+# NPC template: Keltir, the Phase 1 starter melee monster (plan E3.1). Combat values are FINAL
+# (no class bonuses applied on top). Integers or exact decimal strings only; floats are rejected.
+# Units: distances/radii in milli-tiles (1000 = 1 tile); speed in milli-tiles per tick (100 ms);
+# p_atk/p_def are decimal strings (exact, 6 places) or integers; attack_speed is P.Atk.Spd;
+# corpse_decay in ticks; respawn in whole seconds. Values are tunable starter numbers, not
+# transcribed L2J rows. Deviation: L2J keltirs are passive; this one is aggressive so the
+# aggro/leash/social-help loop can be demonstrated.
+id = "keltir_static"
+name = "Keltir"
+attackable = true
+level = 1
+p_atk = "0"
+p_def = "26.9"
+max_hp = 44
+max_mp = 20
+attack_speed = 253
+attack_range = 1500
+move_speed = 1
+collision_radius = 300
+xp_reward = 28
+aggressive = false
+aggro_range = 6000
+clan_id = "keltir_static"
+clan_help_range = 8000
+leash_radius = 15000
+corpse_decay_ticks = 100
+respawn_delay_secs = 30
+respawn_random_secs = 10
