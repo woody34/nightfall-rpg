@@ -27,6 +27,7 @@ void UOwnEntityComponent::BeginPlay()
 	SpawnHandle = N->OnEntitySpawn.AddUObject(this, &UOwnEntityComponent::ApplySpawn);
 	MoveHandle = N->OnEntityMove.AddUObject(this, &UOwnEntityComponent::ApplyMove);
 	RejectedHandle = N->OnIntentRejected.AddUObject(this, &UOwnEntityComponent::ApplyRejected);
+	RespawnedHandle = N->OnEntityRespawned.AddUObject(this, &UOwnEntityComponent::ApplyRespawned);
 
 	// The spawn usually arrived before this map loaded.
 	if (const FEntitySpawn* Known = N->GetKnownEntities().Find(N->GetOwnEntityId()))
@@ -42,6 +43,7 @@ void UOwnEntityComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		N->OnEntitySpawn.Remove(SpawnHandle);
 		N->OnEntityMove.Remove(MoveHandle);
 		N->OnIntentRejected.Remove(RejectedHandle);
+		N->OnEntityRespawned.Remove(RespawnedHandle);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -94,6 +96,17 @@ void UOwnEntityComponent::ApplySpawn(const FEntitySpawn& Spawn)
 	LastServerPos = TileToWorld(Spawn.Position);
 	bHaveServerPos = true;
 	UE_LOG(LogNightfall, Log, TEXT("own entity: spawn at tile (%.2f, %.2f)"), Spawn.Position.X, Spawn.Position.Y);
+	Snap(LastServerPos);
+}
+
+void UOwnEntityComponent::ApplyRespawned(const FEntityRespawned& Respawned)
+{
+	UNetClientSubsystem* N = Net();
+	if (!N || !N->IsOwnEntity(Respawned.Entity)) return;
+	StopPreview();
+	PendingSeq = 0;
+	LastServerPos = TileToWorld(Respawned.Position);
+	bHaveServerPos = true;
 	Snap(LastServerPos);
 }
 
@@ -154,6 +167,12 @@ FString UOwnEntityComponent::RejectReasonText(uint32 Reason)
 	case 4: return TEXT("server busy, try again");
 	case 5: return TEXT("too many clicks, slow down");
 	case 6: return TEXT("invalid request");
+	case 7: return TEXT("you are dead");
+	case 8: return TEXT("that can't be attacked");
+	case 9: return TEXT("target is out of sight");
+	case 10: return TEXT("too far away");
+	case 11: return TEXT("target is protected");
+	case 12: return TEXT("not available yet");
 	default: return TEXT("rejected");
 	}
 }

@@ -81,6 +81,49 @@ Diagram: [click to move](../../docs/diagrams/click-to-move-sequence.html).
 - Building while another editor is open for this engine: add `-NoHotReload` to `Build.sh`, or UBT
   names the modules `...-0001.so` and the link fails.
 
+## Combat UI (Stories 5.2 and 5.3)
+
+Diagram: [combat sequence](../../docs/diagrams/combat-sequence.html) (client lane).
+
+The client shows what the server says and computes nothing: no damage, hit chance, cooldown or
+range check exists in C++. Contract: `packages/proto/nightfall/v1/world.proto`.
+
+- **Typed events:** `UNetClientSubsystem::DispatchServerMessage` fans a decoded frame out to
+  `OnAttackResult`, `OnEntityDied`, `OnEntityRespawned`, `OnStatsChanged`, `OnXpGained`,
+  `OnLevelUp`, `OnTargetChanged` (plus spawn/move/despawn/ack/rejected). `FEntitySpawn` carries
+  the AOI-entry combat state (`bCombatant`, `bDead`, `bAttackable`, `Hp`, `MaxHp`, `Level`,
+  `LifeIncarnation`). `AttackStarted` / `AttackCancelled` are not consumed until the animation story.
+  Sends: `SendSetTarget`, `SendAttack`, `SendStopAttack`, `SendRespawn`.
+- **Projection:** `UCombatStateSubsystem` (game-instance subsystem, so it already listens when the
+  socket connects before the map loads) holds per-entity HP / max HP / level / life and the
+  owner's MP, XP and target. Rules:
+  - a spawn with a lower session generation, or lower life incarnation, than held is dropped
+    (`NightfallProto::IsStaleSpawn`, applied in the net cache and the projection);
+  - `AttackResult` / `EntityDied` for an earlier incarnation, or older than the newest fact applied
+    to that entity, are dropped; a repeated `AttackResult` (same tick + attacker + target) changes
+    nothing and shows no second number;
+  - `StatsChanged`, `XpGained`, `TargetChanged` apply only to the own entity (MP and XP are private);
+  - `EntityDied` of the target, or its despawn, clears the target and the attack; own death clears both;
+  - connect and disconnect drop everything; the server's spawn stream and `StatsChanged` rebuild it.
+    XP shows `XP --` until the first `XpGained`, because no event carries the XP total on reconnect.
+- **HUD:** `UNightfallHud` (CommonUI `UCommonUserWidget`, built in code, added by
+  `ANightfallPlayerController::BeginPlay`) binds to `UCombatStateSubsystem::BuildHudModel()`: own
+  name / level / HP / MP / XP, target frame, attack state ("Attacking..." while the `Attack` is
+  unacked), status line (the login-flow status; `IntentRejected` reasons land here), floating HP
+  bars over combatant proxies, one floating number per deduped `AttackResult` (miss grey, crit
+  large and gold, damage to you red) and the dead overlay with a Respawn button.
+- **Click:** `OnClickMove` ray-traces the Visibility channel; `ARemoteEntityActor::ClickVolume`
+  (query-only capsule) is what a proxy exposes. An attackable NPC under the cursor goes to
+  `UCombatStateSubsystem::ClickEntity`: `SetTarget` (skipped if already selected or pending) then
+  `Attack` (skipped while one is pending or acked), so repeated clicks cannot speed attacks up. Any
+  other click is a ground click: `StopAttack` if attacking, then `MoveTo` as before.
+- **Respawn:** the button sends one `Respawn` until it is answered; only `EntityRespawned` (or a
+  live spawn) clears the overlay.
+- **Tests:** `Nightfall.Combat.*`, see the table in "Tests".
+- **Server dependent:** until the server's combat behaviour lands, `Attack` and `Respawn` answer
+  `NOT_YET_IMPLEMENTED` (shown as "not available yet") and no `AttackResult` ever arrives, so
+  numbers, HP changes and death are exercised by synthetic events only.
+
 ## Installing Unreal on Linux
 
 Epic requires an account. Two routes:
@@ -362,6 +405,16 @@ set `NIGHTFALL_DEV_TOKEN` to use another token. Without Keycloak, run the API wi
 | `Nightfall.Content.Wiring` | no | Generated assets wired as in "Content"; default map; ini values (issuer) parsed intact |
 | `Nightfall.Net.ProtoCodec.Encode` | no | `ClientMessage` bytes match hand-assembled protobuf |
 | `Nightfall.Net.ProtoCodec.Decode` | no | `Ack`, `IntentRejected`, `EntitySpawn`, empty and truncated frames |
+| `Nightfall.Combat.Codec.EncodeIntents` | no | `SetTarget`, `Attack`, `StopAttack`, `Respawn` bytes |
+| `Nightfall.Combat.Codec.DecodeEvents` | no | All seven combat events and the `EntitySpawn` combat fields from hand-assembled protobuf |
+| `Nightfall.Combat.State.HudFields` | no | Every HUD model field through a hit, miss, crit, kill, XP, level-up, own death and respawn; replayed events add no number |
+| `Nightfall.Combat.State.OwnerPrivacy` | no | Others' `StatsChanged` / `XpGained` / `TargetChanged` ignored; own XP accepted |
+| `Nightfall.Combat.State.AoiAndStale` | no | Despawn clears the target; re-entry from the spawn; stale incarnation / generation / older tick ignored |
+| `Nightfall.Combat.State.Reconnect` | no | Projection dropped on disconnect and rebuilt from spawns + `StatsChanged`; dead on reconnect shows the overlay |
+| `Nightfall.Combat.Click.SetTargetAttackOnce` | no | `SetTarget` + `Attack` exactly once per target; repeats send nothing; ground click sends `StopAttack` before `MoveTo` |
+| `Nightfall.Combat.Click.RejectionsAndDeath` | no | Rejection reasons in the status line and state reset; dead target clears; one `Respawn` until answered |
+| `Nightfall.Combat.Hud.WidgetBuilds` | no | The HUD builds its layout in code |
+| `Nightfall.Combat.EndToEnd` | yes (skips if down) | Real server: `SetTarget` on a live NPC yields `TargetChanged`; `Attack` answered by whichever the server does (see test comment) |
 | `Nightfall.Net.SessionClient.Ping` | yes | Ping round trip; `server_version` equals the Cargo workspace version |
 | `Nightfall.Login.EndToEnd` | yes (skips if down) | Dev-token login, `ListMyCharacters`, `CreateCharacter` (fresh key), listed, two `IssuePlayTicket` calls give two distinct tickets and a `ws://` URL without the ticket |
 

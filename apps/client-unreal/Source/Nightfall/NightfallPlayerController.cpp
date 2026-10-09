@@ -7,6 +7,10 @@
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Nightfall.h"
 #include "Game/OwnEntityComponent.h"
+#include "Combat/CombatStateSubsystem.h"
+#include "UI/NightfallHud.h"
+#include "World/RemoteEntityActor.h"
+#include "Blueprint/UserWidget.h"
 #include "Containers/Ticker.h"
 #include "Engine/Engine.h"
 #include "NavigationSystem.h"
@@ -17,6 +21,7 @@ ANightfallPlayerController::ANightfallPlayerController()
 {
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Default;
+	HudClass = UNightfallHud::StaticClass();
 }
 
 void ANightfallPlayerController::BeginPlay()
@@ -27,6 +32,11 @@ void ANightfallPlayerController::BeginPlay()
 	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	Mode.SetHideCursorDuringCapture(false);
 	SetInputMode(Mode);
+	if (IsLocalController() && HudClass)
+	{
+		Hud = CreateWidget<UNightfallHud>(this, HudClass);
+		if (Hud) Hud->AddToViewport(0);
+	}
 	UE_LOG(LogNightfall, Log, TEXT("click-to-move ready: mapping context %s, action %s"),
 		*GetNameSafe(DefaultMappingContext), *GetNameSafe(ClickMoveAction));
 	if (ULocalPlayer* LP = GetLocalPlayer())
@@ -50,23 +60,52 @@ void ANightfallPlayerController::SetupInputComponent()
 void ANightfallPlayerController::OnClickMove()
 {
 	UE_LOG(LogNightfall, Log, TEXT("click"));
-	FHitResult Hit;
-	FVector Target;
-	if (GetHitResultUnderCursor(ECC_Visibility, true, Hit))
+	UCombatStateSubsystem* Combat = GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();
+	if (Combat && Combat->IsOwnDead()) return;   // the dead overlay owns the screen
+
+	FVector Origin, Direction;
+	if (!DeprojectMousePositionToWorld(Origin, Direction)) return;
+
+	// Proxies first: an attackable NPC under the cursor is a target, not a destination.
+	TArray<FHitResult> Hits;
+	GetWorld()->LineTraceMultiByChannel(Hits, Origin, Origin + Direction * 200000.0, ECC_Visibility);
+	for (const FHitResult& Hit : Hits)
 	{
-		Target = Hit.Location;
+		const ARemoteEntityActor* Proxy = Cast<ARemoteEntityActor>(Hit.GetActor());
+		if (Proxy && Combat && Combat->ClickEntity(Proxy->EntityId))
+		{
+			UE_LOG(LogNightfall, Log, TEXT("click: target %s"), *Proxy->EntityId);
+			return;
+		}
+	}
+
+	// Ground second: the first hit that is not a proxy, else the ground plane.
+	FVector Target;
+	const FHitResult* Ground = Hits.FindByPredicate([](const FHitResult& H) { return Cast<ARemoteEntityActor>(H.GetActor()) == nullptr; });
+	if (Ground)
+	{
+		Target = Ground->Location;
 	}
 	else
 	{
 		// Nothing with collision under the cursor (the engine plane has none): use the ground plane.
-		FVector Origin, Direction;
-		if (!DeprojectMousePositionToWorld(Origin, Direction) || FMath::IsNearlyZero(Direction.Z)) return;
+		if (FMath::IsNearlyZero(Direction.Z)) return;
 		const double GroundZ = GetPawn() ? GetPawn()->GetActorLocation().Z - GroundOffset : 0.0;
 		const double T = (GroundZ - Origin.Z) / Direction.Z;
 		if (T <= 0.0) return;
 		Target = Origin + Direction * T;
 	}
-	MoveToWorldLocation(Target);
+	ClickGroundLocation(Target);
+}
+
+uint32 ANightfallPlayerController::ClickGroundLocation(const FVector& Target)
+{
+	// A move ends the attack on the server; say so explicitly first so the order is unambiguous.
+	if (UCombatStateSubsystem* Combat = GetGameInstance()->GetSubsystem<UCombatStateSubsystem>())
+	{
+		Combat->NoteGroundClick();
+	}
+	return MoveToWorldLocation(Target);
 }
 
 uint32 ANightfallPlayerController::MoveToWorldLocation(const FVector& Target)

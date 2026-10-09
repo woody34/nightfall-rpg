@@ -21,6 +21,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nightfall")
 	TSubclassOf<class ARemoteEntityActor> EntityClass;
 
+	/** The live proxies by entity id (as the server spelled it). */
+	const TMap<FString, TObjectPtr<class ARemoteEntityActor>>& GetProxies() const { return Entities; }
+
 private:
 	void HandleSpawn(const FEntitySpawn& Spawn);
 	void HandleDespawn(const FEntityDespawn& Despawn);

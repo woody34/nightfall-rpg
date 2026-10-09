@@ -36,6 +36,8 @@ public:
 	void ApplySpawn(const FEntitySpawn& Spawn);
 	void ApplyMove(const FEntityMove& Move);
 	void ApplyRejected(const FIntentRejected& Rejected);
+	/** The respawn point is authoritative: cancel the preview and place the pawn there. */
+	void ApplyRespawned(const FEntityRespawned& Respawned);
 
 	/** Pawn farther than this from the server position (cm) is snapped to it. */
 	UPROPERTY(EditDefaultsOnly, Category = "Nightfall")
@@ -55,7 +57,7 @@ private:
 	void SetStatus(const FString& Status) const;
 	UNetClientSubsystem* Net() const;
 
-	FDelegateHandle SpawnHandle, MoveHandle, RejectedHandle;
+	FDelegateHandle SpawnHandle, MoveHandle, RejectedHandle, RespawnedHandle;
 	TOptional<FVector> LocalGoal;     // cm; unset when the preview is idle
 	uint32 PendingSeq = 0;
 	FVector LastServerPos = FVector::ZeroVector;
