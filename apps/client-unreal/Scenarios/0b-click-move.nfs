@@ -1,4 +1,4 @@
-# covers: 0b 1.5, 1a 2.2
+# covers: 0b E0.1, 0b E4.3, 0b E6.3b, 1a E2.2
 # 0b-click-move: three click-to-move orders, each Acked by the server, each reconciling the
 # own position within 1 tile of the destination.
 #

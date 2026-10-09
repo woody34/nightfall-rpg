@@ -1,4 +1,4 @@
-# covers: 1 E2.3, 1 E2.6, 1 E3.1, 1 E5.2, 1a E3.2
+# covers: 1 E3.4, 1 E5.4, 1a 3.2
 # 1-kill-one-monster: target the nearest attackable NPC, auto-attack to death, gain XP.
 # The plan's §3 example plus the walk: a new character spawns at (0, 0), outside the area of
 # interest of the keltir slots (packages/data/zones/test_zone.toml: keltir_a at (100, 100)), so
@@ -30,4 +30,13 @@ nf.WaitFor kill_xp_matches_fixture 3
 nf.Expect own_xp > 0
 nf.Expect own_level_matches_xp
 nf.Expect own_level >= 1
-nf.Within 90                       # a pass takes ~33 s
+# Leave melee range while retaining the meadow AOI; corpse decay is 10 seconds.
+nf.ClickMove 97 80
+nf.WaitFor own_at 97 80 1 15
+nf.WaitFor last_target_despawned 20
+nf.Expect proxy_actors_in_sync
+# Fixture respawn delays are 20-40 seconds; 90 seconds gives a >2x margin.
+nf.WaitFor last_target_new_life 90
+nf.Expect proxy_actors_in_sync
+nf.Expect target == none
+nf.Within 180

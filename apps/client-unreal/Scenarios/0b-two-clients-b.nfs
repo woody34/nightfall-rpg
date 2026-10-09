@@ -1,4 +1,4 @@
-# covers: 0b 1.5, 1a 2.4
+# covers: 0b E4.2, 0b E6.3, 1a E2.4
 # 0b-two-clients-b: the observer of 0b-two-clients-a. Sees A's proxy appear, sees it arrive
 # within 2 tiles of (12, 9) after the interpolation delay, then sees it despawn when A logs out.
 # The proxy_actors_in_sync checks catch a proxy actor that outlives its entity (a leaked proxy).

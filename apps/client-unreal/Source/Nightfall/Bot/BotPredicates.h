@@ -23,6 +23,7 @@ struct NIGHTFALL_API FBotObservations
 	int32 Acks = 0;              // Acks received (every Ack, keep-alives excluded by the server: they are rejected)
 	int32 OwnSpawns = 0;         // EntitySpawns of the own entity (one per session admission)
 	FString FirstOwnEntityId;    // the own entity id at the first own spawn; own_entity_unchanged compares it
+	uint32 LastTargetIncarnation = 0;
 	FString LastTargetId;        // the newest non-empty selection, kept after it clears (target_hp reads it)
 	TOptional<uint32> LastTargetHp; // its newest HP from AttackResult / EntityDied (0) / the projection; survives its despawn
 

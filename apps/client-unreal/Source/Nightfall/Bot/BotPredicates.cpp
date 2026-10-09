@@ -45,6 +45,8 @@ void FBotObservations::Bind(UGameInstance* GameInstance)
 			if (!Net->IsOwnEntity(Changed.Entity) || Changed.Target.IsEmpty() || Changed.Target.Equals(LastTargetId, ESearchCase::IgnoreCase)) return;
 			XpAtTargetSelection = TrackedXp;
 			LastTargetId = Changed.Target.ToLower();
+			const FEntitySpawn* Selected = Net->GetKnownEntities().Find(LastTargetId);
+			LastTargetIncarnation = Selected ? Selected->LifeIncarnation : 0;
 			LastTargetHp.Reset();
 			Observe(BoundCombat.Get());
 		});
@@ -97,6 +99,7 @@ void FBotObservations::Reset()
 	LastRejectSeq = 0;
 	DamageNumbers = 0;
 	LastTargetId.Reset();
+	LastTargetIncarnation = 0;
 	LastTargetHp.Reset();
 	AttackResultKeys.Reset();
 	NpcsAttackingOwn.Reset();
@@ -811,6 +814,29 @@ void FBotPredicateRegistry::RegisterBuiltins()
 			return Eval;
 		} });
 	};
+
+	RegisterFlag(TEXT("last_target_despawned"), TEXT("Previously selected NPC corpse left the cache and proxy registry"),
+		[](const FBotContext& C)
+		{
+			const UNetClientSubsystem* N = C.Net();
+			const UWorld* W = C.World();
+			const UWorldProxySubsystem* P = W ? W->GetSubsystem<UWorldProxySubsystem>() : nullptr;
+			return N && P && C.Observations && !C.Observations->LastTargetId.IsEmpty()
+				&& !N->GetKnownEntities().Contains(C.Observations->LastTargetId) && !P->GetProxies().Contains(C.Observations->LastTargetId);
+		});
+	RegisterFlag(TEXT("last_target_new_life"), TEXT("Previously selected NPC returned with newer incarnation, full HP and live proxy"),
+		[](const FBotContext& C)
+		{
+			const UNetClientSubsystem* N = C.Net();
+			const UCombatStateSubsystem* Combat = C.Combat();
+			const UWorld* W = C.World();
+			const UWorldProxySubsystem* P = W ? W->GetSubsystem<UWorldProxySubsystem>() : nullptr;
+			if (!N || !Combat || !P || !C.Observations || C.Observations->LastTargetId.IsEmpty()) return false;
+			const FCombatEntity* E = Combat->FindEntity(C.Observations->LastTargetId);
+			const TObjectPtr<ARemoteEntityActor>* Actor = P->GetProxies().Find(C.Observations->LastTargetId);
+			return E && !E->bDead && E->Incarnation > C.Observations->LastTargetIncarnation
+				&& E->Hp == E->MaxHp && E->Hp > 0 && Actor && IsValid(Actor->Get());
+		});
 
 	Custom(TEXT("kill_xp_matches_fixture"), TEXT("Newest kill adds exactly keltir.toml xp_reward to XP at target selection; level matches that expected total"),
 		[](const FBotContext& C) -> FBotPredicateValue

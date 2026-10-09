@@ -1,4 +1,4 @@
-# covers: 1 E2.2, 1 E5.3, 1a 3.1
+# covers: 1 E2.1, 1 E2.2, 1 E5.3, 1a E3.1
 # 1-target-attack: select the nearest attackable NPC (TargetChanged, HUD target frame), attack it
 # (one Ack, attack active), press attack again (nothing is sent: no second Ack), stop (idle).
 #

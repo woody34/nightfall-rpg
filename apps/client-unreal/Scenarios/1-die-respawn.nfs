@@ -1,4 +1,4 @@
-# covers: 1 E2.4, 1 E3.2, 1 E5.2, 1 E5.3, 1a 3.4
+# covers: 1 E2.1, 1 E2.4, 1 E5.4, 1a E3.4
 # 1-die-respawn: stand among the aggressive keltirs without fighting back until dead (dead
 # overlay), respawn in town: HP = floor(maxHP * 65 %), MP 0 (tables/formulas.toml
 # [formulas.town_respawn], read by the predicates), at the safe point (zones/test_zone.toml

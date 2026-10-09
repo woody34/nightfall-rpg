@@ -1,4 +1,4 @@
-# covers: 1 E5.2, 1 E6.1, 1a 3.6
+# covers: 1 E4.2, 1 E5.2, 1 E6.1, 1a E3.6
 # 1-late-entry-a (with 1-late-entry-b, run-sim-multi.sh): A fights at the keltir meadow; B walks
 # in mid-fight and checks the spawns it receives carry the current HP and life. A also drops its
 # socket mid-fight: XP shows "--" until the next StatsChanged, then the pre-drop total.

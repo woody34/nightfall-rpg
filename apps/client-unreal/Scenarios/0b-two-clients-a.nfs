@@ -1,4 +1,4 @@
-# covers: 0b 1.5, 1a 2.4
+# covers: 0b E4.2, 0b E6.3, 1a E2.4
 # 0b-two-clients-a: runs with 0b-two-clients-b under run-sim-multi.sh. Waits until it sees the
 # other client, walks to (12, 9), stays long enough for B to observe it, then logs out (B must
 # see the despawn).

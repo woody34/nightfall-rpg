@@ -1,4 +1,4 @@
-# covers: 0b 1.5, 1a 2.3
+# covers: 0b E1.3, 0b E1.4, 0b E6.2, 1a E2.3
 # 0b-reconnect: the socket is lost (nf.DropSocket, as a network failure); the client fetches a
 # FRESH play ticket (tickets are single use), reconnects, and rebuilds its projections from the
 # spawn stream: a second own EntitySpawn, the same entity id.
