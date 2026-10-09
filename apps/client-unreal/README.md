@@ -748,7 +748,7 @@ set `NIGHTFALL_DEV_TOKEN` to use another token. Without Keycloak, run the API wi
   endpoint exists.
 
 - Phase 1a E1.1-E1.3 (2026-10-09): editor and game targets build with warnings as errors;
-  `Automation RunTests Nightfall` 37/37 against an API with `AUTH_DEV_TOKENS=1` (the 9
+  `Automation RunTests Nightfall` 43/43 against an API with `AUTH_DEV_TOKENS=1` (the 9
   `Nightfall.Bot.*` tests need no server). `0b-login-enter-world` passes in 0.1 s and
   `1-kill-one-monster` in 31 s (walk 28 s, kill 3 s) headless against that API; a broken
   scenario, a timed-out wait and a SIGTERM mid-run each exit 1 with a JUnit report.

@@ -428,15 +428,7 @@ namespace
 			}
 		}));
 
-	FAutoConsoleCommandWithWorld RespawnCommand(TEXT("nf.Respawn"), TEXT("Respawn while dead (the dead overlay's button)"),
-		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
-		{
-			if (UCombatStateSubsystem* Combat = CombatOf(World))
-			{
-				const uint32 Seq = Combat->RequestRespawn();
-				UE_LOG(LogNightfallBot, Display, TEXT("nf.Respawn: %s"), Seq ? *FString::Printf(TEXT("Respawn seq %u"), Seq) : TEXT("nothing sent (alive, already pending, or not connected)"));
-			}
-		}));
+	// nf.Respawn (the dead overlay's button) is defined with the playtest commands in Game/PlaytestCommands.cpp.
 
 	/** Interactive nf.Expect / nf.WaitFor: evaluates against the runner's observations and logs the outcome. */
 	FBotPredicateFn ParseInteractive(const TArray<FString>& Tokens, const TCHAR* Command)
