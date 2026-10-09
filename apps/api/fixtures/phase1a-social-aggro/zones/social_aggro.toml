@@ -1,0 +1,32 @@
+# Zone 1 preserves the real play-ticket routing and SIM_ZONE_ID=1 replay export default.
+# Exactly three NPCs, no unrelated attackable entities. A at (99,100) selects caller;
+# B at (104,102) is closer to both helpers, and within ordinary detection range.
+# All homes are within 8 tiles of caller; all NPCs can swing at A without movement.
+id = "phase1a_social_aggro"
+zone_id = 1
+name = "Phase1a Social Aggro Simulation"
+
+[bounds]
+min = [0, 0]
+max = [256, 256]
+
+[safe_point]
+pos = [126, 126]
+
+[[spawn_slots]]
+id = "caller"
+template = "social_aggro"
+home = [100, 100]
+count = 1
+
+[[spawn_slots]]
+id = "helper_a"
+template = "social_aggro"
+home = [104, 100]
+count = 1
+
+[[spawn_slots]]
+id = "helper_b"
+template = "social_aggro"
+home = [104, 104]
+count = 1

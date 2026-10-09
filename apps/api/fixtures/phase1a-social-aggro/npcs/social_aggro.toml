@@ -1,0 +1,25 @@
+# Simulation-only: passive, durable combatants with minimal damage. No shipped balance changes.
+# Native template validation requires positive speed; fixture.toml roots these NPCs at boot.
+# Units match packages/data/npcs: milli-tiles, milli-tiles/tick, whole HP and seconds.
+id = "social_aggro"
+name = "SocialAggroFixture"
+attackable = true
+level = 1
+# Combat clamps landed damage to at least 1, even with zero P.Atk.
+p_atk = 0
+p_def = "26.9"
+max_hp = 1000000
+max_mp = 20
+attack_speed = 253
+attack_range = 8000
+move_speed = 400
+collision_radius = 300
+xp_reward = 0
+aggressive = false
+aggro_range = 6000
+clan_id = "phase1a-social"
+clan_help_range = 8000
+leash_radius = 15000
+corpse_decay_ticks = 100
+respawn_delay_secs = 30
+respawn_random_secs = 0

@@ -1,0 +1,4 @@
+# Select only with ZONE_SIM_FIXTURE=phase1a-social-aggro and AUTH_DEV_TOKENS=1.
+# Runtime applies this override before resolving spawn slots and hashes it into provenance.
+# Zero speed skips random-walk RNG entirely; increased melee reach keeps helpers swinging.
+npc_speed = 0
