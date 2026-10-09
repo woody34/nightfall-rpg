@@ -45,6 +45,9 @@ nf.WaitFor target_hits_since_mark >= 1 10 # a new hit continues from the wounded
 # Drop the socket mid-fight. The server despawns a dropped session's player
 # (SessionRegistry::leave), so the fight ends and the reconnect is a new admission: spawns and
 # StatsChanged are re-sent, the selection is not.
+# Reconnect coherence uses the latest valid admission spawn: logout can send the NPC home
+# and heal it in the same life. Older-life wire replay is separate decoder automation,
+# Nightfall.Combat.State.CapturedOlderLifeSpawnReplay; this run injects no server facts.
 nf.Expect target_wounded          # durable third fixture guarantees a live fight before dropping
 nf.DropSocket
 nf.WaitFor reconnects >= 1 20      # 0.5 s backoff + play ticket (5 s gRPC deadline), 3x

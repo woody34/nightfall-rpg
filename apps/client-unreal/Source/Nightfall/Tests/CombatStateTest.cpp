@@ -758,4 +758,65 @@ bool FCombatRespawnFenceTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatCapturedSpawnReplayTest, "Nightfall.Combat.State.CapturedOlderLifeSpawnReplay", CombatTestFlags)
+
+bool FCombatCapturedSpawnReplayTest::RunTest(const FString& Parameters)
+{
+	FCombatRig Rig;
+	const char* WolfId = "0b6e2f6e-0000-4000-8000-0000000000a1";
+	// Keep the actual bytes admitted for life 1, then replay those same bytes after life 2.
+	// This is adversarial automation; the live reconnect scenario uses only real server facts.
+	const TArray<uint8> CapturedOlderSpawn = SpawnFrame(WolfId, 1, 1, 7);
+	auto Receive = [&](const TArray<uint8>& Bytes)
+	{
+		Rig.Socket->RawMessage.Broadcast(Bytes.GetData(), static_cast<SIZE_T>(Bytes.Num()), 0);
+	};
+	int32 Spawns = 0, ProjectedSpawns = 0, Changes = 0, Numbers = 0;
+	Rig.Net->OnEntitySpawn.AddLambda([&](const FEntitySpawn&) { ++Spawns; });
+	Rig.Net->OnEntitySpawnProjected.AddLambda([&](const FEntitySpawn&) { ++ProjectedSpawns; });
+	Rig.Combat->OnChanged.AddLambda([&]() { ++Changes; });
+	Rig.Combat->OnDamageNumber.AddLambda([&](const FDamageNumber&) { ++Numbers; });
+	Receive(CapturedOlderSpawn);
+	if (!TestNotNull(TEXT("captured life 1 admitted through socket decoder"), Rig.Combat->FindEntity(Wolf))) return false;
+	TestEqual(TEXT("captured life 1 HP"), Rig.Combat->FindEntity(Wolf)->Hp, 7u);
+	Receive(SpawnFrame(WolfId, 1, 2, 100));
+	Receive(HitFrame("0b6e2f6e-0000-4000-8000-000000000001", WolfId, 40, 30, 70, 2));
+	const FCombatEntity* Live = Rig.Combat->FindEntity(Wolf);
+	const FEntitySpawn* Cached = Rig.Net->GetKnownEntities().Find(Wolf);
+	if (!TestNotNull(TEXT("newer life projected"), Live) || !TestNotNull(TEXT("newer life cached"), Cached)) return false;
+	TestEqual(TEXT("newer life live HP before replay"), Live->Hp, 70u);
+	TestEqual(TEXT("newer life incarnation before replay"), Live->Incarnation, 2u);
+	TestEqual(TEXT("cache holds newer admission HP"), Cached->Hp, 100u);
+	TestEqual(TEXT("cache holds newer life"), Cached->LifeIncarnation, 2u);
+	TestEqual(TEXT("both valid spawns reached callbacks"), Spawns, 2);
+	TestEqual(TEXT("both valid spawns reached projected callbacks"), ProjectedSpawns, 2);
+	TestEqual(TEXT("live hit produced one number"), Numbers, 1);
+	const FCombatEntity Before = *Live;
+	const FEntitySpawn CacheBefore = *Cached;
+	const int32 ChangesBefore = Changes;
+
+	Receive(CapturedOlderSpawn); // HandleRawMessage -> NightfallProto::Decode -> typed callbacks
+	Live = Rig.Combat->FindEntity(Wolf);
+	Cached = Rig.Net->GetKnownEntities().Find(Wolf);
+	if (!TestNotNull(TEXT("projection survives replay"), Live) || !TestNotNull(TEXT("cache survives replay"), Cached)) return false;
+	TestEqual(TEXT("older spawn cannot overwrite live HP"), Live->Hp, Before.Hp);
+	TestEqual(TEXT("projection life unchanged"), Live->Incarnation, Before.Incarnation);
+	TestEqual(TEXT("projection fact tick unchanged"), Live->LastFactTick, Before.LastFactTick);
+	TestEqual(TEXT("projection admission HP unchanged"), Live->Spawn.Hp, Before.Spawn.Hp);
+	TestEqual(TEXT("projection admission life unchanged"), Live->Spawn.LifeIncarnation, Before.Spawn.LifeIncarnation);
+	TestEqual(TEXT("projection generation unchanged"), Live->Spawn.SessionGeneration, Before.Spawn.SessionGeneration);
+	TestEqual(TEXT("projection death state unchanged"), Live->bDead, Before.bDead);
+	TestEqual(TEXT("projection attackability unchanged"), Live->bAttackable, Before.bAttackable);
+	TestEqual(TEXT("cache HP unchanged"), Cached->Hp, CacheBefore.Hp);
+	TestEqual(TEXT("cache life unchanged"), Cached->LifeIncarnation, CacheBefore.LifeIncarnation);
+	TestEqual(TEXT("cache generation unchanged"), Cached->SessionGeneration, CacheBefore.SessionGeneration);
+	TestEqual(TEXT("cache entity count unchanged"), Rig.Net->GetKnownEntities().Num(), 1);
+	TestEqual(TEXT("projection entity count unchanged"), Rig.Combat->NumEntities(), 1);
+	TestEqual(TEXT("stale spawn never reaches projection callbacks"), Spawns, 2);
+	TestEqual(TEXT("stale spawn never reaches post-projection callbacks"), ProjectedSpawns, 2);
+	TestEqual(TEXT("stale spawn emits no projection change"), Changes, ChangesBefore);
+	TestEqual(TEXT("stale spawn emits no damage number"), Numbers, 1);
+	return true;
+}
+
 #endif

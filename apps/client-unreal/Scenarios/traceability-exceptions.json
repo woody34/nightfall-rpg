@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "exceptions": [
+    {
+      "story": "0b E1.5",
+      "reason": "Phase 1a E2.1 deliberately uses headless development tokens. These scenarios do not exercise Keycloak device authorization, URL/code presentation, browser approval, token polling or secure refresh-token storage. External browser UI remains manual coverage; development-token admission is not proof of the device flow.",
+      "subscope": {
+        "scope": "Remaining legacy E1.5 tags establish only authenticated behavior after development-token login: session replacement and movement rejection. They provide no device-flow coverage.",
+        "scenarios": [
+          "0b-login-replaces-a.nfs",
+          "0b-login-replaces-b.nfs",
+          "0b-move-rejected.nfs"
+        ]
+      }
+    },
+    {
+      "story": "0b E6.2",
+      "reason": "Headless development-token login and reconnect cover admission, not the story's click-login to external-browser approval and return-to-game UI. The external browser/UI portion remains manual coverage.",
+      "subscope": {
+        "scope": "Development-token login, play ticket, WebSocket admission, own spawn and reconnect projection rebuilding.",
+        "scenarios": [
+          "0b-login-enter-world.nfs",
+          "0b-reconnect.nfs"
+        ]
+      }
+    },
+    {
+      "story": "1a E3.6",
+      "reason": "Evidence combines real-server late AOI entry/reconnect integration and a separate adversarial decoder replay. The live scenario does not deliver or inject an older-life server frame, so it cannot alone demonstrate stale-incarnation rejection. Logout can legitimately heal the NPC at home within the same life; reconnect compares the latest valid spawn with the projection, not the old wounds. XP is unknown until admission StatsChanged, which carries the authoritative total.",
+      "subscope": {
+        "scope": "The paired scenarios check wounded late-entry spawn projection, the next hit's HP continuity, reconnect life/fresh-spawn HP coherence and XP restoration. CapturedOlderLifeSpawnReplay replays admitted older-life wire bytes through the socket decoder after a newer life has live damage, asserting unchanged HP/cache/projection and no spawn callbacks. ReconnectNpcSpawnCoherence checks acceptance of same-life healing and rejection of incoherent HP or changed life. These are complementary test definitions, not an attestation that either suite has run.",
+        "scenarios": [
+          "1-late-entry-a.nfs",
+          "1-late-entry-b.nfs"
+        ],
+        "automation": [
+          {
+            "path": "Source/Nightfall/Tests/CombatStateTest.cpp",
+            "test": "Nightfall.Combat.State.CapturedOlderLifeSpawnReplay"
+          },
+          {
+            "path": "Source/Nightfall/Tests/BotScenarioTest.cpp",
+            "test": "Nightfall.Bot.Predicates.ReconnectNpcSpawnCoherence"
+          }
+        ]
+      }
+    }
+  ]
+}

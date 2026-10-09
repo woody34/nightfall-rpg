@@ -856,4 +856,36 @@ bool FBotCombatPredicatesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBotReconnectNpcSpawnCoherenceTest, "Nightfall.Bot.Predicates.ReconnectNpcSpawnCoherence", BotTestFlags)
+
+bool FBotReconnectNpcSpawnCoherenceTest::RunTest(const FString& Parameters)
+{
+	FWorldRig Rig;
+	Rig.Connect();
+	Rig.Spawn(OwnId, TEXT("Hero"), 1, 0, 126, 126, 1, false);
+	Rig.Spawn(Wolf, TEXT("Wolf"), 2, 3, 100, 100, 2, true);
+	Rig.Target(Wolf);
+	Rig.Hit(OwnId, Wolf, 10, 30, 70, 3);
+	TestTrue(TEXT("wounded before disconnect"), Rig.Eval(TEXT("target_wounded")).bTrue);
+
+	Rig.Net->DropSocketForTesting();
+	Rig.Connect();
+	Rig.Spawn(OwnId, TEXT("Hero"), 1, 0, 126, 126, 1, false);
+	// Logout can leave the NPC with no target: ReturnHome heals it without advancing its life.
+	// A fresh admission's full-HP spawn is therefore valid even though the old life was wounded.
+	Rig.Spawn(Wolf, TEXT("Wolf"), 2, 3, 100, 100, 2, true);
+	TestTrue(TEXT("same life can heal during disconnect"), Rig.Eval(TEXT("last_target_same_life")).bTrue);
+	TestTrue(TEXT("healed projection matches latest spawn"), Rig.Eval(TEXT("last_target_hp_matches_spawn")).bTrue);
+	TestEqual(TEXT("fresh HP replaces old wounds"), Rig.Combat->FindEntity(Wolf)->Hp, 100u);
+
+	// Coherence still rejects a projection differing from that fresh spawn.
+	Rig.Hit(OwnId, Wolf, 20, 10, 90, 3);
+	TestTrue(TEXT("HP mismatch does not change life"), Rig.Eval(TEXT("last_target_same_life")).bTrue);
+	TestFalse(TEXT("HP mismatch fails spawn coherence"), Rig.Eval(TEXT("last_target_hp_matches_spawn")).bTrue);
+	Rig.Spawn(Wolf, TEXT("Wolf"), 2, 4, 100, 100, 2, true);
+	TestFalse(TEXT("new life fails same-life check"), Rig.Eval(TEXT("last_target_same_life")).bTrue);
+	TestTrue(TEXT("new life can still match its spawn"), Rig.Eval(TEXT("last_target_hp_matches_spawn")).bTrue);
+	return true;
+}
+
 #endif
