@@ -70,6 +70,7 @@ for scenario in "${SCENARIOS[@]}"; do
 
   replay="skipped"
   if ((REPLAY)); then
+    sim_export_recording "$dest" "$name" || true
     shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
     if ((${#nfrs[@]} == 0)); then
       replay="none"; status=FAIL; note="${note:+$note; }no session recording"

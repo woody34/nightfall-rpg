@@ -373,6 +373,31 @@ void FBotPredicateRegistry::RegisterBuiltins()
 			const UWorldProxySubsystem* P = W ? W->GetSubsystem<UWorldProxySubsystem>() : nullptr;
 			return P ? TOptional<double>(P->GetProxies().Num()) : TOptional<double>();
 		});
+	RegisterNumber(TEXT("other_players"), TEXT("Other players in view (net cache; NPCs excluded, unlike proxies)"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const UNetClientSubsystem* N = C.Net();
+			if (!N) return {};
+			int32 Count = 0;
+			for (const TPair<FString, FEntitySpawn>& Known : N->GetKnownEntities()) Count += !N->IsOwnEntity(Known.Key) && Known.Value.Kind == 1;
+			return static_cast<double>(Count);
+		});
+	RegisterFlag(TEXT("proxy_actors_in_sync"), TEXT("The world's proxy actors are exactly the entities in view other than the player (none leaked, none missing)"),
+		[](const FBotContext& C)
+		{
+			const UNetClientSubsystem* N = C.Net();
+			const UWorld* W = C.World();
+			const UWorldProxySubsystem* P = W ? W->GetSubsystem<UWorldProxySubsystem>() : nullptr;
+			if (!N || !P) return false;
+			int32 Expected = 0;
+			for (const TPair<FString, FEntitySpawn>& Known : N->GetKnownEntities())
+			{
+				if (N->IsOwnEntity(Known.Key)) continue;
+				++Expected;
+				if (!P->GetProxies().Contains(Known.Key)) return false;
+			}
+			return P->GetProxies().Num() == Expected;
+		});
 	RegisterNumber(TEXT("close_code"), TEXT("The WebSocket close code of the newest close (4409 = replaced by a newer session); unknown before the first close"),
 		[](const FBotContext& C) -> TOptional<double>
 		{

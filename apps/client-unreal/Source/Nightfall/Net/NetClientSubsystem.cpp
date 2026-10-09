@@ -237,6 +237,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		}
 		if (E.Despawn.IsSet())
 		{
+			UE_LOG(LogNightfall, Log, TEXT("ws: despawn %s"), *E.Despawn->EntityId);
 			SnapshotBuffer.Remove(E.Despawn->EntityId);
 			if (const FEntitySpawn* Gone = KnownEntities.Find(E.Despawn->EntityId)) Tombstones.Add(E.Despawn->EntityId, *Gone);
 			KnownEntities.Remove(E.Despawn->EntityId);

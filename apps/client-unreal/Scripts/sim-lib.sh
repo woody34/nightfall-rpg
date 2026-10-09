@@ -146,14 +146,37 @@ sim_collect() {
 
 sim_new_marker() { local m; m="$(mktemp)"; touch "$m"; sleep 0.05; echo "$m"; }
 
-# Replays one recording; returns the tool's exit code.
+# nightfall-replay binary (built once per script run). SIM_REPLAY_BIN overrides.
+sim_replay_bin() {
+  if [[ -z "${SIM_REPLAY_BIN:-}" ]]; then
+    (cd "$SIM_REPO" && cargo build --quiet -p nightfall-api --bin nightfall-replay >&2) || sim_die "building nightfall-replay failed"
+    SIM_REPLAY_BIN="$(cd "$SIM_REPO" && cargo metadata --format-version 1 --no-deps | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')/debug/nightfall-replay"
+  fi
+  echo "$SIM_REPLAY_BIN"
+}
+
+# Exports the bot's session from the live event log (the server records every session; the bot
+# writes no file): $1 = artifact dir, $2 = scenario name. The player entity is the JUnit
+# own_entity_id. Zone SIM_ZONE_ID (default 1, test_zone) at its newest epoch; NATS from NATS_URL.
+# Does nothing when a recording is already there or the report names no entity.
+sim_export_recording() {
+  local dest="$1" name="$2" entity bin
+  [[ -f "$dest/$name.nfr" ]] && return 0
+  [[ -n "${SIM_REPLAY_CMD:-}" ]] && return 0
+  entity="$(sed -n 's/.*name="own_entity_id" value="\([^"]*\)".*/\1/p' "$dest/$name.xml" 2>/dev/null | head -1)"
+  [[ -n "$entity" ]] || return 1
+  bin="$(sim_replay_bin)"
+  "$bin" export --zone "${SIM_ZONE_ID:-1}" --latest --session "$entity" --live --out "$dest/$name.nfr" >"$dest/$name.export.log" 2>&1
+}
+
+# Replays one recording; returns the tool's exit code (non-zero = divergence).
 sim_replay() {
   local nfr="$1" log="$2"
   if [[ -n "${SIM_REPLAY_CMD:-}" ]]; then
     # shellcheck disable=SC2086
     $SIM_REPLAY_CMD "$nfr" >"$log" 2>&1
   else
-    (cd "$SIM_REPO/apps/api" && cargo run --quiet --bin nightfall-replay -- --source file --file "$nfr") >"$log" 2>&1
+    "$(sim_replay_bin)" check --file "$nfr" >"$log" 2>&1
   fi
 }
 
