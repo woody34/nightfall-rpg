@@ -71,7 +71,8 @@ pub async fn start(
         Arc::new(PgZoneSnapshotStore::new(db).with_metrics(metrics.clone()))
             as Arc<dyn ZoneSnapshotStore>
     });
-    ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics))
+    ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics.clone()))
+        .with_telemetry(Arc::new(metrics))
         .with_rules(rules)
         .start(&def, IntervalTicks::new())
         .await

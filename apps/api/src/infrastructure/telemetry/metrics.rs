@@ -12,7 +12,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use opentelemetry::metrics::{Counter, Histogram, Meter, UpDownCounter};
+use opentelemetry::metrics::{Counter, Gauge, Histogram, Meter, UpDownCounter};
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use parking_lot::RwLock;
@@ -93,6 +93,15 @@ pub struct Metrics {
     pub eventlog_digested_records_total: Counter<u64>,
     /// Zones paused because their replay log has been unavailable longer than allowed.
     pub zones_paused: UpDownCounter<i64>,
+    pub(super) combat_attacks_total: Counter<u64>,
+    pub(super) combat_deaths_total: Counter<u64>,
+    pub(super) combat_respawns_total: Counter<u64>,
+    pub(super) combat_levelups_total: Counter<u64>,
+    pub(super) combat_xp_gained_total: Counter<u64>,
+    pub(super) npc_intention_transitions_total: Counter<u64>,
+    pub(super) combat_tick_duration_seconds: Histogram<f64>,
+    checkpoint_lag_seconds: Gauge<f64>,
+    checkpoint_failures_total: Counter<u64>,
     db_query_seconds: Histogram<f64>,
     grpc_requests_total: Counter<u64>,
     http_requests_total: Counter<u64>,
@@ -149,6 +158,47 @@ impl Metrics {
                 .i64_up_down_counter("nightfall_zones_paused")
                 .with_description("Zones paused because their replay log is unavailable")
                 .build(),
+            combat_attacks_total: meter
+                .u64_counter("nightfall_combat_attacks")
+                .with_description("Admitted attack results by outcome")
+                .build(),
+            combat_deaths_total: meter
+                .u64_counter("nightfall_combat_deaths")
+                .with_description("Admitted deaths by entity kind")
+                .build(),
+            combat_respawns_total: meter
+                .u64_counter("nightfall_combat_respawns")
+                .with_description("Admitted respawns by entity kind")
+                .build(),
+            combat_levelups_total: meter
+                .u64_counter("nightfall_combat_levelups")
+                .with_description("Admitted level thresholds crossed")
+                .build(),
+            combat_xp_gained_total: meter
+                .u64_counter("nightfall_combat_xp_gained")
+                .with_description("Whole XP awarded after the cap")
+                .build(),
+            npc_intention_transitions_total: meter
+                .u64_counter("nightfall_npc_intention_transitions")
+                .with_description("NPC intention transitions (E3.2 hook)")
+                .build(),
+            checkpoint_failures_total: meter
+                .u64_counter("nightfall_checkpoint_failures")
+                .with_description("Failed checkpoint attempts (E4.2 hook)")
+                .build(),
+            combat_tick_duration_seconds: meter
+                .f64_histogram("nightfall_combat_tick_duration")
+                .with_unit("s")
+                .with_description(
+                    "Live tick wall time including admission; idle ticks and holds included",
+                )
+                .with_boundaries(TICK_BUCKETS.to_vec())
+                .build(),
+            checkpoint_lag_seconds: meter
+                .f64_gauge("nightfall_checkpoint_lag")
+                .with_unit("s")
+                .with_description("Age of oldest pending checkpoint; zero when drained (E4.2 hook)")
+                .build(),
             db_query_seconds: meter
                 .f64_histogram("nightfall_db_query")
                 .with_unit("s")
@@ -169,6 +219,9 @@ impl Metrics {
         };
         // A counter series that does not exist yet cannot be `increase()`d from zero, so the
         // series an alert depends on are created up front.
+        metrics.initialize_combat();
+        metrics.checkpoint_failures_total.add(0, &[]);
+        metrics.set_checkpoint_lag(Duration::ZERO);
         metrics.ws_dropped_frames_total.add(0, &[]);
         metrics.eventlog_append_failures_total.add(0, &[]);
         metrics.eventlog_audit_dropped_total.add(0, &[]);
@@ -201,6 +254,17 @@ impl Metrics {
     /// real values instead of zero.
     pub fn set_outbox_source(&self, source: Arc<dyn OutboxStatsSource>) {
         *self.outbox_source.write() = Some(source);
+    }
+
+    /// E4.2 hook: age of the oldest pending checkpoint across workers; zero when drained.
+    /// TODO(E4.2): the checkpoint worker is not wired yet; update on each worker cycle.
+    pub fn set_checkpoint_lag(&self, lag: Duration) {
+        self.checkpoint_lag_seconds.record(lag.as_secs_f64(), &[]);
+    }
+
+    /// E4.2 hook: one failed persistence attempt, including retries.
+    pub fn record_checkpoint_failure(&self) {
+        self.checkpoint_failures_total.add(1, &[]);
     }
 
     /// Counts frames in one direction.

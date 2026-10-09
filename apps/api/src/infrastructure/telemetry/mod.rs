@@ -4,6 +4,7 @@
 //! Nothing is exported over the network unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set, so tests
 //! and dependency-free dev run without a collector.
 
+mod combat;
 mod layers;
 mod metrics;
 
@@ -26,6 +27,7 @@ use tracing_subscriber::{EnvFilter, Layer};
 /// Lives in the application layer, which carries it on zone inputs; re-exported here because
 /// it is the telemetry contract for crossing queues.
 pub use crate::application::trace::TraceCarrier;
+pub use combat::NpcIntention;
 pub use layers::{
     http_metrics, http_trace_layer, metrics_handler, record_account_id, request_id_layers,
     GrpcTelemetryLayer, UuidV7RequestId,
