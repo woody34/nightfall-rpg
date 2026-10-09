@@ -70,6 +70,17 @@ struct FBotTestCase
 	FString Detail;            // failure body
 };
 
+/** Structured first failure; never re-evaluate a predicate while writing diagnostic artifacts. */
+struct FBotFailedStep
+{
+	int32 Line = 0;
+	FString Source;
+	FString Predicate;
+	FString Observed;
+	double WaitSeconds = 0.0;
+	double ElapsedSeconds = 0.0;
+};
+
 /**
  * Runs a parsed scenario one tick at a time. Steps run in order; commands, Expects and finished
  * sleeps run back to back in one tick, a WaitFor polls once per tick and, when it holds, the
@@ -108,6 +119,7 @@ public:
 	const TArray<FBotTestCase>& GetTestCases() const { return Cases; }
 	/** Step that failed the run, its message; empty when passed. */
 	const FString& GetFailure() const { return Failure; }
+	const TOptional<FBotFailedStep>& GetFailedStep() const { return FailedStep; }
 
 private:
 	void FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail);
@@ -130,6 +142,8 @@ private:
 	bool bFinished = false;
 	bool bFailed = false;
 	FString Failure;
+	TOptional<FBotFailedStep> FailedStep;
+	FString LastObserved;
 };
 
 namespace BotJUnit

@@ -13,6 +13,7 @@
 #include "Misc/Guid.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Dom/JsonObject.h"
 
 DEFINE_LOG_CATEGORY(LogNightfallBot);
 
@@ -50,6 +51,8 @@ void UBotScenarioRunner::Initialize(FSubsystemCollectionBase& Collection)
 	bClaimed = true;
 
 	bActive = true;
+	Diagnostics = MakeUnique<FBotDiagnostics>();
+	Diagnostics->Bind(GetGameInstance()->GetSubsystem<UNetClientSubsystem>());
 	LaunchSeconds = FPlatformTime::Seconds();
 	ScenarioPath = ResolveScenarioPath(Path);
 	ScenarioName = FPaths::GetBaseFilename(ScenarioPath);
@@ -137,6 +140,7 @@ void UBotScenarioRunner::Deinitialize()
 	for (IConsoleObject* Command : TestOnlyCommands) IConsoleManager::Get().UnregisterConsoleObject(Command);
 	TestOnlyCommands.Reset();
 	if (bObserving) Observations.Unbind();
+	if (Diagnostics) Diagnostics->Unbind();
 	Sentinel.Stop();
 	RunLog.Reset();
 	Super::Deinitialize();
@@ -159,6 +163,11 @@ void UBotScenarioRunner::Log(const FString& Line)
 
 bool UBotScenarioRunner::ExecLine(const FString& Line, FString& OutError)
 {
+	if (Diagnostics && Line.StartsWith(TEXT("nf.ClickMove "), ESearchCase::IgnoreCase))
+	{
+		Diagnostics->BeginMove(FPlatformTime::Seconds());
+		Diagnostics->ObservePosition(MakeContext(), FPlatformTime::Seconds());
+	}
 	UWorld* World = GetGameInstance()->GetWorld();
 	if (!World)
 	{
@@ -193,6 +202,7 @@ bool UBotScenarioRunner::Tick(float DeltaSeconds)
 		Begin();
 	}
 	Observations.Observe(GetGameInstance()->GetSubsystem<UCombatStateSubsystem>());
+	if (Diagnostics) Diagnostics->ObservePosition(MakeContext(), FPlatformTime::Seconds());
 	if (Executor->Tick(FPlatformTime::Seconds())) return true;
 	if (AdvanceLoop()) return true;
 	Complete();
@@ -226,6 +236,7 @@ bool UBotScenarioRunner::AdvanceLoop()
 		return false;
 	}
 	Observations.Reset();
+	if (Diagnostics) Diagnostics->ResetIteration();
 	// The fixture begins at the new-character spawn. Avoid carrying position/HP/XP across loops.
 	// Explicit user-supplied tokens are retained; generated disposable identities rotate.
 	if (!GeneratedAccount.IsEmpty())
@@ -322,6 +333,7 @@ void UBotScenarioRunner::Complete()
 
 void UBotScenarioRunner::WriteArtifacts(const TArray<FBotTestCase>& Cases, double TotalSeconds, int32 ExitCode)
 {
+	TArray<FBotTestCase> ReportCasesWithDiagnostics = Cases;
 	const UNetClientSubsystem* Net = GetGameInstance()->GetSubsystem<UNetClientSubsystem>();
 	TArray<TPair<FString, FString>> Properties;
 	Properties.Emplace(TEXT("scenario_file"), ScenarioPath);
@@ -342,9 +354,35 @@ void UBotScenarioRunner::WriteArtifacts(const TArray<FBotTestCase>& Cases, doubl
 	// After nf.Logout the net cache has forgotten the entity; the observation kept its first id.
 	const FString OwnEntity = Net && !Net->GetOwnEntityId().IsEmpty() ? Net->GetOwnEntityId() : Observations.FirstOwnEntityId;
 	if (!OwnEntity.IsEmpty()) Properties.Emplace(TEXT("own_entity_id"), OwnEntity);
+	if (Diagnostics)
+	{
+		Diagnostics->AddJUnitProperties(Properties);
+		const FString CoverageName = ScenarioName + TEXT(".coverage.contract.json");
+		FFileHelper::SaveStringToFile(FBotDiagnostics::Json(Diagnostics->Coverage()), *FPaths::Combine(OutDir, CoverageName),
+			FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+		Properties.Emplace(TEXT("contract_coverage"), CoverageName);
+		if (ExitCode != 0)
+		{
+			const FBotTestCase* FailedCase = Cases.FindByPredicate([](const FBotTestCase& Case) { return Case.Status == FBotTestCase::EStatus::Failed; });
+			FBotFailedStep Step;
+			if (Executor && Executor->GetFailedStep().IsSet()) Step = Executor->GetFailedStep().GetValue();
+			else if (FailedCase) { Step.Line = FailedCase->Line; Step.Source = FailedCase->Name; Step.Observed = FailedCase->Message; Step.WaitSeconds = FailedCase->Seconds; }
+			const FString FailureName = ScenarioName + TEXT(".failure.json");
+			const FString Message = FailedCase ? FailedCase->Message : TEXT("scenario failed");
+			const auto Bundle = Diagnostics->FailureBundle(ScenarioName, OwnEntity, MakeContext(), Step, Message);
+			FFileHelper::SaveStringToFile(FBotDiagnostics::Json(Bundle), *FPaths::Combine(OutDir, FailureName),
+				FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+			Properties.Emplace(TEXT("failure_bundle"), FailureName);
+			Properties.Emplace(TEXT("failure_tick"), Bundle->GetStringField(TEXT("tick_last")));
+			const FString Summary = FString::Printf(TEXT("Failure bundle: %s; entity=%s; tick=%s; predicate=%s; last_value=%s; wait=%.3fs\nTrace: %s.trace.html"),
+				*FailureName, *OwnEntity, *Bundle->GetStringField(TEXT("tick_last")), *Step.Predicate, *Step.Observed, Step.WaitSeconds, *ScenarioName);
+			for (FBotTestCase& Case : ReportCasesWithDiagnostics)
+				if (Case.Status == FBotTestCase::EStatus::Failed) Case.Detail += TEXT("\n") + Summary;
+		}
+	}
 
 	const FString JUnitPath = FPaths::Combine(OutDir, ScenarioName + TEXT(".xml"));
-	if (!FFileHelper::SaveStringToFile(BotJUnit::Write(ScenarioName, Cases, TotalSeconds, Properties), *JUnitPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+	if (!FFileHelper::SaveStringToFile(BotJUnit::Write(ScenarioName, ReportCasesWithDiagnostics, TotalSeconds, Properties), *JUnitPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
 	{
 		UE_LOG(LogNightfallBot, Display, TEXT("bot: could not write %s"), *JUnitPath);
 	}

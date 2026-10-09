@@ -22,6 +22,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnStatsChanged, const FStatsChanged&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnXpGained, const FXpGained&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelUp, const FLevelUp&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetChanged, const FTargetChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWireFrameObserved, const TArray<uint8>&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWireCloseObserved, int32);
 
 /** What a WebSocket upgrade is made from. The ticket rides in Headers, never in Url (plan §8 #7). */
 struct FWsUpgradeRequest
@@ -178,6 +180,10 @@ public:
 	FOnXpGained OnXpGained;
 	FOnLevelUp OnLevelUp;
 	FOnTargetChanged OnTargetChanged;
+	/** Bot diagnostics observe each complete wire envelope once, before projection filtering. */
+	FOnWireFrameObserved OnWireSent;
+	FOnWireFrameObserved OnWireReceived;
+	FOnWireCloseObserved OnWireClosed;
 
 private:
 	void Open(const FString& WsUrl, const FString& PlayTicket);

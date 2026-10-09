@@ -196,6 +196,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 		case EBotStepKind::Expect:
 		{
 			const FBotPredicateValue V = Eval(Step.Predicate);
+			LastObserved = V.Observed;
 			if (!V.bTrue)
 			{
 				FailStep(Step, Now, FString::Printf(TEXT("expected '%s', observed %s"), *Step.PredicateText, *V.Observed),
@@ -212,6 +213,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 		case EBotStepKind::WaitFor:
 		{
 			const FBotPredicateValue V = Eval(Step.Predicate);
+			LastObserved = V.Observed;
 			if (V.bTrue)
 			{
 				FBotTestCase& Case = CaseFor(Current);
@@ -245,6 +247,12 @@ bool FBotScenarioExecutor::Tick(double Now)
 
 void FBotScenarioExecutor::FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail)
 {
+	if (!FailedStep.IsSet())
+	{
+		FailedStep = FBotFailedStep{ Step.Line, Step.Source, Step.PredicateText,
+			Step.IsAssertion() ? LastObserved : FString(), StepStartSeconds >= 0.0 ? Now - StepStartSeconds : 0.0,
+			Now - StartSeconds };
+	}
 	const int32 StepIndex = Scenario.Steps.IndexOfByPredicate([&](const FBotStep& S) { return S.Line == Step.Line; });
 	FBotTestCase& Case = CaseFor(StepIndex);
 	Case.Status = FBotTestCase::EStatus::Failed;
@@ -298,6 +306,8 @@ void FBotScenarioExecutor::Finish(double Now)
 			Case.Message = FString::Printf(TEXT("scenario took %s, budget %s"), *FormatSeconds(Elapsed), *FormatSeconds(Scenario.BudgetSeconds));
 			bFailed = true;
 			if (Failure.IsEmpty()) Failure = Case.Message;
+			if (!FailedStep.IsSet()) FailedStep = FBotFailedStep{ Scenario.BudgetLine, TEXT("nf.Within"),
+				TEXT("scenario wall-clock budget"), FString::SanitizeFloat(Elapsed), Elapsed, Elapsed };
 		}
 	}
 	Cases.StableSort([](const FBotTestCase& A, const FBotTestCase& B) { return A.Line < B.Line; });

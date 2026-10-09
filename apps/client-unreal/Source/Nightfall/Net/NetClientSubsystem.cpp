@@ -109,6 +109,7 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 
 void UNetClientSubsystem::HandleClosed(int32 StatusCode, const FString& Reason, bool bWasClean)
 {
+	OnWireClosed.Broadcast(StatusCode);
 	UE_LOG(LogNightfall, Log, TEXT("ws closed (%d, clean=%d): %s"), StatusCode, bWasClean, *Reason);
 	bConnected = false;
 	LastCloseCode = StatusCode;
@@ -173,6 +174,7 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 
 	FServerMessage Msg;
 	const bool bOk = NightfallProto::Decode(Frame.GetData(), Frame.Num(), Msg);
+	if (bOk) OnWireReceived.Broadcast(Frame);
 	Frame.Reset();
 	if (!bOk)
 	{
@@ -331,6 +333,7 @@ void UNetClientSubsystem::Send(const FClientMessage& Msg)
 	TArray<uint8> Bytes;
 	NightfallProto::Encode(Msg, Bytes);
 	Socket->Send(Bytes.GetData(), Bytes.Num(), /*bIsBinary=*/true);
+	OnWireSent.Broadcast(Bytes);
 	bSentSinceKeepAliveArmed = true;
 }
 
