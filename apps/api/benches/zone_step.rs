@@ -64,6 +64,7 @@ fn moving_zone(players: bool) -> ZoneState {
                 pos,
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
+                load: None,
             }
         } else {
             // System-placed NPCs get RNG ids, so steer them by the id the spawn reports.
@@ -71,6 +72,7 @@ fn moving_zone(players: bool) -> ZoneState {
                 name: format!("n{i}"),
                 pos,
                 speed: Speed::DEFAULT,
+                combat: None,
             }
         };
         spawns.push(ZoneInput::system(spawn));

@@ -15,8 +15,22 @@ pub const Q: i64 = 1_000_000;
 /// `Q` widened for intermediate products.
 pub(crate) const Q128: i128 = 1_000_000;
 
-/// A decimal in units of `1 / Q`. Ordering and equality are exact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+/// A decimal in units of `1 / Q`. Ordering and equality are exact. Serialised as the raw
+/// integer count, so snapshots carry exact values.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(transparent)]
 pub struct Scaled(i64);
 
 impl Scaled {

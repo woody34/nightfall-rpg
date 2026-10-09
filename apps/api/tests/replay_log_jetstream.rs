@@ -69,6 +69,8 @@ fn empty_record(zone: u32, epoch: u64, tick: u64) -> AppliedTickRecord {
         dispositions: Vec::new(),
         outputs: Vec::new(),
         output_form: OutputForm::Encoded,
+        events: bytes::Bytes::new(),
+        state_digest: bytes::Bytes::from_static(&[0; 32]),
     }
 }
 
@@ -106,6 +108,7 @@ async fn applied_records_round_trip_through_jetstream_in_order() {
             pos: Vec2Fixed::from_tiles(30, 30),
             speed: Speed::DEFAULT,
             generation: SessionGeneration(1),
+            load: None,
         }))
         .unwrap();
     for _ in 0..25 {

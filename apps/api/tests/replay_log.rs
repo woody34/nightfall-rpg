@@ -105,6 +105,7 @@ fn player(n: u128) -> ZoneInput {
         pos: Vec2Fixed::from_tiles(40, 40),
         speed: Speed::DEFAULT,
         generation: SessionGeneration(1),
+        load: None,
     })
 }
 
@@ -304,7 +305,8 @@ fn bounded_keeps_a_record_that_fits_and_digests_one_that_does_not() {
     assert_eq!(digested, record.with_output_digests());
     assert_eq!(digested.output_form, OutputForm::Sha256);
     assert_eq!(digested.with_output_digests(), digested, "digesting twice changes nothing");
-    assert!(digested.encoded_len() < 4 * 60);
+    // Four 32-byte output digests plus the events digest and the state digest.
+    assert!(digested.encoded_len() < 6 * 60);
     // A full record is never "reproduced" by a re-run that differs from it.
     let mut diverged = record.clone();
     flip_one_byte(&mut diverged, 2);
@@ -313,11 +315,18 @@ fn bounded_keeps_a_record_that_fits_and_digests_one_that_does_not() {
 }
 
 #[test]
-fn a_record_with_encoded_outputs_keeps_the_original_wire_format() {
-    // Field 8 (output_form) is omitted at its default, so records written before digests
-    // existed and records written now with full outputs are byte-identical.
+fn a_record_with_encoded_outputs_has_a_fixed_wire_format() {
+    // Field 8 (output_form) and an empty field 9 (events) are omitted at their defaults; the
+    // state digest (10) and the record schema (11, RECORD_SCHEMA_VERSION 2) always follow.
+    let tail = |out: &mut Vec<u8>| {
+        out.extend_from_slice(&[0x52, 0x20]);
+        out.extend_from_slice(&[0; 32]);
+        out.extend_from_slice(&[0x58, 0x02]);
+    };
     let mut record = empty_record(1, 2);
-    assert_eq!(record.encode(), vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02]);
+    let mut expected = vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02];
+    tail(&mut expected);
+    assert_eq!(record.encode(), expected);
     record.outputs.push(PlayerOutput {
         entity: EntityId::from_uuid(Uuid::from_u128(1)),
         bytes: Bytes::from_static(&[0xAA]),
@@ -325,7 +334,18 @@ fn a_record_with_encoded_outputs_keeps_the_original_wire_format() {
     let mut expected = vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02, 0x3a, 0x15, 0x0a, 0x10];
     expected.extend_from_slice(Uuid::from_u128(1).as_bytes());
     expected.extend_from_slice(&[0x12, 0x01, 0xAA]);
+    tail(&mut expected);
     assert_eq!(record.encode(), expected);
+    assert_eq!(AppliedTickRecord::decode(&expected).unwrap(), record);
+}
+
+#[test]
+fn a_record_of_another_schema_is_refused() {
+    let mut bytes = empty_record(1, 2).encode();
+    // Drop the schema field: a schema-1 record (written before E2.2) reads as 0.
+    bytes.truncate(bytes.len() - 2);
+    let e = AppliedTickRecord::decode(&bytes).unwrap_err();
+    assert!(e.to_string().contains("schema 0"), "{e}");
 }
 
 #[tokio::test]
@@ -596,6 +616,8 @@ fn empty_record(epoch: u64, tick: u64) -> AppliedTickRecord {
         dispositions: Vec::new(),
         outputs: Vec::new(),
         output_form: OutputForm::Encoded,
+        events: bytes::Bytes::new(),
+        state_digest: bytes::Bytes::from_static(&[0; 32]),
     }
 }
 
@@ -762,6 +784,7 @@ fn command() -> impl Strategy<Value = ZoneCommand> {
                     pos,
                     speed: Speed::from_milli_tiles_per_tick(s),
                     generation: SessionGeneration(g),
+                    load: None,
                 }
             }
         ),
@@ -769,6 +792,7 @@ fn command() -> impl Strategy<Value = ZoneCommand> {
             name,
             pos,
             speed: Speed::from_milli_tiles_per_tick(s),
+            combat: None,
         }),
         entity().prop_map(|entity| ZoneCommand::Despawn { entity }),
         (entity(), any::<u64>()).prop_map(|(entity, g)| ZoneCommand::ReplaceSession {
@@ -832,6 +856,7 @@ fn output() -> impl Strategy<Value = ObserverOutput> {
                     dest,
                     speed,
                     generation: SessionGeneration(g),
+                    combat: None,
                 })
             }),
         (any::<u64>(), entity(), point(), proptest::option::of(point()), speed).prop_map(
@@ -887,6 +912,8 @@ fn record() -> impl Strategy<Value = (AppliedTickRecord, Vec<Vec<ObserverOutput>
                 dispositions,
                 outputs,
                 output_form: OutputForm::Encoded,
+                events: bytes::Bytes::new(),
+                state_digest: bytes::Bytes::from_static(&[7; 32]),
             };
             (record, outs.into_iter().map(|(_, items)| items).collect())
         })

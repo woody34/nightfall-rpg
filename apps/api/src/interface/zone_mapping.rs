@@ -13,11 +13,12 @@ use super::grpc::pb;
 use pb::world_event::Event;
 
 use crate::application::session::PlayerSpawn;
-use crate::domain::Character;
+use crate::domain::{Character, Race};
 
 use crate::domain::zone::{
-    Disposition, EntityId, EntityKind, Fixed, ObserverOutput, RejectReason, SessionGeneration,
-    Speed, Tick, Vec2Fixed, ZoneCommand, ZoneEvent, TICK_MS, UNITS_PER_TILE,
+    AttackOutcome, CombatView, Disposition, EntityId, EntityKind, Fixed, ObserverOutput,
+    PlayerLoad, RejectReason, SessionGeneration, Speed, Swing, SwingCancel, Tick, Vec2Fixed,
+    ZoneCommand, ZoneEvent, TICK_MS, UNITS_PER_TILE,
 };
 
 /// An inbound message that cannot become a zone command.
@@ -100,14 +101,33 @@ pub fn speed_to_tiles_per_second(s: Speed) -> f32 {
 }
 
 /// What a loaded character spawns as: its id as the entity id (plan §8 #6), its saved
-/// position rounded to the nearest milli-tile, default speed.
+/// position rounded to the nearest milli-tile, default speed, and its race's starting
+/// fighter class at its level. XP, HP and MP are not stored yet (E4.1), so a character enters
+/// with the level's threshold XP and full HP/MP.
 pub fn player_spawn(c: &Character) -> Result<PlayerSpawn, MappingError> {
     Ok(PlayerSpawn {
         entity: EntityId::from_uuid(c.id.as_uuid()),
         name: c.name.as_str().to_owned(),
         pos: Vec2Fixed::new(tiles_to_fixed(c.position.x)?, tiles_to_fixed(c.position.y)?),
         speed: Speed::DEFAULT,
+        load: Some(Box::new(PlayerLoad {
+            level: c.level,
+            ..PlayerLoad::fresh(starter_class(c.race))
+        })),
     })
+}
+
+/// The class data id (`packages/data/classes/<id>.toml`) a race starts as. Phase 1 has one
+/// fixed starter weapon, so every character starts as its race's fighter.
+#[must_use]
+pub const fn starter_class(race: Race) -> &'static str {
+    match race {
+        Race::Human => "human_fighter",
+        Race::Elf => "elven_fighter",
+        Race::DarkElf => "dark_fighter",
+        Race::Orc => "orc_fighter",
+        Race::Dwarf => "dwarven_fighter",
+    }
 }
 
 /// Domain entity kind to the wire enum value.
@@ -162,15 +182,55 @@ pub fn spawn_to_pb(
     name: &str,
     pos: Vec2Fixed,
     generation: SessionGeneration,
+    combat: Option<&CombatView>,
 ) -> pb::WorldEvent {
-    world(Event::Spawn(pb::EntitySpawn {
+    let mut spawn = pb::EntitySpawn {
         entity_id: entity.to_string(),
         name: name.to_owned(),
         position: Some(position_to_pb(pos)),
         kind: kind_to_pb(kind).into(),
         // Generations count admissions of one account; u32 is ample and saturates.
         session_generation: u32::try_from(generation.0).unwrap_or(u32::MAX),
-    }))
+        ..Default::default()
+    };
+    if let Some(c) = combat {
+        spawn.combatant = true;
+        spawn.template_id = c.template.clone().unwrap_or_default();
+        spawn.life_incarnation = c.incarnation;
+        spawn.dead = c.dead;
+        spawn.attackable = c.attackable;
+        spawn.hp = c.hp;
+        spawn.max_hp = c.max_hp;
+        spawn.level = c.level;
+        spawn.pending_swing = c.swing.map(|s| swing_to_pb(entity, &s));
+    }
+    world(Event::Spawn(spawn))
+}
+
+/// A swing in flight as `AttackStarted`.
+#[must_use]
+pub fn swing_to_pb(attacker: EntityId, s: &Swing) -> pb::AttackStarted {
+    pb::AttackStarted {
+        attacker: attacker.to_string(),
+        target: s.target.to_string(),
+        tick: s.start.0,
+        impact_tick: s.impact.0,
+        ready_tick: s.ready.0,
+        target_incarnation: s.target_incarnation,
+    }
+}
+
+/// Domain cancel reason to the wire enum.
+#[must_use]
+pub const fn cancel_to_pb(r: SwingCancel) -> pb::SwingCancelReason {
+    match r {
+        SwingCancel::Stopped => pb::SwingCancelReason::Stopped,
+        SwingCancel::TargetChanged => pb::SwingCancelReason::TargetChanged,
+        SwingCancel::Moved => pb::SwingCancelReason::Moved,
+        SwingCancel::OutOfRange => pb::SwingCancelReason::OutOfRange,
+        SwingCancel::TargetLost => pb::SwingCancelReason::TargetLost,
+        SwingCancel::AttackerDied => pb::SwingCancelReason::AttackerDied,
+    }
 }
 
 /// `EntityMove`. `server_time_ms` is `AppliedTick::server_time_ms`, never a clock read. A
@@ -214,6 +274,7 @@ fn world(event: Event) -> pb::WorldEvent {
 /// The wire messages for one zone event, in order. `server_time_ms` is the event's tick's
 /// (`AppliedTick::server_time_ms`).
 #[must_use]
+#[allow(clippy::too_many_lines)] // one arm per event, mirroring world.proto
 pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEvent> {
     match ev {
         ZoneEvent::EntitySpawn {
@@ -225,8 +286,9 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             dest,
             speed,
             generation,
+            combat,
         } => {
-            let spawn = spawn_to_pb(*entity, *kind, name, *pos, *generation);
+            let spawn = spawn_to_pb(*entity, *kind, name, *pos, *generation, combat.as_ref());
             match dest {
                 Some(_) => vec![
                     spawn,
@@ -256,30 +318,62 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             outcome,
             damage,
             target_hp_after,
-            ..
+            target_incarnation,
         } => vec![world(Event::AttackResult(pb::AttackResult {
             attacker: attacker.to_string(),
             target: target.to_string(),
             tick: tick.0,
             outcome: match outcome {
-                crate::domain::zone::AttackOutcome::Miss => pb::AttackOutcome::Miss,
-                crate::domain::zone::AttackOutcome::Hit => pb::AttackOutcome::Hit,
-                crate::domain::zone::AttackOutcome::Crit => pb::AttackOutcome::Crit,
+                AttackOutcome::Miss => pb::AttackOutcome::Miss,
+                AttackOutcome::Hit => pb::AttackOutcome::Hit,
+                AttackOutcome::Crit => pb::AttackOutcome::Crit,
             }
             .into(),
             damage: *damage,
             target_hp_after: *target_hp_after,
+            target_incarnation: *target_incarnation,
         }))],
         ZoneEvent::EntityDied {
             entity,
             tick,
             killer,
-            ..
+            incarnation,
         } => vec![world(Event::EntityDied(pb::EntityDied {
             entity: entity.to_string(),
             tick: tick.0,
             killer: killer.map(|id| id.to_string()).unwrap_or_default(),
+            incarnation: *incarnation,
         }))],
+        ZoneEvent::AttackStarted {
+            tick,
+            attacker,
+            target,
+            target_incarnation,
+            impact,
+            ready,
+        } => vec![world(Event::AttackStarted(swing_to_pb(
+            *attacker,
+            &Swing {
+                target: *target,
+                target_incarnation: *target_incarnation,
+                start: *tick,
+                impact: *impact,
+                ready: *ready,
+            },
+        )))],
+        ZoneEvent::AttackCancelled {
+            tick,
+            attacker,
+            target,
+            reason,
+        } => vec![world(Event::AttackCancelled(pb::AttackCancelled {
+            attacker: attacker.to_string(),
+            target: target.to_string(),
+            tick: tick.0,
+            reason: cancel_to_pb(*reason).into(),
+        }))],
+        // Internal; never in an observer's output.
+        ZoneEvent::HateChanged { .. } => Vec::new(),
         ZoneEvent::EntityRespawned {
             entity,
             tick,
@@ -350,7 +444,8 @@ pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
         RejectReason::AlreadyExists
         | RejectReason::NotPermitted
         | RejectReason::StaleSession
-        | RejectReason::NotAPlayer => pb::RejectReason::Invalid,
+        | RejectReason::NotAPlayer
+        | RejectReason::InvalidLoad => pb::RejectReason::Invalid,
     }
 }
 
@@ -501,6 +596,7 @@ mod tests {
             dest: Some(Vec2Fixed::from_tiles(4, 5)),
             speed: Speed::DEFAULT,
             generation: SessionGeneration(3),
+            combat: None,
         };
         let wire = world_event_to_pb(&ev, 0);
         assert!(matches!(
@@ -585,6 +681,7 @@ mod combat_tests {
             outcome: AttackOutcome::Crit,
             damage: 25,
             target_hp_after: 26,
+            target_incarnation: 4,
         };
         let expected = pb::WorldEvent {
             event: Some(Event::AttackResult(pb::AttackResult {
@@ -594,6 +691,7 @@ mod combat_tests {
                 outcome: pb::AttackOutcome::Crit.into(),
                 damage: 25,
                 target_hp_after: 26,
+                target_incarnation: 4,
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
@@ -609,12 +707,14 @@ mod combat_tests {
             entity: id(1),
             tick: Tick(31),
             killer: Some(id(3)),
+            incarnation: 2,
         };
         let expected = pb::WorldEvent {
             event: Some(Event::EntityDied(pb::EntityDied {
                 entity: id(1).to_string(),
                 tick: 31,
                 killer: id(3).to_string(),
+                incarnation: 2,
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
@@ -799,6 +899,7 @@ mod combat_tests {
                 outcome: outcome.into(),
                 damage: 0,
                 target_hp_after: 100,
+                target_incarnation: 1,
             };
             assert_eq!(pb::AttackResult::decode(event.encode_to_vec().as_slice()).unwrap(), event);
         }

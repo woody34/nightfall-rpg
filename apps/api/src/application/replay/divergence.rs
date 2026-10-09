@@ -3,7 +3,9 @@
 use std::fmt::{self, Write as _};
 use std::ops::RangeInclusive;
 
-use crate::application::replay_log::{decode_outputs, AppliedTickRecord, OutputForm, PlayerOutput};
+use crate::application::replay_log::{
+    decode_events, decode_outputs, AppliedTickRecord, OutputForm, PlayerOutput,
+};
 use crate::domain::zone::{EntityId, ObserverOutput, Ordinal, Tick, ZoneSnapshot};
 
 /// What differed.
@@ -33,6 +35,11 @@ pub enum Mismatch {
         /// The player.
         entity: EntityId,
     },
+    /// The zone-wide events differ, including facts no player was sent (off-AOI combat,
+    /// hate).
+    Events,
+    /// The end-of-tick state digest differs: state drifted without any visible event.
+    StateDigest,
 }
 
 /// The first divergence of a replay.
@@ -76,7 +83,10 @@ impl Divergence {
             Mismatch::MissingOutput { entity }
             | Mismatch::UnexpectedOutput { entity }
             | Mismatch::Output { entity } => Some(entity),
-            Mismatch::ServerTime { .. } | Mismatch::Dispositions => None,
+            Mismatch::ServerTime { .. }
+            | Mismatch::Dispositions
+            | Mismatch::Events
+            | Mismatch::StateDigest => None,
         }
     }
 
@@ -193,6 +203,21 @@ impl fmt::Display for Divergence {
                 writeln!(f, "  recorded: {:?}", self.recorded.dispositions)?;
                 writeln!(f, "  produced: {:?}", self.produced.dispositions)
             },
+            Mismatch::Events => {
+                writeln!(f, "  zone events differ")?;
+                if self.recorded.output_form == OutputForm::Sha256 {
+                    writeln!(f, "  recorded: sha256 {} (digest only)", hex(&self.recorded.events))?;
+                } else {
+                    writeln!(f, "  recorded: {:?}", decode_events(&self.recorded.events))?;
+                }
+                writeln!(f, "  produced: {:?}", decode_events(&self.produced.events))
+            },
+            Mismatch::StateDigest => writeln!(
+                f,
+                "  state digest: recorded {}, produced {}",
+                hex(&self.recorded.state_digest),
+                hex(&self.produced.state_digest)
+            ),
             Mismatch::MissingOutput { .. }
             | Mismatch::UnexpectedOutput { .. }
             | Mismatch::Output { .. } => {

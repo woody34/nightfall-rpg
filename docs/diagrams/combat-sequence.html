@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Combat sequence · Nightfall</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;   /* white-smoke */
+      --color-ink:     #2d3142;   /* jet-black */
+      --color-muted:   #4f5d75;   /* blue-slate */
+      --color-accent:  #eb6c36;   /* atomic-tangerine */
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1280px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 16px; max-width: 100ch; }
+    .notes p + p { margin-top: 8px; }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+    /* The SVG holds its readable width (min-width == the viewBox width, so the
+       type ramp is never silently scaled down). This wrapper lets a narrow
+       screen scroll the diagram instead of the whole page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 1120px; display: block; }
+    /* Paper has no scrollbar, so the local scroller would clip instead of
+       scroll. Let the diagram scale down to the sheet: smaller but whole
+       beats sharp but cut off. Must come after the svg rule above - a media
+       query adds no specificity, so a later plain rule would win. */
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · Sequence · Minimal light</p>
+    <h1>Combat sequence</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1120 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="combat-title combat-desc">
+<title id="combat-title">Combat sequence</title>
+<desc id="combat-desc">A client selects a target and enables auto-attack; the zone chases into reach and starts a swing on the stat engine's ticks; every tick is durably logged before release; at impact the zone rechecks, draws hit, crit and spread, applies damage and emits AttackResult, StatsChanged and, on a lethal hit, EntityDied.</desc>
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+<marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+<line x1="120" y1="108" x2="120" y2="760" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<line x1="400" y1="108" x2="400" y2="760" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<line x1="720" y1="108" x2="720" y2="760" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<line x1="1000" y1="108" x2="1000" y2="760" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="5,4"/>
+<rect x="388" y="532" width="644" height="220" rx="4" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.22)" stroke-width="1"/>
+<rect x="388" y="532" width="40" height="16" rx="2" fill="#f5f5f5" stroke="rgba(45,49,66,0.22)" stroke-width="1"/>
+<text x="408" y="544" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">LOOP</text>
+<text x="440" y="544" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.04em">[each impact tick, attackers by id]</text>
+<line x1="120" y1="150" x2="400" y2="150" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="181.2" y="128" width="157.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="260.0" y="138" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">01 SETTARGET, ATTACK (SEQ)</text>
+<line x1="400" y1="198" x2="720" y2="198" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="475.6" y="176" width="168.8" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="560.0" y="186" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">02 ZONEINPUT, SESSION SOURCE</text>
+<path d="M720,236 H760 V254 H728" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<text x="770" y="248" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">03 VALIDATE, CHASE, MOVE</text>
+<path d="M720,284 H760 V302 H728" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<text x="770" y="296" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">04 SWING: IMPACT +6, READY +12</text>
+<line x1="720" y1="356" x2="1000" y2="356" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="814.8" y="334" width="90.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="860.0" y="344" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">05 APPLIEDTICK</text>
+<line x1="1000" y1="404" x2="720" y2="404" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="814.8" y="382" width="90.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="860.0" y="392" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">06 DURABLE ACK</text>
+<line x1="720" y1="452" x2="400" y2="452" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="461.6" y="430" width="196.8" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="560.0" y="440" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">07 ACK, ENTITYMOVE, ATTACKSTARTED</text>
+<line x1="400" y1="500" x2="120" y2="500" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="200.8" y="478" width="118.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="260.0" y="488" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">08 FRAMES, IN ORDER</text>
+<path d="M720,576 H760 V594 H728" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<text x="770" y="588" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">09 RECHECK, DRAW HIT/CRIT/SPREAD</text>
+<line x1="720" y1="644" x2="1000" y2="644" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<rect x="770.0" y="622" width="180.0" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="860.0" y="632" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">10 APPLIEDTICK, EVENTS, DIGEST</text>
+<line x1="1000" y1="692" x2="720" y2="692" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="814.8" y="670" width="90.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="860.0" y="680" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">11 DURABLE ACK</text>
+<line x1="720" y1="740" x2="400" y2="740" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<rect x="439.2" y="718" width="241.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="560.0" y="728" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">12 ATTACKRESULT, STATSCHANGED, ENTITYDIED</text>
+<rect x="40" y="40" width="160" height="68" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<text x="120" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Client</text>
+<text x="120" y="92" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">UNetClientSubsystem</text>
+<rect x="320" y="40" width="160" height="68" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<text x="400" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Session</text>
+<text x="400" y="92" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">application::session</text>
+<rect x="640" y="40" width="160" height="68" rx="6" fill="#ffffff" stroke="#eb6c36"/>
+<text x="720" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Zone actor</text>
+<text x="720" y="92" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">ZoneState, 100 ms tick</text>
+<rect x="920" y="40" width="160" height="68" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<text x="1000" y="76" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Replay log</text>
+<text x="1000" y="92" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">JetStream, DurableTickGate</text>
+<line x1="40" y1="776" x2="1080" y2="776" stroke="#bfc0c0" stroke-width="1.2"/>
+<line x1="40" y1="800" x2="68" y2="800" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+<text x="80" y="803" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Call / input</text>
+<line x1="220" y1="800" x2="248" y2="800" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<text x="260" y="803" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Return / release</text>
+<line x1="420" y1="800" x2="448" y2="800" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<text x="460" y="803" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Headline combat facts</text>
+</svg>
+    </div>
+
+    <div class="notes">
+<p><strong>01–04:</strong> The session supplies the actor; no intent carries damage, HP or rolls. <code>SetTarget</code> checks life, AOI and attackability; <code>Attack</code> needs a live target in AOI and is idempotent (a repeat Acks without a swing). Each tick runs commands, then the chase (out of reach: head for the target), movement, due impacts, then new swings. A swing starts in reach once <code>ready_at</code> has passed; impact and next swing are whole ticks from <code>attack_timing</code> (Squire's Sword at DEX 30: +6 and +12).</p>
+<p><strong>05–08:</strong> Every tick's <code>AppliedTick</code> (commands, dispositions, all zone events including off-AOI facts and hate, and the end-of-tick state digest) is acknowledged by the log before any frame is released. Each player's stream is responses, AOI diff, then the combat facts it may see in event order; <code>StatsChanged</code> and <code>TargetChanged</code> are owner-only.</p>
+<p><strong>09–12:</strong> At impact the zone rechecks attacker, target life (incarnation) and reach; a failure is an <code>AttackCancelled</code> with no draw. Otherwise it draws the hit roll and, on a hit, crit and spread, applies damage and emits <code>AttackResult</code>, the target player's <code>StatsChanged</code>, and the NPC's hate (<code>F(d*100/(L+7))</code>, 1 for a miss). HP 0 emits <code>EntityDied</code> once, cancels the victim's swing and clears every attacker's target. <code>StopAttack</code>, <code>MoveTo</code> or a new target cancel a pending swing at any point.</p>
+<p>Source: <a href="../../apps/api/src/domain/zone/state_combat.rs">state_combat.rs</a> · <a href="../../apps/api/src/domain/zone/combat.rs">combat.rs</a> · <a href="../../apps/api/src/domain/zone/combat_math.rs">combat_math.rs</a> · <a href="../../apps/api/src/application/replay_log/gate.rs">gate.rs</a> · <a href="../../packages/proto/nightfall/v1/world.proto">world.proto</a>.</p>
+</div>
+  </div>
+</body>
+</html>

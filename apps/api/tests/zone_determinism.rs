@@ -9,7 +9,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::indexing_slicing,
-    clippy::arithmetic_side_effects
+    clippy::arithmetic_side_effects,
+    clippy::wildcard_enum_match_arm
 )]
 
 use std::collections::BTreeMap;
@@ -59,12 +60,14 @@ fn input() -> impl Strategy<Value = ZoneInput> {
                 pos,
                 speed: Speed::from_milli_tiles_per_tick(s),
                 generation: g,
+                load: None,
             })
         }),
         (point(), 0..1500_u32).prop_map(|(pos, s)| ZoneInput::system(ZoneCommand::SpawnNpc {
             name: "npc".to_owned(),
             pos,
             speed: Speed::from_milli_tiles_per_tick(s),
+            combat: None,
         })),
         who.clone()
             .prop_map(|n| ZoneInput::system(ZoneCommand::Despawn { entity: id(n) })),
@@ -139,16 +142,25 @@ fn assert_output_order(t: &AppliedTick) {
             ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, .. }) => (2, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntityMove { entity, .. }) => (3, 0, Some(*entity)),
             ObserverOutput::Event(
-                e @ (ZoneEvent::AttackResult { .. }
+                _e @ (ZoneEvent::AttackResult { .. }
                 | ZoneEvent::EntityDied { .. }
                 | ZoneEvent::EntityRespawned { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::XpGained { .. }
                 | ZoneEvent::LevelUp { .. }
-                | ZoneEvent::TargetChanged { .. }),
-            ) => (4, 0, Some(e.entity())),
+                | ZoneEvent::TargetChanged { .. }
+                | ZoneEvent::AttackStarted { .. }
+                | ZoneEvent::AttackCancelled { .. }
+                | ZoneEvent::HateChanged { .. }),
+            ) => (4, 0, None),
         };
-        let ranks: Vec<_> = out.iter().map(rank).collect();
+        let mut ranks: Vec<_> = out.iter().map(rank).collect();
+        // Facts keep their causal order: rank them by position.
+        for (i, r) in ranks.iter_mut().enumerate() {
+            if r.0 == 4 {
+                r.1 = u64::try_from(i).unwrap();
+            }
+        }
         let mut canonical = ranks.clone();
         canonical.sort();
         canonical.dedup();
@@ -276,4 +288,183 @@ fn walk(mut pos: Vec2Fixed, dest: Vec2Fixed, speed: Speed) -> Result<(), TestCas
     }
     prop_assert_eq!(pos, dest);
     Ok(())
+}
+
+// ---- Combat (Phase 1 E2.2, E2.3, E2.5) --------------------------------------------------------
+
+/// The embedded HF rules, loaded once.
+fn rules() -> Arc<nightfall_api::domain::zone::StatRules> {
+    static RULES: std::sync::OnceLock<Arc<nightfall_api::domain::zone::StatRules>> =
+        std::sync::OnceLock::new();
+    RULES
+        .get_or_init(|| {
+            use nightfall_api::infrastructure::rules_data::{load_rules, RulesSource};
+            load_rules(&RulesSource::embedded()).unwrap().rules
+        })
+        .clone()
+}
+
+/// A combat zone after a fixed setup tick: three players and three Keltirs within a few
+/// tiles of each other. Returns the zone and the monsters' (seeded) ids.
+fn arena(epoch: u64) -> (ZoneState, Vec<EntityId>) {
+    use nightfall_api::domain::zone::{NpcCombat, PlayerLoad};
+    use nightfall_api::infrastructure::zone_data::{parse_zone, TEST_ZONE_TOML};
+    let def = parse_zone(TEST_ZONE_TOML).unwrap();
+    let keltir = NpcCombat::from_template(&rules(), &def.npc_templates[0]).unwrap();
+    let mut z = fresh(epoch).with_rules(rules());
+    let mut setup: Vec<ZoneInput> = (0..3_u8)
+        .map(|n| {
+            ZoneInput::system(ZoneCommand::SpawnPlayer {
+                entity: id(n),
+                name: format!("p{n}"),
+                pos: Vec2Fixed::from_tiles(10 + i32::from(n), 10),
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                load: Some(Box::new(PlayerLoad::fresh("human_fighter"))),
+            })
+        })
+        .collect();
+    setup.extend((0..3).map(|n| {
+        ZoneInput::system(ZoneCommand::SpawnNpc {
+            name: "Keltir".into(),
+            pos: Vec2Fixed::from_tiles(12 + n, 12),
+            speed: Speed::from_milli_tiles_per_tick(400),
+            combat: Some(Box::new(keltir.clone())),
+        })
+    }));
+    let draft = z.draft(setup);
+    let t = z.run_tick(draft).unwrap();
+    let npcs = t
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            ZoneEvent::EntitySpawn {
+                entity,
+                kind: nightfall_api::domain::zone::EntityKind::Npc,
+                ..
+            } => Some(*entity),
+            _ => None,
+        })
+        .collect();
+    (z, npcs)
+}
+
+/// An abstract combat step; NPCs are named by index into the arena's monsters.
+#[derive(Debug, Clone)]
+enum Op {
+    Target(u8, Option<usize>),
+    Attack(u8),
+    Stop(u8),
+    Move(u8, i32, i32),
+    Aggro(usize, u8),
+    Leave(u8),
+}
+
+fn op() -> impl Strategy<Value = Op> {
+    let p = 0..3_u8;
+    let m = 0..3_usize;
+    prop_oneof![
+        3 => (p.clone(), proptest::option::of(m.clone())).prop_map(|(p, m)| Op::Target(p, m)),
+        3 => p.clone().prop_map(Op::Attack),
+        1 => p.clone().prop_map(Op::Stop),
+        1 => (p.clone(), 5..20_i32, 5..20_i32).prop_map(|(p, x, y)| Op::Move(p, x, y)),
+        2 => (m, p.clone()).prop_map(|(m, p)| Op::Aggro(m, p)),
+        1 => p.prop_map(Op::Leave),
+    ]
+}
+
+/// Ticks of ops; most ticks are idle so swings land, monsters die and cooldowns pass.
+fn fight() -> impl Strategy<Value = Vec<Vec<Op>>> {
+    prop::collection::vec(
+        prop_oneof![4 => Just(Vec::new()), 1 => prop::collection::vec(op(), 1..4)],
+        10..90,
+    )
+}
+
+fn resolve(ops: &[Vec<Op>], npcs: &[EntityId]) -> Vec<Vec<ZoneInput>> {
+    let mut seq = 0_u32;
+    ops.iter()
+        .map(|tick| {
+            tick.iter()
+                .map(|o| {
+                    seq += 1;
+                    let s = |n: u8, c| ZoneInput::session(id(n), SessionGeneration(1), seq, c);
+                    match *o {
+                        Op::Target(p, m) => s(
+                            p,
+                            ZoneCommand::SetTarget {
+                                entity: id(p),
+                                target: m.map(|i| npcs[i]),
+                            },
+                        ),
+                        Op::Attack(p) => s(p, ZoneCommand::Attack { entity: id(p) }),
+                        Op::Stop(p) => s(p, ZoneCommand::StopAttack { entity: id(p) }),
+                        Op::Move(p, x, y) => s(
+                            p,
+                            ZoneCommand::MoveTo {
+                                entity: id(p),
+                                dest: Vec2Fixed::from_tiles(x, y),
+                            },
+                        ),
+                        Op::Aggro(m, p) => ZoneInput::system(ZoneCommand::AddAggro {
+                            npc: npcs[m],
+                            target: id(p),
+                        }),
+                        Op::Leave(p) => ZoneInput::system(ZoneCommand::Despawn { entity: id(p) }),
+                    }
+                })
+                .collect()
+        })
+        .collect()
+}
+
+/// Durable record bytes of every tick, the replay log's unit.
+fn record_bytes(records: &[Arc<AppliedTick>]) -> Vec<Vec<u8>> {
+    use nightfall_api::application::replay_log::AppliedTickRecord;
+    records
+        .iter()
+        .map(|t| AppliedTickRecord::from_applied(ZoneId(11), t).encode())
+        .collect()
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(48))]
+
+    #[test]
+    fn identical_fights_give_identical_bytes_across_fresh_actors(ops in fight()) {
+        let (za, npcs) = arena(5);
+        let (zb, npcs_b) = arena(5);
+        prop_assert_eq!(&npcs, &npcs_b);
+        let script = resolve(&ops, &npcs);
+        let rt = runtime();
+        let (a, b) = rt.block_on(async { tokio::join!(run_actor(za, &script), run_actor(zb, &script)) });
+        prop_assert_eq!(bytes(&a), bytes(&b));
+        prop_assert_eq!(record_bytes(&a), record_bytes(&b));
+        for t in &a {
+            assert_output_order(t);
+        }
+    }
+
+    #[test]
+    fn a_mid_fight_snapshot_restore_continues_byte_identically(ops in fight(), split in 0..90_usize) {
+        let (mut z, npcs) = arena(6);
+        let script = resolve(&ops, &npcs);
+        let split = split.min(script.len());
+        for inputs in &script[..split] {
+            let draft = z.draft(inputs.clone());
+            z.run_tick(draft).unwrap();
+        }
+        let json = nightfall_api::application::replay_log::encode_snapshot(&z.snapshot()).unwrap();
+        let restored = ZoneState::from_snapshot(
+            nightfall_api::application::replay_log::decode_snapshot(&json).unwrap(),
+        )
+        .unwrap();
+        prop_assert_eq!(&restored, &z);
+        let rt = runtime();
+        let (a, b) = rt.block_on(async {
+            tokio::join!(run_actor(z, &script[split..]), run_actor(restored, &script[split..]))
+        });
+        prop_assert_eq!(record_bytes(&a), record_bytes(&b));
+        prop_assert_eq!(bytes(&a), bytes(&b));
+    }
 }

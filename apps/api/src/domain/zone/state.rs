@@ -1,29 +1,38 @@
 //! The zone's authoritative state and its one transition, [`ZoneState::run_tick`]: apply this
-//! tick's commands in ordinal order, advance movement, then diff every player's area of
-//! interest into its ordered output stream.
+//! tick's commands in ordinal order, chase, advance movement, land due swings, start the next
+//! ones, then diff every player's area of interest into its ordered output stream.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use rand_chacha::rand_core::{Rng, SeedableRng};
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
 use super::aoi::{AoiCell, AoiIndex, CellCoord};
+use super::combat::{
+    weapon_reach, CombatRole, CombatState, HateLedger, NpcCombat, PlayerLoad, SwingCancel,
+};
 use super::command::{
     AppliedCommand, AppliedTick, AppliedTickDraft, CommandSource, Disposition, ObserverOutput,
     Ordinal, RejectReason, SessionGeneration, ZoneCommand, ZoneEvent, ZoneInput,
 };
 use super::entity::{Entity, EntityId, EntityKind, Tick};
 use super::fixed::{Fixed, Speed, Vec2Fixed};
+use super::progression::{level_for_xp, xp_cap};
+use super::stat_rules::{StatRules, StatRulesParts};
+use super::stat_sheet::StatSheet;
 
 /// Largest distance one `MoveTo` may cover, in tiles. Longer trips are several commands, which
 /// bounds the work a single malicious intent can cause and keeps paths inside the AOI.
 pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 
 /// Version of the [`ZoneSnapshot`] layout. Bump on any change to the snapshot or to the
-/// meaning of a field; `from_snapshot` refuses other versions.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 1;
+/// meaning of a field; `from_snapshot` refuses other versions. 2: combat state, hate
+/// ledgers and the stat rules (Phase 1 E2.2).
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 2;
 
 /// Identity of a zone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -138,6 +147,10 @@ pub struct SnapshotMeta {
     pub build_id: String,
     /// Hash of the zone configuration (bounds, spawn tables) the epoch ran with.
     pub config_hash: String,
+    /// Hash of the stat rule files the epoch's rules came from (`rules` holds the rules
+    /// themselves); empty for a zone without rules.
+    #[serde(default)]
+    pub rules_hash: String,
     /// `JetStream` sequence of the epoch's first applied-tick record. `None` in the epoch-start
     /// snapshot, which is published before that record exists; the `zone_snapshots` row
     /// carries it (`jetstream_first_seq`) once the first record is acknowledged.
@@ -150,6 +163,7 @@ impl Default for SnapshotMeta {
             schema_version: SNAPSHOT_SCHEMA_VERSION,
             build_id: env!("CARGO_PKG_VERSION").to_owned(),
             config_hash: String::new(),
+            rules_hash: String::new(),
             first_log_seq: None,
         }
     }
@@ -179,6 +193,20 @@ pub struct ZoneSnapshot {
     /// The AOI index. Derivable from `entities`, included so a reader need not re-derive it;
     /// `from_snapshot` checks the two agree.
     pub aoi: Vec<AoiCell>,
+    /// The immutable stat rules the zone simulates with, so a restore never consults the
+    /// current data files (plan §3.2). `None` for a zone without combat.
+    pub rules: Option<StatRulesParts>,
+    /// Every NPC's hate ledger, in NPC id order.
+    pub hate: Vec<NpcHate>,
+}
+
+/// One NPC's hate ledger in a snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NpcHate {
+    /// The NPC.
+    pub npc: EntityId,
+    /// Its ledger.
+    pub ledger: HateLedger,
 }
 
 /// A snapshot that cannot describe a valid zone.
@@ -199,6 +227,13 @@ pub enum SnapshotError {
     /// The stored AOI index disagrees with the entity positions.
     #[error("aoi index does not match entity positions")]
     AoiMismatch,
+    /// The stored rules fail validation.
+    #[error("snapshot rules are invalid: {0}")]
+    Rules(String),
+    /// A hate ledger names an NPC that is not a living-or-dead combat NPC of the snapshot, or
+    /// a combatant exists in a zone without rules.
+    #[error("combat state does not match the snapshot's entities or rules")]
+    CombatMismatch,
 }
 
 /// A draft that does not continue this zone: replay has diverged or the log has a gap.
@@ -246,6 +281,10 @@ pub struct ZoneState {
     /// boundary this equals the player's AOI, so it is derived on restore rather than
     /// snapshotted.
     known: BTreeMap<EntityId, Vec<EntityId>>,
+    /// The stat rules combat reads (injected at bootstrap, restored from snapshots).
+    rules: Option<Arc<StatRules>>,
+    /// Per NPC: who it hates (E2.5).
+    hate: BTreeMap<EntityId, HateLedger>,
 }
 
 impl ZoneState {
@@ -263,7 +302,29 @@ impl ZoneState {
             entities: BTreeMap::new(),
             aoi: AoiIndex::default(),
             known: BTreeMap::new(),
+            rules: None,
+            hate: BTreeMap::new(),
         }
+    }
+
+    /// The zone with combat: players spawned with a [`super::PlayerLoad`] get stats from
+    /// `rules`, and every swing reads its constants.
+    #[must_use]
+    pub fn with_rules(mut self, rules: Arc<StatRules>) -> Self {
+        self.rules = Some(rules);
+        self
+    }
+
+    /// The injected rules, if any.
+    #[must_use]
+    pub fn rules(&self) -> Option<&StatRules> {
+        self.rules.as_deref()
+    }
+
+    /// One NPC's hate ledger.
+    #[must_use]
+    pub fn hate_ledger(&self, npc: EntityId) -> Option<&HateLedger> {
+        self.hate.get(&npc)
     }
 
     /// Rebuilds a zone from a snapshot, validating it.
@@ -275,6 +336,18 @@ impl ZoneState {
             return Err(SnapshotError::SeedMismatch);
         }
         let mut state = Self::new(snapshot.seed, snapshot.bounds, snapshot.time_origin_ms);
+        if let Some(parts) = snapshot.rules {
+            let rules = StatRules::new(parts).map_err(|violations| {
+                SnapshotError::Rules(
+                    violations
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join("; "),
+                )
+            })?;
+            state.rules = Some(Arc::new(rules));
+        }
         state.rng = snapshot.rng.restore();
         state.next_tick = snapshot.tick;
         state.next_ordinal = snapshot.next_ordinal;
@@ -285,11 +358,22 @@ impl ZoneState {
             if state.entities.contains_key(&e.id) {
                 return Err(SnapshotError::DuplicateEntity(e.id));
             }
+            if e.combat.is_some() && state.rules.is_none() {
+                return Err(SnapshotError::CombatMismatch);
+            }
             state.aoi.insert(e.id, e.pos);
             state.entities.insert(e.id, e);
         }
         if state.aoi.to_cells() != snapshot.aoi {
             return Err(SnapshotError::AoiMismatch);
+        }
+        for NpcHate { npc, ledger } in snapshot.hate {
+            let owner = state.entities.get(&npc);
+            if owner.is_none_or(|e| e.kind != EntityKind::Npc || e.combat.is_none())
+                || state.hate.insert(npc, ledger).is_some()
+            {
+                return Err(SnapshotError::CombatMismatch);
+            }
         }
         let players: Vec<(EntityId, Vec2Fixed)> = state
             .entities
@@ -319,6 +403,15 @@ impl ZoneState {
             bounds: self.bounds,
             entities: self.entities.values().cloned().collect(),
             aoi: self.aoi.to_cells(),
+            rules: self.rules.as_ref().map(|r| r.parts().clone()),
+            hate: self
+                .hate
+                .iter()
+                .map(|(npc, ledger)| NpcHate {
+                    npc: *npc,
+                    ledger: ledger.clone(),
+                })
+                .collect(),
         }
     }
 
@@ -380,13 +473,21 @@ impl ZoneState {
     /// (docs/planning/03-combat-and-skills.md §3.2). All zone randomness goes through the
     /// seeded generator; rejection sampling avoids modulo bias.
     pub fn roll_permille(&mut self) -> u16 {
-        // Accept v < 4_294_967_000, the largest multiple of 1000 not above 2^32.
-        const LIMIT: u32 = u32::MAX - (u32::MAX % 1000) - 1;
+        // < 1000, so the conversion cannot fail.
+        u16::try_from(self.roll_below(1000)).unwrap_or(0)
+    }
+
+    /// A uniform draw in `0..n` (`n >= 1`) from one or more 32-bit words: words at or above
+    /// the largest multiple of `n` not above 2^32 are rejected, so there is no modulo bias.
+    /// `n == 1` still consumes a word; callers skip the draw for a zero-width range.
+    pub fn roll_below(&mut self, n: u32) -> u32 {
+        let n = u64::from(n.max(1));
+        let span = 1_u64 << 32;
+        let limit = span.saturating_sub(span.checked_rem(n).unwrap_or(0));
         loop {
-            let v = self.rng.next_u32();
-            if v <= LIMIT {
-                // v % 1000 < 1000, so the conversion cannot fail.
-                return u16::try_from(v % 1000).unwrap_or(0);
+            let v = u64::from(self.rng.next_u32());
+            if v < limit {
+                return u32::try_from(v.checked_rem(n).unwrap_or(0)).unwrap_or(0);
             }
         }
     }
@@ -437,7 +538,10 @@ impl ZoneState {
             }
             self.next_ordinal = Ordinal(c.ordinal.0.saturating_add(1));
         }
+        self.chase(tick, &mut events);
         events.extend(self.step(tick));
+        self.land_impacts(tick, &mut events);
+        self.start_swings(tick, &mut events);
         let responses = responses(tick, &draft.commands, &dispositions);
         let outputs = self.observe(tick, responses, &events);
         self.next_tick = tick.next();
@@ -449,7 +553,34 @@ impl ZoneState {
             dispositions,
             events,
             outputs,
+            state_digest: self.state_digest(),
         })
+    }
+
+    /// SHA-256 of the canonical JSON of everything that changes between ticks (the immutable
+    /// rules, bounds and seed are fixed by the snapshot): next tick and ordinal, generator
+    /// position, entities and hate, all in id order.
+    #[must_use]
+    pub fn state_digest(&self) -> [u8; 32] {
+        #[derive(Serialize)]
+        struct View<'a> {
+            tick: Tick,
+            ordinal: Ordinal,
+            rng: RngState,
+            entities: Vec<&'a Entity>,
+            hate: &'a BTreeMap<EntityId, HateLedger>,
+        }
+        let view = View {
+            tick: self.next_tick,
+            ordinal: self.next_ordinal,
+            rng: RngState::capture(&self.rng),
+            entities: self.entities.values().collect(),
+            hate: &self.hate,
+        };
+        // Serialising plain data with ordered maps cannot fail; an empty input would still
+        // be deterministic.
+        let bytes = serde_json::to_vec(&view).unwrap_or_default();
+        Sha256::digest(&bytes).into()
     }
 
     fn check_draft(&self, draft: &AppliedTickDraft) -> Result<(), TickError> {
@@ -509,6 +640,7 @@ impl ZoneState {
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
+            | ZoneCommand::AddAggro { .. }
             | ZoneCommand::ReplaceSession { .. } => Err(RejectReason::NotPermitted),
         }
     }
@@ -516,6 +648,7 @@ impl ZoneState {
     /// Applies one command. `Err` is a refusal and leaves the zone unchanged.
     fn apply(&mut self, tick: Tick, c: &AppliedCommand) -> Result<Vec<ZoneEvent>, RejectReason> {
         self.authorize(c.source, &c.command)?;
+        self.refuse_dead_actor(c.source, &c.command)?;
         match &c.command {
             ZoneCommand::SpawnPlayer {
                 entity,
@@ -523,14 +656,54 @@ impl ZoneState {
                 pos,
                 speed,
                 generation,
-            } => self.spawn(tick, *entity, EntityKind::Player, name, *pos, *speed, *generation),
-            ZoneCommand::SpawnNpc { name, pos, speed } => {
+                load,
+            } => {
+                let combat = match (&self.rules, load) {
+                    (Some(rules), Some(load)) => Some(player_combat(rules, load)?),
+                    _ => None,
+                };
+                let mut events = self.spawn(
+                    tick,
+                    Spawned {
+                        id: *entity,
+                        kind: EntityKind::Player,
+                        name,
+                        pos: *pos,
+                        speed: *speed,
+                        generation: *generation,
+                        combat,
+                    },
+                )?;
+                events.extend(self.owner_state(tick, *entity));
+                Ok(events)
+            },
+            ZoneCommand::SpawnNpc {
+                name,
+                pos,
+                speed,
+                combat,
+            } => {
                 if !self.bounds.contains(*pos) {
                     return Err(RejectReason::OutOfBounds);
                 }
+                let combat = match (&self.rules, combat) {
+                    (Some(_), Some(spec)) => Some(npc_combat(spec)?),
+                    (None, Some(_)) => return Err(RejectReason::NotPermitted),
+                    (_, None) => None,
+                };
                 let id = self.random_entity_id();
-                let generation = SessionGeneration::default();
-                self.spawn(tick, id, EntityKind::Npc, name, *pos, *speed, generation)
+                self.spawn(
+                    tick,
+                    Spawned {
+                        id,
+                        kind: EntityKind::Npc,
+                        name,
+                        pos: *pos,
+                        speed: *speed,
+                        generation: SessionGeneration::default(),
+                        combat,
+                    },
+                )
             },
             ZoneCommand::Despawn { entity } => Ok(self.despawn(tick, *entity)),
             ZoneCommand::ReplaceSession { entity, generation } => {
@@ -545,99 +718,137 @@ impl ZoneState {
                     return Err(RejectReason::StaleSession);
                 }
                 e.generation = *generation;
-                // The new session knows nothing yet: the AOI diff resends everything.
+                // The new session knows nothing yet: the AOI diff resends everything, and the
+                // owner-only state follows.
                 self.known.remove(entity);
-                Ok(Vec::new())
+                Ok(self.owner_state(tick, *entity))
             },
             ZoneCommand::SetTarget { entity, target } => self.set_target(tick, *entity, *target),
-            ZoneCommand::Attack { entity } | ZoneCommand::StopAttack { entity } => {
-                let actor = self
-                    .entities
-                    .get(entity)
-                    .ok_or(RejectReason::UnknownEntity)?;
-                if actor.targeting.dead {
-                    return Err(RejectReason::DeadActor);
-                }
-                Err(RejectReason::NotYetImplemented)
-            },
+            ZoneCommand::Attack { entity } => self.attack(tick, *entity),
+            ZoneCommand::StopAttack { entity } => self.stop_attack(tick, *entity),
             ZoneCommand::Respawn { entity } => {
                 self.entities
                     .get(entity)
                     .ok_or(RejectReason::UnknownEntity)?;
                 Err(RejectReason::NotYetImplemented)
             },
-            ZoneCommand::MoveTo { entity, dest } => self.move_to(*entity, *dest),
+            ZoneCommand::MoveTo { entity, dest } => self.move_to(tick, *entity, *dest),
             ZoneCommand::StopMove { entity } => {
+                let mut events = Vec::new();
+                self.disengage(tick, *entity, SwingCancel::Moved, &mut events);
                 let e = self
                     .entities
                     .get_mut(entity)
                     .ok_or(RejectReason::UnknownEntity)?;
-                Ok(e.dest
-                    .take()
-                    .map(|_| ZoneEvent::EntityMove {
-                        tick,
-                        entity: *entity,
-                        pos: e.pos,
-                        dest: None,
-                        speed: e.speed,
-                    })
-                    .into_iter()
-                    .collect())
+                if let Some(c) = e.combat.as_mut() {
+                    c.chasing = false;
+                }
+                events.extend(e.dest.take().map(|_| ZoneEvent::EntityMove {
+                    tick,
+                    entity: *entity,
+                    pos: e.pos,
+                    dest: None,
+                    speed: e.speed,
+                }));
+                Ok(events)
             },
+            ZoneCommand::AddAggro { npc, target } => self.add_aggro(tick, *npc, *target),
         }
     }
 
-    #[allow(clippy::too_many_arguments)] // one call per spawn kind; a struct would only rename them
-    fn spawn(
-        &mut self,
-        tick: Tick,
-        id: EntityId,
-        kind: EntityKind,
-        name: &str,
-        pos: Vec2Fixed,
-        speed: Speed,
-        generation: SessionGeneration,
-    ) -> Result<Vec<ZoneEvent>, RejectReason> {
-        if self.entities.contains_key(&id) {
+    /// A dead actor may not steer itself (plan §3.2). `Respawn` (E2.4) and `Despawn`
+    /// (disconnect) stay possible; system commands are not intents.
+    fn refuse_dead_actor(
+        &self,
+        source: CommandSource,
+        cmd: &ZoneCommand,
+    ) -> Result<(), RejectReason> {
+        if source == CommandSource::System {
+            return Ok(());
+        }
+        match cmd {
+            ZoneCommand::MoveTo { entity, .. }
+            | ZoneCommand::StopMove { entity }
+            | ZoneCommand::SetTarget { entity, .. }
+            | ZoneCommand::Attack { entity }
+            | ZoneCommand::StopAttack { entity } => {
+                if self.entities.get(entity).is_some_and(|e| e.targeting.dead) {
+                    Err(RejectReason::DeadActor)
+                } else {
+                    Ok(())
+                }
+            },
+            ZoneCommand::Respawn { .. }
+            | ZoneCommand::Despawn { .. }
+            | ZoneCommand::SpawnPlayer { .. }
+            | ZoneCommand::SpawnNpc { .. }
+            | ZoneCommand::ReplaceSession { .. }
+            | ZoneCommand::AddAggro { .. } => Ok(()),
+        }
+    }
+
+    /// The owner-only state a player's session needs on admission or replacement: its
+    /// `StatsChanged` and, if it has one, its selection.
+    fn owner_state(&self, tick: Tick, entity: EntityId) -> Vec<ZoneEvent> {
+        let Some(e) = self.entities.get(&entity) else {
+            return Vec::new();
+        };
+        let mut events = Vec::new();
+        if let Some(c) = &e.combat {
+            events.push(stats_changed(tick, entity, c));
+        }
+        if e.targeting.target.is_some() {
+            events.push(ZoneEvent::TargetChanged {
+                tick,
+                entity,
+                target: e.targeting.target,
+            });
+        }
+        events
+    }
+
+    fn spawn(&mut self, tick: Tick, s: Spawned<'_>) -> Result<Vec<ZoneEvent>, RejectReason> {
+        if self.entities.contains_key(&s.id) {
             return Err(RejectReason::AlreadyExists);
         }
-        if !self.bounds.contains(pos) {
+        if !self.bounds.contains(s.pos) {
             return Err(RejectReason::OutOfBounds);
         }
-        self.aoi.insert(id, pos);
-        self.entities.insert(
-            id,
-            Entity {
-                id,
-                kind,
-                name: name.to_owned(),
-                pos,
-                dest: None,
-                speed,
-                generation,
-                targeting: super::TargetingState::default(),
-            },
-        );
-        Ok(vec![ZoneEvent::EntitySpawn {
-            tick,
-            entity: id,
-            kind,
-            name: name.to_owned(),
-            pos,
+        self.aoi.insert(s.id, s.pos);
+        let dead = s.combat.as_ref().is_some_and(|c| c.hp == 0);
+        let entity = Entity {
+            id: s.id,
+            kind: s.kind,
+            name: s.name.to_owned(),
+            pos: s.pos,
             dest: None,
-            speed,
-            generation,
-        }])
+            speed: s.speed,
+            generation: s.generation,
+            targeting: super::TargetingState {
+                target: None,
+                dead,
+                attackable: s.kind == EntityKind::Npc && s.combat.is_some(),
+            },
+            combat: s.combat,
+        };
+        let event = spawn_event(tick, &entity);
+        self.entities.insert(s.id, entity);
+        Ok(vec![event])
     }
 
     fn despawn(&mut self, tick: Tick, id: EntityId) -> Vec<ZoneEvent> {
+        let mut events = Vec::new();
+        self.disengage(tick, id, SwingCancel::AttackerDied, &mut events);
         match self.entities.remove(&id) {
             Some(e) => {
                 self.aoi.remove(id, e.pos);
                 self.known.remove(&id);
-                vec![ZoneEvent::EntityDespawn { tick, entity: id }]
+                self.hate.remove(&id);
+                events.push(ZoneEvent::EntityDespawn { tick, entity: id });
+                self.release_target(tick, id, &mut events);
+                events
             },
-            None => Vec::new(),
+            None => events,
         }
     }
 
@@ -651,9 +862,6 @@ impl ZoneState {
             .entities
             .get(&entity)
             .ok_or(RejectReason::UnknownEntity)?;
-        if actor.targeting.dead {
-            return Err(RejectReason::DeadActor);
-        }
         if let Some(id) = target {
             let selected = self.entities.get(&id).ok_or(RejectReason::UnknownEntity)?;
             if !self.aoi.in_aoi(actor.pos).any(|visible| visible == id) {
@@ -669,26 +877,31 @@ impl ZoneState {
         if actor.targeting.target == target {
             return Ok(Vec::new());
         }
+        // Changing or clearing the selection ends the attack (plan §3.2).
+        let mut events = Vec::new();
+        self.disengage(tick, entity, SwingCancel::TargetChanged, &mut events);
         let actor = self
             .entities
             .get_mut(&entity)
             .ok_or(RejectReason::UnknownEntity)?;
         actor.targeting.target = target;
-        Ok(vec![ZoneEvent::TargetChanged {
+        events.push(ZoneEvent::TargetChanged {
             tick,
             entity,
             target,
-        }])
+        });
+        Ok(events)
     }
 
     fn move_to(
         &mut self,
+        tick: Tick,
         entity: EntityId,
         dest: Vec2Fixed,
     ) -> Result<Vec<ZoneEvent>, RejectReason> {
         let e = self
             .entities
-            .get_mut(&entity)
+            .get(&entity)
             .ok_or(RejectReason::UnknownEntity)?;
         if !self.bounds.contains(dest) {
             return Err(RejectReason::OutOfBounds);
@@ -699,9 +912,19 @@ impl ZoneState {
         {
             return Err(RejectReason::TooFar);
         }
+        // Walking away ends the attack (plan §3.2).
+        let mut events = Vec::new();
+        self.disengage(tick, entity, SwingCancel::Moved, &mut events);
+        let e = self
+            .entities
+            .get_mut(&entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        if let Some(c) = e.combat.as_mut() {
+            c.chasing = false;
+        }
         // Accepted silently: `step` on this same tick emits the first `EntityMove`.
         e.dest = Some(dest);
-        Ok(Vec::new())
+        Ok(events)
     }
 
     /// A version-4 UUID from the zone RNG, for ids that are not inputs (plan §8 #6).
@@ -782,17 +1005,52 @@ impl ZoneState {
                 diff_into(&mut out, tick, before, view, entities);
                 before.clone_from(&view.ids);
             }
-            // Selection is private to its actor; append facts after AOI output so a spawn
-            // always precedes a fact referring to a newly visible target.
-            out.extend(events.iter().filter(|event| matches!(event,
-                ZoneEvent::TargetChanged { entity, target, .. }
-                    if *entity == player.id && target.is_none_or(|id| view.ids.binary_search(&id).is_ok())
-            )).cloned().map(ObserverOutput::Event));
+            // Facts after AOI output, so a spawn always precedes a fact referring to a newly
+            // visible entity; facts about entities outside the AOI are recorded, not sent.
+            out.extend(
+                events
+                    .iter()
+                    .filter(|event| fact_visible(event, player.id, &view.ids))
+                    .cloned()
+                    .map(ObserverOutput::Event),
+            );
             if !out.is_empty() {
                 outputs.insert(player.id, out);
             }
         }
         outputs
+    }
+}
+
+/// Whether `observer`, which ends the tick knowing `known` (sorted), is sent `event` as a
+/// fact. Owner-only: stats, XP, level and selection (a selection only once its target is
+/// known). Cross-entity combat facts: only when both sides are known. Hate is internal.
+/// Spawns, moves and despawns are the AOI diff's, never facts.
+fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bool {
+    let sees = |id: &EntityId| *id == observer || known.binary_search(id).is_ok();
+    match event {
+        ZoneEvent::TargetChanged { entity, target, .. } => {
+            *entity == observer && target.as_ref().is_none_or(sees)
+        },
+        ZoneEvent::StatsChanged { entity, .. }
+        | ZoneEvent::XpGained { entity, .. }
+        | ZoneEvent::LevelUp { entity, .. } => *entity == observer,
+        ZoneEvent::AttackResult {
+            attacker, target, ..
+        }
+        | ZoneEvent::AttackStarted {
+            attacker, target, ..
+        }
+        | ZoneEvent::AttackCancelled {
+            attacker, target, ..
+        } => sees(attacker) && sees(target),
+        ZoneEvent::EntityDied { entity, .. } | ZoneEvent::EntityRespawned { entity, .. } => {
+            sees(entity)
+        },
+        ZoneEvent::HateChanged { .. }
+        | ZoneEvent::EntitySpawn { .. }
+        | ZoneEvent::EntityMove { .. }
+        | ZoneEvent::EntityDespawn { .. } => false,
     }
 }
 
@@ -903,9 +1161,108 @@ fn spawn_event(tick: Tick, e: &Entity) -> ZoneEvent {
         dest: e.dest,
         speed: e.speed,
         generation: e.generation,
+        combat: e
+            .combat
+            .as_ref()
+            .map(|c| c.view(e.targeting.dead, e.targeting.attackable)),
     }
 }
+
+/// The arguments of [`ZoneState::spawn`].
+struct Spawned<'a> {
+    id: EntityId,
+    kind: EntityKind,
+    name: &'a str,
+    pos: Vec2Fixed,
+    speed: Speed,
+    generation: SessionGeneration,
+    combat: Option<CombatState>,
+}
+
+/// A player's combat block from its loaded state.
+fn player_combat(rules: &StatRules, load: &PlayerLoad) -> Result<CombatState, RejectReason> {
+    let class = rules.class(&load.class).ok_or(RejectReason::InvalidLoad)?;
+    let max_xp = xp_cap(rules).map_err(|_| RejectReason::InvalidLoad)?;
+    if load.xp > max_xp || level_for_xp(rules, load.xp) != load.level {
+        return Err(RejectReason::InvalidLoad);
+    }
+    let weapon = rules.starter_weapon();
+    let sheet = StatSheet::for_player(rules, class, load.level, Some(weapon))
+        .map_err(|_| RejectReason::InvalidLoad)?;
+    Ok(CombatState {
+        role: CombatRole::Player {
+            class: load.class.clone(),
+            xp: load.xp,
+        },
+        hp: load.hp.map_or(sheet.max_hp(), |hp| hp.min(sheet.max_hp())),
+        mp: load.mp.map_or(sheet.max_mp(), |mp| mp.min(sheet.max_mp())),
+        sheet,
+        attack_range: weapon_reach(weapon).map_err(|_| RejectReason::InvalidLoad)?,
+        collision_radius: Fixed::from_raw(0),
+        incarnation: 1,
+        auto_attack: false,
+        chasing: false,
+        swing: None,
+        ready_at: Tick(0),
+        protected_until: None,
+    })
+}
+
+/// An NPC's combat block from its resolved profile, at full HP and MP.
+fn npc_combat(spec: &NpcCombat) -> Result<CombatState, RejectReason> {
+    let sheet = StatSheet::from_final(spec.stats).map_err(|_| RejectReason::NotPermitted)?;
+    if sheet.max_hp() == 0 {
+        return Err(RejectReason::NotPermitted);
+    }
+    Ok(CombatState {
+        role: CombatRole::Npc {
+            template: spec.template.clone(),
+            xp_reward: spec.xp_reward,
+        },
+        hp: sheet.max_hp(),
+        mp: sheet.max_mp(),
+        sheet,
+        attack_range: spec.attack_range,
+        collision_radius: spec.collision_radius,
+        incarnation: 1,
+        auto_attack: false,
+        chasing: false,
+        swing: None,
+        ready_at: Tick(0),
+        protected_until: None,
+    })
+}
+
+/// The owner-only resource fact.
+pub(super) fn stats_changed(tick: Tick, entity: EntityId, c: &CombatState) -> ZoneEvent {
+    ZoneEvent::StatsChanged {
+        tick,
+        entity,
+        hp: c.hp,
+        max_hp: c.sheet.max_hp(),
+        mp: c.mp,
+        max_mp: c.sheet.max_mp(),
+        level: c.sheet.level(),
+    }
+}
+
+#[path = "state_combat.rs"]
+mod combat_phase;
 
 #[cfg(test)]
 #[path = "state_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "combat_tests.rs"]
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::arithmetic_side_effects,
+    clippy::too_many_lines,
+    clippy::wildcard_enum_match_arm,
+    clippy::unreachable
+)]
+mod combat_tests;

@@ -150,6 +150,7 @@ fn player(n: u128, x: i32) -> PlayerSpawn {
         name: format!("p{n}"),
         pos: Vec2Fixed::from_tiles(x, 10),
         speed: Speed::DEFAULT,
+        load: None,
     }
 }
 

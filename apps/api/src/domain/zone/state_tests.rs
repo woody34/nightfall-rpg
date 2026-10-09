@@ -38,6 +38,7 @@ fn spawn_player(n: u128, x: i32, y: i32) -> ZoneInput {
         pos: Vec2Fixed::from_tiles(x, y),
         speed: Speed::DEFAULT,
         generation: GEN1,
+        load: None,
     })
 }
 
@@ -69,16 +70,25 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
             ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, .. }) => (2, 0, Some(*entity)),
             ObserverOutput::Event(ZoneEvent::EntityMove { entity, .. }) => (3, 0, Some(*entity)),
             ObserverOutput::Event(
-                e @ (ZoneEvent::AttackResult { .. }
+                _e @ (ZoneEvent::AttackResult { .. }
                 | ZoneEvent::EntityDied { .. }
                 | ZoneEvent::EntityRespawned { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::XpGained { .. }
                 | ZoneEvent::LevelUp { .. }
-                | ZoneEvent::TargetChanged { .. }),
-            ) => (4, 0, Some(e.entity())),
+                | ZoneEvent::TargetChanged { .. }
+                | ZoneEvent::AttackStarted { .. }
+                | ZoneEvent::AttackCancelled { .. }
+                | ZoneEvent::HateChanged { .. }),
+            ) => (4, 0, None),
         };
-        let ranks: Vec<_> = out.iter().map(rank).collect();
+        let mut ranks: Vec<_> = out.iter().map(rank).collect();
+        // Facts keep their causal order: rank them by position.
+        for (i, r) in ranks.iter_mut().enumerate() {
+            if r.0 == 4 {
+                r.1 = u64::try_from(i).unwrap();
+            }
+        }
         let mut sorted = ranks.clone();
         sorted.sort();
         sorted.dedup();
@@ -132,6 +142,7 @@ fn npc_ids_come_from_the_seeded_rng() {
             name: "wolf".to_owned(),
             pos: Vec2Fixed::from_tiles(5, 5),
             speed: Speed::DEFAULT,
+            combat: None,
         })
     };
     let ids = |epoch| {
@@ -319,6 +330,7 @@ fn zero_speed_entities_accept_a_destination_but_emit_nothing() {
             pos: Vec2Fixed::from_tiles(0, 0),
             speed: Speed::from_milli_tiles_per_tick(0),
             generation: GEN1,
+            load: None,
         })],
     );
     let t = run(&mut z, vec![move_to(1, Vec2Fixed::from_tiles(1, 0))]);
@@ -363,6 +375,7 @@ fn sessions_may_only_steer_their_own_entity() {
                 name: "x".to_owned(),
                 pos: Vec2Fixed::default(),
                 speed: Speed::DEFAULT,
+                combat: None,
             }),
         ],
     );
@@ -426,6 +439,7 @@ fn replacement_fences_the_old_session_and_resends_the_aoi() {
         name: "n".to_owned(),
         pos: Vec2Fixed::default(),
         speed: Speed::DEFAULT,
+        combat: None,
     });
     let t = run(&mut z, vec![npc]);
     let npc_id = t.events[0].entity();
@@ -650,6 +664,7 @@ fn targeting_validates_before_mutation_and_repeats_are_silent() {
                 name: "combat fixture".into(),
                 pos: Vec2Fixed::from_tiles(11, 10),
                 speed: Speed::DEFAULT,
+                combat: None,
             }),
         ],
     );
@@ -735,10 +750,11 @@ fn combat_commands_are_fenced_and_stubs_do_not_change_state_or_rng() {
             assert!(t.events.is_empty());
         }
     }
-    for command in [
-        ZoneCommand::Attack { entity: id(1) },
-        ZoneCommand::StopAttack { entity: id(1) },
-        ZoneCommand::Respawn { entity: id(1) },
+    // Respawn is still a stub (E2.4); a noncombat player (no rules, no load) cannot attack.
+    for (command, reason) in [
+        (ZoneCommand::Attack { entity: id(1) }, RejectReason::NotPermitted),
+        (ZoneCommand::StopAttack { entity: id(1) }, RejectReason::NotPermitted),
+        (ZoneCommand::Respawn { entity: id(1) }, RejectReason::NotYetImplemented),
     ] {
         let before = z.snapshot();
         let t = run(
@@ -748,7 +764,7 @@ fn combat_commands_are_fenced_and_stubs_do_not_change_state_or_rng() {
                 ZoneInput::session(id(1), GEN1, 3, command),
             ],
         );
-        assert_eq!(reasons(&t), vec![RejectReason::NotYetImplemented; 2]);
+        assert_eq!(reasons(&t), vec![reason; 2]);
         assert_eq!(t.commands.len(), 2);
         assert_eq!(before.entities, z.snapshot().entities);
         assert_eq!(before.rng, z.snapshot().rng);
@@ -767,6 +783,7 @@ fn combat_validation_rejects_dead_or_missing_actor_and_dead_or_distant_target() 
                 name: "target".into(),
                 pos: Vec2Fixed::from_tiles(11, 10),
                 speed: Speed::DEFAULT,
+                combat: None,
             }),
         ],
     );

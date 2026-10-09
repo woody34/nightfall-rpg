@@ -25,6 +25,7 @@
 )]
 
 mod aoi;
+mod combat;
 mod combat_math;
 mod command;
 mod entity;
@@ -39,6 +40,10 @@ mod stat_tests;
 mod state;
 
 pub use aoi::{aoi_cells_for, AoiCell, AoiIndex, CellCoord, AOI_CELL_TILES};
+pub use combat::{
+    weapon_reach, CombatRole, CombatState, CombatView, HateEntry, HateLedger, NpcCombat,
+    PlayerLoad, Swing, SwingCancel, L2_UNITS_PER_TILE, NPC_BASE_CRIT, NPC_BASE_STATS,
+};
 pub use combat_math::{
     add_hate, attack_timing, crit_lands, damage_hate, hit_chance_permille, hit_lands,
     npc_respawn_tick, physical_damage, spawn_protection_ticks, town_respawn_vitals, AttackTiming,
@@ -62,8 +67,8 @@ pub use stat_sheet::{
     resource_max, sqrt_dex, FinalStats, StatSheet,
 };
 pub use state::{
-    InvalidBounds, RngState, SnapshotError, SnapshotMeta, TickError, ZoneBounds, ZoneId, ZoneSeed,
-    ZoneSnapshot, ZoneState, MAX_MOVE_DISTANCE_TILES, SNAPSHOT_SCHEMA_VERSION,
+    InvalidBounds, NpcHate, RngState, SnapshotError, SnapshotMeta, TickError, ZoneBounds, ZoneId,
+    ZoneSeed, ZoneSnapshot, ZoneState, MAX_MOVE_DISTANCE_TILES, SNAPSHOT_SCHEMA_VERSION,
 };
 
 #[cfg(test)]
@@ -72,9 +77,11 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 14] = [
+    const SOURCES: [(&str, &str); 17] = [
         ("mod.rs", include_str!("mod.rs")),
         ("aoi.rs", include_str!("aoi.rs")),
+        ("combat.rs", include_str!("combat.rs")),
+        ("combat_tests.rs", include_str!("combat_tests.rs")),
         ("combat_math.rs", include_str!("combat_math.rs")),
         ("command.rs", include_str!("command.rs")),
         ("entity.rs", include_str!("entity.rs")),
@@ -86,6 +93,7 @@ mod tests {
         ("stat_sheet.rs", include_str!("stat_sheet.rs")),
         ("stat_tests.rs", include_str!("stat_tests.rs")),
         ("state.rs", include_str!("state.rs")),
+        ("state_combat.rs", include_str!("state_combat.rs")),
         ("state_tests.rs", include_str!("state_tests.rs")),
     ];
 

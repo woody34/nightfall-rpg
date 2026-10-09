@@ -24,7 +24,8 @@ use uuid::Uuid;
 
 use super::codec;
 use crate::domain::zone::{
-    AppliedCommand, AppliedTick, Disposition, EntityId, ObserverOutput, Tick, ZoneId, ZoneSnapshot,
+    AppliedCommand, AppliedTick, Disposition, EntityId, ObserverOutput, Tick, ZoneEvent, ZoneId,
+    ZoneSnapshot,
 };
 
 /// A position in the log: the `JetStream` stream sequence (or the in-memory adapter's
@@ -77,8 +78,13 @@ pub struct AppliedTickRecord {
     /// Each player's output, in entity-id order, in [`Self::output_form`]. Replay compares
     /// these bytes (see [`Self::reproduced_by`]).
     pub outputs: Vec<PlayerOutput>,
-    /// Whether `outputs` holds the encoded output or its digest.
+    /// Whether `outputs` (and `events`) hold the encoded bytes or their digests.
     pub output_form: OutputForm,
+    /// [`encode_events`] of every zone event of the tick, including facts no observer was
+    /// sent (off-AOI combat, hate), or its SHA-256 in [`OutputForm::Sha256`].
+    pub events: Bytes,
+    /// SHA-256 of the canonical end-of-tick state ([`AppliedTick::state_digest`]).
+    pub state_digest: Bytes,
 }
 
 impl AppliedTickRecord {
@@ -101,6 +107,8 @@ impl AppliedTickRecord {
                 })
                 .collect(),
             output_form: OutputForm::Encoded,
+            events: encode_events(&tick.events),
+            state_digest: Bytes::copy_from_slice(&tick.state_digest),
         }
     }
 
@@ -113,6 +121,7 @@ impl AppliedTickRecord {
             for o in &mut digested.outputs {
                 o.bytes = Bytes::copy_from_slice(&Sha256::digest(&o.bytes));
             }
+            digested.events = Bytes::copy_from_slice(&Sha256::digest(&digested.events));
             digested.output_form = OutputForm::Sha256;
         }
         digested
@@ -167,6 +176,17 @@ impl AppliedTickRecord {
 #[must_use]
 pub fn encode_outputs(items: &[ObserverOutput]) -> Bytes {
     Bytes::from(codec::encode_outputs(items))
+}
+
+/// Canonical bytes of a tick's zone events, in order.
+#[must_use]
+pub fn encode_events(events: &[ZoneEvent]) -> Bytes {
+    Bytes::from(codec::encode_events(events))
+}
+
+/// Inverse of [`encode_events`], for printing a divergence.
+pub fn decode_events(bytes: &[u8]) -> Result<Vec<ZoneEvent>, CodecError> {
+    codec::decode_events(bytes)
 }
 
 /// Inverse of [`encode_outputs`], for printing a divergence.

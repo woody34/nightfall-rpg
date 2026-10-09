@@ -293,6 +293,22 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::WorldEvent* in, FGrpcNightfallV1Wo
         out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::TargetChanged;
     }
         break;
+    case ::nightfall::v1::WorldEvent::kAttackStarted:
+    {
+        FGrpcNightfallV1AttackStarted field;
+        GRPC_TO_TURBOLINK(&(in->attack_started()), &field);
+        out->Event.AttackStarted=MakeShareable(new FGrpcNightfallV1AttackStarted(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::AttackStarted;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kAttackCancelled:
+    {
+        FGrpcNightfallV1AttackCancelled field;
+        GRPC_TO_TURBOLINK(&(in->attack_cancelled()), &field);
+        out->Event.AttackCancelled=MakeShareable(new FGrpcNightfallV1AttackCancelled(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::AttackCancelled;
+    }
+        break;
     }
 }
 
@@ -330,6 +346,12 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1WorldEvent* in, ::nightfall::v1::Wo
     case EGrpcNightfallV1WorldEventEvent::TargetChanged:
         TURBOLINK_TO_GRPC(in->Event.TargetChanged.Get(), out->mutable_target_changed());
         break;
+    case EGrpcNightfallV1WorldEventEvent::AttackStarted:
+        TURBOLINK_TO_GRPC(in->Event.AttackStarted.Get(), out->mutable_attack_started());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::AttackCancelled:
+        TURBOLINK_TO_GRPC(in->Event.AttackCancelled.Get(), out->mutable_attack_cancelled());
+        break;
     }
 }
 
@@ -340,6 +362,19 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntitySpawn* in, FGrpcNightfallV1E
     GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
     out->Kind=StaticCast<EGrpcNightfallV1EntityKind>(in->kind());
     out->SessionGeneration=in->session_generation();
+    out->Combatant=in->combatant();
+    out->TemplateId=StringCast<TCHAR>((const UTF8CHAR*)(in->template_id().c_str())).Get();
+    out->LifeIncarnation=in->life_incarnation();
+    out->Dead=in->dead();
+    out->Attackable=in->attackable();
+    out->Hp=in->hp();
+    out->MaxHp=in->max_hp();
+    out->Level=in->level();
+    {
+        FGrpcNightfallV1AttackStarted field;
+        GRPC_TO_TURBOLINK(&(in->pending_swing()), &field);
+        out->PendingSwing = MakeShareable(new FGrpcNightfallV1AttackStarted(field));
+    }
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::EntitySpawn* out)
@@ -349,6 +384,15 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::E
     TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
     out->set_kind(::nightfall::v1::EntityKind(static_cast<uint8>(in->Kind)));
     out->set_session_generation(in->SessionGeneration);
+    out->set_combatant(in->Combatant);
+    out->set_template_id((const char*)StringCast<UTF8CHAR>(*(in->TemplateId)).Get());
+    out->set_life_incarnation(in->LifeIncarnation);
+    out->set_dead(in->Dead);
+    out->set_attackable(in->Attackable);
+    out->set_hp(in->Hp);
+    out->set_max_hp(in->MaxHp);
+    out->set_level(in->Level);
+    TURBOLINK_TO_GRPC(in->PendingSwing.Get(), out->mutable_pending_swing());
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityMove* in, FGrpcNightfallV1EntityMove* out)
@@ -389,6 +433,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackResult* in, FGrpcNightfallV1
     out->Outcome=StaticCast<EGrpcNightfallV1AttackOutcome>(in->outcome());
     out->Damage=in->damage();
     out->TargetHpAfter=in->target_hp_after();
+    out->TargetIncarnation=in->target_incarnation();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackResult* in, ::nightfall::v1::AttackResult* out)
@@ -399,6 +444,7 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackResult* in, ::nightfall::v1::
     out->set_outcome(::nightfall::v1::AttackOutcome(static_cast<uint8>(in->Outcome)));
     out->set_damage(in->Damage);
     out->set_target_hp_after(in->TargetHpAfter);
+    out->set_target_incarnation(in->TargetIncarnation);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityDied* in, FGrpcNightfallV1EntityDied* out)
@@ -406,6 +452,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityDied* in, FGrpcNightfallV1En
     out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
     out->Tick=in->tick();
     out->Killer=StringCast<TCHAR>((const UTF8CHAR*)(in->killer().c_str())).Get();
+    out->Incarnation=in->incarnation();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityDied* in, ::nightfall::v1::EntityDied* out)
@@ -413,6 +460,43 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityDied* in, ::nightfall::v1::En
     out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
     out->set_tick(in->Tick);
     out->set_killer((const char*)StringCast<UTF8CHAR>(*(in->Killer)).Get());
+    out->set_incarnation(in->Incarnation);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackStarted* in, FGrpcNightfallV1AttackStarted* out)
+{
+    out->Attacker=StringCast<TCHAR>((const UTF8CHAR*)(in->attacker().c_str())).Get();
+    out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+    out->Tick=in->tick();
+    out->ImpactTick=in->impact_tick();
+    out->ReadyTick=in->ready_tick();
+    out->TargetIncarnation=in->target_incarnation();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackStarted* in, ::nightfall::v1::AttackStarted* out)
+{
+    out->set_attacker((const char*)StringCast<UTF8CHAR>(*(in->Attacker)).Get());
+    out->set_target((const char*)StringCast<UTF8CHAR>(*(in->Target)).Get());
+    out->set_tick(in->Tick);
+    out->set_impact_tick(in->ImpactTick);
+    out->set_ready_tick(in->ReadyTick);
+    out->set_target_incarnation(in->TargetIncarnation);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackCancelled* in, FGrpcNightfallV1AttackCancelled* out)
+{
+    out->Attacker=StringCast<TCHAR>((const UTF8CHAR*)(in->attacker().c_str())).Get();
+    out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+    out->Tick=in->tick();
+    out->Reason=StaticCast<EGrpcNightfallV1SwingCancelReason>(in->reason());
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackCancelled* in, ::nightfall::v1::AttackCancelled* out)
+{
+    out->set_attacker((const char*)StringCast<UTF8CHAR>(*(in->Attacker)).Get());
+    out->set_target((const char*)StringCast<UTF8CHAR>(*(in->Target)).Get());
+    out->set_tick(in->Tick);
+    out->set_reason(::nightfall::v1::SwingCancelReason(static_cast<uint8>(in->Reason)));
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityRespawned* in, FGrpcNightfallV1EntityRespawned* out)
