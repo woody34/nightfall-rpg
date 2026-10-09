@@ -259,9 +259,7 @@ contains the meshes, all role clips and the props (soft references are followed)
 **Still manual / not verified:** watching the animation quality by eye in a windowed client (foot
 sliding of the 14.6 s cockatrice walk at 4 tiles/s, blend pops, camera framing); a packaged
 (staged) build's runtime; the legacy UE4 run retarget; the cockatrice's real hit-reaction clip
-(the FBX's `Damage` takes are empty). The client sends no keep-alive, so a client idle for 60 s is
-closed by the server (4408) and reconnects; the playtest driver re-sends a zero-length `MoveTo`
-every 20 s to avoid it.
+(the FBX's `Damage` takes are empty).
 
 ## Installing Unreal on Linux
 
