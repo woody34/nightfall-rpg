@@ -150,7 +150,8 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
             return 2
         with patch('sys.argv', args), patch.dict(os.environ, {
                 'COMPOSE_PROJECT_NAME': 'nightfall-sim-test', 'SIM_REQUIRE_OWNED_API': '0'}), \
-                patch.object(ci, 'run_clients', clients), patch.object(ci.subprocess, 'run'):
+                patch.object(ci, 'run_clients', clients), patch.object(ci.subprocess, 'run',
+                    return_value=subprocess.CompletedProcess([], 0, stdout='')):
             self.assertTrue(ci.main())
         self.assertEqual(seen[0]['SIM_REQUIRE_OWNED_API'], '1')
 
@@ -242,9 +243,16 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
         for name in ('pair-a', 'pair-b'):
             (scenarios / f'{name}.nfs').write_text('fake result pass\n')
         self.fake('curl', 'exit 0\n')
+        fixture_spec = importlib.util.spec_from_file_location('fake_artifacts', SCRIPTS / 'test/fake-artifacts.py')
+        fixtures = importlib.util.module_from_spec(fixture_spec)
+        fixture_spec.loader.exec_module(fixtures)
+        baseline = self.root / 'baseline.json'
+        baseline.write_text(json.dumps(fixtures.contract_fixture(0)))
+        args += ['--contract-baseline', str(baseline)]
         env = {**self.env, 'SIM_BOT_BIN': str(SCRIPTS / 'test/fake-bot.sh'),
                'SIM_REPLAY_CMD': 'bash ' + str(SCRIPTS / 'test/fake-replay.sh'),
                'SIM_TRACE_CMD': 'bash ' + str(SCRIPTS / 'test/fake-trace.sh'),
+               'SIM_COVERAGE_CMD': 'bash ' + str(SCRIPTS / 'test/fake-replay.sh'),
                'SIM_SKIP_BUILD': '1', 'SIM_SAVED_DIR': str(self.root / 'saved')}
         result = subprocess.run(['python3', str(SCRIPTS / 'run-sim-ci.py'), *args[1:]],
                                 env=env, text=True, capture_output=True, timeout=15)
@@ -282,6 +290,7 @@ INNER
                                      'SIM_SKIP_BUILD': '1', 'SIM_SAVED_DIR': str(self.root / 'saved'),
                                      'SIM_REPLAY_CMD': 'bash ' + str(SCRIPTS / 'test/fake-replay.sh'),
                                      'SIM_TRACE_CMD': 'bash ' + str(SCRIPTS / 'test/fake-trace.sh'),
+               'SIM_COVERAGE_CMD': 'bash ' + str(SCRIPTS / 'test/fake-replay.sh'),
                                      'SIM_REQUIRE_FRESH_ARTIFACTS': '1',
                                      'FAKE_HEADLESS': str(SCRIPTS / 'test/fake-bot.sh')},
                                 text=True, capture_output=True, timeout=15)

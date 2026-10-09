@@ -7,14 +7,18 @@ SCRIPTS="$(cd "$T/.." && pwd)"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 chmod +x "$T/fake-bot.sh" "$T/fake-replay.sh"
 
-# A throwaway "API": python http.server answering /health.
-mkdir -p "$WORK/www" && echo ok >"$WORK/www/health"
-PORT=$((20000 + RANDOM % 20000))
-python3 -m http.server "$PORT" --directory "$WORK/www" >/dev/null 2>&1 & HTTP=$!
-trap 'kill $HTTP 2>/dev/null; rm -rf "$WORK"' EXIT
-for _ in $(seq 50); do curl -sf "http://localhost:$PORT/health" >/dev/null && break; sleep 0.1; done
+# Fake only the health command; no live API, sockets or Docker.
+mkdir -p "$WORK/bin"
+cat > "$WORK/bin/curl" <<'CURL'
+#!/usr/bin/env bash
+[[ "$*" != *localhost:1/* ]]
+CURL
+chmod +x "$WORK/bin/curl"
+export PATH="$WORK/bin:$PATH"
+PORT=3000
 
 export SIM_BOT_BIN="$T/fake-bot.sh" SIM_REPLAY_CMD="$T/fake-replay.sh" SIM_API_URL="http://localhost:$PORT" SIM_SKIP_BUILD=1
+export SIM_COVERAGE_CMD="bash $T/fake-replay.sh"
 export SIM_TRACE_CMD="bash $T/fake-trace.sh"
 export SIM_SAVED_DIR="$WORK/saved"
 
@@ -44,7 +48,7 @@ failed_xml() {
   else echo "FAIL - $1 (JUnit did not record failure)"; FAIL=1; fi
 }
 
-run() { "$SCRIPTS/run-sim.sh" --artifacts "$WORK/art" "$@" >"$WORK/out" 2>&1; echo $?; }
+run() { rm -rf "$WORK/art"; "$SCRIPTS/run-sim.sh" --artifacts "$WORK/art" "$@" >"$WORK/out" 2>&1; echo $?; }
 
 rm -rf "$WORK/art" "$WORK/saved"
 check "single passing scenario" 0 "$(run "$WORK/sc/ok-a.nfs")"
@@ -78,7 +82,7 @@ contains "timeout reported" "$WORK/out" "timeout after 1s"
 check "no match is a usage error" 2 "$(run "$WORK/sc/nothing-*.nfs")"
 check "attach with no API is an error" 2 "$(SIM_API_URL=http://localhost:1 run "$WORK/sc/ok-a.nfs")"
 
-multi() { "$SCRIPTS/run-sim-multi.sh" --artifacts "$WORK/mart" --group g1 "$@" >"$WORK/mout" 2>&1; echo $?; }
+multi() { rm -rf "$WORK/mart"; "$SCRIPTS/run-sim-multi.sh" --artifacts "$WORK/mart" --group g1 "$@" >"$WORK/mout" 2>&1; echo $?; }
 rm -rf "$WORK/mart"
 check "multi: two passing" 0 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/grp.nfs")"
 contains "multi: group id reached the bot" "$WORK/mart/grp/grp.log" "group=g1"
