@@ -1,0 +1,17 @@
+# covers: 0b 1.5, 0b 6.2, 1a 2.1
+# 0b-login-enter-world: dev-token login, character list (a new human when the account has
+# none), play ticket, WebSocket with the ticket in the upgrade header, own EntitySpawn, own pawn
+# at the spawn tile. `connected` and `in_world` are the gate every later scenario starts with.
+#
+# Timeouts: gRPC calls have a 5 s deadline (CallTimeoutSeconds); 3x for login and the
+# list/create/ticket chain. A first reconnect would add 0.5 s.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld                     # lists characters; creates one on a fresh test:<uuid> account
+nf.WaitFor ws_connected 15
+nf.WaitFor in_world 15            # own EntitySpawn received and L_TestZone loaded
+nf.Expect own_at 0 0 1            # a new character stands at the zone origin (character Position::default)
+nf.Expect rejected == none
+nf.Expect target == none
+nf.Expect attack_state == idle
+nf.Within 45

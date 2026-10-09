@@ -34,6 +34,7 @@ public class Nightfall : ModuleRules
 			"EngineSettings",   // UGameMapsSettings (content wiring test)
 			"NavigationSystem",   // nav mesh presence check before the local preview
 			"AIModule",     // SimpleMoveToLocation for local click-to-move preview
+			"XmlParser",    // Bot JUnit shape test parses the report back
 		});
 
 		// Generated/ and GrpcBridge/ carry a .ubtignore: they are compiled inside the TurboLinkGrpc

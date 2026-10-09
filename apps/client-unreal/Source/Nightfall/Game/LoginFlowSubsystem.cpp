@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Guid.h"
+#include "Misc/Parse.h"
 
 namespace
 {
@@ -297,7 +298,7 @@ namespace
 			});
 		}));
 
-	FAutoConsoleCommandWithWorldAndArgs EnterCommand(TEXT("nf.EnterWorld"), TEXT("nf.EnterWorld [character name; default the first]"),
+	FAutoConsoleCommandWithWorldAndArgs EnterCommand(TEXT("nf.EnterWorld"), TEXT("nf.EnterWorld [character name; default the first, or a new human when the account has none]"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			ULoginFlowSubsystem* Flow = FlowFrom(World);
@@ -312,6 +313,28 @@ namespace
 				{
 					return Wanted.IsEmpty() || C.Name.Equals(Wanted, ESearchCase::IgnoreCase);
 				});
+				if (Weak.IsValid() && Result.IsOk() && Characters.IsEmpty() && Wanted.IsEmpty())
+				{
+					// A fresh account (a bot's test:<uuid>): create a character with a unique
+					// letters-only name (3-16, the server's rule) and enter with it.
+					const FString Hex = FGuid::NewGuid().ToString(EGuidFormats::Digits);
+					FString Name = TEXT("Bot");
+					for (int32 I = 0; I < 12; ++I) Name.AppendChar(TEXT('a') + static_cast<TCHAR>(FParse::HexDigit(Hex[I])));
+					UE_LOG(LogNightfall, Display, TEXT("nf.EnterWorld: no characters; creating %s"), *Name);
+					Weak->CreateCharacter(Name, EGrpcNightfallV1Race::RACE_HUMAN, [Weak](const FNetResult& Created, const FGrpcNightfallV1Character& Character)
+					{
+						if (!Weak.IsValid() || !Created.IsOk())
+						{
+							UE_LOG(LogNightfall, Warning, TEXT("nf.EnterWorld: could not create a character (%s)"), *Created.Message);
+							return;
+						}
+						Weak->EnterWorld(Character.Id, [](const FNetResult& Entered)
+						{
+							if (!Entered.IsOk()) UE_LOG(LogNightfall, Warning, TEXT("nf.EnterWorld: no play ticket (%s)"), *Entered.Message);
+						});
+					});
+					return;
+				}
 				if (!Weak.IsValid() || Pick == nullptr)
 				{
 					UE_LOG(LogNightfall, Warning, TEXT("nf.EnterWorld: no such character (%s)"), *Result.Message);

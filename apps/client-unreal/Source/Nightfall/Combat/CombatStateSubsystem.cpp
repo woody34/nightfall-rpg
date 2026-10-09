@@ -83,6 +83,7 @@ void UCombatStateSubsystem::Reset()
 	Own = FOwnCombatState();
 	AttackState = EAttackState::Idle;
 	PendingTargetId.Reset();
+	bClearPending = false;
 	AttackSeq = 0;
 	RespawnSeq = 0;
 	InFlight.Reset();
@@ -126,6 +127,7 @@ void UCombatStateSubsystem::ClearTarget()
 {
 	Own.TargetId.Reset();
 	PendingTargetId.Reset();
+	bClearPending = false;
 	EndAttack();
 }
 
@@ -302,6 +304,7 @@ void UCombatStateSubsystem::ApplyTargetChanged(const FTargetChanged& Changed)
 	if (PendingTargetId.IsEmpty() && NewTarget != Own.TargetId) EndAttack();
 	Own.TargetId = NewTarget;
 	if (PendingTargetId == NewTarget || NewTarget.IsEmpty()) PendingTargetId.Reset();
+	if (NewTarget.IsEmpty()) bClearPending = false;
 	OnChanged.Broadcast();
 }
 
@@ -319,7 +322,7 @@ bool UCombatStateSubsystem::ClickEntity(const FString& EntityId)
 	if (!N || IsOwnDead() || !IsAttackable(EntityId)) return false;
 	const FString K = Key(EntityId);
 
-	const FString& Requested = PendingTargetId.IsEmpty() ? Own.TargetId : PendingTargetId;   // what the server will end up with
+	const FString Requested = RequestedTarget();   // what the server will end up with
 	if (Requested != K)
 	{
 		const uint32 Seq = Track(N->SendSetTarget(EntityId), EIntentKind::SetTarget);
@@ -334,6 +337,38 @@ bool UCombatStateSubsystem::ClickEntity(const FString& EntityId)
 	}
 	OnChanged.Broadcast();
 	return true;
+}
+
+FString UCombatStateSubsystem::RequestedTarget() const
+{
+	if (bClearPending) return FString();
+	return PendingTargetId.IsEmpty() ? Own.TargetId : PendingTargetId;
+}
+
+uint32 UCombatStateSubsystem::SelectTarget(const FString& EntityId)
+{
+	UNetClientSubsystem* N = Net();
+	if (!N) return 0;
+	const FString K = Key(EntityId);
+	if (RequestedTarget() == K) return 0;
+	const uint32 Seq = Track(N->SendSetTarget(EntityId), EIntentKind::SetTarget);
+	if (Seq == 0) return 0;   // not connected
+	PendingTargetId = K;
+	bClearPending = K.IsEmpty();   // until TargetChanged(none): the selection the server will end up with is none
+	EndAttack();              // a different selection ends the previous attack
+	OnChanged.Broadcast();
+	return Seq;
+}
+
+uint32 UCombatStateSubsystem::AttackSelection()
+{
+	UNetClientSubsystem* N = Net();
+	const FString Selected = RequestedTarget();
+	if (!N || IsOwnDead() || Selected.IsEmpty() || AttackState != EAttackState::Idle) return 0;
+	AttackSeq = Track(N->SendAttack(), EIntentKind::Attack);
+	if (AttackSeq != 0) AttackState = EAttackState::Pending;
+	OnChanged.Broadcast();
+	return AttackSeq;
 }
 
 uint32 UCombatStateSubsystem::NoteGroundClick()
@@ -378,6 +413,7 @@ void UCombatStateSubsystem::ApplyRejected(const FIntentRejected& Rejected)
 	{
 	case EIntentKind::SetTarget:
 		PendingTargetId.Reset();
+		bClearPending = false;
 		if (AttackState != EAttackState::Idle)
 		{
 			// The Attack queued behind this SetTarget would hit the previous selection: cancel it.

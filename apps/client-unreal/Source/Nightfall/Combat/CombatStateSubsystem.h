@@ -145,6 +145,16 @@ public:
 	 */
 	bool ClickEntity(const FString& EntityId);
 
+	/**
+	 * Selection without an attack (nf.Target): SetTarget unless EntityId already is the selection
+	 * or the pending one; empty clears it. Any id is sent as given, so the server's answer to an
+	 * unknown one can be observed. Returns the seq (0 = none sent).
+	 */
+	uint32 SelectTarget(const FString& EntityId);
+
+	/** Attack the selection (nf.Attack): one Attack while idle, as a click would. Returns the seq (0 = none sent). */
+	uint32 AttackSelection();
+
 	/** Ground click: sends StopAttack when an attack is outstanding. Returns the seq (0 = none sent). */
 	uint32 NoteGroundClick();
 
@@ -165,6 +175,8 @@ private:
 	bool IsOwn(const FString& EntityId) const;
 	FCombatEntity& FindOrAdd(const FString& EntityId);
 	void ClearTarget();
+	/** The selection the server will end up with once the SetTargets in flight land. */
+	FString RequestedTarget() const;
 	void EndAttack() { AttackState = EAttackState::Idle; AttackSeq = 0; }
 	bool RememberEvent(const FString& EventKey);
 	uint32 Track(uint32 Seq, EIntentKind Kind);
@@ -175,6 +187,7 @@ private:
 
 	EAttackState AttackState = EAttackState::Idle;
 	FString PendingTargetId;                 // SetTarget sent, not yet confirmed by TargetChanged
+	bool bClearPending = false;              // SetTarget(none) sent, not yet confirmed by TargetChanged(none)
 	uint32 AttackSeq = 0;
 	uint32 RespawnSeq = 0;
 	TMap<uint32, EIntentKind> InFlight;      // seq -> what was sent, until Ack / Rejected

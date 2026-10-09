@@ -1,0 +1,26 @@
+# covers: 1 E2.2, 1 E2.3, 1 E2.5, 1 E5.2, 1 E5.3, 1a 3.2
+# 1-kill-one-monster: target the nearest attackable NPC, auto-attack to death, gain XP.
+# The plan's §3 example plus the walk: a new character spawns at (0, 0), outside the area of
+# interest of the keltir slots (packages/data/zones/test_zone.toml: keltir_a at (100, 100)), so
+# it walks there first in moves of at most 64 tiles (the server's MoveTo limit), like a player.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor proxies >= 1 10
+nf.ClickMove 40 40
+nf.WaitFor own_at 40 40 1 30       # 57 tiles at the default speed; 3x margin
+nf.ClickMove 80 85
+nf.WaitFor own_at 80 85 1 30
+nf.ClickMove 97 100
+nf.WaitFor own_at 97 100 1 30
+nf.Target nearest_attackable
+nf.WaitFor target != none 5
+nf.Attack
+nf.WaitFor attack_state == active 5
+nf.WaitFor damage_numbers >= 1 10
+nf.WaitFor target_hp == 0 60
+nf.Expect target == none
+nf.Expect xp_known
+nf.Expect own_level >= 1
+nf.Within 90                      # scenario wall-clock budget, checked at exit (a pass takes ~31 s)

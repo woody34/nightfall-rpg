@@ -357,3 +357,12 @@ int64 UNetClientSubsystem::EstimatedServerTimeMs() const
 	const FDateTime Now = FDateTime::UtcNow();
 	return Now.ToUnixTimestamp() * 1000 + Now.GetMillisecond() + ServerClockOffsetMs;
 }
+
+#if !UE_BUILD_SHIPPING
+void UNetClientSubsystem::DropSocketForTesting()
+{
+	if (!Socket.IsValid()) return;
+	CloseSocket();
+	HandleClosed(1006, TEXT("dropped by nf.DropSocket"), false);
+}
+#endif

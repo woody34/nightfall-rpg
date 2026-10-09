@@ -51,9 +51,12 @@ Source/Nightfall/
   World/WorldProxySubsystem.* Spawns/destroys proxies from server events
   NightfallPlayerController.* Click-to-move: raycast, local preview, MoveTo intent
   Game/OwnEntityComponent.*  On the pawn: reconciles it with EntitySpawn/EntityMove of the player's own entity
-  Tests/                     Automation tests (Nightfall.Net.*)
+  Bot/                       Headless simulation runner (see "Simulation"): UBotScenarioRunner, steps and
+                             parser, predicate registry, log/ensure sentinel
+  Tests/                     Automation tests (Nightfall.*)
   Generated/                 protoc + protoc-gen-turbolink output, committed. Compiled in TurboLinkGrpc (see below)
   GrpcBridge/                NightfallWire: binary encode/decode of world.proto envelopes, also compiled in TurboLinkGrpc
+Scenarios/                   Simulation scenarios (*.nfs) and their optional allow-lists (*.allow)
 Scripts/
   setup-turbolink.sh         Submodule + prebuilt gRPC/protobuf libs + links into the plugin (moon: setup)
   gen-proto.sh               Regenerates Generated/ (moon: gen-proto)
@@ -261,6 +264,149 @@ sliding of the 14.6 s cockatrice walk at 4 tiles/s, blend pops, camera framing);
 (staged) build's runtime; the legacy UE4 run retarget; the cockatrice's real hit-reaction clip
 (the FBX's `Damage` takes are empty).
 
+## Simulation (Phase 1a E1.1-E1.3)
+
+Plan: [phase-1a-simulation-testing.md](../../docs/plans/phase-1a-simulation-testing.md).
+Diagram: [bot runner lifecycle](../../docs/diagrams/bot-runner-lifecycle.html).
+
+The real client, headless, drives itself from a scenario file and exits with a verdict. There is no
+separate bot: `UBotScenarioRunner` (game-instance subsystem, `Source/Nightfall/Bot/`) runs the same
+login, net, combat and world code a player's client runs, and asserts on the same projections the
+HUD reads. Without `-BotScenario` it does nothing (shipping builds ignore the flag).
+
+### Run one locally
+
+```bash
+docker compose up -d                                  # from the repo root
+moon run api:dev                                      # with AUTH_DEV_TOKENS=1 in .env
+moon run client-unreal:build-editor
+cd $UE_ROOT/Engine/Binaries/Linux                     # this engine build needs this working dir
+./UnrealEditor $REPO/apps/client-unreal/Nightfall.uproject -game -nullrhi -nosound -unattended \
+  -BotScenario=Scenarios/1-kill-one-monster.nfs -log
+echo $?                                               # 0 passed, 1 failed
+```
+
+`Scripts/run-sim.sh` / `moon run client-unreal:sim` (E1.5) wrap this. The client reaches the API
+at `GrpcEndpoint` from `Config/DefaultGame.ini` (`localhost:50051`); the WebSocket URL comes from
+the play ticket (`WS_PUBLIC_URL`). To point at an API on other ports, add
+`-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=localhost:<port>`.
+
+### Command-line contract
+
+Scripts (`run-sim.sh`, `run-sim-multi.sh`, CI) rely on exactly this:
+
+| Flag | Meaning |
+|---|---|
+| `-BotScenario=<path>` | Scenario to run. Absolute, else relative to the launch directory, else to the project directory. Its base name (`1-kill-one-monster`) names the artifacts. |
+| `-BotOutDir=<dir>` | Artifact directory. Default `<project>/Saved/Sim`. Give each parallel process its own, or distinct scenario names. |
+| `-DevToken=<token>` / `-DevTokenFile=<path>` | As for any run. When neither is given, `nf.Login` uses a fresh `test:<uuid>` account (the API must run with `AUTH_DEV_TOKENS=1`); the account is recorded in the JUnit `account` property. |
+| `-game -nullrhi -nosound -unattended` | The headless client (plan D1). `-unattended` keeps ensures and dialogs from blocking. |
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Every step passed, `nf.Within` held, and the sentinel saw no unallowed error or ensure. |
+| `1` | Anything else: a parse error (bad predicate, unknown `nf.*` command, missing timeout, bad allow-list), a failed or timed-out step, the budget exceeded, an unallowed error line or ensure, or the engine shutting down mid-run. |
+| other | The process crashed or was killed before the runner finished; treat as failed. |
+
+| Artifact | Contents |
+|---|---|
+| `<out>/<scenario>.xml` | JUnit. One `<testsuite name="<scenario>">`; one `<testcase>` per `nf.WaitFor` / `nf.Expect` (named `L<line> <step>`), plus `nf.Within` (when present), a failed command line (when one fails), and `log and ensure sentinel`; a parse failure is a single `parse scenario` testcase. Properties: `scenario_file`, `exit_code`, `budget_seconds`, `sentinel_unallowed`, `sentinel_allowed`, `allow.<line>`, `account`, `own_entity_id`. |
+| `<out>/<scenario>.log` | Run log: every UE log line from start-up to exit, including the step trace (`LogNightfallBot: bot: [  12.345] L14 > nf.WaitFor ...`). |
+
+The report is always written before the process exits, also on parse errors and on shutdown
+mid-run.
+
+### Writing a scenario
+
+A scenario is `Scenarios/<phase>-<what>.nfs`: one step per line, `#` starts a comment (to the end
+of the line), blank lines are ignored. Start with a `# covers: <phase> <story>, ...` line (E5.1).
+Steps run in order on the game-thread tick; the first failing step ends the run and every later
+assertion is reported as skipped.
+
+| Step | Meaning |
+|---|---|
+| `nf.WaitFor <predicate> <timeoutSeconds>` | Polls the predicate every tick until it holds (pass) or the timeout passes (fail, with the last observed value). The step after a passed wait runs on the next tick. Every wait has a timeout: derive it from server constants with a 3x margin (plan R1). |
+| `nf.Expect <predicate>` | Must hold when the step runs. |
+| `nf.Sleep <seconds>` | Pause. Prefer a `WaitFor`. |
+| `nf.Within <seconds>` | Wall-clock budget of the whole scenario: enforced on every tick, reported at exit. At most one. |
+| any other line | A console command, run as typed in the console. `nf.*` names must exist when the scenario is parsed. |
+
+Commands (all also work typed into a running client's console):
+
+| Command | Does |
+|---|---|
+| `nf.Login` | `UAuthSubsystem::StartLogin` (dev token, stored login, or device flow) |
+| `nf.EnterWorld [name]` | Lists characters, enters the named one or the first; on an account with none, creates a human with a random letters-only name first |
+| `nf.ClickMove <tileX> <tileY> [delay]` | The click-to-move path without a mouse; one move covers at most 64 tiles |
+| `nf.Target <id\|nearest_attackable\|none>` | `SetTarget` without attacking (`UCombatStateSubsystem::SelectTarget`); `nearest_attackable` picks the closest attackable entity in view; any id is sent as given |
+| `nf.Attack` | `Attack` on the selection, once while idle (`AttackSelection`, same rules as clicking the NPC) |
+| `nf.StopAttack` | `StopAttack` while attacking (what a ground click sends) |
+| `nf.Respawn` | `Respawn` while dead, once until answered |
+| `nf.DropSocket` | Test only: closes the WebSocket as a network failure would; the client reconnects with a fresh ticket. Registered only in non-shipping builds and only when `-BotScenario` is given (plan R5) |
+
+Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op> <n>` with op in
+`< <= == != >= >`; "unknown" values (nothing heard yet) are false:
+
+| Predicate | True when | Reads |
+|---|---|---|
+| `connected` | logged in: the access token is held, gRPC calls carry it | `UAuthSubsystem` |
+| `ws_connected` | the WebSocket is open | net |
+| `in_world` | WebSocket open, own `EntitySpawn` in the cache, world map (`ANightfallGameMode`) loaded | net, world |
+| `own_at <x> <y> <tol>` | newest server position of the own entity within `tol` tiles | net snapshots |
+| `proxies <op> <n>` | entities in view other than the own one | net cache |
+| `target == <name\|id\|none>` / `!=` | confirmed selection (after `TargetChanged`), by name or id | projection |
+| `target_hp <op> <n>` | HP of the selection; once it clears, of the last selection (0 when it died) | projection |
+| `own_hp <op> <n>`, `own_level <op> <n>`, `own_xp <op> <n>` | the player's HP, level, XP total | projection |
+| `own_dead` | the dead overlay shows | HUD model |
+| `xp_known` | the XP total is known (not `XP --`) | projection |
+| `attack_state == <idle\|pending\|active>` | the HUD attack state (pending = `Attack` not yet Acked) | HUD model |
+| `damage_numbers <op> <n>` | floating numbers shown (one per distinct `AttackResult`) | `OnDamageNumber` |
+| `rejected == <reason\|none>` / `!=` | newest `IntentRejected` reason: `TOO_FAR`, `REJECT_REASON_TOO_FAR` or `2`; `none` = none seen | `OnIntentRejected` |
+| `last_ack_seq <op> <n>` | highest acked intent seq | `OnIntentAck` |
+
+A new predicate is one `Register*` call in `FBotPredicateRegistry::RegisterBuiltins` (or from a
+later phase's module): `RegisterFlag`, `RegisterNumber`, `RegisterEquality` or `Register` for
+custom arguments. Its argument parsing runs at scenario parse time, so a typo fails before the
+client logs in. Add a row here and a transition test in `Nightfall.Bot.Predicates.Transitions`.
+
+Example (`Scenarios/0b-login-enter-world.nfs`, abridged):
+
+```
+# covers: 0b 1.5, 0b 6.2, 1a 2.1
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld                     # creates a character on a fresh test:<uuid> account
+nf.WaitFor in_world 15
+nf.Expect own_at 0 0 1            # a new character stands at the zone origin
+nf.Within 45
+```
+
+### Log and ensure sentinel (D6)
+
+From start-up to exit an `FOutputDevice` counts `Error` and `Fatal` lines in `LogNightfall`,
+`LogTurboLink` and `LogNet*`, and `FCoreDelegates::OnEnsureFailed` counts ensures. Any of them
+fails the run even when every step passed: the `log and ensure sentinel` testcase names each line.
+Known noise goes in `Scenarios/<scenario>.allow`, one entry per line, each with a reason:
+
+```
+# <category> | <substring of the message> | <reason>
+LogNet | Connection refused | the API restarts between scenarios in run-sim-multi.sh
+ensure | NavMesh | no nav mesh is built in -nullrhi runs
+```
+
+`*` matches any watched category; `ensure` matches ensures. Hits per entry are reported as JUnit
+`allow.<line>` properties. Other categories (e.g. `LogPlayerController`'s UI focus error under
+`-nullrhi`) are not counted.
+
+### Reading the JUnit
+
+A failed testcase's `message` is one line (`timed out after 15.00 s waiting for 'in_world'; last
+observed false`, `expected 'target == none', observed Keltir (<id>)`); the body repeats the
+predicate, timeout and last value. Steps after the failure are `<skipped message="not reached:
+line N failed">`. Timings: a `WaitFor`'s `time` is how long it waited, `nf.Within`'s is the
+scenario's wall clock. Correlate with the server through `own_entity_id` and the run log's step
+trace.
+
 ## Installing Unreal on Linux
 
 Epic requires an account. Two routes:
@@ -455,7 +601,8 @@ to the log at startup, so prefer the file for real Keycloak tokens. Two ways to 
 ### Console commands (non-shipping)
 
 `nf.Login`, `nf.Logout`, `nf.Characters`, `nf.CreateCharacter <Name> [race 1-5]`,
-`nf.EnterWorld [Name]` (default: the first character) drive the same flow as the screen, for
+`nf.EnterWorld [Name]` (default: the first character; on an account with none, a new human)
+drive the same flow as the screen, for
 headless runs: `-ExecCmds="nf.Login, nf.EnterWorld"` with a dev token, or with a stored login
 (`nf.EnterWorld` waits for the refresh). Add `-LogCmds="LogNightfall Verbose"` to see the user code
 in the log.
@@ -566,6 +713,15 @@ set `NIGHTFALL_DEV_TOKEN` to use another token. Without Keycloak, run the API wi
 | `Nightfall.Anim.Component.OwnDeathRespawnHud` | no | Own pawn and HUD through death and respawn: overlay, target cleared, HP from `EntityRespawned`, dying → corpse → idle |
 | `Nightfall.Anim.ProxyClassByTemplate` | no | Game mode maps `keltir` → `BP_Keltir`, players → `BP_RemotePlayer`, others → `BP_RemoteEntity`; Blueprints carry the presets and keep the placeholder |
 | `Nightfall.Content.VendorArt` | no (skips without `Content/Vendor`) | Every imported mesh and role clip loads with its length, impact inside the attack clip, the anim set applies to a registered mesh with the native anim instance, `L_TestZone` props resolve |
+| `Nightfall.Bot.Parser` | no | Scenario lines, comments, line numbers, timeouts; every parse error (unknown predicate or command, bad operator/number/value, missing timeout, second `nf.Within`, empty file) found at parse time with its line |
+| `Nightfall.Bot.Executor.StepOrder` | no | Fake clock: commands in order, a wait polls until true, the next step runs on the next tick, sleep, one passed testcase per WaitFor / Expect, exit code 0 |
+| `Nightfall.Bot.Executor.TimeoutStopsTheRun` | no | A wait fails at its timeout with the last observed value; nothing after it runs; later assertions skipped; failed Expect and refused command stop the run; exit code 1 |
+| `Nightfall.Bot.Executor.WithinBudget` | no | `nf.Within` reported when held; an over-budget run is cut off at the budget; abort from outside fails the running step |
+| `Nightfall.Bot.JUnit.Shape` | no | Report parses as XML: suite name/counts/time, properties in order, `classname`, `<failure>`, `<skipped>`, `nf.Within` and sentinel testcases, escaping |
+| `Nightfall.Bot.Sentinel.Counting` | no | Synthetic Error/Fatal lines counted only in the watched categories, ensures counted, allow-list (reason required) suppresses and counts hits, one unallowed line fails a passing run (exit 1) and is named in JUnit, the GLog hookup |
+| `Nightfall.Bot.Predicates.Transitions` | no | Every built-in predicate false -> true from typed events (Story 5.2 fixture shapes), `nf.Target` / `nf.Attack` / `nf.StopAttack` / `nf.Respawn` through the console send the right intents |
+| `Nightfall.Bot.Commands.SelectAfterClear` | no | `SelectTarget` sends once per selection; a re-selection right after a clear is still sent; no `Attack` on a pending clear |
+| `Nightfall.Bot.Runner.InertWithoutFlag` | no | No `-BotScenario`: runner inactive, `nf.DropSocket` not registered, interactive commands present |
 | `Nightfall.Combat.EndToEnd` | yes (skips if down) | Real server: `SetTarget` on a live NPC yields `TargetChanged`; `Attack` answered by whichever the server does (see test comment) |
 | `Nightfall.Net.SessionClient.Ping` | yes | Ping round trip; `server_version` equals the Cargo workspace version |
 | `Nightfall.Login.EndToEnd` | yes (skips if down) | Dev-token login, `ListMyCharacters`, `CreateCharacter` (fresh key), listed, two `IssuePlayTicket` calls give two distinct tickets and a `ws://` URL without the ticket |
@@ -594,6 +750,12 @@ set `NIGHTFALL_DEV_TOKEN` to use another token. Without Keycloak, run the API wi
   possessed by `BP_NightfallPC`, a dynamic nav mesh and `EntityClass = BP_RemoteEntity`.
 - WebSocket traffic after the upgrade (spawn/move) is still unverified until the server's `/ws`
   endpoint exists.
+
+- Phase 1a E1.1-E1.3 (2026-10-09): editor and game targets build with warnings as errors;
+  `Automation RunTests Nightfall` 43/43 against an API with `AUTH_DEV_TOKENS=1` (the 9
+  `Nightfall.Bot.*` tests need no server). `0b-login-enter-world` passes in 0.1 s and
+  `1-kill-one-monster` in 31 s (walk 28 s, kill 3 s) headless against that API; a broken
+  scenario, a timed-out wait and a SIGTERM mid-run each exit 1 with a JUnit report.
 
 ## Spike log: TurboLink on UE 5.8.3 / Linux (Story 6.1, risk R1)
 
