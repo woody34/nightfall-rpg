@@ -15,6 +15,9 @@
 //! (and `HTTP_ADDR`/`GRPC_ADDR` on spare ports) so it could not share an epoch stream with a
 //! running dev zone; export with `--zone 41` in that case.
 //!
+//! `--fight` runs the E6.1 event-driven combat scenario; use
+//! `bash apps/api/fixtures/sessions/record-fight.sh` to prepare its isolated data and server.
+//!
 //! Flags: `--http URL` (`http://127.0.0.1:3000`), `--grpc URL` (`http://127.0.0.1:50051`).
 
 #![allow(
@@ -27,7 +30,11 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+
 use std::time::Duration;
+
+#[path = "record_session/fight.rs"]
+mod fight;
 
 use anyhow::{bail, Context as _};
 use futures_util::stream::SplitSink;
@@ -39,6 +46,7 @@ use nightfall_api::interface::grpc::pb::{
     self, client_message, server_message, ClientMessage, CreateCharacterRequest,
     IssuePlayTicketRequest, ServerMessage,
 };
+use parking_lot::Mutex;
 use prost::Message as _;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest as _;
@@ -48,13 +56,14 @@ use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use uuid::Uuid;
 
-type Tx = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
+type Tx = Arc<tokio::sync::Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>>;
 
 #[derive(Default)]
 struct Seen {
     frames: AtomicU64,
     acks: AtomicU64,
     rejected: AtomicU64,
+    events: Mutex<Vec<pb::world_event::Event>>,
 }
 
 /// Account, character and play ticket, through gRPC like a real client.
@@ -93,7 +102,10 @@ async fn connect(ws_url: &str, ticket: &str, seen: Arc<Seen>) -> anyhow::Result<
     let (socket, _) = tokio_tungstenite::connect_async(req).await?;
     let (tx, mut rx) = socket.split();
     tokio::spawn(async move {
-        while let Some(Ok(Message::Binary(b))) = rx.next().await {
+        while let Some(Ok(frame)) = rx.next().await {
+            let Message::Binary(b) = frame else {
+                continue;
+            };
             seen.frames.fetch_add(1, Ordering::Relaxed);
             match ServerMessage::decode(b.as_ref()).map(|m| m.payload) {
                 Ok(Some(server_message::Payload::Ack(_))) => {
@@ -102,7 +114,29 @@ async fn connect(ws_url: &str, ticket: &str, seen: Arc<Seen>) -> anyhow::Result<
                 Ok(Some(server_message::Payload::Rejected(_))) => {
                     seen.rejected.fetch_add(1, Ordering::Relaxed);
                 },
+                Ok(Some(server_message::Payload::Event(pb::WorldEvent { event: Some(e) }))) => {
+                    seen.events.lock().push(e);
+                },
                 _ => {},
+            }
+        }
+    });
+    let tx = Arc::new(tokio::sync::Mutex::new(tx));
+    let weak = Arc::downgrade(&tx);
+    tokio::spawn(async move {
+        loop {
+            pause(15_000).await;
+            let Some(tx) = weak.upgrade() else {
+                break;
+            };
+            if tx
+                .lock()
+                .await
+                .send(Message::Ping(Vec::new().into()))
+                .await
+                .is_err()
+            {
+                break;
             }
         }
     });
@@ -129,7 +163,10 @@ async fn send(tx: &mut Tx, seq: u32, intent: client_message::Intent) -> anyhow::
         seq,
         intent: Some(intent),
     };
-    tx.send(Message::Binary(msg.encode_to_vec().into())).await?;
+    tx.lock()
+        .await
+        .send(Message::Binary(msg.encode_to_vec().into()))
+        .await?;
     Ok(())
 }
 
@@ -141,8 +178,13 @@ async fn pause(ms: u64) {
 async fn main() -> anyhow::Result<()> {
     let mut http = "http://127.0.0.1:3000".to_owned();
     let mut grpc = "http://127.0.0.1:50051".to_owned();
+    let mut fight_mode = false;
     let mut it = std::env::args().skip(1);
     while let Some(flag) = it.next() {
+        if flag == "--fight" {
+            fight_mode = true;
+            continue;
+        }
         let value = it.next().with_context(|| format!("{flag} needs a value"))?;
         match flag.as_str() {
             "--http" => http = value,
@@ -162,6 +204,10 @@ async fn main() -> anyhow::Result<()> {
     let (b_id, b_ticket) = admit(&channel, &format!("Rb{run}")).await?;
     let (sa, sb) = (Arc::new(Seen::default()), Arc::new(Seen::default()));
 
+    if fight_mode {
+        return fight::run(&ws_url, (&a_id, &a_ticket, sa), (&b_id, &b_ticket, sb)).await;
+    }
+
     // Both spawn at their saved position (0, 0) and see each other.
     let mut a = connect(&ws_url, &a_ticket, sa.clone()).await?;
     pause(300).await;
@@ -179,9 +225,9 @@ async fn main() -> anyhow::Result<()> {
     pause(200).await;
     move_to(&mut a, 3, 1.5, 1.25).await?;
     pause(1500).await;
-    a.close().await?;
+    a.lock().await.close().await?;
     pause(300).await;
-    b.close().await?;
+    b.lock().await.close().await?;
     pause(300).await;
 
     for (who, id, s) in [("a", a_id, sa), ("b", b_id, sb)] {

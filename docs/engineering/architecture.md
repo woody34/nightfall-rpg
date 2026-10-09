@@ -345,14 +345,22 @@ nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-
 `--session` takes the player's entity id (its character id) and selects whose outputs are
 compared; every command is still applied. `.nfr` = `NFREPLAY` magic, `u32` format version, zlib
 protobuf of snapshot, records and watermark (`recording.rs`). `moon run api:replay-check`
-replays `apps/api/fixtures/sessions/two-players-v4.nfr` (two players, an out-of-bounds
-rejection, a `StopMove`, the zone spawning its Keltir slots on tick 0; snapshot schema 4 and
-record schema 3, so it carries the stat rules, spawn slots, safe point, zone events and state
-digests; recorded as zone 41 via `ZONE_FILE`); CI runs it on every push. Re-record with
-`examples/record_session.rs` only for an intended behaviour change, and bump the file name.
-v1 (movement only, record schema 1) was retired by Phase 1 E2.2, v2 by E3.4 (snapshot schema
-3) and v3 by E2.4/E2.6 (snapshot 4, record 3); replay refuses other versions rather than
-migrating them.
+replays both `apps/api/fixtures/sessions/two-players-v4.nfr` (movement, rejection,
+`StopMove`) and `two-players-fight-v2.nfr` (target/chase, seeded hit/miss/crit, social
+aggro/leash, kill/XP/level, corpse decay/NPC respawn, player death/delevel/protected respawn,
+`StopAttack`, mid-fight disconnect). CI also runs epoch/mid-fight byte/digest replay, codec
+round-trips, coefficient/RNG/AI/off-AOI mutations and incomplete/gap refusal tests. Both
+fixtures use snapshot schema 4, record schema 3 and `.nfr` format 1. Movement v1 was retired
+by E2.2, v2 by E3.4, v3 by E2.4/E2.6; incompatible schemas are refused rather than migrated,
+and the surviving v4 movement fixture is retained unchanged. Re-record only for intended
+behaviour changes: movement uses `cargo run -p nightfall-api --example record_session`
+against a dev-token API followed by graceful shutdown and `nightfall-replay export`; fight
+uses `bash apps/api/fixtures/sessions/record-fight.sh` with compose services up. The latter
+builds this clone, starts a fresh zone 6102 epoch on ports 3107/50107, drives real gRPC/WS,
+stops gracefully, exports, verifies and checks coverage. Further combat lives are recorded
+if needed to observe all three seeded attack outcomes (bounded to 12 lives). It copies `test_zone.toml` and the Keltir template
+to a temporary directory, changing only zone ID and XP reward 28→68 (X[2]), so one kill
+levels A and the subsequent 29-XP death loss delevels A; shipped balance data is unchanged.
 
 ### 2.6 Sessions and zones
 

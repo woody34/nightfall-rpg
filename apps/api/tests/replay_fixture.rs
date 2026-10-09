@@ -516,3 +516,436 @@ async fn the_tool_exits_3_on_an_incomplete_jetstream_epoch() {
     assert_eq!(code, 3, "export refuses it too");
     assert!(!out.exists());
 }
+
+// ---- Phase 1 E6.1: real-socket fight recording ---------------------------------------------
+
+fn fight_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/sessions/two-players-fight-v2.nfr")
+}
+
+fn fight() -> Recording {
+    Recording::read(&fight_path()).unwrap()
+}
+
+fn events(r: &nightfall_api::application::replay_log::AppliedTickRecord) -> Vec<ZoneEvent> {
+    nightfall_api::application::replay_log::decode_events(&r.events).unwrap()
+}
+
+/// A real tick boundary before a damaging swing lands, with both players present. Keeping
+/// the in-flight swing, hate, RNG, scheduler and AOI is essential to the suffix replay.
+fn mid_fight() -> Recording {
+    let mut rec = fight();
+    let index = rec
+        .records
+        .iter()
+        .position(|r| {
+            events(r)
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::AttackResult { damage, .. } if *damage > 0))
+        })
+        .unwrap();
+    let mut zone = ZoneState::from_snapshot(rec.snapshot.clone()).unwrap();
+    for r in &rec.records[..index] {
+        zone.run_tick(AppliedTickDraft {
+            epoch: r.epoch,
+            tick: r.tick,
+            commands: r.commands.clone(),
+        })
+        .unwrap();
+    }
+    rec.snapshot = zone.snapshot();
+    assert_eq!(
+        rec.snapshot
+            .entities
+            .iter()
+            .filter(|e| e.kind == nightfall_api::domain::zone::EntityKind::Player)
+            .count(),
+        2
+    );
+    assert!(rec
+        .snapshot
+        .entities
+        .iter()
+        .any(|e| e.combat.as_ref().is_some_and(|c| c.swing.is_some())));
+    assert!(!rec.snapshot.hate.is_empty());
+    rec.records.drain(..index);
+    rec.watermark.records = rec.records.len() as u64;
+    rec
+}
+
+#[tokio::test]
+async fn fight_replays_from_epoch_and_mid_fight_in_bytes_and_digests() {
+    for rec in [fight(), mid_fight()] {
+        let count = rec.watermark.records;
+        let roundtrip = Recording::from_bytes(&rec.to_bytes().unwrap()).unwrap();
+        assert_eq!(roundtrip, rec);
+        let report = replay(roundtrip).await.unwrap();
+        assert_eq!(report.ticks, count);
+        assert_eq!(report.players, 2);
+        assert!(report.bytes_compared > 1000);
+        assert_eq!(report.digest_only, 0);
+        let mut digested = rec;
+        digested.records = digested
+            .records
+            .iter()
+            .map(nightfall_api::application::replay_log::AppliedTickRecord::with_output_digests)
+            .collect();
+        let report = replay(digested).await.unwrap();
+        assert_eq!(report.ticks, count);
+        assert!(report.digest_only > 0);
+        assert_eq!(report.bytes_compared, 0);
+    }
+}
+
+#[test]
+#[allow(clippy::too_many_lines)] // One chronological lifecycle audit of the captured session.
+fn fight_covers_combat_lifecycle_and_codec_facts() {
+    use nightfall_api::application::replay_log::{
+        decode_outputs, encode_events, encode_outputs, AppliedTickRecord,
+    };
+    use nightfall_api::domain::zone::{AttackOutcome, CombatRole, EntityKind, Intention};
+    let rec = fight();
+    let all: Vec<_> = rec.records.iter().flat_map(events).collect();
+    let commands: Vec<_> = rec.records.iter().flat_map(|r| &r.commands).collect();
+    let players: Vec<_> = commands
+        .iter()
+        .filter_map(|c| {
+            if let ZoneCommand::SpawnPlayer { entity, .. } = c.command {
+                Some(entity)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(players.len(), 2);
+    assert_eq!(
+        commands
+            .iter()
+            .filter(|c| matches!(c.command, ZoneCommand::Despawn { .. }))
+            .count(),
+        2
+    );
+    for player in &players {
+        assert!(all
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if attacker == player)));
+    }
+    assert!(commands
+        .iter()
+        .any(|c| matches!(c.command, ZoneCommand::SetTarget { .. })));
+    assert!(commands
+        .iter()
+        .any(|c| matches!(c.command, ZoneCommand::StopAttack { .. })));
+    assert!(commands
+        .iter()
+        .any(|c| matches!(c.command, ZoneCommand::StopMove { .. })));
+    let refused: Vec<_> = rec.records.iter().flat_map(|r| &r.dispositions).collect();
+    assert_eq!(refused.len(), 1);
+    assert_eq!(refused[0].reason, RejectReason::OutOfBounds);
+    assert!(all.iter().any(|e| matches!(
+        e,
+        ZoneEvent::NpcIntentionChanged {
+            to: Intention::ReturnHome,
+            ..
+        }
+    )));
+    let killer = all
+        .iter()
+        .find_map(|e| {
+            if let ZoneEvent::LevelUp {
+                entity, level: 2, ..
+            } = e
+            {
+                Some(*entity)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    assert!(all.iter().any(|e| matches!(e, ZoneEvent::XpGained { entity, amount: 68, total: 68, .. } if *entity == killer)));
+    assert!(all.iter().any(|e| matches!(e, ZoneEvent::StatsChanged { entity, hp: 0, level: 1, xp, .. } if *entity == killer && *xp < 68)));
+    let mut zone = ZoneState::from_snapshot(rec.snapshot.clone()).unwrap();
+    let (mut chase, mut social, mut respawn, mut disconnect, mut decay, mut npc_respawn) =
+        (false, false, false, false, false, false);
+    let mut corpse = None;
+    for r in &rec.records {
+        // The fight itself is the codec fixture: every command, public/private event,
+        // internal AI/hate fact and owner-only output must round-trip canonically.
+        assert_eq!(AppliedTickRecord::decode(&r.encode()).unwrap(), *r);
+        assert_eq!(encode_events(&events(r)), r.events);
+        for out in &r.outputs {
+            assert_eq!(encode_outputs(&decode_outputs(&out.bytes).unwrap()), out.bytes);
+        }
+        let before = zone.snapshot();
+        for c in &r.commands {
+            if let ZoneCommand::Despawn { entity } = c.command {
+                disconnect |= before
+                    .entities
+                    .iter()
+                    .any(|e| e.id == entity && e.combat.as_ref().is_some_and(|c| c.auto_attack));
+            }
+        }
+        zone.run_tick(AppliedTickDraft {
+            epoch: r.epoch,
+            tick: r.tick,
+            commands: r.commands.clone(),
+        })
+        .unwrap();
+        let after = zone.snapshot();
+        chase |= after.entities.iter().any(|e| {
+            e.kind == EntityKind::Player
+                && e.dest.is_some()
+                && e.combat.as_ref().is_some_and(|c| c.auto_attack)
+        });
+        // A clan helper enters Attack outside its own think phase without taking damage;
+        // it cannot have acquired the target through its independent proximity scan.
+        social |= events(r).iter().any(|e| {
+            if let ZoneEvent::NpcIntentionChanged {
+                entity,
+                to: Intention::Attack,
+                ..
+            } = e
+            {
+                r.tick.0 % 10 != nightfall_api::domain::zone::NpcAi::think_phase(*entity)
+                    && after.hate.iter().any(|h| {
+                        h.npc == *entity
+                            && h.ledger
+                                .iter()
+                                .any(|(_, row)| row.hate > 0 && row.damage == 0)
+                    })
+            } else {
+                false
+            }
+        });
+        for e in events(r) {
+            if let ZoneEvent::EntityDied {
+                entity,
+                killer: Some(k),
+                ..
+            } = e
+            {
+                if k == killer {
+                    corpse = Some(entity);
+                }
+            }
+            if let ZoneEvent::EntityRespawned {
+                entity, position, ..
+            } = e
+            {
+                if entity == killer {
+                    assert_eq!(position, Vec2Fixed::from_tiles(126, 126));
+                    let c = after
+                        .entities
+                        .iter()
+                        .find(|e| e.id == entity)
+                        .unwrap()
+                        .combat
+                        .as_ref()
+                        .unwrap();
+                    assert!(c.protected_until.is_some_and(|t| t > r.tick));
+                    assert!(matches!(c.role, CombatRole::Player { xp, .. } if xp < 68));
+                    respawn = true;
+                }
+            }
+        }
+        if let Some(id) = corpse {
+            decay |= !after.entities.iter().any(|e| e.id == id);
+        }
+        npc_respawn |= after.entities.iter().any(|e| {
+            e.kind == EntityKind::Npc
+                && e.combat
+                    .as_ref()
+                    .is_some_and(|c| c.incarnation > 1 && c.hp > 0)
+        });
+    }
+    assert!(chase && social && respawn && disconnect && decay && npc_respawn,
+        "chase={chase} social={social} respawn={respawn} disconnect={disconnect} decay={decay} npc_respawn={npc_respawn}");
+    for outcome in [AttackOutcome::Hit, AttackOutcome::Miss, AttackOutcome::Crit] {
+        assert!(
+            all.iter()
+                .any(|e| matches!(e, ZoneEvent::AttackResult { outcome: o, .. } if *o == outcome)),
+            "missing {outcome:?}"
+        );
+    }
+}
+
+fn tool_diverges(rec: &Recording, tick: nightfall_api::domain::zone::Tick) {
+    let file = tmp("fight-mutation.nfr");
+    rec.write(&file).unwrap();
+    let (code, stdout, stderr) = tool(&["--source", "file", "--file", file.to_str().unwrap()]);
+    std::fs::remove_file(file).unwrap();
+    assert_eq!(code, 1, "{stdout}{stderr}");
+    assert!(stdout.contains(&format!("divergence at tick {}\n", tick.0)), "{stdout}{stderr}");
+}
+
+#[tokio::test]
+async fn fight_changed_damage_coefficient_diverges_at_the_impact_tick() {
+    let mut rec = mid_fight();
+    rec.snapshot
+        .rules
+        .as_mut()
+        .unwrap()
+        .constants
+        .damage_coefficient *= 2;
+    let tick = rec.records[0].tick;
+    let d = diverged(replay(rec.clone()).await);
+    assert_eq!(d.tick(), tick);
+    assert_eq!(
+        d.mismatch,
+        Mismatch::Events,
+        "must change combat facts, not merely the rules digest"
+    );
+    tool_diverges(&rec, tick);
+}
+
+#[tokio::test]
+async fn fight_skipped_rng_draw_diverges_at_the_impact_tick() {
+    let mut rec = mid_fight();
+    // Restore as if the preceding u32 draw had been skipped; retain every recorded command.
+    rec.snapshot.rng.word_pos -= 1;
+    let tick = rec.records[0].tick;
+    assert_eq!(diverged(replay(rec.clone()).await).tick(), tick);
+    tool_diverges(&rec, tick);
+}
+
+#[tokio::test]
+async fn fight_dropped_ai_intention_diverges_at_its_tick() {
+    let mut rec = fight();
+    let r = rec
+        .records
+        .iter_mut()
+        .find(|r| {
+            events(r)
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::NpcIntentionChanged { .. }))
+        })
+        .unwrap();
+    let mut facts = events(r);
+    let i = facts
+        .iter()
+        .position(|e| matches!(e, ZoneEvent::NpcIntentionChanged { .. }))
+        .unwrap();
+    facts.remove(i);
+    r.events = nightfall_api::application::replay_log::encode_events(&facts);
+    let tick = r.tick;
+    let d = diverged(replay(rec.clone()).await);
+    assert_eq!(d.tick(), tick);
+    assert_eq!(d.mismatch, Mismatch::Events);
+    tool_diverges(&rec, tick);
+}
+
+#[tokio::test]
+async fn fight_altered_off_aoi_fact_diverges_without_any_player_output() {
+    let mut rec = fight();
+    let r = rec
+        .records
+        .iter_mut()
+        .find(|r| {
+            r.outputs.is_empty()
+                && events(r).iter().any(|e| {
+                    matches!(
+                        e,
+                        ZoneEvent::EntitySpawn {
+                            combat: Some(_),
+                            ..
+                        }
+                    )
+                })
+        })
+        .unwrap();
+    let mut facts = events(r);
+    let e = facts
+        .iter_mut()
+        .find(|e| {
+            matches!(
+                e,
+                ZoneEvent::EntitySpawn {
+                    combat: Some(_),
+                    ..
+                }
+            )
+        })
+        .unwrap();
+    if let ZoneEvent::EntitySpawn {
+        combat: Some(view), ..
+    } = e
+    {
+        view.hp -= 1;
+    }
+    r.events = nightfall_api::application::replay_log::encode_events(&facts);
+    let tick = r.tick;
+    let d = diverged(replay(rec.clone()).await);
+    assert_eq!(d.tick(), tick);
+    assert_eq!(d.mismatch, Mismatch::Events);
+    tool_diverges(&rec, tick);
+}
+
+#[test]
+fn fight_tool_replays_epoch_and_mid_fight_and_refuses_gaps_and_truncation() {
+    for rec in [fight(), mid_fight()] {
+        let file = tmp("fight-suffix.nfr");
+        rec.write(&file).unwrap();
+        let (code, stdout, stderr) = tool(&["--source", "file", "--file", file.to_str().unwrap()]);
+        assert_eq!(code, 0, "{stdout}{stderr}");
+        for index in [rec.records.len() / 2, rec.records.len() - 1] {
+            let mut broken = rec.clone();
+            broken.records.remove(index);
+            broken.write(&file).unwrap();
+            let (code, stdout, stderr) =
+                tool(&["--source", "file", "--file", file.to_str().unwrap()]);
+            assert_eq!(code, 2, "{stdout}{stderr}");
+            assert!(
+                stderr.contains("expected the record") || stderr.contains("log ends before tick"),
+                "{stderr}"
+            );
+        }
+        std::fs::remove_file(file).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn fight_copy_without_completion_watermark_is_refused() {
+    use prost::Message as _;
+    use std::io::{Read as _, Write as _};
+    #[derive(prost::Message)]
+    struct Envelope {
+        #[prost(bytes = "vec", tag = "1")]
+        snapshot: Vec<u8>,
+        #[prost(bytes = "vec", tag = "2")]
+        watermark: Vec<u8>,
+        #[prost(bytes = "vec", repeated, tag = "3")]
+        records: Vec<Vec<u8>>,
+    }
+    use nightfall_api::application::replay_log::ReplayError;
+    let rec = fight();
+    let log = InMemoryEventLog::default();
+    log.write_snapshot(&rec.snapshot).await.unwrap();
+    for r in &rec.records {
+        log.append_applied(r).await.unwrap();
+    }
+    assert!(matches!(
+        open_epoch(&log, rec.snapshot.seed.zone, rec.snapshot.seed.epoch).await,
+        Err(ReplayError::Incomplete { .. })
+    ));
+    assert!(matches!(
+        Recording::export(&log, rec.snapshot.seed.zone, rec.snapshot.seed.epoch).await,
+        Err(ReplayError::Incomplete { .. })
+    ));
+
+    // Strip field 2 from the actual .nfr protobuf envelope, retaining snapshot and records.
+    let bytes = rec.to_bytes().unwrap();
+    let mut body = Vec::new();
+    flate2::read::ZlibDecoder::new(&bytes[12..])
+        .read_to_end(&mut body)
+        .unwrap();
+    let mut envelope = Envelope::decode(body.as_slice()).unwrap();
+    envelope.watermark.clear();
+    let mut z = flate2::write::ZlibEncoder::new(bytes[..12].to_vec(), flate2::Compression::fast());
+    z.write_all(&envelope.encode_to_vec()).unwrap();
+    let file = tmp("fight-incomplete.nfr");
+    std::fs::write(&file, z.finish().unwrap()).unwrap();
+    let (code, stdout, stderr) = tool(&["--source", "file", "--file", file.to_str().unwrap()]);
+    assert_eq!(code, 2, "malformed file must be refused: {stdout}{stderr}");
+    assert!(stderr.contains("cannot decode replay-log record"), "{stderr}");
+    std::fs::remove_file(file).unwrap();
+}

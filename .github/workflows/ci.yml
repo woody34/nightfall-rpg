@@ -90,6 +90,7 @@ jobs:
 
       # Explicit API targets exclude Unreal editor tasks. Force service acceptance and
       # entity drift checks even for workflow/infra-only changes or a warm task cache.
+      # replay-check verifies both movement v4 and fight v2; api:test runs fight mutations.
       - name: moon ci
         run: >-
           moon ci --force --color api:build api:check api:lint api:format
