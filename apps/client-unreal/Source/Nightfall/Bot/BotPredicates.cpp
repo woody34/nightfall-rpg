@@ -822,7 +822,7 @@ void FBotPredicateRegistry::RegisterBuiltins()
 			const uint64 Reward = D.KeltirXpReward.GetValue();
 			const uint64 Expected = O->XpAtTargetSelection.GetValue() + Reward;
 			const UCombatStateSubsystem* Combat = C.Combat();
-			const FOwnCombatState* Own = Combat ? &Combat->GetOwn() : nullptr;
+			const FCombatEntity* Own = Combat ? Combat->FindOwnEntity() : nullptr;
 			return { O->LastXpGainedAmount.GetValue() == Reward && O->TrackedXp.GetValue() == Expected && Own && Own->Level == D.LevelForXp(Expected),
 				FString::Printf(TEXT("amount %llu expected %llu; total %llu expected %llu"), O->LastXpGainedAmount.GetValue(), Reward, O->TrackedXp.GetValue(), Expected) };
 		});
