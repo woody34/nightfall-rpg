@@ -286,7 +286,7 @@ To avoid conflation between scenario execution and soak testing, two distinct in
 
 ### 8.3 Scenario coverage and measured execution runtimes
 
-The test suite contains **19 `.nfs` scenario files** representing **15 logical execution units** (11 single-client scenarios and 4 paired two-client scenarios). Independent client-visible traceability analysis confirms that **25/25 tagged `[client-visible]` stories** across Phase 0b and Phase 1 are mapped by scenario headers.
+The test suite contains **19 `.nfs` scenario files** representing **15 logical execution units** (11 single-client scenarios and 4 paired two-client scenarios). The traceability checker reports **25 completed client-visible stories: 23 covered, 2 explicit exceptions, 0 missing**. The exceptions are Phase 0b E1.5 (interactive device authorization and token storage) and E6.2 (browser approval and return-to-game UI); headless dev-token admission does not exercise those interactions. The manifest separately records Phase 1a E3.6 combined live/adversarial evidence outside those completed-story totals.
 
 - **Authentication boundary**: Headless scenarios authenticate via dev tokens (`AUTH_DEV_TOKENS=1`, `nf.Login`); this exercises session admission, play ticket issuance, and WebSocket connection, but does not exercise the interactive browser OIDC device flow or CommonUI login widgets.
 - **Combat state and late-entry assertions**: Paired late-entry live scenarios (`1-late-entry-a/b`) verify live reconnection and same-life HP continuity. Stale-fact handling and adversarial lower-incarnation rejections (`IsStaleSpawn`) are validated via dedicated unit and projection automation tests rather than injected by the live server.
