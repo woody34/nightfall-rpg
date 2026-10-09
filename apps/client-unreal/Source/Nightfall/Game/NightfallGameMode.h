@@ -26,6 +26,14 @@ public:
 	/** Proxy class for server entities (BP_RemoteEntity). */
 	UPROPERTY(EditDefaultsOnly, Category = "Nightfall")
 	TSubclassOf<ARemoteEntityActor> EntityClass;
+
+	/** NPC template id -> proxy class (BP_Keltir for "keltir"). */
+	UPROPERTY(EditDefaultsOnly, Category = "Nightfall")
+	TMap<FString, TSubclassOf<ARemoteEntityActor>> TemplateClasses;
+
+	/** Proxy class for other players (BP_RemotePlayer). */
+	UPROPERTY(EditDefaultsOnly, Category = "Nightfall")
+	TSubclassOf<ARemoteEntityActor> PlayerClass;
 };
 
 /** Login-map game mode (L_Login): no pawn, ANightfallLoginPlayerController shows the login screen. */

@@ -111,6 +111,14 @@ public:
 	/** Server time estimate for interpolation. Offset is learned from EntityMove timestamps. */
 	int64 EstimatedServerTimeMs() const;
 
+	/**
+	 * Server time of a zone tick (time_origin_ms + tick * 100), the origin learned from EntityMove,
+	 * which carries both. Before the first move it falls back to EstimatedServerTimeMs().
+	 */
+	int64 TickToServerTimeMs(uint64 Tick) const;
+	void SetTickTimeOriginForTesting(int64 OriginMs) { TickTimeOriginMs = OriginMs; }
+	static constexpr int64 TICK_MS = 100;
+
 	FSnapshotBuffer& Snapshots() { return SnapshotBuffer; }
 
 	/** Entities spawned and not yet despawned. A world that loads after connecting starts from these. */
@@ -163,6 +171,7 @@ private:
 	uint32 NextSeq = 0;
 	uint32 LastAckedSeq = 0;
 	int64 ServerClockOffsetMs = 0;
+	TOptional<int64> TickTimeOriginMs;
 	FString OwnEntityId;
 	TArray<uint8> Frame;              // reassembly buffer for fragmented frames
 	FSnapshotBuffer SnapshotBuffer;

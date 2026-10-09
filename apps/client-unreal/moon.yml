@@ -36,6 +36,19 @@ tasks:
     command: 'bash Scripts/create-content.sh'
     deps: ['~:build-editor']
     preset: 'utility'
+  # Imports the owner's Fab downloads (Vendor/Downloads) and the engine's template Manny into
+  # Content/Vendor (git-ignored) headless with Scripts/import_vendor.py. Repeatable; see
+  # THIRD_PARTY_ASSETS.md and the README "Art and animation".
+  import-vendor:
+    command: 'bash Scripts/import-vendor.sh'
+    deps: ['~:build-editor']
+    preset: 'utility'
+  # Two scripted game clients against a running API with AUTH_DEV_TOKENS=1 (GRPC=host:port, default
+  # localhost:50051): kill -> XP and death -> respawn with the animated proxies.
+  playtest:
+    command: 'bash Scripts/playtest.sh'
+    deps: ['~:build-editor']
+    preset: 'utility'
   editor:
     command: 'bash -c "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor $PWD/Nightfall.uproject"'
     preset: 'server'

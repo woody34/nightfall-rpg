@@ -3,6 +3,8 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Anim/EntityAnimationComponent.h"
 
 ARemoteEntityActor::ARemoteEntityActor()
 {
@@ -14,6 +16,15 @@ ARemoteEntityActor::ARemoteEntityActor()
 	Body->SetRelativeLocation(FVector(0.f, 0.f, 95.f));
 	Body->SetRelativeScale3D(FVector(0.8f, 0.8f, 1.9f));   // sized for the engine's 100 cm shapes
 
+	SkeletalBody = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalBody"));
+	SkeletalBody->SetupAttachment(RootComponent);
+	SkeletalBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SkeletalBody->SetVisibility(false);
+	// Proxies off screen still need their death/corpse pose when they come into view.
+	SkeletalBody->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+
+	Animation = CreateDefaultSubobject<UEntityAnimationComponent>(TEXT("Animation"));
+
 	ClickVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("ClickVolume"));
 	ClickVolume->SetupAttachment(RootComponent);
 	ClickVolume->InitCapsuleSize(60.f, 100.f);
@@ -24,9 +35,17 @@ ARemoteEntityActor::ARemoteEntityActor()
 	ClickVolume->SetCanEverAffectNavigation(false);
 }
 
+void ARemoteEntityActor::BeginPlay()
+{
+	Super::BeginPlay();
+	bAnimatedBody = Animation->ApplyToMesh(SkeletalBody);
+	Body->SetVisibility(!bAnimatedBody);
+}
+
 void ARemoteEntityActor::Bind(UNetClientSubsystem* InNet)
 {
 	Net = InNet;
+	Animation->Bind(InNet, EntityId);
 }
 
 void ARemoteEntityActor::Tick(float DeltaSeconds)

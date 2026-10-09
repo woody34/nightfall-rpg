@@ -1,5 +1,9 @@
 #include "NightfallCharacter.h"
 #include "OwnEntityComponent.h"
+#include "Anim/EntityAnimationComponent.h"
+#include "Net/NetClientSubsystem.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/GameInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -31,6 +35,10 @@ ANightfallCharacter::ANightfallCharacter()
 
 	OwnEntity = CreateDefaultSubobject<UOwnEntityComponent>(TEXT("OwnEntity"));
 
+	Animation = CreateDefaultSubobject<UEntityAnimationComponent>(TEXT("Animation"));
+	Animation->AnimSet = UEntityAnimationComponent::PresetAnimSet(EEntityAnimPreset::Manny);
+	Animation->bRenderAtServerTime = true;   // the own pawn is not interpolated
+
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->SetUsingAbsoluteRotation(true);   // stays put while the character turns
@@ -41,4 +49,20 @@ ANightfallCharacter::ANightfallCharacter()
 	TopDownCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("TopDownCamera"));
 	TopDownCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	TopDownCamera->bUsePawnControlRotation = false;
+}
+
+void ANightfallCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	// The capsule's origin is at its centre; the mesh's is at its feet.
+	const FVector Feet(0.f, 0.f, -GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	if (Animation->ApplyToMesh(GetMesh(), Feet))
+	{
+		Body->SetVisibility(false);
+	}
+	UGameInstance* GI = GetGameInstance();
+	if (UNetClientSubsystem* Net = GI ? GI->GetSubsystem<UNetClientSubsystem>() : nullptr)
+	{
+		Animation->Bind(Net, Net->GetOwnEntityId());
+	}
 }

@@ -21,6 +21,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nightfall")
 	TSubclassOf<class ARemoteEntityActor> EntityClass;
 
+	/** NPC template id (EntitySpawn.template_id, e.g. "keltir") -> proxy class. Others use EntityClass. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nightfall")
+	TMap<FString, TSubclassOf<class ARemoteEntityActor>> TemplateClasses;
+
+	/** Proxy class for other players; EntityClass when unset. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nightfall")
+	TSubclassOf<class ARemoteEntityActor> PlayerClass;
+
+	/** The class a spawn gets: template class for NPCs, PlayerClass for players, else EntityClass. */
+	TSubclassOf<class ARemoteEntityActor> ClassFor(const FEntitySpawn& Spawn) const;
+
 	/** The live proxies by entity id (as the server spelled it). */
 	const TMap<FString, TObjectPtr<class ARemoteEntityActor>>& GetProxies() const { return Entities; }
 
