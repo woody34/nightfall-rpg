@@ -228,6 +228,28 @@ pub fn other_account() -> Uuid {
     Uuid::parse_str(OTHER_ACCOUNT).unwrap()
 }
 
+/// The fixture zone with the embedded HF stat rules, so players spawn as combatants.
 pub fn fixture_zone() -> nightfall_api::domain::zone::ZoneState {
-    nightfall_api::application::zone_registry::fixture_state(1_000_000).unwrap()
+    nightfall_api::application::zone_registry::fixture_state(1_000_000)
+        .unwrap()
+        .with_rules(rules())
+}
+
+/// The Keltir combat profile from the embedded test zone and rules.
+pub fn keltir() -> nightfall_api::domain::zone::NpcCombat {
+    use nightfall_api::infrastructure::zone_data::{parse_zone, TEST_ZONE_TOML};
+    let def = parse_zone(TEST_ZONE_TOML).unwrap();
+    nightfall_api::domain::zone::NpcCombat::from_template(&rules(), &def.npc_templates[0]).unwrap()
+}
+
+/// The embedded stat rules, loaded once per test binary.
+pub fn rules() -> Arc<nightfall_api::domain::zone::StatRules> {
+    static RULES: std::sync::OnceLock<Arc<nightfall_api::domain::zone::StatRules>> =
+        std::sync::OnceLock::new();
+    RULES
+        .get_or_init(|| {
+            use nightfall_api::infrastructure::rules_data::{load_rules, RulesSource};
+            load_rules(&RulesSource::embedded()).unwrap().rules
+        })
+        .clone()
 }

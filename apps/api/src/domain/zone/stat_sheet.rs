@@ -12,8 +12,11 @@ use super::scaled::{add, floor_div, isqrt, mul, narrow, round_div, Scaled, StatE
 use super::stat_rules::{ClassTemplate, FormulaConstants, StatKind, StatRules, WeaponBlock};
 
 /// Derived stats an attack or a resource bar reads. Fields are private so every sheet has
-/// passed its constructor's checks (positive defence and attack speed, crit within cap).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// passed its constructor's checks (positive defence and attack speed, crit within cap);
+/// deserialising goes through [`StatSheet::from_final`] too, so a snapshot cannot smuggle in
+/// a sheet the constructor would refuse.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(into = "FinalStats", try_from = "FinalStats")]
 pub struct StatSheet {
     level: u32,
     max_hp: u32,
@@ -28,7 +31,7 @@ pub struct StatSheet {
 }
 
 /// Final stat values for an entity that does not derive from a class (NPC templates).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[allow(missing_docs)]
 pub struct FinalStats {
     pub level: u32,
@@ -109,6 +112,23 @@ impl StatSheet {
         })
     }
 
+    /// The sheet's values as plain data (the inverse of [`Self::from_final`]).
+    #[must_use]
+    pub const fn to_final(self) -> FinalStats {
+        FinalStats {
+            level: self.level,
+            max_hp: self.max_hp,
+            max_mp: self.max_mp,
+            p_atk: self.p_atk,
+            p_def: self.p_def,
+            accuracy: self.accuracy,
+            evasion: self.evasion,
+            crit_permille: self.crit_permille,
+            attack_speed: self.attack_speed,
+            random_damage: self.random_damage,
+        }
+    }
+
     /// Level.
     #[must_use]
     pub const fn level(&self) -> u32 {
@@ -158,6 +178,20 @@ impl StatSheet {
     #[must_use]
     pub const fn random_damage(&self) -> u32 {
         self.random_damage
+    }
+}
+
+impl From<StatSheet> for FinalStats {
+    fn from(s: StatSheet) -> Self {
+        s.to_final()
+    }
+}
+
+impl TryFrom<FinalStats> for StatSheet {
+    type Error = StatError;
+
+    fn try_from(s: FinalStats) -> Result<Self, StatError> {
+        Self::from_final(s)
     }
 }
 

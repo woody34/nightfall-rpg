@@ -52,6 +52,12 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackResult* in, ::nightfall::v1::
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityDied* in, FGrpcNightfallV1EntityDied* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityDied* in, ::nightfall::v1::EntityDied* out);
 
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackStarted* in, FGrpcNightfallV1AttackStarted* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackStarted* in, ::nightfall::v1::AttackStarted* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackCancelled* in, FGrpcNightfallV1AttackCancelled* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackCancelled* in, ::nightfall::v1::AttackCancelled* out);
+
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityRespawned* in, FGrpcNightfallV1EntityRespawned* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityRespawned* in, ::nightfall::v1::EntityRespawned* out);
 

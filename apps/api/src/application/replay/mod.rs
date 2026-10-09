@@ -3,7 +3,8 @@
 //! Rebuilds a zone from its epoch-start snapshot, feeds every applied record's commands in
 //! ordinal order through [`TickRunner::replay_tick`] (no actor, no clock: the records are the tick
 //! source), re-encodes each player's output with the log's codec and compares it with the
-//! recorded output: SHA-256 first, then the bytes when the record holds them. The first
+//! recorded output: SHA-256 first, then the bytes when the record holds them. Zone-wide events
+//! (including off-AOI facts) and the end-of-tick state digest are compared too. The first
 //! mismatch stops the run and is returned as a [`Divergence`].
 
 mod divergence;
@@ -154,6 +155,16 @@ fn compare(
     }
     if recorded.dispositions != rerun.dispositions {
         return Err(Mismatch::Dispositions);
+    }
+    let events_match = match recorded.output_form {
+        OutputForm::Encoded => recorded.events == rerun.events,
+        OutputForm::Sha256 => recorded.events.as_ref() == Sha256::digest(&rerun.events).as_slice(),
+    };
+    if !events_match {
+        return Err(Mismatch::Events);
+    }
+    if recorded.state_digest != rerun.state_digest {
+        return Err(Mismatch::StateDigest);
     }
     let selected = |e: &EntityId| session.is_none_or(|s| s == *e);
     let recorded_ids: Vec<EntityId> = recorded.outputs.iter().map(|o| o.entity).collect();

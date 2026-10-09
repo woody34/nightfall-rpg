@@ -19,6 +19,8 @@ DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntityMove, ::nightfall::v1::EntityMove)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntityDespawn, ::nightfall::v1::EntityDespawn)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1AttackResult, ::nightfall::v1::AttackResult)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntityDied, ::nightfall::v1::EntityDied)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1AttackStarted, ::nightfall::v1::AttackStarted)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1AttackCancelled, ::nightfall::v1::AttackCancelled)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EntityRespawned, ::nightfall::v1::EntityRespawned)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1StatsChanged, ::nightfall::v1::StatsChanged)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1XpGained, ::nightfall::v1::XpGained)
@@ -110,7 +112,7 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     FGrpcNightfallV1EntitySpawn Spawn, FGrpcNightfallV1EntityMove Move, FGrpcNightfallV1EntityDespawn Despawn, 
     FGrpcNightfallV1AttackResult AttackResult, FGrpcNightfallV1EntityDied EntityDied, FGrpcNightfallV1EntityRespawned EntityRespawned, 
     FGrpcNightfallV1StatsChanged StatsChanged, FGrpcNightfallV1XpGained XpGained, FGrpcNightfallV1LevelUp LevelUp, 
-    FGrpcNightfallV1TargetChanged TargetChanged 
+    FGrpcNightfallV1TargetChanged TargetChanged, FGrpcNightfallV1AttackStarted AttackStarted, FGrpcNightfallV1AttackCancelled AttackCancelled 
 )
 {
     FGrpcNightfallV1WorldEventEvent Event;
@@ -125,6 +127,8 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     Event.XpGained = MakeShareable(new FGrpcNightfallV1XpGained(XpGained));
     Event.LevelUp = MakeShareable(new FGrpcNightfallV1LevelUp(LevelUp));
     Event.TargetChanged = MakeShareable(new FGrpcNightfallV1TargetChanged(TargetChanged));
+    Event.AttackStarted = MakeShareable(new FGrpcNightfallV1AttackStarted(AttackStarted));
+    Event.AttackCancelled = MakeShareable(new FGrpcNightfallV1AttackCancelled(AttackCancelled));
 
     return Event;
 }
@@ -133,7 +137,7 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     FGrpcNightfallV1EntitySpawn& Spawn, FGrpcNightfallV1EntityMove& Move, FGrpcNightfallV1EntityDespawn& Despawn, 
     FGrpcNightfallV1AttackResult& AttackResult, FGrpcNightfallV1EntityDied& EntityDied, FGrpcNightfallV1EntityRespawned& EntityRespawned, 
     FGrpcNightfallV1StatsChanged& StatsChanged, FGrpcNightfallV1XpGained& XpGained, FGrpcNightfallV1LevelUp& LevelUp, 
-    FGrpcNightfallV1TargetChanged& TargetChanged 
+    FGrpcNightfallV1TargetChanged& TargetChanged, FGrpcNightfallV1AttackStarted& AttackStarted, FGrpcNightfallV1AttackCancelled& AttackCancelled 
 )
 {
     EventCase = Event.EventCase;
@@ -176,6 +180,68 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     if(Event.TargetChanged.Get()) 
     {
         TargetChanged = *(Event.TargetChanged.Get());
+    }
+    if(Event.AttackStarted.Get()) 
+    {
+        AttackStarted = *(Event.AttackStarted.Get());
+    }
+    if(Event.AttackCancelled.Get()) 
+    {
+        AttackCancelled = *(Event.AttackCancelled.Get());
+    }
+}
+
+FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntitySpawn( 
+    FString EntityId, FString Name, FGrpcNightfallV1Position Position, 
+    EGrpcNightfallV1EntityKind Kind, FUInt32 SessionGeneration, bool Combatant, 
+    FString TemplateId, FUInt32 LifeIncarnation, bool Dead, 
+    bool Attackable, FUInt32 Hp, FUInt32 MaxHp, 
+    FUInt32 Level, FGrpcNightfallV1AttackStarted PendingSwing 
+)
+{
+    FGrpcNightfallV1EntitySpawn EntitySpawn;
+    EntitySpawn.EntityId = EntityId;
+    EntitySpawn.Name = Name;
+    EntitySpawn.Position = Position;
+    EntitySpawn.Kind = Kind;
+    EntitySpawn.SessionGeneration = SessionGeneration;
+    EntitySpawn.Combatant = Combatant;
+    EntitySpawn.TemplateId = TemplateId;
+    EntitySpawn.LifeIncarnation = LifeIncarnation;
+    EntitySpawn.Dead = Dead;
+    EntitySpawn.Attackable = Attackable;
+    EntitySpawn.Hp = Hp;
+    EntitySpawn.MaxHp = MaxHp;
+    EntitySpawn.Level = Level;
+    EntitySpawn.PendingSwing = MakeShareable(new FGrpcNightfallV1AttackStarted(PendingSwing));
+
+    return EntitySpawn;
+}
+
+void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNightfallV1EntitySpawn& EntitySpawn,  
+    FString& EntityId, FString& Name, FGrpcNightfallV1Position& Position, 
+    EGrpcNightfallV1EntityKind& Kind, FUInt32& SessionGeneration, bool& Combatant, 
+    FString& TemplateId, FUInt32& LifeIncarnation, bool& Dead, 
+    bool& Attackable, FUInt32& Hp, FUInt32& MaxHp, 
+    FUInt32& Level, FGrpcNightfallV1AttackStarted& PendingSwing 
+)
+{
+    EntityId = EntitySpawn.EntityId;
+    Name = EntitySpawn.Name;
+    Position = EntitySpawn.Position;
+    Kind = EntitySpawn.Kind;
+    SessionGeneration = EntitySpawn.SessionGeneration;
+    Combatant = EntitySpawn.Combatant;
+    TemplateId = EntitySpawn.TemplateId;
+    LifeIncarnation = EntitySpawn.LifeIncarnation;
+    Dead = EntitySpawn.Dead;
+    Attackable = EntitySpawn.Attackable;
+    Hp = EntitySpawn.Hp;
+    MaxHp = EntitySpawn.MaxHp;
+    Level = EntitySpawn.Level;
+    if(EntitySpawn.PendingSwing.Get()) 
+    {
+        PendingSwing = *(EntitySpawn.PendingSwing.Get());
     }
 }
 

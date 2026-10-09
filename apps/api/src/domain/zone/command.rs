@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::combat::{CombatView, NpcCombat, PlayerLoad, SwingCancel};
 use super::entity::{EntityId, EntityKind, Tick};
 use super::fixed::{Speed, Vec2Fixed};
 
@@ -96,6 +97,8 @@ pub enum ZoneCommand {
         speed: Speed,
         /// Generation of the admitting session.
         generation: SessionGeneration,
+        /// Loaded combat state; `None` spawns a noncombat player (zones without rules).
+        load: Option<Box<PlayerLoad>>,
     },
     /// The server places an NPC. System only. The id is drawn from the zone's seeded RNG so a
     /// replay assigns the same one.
@@ -106,6 +109,8 @@ pub enum ZoneCommand {
         pos: Vec2Fixed,
         /// Movement speed.
         speed: Speed,
+        /// Combat profile; `None` is a noncombat fixture.
+        combat: Option<Box<NpcCombat>>,
     },
     /// Remove an entity. Removing an unknown entity is a no-op, so a disconnect racing a
     /// server-side removal is harmless.
@@ -135,12 +140,13 @@ pub enum ZoneCommand {
         /// None clears selection.
         target: Option<EntityId>,
     },
-    /// Enable attacks on the current target; repeating never resets a cycle. E2.1 records a `NotYetImplemented` disposition.
+    /// Enable auto-attack on the current target: chase into reach, then swing every cycle.
+    /// Repeating never resets a cycle or adds a swing.
     Attack {
         /// Session-owned actor.
         entity: EntityId,
     },
-    /// Disable attacks; repeating is harmless. E2.1 records a `NotYetImplemented` disposition.
+    /// Disable auto-attack and cancel the pending swing; repeating is harmless.
     StopAttack {
         /// Session-owned actor.
         entity: EntityId,
@@ -154,6 +160,14 @@ pub enum ZoneCommand {
     StopMove {
         /// Who stops.
         entity: EntityId,
+    },
+    /// An auto or social aggro entry: `npc` adds 1 hate for `target` and re-selects its most
+    /// hated target (plan §3.1 "Hate"). System only; the NPC AI (E3.2) issues it.
+    AddAggro {
+        /// The hating NPC.
+        npc: EntityId,
+        /// The living player it notices.
+        target: EntityId,
     },
 }
 
@@ -172,6 +186,7 @@ impl ZoneCommand {
             | Self::Attack { entity }
             | Self::StopAttack { entity }
             | Self::Respawn { entity } => Some(*entity),
+            Self::AddAggro { npc, .. } => Some(*npc),
             Self::SpawnNpc { .. } => None,
         }
     }
@@ -207,11 +222,13 @@ pub enum RejectReason {
     StaleSession,
     /// The command targets an NPC but only makes sense for a player.
     NotAPlayer,
+    /// `SpawnPlayer` carried a class, level or XP the zone's rules do not accept.
+    InvalidLoad,
 }
 
 impl RejectReason {
     /// Human-readable detail for `IntentRejected.detail`. Reasons without their own wire enum
-    /// value (`AlreadyExists`, `NotPermitted`, `StaleSession`, `NotAPlayer`) go on the wire
+    /// value (`AlreadyExists`, `NotPermitted`, `StaleSession`, `NotAPlayer`, `InvalidLoad`) go on the wire
     /// as `INVALID` with this text.
     #[must_use]
     pub const fn detail(self) -> &'static str {
@@ -231,6 +248,7 @@ impl RejectReason {
             Self::NotPermitted => "source may not issue this command",
             Self::StaleSession => "session generation is not current",
             Self::NotAPlayer => "entity is not a player",
+            Self::InvalidLoad => "character state does not match the zone's rules",
         }
     }
 }
@@ -284,6 +302,8 @@ pub enum ZoneEvent {
         damage: u32,
         /// authoritative remaining whole HP after impact.
         target_hp_after: u32,
+        /// The target's life the swing landed on.
+        target_incarnation: u32,
     },
     /// Authoritative entity died fact.
     EntityDied {
@@ -293,6 +313,49 @@ pub enum ZoneEvent {
         tick: Tick,
         /// killing entity UUID; empty if no killer.
         killer: Option<EntityId>,
+        /// The life that ended.
+        incarnation: u32,
+    },
+    /// A swing started; it lands at `impact` unless cancelled, and the next may start at
+    /// `ready` (so clients wind animations up before impact).
+    AttackStarted {
+        /// Start tick.
+        tick: Tick,
+        /// Swinging entity.
+        attacker: EntityId,
+        /// Its target.
+        target: EntityId,
+        /// The target's life.
+        target_incarnation: u32,
+        /// Impact tick.
+        impact: Tick,
+        /// Next-swing tick.
+        ready: Tick,
+    },
+    /// A pending swing ended without an impact.
+    AttackCancelled {
+        /// Tick of the fact.
+        tick: Tick,
+        /// Swinging entity.
+        attacker: EntityId,
+        /// Its target.
+        target: EntityId,
+        /// Why.
+        reason: SwingCancel,
+    },
+    /// Internal: an NPC's hate row changed. `hate == 0 && damage == 0` means the row was
+    /// forgotten. Never sent to a client; recorded so off-AOI aggro is replayed and compared.
+    HateChanged {
+        /// Tick of the fact.
+        tick: Tick,
+        /// The hating NPC.
+        npc: EntityId,
+        /// The hated entity.
+        target: EntityId,
+        /// Hate after the change.
+        hate: u64,
+        /// Damage dealt so far.
+        damage: u64,
     },
     /// Authoritative entity respawned fact.
     EntityRespawned {
@@ -371,6 +434,8 @@ pub enum ZoneEvent {
         speed: Speed,
         /// For players, the owning session's generation; default for NPCs.
         generation: SessionGeneration,
+        /// Public combat state; `None` for noncombat entities.
+        combat: Option<CombatView>,
     },
     /// An entity moved this tick, arrived, or stopped.
     EntityMove {
@@ -408,7 +473,10 @@ impl ZoneEvent {
             | Self::StatsChanged { tick, .. }
             | Self::XpGained { tick, .. }
             | Self::LevelUp { tick, .. }
-            | Self::TargetChanged { tick, .. } => *tick,
+            | Self::TargetChanged { tick, .. }
+            | Self::AttackStarted { tick, .. }
+            | Self::AttackCancelled { tick, .. }
+            | Self::HateChanged { tick, .. } => *tick,
         }
     }
 
@@ -425,7 +493,10 @@ impl ZoneEvent {
             | Self::XpGained { entity, .. }
             | Self::LevelUp { entity, .. }
             | Self::TargetChanged { entity, .. } => *entity,
-            Self::AttackResult { attacker, .. } => *attacker,
+            Self::AttackResult { attacker, .. }
+            | Self::AttackStarted { attacker, .. }
+            | Self::AttackCancelled { attacker, .. } => *attacker,
+            Self::HateChanged { npc, .. } => *npc,
         }
     }
 }
@@ -483,9 +554,13 @@ pub struct AppliedTick {
     pub events: Vec<ZoneEvent>,
     /// Per-player ordered output: responses to its own commands (acks and rejections, in
     /// ordinal order), then AOI despawns, AOI spawns, and moves of known entities, each group
-    /// in entity-id order, then owner target changes in causal order. Only players with non-empty output appear. A session sends exactly
-    /// this, in this order (plan §8 #6).
+    /// in entity-id order, then the combat facts it may see in causal (event) order. Only
+    /// players with non-empty output appear. A session sends exactly this, in this order
+    /// (plan §8 #6).
     pub outputs: BTreeMap<EntityId, Vec<ObserverOutput>>,
+    /// SHA-256 of the canonical end-of-tick state (entities, hate, RNG, counters), so drift
+    /// in state nobody observes still fails replay (plan §3.2).
+    pub state_digest: [u8; 32],
 }
 
 impl AppliedTick {

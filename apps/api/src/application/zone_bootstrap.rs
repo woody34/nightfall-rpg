@@ -22,8 +22,8 @@ use super::replay_log::{
 };
 use super::zone_actor::{TickOutcome, TickSource, ZoneActor, ZoneHandle};
 use crate::domain::zone::{
-    NpcTemplate, SpawnSlot, Speed, StatRules, Vec2Fixed, ZoneBounds, ZoneCommand, ZoneId,
-    ZoneInput, ZoneSeed, ZoneState,
+    NpcCombat, NpcTemplate, SpawnSlot, Speed, StatRules, Vec2Fixed, ZoneBounds, ZoneCommand,
+    ZoneId, ZoneInput, ZoneSeed, ZoneState,
 };
 
 /// How long shutdown waits for the actor to finish its current tick.
@@ -107,8 +107,8 @@ impl ZoneBootstrap {
         self
     }
 
-    /// Injects the stat rules the zone will simulate with. Combat state and snapshot
-    /// provenance read them from here (Stories E2.2+); until then they are only held.
+    /// Injects the stat rules the zone will simulate with: they go into the zone state (and so
+    /// into every snapshot), resolve the spawn slots' monsters and stamp `rules_hash`.
     #[must_use]
     pub fn with_rules(mut self, rules: ResolvedRules) -> Self {
         self.rules = Some(rules);
@@ -129,7 +129,7 @@ impl ZoneBootstrap {
     ) -> anyhow::Result<RunningZone> {
         let epoch = self.next_epoch(def.zone).await?;
         let time_origin_ms = self.clock.now().timestamp_millis();
-        let state = ZoneState::new(
+        let mut state = ZoneState::new(
             ZoneSeed {
                 zone: def.zone,
                 epoch,
@@ -137,8 +137,16 @@ impl ZoneBootstrap {
             def.bounds,
             time_origin_ms,
         );
+        let mut monsters = Vec::new();
+        if let Some(rules) = &self.rules {
+            state = state.with_rules(rules.rules.clone());
+            monsters = slot_spawns(&rules.rules, def)?;
+        }
         let mut snapshot = state.snapshot();
         snapshot.meta.config_hash.clone_from(&def.config_hash);
+        if let Some(rules) = &self.rules {
+            snapshot.meta.rules_hash.clone_from(&rules.config_hash);
+        }
 
         // Snapshot first: no gate (and so no applied record) exists without this proof.
         let started = start_epoch(self.log.as_ref(), &snapshot)
@@ -184,8 +192,14 @@ impl ZoneBootstrap {
                     name: npc.name.clone(),
                     pos: npc.pos,
                     speed: npc.speed,
+                    combat: None,
                 }))
                 .map_err(|e| anyhow::anyhow!("queue starting NPC {}: {e}", npc.name))?;
+        }
+        for command in monsters {
+            handle
+                .send(ZoneInput::system(command))
+                .map_err(|e| anyhow::anyhow!("queue spawn-slot monster: {e}"))?;
         }
         if let Some(store) = &self.snapshots {
             tokio::spawn(record_first_seq(
@@ -218,6 +232,31 @@ impl ZoneBootstrap {
             .checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("zone {} has run out of epochs", zone.0))
     }
+}
+
+/// The first life of every spawn slot's monsters, `count` per slot at its home, slots in file
+/// order, with combat profiles resolved from their templates once, here. Respawn and slot
+/// ownership are E3.4's.
+pub fn slot_spawns(rules: &StatRules, def: &ZoneDefinition) -> anyhow::Result<Vec<ZoneCommand>> {
+    let mut out = Vec::new();
+    for slot in &def.spawn_slots {
+        let template = def
+            .npc_templates
+            .iter()
+            .find(|t| t.id == slot.template)
+            .with_context(|| format!("spawn slot {} names an unknown template", slot.id))?;
+        let combat = NpcCombat::from_template(rules, template)
+            .with_context(|| format!("resolve template {}", template.id.0))?;
+        for _ in 0..slot.count {
+            out.push(ZoneCommand::SpawnNpc {
+                name: template.name.clone(),
+                pos: slot.home,
+                speed: template.move_speed,
+                combat: Some(Box::new(combat.clone())),
+            });
+        }
+    }
+    Ok(out)
 }
 
 /// Fills `zone_snapshots.jetstream_first_seq` once the first record is acknowledged. Off the
@@ -326,5 +365,37 @@ impl<T: TickSource> TickSource for StoppableTicks<T> {
 
     fn tick_done(&mut self, outcome: TickOutcome) {
         self.inner.tick_done(outcome);
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::wildcard_enum_match_arm
+)]
+mod tests {
+    use super::*;
+    use crate::infrastructure::rules_data::{load_rules, RulesSource};
+    use crate::infrastructure::zone_data::{parse_zone, TEST_ZONE_TOML};
+
+    #[test]
+    fn spawn_slots_become_resolved_combat_spawns_in_file_order() {
+        let rules = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let def = parse_zone(TEST_ZONE_TOML).unwrap();
+        let spawns = slot_spawns(&rules, &def).unwrap();
+        let homes: Vec<Vec2Fixed> = spawns
+            .iter()
+            .map(|c| match c {
+                ZoneCommand::SpawnNpc { pos, combat, .. } => {
+                    assert_eq!(combat.as_ref().unwrap().template, "keltir");
+                    *pos
+                },
+                other => panic!("unexpected {other:?}"),
+            })
+            .collect();
+        let (a, b) = (def.spawn_slots[0].home, def.spawn_slots[1].home);
+        assert_eq!(homes, vec![a, a, b]);
     }
 }

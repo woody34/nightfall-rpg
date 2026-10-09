@@ -314,6 +314,7 @@ async fn stop_move_halts_a_moving_player_and_is_a_silent_ack_when_still() {
     let app = TestApp::spawn().await;
     let mut ws = join(&app, &seed_player(&app, "Alpha", 10.0, 10.0)).await;
     ws.next_msg().await; // own spawn
+    ws.next_msg().await; // own StatsChanged (owner-only, E2.2)
     ws.send(&stop_move(1)).await;
     let m = ws.next_msg().await;
     assert_eq!(ack(&m).map(|a| a.seq), Some(1));
@@ -496,8 +497,8 @@ async fn sessions_and_frames_are_counted() {
     ws.until(|m| ack(m).is_some()).await;
     eventually(&app, "nightfall_sessions_active", "", 1.0).await;
     eventually(&app, "nightfall_ws_frames_total", "direction=\"in\"", 1.0).await;
-    // Own spawn, then the ack.
-    eventually(&app, "nightfall_ws_frames_total", "direction=\"out\"", 2.0).await;
+    // Own spawn, own StatsChanged, then the ack.
+    eventually(&app, "nightfall_ws_frames_total", "direction=\"out\"", 3.0).await;
     eventually(&app, "nightfall_ws_dropped_frames_total", "", 0.0).await;
     ws.close().await;
     eventually(&app, "nightfall_sessions_active", "", 0.0).await;

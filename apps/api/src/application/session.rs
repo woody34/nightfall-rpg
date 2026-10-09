@@ -49,8 +49,8 @@ use super::ports::SessionAudit;
 use super::trace::TraceCarrier;
 use super::zone_actor::{ActorStopped, ZoneHandle, ZoneSendError};
 use crate::domain::zone::{
-    AppliedTick, CommandSource, EntityId, ObserverOutput, SessionGeneration, Speed, Vec2Fixed,
-    ZoneCommand, ZoneInput, TICK_MS,
+    AppliedTick, CommandSource, EntityId, ObserverOutput, PlayerLoad, SessionGeneration, Speed,
+    Vec2Fixed, ZoneCommand, ZoneInput, TICK_MS,
 };
 use crate::domain::SessionId;
 
@@ -303,6 +303,8 @@ pub struct PlayerSpawn {
     pub pos: Vec2Fixed,
     /// Movement speed.
     pub speed: Speed,
+    /// Loaded combat state; `None` spawns a noncombat player.
+    pub load: Option<Box<PlayerLoad>>,
 }
 
 /// The zone generation for an account's session generation. Generations start at 1 and only
@@ -367,6 +369,7 @@ impl SessionRegistry {
                 pos: spawn.pos,
                 speed: spawn.speed,
                 generation,
+                load: spawn.load.clone(),
             },
         };
         zone.send_wait(ZoneInput::system(command)).await?;
@@ -791,7 +794,8 @@ impl<'a> Actor<'a> {
                     | ZoneCommand::SetTarget { .. }
                     | ZoneCommand::Attack { .. }
                     | ZoneCommand::StopAttack { .. }
-                    | ZoneCommand::Respawn { .. } => false,
+                    | ZoneCommand::Respawn { .. }
+                    | ZoneCommand::AddAggro { .. } => false,
                 }
         })?;
         Some(!tick.dispositions.iter().any(|d| d.ordinal == mine.ordinal))

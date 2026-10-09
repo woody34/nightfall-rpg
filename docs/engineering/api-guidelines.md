@@ -164,12 +164,17 @@ Target selection is owner-only and follows responses and AOI output in the order
 | Events | `AttackResult`, `EntityDied`, `EntityRespawned`, `StatsChanged`, `XpGained`, `LevelUp`, `TargetChanged` | Whole HP/MP/damage, u64 XP, ticks of 100 ms; stats, XP and selection are owner-only. |
 | Reasons | `DEAD_ACTOR`, `NON_ATTACKABLE_TARGET`, `TARGET_NOT_IN_AOI`, `OUT_OF_RANGE`, `PROTECTED`, `NOT_YET_IMPLEMENTED` | Unknown target uses `UNKNOWN_ENTITY`; malformed UUID uses `INVALID`; dead target uses `NON_ATTACKABLE_TARGET`. |
 
-Attack/stop/respawn are E2.1 stubs: they reach the zone's applied log and return exactly one
-`NOT_YET_IMPLEMENTED` rejection, with no combat state change. Selection/attack/stop by a dead
-actor return `DEAD_ACTOR`. Range/protection are mapped contract values for E2.3/E2.4, not
-active checks yet; selection alone neither attacks nor checks melee range. Full cycle/state,
-life incarnation and event-index publication follows in E2.2. No repository port is added;
-§4 adapter tests are therefore inapplicable to this story.
+Phase 1 E2.2/E2.3 implement Attack and StopAttack (architecture.md §2.4, "Combat"). Attack
+needs a selected, living, attackable target in the AOI (`UNKNOWN_ENTITY` with no target,
+`NON_ATTACKABLE_TARGET`, `TARGET_NOT_IN_AOI`, `PROTECTED`); a fresh-seq repeat Acks without a
+second swing. StopAttack Acks and cancels the pending swing. MoveTo, StopMove and a target
+change end the attack. Every intent but Respawn from a dead actor returns `DEAD_ACTOR`.
+Respawn is still the E2.1 stub (`NOT_YET_IMPLEMENTED`) until E2.4. `OUT_OF_RANGE` is never a
+rejection: a target out of reach at impact cancels the swing (`AttackCancelled`
+`OUT_OF_RANGE`). New events: `AttackStarted` (start/impact/ready ticks) and `AttackCancelled`;
+`EntitySpawn` gained combat fields 6–14; `AttackResult.target_incarnation` and
+`EntityDied.incarnation` carry the life. Event indices are not on the wire yet. No repository
+port is added; §4 adapter tests are inapplicable.
 
 **Close codes** (only after the upgrade):
 

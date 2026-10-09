@@ -43,7 +43,7 @@ use replay_support::{unique_zone, zone_def, FixedClock};
 use uuid::Uuid;
 
 fn fixture_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/sessions/two-players-v1.nfr")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/sessions/two-players-v2.nfr")
 }
 
 fn fixture() -> Recording {
@@ -165,6 +165,32 @@ async fn a_changed_output_byte_is_reported_at_its_tick_and_session() {
     assert!(report.contains(&format!("divergence at tick {}", want_tick.0)), "{report}");
     assert!(report.contains(&entity.to_string()), "{report}");
     assert!(report.contains("produced ("), "{report}");
+}
+
+#[tokio::test]
+async fn changed_events_or_state_nobody_observed_are_divergences() {
+    // Off-AOI facts live only in the record's events; invisible state only in its digest.
+    let mut rec = fixture();
+    let tick = busy_tick(&rec);
+    let mut events = rec.records[tick].events.to_vec();
+    let last = events.len() - 1;
+    events[last] ^= 0x01;
+    rec.records[tick].events = Bytes::from(events);
+    let d = diverged(replay(rec).await);
+    assert_eq!(d.mismatch, Mismatch::Events);
+    assert!(d.to_string().contains("zone events differ"), "{d}");
+
+    let mut rec = fixture();
+    let mut digest = rec.records[0].state_digest.to_vec();
+    digest[0] ^= 0x01;
+    rec.records[0].state_digest = Bytes::from(digest);
+    let d = diverged(replay(rec).await);
+    assert_eq!(d.mismatch, Mismatch::StateDigest);
+    assert_eq!(d.tick(), rec_first_tick());
+}
+
+fn rec_first_tick() -> nightfall_api::domain::zone::Tick {
+    fixture().records[0].tick
 }
 
 /// A zone whose movement is integrated in `f32` (normalised direction times speed, position
@@ -308,6 +334,7 @@ fn spawn(n: u128, x: i32, y: i32) -> ZoneInput {
         pos: Vec2Fixed::from_tiles(x, y),
         speed: Speed::DEFAULT,
         generation: SessionGeneration(1),
+        load: None,
     })
 }
 

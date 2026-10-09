@@ -18,7 +18,9 @@ use super::stat_sheet::StatSheet;
 pub const BONUS_TABLE_LEN: usize = 100;
 
 /// The six base stats, in the order the tables list them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 #[allow(missing_docs)]
 pub enum StatKind {
     Str,
@@ -69,7 +71,7 @@ impl fmt::Display for StatKind {
 }
 
 /// One stat's bonus multipliers, index = stat value.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BonusTable(Vec<Scaled>);
 
 impl BonusTable {
@@ -90,7 +92,7 @@ impl BonusTable {
 }
 
 /// The six bonus tables.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[allow(missing_docs)]
 pub struct StatBonusTables {
     pub str: BonusTable,
@@ -123,7 +125,7 @@ impl StatBonusTables {
 
 /// `base + per_level*n + accel*n²` with `n = level - 1`: the exact fit of a class's
 /// per-level HP or MP table (the loader proves it reproduces every source row).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[allow(missing_docs)]
 pub struct Quadratic {
     pub base: Scaled,
@@ -147,7 +149,9 @@ impl Quadratic {
 }
 
 /// Fighter or mystic starting template.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 #[allow(missing_docs)]
 pub enum Archetype {
     Fighter,
@@ -155,7 +159,7 @@ pub enum Archetype {
 }
 
 /// A starting class template (HF `stats/chars/baseStats/*.xml`).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClassTemplate {
     /// Data id, e.g. `human_fighter`.
     pub id: String,
@@ -184,7 +188,7 @@ pub struct ClassTemplate {
 }
 
 /// The fixed starter weapon (plan D1). Its values replace the class fist values.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct WeaponBlock {
     /// Data id.
     pub id: String,
@@ -204,7 +208,7 @@ pub struct WeaponBlock {
 
 /// Formula constants, each parsed from a literal line of the pinned source
 /// (`tables/formulas.toml`).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[allow(missing_docs)]
 pub struct FormulaConstants {
     pub level_mod_offset: u32,
@@ -238,7 +242,7 @@ pub struct FormulaConstants {
 
 /// Everything [`StatRules::new`] needs, as parsed. Index `i` of every per-level vector is
 /// level `i + 1`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[allow(missing_docs)]
 pub struct StatRulesParts {
     pub max_level: u32,
@@ -294,6 +298,12 @@ impl StatRules {
         } else {
             Err(v.0)
         }
+    }
+
+    /// The validated parts, for snapshots (plan §3.2: restore never consults current data).
+    #[must_use]
+    pub const fn parts(&self) -> &StatRulesParts {
+        &self.parts
     }
 
     /// Highest attainable level.

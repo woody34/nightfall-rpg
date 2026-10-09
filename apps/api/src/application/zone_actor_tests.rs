@@ -38,6 +38,7 @@ fn spawn(n: u128) -> ZoneInput {
         pos: Vec2Fixed::from_tiles(10, 10),
         speed: Speed::DEFAULT,
         generation: GEN,
+        load: None,
     })
 }
 

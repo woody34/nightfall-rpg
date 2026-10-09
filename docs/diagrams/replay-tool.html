@@ -204,7 +204,7 @@
     </div>
     <div class="notes">
 <p><code>nightfall-replay --zone 1 --epoch N</code> (or <code>--latest</code>) reads JetStream; <code>export … --out FILE</code> writes a <code>.nfr</code> (magic <code>NFREPLAY</code>, format version, zlib protobuf of snapshot + records + watermark); <code>--source file --file FILE</code> replays one. <code>--session ENTITY</code> selects whose outputs are compared; every command is still applied. A gap or truncated log exits 2.</p>
-<p>The first mismatch stops the run: <code>server_time_ms</code>, dispositions, which players got output, then each player's output (digest-only records compare digests). The checked-in fixture is <code>apps/api/fixtures/sessions/two-players-v1.nfr</code>, replayed by <code>moon run api:replay-check</code> in CI.</p>
+<p>The first mismatch stops the run: <code>server_time_ms</code>, dispositions, which players got output, then each player's output (digest-only records compare digests). The checked-in fixture is <code>apps/api/fixtures/sessions/two-players-v2.nfr</code>, replayed by <code>moon run api:replay-check</code> in CI.</p>
 <p>Source: <a href="../../apps/api/src/bin/nightfall-replay.rs">nightfall-replay.rs</a> · <a href="../../apps/api/src/application/replay/mod.rs">replay/mod.rs</a> · <a href="../../apps/api/src/infrastructure/eventlog/recording.rs">recording.rs</a> · <a href="../../apps/api/tests/replay_fixture.rs">replay_fixture.rs</a>.</p>
 </div>
   </div>

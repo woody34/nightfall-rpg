@@ -107,6 +107,7 @@ pub async fn join(app: &TestApp, p: &Player) -> Ws {
 
 /// What arrived on a socket.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)] // test helper; one value at a time
 pub enum Received {
     Message(ServerMessage, Vec<u8>),
     Closed(Option<u16>),

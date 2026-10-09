@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::ids::uuid_id;
 
+use super::combat::CombatState;
 use super::command::SessionGeneration;
 use super::fixed::{Speed, Vec2Fixed};
 
@@ -74,9 +75,12 @@ pub struct Entity {
     /// For players, the generation of the session that owns the entity. Always the default
     /// for NPCs.
     pub generation: SessionGeneration,
-    /// Minimal E2.1 selection/eligibility state; full combat state follows in E2.2.
+    /// Selection and eligibility (E2.1).
     #[serde(default, skip_serializing_if = "TargetingState::is_default")]
     pub targeting: TargetingState,
+    /// HP, stats, attack cycle and life (E2.2); `None` for noncombat fixtures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub combat: Option<CombatState>,
 }
 
 /// Selection and eligibility needed for intent validation. Existing NPCs default to noncombat.

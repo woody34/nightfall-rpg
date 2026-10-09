@@ -60,11 +60,12 @@ message SetTargetRequest {
 // Enable auto-attack on the current target, chase into melee range, then repeat.
 // Repeated enables with a fresh seq must not reset cooldown or create an extra swing.
 // Actor identity is supplied by the session. Attack ends the actor's respawn protection.
-// E2.1 records this command with NOT_YET_IMPLEMENTED; E2.3 supplies combat behaviour.
+// Rejections: UNKNOWN_ENTITY (no or vanished target), DEAD_ACTOR, NON_ATTACKABLE_TARGET,
+// TARGET_NOT_IN_AOI, PROTECTED. MoveTo/StopMove/target change end the attack.
 message AttackRequest {}
 
 // Disable auto-attack and cancel the pending swing; repeated stops are a no-op.
-// E2.1 records this command with NOT_YET_IMPLEMENTED.
+// Rejections: DEAD_ACTOR.
 message StopAttackRequest {}
 
 // Respawn a dead actor at the town safe point: floor(65% maxHP), minimum 1 HP, MP 0,
@@ -111,7 +112,7 @@ enum RejectReason {
   REJECT_REASON_TARGET_NOT_IN_AOI = 9; // existing target is outside the actor's 3x3-cell AOI
   REJECT_REASON_OUT_OF_RANGE = 10; // target is outside melee range at impact; distinct from move TOO_FAR
   REJECT_REASON_PROTECTED = 11; // target has active respawn protection
-  REJECT_REASON_NOT_YET_IMPLEMENTED = 12; // intent recorded, but its behaviour is not implemented yet
+  REJECT_REASON_NOT_YET_IMPLEMENTED = 12; // intent recorded, but its behaviour is not implemented yet (Respawn until E2.4)
 
 }
 
@@ -127,7 +128,8 @@ message WorldEvent {
     XpGained xp_gained = 8; // authoritative combat fact
     LevelUp level_up = 9; // authoritative combat fact
     TargetChanged target_changed = 10; // authoritative combat fact
-
+    AttackStarted attack_started = 11; // a swing started; lands at impact_tick
+    AttackCancelled attack_cancelled = 12; // a pending swing ended without impact
   }
 }
 
@@ -147,6 +149,17 @@ message EntitySpawn {
   // bumps it; a spawn with a higher generation replaces any earlier entity of that account,
   // and anything stamped with a lower generation is stale and must be discarded.
   uint32 session_generation = 5;
+  // Combat state for AOI entry (absent fields = noncombat entity): public HP, life and any
+  // swing already in flight. MP and XP are owner-only (StatsChanged / XpGained).
+  bool combatant = 6;                   // true when the fields below are meaningful
+  string template_id = 7;               // NPC template; empty for players
+  uint32 life_incarnation = 8;          // NPC life counter; a respawn increments it
+  bool dead = 9;
+  bool attackable = 10;                 // the receiver may SetTarget it
+  uint32 hp = 11;
+  uint32 max_hp = 12;
+  uint32 level = 13;
+  AttackStarted pending_swing = 14;     // set while a swing is in flight
 }
 
 message EntityMove {
@@ -179,6 +192,7 @@ message AttackResult {
   AttackOutcome outcome = 4; // MISS, HIT or CRIT; UNSPECIFIED is invalid
   uint32 damage = 5; // whole HP removed; zero on MISS
   uint32 target_hp_after = 6; // authoritative remaining whole HP after impact
+  uint32 target_incarnation = 7; // the target life the swing landed on
 }
 
 // Authoritative entity died fact; responses precede facts, spawns precede references.
@@ -186,6 +200,36 @@ message EntityDied {
   string entity = 1; // dead entity UUID
   uint64 tick = 2; // death tick
   string killer = 3; // killing entity UUID; empty if no killer
+  uint32 incarnation = 4; // the life that ended
+}
+
+// A swing started at `tick`; it lands at `impact_tick` unless an AttackCancelled follows,
+// and the attacker's next swing may start at `ready_tick`. Animations wind up before impact.
+message AttackStarted {
+  string attacker = 1;
+  string target = 2;
+  uint64 tick = 3;
+  uint64 impact_tick = 4;
+  uint64 ready_tick = 5;
+  uint32 target_incarnation = 6;
+}
+
+enum SwingCancelReason {
+  SWING_CANCEL_REASON_UNSPECIFIED = 0;
+  SWING_CANCEL_REASON_STOPPED = 1;        // StopAttack
+  SWING_CANCEL_REASON_TARGET_CHANGED = 2; // selection changed or cleared
+  SWING_CANCEL_REASON_MOVED = 3;          // MoveTo / StopMove
+  SWING_CANCEL_REASON_OUT_OF_RANGE = 4;   // target outside reach at impact
+  SWING_CANCEL_REASON_TARGET_LOST = 5;    // target died, left or became protected
+  SWING_CANCEL_REASON_ATTACKER_DIED = 6;  // attacker died or left
+}
+
+// A pending swing ended without an impact; no damage, no roll.
+message AttackCancelled {
+  string attacker = 1;
+  string target = 2;
+  uint64 tick = 3;
+  SwingCancelReason reason = 4;
 }
 
 // Authoritative entity respawned fact; responses precede facts, spawns precede references.
