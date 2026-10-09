@@ -11,6 +11,7 @@
 #   --timeout   group wall clock limit, default 600; survivors are killed and counted as failed
 #   --api, --artifacts, --no-replay  as in run-sim.sh
 #
+# Artifact destination must be empty (including hidden entries); prior evidence is retained.
 # Artifacts: DIR/<scenario>/... per process (stdout.log; outputs are attributed by name), plus
 # DIR/group.xml, one merged JUnit file (a missing or unreadable per-process report becomes a failed
 # testcase). Exit 0 only if every process exited 0, wrote a report, and every recording replays.
@@ -49,6 +50,8 @@ for s in "${SCENARIOS[@]}"; do
   [[ -z "${NAMES[$n]:-}" ]] || sim_die "scenario $n listed twice"
   NAMES[$n]=1
 done
+
+sim_claim_artifacts "${SCENARIOS[@]}"
 
 sim_resolve_env
 sim_ensure_build
@@ -112,7 +115,7 @@ for scenario in "${SCENARIOS[@]}"; do
   n="$(basename "$scenario" .nfs)"
   dest="$ARTIFACTS/$n"
   c="${CODE[$n]}"
-  status=PASS; note=""
+  status=PASS; note=""; INFRA=()
   if ((c == 124)); then status=FAIL; note="timeout after ${SIM_TIMEOUT}s"
   elif ((c != 0)); then status=FAIL; note="bot exit $c"; fi
   if ! python3 "$HERE/sim-junit.py" check "$dest/$n.xml"; then
@@ -122,10 +125,12 @@ for scenario in "${SCENARIOS[@]}"; do
     sim_export_recording "$dest" "$n" || true
     shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
     if ((${#nfrs[@]} == 0)); then
+      INFRA+=(missing_recording)
       status=FAIL; note="${note:+$note; }no session recording for $n"
     else
       for nfr in "${nfrs[@]}"; do
         if ! sim_replay "$nfr" "${nfr%.nfr}.replay.log"; then
+          INFRA+=(replay_check)
           status=FAIL; note="${note:+$note; }replay check failed ($(basename "$nfr"))"
         fi
       done
@@ -133,12 +138,22 @@ for scenario in "${SCENARIOS[@]}"; do
   fi
   shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
   for nfr in "${nfrs[@]}"; do
-    if ! python3 "$HERE/sim-trace.py" "$nfr" "$dest/$n.xml"; then
+    if ! python3 "$HERE/sim-trace.py" "$nfr" "$dest/$n.xml" || [[ ! -s "${nfr%.nfr}.trace.html" || ! -r "${nfr%.nfr}.trace.html" ]]; then
+      INFRA+=(trace_generation)
       status=FAIL; note="${note:+$note; }trace generation failed"
     fi
   done
   if ! python3 "$HERE/sim-contract.py" merge --out "$dest/coverage.contract.json" --report "$dest/$n.xml" "$dest/$n.coverage.contract.json"; then
+    INFRA+=(contract_coverage)
     status=FAIL; note="${note:+$note; }contract coverage missing or invalid"
+  fi
+  if ! sim_transition_coverage "$dest" "$REPLAY"; then
+    INFRA+=(transition_coverage)
+    status=FAIL; note="${note:+$note; }transition coverage missing or invalid"
+  fi
+  if ! python3 "$HERE/sim-gates.py" scenario --report "$dest/$n.xml" --out "$dest/pipeline-state.json" \
+      --scenario "$n" --code "$c" "${INFRA[@]}"; then
+    status=FAIL; note="${note:+$note; }bot report classification or infrastructure failure"
   fi
   if [[ "$status" != PASS ]]; then
     FAILED=$((FAILED + 1))
@@ -148,7 +163,15 @@ for scenario in "${SCENARIOS[@]}"; do
   echo "$status $n (${SECS[$n]}s, group=$GROUP)${note:+ - $note}"
 done
 # Finalize group JUnit only after process, per-session replay and trace verdicts are attached.
-python3 "$HERE/sim-junit.py" merge "$ARTIFACTS/group.xml" "$GROUP" "${REPORTS[@]}"
+FINAL_INFRA=()
+if ! sim_suite_transitions "${SCENARIOS[@]}"; then
+  FINAL_INFRA+=(suite_transition_coverage); FAILED=$((FAILED + 1))
+fi
+if ! python3 "$HERE/sim-junit.py" merge "$ARTIFACTS/group.xml" "$GROUP" "${REPORTS[@]}"; then
+  FINAL_INFRA+=(group_junit_merge); FAILED=$((FAILED + 1))
+fi
+final_code=0; ((FAILED == 0)) || final_code=1
+sim_finalize_verdict "$final_code" "${FINAL_INFRA[@]}" || sim_die "cannot finalize pipeline verdict"
 ((timed_out)) && echo "sim: group timeout ${SIM_TIMEOUT}s hit"
 echo "sim: group $GROUP, ${#SCENARIOS[@]} process(es), $FAILED failure(s); merged report $ARTIFACTS/group.xml"
 ((FAILED == 0))

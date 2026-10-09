@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run every scenario, pair coordinated roles, and retain quarantine failures as evidence."""
 import argparse
+import importlib.util
 from datetime import date
 import json
 import os
@@ -14,6 +15,9 @@ import xml.etree.ElementTree as ET
 
 PROJECT = Path(__file__).resolve().parents[1]
 REPO = PROJECT.parents[1]
+_spec = importlib.util.spec_from_file_location('sim_gates', PROJECT / 'Scripts/sim-gates.py')
+gates = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(gates)
 
 
 def run_clients(command, log, seconds, env=None):
@@ -87,20 +91,12 @@ def fixture(batch):
 
 
 def junit_failures(folder, names):
-    """A successful process cannot conceal an absent, invalid or failed report."""
+    """Missing, inconsistent and failed reports remain blocking."""
     failures = []
     for name in names:
         try:
-            root = ET.parse(folder / name / f"{name}.xml").getroot()
-            suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
-            if not suites:
-                raise ValueError("no testsuite")
-            tests = sum(int(s.get("tests", "0")) for s in suites)
-            if tests <= 0 or len(root.findall(".//testcase")) != tests:
-                raise ValueError("empty or inconsistent JUnit report")
-            if any(int(s.get("failures", 0)) or int(s.get("errors", 0)) for s in suites):
-                failures.append(name)
-            elif root.findall(".//failure") or root.findall(".//error"):
+            root = gates.read_report(folder / name / f"{name}.xml")
+            if root.findall('.//failure') or root.findall('.//error'):
                 failures.append(name)
         except (OSError, ValueError, ET.ParseError):
             failures.append(name)
@@ -108,17 +104,11 @@ def junit_failures(folder, names):
 
 
 def has_scenario_failure(folder, name):
-    """Synthetic wrapper/pipeline failures alone never qualify for quarantine."""
+    """Only actual classified bot failures qualify; wrapper cases are checked by verdict."""
     try:
-        root = ET.parse(folder / name / f"{name}.xml").getroot()
-        suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
-        tests = sum(int(s.get("tests", "0")) for s in suites)
-        if tests <= 0 or len(root.findall(".//testcase")) != tests:
-            return False
-        if any(int(s.get(key, "0")) < 0 for s in suites for key in ("tests", "failures", "errors")):
-            return False
-        return any(case.get("name") != "pipeline" and (case.findall("failure") or case.findall("error"))
-                   for case in root.findall(".//testcase"))
+        root = gates.read_report(folder / name / f"{name}.xml")
+        kinds, infrastructure = gates.bot_kinds(root, allow_pipeline=True)
+        return bool(kinds) and not infrastructure
     except (OSError, ValueError, ET.ParseError):
         return False
 
@@ -126,43 +116,59 @@ def has_scenario_failure(folder, name):
 BOT_FAILURE_KINDS = frozenset({"bot_assertion", "bot_expectation", "bot_scenario"})
 
 
-def quarantine_verdict(folder, names, code, bad_reports, exempt):
-    """Fail closed unless the wrapper finalized an explicit bot-only verdict.
+def pipeline_verdict(folder, names, code):
+    """Validate completed wrapper evidence for both green and failing units."""
+    verdict = json.loads((folder / 'pipeline-verdict.json').read_text())
+    if (type(verdict.get('schema_version')) is not int or verdict['schema_version'] != 1
+            or verdict.get('completed') is not True
+            or type(verdict.get('exit_code')) is not int or verdict['exit_code'] != code):
+        raise ValueError('incomplete or contradictory wrapper verdict')
+    infrastructure = verdict.get('infrastructure_failures')
+    if not isinstance(infrastructure, list) or any(not isinstance(v, str) or not v for v in infrastructure):
+        raise ValueError('invalid infrastructure failure list')
+    rows = verdict.get('scenarios')
+    if not isinstance(rows, list) or len(rows) != len(names):
+        raise ValueError('incomplete scenario verdicts')
+    seen = set()
+    for row in rows:
+        name, kinds = row['scenario'], row['failure_kinds']
+        if name not in names or name in seen or not isinstance(kinds, list):
+            raise ValueError('invalid scenario verdict attribution')
+        if any(not isinstance(kind, str) or kind not in BOT_FAILURE_KINDS for kind in kinds):
+            raise ValueError('unknown bot failure classification')
+        seen.add(name)
+        root = gates.read_report(folder / name / f'{name}.xml')
+        actual, report_errors = gates.bot_kinds(root, allow_pipeline=True)
+        if sorted(set(kinds)) != actual or (report_errors and not infrastructure):
+            raise ValueError('verdict contradicts actual failure types')
+    failed = bool(infrastructure) or any(row['failure_kinds'] for row in rows)
+    if (code == 0 and failed) or (code == 1 and not failed) or code not in (0, 1):
+        raise ValueError('wrapper exit contradicts verdict')
+    return verdict
 
-    The caller receives SIM_PIPELINE_VERDICT=<unit>/pipeline-verdict.json. Schema v1:
-    completed=true, exit_code, infrastructure_failures=[], and scenarios=[{scenario,
-    failure_kinds:[...]}]. Completion must be written AFTER group merge and all other gates.
-    Missing/unknown fields or kinds cannot authorize quarantine. Diagnostic retries are excluded.
+
+def quarantine_verdict(folder, names, code, bad_reports, exempt):
+    """Schema v1: completed=true, exit_code, infrastructure_failures, scenarios.
+
+    SIM_PIPELINE_VERDICT=<unit>/pipeline-verdict.json is finalized after ALL gates and
+    group merge. Only actual bot_assertion/bot_expectation/bot_scenario failure types
+    may be exempted. Missing fields, unknown types and diagnostic retries fail closed.
     """
     try:
-        verdict = json.loads((folder / "pipeline-verdict.json").read_text())
-        if (type(verdict.get("schema_version")) is not int or verdict["schema_version"] != 1
-                or verdict.get("completed") is not True
-                or type(verdict.get("exit_code")) is not int or verdict["exit_code"] != code
-                or verdict.get("infrastructure_failures") != [] or code != 1):
+        verdict = pipeline_verdict(folder, names, code)
+        if verdict['infrastructure_failures'] or code != 1:
             return False
-        rows = verdict["scenarios"]
-        if not isinstance(rows, list) or len(rows) != len(names):
-            return False
-        failures = {}
-        for row in rows:
-            name, kinds = row["scenario"], row["failure_kinds"]
-            if name not in names or name in failures or not isinstance(kinds, list):
-                return False
-            if any(not isinstance(kind, str) or kind not in BOT_FAILURE_KINDS for kind in kinds):
-                return False
-            failures[name] = bool(kinds)
-        failing = {name for name, failed in failures.items() if failed}
+        failing = {row['scenario'] for row in verdict['scenarios'] if row['failure_kinds']}
         return bool(failing) and failing == set(bad_reports) and all(
             name in exempt and has_scenario_failure(folder, name) for name in failing)
-    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, ET.ParseError):
         return False
 
 
 def group_report_matches(folder, names):
     """Missing/partial group merge is infrastructure failure even with valid role reports."""
     try:
-        group = ET.parse(folder / "group.xml").getroot()
+        group = gates.read_report(folder / "group.xml")
         if group.tag != "testsuites":
             return False
         for key in ("tests", "failures", "errors"):
@@ -176,11 +182,64 @@ def group_report_matches(folder, names):
         return False
 
 
+def suite_coverage(artifacts, batches, baseline):
+    """Aggregate current named inputs exactly once; missing evidence cannot be quarantined."""
+    contract_inputs, transition_inputs = [], []
+    for batch in batches:
+        unit = batch[0].stem[:-2] if len(batch) > 1 else batch[0].stem
+        for scenario in batch:
+            dest = artifacts / unit / scenario.stem
+            contract_inputs.append(dest / f'{scenario.stem}.coverage.contract.json')
+        transition_inputs.append(artifacts / unit / 'coverage.transitions.json')
+    errors, lines = [], []
+    transitions, contract = None, None
+    try:
+        for batch in batches:
+            unit = batch[0].stem[:-2] if len(batch) > 1 else batch[0].stem
+            for scenario in batch:
+                gates.read_transitions(artifacts / unit / scenario.stem / 'coverage.transitions.json')
+        transitions = gates.merge_transitions(transition_inputs)
+        gates.write_json(artifacts / 'coverage.transitions.json', transitions)
+        for name, row in transitions['summary'].items():
+            lines.extend([f"transitions {name}: {row['covered']}/{row['total']} reachable pairs covered",
+                          'never seen: ' + (', '.join(row['never_seen']) or '(none)'),
+                          'unreachable: ' + (', '.join(row['unreachable']) or '(none)')])
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        errors.append(f'suite transition coverage missing or invalid: {error}')
+    command = [sys.executable, str(PROJECT / 'Scripts/sim-contract.py'), 'merge',
+               '--out', str(artifacts / 'coverage.contract.json'), '--baseline', str(baseline),
+               *map(str, contract_inputs)]
+    try:
+        result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                cwd=PROJECT, timeout=60)
+        (artifacts / 'coverage.contract.log').write_text(result.stdout)
+        lines.extend(result.stdout.strip().splitlines())
+        if result.returncode:
+            errors.append(f'suite contract coverage baseline gate failed (exit {result.returncode}); see coverage.contract.log')
+        if result.returncode == 0 and not (artifacts / 'coverage.contract.json').exists():
+            raise ValueError('contract merger succeeded without a suite report')
+        if (artifacts / 'coverage.contract.json').exists():
+            contract = json.loads((artifacts / 'coverage.contract.json').read_text())
+            if not isinstance(contract, dict) or not isinstance(contract.get('summary'), dict):
+                raise ValueError('missing suite contract summary')
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:
+        errors.append(f'suite contract coverage missing or invalid: {error}')
+    for line in lines:
+        print(line, flush=True)
+    for error in errors:
+        print('FAIL infrastructure: ' + error, flush=True)
+    return {'infrastructure_errors': errors, 'transitions': transitions,
+            'contract': contract, 'summary_lines': lines}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenarios", type=Path, default=PROJECT / "Scenarios")
     parser.add_argument("--artifacts", type=Path, default=PROJECT / "Saved/SimCI")
     parser.add_argument("--quarantine", type=Path, default=PROJECT / "Scenarios/quarantine.json")
+    parser.add_argument("--contract-baseline", type=Path,
+                        default=PROJECT / "Scenarios/coverage.contract.baseline.json",
+                        help="historical contract presence required across this suite")
     parser.add_argument("--fresh-stack", action="store_true", help="wipe this Compose project's volumes for each unit")
     parser.add_argument("--video", action="store_true", help="failure-only rendered retry for single-client cases")
     parser.add_argument("--timeout", type=int, default=600)
@@ -233,6 +292,7 @@ def main():
         env = dict(os.environ)
         env["SIM_PIPELINE_VERDICT"] = str(dest / "pipeline-verdict.json")
         env["SIM_REQUIRE_FRESH_ARTIFACTS"] = "1"
+        env["SIM_REQUIRE_TRANSITION_COVERAGE"] = "1"
         if args.fresh_stack:
             env["SIM_REQUIRE_OWNED_API"] = "1"
         env.pop("ZONE_SIM_FIXTURE", None)
@@ -262,6 +322,11 @@ def main():
         bad_reports = junit_failures(dest, names)
         if len(names) > 1 and not group_report_matches(dest, names):
             orchestration_errors.append("missing, invalid or incomplete group JUnit merge")
+        try:
+            verdict = pipeline_verdict(dest, names, code)
+            orchestration_errors.extend(verdict['infrastructure_failures'])
+        except (OSError, ValueError, KeyError, TypeError, AttributeError, ET.ParseError) as error:
+            orchestration_errors.append(f'missing, invalid or incomplete pipeline verdict: {error}')
         failed = code != 0 or bool(bad_reports) or bool(orchestration_errors)
         log_text = (dest / "orchestration.log").read_text()
         quarantined = failed and not orchestration_errors and quarantine_verdict(
@@ -279,14 +344,24 @@ def main():
         elif quarantined:
             ET.SubElement(case, "skipped", message="quarantined; raw failing JUnit retained").text = json.dumps(report[-1]["quarantine"])
         print(f"{status} {name} ({elapsed}s)", flush=True)
+    coverage = suite_coverage(artifacts, batches, args.contract_baseline.resolve())
     failures = sum(row["status"] == "FAIL" for row in report)
-    aggregate.set("tests", str(len(report)))
+    if coverage['infrastructure_errors']:
+        failures += 1
+        case = ET.SubElement(aggregate, 'testcase', name='suite coverage gates')
+        ET.SubElement(case, 'failure', type='pipeline_infrastructure',
+                      message='; '.join(coverage['infrastructure_errors']))
+
+    aggregate.set("tests", str(len(report) + bool(coverage["infrastructure_errors"])))
     aggregate.set("failures", str(failures))
     aggregate.set("skipped", str(sum(row["status"] == "QUARANTINED" for row in report)))
     ET.ElementTree(aggregate).write(artifacts / "suite.xml", encoding="utf-8", xml_declaration=True)
-    (artifacts / "summary.json").write_text(json.dumps({"schema_version": 1, "units": report}, indent=2) + "\n")
+    (artifacts / "summary.json").write_text(json.dumps({"schema_version": 1, "units": report, "coverage": coverage}, indent=2) + "\n")
     summary = "| Scenario/group | Result | Seconds |\n|---|---|---|\n" + "".join(
         f"| {row['unit']} | {row['status']} | {row['seconds']} |\n" for row in report)
+    summary += '\n' + '\n\n'.join(coverage['summary_lines']) + '\n'
+    if coverage['infrastructure_errors']:
+        summary += '\n' + '\n\n'.join('FAIL infrastructure: ' + e for e in coverage['infrastructure_errors']) + '\n'
     (artifacts / "summary.md").write_text(summary)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
