@@ -85,13 +85,13 @@ namespace
 		case EGrpcNightfallV1WorldEventEvent::EntityRespawned:
 			if (const FGrpcNightfallV1EntityRespawned* R = Ev.EntityRespawned.Get())
 			{
-				Out.EntityRespawned = FEntityRespawned{ R->Entity, R->Tick, FromGrpc(R->Position), R->Hp };
+				Out.EntityRespawned = FEntityRespawned{ R->Entity, R->Tick, FromGrpc(R->Position), R->Hp, R->Incarnation };
 			}
 			break;
 		case EGrpcNightfallV1WorldEventEvent::StatsChanged:
 			if (const FGrpcNightfallV1StatsChanged* S = Ev.StatsChanged.Get())
 			{
-				Out.StatsChanged = FStatsChanged{ S->Entity, S->Hp, S->MaxHp, S->Mp, S->MaxMp, S->Level };
+				Out.StatsChanged = FStatsChanged{ S->Entity, S->Hp, S->MaxHp, S->Mp, S->MaxMp, S->Level, S->Xp };
 			}
 			break;
 		case EGrpcNightfallV1WorldEventEvent::XpGained:

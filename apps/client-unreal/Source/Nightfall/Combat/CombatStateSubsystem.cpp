@@ -248,7 +248,10 @@ void UCombatStateSubsystem::ApplyRespawned(const FEntityRespawned& Respawned)
 {
 	FCombatEntity* E = Entities.Find(Key(Respawned.Entity));
 	if (!E) return;
+	// A respawn of an earlier life, or older than what we already applied, is stale.
+	if (E->Incarnation != 0 && Respawned.Incarnation != 0 && Respawned.Incarnation < E->Incarnation) return;
 	if (Respawned.Tick < E->LastFactTick) return;
+	if (Respawned.Incarnation > E->Incarnation) E->Incarnation = Respawned.Incarnation;   // the life fence advances
 	E->bDead = false;
 	E->Hp = Respawned.Hp;
 	E->LastFactTick = Respawned.Tick;
@@ -264,6 +267,8 @@ void UCombatStateSubsystem::ApplyStats(const FStatsChanged& Stats)
 	E.Hp = Stats.Hp;
 	E.MaxHp = Stats.MaxHp;
 	E.Level = Stats.Level;
+	Own.bXpKnown = true;   // StatsChanged carries the authoritative total: admission, death loss, reconnect
+	Own.Xp = Stats.Xp;
 	Own.bMpKnown = true;
 	Own.Mp = Stats.Mp;
 	Own.MaxMp = Stats.MaxMp;

@@ -27,7 +27,7 @@ struct FOwnCombatState
 	bool bMpKnown = false;
 	uint32 Mp = 0;
 	uint32 MaxMp = 0;
-	bool bXpKnown = false;       // XP total arrives with XpGained; unknown after a reconnect until then
+	bool bXpKnown = false;       // XP total arrives with StatsChanged and XpGained; unknown until the first of them after a reconnect
 	uint64 Xp = 0;
 	uint64 LastXpGain = 0;
 	FString TargetId;            // lower-case entity id; empty = none
@@ -67,7 +67,7 @@ struct FCombatHudModel
 	FString OwnHpText;           // "120 / 300"
 	float OwnMpFraction = 0.f;
 	FString OwnMpText;           // "MP —" until the owner stats arrive
-	FString XpText;              // "XP —" until XpGained arrives
+	FString XpText;              // "XP --" until the owner stats arrive
 
 	bool bDeadOverlay = false;
 	bool bRespawnPending = false;
@@ -88,7 +88,7 @@ DECLARE_MULTICAST_DELEGATE(FOnCombatStateChanged);
  * Ordering and staleness (the stream is ordered, but the world is not):
  *  - a spawn with a lower session generation, or a lower life incarnation, than what is held is
  *    stale and dropped (NightfallProto::IsStaleSpawn);
- *  - AttackResult / EntityDied for an earlier incarnation, or older than the newest fact applied
+ *  - AttackResult / EntityDied / EntityRespawned for an earlier incarnation, or older than the newest fact applied
  *    to that entity, are dropped, and a repeated AttackResult (same tick+attacker+target)
  *    changes nothing and shows no second number;
  *  - StatsChanged, XpGained and TargetChanged are owner-only: for anyone else they are ignored;

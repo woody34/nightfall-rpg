@@ -117,6 +117,8 @@ public:
 	const TMap<FString, FEntitySpawn>& GetKnownEntities() const { return KnownEntities; }
 
 	// Test seams. Defaults: FWebSocketsModule and FTSTicker.
+	/** The seq of the newest intent sent (0 = none yet); lets tests see whether a click sent anything. */
+	uint32 GetLastSentSeq() const { return NextSeq; }
 	void SetSocketFactoryForTesting(FSocketFactory Factory) { SocketFactory = MoveTemp(Factory); }
 	void SetSchedulerForTesting(FScheduler InScheduler) { Scheduler = MoveTemp(InScheduler); }
 
