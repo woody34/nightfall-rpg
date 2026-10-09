@@ -282,7 +282,8 @@ pub struct StoredSnapshot {
 pub struct SessionInRecord {
     /// The session.
     pub session: Uuid,
-    /// The frame's `ClientMessage.seq`.
+    /// The frame's `ClientMessage.seq`, or zero when it could not be decoded. The original
+    /// raw frame remains authoritative; the existing uint64 wire field has no presence bit.
     pub seq: u64,
     /// The zone the session is in.
     pub zone: ZoneId,

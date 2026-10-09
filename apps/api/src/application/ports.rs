@@ -408,6 +408,27 @@ pub trait EventBus: Send + Sync {
     async fn publish(&self, event: &DomainEvent) -> anyhow::Result<()>;
 }
 
+/// Zone position sampled on the session path, for audit only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SessionAuditContext {
+    /// The socket's zone.
+    pub zone: crate::domain::zone::ZoneId,
+    /// The running zone epoch.
+    pub epoch: u64,
+    /// Next tick at receive time, or the tick whose output is queued.
+    pub tick: crate::domain::zone::Tick,
+}
+
+impl Default for SessionAuditContext {
+    fn default() -> Self {
+        Self {
+            zone: crate::domain::zone::ZoneId(0),
+            epoch: 0,
+            tick: crate::domain::zone::Tick(0),
+        }
+    }
+}
+
 /// The per-session audit log of the real-time channel (plan D5, §8 #3): every inbound frame
 /// as received and every outbound frame as sent, in order, per session.
 ///
@@ -427,6 +448,24 @@ pub trait SessionAudit: Send + Sync {
 
     /// One outbound frame, in the order the session queued it for the socket.
     fn record_out(&self, session: SessionId, frame: &Bytes);
+
+    /// Inbound recording with zone metadata. Defaults to the original port for adapters
+    /// that do not store replay-log metadata. This receives game data only, never WS auth.
+    fn record_in_context(
+        &self,
+        session: SessionId,
+        seq: Option<u32>,
+        frame: &Bytes,
+        _context: SessionAuditContext,
+    ) {
+        self.record_in(session, seq, frame);
+    }
+
+    /// Outbound recording with the producing tick (the latest zone tick for a session-local
+    /// rejection). Called after reserving queue space and before releasing it to the socket.
+    fn record_out_context(&self, session: SessionId, frame: &Bytes, _context: SessionAuditContext) {
+        self.record_out(session, frame);
+    }
 }
 
 /// Wall clock, abstracted so time-dependent use cases are deterministic in tests.

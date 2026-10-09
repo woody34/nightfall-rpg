@@ -271,9 +271,21 @@ pub struct ZoneHandle {
     stats: watch::Receiver<TickStats>,
     paused: watch::Receiver<bool>,
     final_snapshot: Arc<parking_lot::RwLock<Option<ZoneSnapshot>>>,
+    audit_seed: crate::domain::zone::ZoneSeed,
+    audit_next_tick: watch::Receiver<Tick>,
 }
 
 impl ZoneHandle {
+    /// Current zone position for best-effort session audit. The next tick follows state
+    /// advancement, including idle ticks and ticks waiting for durable admission.
+    pub fn audit_context(&self) -> super::SessionAuditContext {
+        super::SessionAuditContext {
+            zone: self.audit_seed.zone,
+            epoch: self.audit_seed.epoch,
+            tick: *self.audit_next_tick.borrow(),
+        }
+    }
+
     pub(crate) fn final_snapshot(&self) -> Option<ZoneSnapshot> {
         self.final_snapshot.read().clone()
     }
@@ -349,6 +361,7 @@ impl ZoneHandle {
 
 /// The task that owns a zone. Construct with [`ZoneActor::spawn`].
 pub struct ZoneActor<T, G> {
+    audit_next_tick: watch::Sender<Tick>,
     checkpoints: super::checkpoint::CheckpointLane,
     final_snapshot: Arc<parking_lot::RwLock<Option<ZoneSnapshot>>>,
     state: ZoneState,
@@ -397,9 +410,12 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
         let paused = gate.paused();
+        let audit_seed = state.seed();
+        let (audit_next_tick_tx, audit_next_tick_rx) = watch::channel(state.next_tick());
         let checkpoints = super::checkpoint::CheckpointLane::with_snapshot(state.snapshot());
         let final_snapshot = Arc::default();
         let actor = Self {
+            audit_next_tick: audit_next_tick_tx,
             final_snapshot: Arc::clone(&final_snapshot),
             checkpoints: checkpoints.clone(),
             state,
@@ -418,6 +434,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         tokio::spawn(actor.run());
         ZoneHandle {
+            audit_seed,
+            audit_next_tick: audit_next_tick_rx,
             final_snapshot,
             checkpoints,
             commands: cmd_tx,
@@ -569,6 +587,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             }
         }
         let record = self.state.run_tick(draft).map_err(|e| (tick, e))?;
+        self.audit_next_tick.send_replace(self.state.next_tick());
         trace_applied(&record, &traces);
         Ok((Arc::new(record), applied))
     }

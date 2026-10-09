@@ -747,12 +747,15 @@ impl<'a> Actor<'a> {
 
     /// One inbound data frame.
     async fn on_frame(&mut self, bytes: &Bytes, binary: bool) -> Result<(), SessionEnd> {
+        let audit_context = self.ctx.zone.audit_context();
         self.ctx.metrics.frames_in(1);
         let decoded = (binary && bytes.len() <= self.ctx.limits.max_frame_bytes)
             .then(|| self.ctx.codec.decode(self.entity, bytes).ok())
             .flatten();
         let seq = decoded.as_ref().map(|d| d.seq);
-        self.ctx.audit.record_in(self.id, seq, bytes);
+        self.ctx
+            .audit
+            .record_in_context(self.id, seq, bytes, audit_context);
 
         if let Some(seq) = seq {
             if self.last_seq.is_some_and(|last| seq <= last) {
@@ -825,7 +828,9 @@ impl<'a> Actor<'a> {
         detail: &str,
     ) -> Result<(), SessionEnd> {
         let frame = self.ctx.codec.rejected(seq, reason, detail);
-        self.enqueue(&frame, self.grace_deadline()).await
+        let mut context = self.ctx.zone.audit_context();
+        context.tick = crate::domain::zone::Tick(context.tick.0.saturating_sub(1));
+        self.enqueue(&frame, self.grace_deadline(), context).await
     }
 
     /// One applied tick: forward this player's output once the session is admitted.
@@ -847,7 +852,16 @@ impl<'a> Actor<'a> {
         // One grace period for the whole tick, not per frame.
         let deadline = self.grace_deadline();
         for frame in self.ctx.codec.outputs(outputs, tick.server_time_ms) {
-            self.enqueue(&frame, deadline).await?;
+            self.enqueue(
+                &frame,
+                deadline,
+                super::SessionAuditContext {
+                    zone: self.ctx.zone.audit_context().zone,
+                    epoch: tick.epoch,
+                    tick: tick.tick,
+                },
+            )
+            .await?;
         }
         Ok(())
     }
@@ -919,7 +933,12 @@ impl<'a> Actor<'a> {
 
     /// Queues one frame for the socket and audits it. A full queue waits for the writer until
     /// `deadline`; past it the frame is dropped and the session ends (4429).
-    async fn enqueue(&self, frame: &Bytes, deadline: Instant) -> Result<(), SessionEnd> {
+    async fn enqueue(
+        &self,
+        frame: &Bytes,
+        deadline: Instant,
+        context: super::SessionAuditContext,
+    ) -> Result<(), SessionEnd> {
         let permit = match self.out.try_reserve() {
             Ok(p) => p,
             Err(mpsc::error::TrySendError::Closed(())) => return Err(SessionEnd::ClientGone),
@@ -935,8 +954,8 @@ impl<'a> Actor<'a> {
                 }
             },
         };
+        self.ctx.audit.record_out_context(self.id, frame, context);
         permit.send(frame.clone());
-        self.ctx.audit.record_out(self.id, frame);
         Ok(())
     }
 }
