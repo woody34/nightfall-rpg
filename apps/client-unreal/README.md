@@ -512,6 +512,33 @@ paired multi-client roles, quarantine JSON schema, and PR gating policy are docu
   label. Fork PRs never run on the persistent runner. Known flakes are recorded in
   `Scenarios/quarantine.json`; entries past their `expires` date fail the suite immediately.
 
+### Nightly Gauntlet soak
+
+Multi-client endurance simulation driven by Unreal's Gauntlet automation framework (`Build/Scripts/NightfallSoak.cs`) and `Scripts/run-soak.sh`.
+
+```bash
+# Quick local run (2 clients, 120 seconds)
+bash Scripts/run-soak.sh --clients 2 --seconds 120
+
+# Default soak (8 clients, 1200 seconds / 20 minutes)
+bash Scripts/run-soak.sh
+# or explicitly: bash Scripts/run-soak.sh --clients 8 --seconds 1200
+```
+
+- **Staged build:** `Scripts/stage-linux.sh` cooks and stages a Development Linux standalone client into `Saved/StagedBuilds/Linux` via RunUAT `BuildCookRun` (`-clientconfig=Development -build -cook -stage -nullrhi -nosound`). Development configuration is required because `AUTH_DEV_TOKENS` and `BotScenario` are disabled in Shipping builds. Staging uses unsigned loose content (`-skipiostore`, `bUsePakFile=False`, `bUseIoStore=False`), so no pak signing keys or release certs are required. Pass `--skip-stage` to `run-soak.sh` to reuse an already staged build.
+- **Disposable stack:** Each run creates a fresh, disposable Docker Compose project (`nightfall-soak-<pid>-<timestamp>`) with dedicated ports offset by `SOAK_PORT_OFFSET` (default `+10000`, placing gRPC at `15051`, HTTP at `13000`, Postgres at `15432`, and Prometheus/Grafana at `13300`). On script exit, a cleanup trap shuts the compose stack down and deletes all isolated volumes (`docker compose down -v`), preventing port conflicts or database contamination with normal local dev stacks.
+- **Auth and radial lanes:** The API server runs with `AUTH_DEV_TOKENS=1` dev tokens. `Scripts/soak-fixtures.py` provisions a single zone (`test_zone.toml`) with 1 to 8 radial spokes spaced >= 35 tiles apart at home (exceeding clan-call help range 8 and aggro range 6), and generates per-client scenarios from the canonical `Scenarios/1-kill-one-monster.nfs`. The soak slots use a deterministic 5-second respawn delay with zero jitter; template combat stats and XP rewards are unchanged. Movement waypoints (`nf.ClickMove`) and wait budgets (`nf.WaitFor own_at ... 1 40`) are adapted to each lane, while every combat expectation and assertion is left untouched.
+- **Looping and account rotation:** Headless clients (`-nullrhi -nosound -unattended`) run under Gauntlet with `-BotLoop=<seconds>`. When an iteration passes, `UBotScenarioRunner::AdvanceLoop` resets the session via `nf.Logout`, clears observations, rotates the generated disposable `test:<uuid>` account (preserving explicit dev tokens if provided), and returns to the login map. The scenario's `nf.Login` and `nf.EnterWorld` then log in as a fresh character, preventing position, HP, or XP leakage across iterations.
+- **Whole-iteration completion and process timeouts:** The runner always completes its final whole scenario iteration even if it runs beyond the requested duration—an unfinished step is never cut short or converted into a passing timeout. Gauntlet enforces an upper process timeout bound (`MaxDuration = Seconds + 180`, tick budget check at `Seconds + 150`) and fails if any role crashes, exceeds its process budget, or exits non-zero.
+- **Artifacts and reporting:** Per-client JUnit XML (`1-kill-one-monster.xml` with `iteration N:` testcases, `loop_iterations`, and `loop_seconds`), engine logs, and isolated `UserDir` directories land in `Saved/Soak/<timestamp>-<pid>/client-XX/` (or `--artifacts <dir>`). `Scripts/soak-report.py` aggregates these into:
+  - `soak.xml`: unified JUnit testsuite combining all client runs and a `soak-gates` suite;
+  - `report.json`: machine-readable summary of iterations, elapsed time, tick metrics, and gate results;
+  - `combat-telemetry.json`: raw Prometheus combat metrics queried via the Grafana proxy;
+  - `dashboard URL`: Grafana dashboard URL scoped to the exact run window (`from=<start>&to=<end>`);
+  - `summary.txt`: console and CI step summary.
+- **Performance gate:** `soak-report.py` queries Prometheus through Grafana for the combat tick duration 99th percentile across the run window (`histogram_quantile(0.99, sum by (le) (increase(nightfall_combat_tick_duration_seconds_bucket[...])))`). The run requires combat tick p99 <= 50ms; missing telemetry or a p99 > 50ms fails the gate.
+- **Nightly CI workflow:** `.github/workflows/soak.yml` runs nightly (`cron: '17 8 * * *'`) and via manual dispatch on `[self-hosted, linux, unreal]`. The workflow is nonblocking (`continue-on-error: true`). Live runner registration on the host remains an owner task; no live validation has succeeded yet.
+
 ## Installing Unreal on Linux
 
 Epic requires an account. Two routes:

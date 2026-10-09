@@ -21,3 +21,11 @@ Vendor/
 *.code-workspace
 # Generated protobuf code is produced by Scripts/gen-proto.sh; commit it so the editor builds without protoc.
 !Source/Nightfall/Generated/
+# Version the project's Gauntlet source, not generated build products.
+!Build/
+Build/*
+!Build/Scripts/
+!Build/Scripts/*.cs
+!Build/Scripts/*.csproj
+
+Scripts/__pycache__/
