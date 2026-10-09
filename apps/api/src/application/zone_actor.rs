@@ -217,6 +217,21 @@ pub struct TickStats {
     pub gate_holds: u64,
 }
 
+/// Synchronous, process-local telemetry subscriber. Called only by the live actor;
+/// replay runs the domain directly. Implementations must be cheap and non-blocking.
+pub trait TickTelemetry: Send {
+    /// One admitted zone-wide batch, independent of observer/session fan-out.
+    fn admitted(&mut self, tick: &AppliedTick);
+    /// One tick-body measurement, including idle ticks and gate holds.
+    fn stats(&mut self, stats: TickStats);
+}
+
+/// Creates a separate subscriber for each live zone, seeded before its first tick.
+pub trait ZoneTelemetry: Send + Sync {
+    /// Seed metadata needed to classify events from a restored initial state.
+    fn consumer(&self, initial: &ZoneSnapshot) -> Box<dyn TickTelemetry>;
+}
+
 /// A command could not be queued. The input is handed back.
 #[derive(Debug, Error)]
 pub enum ZoneSendError {
@@ -341,6 +356,7 @@ pub struct ZoneActor<T, G> {
     out: broadcast::Sender<Arc<AppliedTick>>,
     stats: watch::Sender<TickStats>,
     gate_holds: u64,
+    telemetry: Option<(broadcast::Receiver<Arc<AppliedTick>>, Box<dyn TickTelemetry>)>,
 }
 
 impl<T: TickSource> ZoneActor<T, OpenGate> {
@@ -355,6 +371,18 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     /// task ends when the tick source stops or every handle has been dropped and the queue
     /// is drained.
     pub fn spawn_gated(state: ZoneState, ticks: T, gate: G) -> ZoneHandle {
+        Self::spawn_gated_with_telemetry(state, ticks, gate, None)
+    }
+
+    /// Starts with one telemetry subscription installed before the actor can run.
+    /// The actor drains it synchronously after broadcast, so this subscriber cannot lag
+    /// or lose events even when manual ticks run faster than the runtime can schedule tasks.
+    pub fn spawn_gated_with_telemetry(
+        state: ZoneState,
+        ticks: T,
+        gate: G,
+        telemetry: Option<Box<dyn TickTelemetry>>,
+    ) -> ZoneHandle {
         let (cmd_tx, cmd_rx) = mpsc::channel(COMMAND_QUEUE);
         let (snap_tx, snap_rx) = mpsc::channel(8);
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
@@ -373,6 +401,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             out: out_tx.clone(),
             stats: stats_tx,
             gate_holds: 0,
+            telemetry: telemetry.map(|consumer| (out_tx.subscribe(), consumer)),
         };
         tokio::spawn(actor.run());
         ZoneHandle {
@@ -450,6 +479,12 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         if !record.is_idle() {
             // No subscribers is fine: nobody is connected yet.
             let _ = self.out.send(record);
+            if let Some((receiver, consumer)) = &mut self.telemetry {
+                // Only this actor sends, and we drain before the next send. No lag possible.
+                if let Ok(admitted) = receiver.try_recv() {
+                    consumer.admitted(&admitted);
+                }
+            }
         }
         self.publish_stats(tick, started, applied);
         TickOutcome::Ran(tick)
@@ -521,14 +556,18 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
 
     fn publish_stats(&mut self, tick: Tick, started: Instant, applied: usize) {
         let duration = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX);
-        self.stats.send_replace(TickStats {
+        let stats = TickStats {
             tick,
             duration_micros: duration,
             entities: self.state.entity_count(),
             commands_applied: applied,
             commands_deferred: self.pending.len(),
             gate_holds: self.gate_holds,
-        });
+        };
+        self.stats.send_replace(stats);
+        if let Some((_, consumer)) = &mut self.telemetry {
+            consumer.stats(stats);
+        }
     }
 }
 

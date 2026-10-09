@@ -43,6 +43,13 @@ The stack is OpenTelemetry end to end with Grafana LGTM (`grafana/otel-lgtm`, st
   `infra/grafana/dashboards/nightfall-api.json`, and, if it can page someone, a rule in
   `infra/grafana/alerts/`. Names are `nightfall_` + base unit; labels are low-cardinality
   (route templates, method names, status codes), never character, account or session ids.
+- **Combat telemetry** consumes one admitted zone-wide batch per live tick, before the
+  next broadcast; session AOI output and replay never increment it. Labels are only
+  `outcome=miss|hit|crit`, `kind=player|npc`, and `to=idle|active|attack|return_home|dead`.
+  `nightfall_combat_tick_duration_seconds` uses every `TickStats` sample (idle ticks and
+  admission waits included); its p99 alert fires above 50 ms for 1 minute. E3.2 intention
+  events and the E4.2 checkpoint worker still need to call the documented catalogue hooks;
+  checkpoint lag is the oldest pending save's age, reset to zero when drained.
 - **Never record secrets.** Spans take the URL path, not the query or headers. Do not put
   tokens, tickets or passwords in span fields or log fields.
 - **Correlate.** Every request has a `request_id` on its root span. Handlers that learn the

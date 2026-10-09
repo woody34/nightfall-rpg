@@ -20,7 +20,7 @@ use super::replay_log::{
     encode_snapshot, start_epoch, DurableTickGate, EpochProgress, EventLog, GateConfig,
     ReplayLogMetrics, Watermark, WatermarkReason, ZoneSnapshotRow, ZoneSnapshotStore,
 };
-use super::zone_actor::{TickOutcome, TickSource, ZoneActor, ZoneHandle};
+use super::zone_actor::{TickOutcome, TickSource, ZoneActor, ZoneHandle, ZoneTelemetry};
 use crate::domain::zone::{
     NpcCombat, NpcTemplate, SpawnSlot, Speed, StatRules, Vec2Fixed, ZoneBounds, ZoneCommand,
     ZoneId, ZoneInput, ZoneSeed, ZoneState,
@@ -79,6 +79,7 @@ pub struct ZoneBootstrap {
     clock: Arc<dyn Clock>,
     metrics: Arc<dyn ReplayLogMetrics>,
     gate: GateConfig,
+    telemetry: Option<Arc<dyn ZoneTelemetry>>,
 }
 
 impl ZoneBootstrap {
@@ -97,7 +98,15 @@ impl ZoneBootstrap {
             clock,
             metrics,
             gate: GateConfig::default(),
+            telemetry: None,
         }
+    }
+
+    /// Installs one admitted-event subscriber before each zone starts.
+    #[must_use]
+    pub fn with_telemetry(mut self, telemetry: Arc<dyn ZoneTelemetry>) -> Self {
+        self.telemetry = Some(telemetry);
+        self
     }
 
     /// Overrides the gate's retry policy.
@@ -178,13 +187,14 @@ impl ZoneBootstrap {
             stop.clone(),
         );
         let progress = gate.progress();
-        let handle = ZoneActor::spawn_gated(
+        let handle = ZoneActor::spawn_gated_with_telemetry(
             state,
             StoppableTicks {
                 inner: ticks,
                 stop: stop.clone(),
             },
             gate,
+            self.telemetry.as_ref().map(|t| t.consumer(&snapshot)),
         );
         for npc in &def.npcs {
             handle
