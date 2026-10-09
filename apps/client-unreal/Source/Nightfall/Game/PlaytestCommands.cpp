@@ -7,9 +7,7 @@
 //   nf.Playtest victim         walks into the keltir meadow, never fights back, respawns when
 //                              killed, then quits once alive again
 // Both first walk to the meadow in hops (a fresh character starts at tile (0, 0); one MoveTo may
-// cover at most 64 tiles, and the keltirs at (100, 100) are outside its area of interest). While
-// not attacking they re-send a MoveTo to their own tile every 20 s: the server closes a socket
-// that sends nothing for 60 s (4408 idle timeout) and the client has no keep-alive of its own.
+// cover at most 64 tiles, and the keltirs at (100, 100) are outside its area of interest).
 // Each step and every animation state change of proxies and the pawn is logged with "playtest:"
 // and a screenshot is requested at the interesting moments (Saved/Screenshots/Linux/playtest-*.png).
 
@@ -96,7 +94,6 @@ namespace
 		bool bRespawned = false;
 		int32 Hop = 0;
 		double HopStarted = 0.0;
-		double LastKeepAlive = 0.0;
 		double Started = 0.0;
 		double DeadSince = 0.0;
 		double DoneAt = 0.0;
@@ -210,7 +207,7 @@ namespace
 					DoneAt = FPlatformTime::Seconds();
 					return true;
 				}
-				if (Walk(World, Pawn)) KeepAlive(World, Pawn);
+				Walk(World, Pawn);
 				return true;
 			}
 
@@ -239,11 +236,6 @@ namespace
 				{
 					UE_LOG(LogNightfall, Display, TEXT("playtest: attacking %s at %.0f cm"), *Best, BestDist);
 					Combat->ClickEntity(Best);
-					LastKeepAlive = FPlatformTime::Seconds();
-				}
-				else
-				{
-					KeepAlive(World, Pawn);
 				}
 			}
 			return true;
@@ -266,20 +258,10 @@ namespace
 			if (HopStarted == 0.0)
 			{
 				HopStarted = Now;
-				LastKeepAlive = Now;
 				UE_LOG(LogNightfall, Display, TEXT("playtest: walking to (%.0f, %.0f)"), Goal.X, Goal.Y);
 				IConsoleManager::Get().ProcessUserConsoleInput(*FString::Printf(TEXT("nf.ClickMove %.0f %.0f"), Goal.X, Goal.Y), *GLog, World);
 			}
 			return false;
-		}
-
-		void KeepAlive(UWorld* World, const APawn* Pawn)
-		{
-			const double Now = FPlatformTime::Seconds();
-			if (Now - LastKeepAlive < 20.0) return;
-			LastKeepAlive = Now;
-			const FVector At = Pawn->GetActorLocation();
-			IConsoleManager::Get().ProcessUserConsoleInput(*FString::Printf(TEXT("nf.ClickMove %.1f %.1f"), At.X / 100.0, At.Y / 100.0), *GLog, World);
 		}
 
 		~FPlaytest() { Teardown(); }
