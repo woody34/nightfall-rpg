@@ -1,6 +1,6 @@
 # Phase 1a Plan: Headless Simulation Testing
 
-**Status:** DRAFT 2026-10-08. Starts after Phase 1 closes (E5.4, E6.4). **Planning model:** Opus; implementation model and effort per story.
+**Status:** IMPLEMENTED 2026-10-09; local full-suite verification passed, final 20-minute soak in progress. CI acceptance pending (E4.1 registration, E4.5 two-week reliability, E6.3 CI-derived results). **Planning model:** Opus; implementation model and effort per story.
 
 ## 1. Goal
 
@@ -269,54 +269,56 @@ without it.
 All metrics, runtimes, and validation results below represent **locally measured evidence** gathered on the local Linux development machine. The persistent self-hosted Linux CI runner (`[self-hosted, unreal]`, Story 4.1) is not yet registered, and no hosted or self-hosted GitHub Actions execution has been performed. Consequently:
 
 - **No registered CI runner**: The host runner is not yet registered in GitHub Actions.
-- **No CI run or nightly success is claimed**: Story 4.2 pipeline execution and Story 4.5 two-week zero-flake PR gating remain unmeasured and pending runner availability.
-- **Story 6.3 acceptance status**: The original E6.3 acceptance criterion ("Numbers come from CI runs, not estimates") remains formally **pending** until the runner is online and executes the suites; local measured evidence documents the verified baseline.
+- **No CI run, CI success, or 2-week reliability claimed**: Story 4.2 pipeline execution, hosted/nightly CI runs, and Story 4.5 two-week zero-flake PR gating remain unmeasured and pending runner availability.
+- **Story 6.3 acceptance status**: The original E6.3 acceptance criterion ("Numbers come from CI runs, not estimates") remains formally **pending** runner registration and CI execution; local coordinator evidence establishes the authoritative baseline.
+- **Authoritative coordinator execution**: The final test coordinator executed all **15/15 logical units** spanning **19 scenario files** with **0 quarantine, 0 assertion failures, and 0 infrastructure errors** in **1180.417 seconds wall time**. Each unit ran against a fresh, full Docker Compose stack (PostgreSQL, NATS JetStream, Keycloak, LGTM) and a real headless Unreal client (`-nullrhi -nosound -unattended -BotScenario=...`).
+- **R4 runtime target remains unmet locally**: The serial fresh-stack coordinator took **19m40.417s**, exceeding the planned under-10-minute PR-set target. Each unit includes fresh PostgreSQL/NATS/Keycloak/LGTM startup. CI timing has not been measured, and the PR runtime budget is not claimed as passed.
 - **Audited and diagnostic build status at 2e85d3f**: Final audited and diagnostic API and client were built at commit `2e85d3f`:
   - Cargo release profile API build (`nightfall-api v0.1.0`): **52.31 s** (optimized).
   - Unreal editor and staged standalone client via RunUAT BuildCookRun: **85.43 s** (stage command 2.02 s; build succeeded).
-  - Final root editor/game rebuilds passed in 14.13s/29.19s. Nightfall automation passed **54/54** with `-RequireLiveApi` and zero live skips. Rust passed **341 library tests**, the integration/binary suites, and strict Clippy.
-  - The full 8-client × 1200-second (20-minute) soak on final integrated source remains pending the serial full-suite execution.
+  - Final root editor/game rebuilds passed in 14.13 s / 29.19 s. Nightfall automation passed **54/54** with `-RequireLiveApi` and zero live skips (`LiveSkip`). Rust passed **341 library tests**, the integration and binary suites, and strict Clippy.
+- **Audited soak status**: The full 8-client × 1200-second (20-minute) audited and diagnostic soak against the full Docker Compose stack is currently running (launched at 23:52 UTC) and pending real results; no success or performance metrics are claimed ahead of completion.
 
 ### 8.2 Environment isolation and infrastructure configurations
 
-To avoid conflation between scenario execution and soak testing, two distinct infrastructure configurations were used:
+Three distinct infrastructure configurations have been utilized during simulation testing:
 
-1. **Scenario suite (15 logical execution units)**: Executed against fresh per-unit in-memory API repositories (`AUTH_DEV_TOKENS=1`), real gRPC and WebSocket endpoints, and a fresh NATS JetStream volume/journal per run. To isolate the final corrected scenario pass from concurrent soak and diagnostics runs, dedicated ports were allocated (API 3100, gRPC 50151, NATS 4226).
-2. **Gauntlet soak suite**: Executed against a complete, fresh Docker Compose stack with persistent backing services (PostgreSQL with baseline migrations, NATS JetStream, Keycloak identity provider, and LGTM telemetry stack).
+1. **Initial historical in-memory iterations**: Early test iterations executed against fresh per-unit in-memory API repositories (`AUTH_DEV_TOKENS=1`), real gRPC and WebSocket endpoints, and a fresh NATS JetStream volume/journal per run, using dedicated port allocations (API 3100, gRPC 50151, NATS 4226) for process isolation.
+2. **Authoritative final simulation suite (15 logical execution units, 19 scenario files)**: The final coordinator executes each logical unit against its own dedicated, fresh, full Docker Compose stack with persistent backing services (PostgreSQL with baseline migrations, NATS JetStream, Keycloak identity provider, and LGTM telemetry stack) and a real headless Unreal client. Each unit runs container provisioning, health checks, scenario execution, replay verification, trace generation, coverage aggregation, pass/fail evaluation, and clean container teardown.
+3. **Staged Gauntlet soak suite**: Long-duration load tests (`NightfallSoak`) run staged standalone Linux client builds against a complete, fresh Docker Compose stack with persistent backing services (PostgreSQL, NATS, Keycloak, LGTM) to evaluate multi-client concurrent combat performance and metric stability.
 
 ### 8.3 Scenario coverage and measured execution runtimes
 
-The test suite contains **19 `.nfs` scenario files** representing **15 logical execution units** (11 single-client scenarios and 4 paired two-client scenarios). The traceability checker reports **25 completed client-visible stories: 23 covered, 2 explicit exceptions, 0 missing**. The exceptions are Phase 0b E1.5 (interactive device authorization and token storage) and E6.2 (browser approval and return-to-game UI); headless dev-token admission does not exercise those interactions. The manifest separately records Phase 1a E3.6 combined live/adversarial evidence outside those completed-story totals.
+The test suite contains **19 `.nfs` scenario files** organized into **15 logical execution units** (11 single-client scenarios and 4 paired two-client scenarios). Traceability reports exactly **25 completed client-visible stories: 23 covered, 2 explicit exceptions, 0 missing**. The two exceptions are Phase 0b E1.5 (interactive device authorization and token storage) and E6.2 (browser approval and return-to-game UI); headless dev-token admission does not exercise those browser/UI interactions. The manifest separately records Phase 1a E3.6 combined live/adversarial evidence outside those completed-story totals.
 
-- **Authentication boundary**: Headless scenarios authenticate via dev tokens (`AUTH_DEV_TOKENS=1`, `nf.Login`); this exercises session admission, play ticket issuance, and WebSocket connection, but does not exercise the interactive browser OIDC device flow or CommonUI login widgets.
+- **Authentication boundary**: Headless scenarios authenticate via dev tokens (`AUTH_DEV_TOKENS=1`, `nf.Login`); this exercises session admission, play ticket issuance, and WebSocket connection, while interactive browser OIDC device flow and CommonUI widgets remain out of headless scope.
 - **Combat state and late-entry assertions**: Paired late-entry live scenarios (`1-late-entry-a/b`) verify live reconnection and same-life HP continuity. Stale-fact handling and adversarial lower-incarnation rejections (`IsStaleSpawn`) are validated via dedicated unit and projection automation tests rather than injected by the live server.
-- **Coverage status**: Final 19-scenario cross-scenario contract coverage remains pending serial full-suite coordinator execution.
+- **Execution scope**: Measured runtimes are drawn authoritatively from `/tmp/nightfall-phase1a/final-ci-suite/summary.json` and reflect local coordinator execution, not CI runner execution. Each measured duration encompasses full unit lifecycle: Compose service startup and schema migration, headless client execution, replay check, HTML trace generation, contract/transition coverage aggregation, verdict emission, and service teardown.
 
-Measured runtimes reflect the latest relevant execution runs from local integration passes (`/tmp/nightfall-phase1a/results.txt`, `/tmp/nightfall-phase1a/retest/results.txt`, and `/tmp/nightfall-phase1a/final/results.txt`). No aggregate CI runtime estimate is provided, as execution depends on runner parallelism and topology.
-
-| Logical Unit | Scenario Files (`apps/client-unreal/Scenarios/`) | Topology | Measurement Stage | Measured Wall Time | Status |
-|---|---|---|---|---|---|
-| login | `0b-login-enter-world.nfs` | Single (1 bot) | Retest (actor assertions) | 18 s | PASS |
-| click | `0b-click-move.nfs` | Single (1 bot) | Retest (reconcile / exactness) | 23 s | PASS |
-| move-rejected | `0b-move-rejected.nfs` | Single (1 bot) | Initial | 13 s | PASS |
-| reconnect | `0b-reconnect.nfs` | Single (1 bot) | Initial | 10 s | PASS |
-| two-clients | `0b-two-clients-a.nfs`, `0b-two-clients-b.nfs` | Paired (2 bots) | Retest | 26 s | PASS |
-| login-replaces | `0b-login-replaces-a.nfs`, `0b-login-replaces-b.nfs` | Paired (2 bots) | Initial | 36 s | PASS |
-| target-attack | `1-target-attack.nfs` | Single (1 bot) | Initial | 39 s | PASS |
-| target-unknown | `1-target-unknown.nfs` | Single (1 bot) | Initial | 10 s | PASS |
-| kill | `1-kill-one-monster.nfs` | Single (1 bot) | Retest (reward exactness) | 55 s | PASS |
-| chase | `1-chase-leash.nfs` | Single (1 bot) | Final (first-hit wait fix) | 61 s | PASS |
-| npc-respawn | `1-npc-respawn.nfs` | Single (1 bot) | Final (corpse/despawn/new-life) | 85 s | PASS |
-| die-respawn | `1-die-respawn.nfs` | Single (1 bot) | Initial | 73 s | PASS |
-| delevel | `1-delevel.nfs` | Single (1 bot) | Initial | 82 s | PASS |
-| late-entry | `1-late-entry-a.nfs`, `1-late-entry-b.nfs` | Paired (2 bots) | Final | 61 s | PASS |
-| social | `1-social-aggro-a.nfs`, `1-social-aggro-b.nfs` | Paired (2 bots) | Final (deterministic fixture) | 47 s | PASS |
+| Logical Unit | Scenario Files (`apps/client-unreal/Scenarios/`) | Topology | Measured Seconds | Status |
+|---|---|---|---:|---|
+| `0b-click-move` | `0b-click-move.nfs` | Single (1 bot) | 80.841 s | PASS |
+| `0b-login-enter-world` | `0b-login-enter-world.nfs` | Single (1 bot) | 45.875 s | PASS |
+| `0b-login-replaces` | `0b-login-replaces-a.nfs`, `0b-login-replaces-b.nfs` | Paired (2 bots) | 68.512 s | PASS |
+| `0b-move-rejected` | `0b-move-rejected.nfs` | Single (1 bot) | 48.776 s | PASS |
+| `0b-reconnect` | `0b-reconnect.nfs` | Single (1 bot) | 46.315 s | PASS |
+| `0b-two-clients` | `0b-two-clients-a.nfs`, `0b-two-clients-b.nfs` | Paired (2 bots) | 56.387 s | PASS |
+| `1-chase-leash` | `1-chase-leash.nfs` | Single (1 bot) | 92.580 s | PASS |
+| `1-delevel` | `1-delevel.nfs` | Single (1 bot) | 145.475 s | PASS |
+| `1-die-respawn` | `1-die-respawn.nfs` | Single (1 bot) | 112.578 s | PASS |
+| `1-kill-one-monster` | `1-kill-one-monster.nfs` | Single (1 bot) | 76.917 s | PASS |
+| `1-late-entry` | `1-late-entry-a.nfs`, `1-late-entry-b.nfs` | Paired (2 bots) | 91.141 s | PASS |
+| `1-npc-respawn` | `1-npc-respawn.nfs` | Single (1 bot) | 114.064 s | PASS |
+| `1-social-aggro` | `1-social-aggro-a.nfs`, `1-social-aggro-b.nfs` | Paired (2 bots) | 80.426 s | PASS |
+| `1-target-attack` | `1-target-attack.nfs` | Single (1 bot) | 74.763 s | PASS |
+| `1-target-unknown` | `1-target-unknown.nfs` | Single (1 bot) | 45.719 s | PASS |
+| **Total (wall clock)** | **19 scenario files** | **15 logical units** | **1180.417 s** | **15/15 PASS** |
 
 ### 8.4 Gauntlet soak testing results
 
 Nightfall Gauntlet soak testing was validated locally using staged Linux builds against the full Compose stack. Performance validation strictly enforces the Phase 1 E6.2 acceptance budget of **combat tick p99 < 20 ms** over all ticks in the isolated stack (`histogram_quantile(0.99, sum by (le) (nightfall_combat_tick_duration_seconds_bucket))`). The separate **50 ms** threshold is an operational alert threshold, not the acceptance budget.
 
-The first debug runs verified client assertions and byte-identical replay, but the old reporter incorrectly used the 50ms operational alert threshold and `increase()`. Their performance verdicts are superseded: debug 8×120 had a complete cumulative p99 of approximately 35.136ms and fails the actual <20ms budget. An abbreviated release run then exposed same-millisecond UUIDv7 character-name collisions, now fixed with a random suffix. These failed/superseded runs remain historical evidence, not acceptance.
+The first debug runs verified client assertions and byte-identical replay, but the old reporter incorrectly used the 50ms operational alert threshold and `increase()`. Their performance verdicts are superseded: debug 8×120 had a complete cumulative p99 of approximately 35.136ms and fails the actual <20ms budget. An abbreviated release run then exposed same-millisecond UUIDv7 character-name collisions, resolved by deriving names with random suffix bits. These failed/superseded runs remain historical evidence, not acceptance.
 
 The corrected reporter requires every cumulative tick observation to match the completed recording and propagates API or Compose teardown failures. Intermediate release runs before final audit/diagnostics integration passed:
 
@@ -327,32 +329,44 @@ The corrected reporter requires every cumulative tick observation to match the c
 
 Both recordings matched byte-identically with no digest-only records. The two-client recording contained 7 players, 2,574 outputs and 161,652 bytes and replayed in 5.9ms; the eight-client recording contained 30 players, 11,456 outputs and 2,797,183 bytes and replayed in 31.5ms. These are measured intermediate smoke results, not final integrated-source acceptance.
 
-Final audited/diagnostic API and client were built at `2e85d3f` (API release in 52.31s, staged client BuildCookRun in 85.43s). The full eight-client × 1200-second soak remains pending the serial full-suite run. Live combat duration includes durability and checkpoint work; the older OpenGate release microbenchmark measures a different workload and does not substitute for this gate.
+Final audited/diagnostic API and client were built at `2e85d3f` (API release in 52.31s, staged client BuildCookRun in 85.43s). The full 8-client × 1200-second (20-minute) audited and diagnostic soak against the full Docker Compose stack is currently running (active since 23:52 UTC) and pending real results; no success or performance metrics are claimed ahead of completion. Live combat duration includes durability and checkpoint work; the older OpenGate release microbenchmark measures a different workload and does not substitute for this gate.
 
 ### 8.5 Diagnostics and coverage tracking status
 
-Evidence from initial local validation documented in `docs/engineering/sim-diagnostics.md`:
+Evidence from local validation documented in `docs/engineering/sim-diagnostics.md` and authoritative final suite outputs:
 
 - **E1.6 Failure bundle validation (real seeded failure actual values)**:
   - Seeded kill failure in `1-kill-one-monster`: executed full walk, targeting, and kill, then deliberately waited for `own_hp == 0` for 0.5 s.
   - First failure retained line 33, observed HP 109, wait 0.50026 s, and elapsed scenario time 31.558 s.
   - Bundle contained 50 typed server frames, 56 positions since the last click move, complete own projection (HP/MP/XP/level/target/attack state), and 4 proxy entries with position, HP, and life incarnation.
   - Observed ticks were 405 through 714; JUnit linked the bundle and the trace centered on tick 714. Replay matched 1,245 recorded ticks, 288 outputs, and 15,842 bytes. Process exited 1 as intended.
-- **E1.7 Contract coverage baseline floor and regression gate**:
-  - Initial historical presence floor established from 5 passing scenarios: death/respawn (`1-die-respawn`, 77 s), target/attack (`1-target-attack`, 44 s), click movement (`0b-click-move`, 47 s), rejected movement (`0b-move-rejected`, 17 s), and kill (`1-kill-one-monster`, 45 s), each with replay and trace checks.
-  - Combined observations covered 5/6 intents, 3/3 payloads, 11/12 events, 1/13 rejection reasons, and 0/4 documented close codes.
-  - Removal regression verification: removing the only death/respawn report from those measurements caused the gate to exit 1 for `intents.respawn` and `events.entity_respawned`. Synthetic regression tests separately verified that reducing a still-positive count does not fail.
+- **E1.7 Measured final-suite contract coverage**: The 19 clients sent **75 frames** and received **5,547 frames**. Compiled descriptor coverage is:
+
+  | Category | Covered | Missing |
+  |---|---:|---|
+  | Intents | 5/6 | `stop_move` |
+  | Payloads | 3/3 | None |
+  | World events | 12/12 | None |
+  | Reject reasons | 3/13 | Observed `INVALID`, `TOO_FAR`, `UNKNOWN_ENTITY`; the other 10 are unseen (full names in `coverage.contract.json`) |
+  | Documented close codes | 1/4 | `4400`, `4408`, `4429`; replacement close `4409` was observed |
+
+- **Baseline floor and regression gate**: The complete suite passed the historical five-scenario floor. After independent review, the measured full-suite floor was promoted on `main` at `534e0da`, adding `level_up`, `INVALID`, `UNKNOWN_ENTITY` and `4409` while preserving earlier positive observations. All 19 source reports pass the promoted floor. Removing the actual death/respawn report fails `intents.respawn`, as required.
 - **Controlled raw server audit comparison**:
-  - Fresh dedicated NATS/API run of `0b-move-rejected` passed in 13 s with replay and trace.
-  - Runtime descriptor-backed counts and `NF_SESSIONS` wire audit agreed exactly across 1 socket session and 5 audited wire frames: 1 inbound MoveTo and 4 outbound frames (1 checkpoint JSON record excluded).
-  - All intent, payload, event, and rejection counters matched with zero differences. Close codes were excluded by documented audit limitation.
-- **State transition coverage (E3.9)**: Acceptance aggregation selects the latest passing recording for each of the 19 current scenario files (`summary.json`). NPC intentions cover 7/10 reachable edges (`Idle->Attack`, `Idle->Dead`, and `Active->Dead` unseen). Player attack state covers 3/4 reachable edges (`pending->idle` unseen). 15 NPC and 5 player edges are labeled unreachable.
-- **Pending final coverage**: Full 19-scenario cross-scenario contract coverage across the complete suite remains pending serial full-suite coordinator execution.
+  - Initial audited run of `0b-move-rejected`: runtime descriptor-backed counts and `NF_SESSIONS` wire audit agreed exactly across 1 socket session and 5 audited wire frames (1 inbound MoveTo, 4 outbound frames; 1 checkpoint JSON record excluded) with zero differences.
+  - Final audited run of `1-target-unknown`: additionally verified against `NF_SESSIONS` wire audit across 1 socket session and 5 audited wire frames (1 inbound SetTarget, 4 outbound frames: 2 spawn, 1 stats_changed, 1 rejected with `REJECT_REASON_UNKNOWN_ENTITY`; 1 checkpoint JSON record excluded) with **0 diff** (`differences: []`).
+- **State transition coverage (E3.9)**:
+  - Transition coverage aggregates recordings across all units, deduplicating multi-client recordings for paired groups (`group.nfr` captured once per paired group, preventing duplicate counting of server transitions across client roles).
+  - **NPC intentions**: **7/10** reachable pairs covered.
+    - Never seen (3): `Idle -> Attack`, `Idle -> Dead`, `Active -> Dead`.
+    - Unreachable (15): `Idle -> Idle`, `Idle -> ReturnHome`, `Active -> Active`, `Active -> ReturnHome`, `Attack -> Idle`, `Attack -> Active`, `Attack -> Attack`, `ReturnHome -> Idle`, `ReturnHome -> Attack`, `ReturnHome -> ReturnHome`, `ReturnHome -> Dead`, `Dead -> Active`, `Dead -> Attack`, `Dead -> ReturnHome`, `Dead -> Dead`.
+  - **Player attack states**: **3/4** reachable pairs covered.
+    - Never seen (1): `pending -> idle`.
+    - Unreachable (5): `idle -> idle`, `idle -> active`, `pending -> pending`, `active -> pending`, `active -> active`.
 
 ### 8.6 Three lessons learned
 
 1. **Wait for authoritative projections and check actual fixture mechanics.** A successful transport connection does not prove actor readiness. Combat waits must allow misses and tick phasing; the social fixture must distinguish clan help from ordinary proximity aggro.
 
-2. **Logout does not unload the Unreal world.** Repeated scenarios reload `L_Login` and await map readiness to remove old proxies. The soak completes each final iteration so every started assertion has a verdict; a nominal 120-second client therefore ran as long as 159.0 seconds. Additionally, concurrent bot account rotation revealed that timestamp-prefixed UUIDv7 names caused collisions when clients registered in the same millisecond; resolving this required deriving character names from the trailing 52 random suffix bits (`Hex.Len() - 13`, `BotCharacterName::FromGuid`) to avoid timestamp-prefix collisions across parallel bots.
+2. **Logout does not unload the Unreal world.** Repeated scenarios reload `L_Login` and await map readiness to remove old proxies. The soak completes each final iteration so every started assertion has a verdict; a nominal 120-second client therefore ran as long as 159.0 seconds. Additionally, concurrent bot account rotation revealed that timestamp-prefixed UUIDv7 names caused collisions when clients registered in the same millisecond; deriving character names from the trailing 52 random suffix bits (`Hex.Len() - 13`, `BotCharacterName::FromGuid`) avoids deterministic timestamp collisions across parallel bots.
 
 3. **A fixed seed and a faithful replay are different checks.** Fresh Postgres/NATS storage pins the zone seed to `(1, 1)`, while client identities and arrival order can vary between runs. Replaying the recorded commands verifies that run byte-identically; flushing metrics before teardown separately verifies its performance gate.
