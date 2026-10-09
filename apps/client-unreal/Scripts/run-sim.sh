@@ -20,13 +20,14 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=sim-lib.sh
 . "$HERE/sim-lib.sh"
 
-API_MODE=attach; ARTIFACTS=""; REPLAY=1
+API_MODE=attach; ARTIFACTS=""; REPLAY=1; VIDEO=0
 ARGS=()
 while (($#)); do
   case "$1" in
     --api) API_MODE="${2:?--api needs attach|start}"; shift 2 ;;
     --artifacts) ARTIFACTS="${2:?--artifacts needs a directory}"; shift 2 ;;
     --no-replay) REPLAY=0; shift ;;
+    --video) VIDEO=1; shift ;;
     --timeout) SIM_TIMEOUT="${2:?--timeout needs seconds}"; shift 2 ;;
     -h|--help) sed -n '2,/^set -/p' "$0" | sed '$d'; exit 0 ;;
     --) shift; ARGS+=("$@"); break ;;
@@ -89,7 +90,16 @@ for scenario in "${SCENARIOS[@]}"; do
       status=FAIL; note="${note:+$note; }trace generation failed"
     fi
   done
-  [[ "$status" == PASS ]] || FAILED=$((FAILED + 1))
+  if [[ "$status" != PASS ]]; then
+    FAILED=$((FAILED + 1))
+    if ((VIDEO)); then
+      # Retry reports/logs live separately. Video problems remain diagnostic and cannot change
+      # the verdict or hide the original failed report already copied to dest.
+      if ! bash "$HERE/sim-video.sh" "$scenario" "$dest/video" >"$dest/video.log" 2>&1; then
+        note="${note:+$note; }video unavailable (see video.log)"
+      fi
+    fi
+  fi
   line="$status $name (${secs}s, replay=$replay)${note:+ - $note}"
   SUMMARY+=("$line")
   echo "$line"
