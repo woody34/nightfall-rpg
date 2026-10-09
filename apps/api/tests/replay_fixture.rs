@@ -487,7 +487,7 @@ async fn the_tool_exits_3_on_an_incomplete_jetstream_epoch() {
         .await
         .unwrap();
     let def = zone_def(unique_zone());
-    let state = ZoneState::new(
+    let mut state = ZoneState::new(
         nightfall_api::domain::zone::ZoneSeed {
             zone: def.zone,
             epoch: 1,
@@ -514,6 +514,54 @@ async fn the_tool_exits_3_on_an_incomplete_jetstream_epoch() {
         out.to_str().unwrap(),
     ]);
     assert_eq!(code, 3, "export refuses it too");
+    assert!(!out.exists());
+
+    let applied = state.run_tick(state.draft(vec![spawn(1, 30, 30)])).unwrap();
+    log.append_applied(&nightfall_api::application::replay_log::AppliedTickRecord::from_applied(
+        def.zone, &applied,
+    ))
+    .await
+    .unwrap();
+    let entity = EntityId::from_uuid(Uuid::from_u128(1)).to_string();
+    let (code, stdout, stderr) = tool(&[
+        "export",
+        "--zone",
+        &zone,
+        "--latest",
+        "--live",
+        "--session",
+        &entity,
+        "--nats",
+        &url,
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(code, 0, "{stdout}{stderr}");
+    assert_eq!(tool(&["check", "--file", out.to_str().unwrap()]).0, 0);
+    let captured = Recording::read(&out).unwrap();
+    assert_eq!(captured.watermark.reason, WatermarkReason::Capture);
+    assert_eq!(captured.records.len(), 1);
+    assert!(matches!(
+        log.epoch_status(def.zone, 1).await.unwrap(),
+        nightfall_api::application::replay_log::EpochStatus::Incomplete { .. }
+    ));
+    std::fs::remove_file(&out).unwrap();
+    let missing = EntityId::from_uuid(Uuid::from_u128(99)).to_string();
+    let (code, _, stderr) = tool(&[
+        "export",
+        "--zone",
+        &zone,
+        "--latest",
+        "--live",
+        "--session",
+        &missing,
+        "--nats",
+        &url,
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(stderr.contains("has no output"));
     assert!(!out.exists());
 }
 
@@ -974,4 +1022,203 @@ async fn a_record_digest_version_must_match_the_snapshot() {
     recording.records[0].digest_version = StateDigestVersion::BinaryV2;
     let divergence = diverged(replay(recording).await);
     assert!(matches!(divergence.mismatch, Mismatch::StateDigest));
+}
+
+#[tokio::test]
+async fn live_capture_is_a_replayable_prefix_without_closing_the_epoch() {
+    let rec = fight();
+    let zone = rec.snapshot.seed.zone;
+    let epoch = rec.snapshot.seed.epoch;
+    let log = InMemoryEventLog::default();
+    log.write_snapshot(&rec.snapshot).await.unwrap();
+    for r in rec.records.iter().take(100) {
+        log.append_applied(r).await.unwrap();
+    }
+    let captured = Recording::export_live(&log, zone, epoch).await.unwrap();
+    assert_eq!(captured.records.len(), 100);
+    assert_eq!(captured.watermark.reason, WatermarkReason::Capture);
+    assert!(matches!(
+        log.epoch_status(zone, epoch).await.unwrap(),
+        nightfall_api::application::replay_log::EpochStatus::Incomplete { .. }
+    ));
+    assert_eq!(replay(captured).await.unwrap().ticks, 100);
+    log.append_applied(&rec.records[100]).await.unwrap();
+    assert_eq!(
+        Recording::export_live(&log, zone, epoch)
+            .await
+            .unwrap()
+            .records
+            .len(),
+        101
+    );
+}
+
+#[test]
+fn check_alias_matches_and_returns_nonzero_on_divergence() {
+    let file = tmp("check-alias.nfr");
+    let mut rec = fixture();
+    rec.write(&file).unwrap();
+    assert_eq!(tool(&["check", "--file", file.to_str().unwrap()]).0, 0);
+    rec.records[0].server_time_ms += 1;
+    rec.write(&file).unwrap();
+    assert_eq!(tool(&["check", "--file", file.to_str().unwrap()]).0, 1);
+    let out = tmp("divergent-coverage.json");
+    assert_eq!(
+        tool(&[
+            "coverage",
+            "--file",
+            file.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap()
+        ])
+        .0,
+        0
+    );
+    std::fs::remove_file(file).unwrap();
+    std::fs::remove_file(out).unwrap();
+}
+
+fn coverage_json(file: &Path) -> serde_json::Value {
+    let out = tmp("coverage.json");
+    let (code, stdout, stderr) = tool(&[
+        "coverage",
+        "--file",
+        file.to_str().unwrap(),
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(code, 0, "{stdout}{stderr}");
+    assert!(stdout.contains("never seen") && stdout.contains("unreachable"));
+    let json = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+    std::fs::remove_file(out).unwrap();
+    json
+}
+
+fn assert_pairs(json: &serde_json::Value, states: &[&str], expected: &[(&str, &str, u64)]) {
+    let rows = json.as_array().unwrap();
+    assert_eq!(rows.len(), states.len() * states.len());
+    for (row, (from, to)) in rows.iter().zip(
+        states
+            .iter()
+            .flat_map(|from| states.iter().map(move |to| (from, to))),
+    ) {
+        assert_eq!(row.as_object().unwrap().len(), 4);
+        assert_eq!(row["from"], *from);
+        assert_eq!(row["to"], *to);
+        assert!(row["reachable"].is_boolean());
+        let count = expected
+            .iter()
+            .find(|(f, t, _)| f == from && t == to)
+            .map_or(0, |(_, _, count)| *count);
+        assert_eq!(row["count"].as_u64(), Some(count), "{from}->{to}");
+        if count > 0 {
+            assert_eq!(row["reachable"], true);
+        }
+        if from == to {
+            assert_eq!(row["reachable"], false);
+        }
+    }
+}
+
+#[test]
+fn coverage_pins_both_fixtures_and_the_complete_json_schema() {
+    for (file, fight) in [(fixture_path(), false), (fight_path(), true)] {
+        let json = coverage_json(&file);
+        assert_eq!(
+            json.as_object()
+                .unwrap()
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            [
+                "deaths",
+                "intent_rejected",
+                "life_incarnations",
+                "npc_intentions",
+                "player_attack_states",
+                "respawns",
+                "schema_version"
+            ]
+        );
+        assert_eq!(json["schema_version"], 1);
+        let npc = if fight {
+            vec![
+                ("Idle", "Active", 4),
+                ("Active", "Attack", 5),
+                ("Attack", "ReturnHome", 4),
+                ("Attack", "Dead", 1),
+                ("ReturnHome", "Active", 3),
+                ("Dead", "Idle", 1),
+            ]
+        } else {
+            vec![]
+        };
+        let player = if fight {
+            vec![
+                ("idle", "pending", 3),
+                ("pending", "active", 3),
+                ("active", "idle", 3),
+            ]
+        } else {
+            vec![]
+        };
+        assert_pairs(
+            &json["npc_intentions"],
+            &["Idle", "Active", "Attack", "ReturnHome", "Dead"],
+            &npc,
+        );
+        assert_pairs(&json["player_attack_states"], &["idle", "pending", "active"], &player);
+        let deaths = u64::from(fight);
+        assert_eq!(json["deaths"], serde_json::json!({"npc": deaths, "player": deaths}));
+        assert_eq!(json["respawns"], json["deaths"]);
+        let lives = if fight {
+            serde_json::json!({"npc:1->2": 1, "player:1->2": 1})
+        } else {
+            serde_json::json!({})
+        };
+        assert_eq!(json["life_incarnations"], lives);
+        assert_eq!(json["intent_rejected"], serde_json::json!({"OutOfBounds": 1}));
+    }
+}
+
+#[test]
+fn digest_only_coverage_matches_encoded_facts_and_invalid_files_fail() {
+    let expected = coverage_json(&fight_path());
+    let mut rec = fight();
+    rec.records = rec
+        .records
+        .iter()
+        .map(nightfall_api::application::replay_log::AppliedTickRecord::with_output_digests)
+        .collect();
+    let file = tmp("digest-coverage.nfr");
+    rec.write(&file).unwrap();
+    assert_eq!(coverage_json(&file), expected);
+    rec.records.remove(5);
+    rec.write(&file).unwrap();
+    let out = tmp("invalid-coverage.json");
+    assert_eq!(
+        tool(&[
+            "coverage",
+            "--file",
+            file.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap()
+        ])
+        .0,
+        2
+    );
+    assert!(!out.exists());
+    std::fs::remove_file(file).unwrap();
+}
+
+#[tokio::test]
+async fn live_capture_refuses_gaps() {
+    let rec = fixture();
+    let log = InMemoryEventLog::default();
+    log.write_snapshot(&rec.snapshot).await.unwrap();
+    log.append_applied(&rec.records[1]).await.unwrap();
+    let error = Recording::export_live(&log, rec.snapshot.seed.zone, rec.snapshot.seed.epoch)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("invalid live prefix"));
 }

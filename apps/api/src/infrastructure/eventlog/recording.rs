@@ -26,7 +26,7 @@ use tokio_stream::StreamExt as _;
 use super::InMemoryEventLog;
 use crate::application::replay_log::{
     decode_snapshot, encode_snapshot, open_epoch, AppliedTickRecord, EventLog, ReplayError,
-    Watermark,
+    Watermark, WatermarkReason,
 };
 use crate::domain::zone::{ZoneId, ZoneSnapshot};
 
@@ -70,6 +70,40 @@ impl Recording {
         Ok(Self {
             snapshot: opened.snapshot.snapshot,
             watermark: opened.watermark,
+            records,
+        })
+    }
+
+    /// Captures the finite durable prefix currently in the log, without closing the server
+    /// epoch. The local watermark marks the capture boundary; nothing is written to NATS.
+    pub async fn export_live(log: &dyn EventLog, zone: ZoneId, epoch: u64) -> anyhow::Result<Self> {
+        let snapshot = log
+            .read_snapshot(zone, epoch)
+            .await?
+            .with_context(|| format!("zone {} epoch {epoch} has no snapshot", zone.0))?
+            .snapshot;
+        let mut stream = log.read_epoch(zone, epoch).await?;
+        let mut records = Vec::new();
+        let mut next = snapshot.tick;
+        while let Some(record) = stream.next().await {
+            let record = record?;
+            if record.zone != zone || record.epoch != epoch || record.tick != next {
+                bail!("invalid live prefix: expected zone {} epoch {epoch} tick {}, found zone {} epoch {} tick {}",
+                    zone.0, next.0, record.zone.0, record.epoch, record.tick.0);
+            }
+            next = next.next();
+            records.push(record);
+        }
+        let watermark = Watermark {
+            zone,
+            epoch,
+            last_tick: records.last().map(|r| r.tick),
+            records: u64::try_from(records.len())?,
+            reason: WatermarkReason::Capture,
+        };
+        Ok(Self {
+            snapshot,
+            watermark,
             records,
         })
     }
