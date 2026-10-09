@@ -14,7 +14,7 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 | [Persistence model](data-model.html) | ER / data model | All columns of the seven current tables, keys and declared versus logical relationships. |
 | [Module dependencies](module-dependencies.html) | Dependency graph | Composition, shared inner layers and the interface-to-infrastructure telemetry exception. |
 | [Stat derivation](stat-derivation-data-flow.html) | Data flow | Pinned L2J HF source → decimal generator → TOML → `rules_data` → `StatRules` → `StatSheet` → combat and progression. |
-| [Combat sequence](combat-sequence.html) | Sequence | SetTarget → Attack → chase → swing start → durable ack → impact draws → `AttackResult` / `StatsChanged` / `EntityDied`, with the per-impact loop. |
+| [Combat sequence](combat-sequence.html) | Sequence | Proxy raycast → SetTarget / Attack → chase → swing start → durable ack → impact draws → dispatch to combat state & HUD dedupe/numbers, with the per-impact loop. |
 
 ## Regenerate and validate
 
@@ -34,7 +34,7 @@ Open locally in a browser; repository viewers may show HTML source instead of re
    (960×600), and sequence/state/ER use fitted canvases. The process uses the type reference's
    parametric five-step, four-lane canvas (728×436); the replay tool a fitted 720×700; stat
    derivation the data-flow type's parametric six-step, four-lane canvas (840×436); combat a fitted
-   1120×820 four-lifeline sequence with one `LOOP` fragment.
+   1280×820 five-lifeline sequence with one `LOOP` fragment.
 5. Apply the skill's taste gate: complexity limits, ≤2 general focal elements (the process
    uses its type-specific focal step/node/handoff set), orthogonal connectors, masked labels,
    distinct ports, accessibility, readable type and local horizontal scrolling. Keep each

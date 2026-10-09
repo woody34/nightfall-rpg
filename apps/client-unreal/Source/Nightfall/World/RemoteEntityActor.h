@@ -22,6 +22,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Nightfall")
 	TObjectPtr<class UStaticMeshComponent> Body;
 
+	/** Query-only volume the click raycast hits (Visibility channel). It never blocks movement. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Nightfall")
+	TObjectPtr<class UCapsuleComponent> ClickVolume;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Nightfall")
 	FString EntityId;
 

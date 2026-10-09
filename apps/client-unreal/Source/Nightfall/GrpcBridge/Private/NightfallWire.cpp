@@ -10,7 +10,11 @@ namespace NightfallWire
 		const FGrpcNightfallV1ClientMessageIntent& Intent = In.Intent;
 		const bool bHasIntent =
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::MoveTo && Intent.MoveTo.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::StopMove && Intent.StopMove.IsValid());
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::StopMove && Intent.StopMove.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::SetTarget && Intent.SetTarget.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::Attack && Intent.Attack.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::StopAttack && Intent.StopAttack.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::Respawn && Intent.Respawn.IsValid());
 
 		::nightfall::v1::ClientMessage Msg;
 		if (bHasIntent)

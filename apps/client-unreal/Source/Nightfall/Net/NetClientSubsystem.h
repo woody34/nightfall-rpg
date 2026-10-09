@@ -15,6 +15,13 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntityMove, const FEntityMove&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntityDespawn, const FEntityDespawn&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnIntentAck, const FAck&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnIntentRejected, const FIntentRejected&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAttackResult, const FAttackResult&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntityDied, const FEntityDied&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntityRespawned, const FEntityRespawned&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnStatsChanged, const FStatsChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnXpGained, const FXpGained&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelUp, const FLevelUp&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetChanged, const FTargetChanged&);
 
 /** What a WebSocket upgrade is made from. The ticket rides in Headers, never in Url (plan §8 #7). */
 struct FWsUpgradeRequest
@@ -81,6 +88,18 @@ public:
 	/** Sends a MoveTo intent. Returns the seq the server will ack. */
 	uint32 SendMoveTo(const FNetVec2& Destination);
 
+	/** Combat intents (E2.1 contract). Each returns the seq the server will Ack or reject; 0 if not connected. */
+	uint32 SendSetTarget(const FString& EntityId);   // empty clears the selection
+	uint32 SendAttack();
+	uint32 SendStopAttack();
+	uint32 SendRespawn();
+
+	/**
+	 * Routes one decoded ServerMessage to the typed delegates and the entity cache. HandleRawMessage
+	 * ends here; tests and recorded-event replays call it directly.
+	 */
+	void DispatchServerMessage(const FServerMessage& Msg);
+
 	/**
 	 * The entity this client controls. The server uses the character id as the player's entity id,
 	 * so the login flow sets it when IssuePlayTicket succeeds. Empty when not in the world.
@@ -112,6 +131,13 @@ public:
 	FOnEntityDespawn OnEntityDespawn;
 	FOnIntentAck OnIntentAck;
 	FOnIntentRejected OnIntentRejected;
+	FOnAttackResult OnAttackResult;
+	FOnEntityDied OnEntityDied;
+	FOnEntityRespawned OnEntityRespawned;
+	FOnStatsChanged OnStatsChanged;
+	FOnXpGained OnXpGained;
+	FOnLevelUp OnLevelUp;
+	FOnTargetChanged OnTargetChanged;
 
 private:
 	void Open(const FString& WsUrl, const FString& PlayTicket);
@@ -139,4 +165,5 @@ private:
 	TArray<uint8> Frame;              // reassembly buffer for fragmented frames
 	FSnapshotBuffer SnapshotBuffer;
 	TMap<FString, FEntitySpawn> KnownEntities;
+	TMap<FString, FEntitySpawn> Tombstones;   // last spawn of despawned entities, for stale-spawn checks
 };

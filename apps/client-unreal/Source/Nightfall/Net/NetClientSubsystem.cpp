@@ -81,7 +81,8 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 		bConnected = true;
 		ReconnectAttempt = 0;
 		Frame.Reset();
-		KnownEntities.Reset();   // the server re-sends every spawn in our area of interest
+		KnownEntities.Reset();
+		Tombstones.Reset();   // the server re-sends every spawn in our area of interest
 		UE_LOG(LogNightfall, Log, TEXT("ws connected"));
 		OnConnected.Broadcast();
 	});
@@ -161,6 +162,11 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 		return;
 	}
 
+	DispatchServerMessage(Msg);
+}
+
+void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
+{
 	if (Msg.Ack.IsSet())
 	{
 		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Ack->Seq);
@@ -179,9 +185,20 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 		const FWorldEvent& E = *Msg.Event;
 		if (E.Spawn.IsSet())
 		{
-			SnapshotBuffer.Push(E.Spawn->EntityId, E.Spawn->Position, EstimatedServerTimeMs());
-			KnownEntities.Add(E.Spawn->EntityId, *E.Spawn);
-			OnEntitySpawn.Broadcast(*E.Spawn);
+			const FEntitySpawn* Known = KnownEntities.Find(E.Spawn->EntityId);
+			if (!Known) Known = Tombstones.Find(E.Spawn->EntityId);
+			if (Known && NightfallProto::IsStaleSpawn(*Known, *E.Spawn))
+			{
+				// A replaced session's or an earlier life's spawn arriving late: the newer one wins.
+				UE_LOG(LogNightfall, Verbose, TEXT("ws: stale spawn for %s dropped"), *E.Spawn->EntityId);
+			}
+			else
+			{
+				SnapshotBuffer.Push(E.Spawn->EntityId, E.Spawn->Position, EstimatedServerTimeMs());
+				KnownEntities.Add(E.Spawn->EntityId, *E.Spawn);
+				Tombstones.Remove(E.Spawn->EntityId);
+				OnEntitySpawn.Broadcast(*E.Spawn);
+			}
 		}
 		if (E.Move.IsSet())
 		{
@@ -196,9 +213,22 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 		if (E.Despawn.IsSet())
 		{
 			SnapshotBuffer.Remove(E.Despawn->EntityId);
+			if (const FEntitySpawn* Gone = KnownEntities.Find(E.Despawn->EntityId)) Tombstones.Add(E.Despawn->EntityId, *Gone);
 			KnownEntities.Remove(E.Despawn->EntityId);
 			OnEntityDespawn.Broadcast(*E.Despawn);
 		}
+		if (E.AttackResult.IsSet()) OnAttackResult.Broadcast(*E.AttackResult);
+		if (E.EntityDied.IsSet()) OnEntityDied.Broadcast(*E.EntityDied);
+		if (E.EntityRespawned.IsSet())
+		{
+			// The respawn point is authoritative: remote proxies jump there; the own pawn is snapped by UOwnEntityComponent.
+			SnapshotBuffer.Push(E.EntityRespawned->Entity, E.EntityRespawned->Position, EstimatedServerTimeMs());
+			OnEntityRespawned.Broadcast(*E.EntityRespawned);
+		}
+		if (E.StatsChanged.IsSet()) OnStatsChanged.Broadcast(*E.StatsChanged);
+		if (E.XpGained.IsSet()) OnXpGained.Broadcast(*E.XpGained);
+		if (E.LevelUp.IsSet()) OnLevelUp.Broadcast(*E.LevelUp);
+		if (E.TargetChanged.IsSet()) OnTargetChanged.Broadcast(*E.TargetChanged);
 	}
 }
 
@@ -211,6 +241,46 @@ uint32 UNetClientSubsystem::SendMoveTo(const FNetVec2& Destination)
 		Msg.Seq, Destination.X, Destination.Y, bConnected ? TEXT("") : TEXT(" [not connected: dropped]"));
 	Send(Msg);
 	return Msg.Seq;
+}
+
+uint32 UNetClientSubsystem::SendSetTarget(const FString& EntityId)
+{
+	FClientMessage Msg;
+	Msg.Seq = ++NextSeq;
+	Msg.SetTarget = FSetTargetIntent{ EntityId };
+	UE_LOG(LogNightfall, Verbose, TEXT("ws: send SetTarget seq %u -> '%s'"), Msg.Seq, *EntityId);
+	Send(Msg);
+	return bConnected ? Msg.Seq : 0;
+}
+
+uint32 UNetClientSubsystem::SendAttack()
+{
+	FClientMessage Msg;
+	Msg.Seq = ++NextSeq;
+	Msg.bAttack = true;
+	UE_LOG(LogNightfall, Verbose, TEXT("ws: send Attack seq %u"), Msg.Seq);
+	Send(Msg);
+	return bConnected ? Msg.Seq : 0;
+}
+
+uint32 UNetClientSubsystem::SendStopAttack()
+{
+	FClientMessage Msg;
+	Msg.Seq = ++NextSeq;
+	Msg.bStopAttack = true;
+	UE_LOG(LogNightfall, Verbose, TEXT("ws: send StopAttack seq %u"), Msg.Seq);
+	Send(Msg);
+	return bConnected ? Msg.Seq : 0;
+}
+
+uint32 UNetClientSubsystem::SendRespawn()
+{
+	FClientMessage Msg;
+	Msg.Seq = ++NextSeq;
+	Msg.bRespawn = true;
+	UE_LOG(LogNightfall, Verbose, TEXT("ws: send Respawn seq %u"), Msg.Seq);
+	Send(Msg);
+	return bConnected ? Msg.Seq : 0;
 }
 
 void UNetClientSubsystem::Send(const FClientMessage& Msg)

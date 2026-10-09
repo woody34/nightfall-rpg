@@ -19,7 +19,26 @@ namespace
 		Out.Position = FromGrpc(S.Position);
 		Out.Kind = static_cast<uint32>(S.Kind);
 		Out.SessionGeneration = S.SessionGeneration;
+		Out.bCombatant = S.Combatant;
+		Out.TemplateId = S.TemplateId;
+		Out.LifeIncarnation = S.LifeIncarnation;
+		Out.bDead = S.Dead;
+		Out.bAttackable = S.Attackable;
+		Out.Hp = S.Hp;
+		Out.MaxHp = S.MaxHp;
+		Out.Level = S.Level;
 		return Out;
+	}
+
+	ENetAttackOutcome FromGrpc(EGrpcNightfallV1AttackOutcome O)
+	{
+		switch (O)
+		{
+		case EGrpcNightfallV1AttackOutcome::ATTACK_OUTCOME_MISS: return ENetAttackOutcome::Miss;
+		case EGrpcNightfallV1AttackOutcome::ATTACK_OUTCOME_HIT: return ENetAttackOutcome::Hit;
+		case EGrpcNightfallV1AttackOutcome::ATTACK_OUTCOME_CRIT: return ENetAttackOutcome::Crit;
+		default: return ENetAttackOutcome::Unspecified;
+		}
 	}
 
 	FEntityMove FromGrpc(const FGrpcNightfallV1EntityMove& M)
@@ -51,6 +70,50 @@ namespace
 		case EGrpcNightfallV1WorldEventEvent::Despawn:
 			if (Ev.Despawn.IsValid()) { Out.Despawn = FEntityDespawn{ Ev.Despawn->EntityId }; }
 			break;
+		case EGrpcNightfallV1WorldEventEvent::AttackResult:
+			if (const FGrpcNightfallV1AttackResult* R = Ev.AttackResult.Get())
+			{
+				Out.AttackResult = FAttackResult{ R->Attacker, R->Target, R->Tick, FromGrpc(R->Outcome), R->Damage, R->TargetHpAfter, R->TargetIncarnation };
+			}
+			break;
+		case EGrpcNightfallV1WorldEventEvent::EntityDied:
+			if (const FGrpcNightfallV1EntityDied* D = Ev.EntityDied.Get())
+			{
+				Out.EntityDied = FEntityDied{ D->Entity, D->Tick, D->Killer, D->Incarnation };
+			}
+			break;
+		case EGrpcNightfallV1WorldEventEvent::EntityRespawned:
+			if (const FGrpcNightfallV1EntityRespawned* R = Ev.EntityRespawned.Get())
+			{
+				Out.EntityRespawned = FEntityRespawned{ R->Entity, R->Tick, FromGrpc(R->Position), R->Hp };
+			}
+			break;
+		case EGrpcNightfallV1WorldEventEvent::StatsChanged:
+			if (const FGrpcNightfallV1StatsChanged* S = Ev.StatsChanged.Get())
+			{
+				Out.StatsChanged = FStatsChanged{ S->Entity, S->Hp, S->MaxHp, S->Mp, S->MaxMp, S->Level };
+			}
+			break;
+		case EGrpcNightfallV1WorldEventEvent::XpGained:
+			if (const FGrpcNightfallV1XpGained* X = Ev.XpGained.Get())
+			{
+				Out.XpGained = FXpGained{ X->Entity, X->Amount, X->Total };
+			}
+			break;
+		case EGrpcNightfallV1WorldEventEvent::LevelUp:
+			if (const FGrpcNightfallV1LevelUp* L = Ev.LevelUp.Get())
+			{
+				Out.LevelUp = FLevelUp{ L->Entity, L->Level };
+			}
+			break;
+		case EGrpcNightfallV1WorldEventEvent::TargetChanged:
+			if (const FGrpcNightfallV1TargetChanged* T = Ev.TargetChanged.Get())
+			{
+				Out.TargetChanged = FTargetChanged{ T->Entity, T->Target };
+			}
+			break;
+		default:
+			break;
 		}
 		return Out;
 	}
@@ -58,6 +121,13 @@ namespace
 
 namespace NightfallProto
 {
+	bool IsStaleSpawn(const FEntitySpawn& Known, const FEntitySpawn& New)
+	{
+		if (New.SessionGeneration < Known.SessionGeneration) return true;
+		return New.SessionGeneration == Known.SessionGeneration
+			&& Known.LifeIncarnation != 0 && New.LifeIncarnation != 0 && New.LifeIncarnation < Known.LifeIncarnation;
+	}
+
 	void Encode(const FClientMessage& In, TArray<uint8>& Out)
 	{
 		FGrpcNightfallV1ClientMessage Msg;
@@ -69,6 +139,28 @@ namespace NightfallProto
 			MoveTo->Destination.Y = In.MoveTo->Destination.Y;
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MoveTo;
 			Msg.Intent.MoveTo = MoveTo;
+		}
+		else if (In.SetTarget.IsSet())
+		{
+			TSharedPtr<FGrpcNightfallV1SetTargetRequest> Req = MakeShared<FGrpcNightfallV1SetTargetRequest>();
+			Req->EntityId = In.SetTarget->EntityId;
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::SetTarget;
+			Msg.Intent.SetTarget = Req;
+		}
+		else if (In.bAttack)
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::Attack;
+			Msg.Intent.Attack = MakeShared<FGrpcNightfallV1AttackRequest>();
+		}
+		else if (In.bStopAttack)
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::StopAttack;
+			Msg.Intent.StopAttack = MakeShared<FGrpcNightfallV1StopAttackRequest>();
+		}
+		else if (In.bRespawn)
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::Respawn;
+			Msg.Intent.Respawn = MakeShared<FGrpcNightfallV1RespawnRequest>();
 		}
 		NightfallWire::EncodeClientMessage(Msg, Out);
 	}

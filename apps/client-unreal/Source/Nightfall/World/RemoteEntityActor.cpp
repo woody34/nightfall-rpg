@@ -2,6 +2,7 @@
 #include "Net/NetClientSubsystem.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/CapsuleComponent.h"
 
 ARemoteEntityActor::ARemoteEntityActor()
 {
@@ -12,6 +13,15 @@ ARemoteEntityActor::ARemoteEntityActor()
 	Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Body->SetRelativeLocation(FVector(0.f, 0.f, 95.f));
 	Body->SetRelativeScale3D(FVector(0.8f, 0.8f, 1.9f));   // sized for the engine's 100 cm shapes
+
+	ClickVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("ClickVolume"));
+	ClickVolume->SetupAttachment(RootComponent);
+	ClickVolume->InitCapsuleSize(60.f, 100.f);
+	ClickVolume->SetRelativeLocation(FVector(0.f, 0.f, 100.f));
+	ClickVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ClickVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
+	ClickVolume->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	ClickVolume->SetCanEverAffectNavigation(false);
 }
 
 void ARemoteEntityActor::Bind(UNetClientSubsystem* InNet)
