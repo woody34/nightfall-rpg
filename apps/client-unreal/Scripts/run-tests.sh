@@ -42,6 +42,9 @@ if [[ "$REQUIRE_LIVE" == 1 ]]; then
   echo "run-tests: CI mode, live tests fail when the API is unreachable" >&2
 fi
 TOKEN="${NIGHTFALL_DEV_TOKEN:-}"
+if [[ -z "$TOKEN" && "${AUTH_DEV_TOKENS:-}" == 1 ]]; then
+  TOKEN="test:$(python3 -c 'import uuid; print(uuid.uuid4())')"
+fi
 if [[ -z "$TOKEN" ]] && command -v jq >/dev/null && command -v openssl >/dev/null \
   && curl -sf -o /dev/null "$ISSUER/.well-known/openid-configuration"; then
   TOKEN="$(OIDC_ISSUER="$ISSUER" OUTPUT=access_token "$REPO/infra/keycloak/device-flow-demo.sh" 2>/dev/null || true)"
