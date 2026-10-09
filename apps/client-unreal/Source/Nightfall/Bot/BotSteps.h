@@ -68,6 +68,7 @@ struct FBotTestCase
 	double Seconds = 0.0;
 	FString Message;           // failure / skip reason (one line)
 	FString Detail;            // failure body
+	FString FailureType = TEXT("failure"); // explicit predicate failures may be quarantined; infrastructure stays generic
 };
 
 /** Structured first failure; never re-evaluate a predicate while writing diagnostic artifacts. */

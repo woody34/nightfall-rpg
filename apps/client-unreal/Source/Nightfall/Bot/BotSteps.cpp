@@ -256,6 +256,8 @@ void FBotScenarioExecutor::FailStep(const FBotStep& Step, double Now, const FStr
 	const int32 StepIndex = Scenario.Steps.IndexOfByPredicate([&](const FBotStep& S) { return S.Line == Step.Line; });
 	FBotTestCase& Case = CaseFor(StepIndex);
 	Case.Status = FBotTestCase::EStatus::Failed;
+	if (Step.Kind == EBotStepKind::Expect) Case.FailureType = TEXT("bot_assertion");
+	else if (Step.Kind == EBotStepKind::WaitFor) Case.FailureType = TEXT("bot_expectation");
 	Case.Seconds = StepStartSeconds >= 0.0 ? Now - StepStartSeconds : 0.0;
 	Case.Message = Message;
 	Case.Detail = Detail;
@@ -303,6 +305,7 @@ void FBotScenarioExecutor::Finish(double Now)
 		else
 		{
 			Case.Status = FBotTestCase::EStatus::Failed;
+			Case.FailureType = TEXT("bot_scenario");
 			Case.Message = FString::Printf(TEXT("scenario took %s, budget %s"), *FormatSeconds(Elapsed), *FormatSeconds(Scenario.BudgetSeconds));
 			bFailed = true;
 			if (Failure.IsEmpty()) Failure = Case.Message;
@@ -372,8 +375,8 @@ FString BotJUnit::Write(const FString& Scenario, const TArray<FBotTestCase>& Cas
 			Xml += Head + FString::Printf(TEXT(">\n      <skipped message=\"%s\"/>\n    </testcase>\n"), *Escape(Case.Message));
 			break;
 		case FBotTestCase::EStatus::Failed:
-			Xml += Head + FString::Printf(TEXT(">\n      <failure message=\"%s\" type=\"failure\">%s</failure>\n    </testcase>\n"),
-				*Escape(Case.Message), *Escape(Case.Detail.IsEmpty() ? Case.Message : Case.Detail));
+			Xml += Head + FString::Printf(TEXT(">\n      <failure message=\"%s\" type=\"%s\">%s</failure>\n    </testcase>\n"),
+				*Escape(Case.Message), *Escape(Case.FailureType), *Escape(Case.Detail.IsEmpty() ? Case.Message : Case.Detail));
 			break;
 		}
 	}

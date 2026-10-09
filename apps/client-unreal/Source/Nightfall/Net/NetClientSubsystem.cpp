@@ -173,8 +173,8 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 	if (BytesRemaining > 0) return; // fragmented frame; wait for the rest
 
 	FServerMessage Msg;
+	OnWireReceived.Broadcast(Frame); // diagnostics validates raw envelopes before projection conversion
 	const bool bOk = NightfallProto::Decode(Frame.GetData(), Frame.Num(), Msg);
-	if (bOk) OnWireReceived.Broadcast(Frame);
 	Frame.Reset();
 	if (!bOk)
 	{

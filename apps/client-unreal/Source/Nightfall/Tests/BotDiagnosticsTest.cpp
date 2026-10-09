@@ -113,6 +113,7 @@ bool FBotFailureValueTest::RunTest(const FString& Parameters)
 	Executor.Tick(101.1);
 	TestTrue(TEXT("timeout retains first failure context"), Executor.GetFailedStep().IsSet());
 	TestEqual(TEXT("two live evaluations only"), Evaluations, 2);
+	TestTrue(TEXT("predicate timeout classification is explicit"), BotJUnit::Write(TEXT("test"), Executor.GetTestCases(), 1.1).Contains(TEXT("type=\"bot_expectation\"")));
 	if (Executor.GetFailedStep().IsSet())
 	{
 		TestEqual(TEXT("last value preserved"), Executor.GetFailedStep()->Observed, FString(TEXT("81")));
