@@ -4,6 +4,7 @@
 //! depends only on the domain and on port traits; adapters in `infrastructure` implement the
 //! ports. Use cases are unit-tested with in-memory adapters and no I/O.
 
+pub mod checkpoint;
 pub mod error;
 pub mod ports;
 pub mod replay;

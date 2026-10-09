@@ -29,7 +29,8 @@ The rule, from Kigawas: routers thin, use cases thick, models slim. A handler th
 
 `application::ports` defines:
 
-- `CharacterRepository`: `get`, `list_by_account`, `create_idempotent`. Each method is one
+- `CharacterRepository`: `get`, `list_by_account`, `create_idempotent`, `load_for_admission`,
+  `checkpoint`. Each method is one
   atomic unit of work.
 - `AccountRepository`: `record_login` (idempotent upsert).
 - `SessionRepository`: `issue_ticket_idempotent`, `consume_ticket`.
@@ -65,7 +66,7 @@ zone-input path.
 
 ### 2.2 Subjects
 
-`nightfall.<aggregate>.<event>` for domain events; currently `nightfall.character.created`.
+`nightfall.<aggregate>.<event>` for domain events; `nightfall.character.created`, `.leveled` and `.died`.
 A future command-subject convention is `nightfall.cmd.<aggregate>.<command>`; no zone commands
 are published there today. Domain-event subjects come from `DomainEvent::subject`. Payload is JSON with a `type` tag today; switch to protobuf on the bus when a
 non-Rust consumer appears.
@@ -186,7 +187,7 @@ Phase 1 E2.2–E2.6. Flow: [combat sequence](../diagrams/combat-sequence.html). 
   `LevelUp` per level, one `StatsChanged`; HP/MP kept, clamped to new maxima.
 - **Progression facts.** At tick end, one `ZoneEvent::Progression(ProgressionDelta)` per player
   whose XP, level or life changed (end values, `levels_gained`, `died`, `respawned`), via
-  `AppliedTick::progression()`; recorded, never sent. E4.2 checkpoints from these.
+  `AppliedTick::progression()`; recorded, never sent. The checkpoint lane persists these (§2.8).
 - **Visibility.** Owner-only: `StatsChanged`, `XpGained`, `LevelUp`, `TargetChanged`.
   `AttackStarted`/`AttackResult`/`AttackCancelled` reach observers that know both sides;
   `EntityDied` those that know the entity; `HateChanged`, `Progression` nobody.
@@ -395,6 +396,37 @@ the pinned L2J source to a damage roll. Phase 1 plan §3.1 is the contract;
   `StatSheet::from_final` takes NPC template values as-is. `combat_math` covers hit/crit
   rolls (the caller draws), damage with K = 76, attack timing in ticks, hate and respawn;
   `progression` covers XP, level and death loss. No floats (lint plus source scan).
+
+### 2.8 Progression checkpoints (Phase 1 §3.3)
+
+`CheckpointService` consumes live ticks after the durable log gate, before broadcast. It saves
+changed state every 50 ticks per player, immediately on death, level change or respawn, and
+before applying disconnect/replacement commands. A lifecycle command after another command
+for that player waits for the next tick boundary. The serial lane retains the exact request
+through failures (100 ms–5 s backoff); it backpressures the actor rather than dropping facts.
+`checkpoint_lag_seconds` and `checkpoint_failures_total` report this lane. This deliberately
+stalls the zone during a database outage; DB completion time never enters simulation rules.
+
+Admission and departure share the registry lock. Departure waits for final save and applied
+Despawn before releasing admission; fresh SpawnPlayer carries committed XP, level, HP, MP,
+life, position and revision from `load_for_admission`. Replacements retain the live entity and
+its single checkpoint lane. A stale repository revision fences further writes from that lane.
+The loaded revision is an optional replay-command field; old fixtures remain byte-identical.
+
+One repository transaction writes progression, increments its revision, records the idempotency
+response and stages every CharacterLeveled/CharacterDied fact. Checkpoint keys hash character,
+zone, epoch and tick; event IDs add the fact ordinal. Event sequence is the ordered pair
+`(committed revision, ordinal)`, preserving multiple level-ups and death delevel/XP loss.
+Only the existing outbox relay publishes. Save acknowledgements are separate session audit
+records (`nightfall.session.<id>.checkpoint`, JSON); audit failure cannot undo a committed save.
+
+Before opening the next epoch, startup reconstructs and validates the latest durable prefix
+against its snapshot, including digest-only records, and projects the same checkpoint requests.
+Known requests replay their stored responses; missing critical saves and outbox facts commit
+once. The applied log is the durable pending queue, so recovery needs neither a save audit ack
+nor an epoch watermark. Ordinary progress after the last checkpoint may roll back. This path
+is separate from replay verification: `open_epoch` still refuses incomplete epochs and the
+verifier has no persistence port. Runtime snapshots are answered only after pending saves finish.
 
 ## 3. Request lifecycle: `CreateCharacter`
 

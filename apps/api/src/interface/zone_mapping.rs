@@ -102,8 +102,8 @@ pub fn speed_to_tiles_per_second(s: Speed) -> f32 {
 
 /// What a loaded character spawns as: its id as the entity id (plan §8 #6), its saved
 /// position rounded to the nearest milli-tile, default speed, and its race's starting
-/// fighter class at its level. XP, HP and MP are not stored yet (E4.1), so a character enters
-/// with the level's threshold XP and full HP/MP.
+/// fighter class at its level. The session registry replaces this provisional load with
+/// committed progression and position under the lifecycle lock before queueing admission.
 pub fn player_spawn(c: &Character) -> Result<PlayerSpawn, MappingError> {
     Ok(PlayerSpawn {
         entity: EntityId::from_uuid(c.id.as_uuid()),

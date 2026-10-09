@@ -11,6 +11,8 @@ use crate::domain::SessionId;
 /// One recorded frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AuditedFrame {
+    /// A repository acknowledgement, distinct from wire traffic.
+    Checkpoint(crate::application::checkpoint::CheckpointAck),
     /// Client to server, with its decoded seq if it had one.
     In {
         /// `ClientMessage.seq`, `None` if undecodable.
@@ -54,6 +56,13 @@ impl InMemorySessionAudit {
 }
 
 impl SessionAudit for InMemorySessionAudit {
+    fn record_checkpoint(
+        &self,
+        session: SessionId,
+        ack: &crate::application::checkpoint::CheckpointAck,
+    ) {
+        self.push(session, AuditedFrame::Checkpoint(ack.clone()));
+    }
     fn record_in(&self, session: SessionId, seq: Option<u32>, frame: &Bytes) {
         self.push(
             session,

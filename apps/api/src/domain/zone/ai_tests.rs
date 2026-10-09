@@ -756,12 +756,16 @@ proptest! {
             e.combat.as_mut().unwrap().hp = 1;
             e.ai.as_mut().unwrap().intention = Intention::ReturnHome;
         }
-        let total = usize::try_from(z.entities[&npc].pos.distance_sq(home).isqrt() / 400).unwrap() + 3;
+        // Integer diagonal steps can cover slightly less than 400 units. Include that
+        // rounding loss and the AI tick after arrival which restores HP.
+        let total = usize::try_from(z.entities[&npc].pos.distance_sq(home).isqrt() / 398).unwrap() + 4;
         let cut = total * usize::try_from(cut).unwrap() / 100;
         let mut a = z.clone();
         let mut last = a.entities[&npc].pos.distance_sq(home);
         let mut first = Vec::new();
         for _ in 0..cut {
+            let combat = a.entities[&npc].combat.as_ref().unwrap();
+            if a.entities[&npc].pos == home && combat.hp == combat.sheet.max_hp() { break; }
             first.push(run(&mut a, Vec::new()));
             let d = a.entities[&npc].pos.distance_sq(home);
             prop_assert!(d < last || d == 0);
@@ -770,6 +774,8 @@ proptest! {
         let json = encode_snapshot(&a.snapshot()).unwrap();
         let mut b = ZoneState::from_snapshot(decode_snapshot(&json).unwrap()).unwrap();
         for _ in cut..total {
+            let combat = a.entities[&npc].combat.as_ref().unwrap();
+            if a.entities[&npc].pos == home && combat.hp == combat.sheet.max_hp() { break; }
             let ta = run(&mut a, Vec::new());
             let tb = run(&mut b, Vec::new());
             prop_assert_eq!(

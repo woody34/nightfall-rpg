@@ -9,10 +9,8 @@ use sea_orm::DatabaseConnection;
 use crate::application::replay_log::{EventLog, ZoneSnapshotStore};
 use crate::application::zone_actor::IntervalTicks;
 use crate::application::zone_bootstrap::{RunningZone, ZoneBootstrap};
-use crate::application::Clock;
 use crate::infrastructure::eventlog::{InMemoryEventLog, JetStreamEventLog};
 use crate::infrastructure::postgres::PgZoneSnapshotStore;
-use crate::infrastructure::telemetry::Metrics;
 use crate::infrastructure::{rules_data, zone_data};
 
 /// Where the zone comes from.
@@ -47,9 +45,10 @@ pub async fn start(
     cfg: &ZoneRuntimeConfig,
     nats_url: Option<&str>,
     db: Option<DatabaseConnection>,
-    clock: Arc<dyn Clock>,
-    metrics: Metrics,
+    deps: &crate::Dependencies,
 ) -> anyhow::Result<RunningZone> {
+    let metrics = deps.metrics.clone();
+    let clock = deps.clock.clone();
     let def = match &cfg.zone_file {
         Some(path) => zone_data::load_zone(path)?,
         None => zone_data::parse_zone(zone_data::TEST_ZONE_TOML)?,
@@ -71,9 +70,19 @@ pub async fn start(
         Arc::new(PgZoneSnapshotStore::new(db).with_metrics(metrics.clone()))
             as Arc<dyn ZoneSnapshotStore>
     });
-    ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics.clone()))
+    let mut checkpoints = crate::application::checkpoint::CheckpointService::new(
+        deps.characters.clone(),
+        deps.audit.clone(),
+        Arc::new(metrics.clone()),
+    );
+    if let Some(epoch) = log.latest_epoch(def.zone).await? {
+        checkpoints.recover(log.as_ref(), def.zone, epoch).await?;
+    }
+    let running = ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics.clone()))
         .with_telemetry(Arc::new(metrics))
         .with_rules(rules)
         .start(&def, IntervalTicks::new())
-        .await
+        .await?;
+    running.handle().checkpoints.install(checkpoints);
+    Ok(running)
 }

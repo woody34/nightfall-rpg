@@ -174,6 +174,10 @@ impl CharacterRepository for PgCharacterRepository {
         .await?
         .map(|m| {
             Ok(ProgressionState {
+                position: Position {
+                    x: m.pos_x,
+                    y: m.pos_y,
+                },
                 level: u32::try_from(m.level)?,
                 xp: u64::try_from(m.xp)?,
                 hp: m.hp.map(u32::try_from).transpose()?,

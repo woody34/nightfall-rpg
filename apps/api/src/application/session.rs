@@ -320,6 +320,9 @@ pub enum AdmitError {
     /// A session with the same or a newer generation already owns the character.
     #[error("a newer session owns this character")]
     Stale,
+    /// Committed character state could not be loaded.
+    #[error("character admission load failed")]
+    LoadFailed,
     /// The zone actor has stopped.
     #[error(transparent)]
     ZoneStopped(#[from] ActorStopped),
@@ -338,10 +341,19 @@ struct Live {
 /// `ReplaceSession` before the stale session's `Despawn`.
 #[derive(Clone, Default)]
 pub struct SessionRegistry {
+    characters: Option<Arc<dyn super::CharacterRepository>>,
     live: Arc<tokio::sync::Mutex<BTreeMap<EntityId, Live>>>,
 }
 
 impl SessionRegistry {
+    /// Enables committed-state admission for real sockets.
+    pub fn with_characters(characters: Arc<dyn super::CharacterRepository>) -> Self {
+        Self {
+            characters: Some(characters),
+            ..Self::default()
+        }
+    }
+
     /// Registers `session` as the owner of `spawn.entity` at `generation` and queues its
     /// admission: `SpawnPlayer` if nobody owns the entity, `ReplaceSession` (and the old
     /// session's replacement signal) if an older generation does. Returns the token that is
@@ -354,8 +366,35 @@ impl SessionRegistry {
         spawn: &PlayerSpawn,
     ) -> Result<CancellationToken, AdmitError> {
         let mut live = self.live.lock().await;
+        if live
+            .get(&spawn.entity)
+            .is_some_and(|current| current.generation >= generation)
+        {
+            return Err(AdmitError::Stale);
+        }
+        let mut spawn = spawn.clone();
+        if let Some(repo) = &self.characters {
+            let id = crate::domain::CharacterId::from_uuid(spawn.entity.as_uuid());
+            let loaded = repo
+                .load_for_admission(id)
+                .await
+                .map_err(|_| AdmitError::LoadFailed)?
+                .ok_or(AdmitError::LoadFailed)?;
+            spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
+            spawn.load = Some(Box::new(PlayerLoad {
+                checkpoint_revision: Some(loaded.revision),
+                class: loaded.class_profile,
+                level: loaded.level,
+                xp: loaded.xp,
+                hp: loaded.hp,
+                mp: loaded.mp,
+                alive: loaded.alive,
+            }));
+        }
+        if let Some(service) = zone.checkpoints.service() {
+            service.lock().await.bind_session(spawn.entity, session);
+        }
         let command = match live.get(&spawn.entity) {
-            Some(current) if current.generation >= generation => return Err(AdmitError::Stale),
             Some(current) => {
                 current.replaced.cancel();
                 ZoneCommand::ReplaceSession {
@@ -396,15 +435,52 @@ impl SessionRegistry {
         generation: SessionGeneration,
     ) -> Result<(), ActorStopped> {
         let mut live = self.live.lock().await;
-        if live.get(&entity).is_some_and(|l| l.session == session) {
-            live.remove(&entity);
-        }
+        let owns = live.get(&entity).is_some_and(|l| l.session == session);
+        let mut ticks = zone.subscribe();
         zone.send_wait(ZoneInput {
             source: CommandSource::Session { entity, generation },
             seq: None,
             command: ZoneCommand::Despawn { entity },
         })
-        .await
+        .await?;
+        if owns && self.characters.is_some() {
+            // Keep admission behind the final save and Despawn. The actor persists before
+            // applying the lifecycle command, then broadcasts after durable admission.
+            loop {
+                let received = tokio::select! {
+                    () = zone.stopped() => return Err(ActorStopped),
+                    received = ticks.recv() => received,
+                };
+                match received {
+                    Ok(tick)
+                        if tick.commands.iter().any(|c| {
+                            matches!(c.command, ZoneCommand::Despawn { entity: e } if e == entity)
+                                && c.source == CommandSource::Session { entity, generation }
+                        }) =>
+                    {
+                        break
+                    },
+                    Ok(_) => {},
+                    Err(broadcast::error::RecvError::Lagged(_)) => {
+                        // The save is still safe if this waiter missed the broadcast.
+                        if !zone
+                            .snapshot()
+                            .await?
+                            .entities
+                            .iter()
+                            .any(|e| e.id == entity)
+                        {
+                            break;
+                        }
+                    },
+                    Err(broadcast::error::RecvError::Closed) => return Err(ActorStopped),
+                }
+            }
+        }
+        if owns {
+            live.remove(&entity);
+        }
+        Ok(())
     }
 
     /// Number of entities with a live session.
@@ -490,7 +566,7 @@ pub async fn run_session<R: FrameSource, W: FrameSink>(
                 end
             },
             Err(AdmitError::Stale) => SessionEnd::Replaced,
-            Err(AdmitError::ZoneStopped(_)) => SessionEnd::ZoneUnavailable,
+            Err(AdmitError::ZoneStopped(_) | AdmitError::LoadFailed) => SessionEnd::ZoneUnavailable,
         };
         tracing::Span::current().record("end", end.label());
         tracing::info!(end = end.label(), "session ended");
@@ -868,3 +944,15 @@ impl<'a> Actor<'a> {
 #[cfg(test)]
 #[path = "session_tests.rs"]
 mod tests;
+
+fn saved_position(pos: crate::domain::Position) -> Option<Vec2Fixed> {
+    let fixed = |v: f32| {
+        let raw = (f64::from(v) * f64::from(crate::domain::zone::UNITS_PER_TILE)).round();
+        if !raw.is_finite() || raw < f64::from(i32::MIN) || raw > f64::from(i32::MAX) {
+            return None;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(crate::domain::zone::Fixed::from_raw(raw as i32))
+    };
+    Some(Vec2Fixed::new(fixed(pos.x)?, fixed(pos.y)?))
+}

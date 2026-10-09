@@ -21,6 +21,8 @@ pub enum DomainEvent {
     },
     /// A character reached a new level (one event per level gained).
     CharacterLeveled {
+        /// Stable identity and aggregate order of this fact.
+        metadata: EventMetadata,
         /// The character.
         character_id: CharacterId,
         /// The level reached.
@@ -28,11 +30,29 @@ pub enum DomainEvent {
     },
     /// A character died.
     CharacterDied {
+        /// Stable identity and aggregate order of this fact.
+        metadata: EventMetadata,
+        /// Level after the death penalty.
+        level: u32,
+        /// Cumulative XP after the penalty.
+        xp: u64,
+        /// XP charged by this death.
+        xp_lost: u64,
         /// The character.
         character_id: CharacterId,
         /// What dealt the killing blow, as an opaque id (monster template or character id).
         killer: String,
     },
+}
+
+/// Deterministic progression event identity. Sequence orders checkpoints, then facts within
+/// a checkpoint; it remains ordered across reconnects and epochs through the repository fence.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EventMetadata {
+    /// Hash of character, zone, epoch, tick and fact ordinal.
+    pub event_id: uuid::Uuid,
+    /// Lexicographic aggregate sequence: committed revision, then event ordinal.
+    pub sequence: (u64, u64),
 }
 
 impl DomainEvent {
@@ -79,6 +99,7 @@ mod tests {
         let id = CharacterId::new();
         assert_eq!(
             DomainEvent::CharacterLeveled {
+                metadata: EventMetadata::default(),
                 character_id: id,
                 level: 2
             }
@@ -86,6 +107,10 @@ mod tests {
             "nightfall.character.leveled"
         );
         let died = DomainEvent::CharacterDied {
+            metadata: EventMetadata::default(),
+            level: 1,
+            xp: 0,
+            xp_lost: 0,
             character_id: id,
             killer: "npc:1".into(),
         };

@@ -99,8 +99,10 @@ pub trait CharacterRepository: Send + Sync {
 pub const LEVEL_RANGE: std::ops::RangeInclusive<u32> = 1..=85;
 
 /// What a zone needs from the database to admit a character.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProgressionState {
+    /// Position read atomically with progression and its revision.
+    pub position: Position,
     /// Current level (1..=85).
     pub level: u32,
     /// Cumulative experience.
@@ -415,6 +417,9 @@ pub trait EventBus: Send + Sync {
 /// replay verifies. Story 3.2 supplies the `JetStream` adapter
 /// (`nightfall.session.<id>.in` / `.out`); `InMemorySessionAudit` serves tests and dev.
 pub trait SessionAudit: Send + Sync {
+    /// A committed save acknowledgement; audit-only, never a socket frame.
+    fn record_checkpoint(&self, _session: SessionId, _ack: &super::checkpoint::CheckpointAck) {}
+
     /// One inbound frame, as received, before any validation. `seq` is the decoded
     /// `ClientMessage.seq`, or `None` when the frame could not be decoded (oversize,
     /// malformed, not binary).
