@@ -45,6 +45,7 @@ per-endpoint test matrix, and the Rust standard enforced by rustfmt, clippy, wor
 and cargo-deny. Those documents win over anything in a phase document about code structure.
 
 See [docs/plans/](../plans/) for phase plans (Phase 0b is complete).
+See [docs/decisions/phase-1-combat.md](../decisions/phase-1-combat.md) for the Phase 1 combat decision record.
 
 ## Cross-cutting decisions
 
