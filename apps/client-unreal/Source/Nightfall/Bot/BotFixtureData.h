@@ -22,6 +22,7 @@ struct NIGHTFALL_API FBotFixtureData
 
 	TMap<uint32, uint64> XpForLevel;        // tables/experience.toml to_level: level -> cumulative XP
 	TMap<uint32, uint64> DeathLossQ;        // tables/penalties.toml death_xp_loss: level -> fraction_q (Q = 1_000_000)
+	TOptional<uint64> KeltirXpReward;        // npcs/keltir.toml xp_reward
 	uint64 RespawnHpQ = 0;                  // tables/formulas.toml [formulas.town_respawn] restore_hp_q
 	uint64 RespawnMpQ = 0;                  // ... restore_mp_q
 	uint32 SpawnProtectionSeconds = 0;      // ... spawn_protection_seconds

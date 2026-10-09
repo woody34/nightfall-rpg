@@ -797,7 +797,10 @@ bool FBotCombatPredicatesTest::RunTest(const FString& Parameters)
 		S.LifeIncarnation = 1; S.bAttackable = true; S.Hp = 70; S.MaxHp = 80; S.Level = 1;
 		FWorldEvent E; E.Spawn = S; Rig.Event(E);
 	}
+	// Spawn and hit are delivered in one batch, before a runner Observe/Eval tick.
+	TestEqual(TEXT("late spawn projection checked before batched hit"), Rig.Observations.LateSpawnProjectionOk, 2);
 	Rig.Hit(OwnId, Boar, 13, 5, 70, 1);   // does not continue from 70
+	TestEqual(TEXT("batched hit cannot erase spawn projection evidence"), Rig.Observations.LateSpawnProjectionOk, 2);
 	Is(TEXT("late_spawn_hp_bad == 1"), true);
 
 	// Level from the XP table; death loss from the penalty row of the level died on.
@@ -840,6 +843,14 @@ bool FBotCombatPredicatesTest::RunTest(const FString& Parameters)
 	Is(TEXT("xp_restored"), true);
 	Rig.Xp(28, 83);
 	Is(TEXT("xp_restored"), true);   // pre-drop total plus the gain since
+
+	// Exact fixture reward, not merely positive and internally consistent XP.
+	Stats(81, 0, 1, 0);
+	Rig.Target(Boar);
+	Rig.Xp(D.KeltirXpReward.Get(0), D.KeltirXpReward.Get(0));
+	Is(TEXT("kill_xp_matches_fixture"), true);
+	Rig.Xp(D.KeltirXpReward.Get(0) + 2, D.KeltirXpReward.Get(0) + 2);
+	Is(TEXT("kill_xp_matches_fixture"), false);
 
 	Is(TEXT("players_in_view == 0"), true);   // the boar and the wolf are NPCs
 	return true;

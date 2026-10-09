@@ -165,6 +165,8 @@ public:
 	FOnNetDisconnected OnDisconnected;
 
 	FOnEntitySpawn OnEntitySpawn;
+	/** Emitted after every spawn consumer projected the accepted spawn, before the next wire fact. */
+	FOnEntitySpawn OnEntitySpawnProjected;
 	FOnEntityMove OnEntityMove;
 	FOnEntityDespawn OnEntityDespawn;
 	FOnIntentAck OnIntentAck;

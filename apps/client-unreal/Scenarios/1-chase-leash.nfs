@@ -22,7 +22,7 @@ nf.WaitFor own_at 97 100 1 15      # 22.7 tiles: 4.5 s, 3x
 nf.Target nearest_attackable
 nf.WaitFor target != none 3
 nf.Attack                          # hate: the keltir now fights us whatever its aggro range says
-nf.WaitFor target_hits >= 2 10     # two landed swings (~1 s apart): the newest one does not start from full HP
+nf.WaitFor target_hits >= 1 10     # one landed hit leaves a 44 HP keltir wounded even on a 40 damage crit
 nf.Expect target_wounded
 nf.WaitFor target_distance <= 2.5 10   # in melee: reach 1.8 tiles plus a tick of movement
 # Chase: 8 tiles south, inside the leash of both homes ((97, 92) is 8.5 and 12.2 tiles from them).

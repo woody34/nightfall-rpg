@@ -12,6 +12,7 @@ nf.WaitFor in_world 15
 nf.WaitFor other_players >= 1 45
 nf.WaitFor proxy_actors_in_sync 5
 nf.WaitFor proxy_at 12 9 2 30
+nf.WaitFor other_player_actor_at 12 9 2 30
 nf.WaitFor other_players == 0 30      # A logged out: EntityDespawn removed it from the cache
 nf.WaitFor proxy_actors_in_sync 5     # and the world's proxy actor is gone (none leaked)
 nf.Within 150

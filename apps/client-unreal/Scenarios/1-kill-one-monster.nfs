@@ -26,6 +26,7 @@ nf.Expect target == none           # the server clears a dead selection
 nf.Expect attack_state == idle
 nf.Expect damage_numbers_match_results
 nf.WaitFor xp_known 3              # XpGained follows the death in the same tick
+nf.WaitFor kill_xp_matches_fixture 3
 nf.Expect own_xp > 0
 nf.Expect own_level_matches_xp
 nf.Expect own_level >= 1

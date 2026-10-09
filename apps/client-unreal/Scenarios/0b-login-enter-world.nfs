@@ -13,6 +13,7 @@ nf.WaitFor in_world 15            # own EntitySpawn received and L_TestZone load
 nf.Expect own_spawns == 1         # exactly one admission: the own EntitySpawn
 nf.Expect own_entity_unchanged
 nf.Expect own_at 0 0 1            # a new character stands at the zone origin (character Position::default)
+nf.WaitFor own_pawn_at 0 0 1 3
 nf.Expect rejected == none
 nf.Expect target == none
 nf.Expect attack_state == idle

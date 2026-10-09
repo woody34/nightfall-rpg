@@ -163,6 +163,12 @@ FBotFixtureData FBotFixtureData::Load(const FString& DataDir)
 	};
 	FBotFixtureData D = Parse(Read(TEXT("tables/experience.toml")), Read(TEXT("tables/penalties.toml")),
 		Read(TEXT("tables/formulas.toml")), Read(TEXT("zones/test_zone.toml")));
+	ForEachEntry(Read(TEXT("npcs/keltir.toml")), [&D](const FString&, const FString& Key, const FString& Value)
+	{
+		uint64 Reward = 0;
+		if (Key == TEXT("xp_reward") && ParseU64(Value, Reward)) D.KeltirXpReward = Reward;
+	});
+	if (!D.KeltirXpReward.IsSet()) D.Error += TEXT(" missing npcs/keltir.toml xp_reward");
 	if (!D.IsValid()) D.Error = FString::Printf(TEXT("%s (data dir %s; set -BotDataDir=)"), *D.Error, *DataDir);
 	return D;
 }

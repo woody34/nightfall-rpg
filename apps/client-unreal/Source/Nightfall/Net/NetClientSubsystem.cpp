@@ -222,6 +222,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 				KnownEntities.Add(E.Spawn->EntityId, *E.Spawn);
 				Tombstones.Remove(E.Spawn->EntityId);
 				OnEntitySpawn.Broadcast(*E.Spawn);
+				OnEntitySpawnProjected.Broadcast(*E.Spawn);
 			}
 		}
 		if (E.Move.IsSet())

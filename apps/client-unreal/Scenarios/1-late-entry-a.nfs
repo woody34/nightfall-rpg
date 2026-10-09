@@ -38,8 +38,9 @@ nf.WaitFor players_in_view >= 1 90 # B enters our view (and we its): it got the 
 nf.Expect own_hp > 0
 nf.Expect target != none
 nf.Expect target_wounded
+nf.Mark
 nf.Attack                          # resume: B checks our next hit against the HP its spawn carried
-nf.WaitFor target_hits >= 3 10     # a swing every ~1 s (the keltir may die on it: 44 HP, ~7 hits in all)
+nf.WaitFor target_hits_since_mark >= 1 10 # a new hit continues from the wounded spawn; a crit may kill it
 # Drop the socket mid-fight. The server despawns a dropped session's player
 # (SessionRegistry::leave), so the fight ends and the reconnect is a new admission: spawns and
 # StatsChanged are re-sent, the selection is not.

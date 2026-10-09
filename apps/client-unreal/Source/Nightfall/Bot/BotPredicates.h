@@ -35,6 +35,8 @@ struct NIGHTFALL_API FBotObservations
 	bool bOwnRespawned = false;             // an EntityRespawned for the player arrived
 	uint64 OwnRespawnTick = 0;
 	bool bAttackedSinceRespawn = false;     // an Attack was accepted (attack state active) after it
+	TOptional<uint64> XpAtTargetSelection;
+	TOptional<uint64> LastXpGainedAmount;
 	TOptional<uint64> TrackedXp;            // own XP from StatsChanged / XpGained; reset on disconnect
 	uint32 TrackedLevel = 0;
 	bool bOwnDeathStatsSeen = false;        // a StatsChanged with HP 0 arrived for the current death

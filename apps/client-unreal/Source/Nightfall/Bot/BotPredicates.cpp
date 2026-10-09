@@ -6,6 +6,11 @@
 #include "Game/NightfallGameMode.h"
 #include "Net/NetClientSubsystem.h"
 #include "World/WorldProxySubsystem.h"
+#include "World/RemoteEntityActor.h"
+#include "Game/OwnEntityComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
+#include "EngineUtils.h"
 #include "SNightfallV1/WorldMessage.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -38,6 +43,7 @@ void FBotObservations::Bind(UGameInstance* GameInstance)
 		TargetHandle = Net->OnTargetChanged.AddLambda([this, Net](const FTargetChanged& Changed)
 		{
 			if (!Net->IsOwnEntity(Changed.Entity) || Changed.Target.IsEmpty() || Changed.Target.Equals(LastTargetId, ESearchCase::IgnoreCase)) return;
+			XpAtTargetSelection = TrackedXp;
 			LastTargetId = Changed.Target.ToLower();
 			LastTargetHp.Reset();
 			Observe(BoundCombat.Get());
@@ -100,6 +106,8 @@ void FBotObservations::Reset()
 	OwnRespawnTick = 0;
 	bAttackedSinceRespawn = false;
 	TrackedXp.Reset();
+	XpAtTargetSelection.Reset();
+	LastXpGainedAmount.Reset();
 	TrackedLevel = 0;
 	bOwnDeathStatsSeen = false;
 	XpBeforeDeath.Reset();
@@ -184,13 +192,21 @@ void FBotObservations::BindPhase1(UNetClientSubsystem* Net)
 			}
 		}
 	});
-	const FDelegateHandle Spawn = Net->OnEntitySpawn.AddLambda([this, Weak](const FEntitySpawn& S)
+	const FDelegateHandle Spawn = Net->OnEntitySpawnProjected.AddLambda([this, Weak](const FEntitySpawn& S)
 	{
 		const UNetClientSubsystem* N = Weak.Get();
 		if (!N || N->IsOwnEntity(S.EntityId) || S.Kind != 2 || !S.bCombatant) return;
 		const bool bWounded = !S.bDead && S.Hp < S.MaxHp;
 		if (bWounded || S.bDead || S.LifeIncarnation > 1) ++SpawnsMidFight;
-		if (bWounded) WoundedSpawns.Add(S.EntityId.ToLower(), FLateSpawn{ S.Hp, S.LifeIncarnation, false });
+		if (bWounded)
+		{
+			FLateSpawn& Late = WoundedSpawns.Add(S.EntityId.ToLower(), FLateSpawn{ S.Hp, S.LifeIncarnation, false });
+			const UCombatStateSubsystem* Combat = N->GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();
+			const FCombatEntity* E = Combat ? Combat->FindEntity(S.EntityId) : nullptr;
+			Late.bProjectionChecked = true;
+			const bool bOk = E && !E->bDead && E->Hp == S.Hp && (S.LifeIncarnation == 0 || E->Incarnation == S.LifeIncarnation);
+			(bOk ? LateSpawnProjectionOk : LateSpawnProjectionBad)++;
+		}
 	});
 	const FDelegateHandle Move = Net->OnEntityMove.AddLambda([this](const FEntityMove& M)
 	{
@@ -237,6 +253,7 @@ void FBotObservations::BindPhase1(UNetClientSubsystem* Net)
 	{
 		const UNetClientSubsystem* N = Weak.Get();
 		if (!N || !N->IsOwnEntity(G.Entity)) return;
+		LastXpGainedAmount = G.Amount;
 		TrackedXp = G.Total;
 		XpGainedSinceReconnect += G.Amount;
 		bAwaitingStats = false;
@@ -247,7 +264,7 @@ void FBotObservations::BindPhase1(UNetClientSubsystem* Net)
 		{
 			N->OnIntentAck.Remove(Ack);
 			N->OnAttackResult.Remove(Hit);
-			N->OnEntitySpawn.Remove(Spawn);
+			N->OnEntitySpawnProjected.Remove(Spawn);
 			N->OnEntityMove.Remove(Move);
 			N->OnEntityDied.Remove(Died);
 			N->OnEntityRespawned.Remove(Respawned);
@@ -624,9 +641,18 @@ void FBotPredicateRegistry::RegisterBuiltins()
 			{
 				if (N->IsOwnEntity(Known.Key)) continue;
 				++Expected;
-				if (!P->GetProxies().Contains(Known.Key)) return false;
+				const TObjectPtr<ARemoteEntityActor>* Actor = P->GetProxies().Find(Known.Key);
+				if (!Actor || !IsValid(Actor->Get()) || (*Actor)->EntityId != Known.Key) return false;
 			}
-			return P->GetProxies().Num() == Expected;
+			int32 LiveActors = 0;
+			for (TActorIterator<ARemoteEntityActor> It(const_cast<UWorld*>(W)); It; ++It)
+			{
+				if (!IsValid(*It)) continue;
+				const TObjectPtr<ARemoteEntityActor>* Registered = P->GetProxies().Find(It->EntityId);
+				if (!Registered || Registered->Get() != *It) return false;
+				++LiveActors;
+			}
+			return P->GetProxies().Num() == Expected && LiveActors == Expected;
 		});
 	RegisterNumber(TEXT("close_code"), TEXT("The WebSocket close code of the newest close (4409 = replaced by a newer session); unknown before the first close"),
 		[](const FBotContext& C) -> TOptional<double>
@@ -656,6 +682,43 @@ void FBotPredicateRegistry::RegisterBuiltins()
 				return { Best <= Tol, Seen };
 			};
 		} });
+
+	for (const bool bOwnPawn : { true, false })
+	{
+		const FString Name = bOwnPawn ? TEXT("own_pawn_at") : TEXT("other_player_actor_at");
+		Register({ Name, Name + TEXT(" <x> <y> <tol>"), TEXT("Actual pawn/proxy actor position in tiles, after client reconciliation/interpolation"),
+			[bOwnPawn](const TArray<FString>& Args, FString& OutError) -> FBotPredicateFn
+			{
+				double X = 0, Y = 0, Tol = 0;
+				if (Args.Num() != 3 || !ParseNumber(Args[0], X) || !ParseNumber(Args[1], Y) || !ParseNumber(Args[2], Tol) || Tol < 0)
+				{ OutError = TEXT("expects x y and nonnegative tolerance"); return nullptr; }
+				return [bOwnPawn, X, Y, Tol](const FBotContext& C) -> FBotPredicateValue
+				{
+					UWorld* W = C.World();
+					if (!W) return { false, TEXT("no world") };
+					if (bOwnPawn)
+					{
+						const APlayerController* PC = W->GetFirstPlayerController();
+						const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+						const UOwnEntityComponent* Own = Pawn ? Pawn->FindComponentByClass<UOwnEntityComponent>() : nullptr;
+						if (!Pawn || !Own || Own->UnitsPerTile <= 0) return { false, TEXT("no controlled pawn") };
+						const FVector P = Pawn->GetActorLocation() / Own->UnitsPerTile;
+						return { FVector2D::Distance(FVector2D(P.X, P.Y), FVector2D(X, Y)) <= Tol, FString::Printf(TEXT("pawn %.2f %.2f"), P.X, P.Y) };
+					}
+					const UNetClientSubsystem* N = C.Net();
+					for (TActorIterator<ARemoteEntityActor> It(W); It; ++It)
+					{
+						const ARemoteEntityActor* Actor = *It;
+						const FEntitySpawn* Known = N ? N->GetKnownEntities().Find(Actor->EntityId) : nullptr;
+						if (!IsValid(Actor) || !Known || Known->Kind != 1 || N->IsOwnEntity(Actor->EntityId) || Actor->UnitsPerTile <= 0) continue;
+						const FVector P = Actor->GetActorLocation() / Actor->UnitsPerTile;
+						if (FVector2D::Distance(FVector2D(P.X, P.Y), FVector2D(X, Y)) <= Tol)
+							return { true, FString::Printf(TEXT("player proxy %s %.2f %.2f"), *Actor->EntityId, P.X, P.Y) };
+					}
+					return { false, TEXT("no other player actor at destination") };
+				};
+			} });
+	}
 
 	// --- Phase 1: combat projection (UCombatStateSubsystem) -------------------------------------
 	RegisterEquality(TEXT("target"), TEXT("target == <name|id|none>"), TEXT("The confirmed selection (TargetChanged), by entity name or id; none = no selection"),
@@ -748,6 +811,21 @@ void FBotPredicateRegistry::RegisterBuiltins()
 			return Eval;
 		} });
 	};
+
+	Custom(TEXT("kill_xp_matches_fixture"), TEXT("Newest kill adds exactly keltir.toml xp_reward to XP at target selection; level matches that expected total"),
+		[](const FBotContext& C) -> FBotPredicateValue
+		{
+			const FBotObservations* O = C.Observations;
+			const FBotFixtureData& D = FBotFixtureData::Get();
+			if (!O || !D.KeltirXpReward.IsSet() || !O->XpAtTargetSelection.IsSet() || !O->LastXpGainedAmount.IsSet() || !O->TrackedXp.IsSet())
+				return { false, TEXT("kill XP evidence unavailable") };
+			const uint64 Reward = D.KeltirXpReward.GetValue();
+			const uint64 Expected = O->XpAtTargetSelection.GetValue() + Reward;
+			const UCombatStateSubsystem* Combat = C.Combat();
+			const FOwnCombatState* Own = Combat ? &Combat->GetOwn() : nullptr;
+			return { O->LastXpGainedAmount.GetValue() == Reward && O->TrackedXp.GetValue() == Expected && Own && Own->Level == D.LevelForXp(Expected),
+				FString::Printf(TEXT("amount %llu expected %llu; total %llu expected %llu"), O->LastXpGainedAmount.GetValue(), Reward, O->TrackedXp.GetValue(), Expected) };
+		});
 
 	RegisterFlag(TEXT("hud_target_visible"), TEXT("The HUD target frame shows the selection"),
 		[](const FBotContext& C) { const UCombatStateSubsystem* Combat = C.Combat(); return Combat && Combat->BuildHudModel().bTargetVisible; });
