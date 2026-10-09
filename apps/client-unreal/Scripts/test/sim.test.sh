@@ -28,6 +28,8 @@ mk norec "fake result norecording"
 mk div "fake result diverge"
 mk hang "fake sleep 30"
 mk grp "fake needgroup"
+mk greenexit "fake result greenexit"
+mk redreport "fake result redreport"
 
 FAIL=0
 check() { # name expected-exit actual-exit
@@ -35,6 +37,11 @@ check() { # name expected-exit actual-exit
 }
 contains() { # name file pattern
   if grep -q -- "$3" "$2"; then echo "ok   - $1"; else echo "FAIL - $1 (no '$3' in $2)"; FAIL=1; fi
+}
+failed_xml() {
+  if python3 -c 'import sys,xml.etree.ElementTree as E; assert int(E.parse(sys.argv[1]).getroot().get("failures",0))>0' "$2"; then
+    echo "ok   - $1"
+  else echo "FAIL - $1 (JUnit did not record failure)"; FAIL=1; fi
 }
 
 run() { "$SCRIPTS/run-sim.sh" --artifacts "$WORK/art" "$@" >"$WORK/out" 2>&1; echo $?; }
@@ -56,6 +63,10 @@ contains "trace is self-contained HTML" "$WORK/art/ok-a/ok-a.trace.html" "doctyp
 check "quoted glob" 0 "$(run "$WORK/sc/ok-*.nfs")"
 check "crash fails" 1 "$(run "$WORK/sc/crash.nfs")"
 contains "crash exit code reported" "$WORK/out" "bot exit 139"
+failed_xml "crash synthesized failed testcase" "$WORK/art/crash/crash.xml"
+check "failed report cannot pass with exit zero" 1 "$(run "$WORK/sc/redreport.nfs")"
+check "green report cannot pass with exit one" 1 "$(run "$WORK/sc/greenexit.nfs")"
+failed_xml "green report process failure added" "$WORK/art/greenexit/greenexit.xml"
 check "missing report fails" 1 "$(run "$WORK/sc/noxml.nfs")"
 contains "missing report named" "$WORK/out" "no JUnit report"
 check "missing recording fails" 1 "$(run "$WORK/sc/norec.nfs")"
@@ -73,7 +84,7 @@ check "multi: two passing" 0 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/grp.nfs")"
 contains "multi: group id reached the bot" "$WORK/mart/grp/grp.log" "group=g1"
 contains "multi: merged JUnit has both suites" "$WORK/mart/group.xml" 'tests="2"'
 check "multi: one failure fails the group" 1 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/bad.nfs")"
-contains "multi: failure counted in merged JUnit" "$WORK/mart/group.xml" 'failures="1"'
+failed_xml "multi: failure counted in merged JUnit" "$WORK/mart/group.xml"
 check "multi: missing report becomes failed testcase" 1 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/noxml.nfs")"
 contains "multi: synthesized failure" "$WORK/mart/group.xml" "missing or unreadable"
 start=$SECONDS
@@ -82,6 +93,14 @@ check "multi: group timeout kills the hung process" 1 "$(SIM_TIMEOUT=2 multi "$W
 check "multi: duplicate scenario refused" 2 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/ok-a.nfs")"
 check "multi: needs two scenarios" 2 "$(multi "$WORK/sc/ok-a.nfs")"
 check "multi: replay divergence fails" 1 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/div.nfs")"
+failed_xml "multi: replay failure counted in merged JUnit" "$WORK/mart/group.xml"
+check "multi: one missing client recording fails" 1 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/norec.nfs")"
+failed_xml "multi: missing recording counted in merged JUnit" "$WORK/mart/group.xml"
+check "multi: trace failure fails group" 1 "$(SIM_TRACE_CMD=false multi "$WORK/sc/ok-a.nfs" "$WORK/sc/ok-b.nfs")"
+failed_xml "multi: trace failure counted in merged JUnit" "$WORK/mart/group.xml"
+check "multi: failed report cannot pass with exit zero" 1 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/redreport.nfs")"
+check "multi: process failure counted with green report" 1 "$(multi "$WORK/sc/ok-a.nfs" "$WORK/sc/greenexit.nfs")"
+failed_xml "multi: green process report corrected" "$WORK/mart/group.xml"
 # processes really run concurrently: two 3 s sleepers finish in well under 6 s
 mk s1 "fake sleep 3"; mk s2 "fake sleep 3"
 start=$SECONDS; multi "$WORK/sc/s1.nfs" "$WORK/sc/s2.nfs" >/dev/null

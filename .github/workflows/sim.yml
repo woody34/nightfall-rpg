@@ -1,0 +1,88 @@
+name: Simulation
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - 'apps/client-unreal/**'
+      - 'apps/api/**'
+      - 'packages/**'
+      - '.github/workflows/sim.yml'
+
+# Both simulation workflows bind the same dedicated runner's localhost ports.
+concurrency:
+  group: nightfall-unreal-stack
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sim:
+    # Fork PRs never execute on a persistent runner. Before the two-week flake gate, a trusted
+    # same-repository PR explicitly opts in with the sim label. See sim-runner.md.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       (contains(github.event.pull_request.labels.*.name, 'sim') || vars.SIM_PR_REQUIRED == 'true'))
+    runs-on: [self-hosted, linux, unreal]
+    timeout-minutes: 90
+    continue-on-error: ${{ vars.SIM_PR_REQUIRED != 'true' }}
+    env:
+      COMPOSE_PROJECT_NAME: nightfall-sim-${{ github.run_id }}-${{ github.run_attempt }}
+      UE_ROOT: ${{ vars.UE_ROOT }}
+      LINUX_MULTIARCH_ROOT: ${{ vars.LINUX_MULTIARCH_ROOT }}
+      AUTH_DEV_TOKENS: '1'
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+      - uses: Swatinem/rust-cache@v2
+      - name: Runner preflight
+        run: bash infra/scripts/check-sim-runner.sh
+      - name: Initialize throwaway stack configuration
+        run: cp .env.example .env
+      - name: Build Linux game target and API tools
+        run: |
+          moon run client-unreal:build
+          moon run client-unreal:build-editor
+          cargo build -p nightfall-api --bins
+      - name: Scenario suite, fresh stack per single/group
+        id: scenarios
+        run: |
+          video=()
+          if [[ "$GITHUB_EVENT_NAME" == schedule || "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then video+=(--video); fi
+          python3 apps/client-unreal/Scripts/run-sim-ci.py --fresh-stack \
+            --artifacts "$GITHUB_WORKSPACE/apps/client-unreal/Saved/SimCI" "${video[@]}"
+      - name: Replay fixture gate
+        if: always() && steps.scenarios.outcome != 'skipped'
+        run: moon run api:replay-check
+      - name: Traceability and coverage summary
+        if: always() && steps.scenarios.outcome != 'skipped'
+        run: |
+          trace_code=0
+          bash apps/client-unreal/Scripts/sim-traceability.sh > /tmp/nightfall-traceability.txt || trace_code=$?
+          cat /tmp/nightfall-traceability.txt >> "$GITHUB_STEP_SUMMARY"
+          python3 apps/client-unreal/Scripts/sim-ci-summary.py apps/client-unreal/Saved/SimCI >> "$GITHUB_STEP_SUMMARY"
+          exit "$trace_code"
+      - name: Upload JUnit, logs, recordings, traces and failure videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/client-unreal/Saved/SimCI/
+          if-no-files-found: warn
+          retention-days: 21
+      - name: Stop throwaway services
+        if: always()
+        run: docker compose down --volumes --remove-orphans

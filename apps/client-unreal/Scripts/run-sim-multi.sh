@@ -107,62 +107,45 @@ shopt -u nullglob
 rmdir "$ARTIFACTS/_all" 2>/dev/null || true
 
 FAILED=0
-REPLAY_NOTE=""
+REPORTS=()
 for scenario in "${SCENARIOS[@]}"; do
   n="$(basename "$scenario" .nfs)"
+  dest="$ARTIFACTS/$n"
   c="${CODE[$n]}"
   status=PASS; note=""
   if ((c == 124)); then status=FAIL; note="timeout after ${SIM_TIMEOUT}s"
   elif ((c != 0)); then status=FAIL; note="bot exit $c"; fi
-  [[ -f "$ARTIFACTS/$n/$n.xml" ]] || { status=FAIL; note="${note:+$note; }no JUnit report"; }
-  [[ "$status" == PASS ]] || FAILED=$((FAILED + 1))
+  if ! python3 "$HERE/sim-junit.py" check "$dest/$n.xml"; then
+    status=FAIL; note="${note:+$note; }JUnit failure or missing or unreadable report"
+  fi
+  if ((REPLAY)); then
+    sim_export_recording "$dest" "$n" || true
+    shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
+    if ((${#nfrs[@]} == 0)); then
+      status=FAIL; note="${note:+$note; }no session recording for $n"
+    else
+      for nfr in "${nfrs[@]}"; do
+        if ! sim_replay "$nfr" "${nfr%.nfr}.replay.log"; then
+          status=FAIL; note="${note:+$note; }replay check failed ($(basename "$nfr"))"
+        fi
+      done
+    fi
+  fi
+  shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
+  for nfr in "${nfrs[@]}"; do
+    if ! python3 "$HERE/sim-trace.py" "$nfr" "$dest/$n.xml"; then
+      status=FAIL; note="${note:+$note; }trace generation failed"
+    fi
+  done
+  if [[ "$status" != PASS ]]; then
+    FAILED=$((FAILED + 1))
+    python3 "$HERE/sim-junit.py" failure "$dest/$n.xml" "$n" "$note"
+  fi
+  REPORTS+=("$dest/$n.xml")
   echo "$status $n (${SECS[$n]}s, group=$GROUP)${note:+ - $note}"
 done
-
-# One merged JUnit file; absent or unparseable reports become failed testcases.
-python3 - "$ARTIFACTS" "$GROUP" "${SCENARIOS[@]}" <<'PY'
-import os, sys, xml.etree.ElementTree as ET
-art, group, *scen = sys.argv[1:]
-root = ET.Element("testsuites", name=group)
-tot = {"tests": 0, "failures": 0, "errors": 0}
-for s in scen:
-    n = os.path.basename(s)[:-4]
-    path = os.path.join(art, n, n + ".xml")
-    suites = []
-    try:
-        r = ET.parse(path).getroot()
-        suites = [r] if r.tag == "testsuite" else list(r.iter("testsuite"))
-        if not suites: raise ValueError("no testsuite element")
-    except Exception as e:
-        ts = ET.Element("testsuite", name=n, tests="1", failures="1", errors="0")
-        tc = ET.SubElement(ts, "testcase", classname=n, name="report")
-        ET.SubElement(tc, "failure", message="missing or unreadable JUnit report: %s" % e)
-        suites = [ts]
-    for ts in suites:
-        ts.set("group", group)
-        root.append(ts)
-        for k in tot: tot[k] += int(ts.get(k, "0") or 0)
-for k, v in tot.items(): root.set(k, str(v))
-ET.ElementTree(root).write(os.path.join(art, "group.xml"), encoding="utf-8", xml_declaration=True)
-PY
-
-if ((REPLAY)); then
-  for scenario in "${SCENARIOS[@]}"; do
-    n="$(basename "$scenario" .nfs)"; sim_export_recording "$ARTIFACTS/$n" "$n" || true
-  done
-  shopt -s nullglob
-  nfrs=("$ARTIFACTS"/*.nfr "$ARTIFACTS"/*/*.nfr)
-  shopt -u nullglob
-  if ((${#nfrs[@]} == 0)); then
-    echo "FAIL replay: no session recordings"; FAILED=$((FAILED + 1))
-  else
-    for nfr in "${nfrs[@]}"; do
-      if sim_replay "$nfr" "${nfr%.nfr}.replay.log"; then echo "PASS replay $(basename "$nfr")"
-      else echo "FAIL replay $(basename "$nfr") diverged"; FAILED=$((FAILED + 1)); fi
-    done
-  fi
-fi
-
+# Finalize group JUnit only after process, per-session replay and trace verdicts are attached.
+python3 "$HERE/sim-junit.py" merge "$ARTIFACTS/group.xml" "$GROUP" "${REPORTS[@]}"
 ((timed_out)) && echo "sim: group timeout ${SIM_TIMEOUT}s hit"
 echo "sim: group $GROUP, ${#SCENARIOS[@]} process(es), $FAILED failure(s); merged report $ARTIFACTS/group.xml"
 ((FAILED == 0))

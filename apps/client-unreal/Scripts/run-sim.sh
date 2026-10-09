@@ -8,6 +8,7 @@
 #   --artifacts    where Saved/Sim output and recordings go (default Saved/SimArtifacts/<timestamp>)
 #   --no-replay    skip the server replay check of each recording
 #   --timeout      per-scenario wall clock limit, default 600
+#   --video        render one diagnostic retry only after a headless failure (optional prerequisites)
 #
 # Per scenario the bot is run as
 #   Nightfall -game -nullrhi -nosound -unattended -BotScenario=<path>
@@ -20,13 +21,14 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=sim-lib.sh
 . "$HERE/sim-lib.sh"
 
-API_MODE=attach; ARTIFACTS=""; REPLAY=1
+API_MODE=attach; ARTIFACTS=""; REPLAY=1; VIDEO=0
 ARGS=()
 while (($#)); do
   case "$1" in
     --api) API_MODE="${2:?--api needs attach|start}"; shift 2 ;;
     --artifacts) ARTIFACTS="${2:?--artifacts needs a directory}"; shift 2 ;;
     --no-replay) REPLAY=0; shift ;;
+    --video) VIDEO=1; shift ;;
     --timeout) SIM_TIMEOUT="${2:?--timeout needs seconds}"; shift 2 ;;
     -h|--help) sed -n '2,/^set -/p' "$0" | sed '$d'; exit 0 ;;
     --) shift; ARGS+=("$@"); break ;;
@@ -67,6 +69,9 @@ for scenario in "${SCENARIOS[@]}"; do
   if ((code == 124 || code == 137)); then status=FAIL; note="timeout after ${SIM_TIMEOUT}s"
   elif ((code != 0)); then status=FAIL; note="bot exit $code"; fi
   [[ -f "$dest/$name.xml" ]] || { status=FAIL; note="${note:+$note; }no JUnit report"; }
+  if ! python3 "$HERE/sim-junit.py" check "$dest/$name.xml"; then
+    status=FAIL; note="${note:+$note; }JUnit failure or unreadable report"
+  fi
 
   replay="skipped"
   if ((REPLAY)); then
@@ -89,7 +94,17 @@ for scenario in "${SCENARIOS[@]}"; do
       status=FAIL; note="${note:+$note; }trace generation failed"
     fi
   done
-  [[ "$status" == PASS ]] || FAILED=$((FAILED + 1))
+  if [[ "$status" != PASS ]]; then
+    FAILED=$((FAILED + 1))
+    python3 "$HERE/sim-junit.py" failure "$dest/$name.xml" "$name" "$note"
+    if ((VIDEO)); then
+      # Retry reports/logs live separately. Video problems remain diagnostic and cannot change
+      # the verdict or hide the original failed report already copied to dest.
+      if ! bash "$HERE/sim-video.sh" "$scenario" "$dest/video" >"$dest/video.log" 2>&1; then
+        note="${note:+$note; }video unavailable (see video.log)"
+      fi
+    fi
+  fi
   line="$status $name (${secs}s, replay=$replay)${note:+ - $note}"
   SUMMARY+=("$line")
   echo "$line"
