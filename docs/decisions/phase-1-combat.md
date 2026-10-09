@@ -1,5 +1,9 @@
 # Phase 1 Combat Decision Record
 
+**Status:** Accepted/Implemented (2026-10-09)
+
+**Playtest verification:** [docs/images/e5.4-playtest-victim-dead.jpg](../images/e5.4-playtest-victim-dead.jpg) (two-client playtest: kill → level 2 and death → respawn).
+
 ## Context
 
 Phase 1 delivers the minimal playable Lineage 2 loop: targeting, auto-attacking a monster, damage, death, XP, leveling, and respawn in a flat test zone. Initial planning documents mixed Interlude, High Five (HF), and Ertheia mechanics with informal approximations. This record establishes authoritative High Five source provenance, deterministic fixed-point execution, persistence guarantees, and asset selections.
@@ -37,3 +41,4 @@ Phase 1 delivers the minimal playable Lineage 2 loop: targeting, auto-attacking 
 - Engineering: [Architecture](../engineering/architecture.md), [API guidelines](../engineering/api-guidelines.md)
 - Data sources: [SOURCES.md](../../packages/data/SOURCES.md)
 - Diagrams: [Diagrams README](../diagrams/README.md), [Combat sequence](../diagrams/combat-sequence.html), [NPC state machine](../diagrams/npc-state-machine.html), [Stat derivation data flow](../diagrams/stat-derivation-data-flow.html)
+- Playtest: [docs/images/e5.4-playtest-victim-dead.jpg](../images/e5.4-playtest-victim-dead.jpg)

@@ -44,10 +44,7 @@ architecture layers, the NATS event-bus core, idempotent endpoints, atomic trans
 per-endpoint test matrix, and the Rust standard enforced by rustfmt, clippy, workspace lints,
 and cargo-deny. Those documents win over anything in a phase document about code structure.
 
-See [docs/plans/](../plans/) for phase plans (Phase 0b is complete). Phase 1a
-([phase-1a-simulation-testing.md](../plans/phase-1a-simulation-testing.md)) follows Phase 1: a headless
-Unreal bot that runs scripted gameplay scenarios in CI, back-fills them for Phases 0b–1, and makes a
-simulation scenario a required story of every later client epic (see E5.1 there).
+See [docs/plans/](../plans/) for phase plans: Phase 0b and Phase 1 ([phase-1-kill-a-monster.md](../plans/phase-1-kill-a-monster.md)) are complete, and Phase 1a ([phase-1a-simulation-testing.md](../plans/phase-1a-simulation-testing.md)) is in progress. Phase 1a builds a headless Unreal bot that runs scripted gameplay scenarios in CI, back-fills them for Phases 0b–1, and makes a simulation scenario a required story of every later client epic (see E5.1 there).
 See [docs/decisions/phase-1-combat.md](../decisions/phase-1-combat.md) for the Phase 1 combat decision record.
 
 ## Cross-cutting decisions

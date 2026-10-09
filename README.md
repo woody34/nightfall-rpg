@@ -4,7 +4,7 @@ A Lineage 2-inspired MMORPG. Monorepo managed by [moon](https://moonrepo.dev).
 
 ## Status
 
-The prototype is playable end to end as of 2026-10-08: players can authenticate via Keycloak device authorization, create a character, acquire a single-use play ticket, join a zone over WebSocket, and navigate via click-to-move with server reconciliation and deterministic replay logging. Architecture and verification details are documented in [docs/plans/phase-0b-connected-slice.md](docs/plans/phase-0b-connected-slice.md) and [docs/diagrams/README.md](docs/diagrams/README.md).
+The prototype has a complete combat loop (login, zone, click-to-move, auto-attack keltirs, death/respawn, XP/level) with animated monsters as of 2026-10-09: players can authenticate via Keycloak device authorization, create a character, acquire a single-use play ticket, join a zone over WebSocket, navigate via click-to-move with server reconciliation, and fight keltirs with deterministic replay logging. Architecture, verification details, and combat decisions are documented in the [Phase 1 plan](docs/plans/phase-1-kill-a-monster.md), [Phase 1 combat decision record](docs/decisions/phase-1-combat.md), [Phase 0b plan](docs/plans/phase-0b-connected-slice.md), and [docs/diagrams/README.md](docs/diagrams/README.md).
 
 ## Layout
 
