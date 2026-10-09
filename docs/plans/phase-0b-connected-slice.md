@@ -51,11 +51,14 @@ Effort levels: **M** mechanical, **D** design-heavy. Model: **S** Sonnet medium 
 **O** Opus high effort. Every story that adds an endpoint carries the test matrix from
 `docs/engineering/api-guidelines.md` §4.
 
+> [!NOTE]
+> The `[client-visible]` tag denotes client-observable contract and state behavior. The simulation traceability checker verifies completed tagged stories against scenario coverage (`.nfs`). Rendering-only portions retain automation and cook validation, but tags remain on those stories and uncovered cases are explicitly reported. New plans should add tags independently before writing scenarios.
+
 ### Epic 0: Connected-client contract
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 0.1 Contract first | Session/ticket RPC, character listing, intent rejection, applied-tick Ack and StopMove contract (§8 #11) | S | Contract and generated client/server bindings agree |
+| ✅ 0.1 Contract first [client-visible] | Session/ticket RPC, character listing, intent rejection, applied-tick Ack and StopMove contract (§8 #11) | S | Contract and generated client/server bindings agree |
 
 ### Epic 1: Identity
 
@@ -63,9 +66,9 @@ Effort levels: **M** mechanical, **D** design-heavy. Model: **S** Sonnet medium 
 |-------|-------|-------|-----------|
 | ✅ 1.1 Keycloak in Compose, realm as code | Add `keycloak` service (Postgres-backed, dev mode); `infra/keycloak/realm-nightfall.json` with a public client `nightfall-client` (device flow on, PKCE), test user; import on boot; document in README | S | `docker compose up` yields a realm; device flow works with `curl` |
 | ✅ 1.2 JWT validation in the server | `infrastructure/auth/keycloak.rs`: JWKS fetch + cache + rotation; `application/ports::TokenVerifier`; tonic interceptor that puts `AccountId` in request extensions; config `OIDC_ISSUER`, `OIDC_AUDIENCE` | S | Unit tests with a generated RSA key; integration test with a signed test token; expired/wrong-aud/wrong-iss rejected |
-| ✅ 1.3 Account on first login | `accounts` table (id = IdP `sub`, created_at, last_login); `EnsureAccount` use case, idempotent by construction | S | Two logins create one row |
-| ✅ 1.4 Play ticket | `SessionService.IssuePlayTicket` (idempotency key); `play_tickets` table: single-use, 60 s, bound to account + character; consumed in the `/ws` handshake in one transaction | S | Matrix tests incl. reuse and expiry |
-| ✅ 1.5 UE device-flow login | `UAuthSubsystem`: start device auth, show URL + code in a CommonUI screen, poll token endpoint, store refresh token with `FPlatformMisc` secure storage, attach bearer token to TurboLink channel | O | Player logs in on a browser, client gets a token, calls `IssuePlayTicket` |
+| ✅ 1.3 Account on first login [client-visible] | `accounts` table (id = IdP `sub`, created_at, last_login); `EnsureAccount` use case, idempotent by construction | S | Two logins create one row |
+| ✅ 1.4 Play ticket [client-visible] | `SessionService.IssuePlayTicket` (idempotency key); `play_tickets` table: single-use, 60 s, bound to account + character; consumed in the `/ws` handshake in one transaction | S | Matrix tests incl. reuse and expiry |
+| ✅ 1.5 UE device-flow login [client-visible] | `UAuthSubsystem`: start device auth, show URL + code in a CommonUI screen, poll token endpoint, store refresh token with `FPlatformMisc` secure storage, attach bearer token to TurboLink channel | O | Player logs in on a browser, client gets a token, calls `IssuePlayTicket` |
 | ✅ 1.6 Verified identity and ownership | Caller identity from verified extensions; ownership checks on character and ticket use cases (§8 #1) | S | Forged ids and cross-account access tests pass |
 
 ### Epic 2: Persistence through SeaORM
@@ -89,9 +92,9 @@ Effort levels: **M** mechanical, **D** design-heavy. Model: **S** Sonnet medium 
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 4.1 `/ws` handler | axum upgrade on `/ws?ticket=`; consume ticket (Story 1.4); session actor per socket: decode `ClientMessage` with prost, validate seq monotonic, forward to zone actor; outbound `mpsc(256)`, disconnect on full with metric; `Ack` per intent | O | Integration test with `tokio-tungstenite`: bad ticket 4401, reused ticket 4401, seq regression disconnects |
-| ✅ 4.2 Zone join and AOI | On connect: spawn entity at character position, send `EntitySpawn` for all entities in the 3x3 AOI cells, broadcast own spawn; despawn on disconnect; AOI cell 32 tiles | S | Two clients see each other; a third outside AOI does not |
-| ✅ 4.3 MoveTo | Validate destination within zone bounds and max distance; set destination; zone actor moves at `speed`; emit `EntityMove` at 10 Hz only for moving entities and once on arrival | S | Matrix tests; client receives its own `EntityMove` with `server_time_ms` |
+| ✅ 4.1 `/ws` handler [client-visible] | axum upgrade on `/ws?ticket=`; consume ticket (Story 1.4); session actor per socket: decode `ClientMessage` with prost, validate seq monotonic, forward to zone actor; outbound `mpsc(256)`, disconnect on full with metric; `Ack` per intent | O | Integration test with `tokio-tungstenite`: bad ticket 4401, reused ticket 4401, seq regression disconnects |
+| ✅ 4.2 Zone join and AOI [client-visible] | On connect: spawn entity at character position, send `EntitySpawn` for all entities in the 3x3 AOI cells, broadcast own spawn; despawn on disconnect; AOI cell 32 tiles | S | Two clients see each other; a third outside AOI does not |
+| ✅ 4.3 MoveTo [client-visible] | Validate destination within zone bounds and max distance; set destination; zone actor moves at `speed`; emit `EntityMove` at 10 Hz only for moving entities and once on arrival | S | Matrix tests; client receives its own `EntityMove` with `server_time_ms` |
 | ✅ 4.4 Load test | `examples/ws_load.rs`: N sessions random-walking; records tick duration, frames/s, dropped frames | S | 200 sessions, tick p99 under 20 ms on the dev box |
 
 ### Epic 5: Telemetry
@@ -106,10 +109,10 @@ Effort levels: **M** mechanical, **D** design-heavy. Model: **S** Sonnet medium 
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 6.1 TurboLink integration | Add plugin as a submodule under `apps/client-unreal/Plugins/TurboLink`; generate services from `packages/proto` with its codegen (moon task `client-unreal:gen-proto` replaces the shell script); `USessionClient` wrapper; delete `ProtoCodec.cpp` and encode WS frames with the generated classes | O | `Ping` round-trips from the editor; Linux build clean with warnings-as-errors |
-| ✅ 6.2 Login and connect | Device-flow UI (Story 1.5), `IssuePlayTicket`, `Connect`; status HUD line | O | Click login -> browser -> back in game -> connected |
-| ✅ 6.3 Blueprint content | `BP_RemoteEntity` with a placeholder skeletal mesh and idle/walk blend; `IMC_Default` with `IA_ClickMove`; `BP_NightfallPC`; `L_TestZone`: 64x64 tile flat ground, nav mesh, lights | O (in-editor) | Two editor instances see each other move |
-| ✅ 6.3b Click-to-move moves the player | Player controller raycast and local preview, `MoveTo` intent round trip, own pawn position reconciliation with server `EntityMove` via `OwnEntityComponent` | O | Player clicks to move, sends `MoveTo`, receives server `Ack` and `EntityMove`, pawn moves and reconciles |
+| ✅ 6.1 TurboLink integration [client-visible] | Add plugin as a submodule under `apps/client-unreal/Plugins/TurboLink`; generate services from `packages/proto` with its codegen (moon task `client-unreal:gen-proto` replaces the shell script); `USessionClient` wrapper; delete `ProtoCodec.cpp` and encode WS frames with the generated classes | O | `Ping` round-trips from the editor; Linux build clean with warnings-as-errors |
+| ✅ 6.2 Login and connect [client-visible] | Device-flow UI (Story 1.5), `IssuePlayTicket`, `Connect`; status HUD line | O | Click login -> browser -> back in game -> connected |
+| ✅ 6.3 Blueprint content [client-visible] | `BP_RemoteEntity` with a placeholder skeletal mesh and idle/walk blend; `IMC_Default` with `IA_ClickMove`; `BP_NightfallPC`; `L_TestZone`: 64x64 tile flat ground, nav mesh, lights | O (in-editor) | Two editor instances see each other move |
+| ✅ 6.3b Click-to-move moves the player [client-visible] | Player controller raycast and local preview, `MoveTo` intent round trip, own pawn position reconciliation with server `EntityMove` via `OwnEntityComponent` | O | Player clicks to move, sends `MoveTo`, receives server `Ack` and `EntityMove`, pawn moves and reconciles |
 | 6.4 (deferred) Interpolation polish | Visual smoothing on `RemoteEntityActor`, rotation toward motion, arrival snap tolerance | S | No visible stutter at 10 Hz with 150 ms delay |
 
 ### Epic 7: Docs and CI

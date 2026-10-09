@@ -83,6 +83,18 @@ class PolicyTests(unittest.TestCase):
     def test_missing_tags_cannot_succeed_vacuously(self):
         self.assertTrue(trace.check(self.path, self.path)[1])
 
+    def test_roles_must_agree_on_supported_fixture(self):
+        a, b = self.path / 'fight-a.nfs', self.path / 'fight-b.nfs'
+        a.write_text('# fixture: phase1a-social-aggro\n')
+        b.write_text('# fixture: phase1a-social-aggro\n')
+        self.assertEqual(ci.fixture([a, b]), 'phase1a-social-aggro')
+        b.write_text('# default fixture\n')
+        with self.assertRaises(ValueError):
+            ci.fixture([a, b])
+        a.write_text('# fixture: arbitrary-server-config\n')
+        with self.assertRaises(ValueError):
+            ci.fixture([a])
+
 
 if __name__ == "__main__":
     unittest.main()

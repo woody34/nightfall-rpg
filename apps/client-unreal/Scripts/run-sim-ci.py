@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import re
 import subprocess
 import sys
 import time
@@ -15,9 +16,9 @@ PROJECT = Path(__file__).resolve().parents[1]
 REPO = PROJECT.parents[1]
 
 
-def run_clients(command, log, seconds):
+def run_clients(command, log, seconds, env=None):
     """Bound the entire client/API process group, including background children."""
-    process = subprocess.Popen(command, cwd=PROJECT, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    process = subprocess.Popen(command, cwd=PROJECT, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     try:
         return process.wait(timeout=seconds)
     except subprocess.TimeoutExpired:
@@ -69,6 +70,22 @@ def units(scenarios):
     return result
 
 
+def fixture(batch):
+    """Scenario roles must agree on one explicitly supported deterministic fixture."""
+    fixtures = []
+    for path in batch:
+        values = re.findall(r"^#\s*fixture:\s*(\S+)\s*$", path.read_text(), re.MULTILINE)
+        if len(values) > 1:
+            raise ValueError(f"duplicate fixture header: {path.name}")
+        value = values[0] if values else "default"
+        if value not in ("default", "phase1a-social-aggro"):
+            raise ValueError(f"unsupported fixture {value}: {path.name}")
+        fixtures.append(value)
+    if len(set(fixtures)) != 1:
+        raise ValueError("scenario roles must request the same fixture")
+    return fixtures[0]
+
+
 def junit_failures(folder, names):
     """A successful process cannot conceal an absent, invalid or failed report."""
     failures = []
@@ -104,6 +121,9 @@ def main():
     try:
         exempt = quarantine(args.quarantine, {p.stem for p in scenarios})
         batches = units(scenarios)
+        fixtures = [fixture(batch) for batch in batches]
+        if not args.fresh_stack and any(value != "default" for value in fixtures):
+            raise ValueError("scenario fixture selection requires --fresh-stack; an attached API cannot switch fixtures")
     except (ValueError, OSError) as error:
         parser.error(str(error))
     if args.fresh_stack and not os.environ.get("COMPOSE_PROJECT_NAME", "").startswith("nightfall-sim-"):
@@ -112,7 +132,7 @@ def main():
     artifacts.mkdir(parents=True, exist_ok=True)
     report = []
     aggregate = ET.Element("testsuite", name="sim orchestration")
-    for batch in batches:
+    for batch, fixture_name in zip(batches, fixtures):
         names = [p.stem for p in batch]
         name = names[0][:-2] if len(batch) > 1 else names[0]
         dest = artifacts / name
@@ -125,12 +145,16 @@ def main():
             command.append("--video")
         command += list(map(str, batch))
         code = 2
+        env = dict(os.environ)
+        env.pop("ZONE_SIM_FIXTURE", None)
+        if fixture_name != "default":
+            env["ZONE_SIM_FIXTURE"] = fixture_name
         with (dest / "orchestration.log").open("w") as log:
             try:
                 if args.fresh_stack:
                     subprocess.run(["docker", "compose", "down", "--volumes", "--remove-orphans"], cwd=REPO,
                                    stdout=log, stderr=subprocess.STDOUT, check=True, timeout=120)
-                code = run_clients(command, log, args.timeout + 600)
+                code = run_clients(command, log, args.timeout + 600, env=env)
             except (OSError, subprocess.SubprocessError) as error:
                 log.write(f"orchestration failed: {error}\n")
         if args.fresh_stack:

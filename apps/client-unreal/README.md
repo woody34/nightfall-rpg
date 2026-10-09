@@ -481,6 +481,37 @@ line N failed">`. Timings: a `WaitFor`'s `time` is how long it waited, `nf.Withi
 scenario's wall clock. Correlate with the server through `own_entity_id` and the run log's step
 trace.
 
+### Simulation CI
+
+Headless scenario suites execute in CI via [.github/workflows/sim.yml](../../.github/workflows/sim.yml)
+on a dedicated self-hosted Linux runner. Full runner provisioning, per-unit Compose isolation,
+paired multi-client roles, quarantine JSON schema, and PR gating policy are documented in
+[docs/engineering/sim-runner.md](../../docs/engineering/sim-runner.md).
+
+- **Runner prerequisite check:**
+  ```bash
+  bash infra/scripts/check-sim-runner.sh          # add --video to verify optional diagnostic tools
+  ```
+- **Warmed acceptance builds and tests:**
+  ```bash
+  moon run client-unreal:build                    # Linux game target
+  moon run client-unreal:build-editor             # Editor target
+  moon run client-unreal:test-editor              # ProductFilter automation tests
+  cargo build -p nightfall-api --bins             # API and replay tools
+  ```
+- **Local simulation commands:**
+  ```bash
+  # Single scenario (spins up API or attaches):
+  moon run client-unreal:sim -- Scenarios/0b-login-enter-world.nfs --api start
+
+  # Full CI suite with per-unit fresh Compose stacks and paired roles:
+  COMPOSE_PROJECT_NAME=nightfall-sim-local python3 apps/client-unreal/Scripts/run-sim-ci.py --fresh-stack --artifacts apps/client-unreal/Saved/SimCI
+  ```
+- **PR gating and quarantine:** Simulation CI is non-blocking on PRs until two consecutive weeks
+  of zero unquarantined failures pass on `main`. Trusted same-repository PRs opt in with the `sim`
+  label. Fork PRs never run on the persistent runner. Known flakes are recorded in
+  `Scenarios/quarantine.json`; entries past their `expires` date fail the suite immediately.
+
 ## Installing Unreal on Linux
 
 Epic requires an account. Two routes:

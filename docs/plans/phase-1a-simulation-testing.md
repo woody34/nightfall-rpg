@@ -105,6 +105,9 @@ Scenarios count as the **W** (real-socket) row of the
 [API guidelines §4](../engineering/api-guidelines.md#4-required-tests-per-endpoint) matrix for
 client-facing behaviour; they do not replace U/A on the server or the existing UE automation tests.
 
+> [!NOTE]
+> The `[client-visible]` tag denotes client-observable contract and state behavior. The simulation traceability checker verifies completed tagged stories against scenario coverage (`.nfs`). Rendering-only portions retain automation and cook validation, but tags remain on those stories and uncovered cases are explicitly reported. New plans should add tags independently before writing scenarios.
+
 ### E1: Bot runtime
 
 | Story | Tasks | Model | Done when |
@@ -162,18 +165,53 @@ Each scenario covers a shipped Phase 0b story. Names are files under `Scenarios/
 | 5.2 Scenario seeds per phase | A table in this document (§4.1 below) naming the first scenario each later phase must ship, so the predicates and `nf.*` commands they need are known before that phase starts | Opus high | Table reviewed against each planning doc's client implications section |
 | 5.3 Predicate backlog | For each seed, the predicates/commands not yet in E1.2 (e.g. `inventory_has`, `skill_ready`, `party_size`, `in_zone`) listed as the first task of that phase's scenario story | Sonnet medium | Backlog cross-links each predicate to the proto message it reads |
 
-#### 4.1 Scenario seeds per phase
+#### 4.1 Scenario seeds and predicate backlog per phase
 
-| Phase | Document | First scenario(s) | New predicates / commands |
-|-------|----------|-------------------|---------------------------|
-| 2 Race and class | [02](../planning/02-race-and-class.md) | `2-create-each-race-class`: create one character per race/class, assert starting stats from the class tables; `2-class-transfer`: reach the transfer level via XP fixture, transfer, assert stat delta | `own_stat <name> == <n>`, `nf.CreateCharacter <race> <class>`, `nf.ClassTransfer` |
-| 3 Combat and skills | [03](../planning/03-combat-and-skills.md) | `3-cast-skill`: learn, cast, assert cooldown and MP cost; `3-buff-expires`: buff applied, duration elapses, stat returns; `3-pvp-flag`: two clients, attack flags, karma on kill | `skill_ready <id>`, `buff_active <id>`, `own_flag == <pvp|karma>`, `nf.Cast <id>` |
-| 4 Items and equipment | [04](../planning/04-items-and-equipment.md) | `4-equip-weapon`: pick up fixture drop, equip, P.Atk changes; `4-enchant-fail`: enchant to failure, item destroyed, ledger row asserted via replay | `inventory_has <template> >= <n>`, `equipped <slot> == <template>`, `nf.Equip`, `nf.Enchant` |
-| 5 Economy and crafting | [05](../planning/05-economy-and-crafting.md) | `5-kill-loot`: kill, loot appears, pick up; `5-vendor-roundtrip`: sell, buy, adena conserved; `5-trade-a/b`: two clients trade, both inventories assert | `adena == <n>`, `trade_state`, `nf.Loot`, `nf.Trade` |
-| 6 World and content | [06](../planning/06-world-and-content.md) | `6-zone-travel`: walk to a zone edge, assert zone change and new spawn stream; `6-quest-chain`: accept, kill N, turn in; `6-instance-a/b`: party enters an instance, isolated from a third client | `in_zone == <id>`, `quest_state <id>`, `nf.Travel`, `nf.AcceptQuest` |
-| 7 Social systems | [07](../planning/07-social-systems.md) | `7-party-xp-a/b`: party of two kills, XP split per rule; `7-clan-create`: create, invite, roster; `7-siege-smoke`: N clients, siege starts and ends on schedule | `party_size`, `clan == <name>`, `nf.Invite`, `nf.AcceptParty` |
-| 8 Client presentation | [08](../planning/08-client-presentation.md) | Mostly out of headless scope; `8-localization`: every HUD string resolves in two locales (no `??` placeholders); `8-input-remap`: remapped action still sends the intent | `hud_text <field> matches`, `nf.SetLocale` |
-| 9 Live operations | [09](../planning/09-live-operations.md) | `9-gm-teleport`: GM command moves a bot; `9-rate-limit`: intent flood is throttled with the documented rejection; `9-patch-restart`: server restart mid-session, bot reconnects and state matches; load: promote the Gauntlet soak to the phase's target session count, or build the Rust bot (§7) if UE processes cannot reach it | `nf.Gm <cmd>`, `rejected == RATE_LIMITED`, `nf.FloodMoveTo <n>` |
+| Phase | Document | First scenario(s) | New predicates / commands | Proto message / contract status |
+|-------|----------|-------------------|---------------------------|---------------------------------|
+| 2 Race and class | [02](../planning/02-race-and-class.md) | `2-create-each-race-class`: create one character per race/class, assert starting stats from the class tables; `2-class-transfer`: reach the transfer level via XP fixture, transfer, assert stat delta | `own_stat <name> == <n>`, `nf.CreateCharacter <race> <class>`, `nf.ClassTransfer` | Base stats via [`Character.stats`](../../packages/proto/nightfall/v1/game.proto#L93) ([`BaseStats`](../../packages/proto/nightfall/v1/game.proto#L79)), race via [`CreateCharacterRequest.race`](../../packages/proto/nightfall/v1/game.proto#L67); class selection and transfer are **explicitly future contract** |
+| 3 Combat and skills | [03](../planning/03-combat-and-skills.md) | `3-cast-skill`: learn, cast, assert cooldown and MP cost; `3-buff-expires`: buff applied, duration elapses, stat returns; `3-pvp-flag`: two clients, attack flags, karma on kill | `skill_ready <id>`, `buff_active <id>`, `own_flag == <pvp|karma>`, `nf.Cast <id>` | **Explicitly future contract** (no skill, buff, or PvP/karma proto messages in `packages/proto`; current [`ClientMessage`](../../packages/proto/nightfall/v1/world.proto#L32) only supports basic melee) |
+| 4 Items and equipment | [04](../planning/04-items-and-equipment.md) | `4-equip-weapon`: pick up fixture drop, equip, P.Atk changes; `4-enchant-fail`: enchant to failure, item destroyed, ledger row asserted via replay | `inventory_has <template> >= <n>`, `equipped <slot> == <template>`, `nf.Equip`, `nf.Enchant` | **Explicitly future contract** (no inventory, item, or equipment messages exist in `packages/proto`) |
+| 5 Economy and crafting | [05](../planning/05-economy-and-crafting.md) | `5-kill-loot`: kill, loot appears, pick up; `5-vendor-roundtrip`: sell, buy, adena conserved; `5-trade-a/b`: two clients trade, both inventories assert | `adena == <n>`, `trade_state`, `nf.Loot`, `nf.Trade` | **Explicitly future contract** (no currency, loot, vendor, or trade messages exist in `packages/proto`) |
+| 6 World and content | [06](../planning/06-world-and-content.md) | `6-zone-travel`: walk to a zone edge, assert zone change and new spawn stream; `6-quest-chain`: accept, kill N, turn in; `6-instance-a/b`: party enters an instance, isolated from a third client | `in_zone == <id>`, `quest_state <id>`, `nf.Travel`, `nf.AcceptQuest` | Movement via [`MoveToRequest`](../../packages/proto/nightfall/v1/world.proto#L46) and [`EntityMove`](../../packages/proto/nightfall/v1/world.proto#L169); zone transitions, instances, and quests are **explicitly future contract** |
+| 7 Social systems | [07](../planning/07-social-systems.md) | `7-party-xp-a/b`: party of two kills, XP split per rule; `7-clan-create`: create, invite, roster; `7-siege-smoke`: N clients, siege starts and ends on schedule | `party_size`, `clan == <name>`, `nf.Invite`, `nf.AcceptParty` | **Explicitly future contract** (no party or clan proto messages exist in `packages/proto`) |
+| 8 Client presentation | [08](../planning/08-client-presentation.md) | Mostly out of headless scope; `8-localization`: every HUD string resolves in two locales (no `??` placeholders); `8-input-remap`: remapped action still sends the intent | `hud_text <field> matches`, `nf.SetLocale` | Sourced from client projection of [`EntitySpawn.name`](../../packages/proto/nightfall/v1/world.proto#L149) or [`Character.name`](../../packages/proto/nightfall/v1/game.proto#L90); `nf.SetLocale` is client-side only (no server proto) |
+| 9 Live operations | [09](../planning/09-live-operations.md) | `9-gm-teleport`: GM command moves a bot; `9-rate-limit`: intent flood is throttled with the documented rejection; `9-patch-restart`: server restart mid-session, bot reconnects and state matches; load: promote the Gauntlet soak to the phase's target session count, or build the Rust bot (§7) if UE processes cannot reach it | `nf.Gm <cmd>`, `rejected == RATE_LIMITED`, `nf.FloodMoveTo <n>` | Rate limiting via [`IntentRejected`](../../packages/proto/nightfall/v1/world.proto#L100) with [`RejectReason::REJECT_REASON_RATE_LIMITED`](../../packages/proto/nightfall/v1/world.proto#L112) and [`MoveToRequest`](../../packages/proto/nightfall/v1/world.proto#L46); GM commands are **explicitly future contract** |
+
+##### Predicate backlog (Story 5.3 detailed mapping)
+
+The backlog below details the wire contract for every predicate and console command introduced across the phase seeds. Note that `packages/proto` currently contains only `game.proto`, `session.proto`, and `world.proto` (basic movement, session admission, and Phase 1 melee combat core). No inventory, item, equipment, skill, buff, party, clan, trade, or quest proto messages exist yet; these are explicitly designated as future contracts to be defined in their respective phases.
+
+| Predicate / command | Target phase | Current proto mapping / wire contract | Status |
+|---------------------|--------------|--------------------------------------|--------|
+| `own_stat <name> == <n>` | Phase 2 | Base stats: [`Character.stats`](../../packages/proto/nightfall/v1/game.proto#L93) ([`BaseStats`](../../packages/proto/nightfall/v1/game.proto#L79)); resource/level state: [`StatsChanged`](../../packages/proto/nightfall/v1/world.proto#L249); other derived combat stats need a future owner-only contract | Existing base/resource proto; extended derived stats are future contract |
+| `nf.CreateCharacter <race> <class>` | Phase 2 | Name and race: [`CreateCharacterRequest`](../../packages/proto/nightfall/v1/game.proto#L60) and enum [`Race`](../../packages/proto/nightfall/v1/game.proto#L70); class selection not in proto | Existing for race; class is **explicitly future contract** |
+| `nf.ClassTransfer` | Phase 2 | No class transfer RPC or intent in `packages/proto` | **Explicitly future contract** (Phase 2) |
+| `skill_ready <id>` | Phase 3 | No skill messages exist in `packages/proto` | **Explicitly future contract** (Phase 3) |
+| `buff_active <id>` | Phase 3 | No buff or effect messages exist in `packages/proto` | **Explicitly future contract** (Phase 3) |
+| `own_flag == <pvp\|karma>` | Phase 3 | Not present in [`EntitySpawn`](../../packages/proto/nightfall/v1/world.proto#L147) or any proto message | **Explicitly future contract** (Phase 3) |
+| `nf.Cast <id>` | Phase 3 | [`ClientMessage`](../../packages/proto/nightfall/v1/world.proto#L32) has no skill cast intent (only melee [`AttackRequest`](../../packages/proto/nightfall/v1/world.proto#L68)) | **Explicitly future contract** (Phase 3) |
+| `inventory_has <template> >= <n>` | Phase 4 | No inventory or item messages exist in `packages/proto` | **Explicitly future contract** (Phase 4) |
+| `equipped <slot> == <template>` | Phase 4 | No equipment slot or item messages exist in `packages/proto` | **Explicitly future contract** (Phase 4) |
+| `nf.Equip` | Phase 4 | No item equip intent or RPC exists in `packages/proto` | **Explicitly future contract** (Phase 4) |
+| `nf.Enchant` | Phase 4 | No enchant intent or RPC exists in `packages/proto` | **Explicitly future contract** (Phase 4) |
+| `adena == <n>` | Phase 5 | No currency or economy proto messages exist in `packages/proto` | **Explicitly future contract** (Phase 5) |
+| `trade_state` | Phase 5 | No trade proto messages exist in `packages/proto` | **Explicitly future contract** (Phase 5) |
+| `nf.Loot` | Phase 5 | No loot or pickup intent in [`ClientMessage`](../../packages/proto/nightfall/v1/world.proto#L32) | **Explicitly future contract** (Phase 5) |
+| `nf.Trade` | Phase 5 | No player trade intent or RPC in `packages/proto` | **Explicitly future contract** (Phase 5) |
+| `in_zone == <id>` | Phase 6 | Coordinates via [`Position`](../../packages/proto/nightfall/v1/game.proto#L97) and [`EntityMove`](../../packages/proto/nightfall/v1/world.proto#L169); zone boundary handoff / zone IDs not in proto | **Explicitly future contract** for zone ID (Phase 6) |
+| `quest_state <id>` | Phase 6 | No quest proto messages exist in `packages/proto` | **Explicitly future contract** (Phase 6) |
+| `nf.Travel` | Phase 6 | Movement uses [`MoveToRequest`](../../packages/proto/nightfall/v1/world.proto#L46); zone transfer / teleport not in proto | **Explicitly future contract** for travel (Phase 6) |
+| `nf.AcceptQuest` | Phase 6 | No quest RPC or intent exists in `packages/proto` | **Explicitly future contract** (Phase 6) |
+| `party_size` | Phase 7 | No party proto messages exist in `packages/proto` | **Explicitly future contract** (Phase 7) |
+| `clan == <name>` | Phase 7 | No player clan proto messages exist in `packages/proto` | **Explicitly future contract** (Phase 7) |
+| `nf.Invite` | Phase 7 | No party or clan invite RPC/intent in `packages/proto` | **Explicitly future contract** (Phase 7) |
+| `nf.AcceptParty` | Phase 7 | No party accept RPC or intent in `packages/proto` | **Explicitly future contract** (Phase 7) |
+| `hud_text <field> matches` | Phase 8 | Projection of [`EntitySpawn.name`](../../packages/proto/nightfall/v1/world.proto#L149) or [`Character.name`](../../packages/proto/nightfall/v1/game.proto#L90) with local client localization | Existing proto (for names); presentation check |
+| `nf.SetLocale` | Phase 8 | Purely client-side setting command | Client-side only (no server proto needed) |
+| `nf.Gm <cmd>` | Phase 9 | No GM/admin service or message exists in `packages/proto` | **Explicitly future contract** (Phase 9) |
+| `rejected == RATE_LIMITED` | Phase 9 | [`IntentRejected`](../../packages/proto/nightfall/v1/world.proto#L100) with [`RejectReason::REJECT_REASON_RATE_LIMITED`](../../packages/proto/nightfall/v1/world.proto#L112) | Existing proto enum |
+| `nf.FloodMoveTo <n>` | Phase 9 | Sends repeated [`MoveToRequest`](../../packages/proto/nightfall/v1/world.proto#L46) inside [`ClientMessage`](../../packages/proto/nightfall/v1/world.proto#L32) | Existing proto intent |
 
 ### E6: Docs
 
