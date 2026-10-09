@@ -1,6 +1,7 @@
 //! The NPC AI and spawn phases of [`ZoneState::run_tick`] (plan §3.2, Stories E3.2–E3.4).
 //! Tick order: commands → **spawn phase** (corpse expiry, then due respawns) → **AI phase** →
-//! chase → movement → impacts → **hit bookkeeping** → next swings → AOI output.
+//! chase → movement (including return arrivals) → impacts → **hit bookkeeping** → next swings
+//! → AOI output.
 //!
 //! RNG draws, all from the zone's `ChaCha12` stream via `roll_below` (unbiased rejection):
 //! 1. Spawn phase, members in (slot, member) order: a member's *first* life draws its
@@ -320,9 +321,9 @@ impl ZoneState {
         }
     }
 
-    /// Every tick in `ReturnHome`: at home → full HP, attackable, `Active`; otherwise keep
-    /// heading home.
-    fn check_return(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
+    /// Before movement in `ReturnHome`, and again on destination arrival: at home → full HP,
+    /// attackable, `Active`; otherwise keep heading home. Arrival never draws RNG or thinks.
+    pub(super) fn check_return(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
         let Some(e) = self.entities.get_mut(&npc) else {
             return;
         };

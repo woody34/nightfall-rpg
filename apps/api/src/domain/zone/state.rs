@@ -1042,9 +1042,11 @@ impl ZoneState {
     /// The movement phase of a tick, exposed for benchmarks; [`Self::run_tick`] is the
     /// transition. Every entity with a destination moves one step and emits an `EntityMove`;
     /// the step that reaches the destination emits a final one with `dest: None`. An entity
-    /// that cannot move (speed 0) emits nothing. Entities are visited in id order.
+    /// that cannot move (speed 0) emits nothing. Entities are visited in id order. After all
+    /// moves, returning NPCs that arrived home heal and become active in the same id order.
     pub fn step(&mut self, tick: Tick) -> Vec<ZoneEvent> {
         let mut events = Vec::new();
+        let mut arrived = Vec::new();
         for e in self.entities.values_mut() {
             let Some(dest) = e.dest else { continue };
             let from = e.pos;
@@ -1054,6 +1056,7 @@ impl ZoneState {
             }
             if e.pos == dest {
                 e.dest = None;
+                arrived.push(e.id);
             }
             self.aoi.relocate(e.id, from, e.pos);
             events.push(ZoneEvent::EntityMove {
@@ -1063,6 +1066,13 @@ impl ZoneState {
                 dest: e.dest,
                 speed: e.speed,
             });
+        }
+        // The AI phase precedes movement: complete returns here so the arrival tick cannot
+        // end with an NPC at home but still injured and unattackable until the next tick.
+        for id in arrived {
+            if self.is_returning(id) {
+                self.check_return(tick, id, &mut events);
+            }
         }
         events
     }

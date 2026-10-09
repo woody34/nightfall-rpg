@@ -1,11 +1,12 @@
 //! The combat phases of [`ZoneState::run_tick`] and the combat commands (plan §3.2, Stories
-//! E2.3–E2.6). Tick order: commands → chase → movement → due impacts by
+//! E2.3–E2.6). Tick order: commands → spawn scheduler → NPC AI → chase → movement → due impacts by
 //! attacker id (with their immediate damage, death, XP and level consequences) → start
 //! eligible swings → progression facts → AOI output.
 //!
-//! RNG draws happen only at a valid impact, in this order: hit roll, then on a hit the crit
-//! roll and (radius > 0) the damage spread. Cancelled or invalid swings draw nothing; death,
-//! XP and respawn draw nothing either.
+//! Combat RNG draws at a valid impact: hit roll, then on a hit the crit roll and (radius > 0)
+//! the damage spread. A lethal impact also schedules the NPC's next life, drawing respawn
+//! jitter as documented in `state_ai.rs`. Cancelled or invalid swings, player death, XP and
+//! player respawn draw nothing.
 //!
 //! Kill credit (E2.6): the NPC's full template XP goes once, on the death transition, to one
 //! living player. Candidates are the player landing the killing blow and every other player

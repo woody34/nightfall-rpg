@@ -617,8 +617,94 @@ fn active_npc_wanders_one_think_in_thirty_within_drift_range_clamped_to_the_zone
 }
 
 // ---------------------------------------------------------------------------------------
-// E3.3 property tests
+// E3.3 arrival regression and property tests
 // ---------------------------------------------------------------------------------------
+
+#[test]
+fn return_home_heals_on_the_final_movement_tick_and_restores_identically() {
+    // Saved proptest case: integer truncation makes this trip take 396 ticks.
+    let mut z = zone(vec![slot("a", 128, 128)]);
+    run(&mut z, Vec::new());
+    let npc = member(&z, 0);
+    let home = Vec2Fixed::from_tiles(128, 128);
+    place(&mut z, npc, Vec2Fixed::new(Fixed::from_raw(10_918), Fixed::from_raw(22_504)));
+    {
+        let e = z.entities.get_mut(&npc).unwrap();
+        e.targeting.attackable = false;
+        let c = e.combat.as_mut().unwrap();
+        c.hp = 1;
+        c.mp = 1;
+        e.ai.as_mut().unwrap().intention = Intention::ReturnHome;
+    }
+    let snapshot = encode_snapshot(&z.snapshot()).unwrap();
+    let mut restored = ZoneState::from_snapshot(decode_snapshot(&snapshot).unwrap()).unwrap();
+    let rng = z.snapshot().rng;
+    for tick in 1..=396 {
+        let applied = run(&mut z, Vec::new());
+        let replayed = run(&mut restored, Vec::new());
+        assert_eq!(applied.tick, Tick(tick));
+        assert_eq!(
+            AppliedTickRecord::from_applied(ZoneId(7), &applied).encode(),
+            AppliedTickRecord::from_applied(ZoneId(7), &replayed).encode()
+        );
+        assert_eq!(applied, replayed);
+        let e = &z.entities[&npc];
+        let c = e.combat.as_ref().unwrap();
+        if tick < 396 {
+            assert_ne!(e.pos, home);
+            assert_eq!(c.hp, 1);
+            assert!(!e.targeting.attackable);
+            assert_eq!(intention(&z, npc), Intention::ReturnHome);
+            if tick == 395 {
+                assert_eq!(
+                    e.pos,
+                    Vec2Fixed::new(Fixed::from_raw(127_976), Fixed::from_raw(127_978))
+                );
+                // Also restore immediately before the final, sub-speed step.
+                let snapshot = encode_snapshot(&z.snapshot()).unwrap();
+                restored = ZoneState::from_snapshot(decode_snapshot(&snapshot).unwrap()).unwrap();
+            }
+        } else {
+            assert_eq!(e.pos, home);
+            assert_eq!(e.dest, None);
+            assert_eq!(c.hp, c.sheet.max_hp());
+            assert_eq!(c.mp, c.sheet.max_mp());
+            assert!(e.targeting.attackable);
+            assert_eq!(intention(&z, npc), Intention::Active);
+            assert_eq!(
+                applied.events,
+                vec![
+                    ZoneEvent::EntityMove {
+                        tick: Tick(396),
+                        entity: npc,
+                        pos: home,
+                        dest: None,
+                        speed: e.speed,
+                    },
+                    ZoneEvent::NpcIntentionChanged {
+                        tick: Tick(396),
+                        entity: npc,
+                        from: Intention::ReturnHome,
+                        to: Intention::Active,
+                    },
+                ]
+            );
+        }
+    }
+    assert_eq!(z.snapshot().rng, rng, "return and arrival consume no RNG draws");
+    assert_eq!(z.snapshot(), restored.snapshot());
+    let next = run(&mut z, Vec::new());
+    assert!(
+        !next.events.iter().any(|event| matches!(
+            event,
+            ZoneEvent::NpcIntentionChanged {
+                from: Intention::ReturnHome,
+                ..
+            }
+        )),
+        "arrival is emitted only once"
+    );
+}
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(128))]

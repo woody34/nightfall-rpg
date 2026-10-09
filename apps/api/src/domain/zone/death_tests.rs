@@ -5,6 +5,7 @@ use std::sync::{Arc, OnceLock};
 
 use uuid::Uuid;
 
+use super::super::ai::SpawnSlotSpec;
 use super::super::combat::{CombatRole, NpcCombat, PlayerLoad, Swing};
 use super::super::command::{
     AppliedTick, ObserverOutput, ProgressionDelta, RejectReason, SessionGeneration, ZoneCommand,
@@ -208,6 +209,101 @@ fn kill_npc(z: &mut ZoneState, n: u128, npc: EntityId) -> Vec<AppliedTick> {
         ticks.extend(until(z, 400, |t| died(t, npc)));
     }
     ticks
+}
+
+#[test]
+fn slot_owned_deaths_credit_once_and_replay_through_each_new_life() {
+    let def = parse_zone(TEST_ZONE_TOML).unwrap();
+    let mut spec = SpawnSlotSpec::new(&def.spawn_slots[0], &def.npc_templates[0], keltir());
+    spec.count = 1;
+    spec.home = Vec2Fixed::from_tiles(11, 10);
+    spec.speed = Speed::from_milli_tiles_per_tick(0);
+    spec.brain.aggressive = false;
+    spec.brain.corpse_decay_ticks = 5;
+    spec.respawn_delay_secs = 2;
+    spec.respawn_random_secs = 3;
+    let reward = spec.combat.xp_reward;
+    let mut z = zone().with_spawn_slots(vec![spec]);
+    run(&mut z, vec![spawn_player(1, 10, 10, load(0))]);
+    let npc = npcs(&z)[0];
+
+    for life in 1..=2 {
+        let ticks = kill_npc(&mut z, 1, npc);
+        assert_eq!(xp_events(&ticks), vec![(id(1), reward, reward * u64::from(life))]);
+        assert_eq!(
+            ticks
+                .iter()
+                .flat_map(|t| &t.events)
+                .filter(|e| matches!(
+                    e, ZoneEvent::EntityDied { entity, incarnation, .. }
+                    if *entity == npc && *incarnation == life
+                ))
+                .count(),
+            1
+        );
+        let snapshot = z.snapshot();
+        assert_eq!(snapshot.spawn_members.len(), 1);
+        let due = snapshot.spawn_members[0].respawn_at.unwrap();
+        let death = ticks.last().unwrap().tick;
+        assert!((death.0 + 20..=death.0 + 50).contains(&due.0));
+
+        // Another lethal notification must not award XP, redraw jitter or reschedule.
+        let mut repeated = Vec::new();
+        z.kill(death, npc, None, &mut repeated);
+        assert!(repeated.is_empty());
+        assert_eq!(z.snapshot(), snapshot);
+        let encoded = crate::application::replay_log::encode_snapshot(&snapshot).unwrap();
+        let mut restored = ZoneState::from_snapshot(
+            crate::application::replay_log::decode_snapshot(&encoded).unwrap(),
+        )
+        .unwrap();
+
+        let mut later = Vec::new();
+        while z.next_tick <= due {
+            let t = run(&mut z, Vec::new());
+            let replayed = run(&mut restored, Vec::new());
+            assert_eq!(
+                AppliedTickRecord::from_applied(ZoneId(7), &t),
+                AppliedTickRecord::from_applied(ZoneId(7), &replayed)
+            );
+            later.push(t);
+        }
+        assert!(xp_events(&later).is_empty());
+        for expected in [
+            ZoneEvent::EntityDespawn {
+                tick: Tick(death.0 + 5),
+                entity: npc,
+            },
+            ZoneEvent::EntityRespawned {
+                tick: due,
+                entity: npc,
+                position: Vec2Fixed::from_tiles(11, 10),
+                hp: combat(&z, npc).sheet.max_hp(),
+                incarnation: life + 1,
+            },
+        ] {
+            assert_eq!(
+                later
+                    .iter()
+                    .flat_map(|t| &t.events)
+                    .filter(|e| **e == expected)
+                    .count(),
+                1
+            );
+            assert_eq!(
+                later
+                    .iter()
+                    .flat_map(|t| sent_to(t, id(1)))
+                    .filter(|e| **e == expected)
+                    .count(),
+                1
+            );
+        }
+        assert_eq!(z.entity_count(), 2);
+        assert_eq!(combat(&z, npc).incarnation, life + 1);
+        assert_eq!(z.spawn_members().next().unwrap().respawn_at, None);
+        assert_eq!(xp_of(&z, id(1)), reward * u64::from(life));
+    }
 }
 
 #[test]
