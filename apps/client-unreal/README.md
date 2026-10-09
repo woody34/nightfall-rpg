@@ -539,15 +539,17 @@ bash Scripts/run-soak.sh
   - `summary.txt`: console and CI step summary.
 - **Replay verification and seed:** A fresh, isolated Postgres+NATS stack yields the deterministic zone 1 epoch 1 RNG seed; clock origin, accounts, and arrival timings are naturally variable (the seed does not derive from the live clock). Replay verification confirms determinism across the soak recording.
 - **Performance gate:** `soak-report.py` queries Prometheus through Grafana for the combat tick duration 99th percentile over all ticks in the fresh isolated stack (`histogram_quantile(0.99, sum by (le) (nightfall_combat_tick_duration_seconds_bucket))`). The run requires combat tick p99 <20ms, matching Phase 1 E6.2 acceptance; the separate operational alert at 50ms is not the acceptance budget. Missing telemetry, an incomplete final histogram, or p99 >=20ms fails. The cumulative histogram count must equal the number of ticks in the complete byte-identical recording.
-- **Nightly CI workflow:** `.github/workflows/soak.yml` runs nightly (`cron: '17 8 * * *'`) and via manual dispatch on `[self-hosted, linux, unreal]`. The workflow is nonblocking (`continue-on-error: true`). Real self-hosted runner registration on the host is still needed, and no nightly CI run is claimed.
-- **Historical debug run (2026-10-09, local 2-client soak):** Actual validation from `Saved/Soak/final-2x120/report.json` and `replay-export.log`/`replay-check.log`:
-  - **Configuration:** Two clients requested 120s (`--clients 2 --seconds 120`).
-  - **Client iterations:** `client-01` completed three iterations in 120.155s; `client-02` completed four iterations in 157.783s.
-  - **Errors:** Zero assertion or sentinel errors.
-  - **Combat tick p99:** 16.350ms using the superseded `increase()` calculation; this is historical functional evidence, not final release performance acceptance.
-  - **Gauntlet wall time:** 168s (RunUAT Gauntlet wall clock 168s, allowing clients to finish their final whole iteration).
-  - **Byte-identical replay:** Zone 1 epoch 1 export (`soak.nfr`) verified byte-identical replay: 1689 ticks, 7 players, 2588 outputs, 162098 bytes compared (0 digest-only), in 207.5ms.
-- **Historical debug 8-client local smoke (2026-10-09):** All eight clients passed their scenario assertions with `--seconds 120`, completing 30 iterations total in 120.188–157.775s per client (Gauntlet wall 168s). Combat tick p99 was 34.371ms under the superseded `increase()` calculation (complete cumulative histogram approximately35.136ms). This exceeds the required <20ms budget, so the debug smoke does not satisfy performance acceptance. The complete zone 1 epoch 1 recording replayed 1690 ticks, 30 players, 11455 outputs and 2781171 bytes identically in 824.8ms; API shutdown exited 0. Evidence is under `Saved/Soak/smoke-8x120/`.
+- **Nightly CI workflow:** `.github/workflows/soak.yml` runs nightly (`cron: '17 8 * * *'`) and via manual dispatch on `[self-hosted, linux, unreal]`. The workflow is nonblocking (`continue-on-error: true`). Real self-hosted runner registration on the host is still needed: there is currently no registered CI runner, no CI or nightly run success is claimed, and the two-week zero-flake PR gate remains pending runner availability.
+- **Historical validation:** Debug two/eight-client runs passed their scenario assertions and replay, but the original 50ms/`increase()` performance gate was incorrect. The debug eight-client cumulative p99 was approximately 35.136ms and fails the actual <20ms budget. Historical results remain in `Saved/Soak/final-2x120` and `smoke-8x120`; they do not establish release performance acceptance.
+- **Intermediate release validation (2026-10-09):** These measured runs precede final session audit/diagnostics integration. Both passed all assertions, sentinel, complete replay, histogram count, and API/Compose cleanup gates:
+
+  | Artifacts under `Saved/Soak` | Clients×requested seconds | Iterations | Client elapsed range | Combat p99 | Recorded/observed ticks |
+  |---|---|---:|---|---:|---:|
+  | `release-2x120` | 2×120 | 7 | 120.562–156.072s | 4.983ms | 1,668 |
+  | `release-8x120-fixed` | 8×120 | 30 | 120.926–158.977s | 19.343ms | 1,697 |
+
+  Replay compared 161,652 bytes and 2,797,183 bytes respectively with no divergence or digest-only records; each report links the measured Grafana time range. These are intermediate smoke tests, not final integrated-source acceptance.
+- **Final integrated-source builds:** Audited/diagnostic API and client at `2e85d3f` built successfully (release API 52.31s; editor/game BuildCookRun 85.43s). Full 8×1200 final-source soak remains pending the serial full-suite run.
 
 ### Diagnostics and wire audit (E1.6/E1.7)
 
