@@ -103,9 +103,9 @@ namespace
 			S.Hp = Hp; S.MaxHp = MaxHp; S.Level = Level;
 			FWorldEvent E; E.Spawn = S; Event(E);
 		}
-		void Stats(const TCHAR* Id, uint32 Hp, uint32 MaxHp, uint32 Mp, uint32 MaxMp, uint32 Level)
+		void Stats(const TCHAR* Id, uint32 Hp, uint32 MaxHp, uint32 Mp, uint32 MaxMp, uint32 Level, uint64 Xp = 0)
 		{
-			FWorldEvent E; E.StatsChanged = FStatsChanged{ Id, Hp, MaxHp, Mp, MaxMp, Level }; Event(E);
+			FWorldEvent E; E.StatsChanged = FStatsChanged{ Id, Hp, MaxHp, Mp, MaxMp, Level, Xp }; Event(E);
 		}
 		void Xp(const TCHAR* Id, uint64 Amount, uint64 Total) { FWorldEvent E; E.XpGained = FXpGained{ Id, Amount, Total }; Event(E); }
 		void Target(const TCHAR* Selector, const TCHAR* Target) { FWorldEvent E; E.TargetChanged = FTargetChanged{ Selector, Target }; Event(E); }
@@ -114,7 +114,16 @@ namespace
 			FWorldEvent E; E.AttackResult = FAttackResult{ Attacker, Target, Tick, O, Damage, HpAfter, Inc }; Event(E);
 		}
 		void Died(const TCHAR* Id, uint64 Tick, uint32 Inc) { FWorldEvent E; E.EntityDied = FEntityDied{ Id, Tick, TEXT(""), Inc }; Event(E); }
-		void Respawned(const TCHAR* Id, uint64 Tick, uint32 Hp) { FWorldEvent E; E.EntityRespawned = FEntityRespawned{ Id, Tick, FNetVec2(), Hp }; Event(E); }
+		void Respawned(const TCHAR* Id, uint64 Tick, uint32 Hp, uint32 Inc = 0) { FWorldEvent E; E.EntityRespawned = FEntityRespawned{ Id, Tick, FNetVec2(), Hp, Inc }; Event(E); }
+
+		/** Feeds a hand-built wire frame through the real decoder, then the dispatcher. */
+		bool Frame(const TArray<uint8>& Bytes)
+		{
+			FServerMessage M;
+			if (!NightfallProto::Decode(Bytes.GetData(), Bytes.Num(), M)) return false;
+			Net->DispatchServerMessage(M);
+			return true;
+		}
 		void Despawn(const TCHAR* Id) { FWorldEvent E; E.Despawn = FEntityDespawn{ Id }; Event(E); }
 
 		/** The player and a wolf (attackable, level 2, 100 HP) in view. */
@@ -212,19 +221,21 @@ bool FCombatCodecDecodeTest::RunTest(const FString& Parameters)
 	}
 
 	FPb Pos; Pos.B = { 0x0d, 0x00, 0x00, 0x80, 0x3f };   // x = 1.0
-	FPb Resp; Resp.S(1, "r").U(2, 12).M(3, Pos).U(4, 195);
+	FPb Resp; Resp.S(1, "r").U(2, 12).M(3, Pos).U(4, 195).U(5, 4);
 	if (TestTrue(TEXT("EntityRespawned decodes"), Decode(EventFrame(6, Resp))) && TestTrue(TEXT("set"), Msg.Event->EntityRespawned.IsSet()))
 	{
 		TestEqual(TEXT("tick"), Msg.Event->EntityRespawned->Tick, uint64(12));
 		TestEqual(TEXT("x"), Msg.Event->EntityRespawned->Position.X, 1.f);
 		TestEqual(TEXT("hp"), Msg.Event->EntityRespawned->Hp, 195u);
+		TestEqual(TEXT("incarnation"), Msg.Event->EntityRespawned->Incarnation, 4u);
 	}
 
-	FPb Stats; Stats.S(1, "o").U(2, 10).U(3, 20).U(4, 5).U(5, 8).U(6, 3);
+	FPb Stats; Stats.S(1, "o").U(2, 10).U(3, 20).U(4, 5).U(5, 8).U(6, 3).U(7, 123456);
 	if (TestTrue(TEXT("StatsChanged decodes"), Decode(EventFrame(7, Stats))) && TestTrue(TEXT("set"), Msg.Event->StatsChanged.IsSet()))
 	{
 		const FStatsChanged& S = *Msg.Event->StatsChanged;
 		TestEqual(TEXT("hp/max/mp/max/level"), FString::Printf(TEXT("%u/%u/%u/%u/%u"), S.Hp, S.MaxHp, S.Mp, S.MaxMp, S.Level), FString(TEXT("10/20/5/8/3")));
+		TestEqual(TEXT("xp"), S.Xp, uint64(123456));
 	}
 
 	FPb Xp; Xp.S(1, "o").U(2, 40).U(3, 1040);
@@ -283,7 +294,7 @@ bool FCombatProjectionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("own hp fraction"), M.OwnHpFraction, 1.f);
 	TestEqual(TEXT("own mp text"), M.OwnMpText, FString(TEXT("MP 120 / 150")));
 	TestEqual(TEXT("own mp fraction"), M.OwnMpFraction, 0.8f);
-	TestEqual(TEXT("xp unknown until XpGained"), M.XpText, FString(TEXT("XP --")));
+	TestEqual(TEXT("xp from the admission StatsChanged"), M.XpText, FString(TEXT("XP 0")));
 	TestFalse(TEXT("no target frame"), M.bTargetVisible);
 	TestFalse(TEXT("not dead"), M.bDeadOverlay);
 
@@ -363,8 +374,9 @@ bool FCombatPrivacyTest::RunTest(const FString& Parameters)
 
 	// Owner-only facts about someone else must not touch our state.
 	Rig.Xp(Other, 999, 5000);
-	TestFalse(TEXT("another player's XP is not ours"), C->GetOwn().bXpKnown);
-	Rig.Stats(Other, 1, 2, 3, 4, 9);
+	TestEqual(TEXT("another player's XP is not ours"), C->GetOwn().Xp, uint64(0));
+	Rig.Stats(Other, 1, 2, 3, 4, 9, 5000);
+	TestEqual(TEXT("another player's stats XP is not ours"), C->GetOwn().Xp, uint64(0));
 	TestEqual(TEXT("another player's stats ignored (hp)"), C->FindEntity(Other)->Hp, 200u);
 	TestEqual(TEXT("another player's stats ignored (level)"), C->FindEntity(Other)->Level, 5u);
 	TestEqual(TEXT("our MP is untouched"), C->GetOwn().Mp, 120u);
@@ -460,12 +472,12 @@ bool FCombatReconnectTest::RunTest(const FString& Parameters)
 	// The server re-sends spawns (own state included) and StatsChanged on the new connection.
 	Rig.Socket->Connected.Broadcast();
 	Rig.Spawn(OwnId, TEXT("Hero"), 1, 2, 0, 250, 300, 3, false);
-	Rig.Stats(OwnId, 250, 300, 100, 150, 3);
+	Rig.Stats(OwnId, 250, 300, 100, 150, 3, 777);
 	Rig.Spawn(Wolf, TEXT("Wolf"), 2, 1, 1, 40, 100, 2, true);
 	FCombatHudModel M = C->BuildHudModel();
 	TestEqual(TEXT("own hp rebuilt"), M.OwnHpText, FString(TEXT("250 / 300")));
 	TestEqual(TEXT("own mp rebuilt"), M.OwnMpText, FString(TEXT("MP 100 / 150")));
-	TestEqual(TEXT("xp not carried over: unknown until XpGained"), M.XpText, FString(TEXT("XP --")));
+	TestEqual(TEXT("xp is the new session's authoritative total"), M.XpText, FString(TEXT("XP 777")));
 	TestFalse(TEXT("no target until TargetChanged"), M.bTargetVisible);
 	TestEqual(TEXT("wolf hp from its spawn"), C->FindEntity(Wolf)->Hp, 40u);
 	TestEqual(TEXT("two entities"), C->NumEntities(), 2);
@@ -638,6 +650,111 @@ bool FCombatHudWidgetTest::RunTest(const FString& Parameters)
 	TestNotNull(TEXT("layout built in code"), Hud->WidgetTree ? Hud->WidgetTree->RootWidget.Get() : nullptr);
 	TestEqual(TEXT("no numbers yet"), Hud->NumDamageNumbers(), 0);
 	TestEqual(TEXT("no bars yet"), Hud->NumFloatingBars(), 0);
+	return true;
+}
+
+// --- Review fixes: authoritative XP and the respawn life fence, through encoded frames --------
+
+namespace
+{
+	TArray<uint8> StatsFrame(const char* Id, uint32 Hp, uint32 MaxHp, uint32 Level, uint64 Xp)
+	{
+		FPb P; P.S(1, Id).U(2, Hp).U(3, MaxHp).U(4, 5).U(5, 8).U(6, Level).U(7, Xp);
+		return EventFrame(7, P);
+	}
+	TArray<uint8> DiedFrame(const char* Id, uint64 Tick, uint32 Inc) { FPb P; P.S(1, Id).U(2, Tick).U(4, Inc); return EventFrame(5, P); }
+	TArray<uint8> RespawnFrame(const char* Id, uint64 Tick, uint32 Hp, uint32 Inc) { FPb P; P.S(1, Id).U(2, Tick).U(4, Hp).U(5, Inc); return EventFrame(6, P); }
+	TArray<uint8> HitFrame(const char* A, const char* T, uint64 Tick, uint32 Dmg, uint32 HpAfter, uint32 Inc)
+	{
+		FPb P; P.S(1, A).S(2, T).U(3, Tick).U(4, 2).U(5, Dmg).U(6, HpAfter).U(7, Inc);
+		return EventFrame(4, P);
+	}
+	TArray<uint8> SpawnFrame(const char* Id, uint32 Gen, uint32 Inc, uint32 Hp)
+	{
+		FPb P; P.S(1, Id).S(2, "Wolf").U(4, 2).U(5, Gen).U(6, 1).U(8, Inc).U(10, 1).U(11, Hp).U(12, 100).U(13, 2);
+		return EventFrame(1, P);
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatXpFromStatsTest, "Nightfall.Combat.State.XpFromStatsChanged", CombatTestFlags)
+
+bool FCombatXpFromStatsTest::RunTest(const FString& Parameters)
+{
+	FCombatRig Rig;
+	UCombatStateSubsystem* C = Rig.Combat;
+	TestEqual(TEXT("unknown before any stats"), C->BuildHudModel().XpText, FString(TEXT("XP --")));
+
+	// Admission: the owner's StatsChanged carries the total.
+	Rig.Spawn(OwnId, TEXT("Hero"), 1, 1, 0, 300, 300, 3, false);
+	TestTrue(TEXT("admission frame decodes"), Rig.Frame(StatsFrame("0b6e2f6e-0000-4000-8000-000000000001", 300, 300, 3, 4200)));
+	TestTrue(TEXT("xp known"), C->GetOwn().bXpKnown);
+	TestEqual(TEXT("admission xp shown"), C->BuildHudModel().XpText, FString(TEXT("XP 4200")));
+
+	// Death and delevel: StatsChanged lowers the total with no XpGained at all.
+	TestTrue(TEXT("death frame decodes"), Rig.Frame(StatsFrame("0b6e2f6e-0000-4000-8000-000000000001", 0, 250, 2, 3900)));
+	TestEqual(TEXT("death penalty shown"), C->BuildHudModel().XpText, FString(TEXT("XP 3900")));
+	TestEqual(TEXT("delevel shown"), C->BuildHudModel().LevelText, FString(TEXT("Lv 2")));
+
+	// Reconnect: the projection resets, then the re-sent StatsChanged restores the authoritative XP.
+	Rig.Socket->Closed.Broadcast(1006, TEXT("dropped"), false);
+	TestEqual(TEXT("xp unknown while disconnected"), C->BuildHudModel().XpText, FString(TEXT("XP --")));
+	Rig.Socket->Connected.Broadcast();
+	Rig.Spawn(OwnId, TEXT("Hero"), 1, 2, 0, 250, 250, 2, false);
+	TestTrue(TEXT("reconnect frame decodes"), Rig.Frame(StatsFrame("0b6e2f6e-0000-4000-8000-000000000001", 250, 250, 2, 3900)));
+	TestEqual(TEXT("xp rebuilt after reconnect"), C->BuildHudModel().XpText, FString(TEXT("XP 3900")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatRespawnFenceTest, "Nightfall.Combat.State.RespawnAdvancesLifeFence", CombatTestFlags)
+
+bool FCombatRespawnFenceTest::RunTest(const FString& Parameters)
+{
+	FCombatRig Rig;
+	UCombatStateSubsystem* C = Rig.Combat;
+	Rig.StandardScene();   // wolf: life 1, 100 HP
+	const char* WolfId = "0b6e2f6e-0000-4000-8000-0000000000a1";
+	int32 Numbers = 0;
+	C->OnDamageNumber.AddLambda([&](const FDamageNumber&) { ++Numbers; });
+
+	TestTrue(TEXT("kill swing"), Rig.Frame(HitFrame("0b6e2f6e-0000-4000-8000-000000000001", WolfId, 10, 100, 0, 1)));
+	TestTrue(TEXT("death"), Rig.Frame(DiedFrame(WolfId, 10, 1)));
+	TestTrue(TEXT("dead"), C->FindEntity(Wolf)->bDead);
+	TestEqual(TEXT("one number"), Numbers, 1);
+
+	// Respawn into life 2.
+	TestTrue(TEXT("respawn"), Rig.Frame(RespawnFrame(WolfId, 20, 100, 2)));
+	const FCombatEntity* W = C->FindEntity(Wolf);
+	TestFalse(TEXT("alive again"), W->bDead);
+	TestEqual(TEXT("life fence advanced in combat state"), W->Incarnation, 2u);
+	TestEqual(TEXT("life fence advanced in the net cache"), Rig.Net->GetKnownEntities()[Wolf].LifeIncarnation, 2u);
+
+	// Stale events of life 1 arriving after the respawn — even with newer ticks — change nothing.
+	Rig.Frame(DiedFrame(WolfId, 25, 1));
+	TestFalse(TEXT("stale death ignored"), C->FindEntity(Wolf)->bDead);
+	Rig.Frame(HitFrame("0b6e2f6e-0000-4000-8000-000000000001", WolfId, 26, 40, 1, 1));
+	TestEqual(TEXT("stale attack result ignored"), C->FindEntity(Wolf)->Hp, 100u);
+	TestEqual(TEXT("and shows no number"), Numbers, 1);
+	Rig.Frame(SpawnFrame(WolfId, 1, 1, 7));
+	TestEqual(TEXT("stale spawn ignored by combat state"), C->FindEntity(Wolf)->Hp, 100u);
+	TestEqual(TEXT("stale spawn ignored by the net cache"), Rig.Net->GetKnownEntities()[Wolf].LifeIncarnation, 2u);
+	Rig.Frame(RespawnFrame(WolfId, 30, 50, 1));
+	TestEqual(TEXT("stale respawn ignored"), C->FindEntity(Wolf)->Hp, 100u);
+	TestEqual(TEXT("fence not lowered"), C->FindEntity(Wolf)->Incarnation, 2u);
+
+	// The current life still applies.
+	Rig.Frame(HitFrame("0b6e2f6e-0000-4000-8000-000000000001", WolfId, 40, 30, 70, 2));
+	TestEqual(TEXT("life 2 swing applies"), C->FindEntity(Wolf)->Hp, 70u);
+
+	// The fence survives an AOI exit: the tombstone carries the new life.
+	Rig.Despawn(Wolf);
+	Rig.Frame(SpawnFrame(WolfId, 1, 1, 7));
+	TestNull(TEXT("stale spawn after despawn ignored"), C->FindEntity(Wolf));
+	TestNull(TEXT("and not cached by the net layer"), Rig.Net->GetKnownEntities().Find(Wolf));
+	Rig.Frame(RespawnFrame(WolfId, 50, 100, 3));   // respawn while out of view advances the tombstone
+	Rig.Frame(SpawnFrame(WolfId, 1, 2, 9));
+	TestNull(TEXT("life 2 spawn is now stale too"), C->FindEntity(Wolf));
+	Rig.Frame(SpawnFrame(WolfId, 1, 3, 100));
+	TestNotNull(TEXT("life 3 spawn accepted"), C->FindEntity(Wolf));
 	return true;
 }
 

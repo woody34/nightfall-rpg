@@ -464,3 +464,7 @@ Time-box was one working day; the plugin built within the first hour. Outcome: *
 Other notes: TurboLink's lambda API (`UGameService::CallPing`) keeps its callback in an
 unrooted `NewObject` that the garbage collector may collect mid-call; `USessionClient` uses the
 client-object API with its own handle-to-callback map instead.
+
+`Nightfall.Combat.EndToEnd` walks a new character to the fixture keltir slot, fights it and checks
+the click/attack/StopAttack timing. Without a reachable API it is skipped with a `SKIPPED (no combat
+coverage)` warning; pass `-RequireCombatServer` to the editor to make that skip a failure.

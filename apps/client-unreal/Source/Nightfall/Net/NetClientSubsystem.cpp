@@ -222,8 +222,23 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		if (E.EntityRespawned.IsSet())
 		{
 			// The respawn point is authoritative: remote proxies jump there; the own pawn is snapped by UOwnEntityComponent.
-			SnapshotBuffer.Push(E.EntityRespawned->Entity, E.EntityRespawned->Position, EstimatedServerTimeMs());
-			OnEntityRespawned.Broadcast(*E.EntityRespawned);
+			// The new life advances the fence on the cached spawn (live or tombstoned), so a spawn,
+			// death or swing of an earlier life arriving afterwards is stale. An older life's
+			// respawn is itself stale and dropped.
+			const FEntityRespawned& Re = *E.EntityRespawned;
+			FEntitySpawn* Held = KnownEntities.Find(Re.Entity);
+			if (!Held) Held = Tombstones.Find(Re.Entity);
+			const bool bStaleRespawn = Held && Held->LifeIncarnation != 0 && Re.Incarnation != 0 && Re.Incarnation < Held->LifeIncarnation;
+			if (bStaleRespawn)
+			{
+				UE_LOG(LogNightfall, Verbose, TEXT("ws: stale respawn for %s dropped"), *Re.Entity);
+			}
+			else
+			{
+				if (Held && Re.Incarnation > Held->LifeIncarnation) Held->LifeIncarnation = Re.Incarnation;
+				SnapshotBuffer.Push(Re.Entity, Re.Position, EstimatedServerTimeMs());
+				OnEntityRespawned.Broadcast(Re);
+			}
 		}
 		if (E.StatsChanged.IsSet()) OnStatsChanged.Broadcast(*E.StatsChanged);
 		if (E.XpGained.IsSet()) OnXpGained.Broadcast(*E.XpGained);

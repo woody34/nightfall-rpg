@@ -96,6 +96,7 @@ struct FEntityRespawned
 	uint64 Tick = 0;       // 2
 	FNetVec2 Position;     // 3
 	uint32 Hp = 0;         // 4
+	uint32 Incarnation = 0;// 5: the new life; facts about older lives are stale
 };
 
 /** Owner-only. */
@@ -107,6 +108,7 @@ struct FStatsChanged
 	uint32 Mp = 0;         // 4
 	uint32 MaxMp = 0;      // 5
 	uint32 Level = 0;      // 6
+	uint64 Xp = 0;         // 7: cumulative XP, including death loss
 };
 
 /** Owner-only. */
