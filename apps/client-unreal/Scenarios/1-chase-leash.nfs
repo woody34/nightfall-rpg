@@ -30,7 +30,7 @@ nf.ClickMove 97 92                 # a ground click ends our attack (StopAttack,
 nf.WaitFor own_at 97 92 1 6        # 8 tiles: 1.6 s, 3x
 nf.Expect attack_state == idle
 nf.WaitFor target_distance <= 2.5 6    # it followed 8 tiles at 4 tiles/s: 2 s, 3x
-nf.Expect target_engaged_me
+nf.WaitFor target_engaged_me 6    # NPC impact may follow arrival by its 2-second attack interval
 # Leash: 26 more tiles south; the keltir turns home once it is 15 tiles from its home.
 nf.ClickMove 97 66
 nf.WaitFor own_at 97 66 1 16       # 26 tiles: 5.2 s, 3x
