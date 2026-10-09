@@ -549,6 +549,16 @@ bash Scripts/run-soak.sh
   - **Byte-identical replay:** Zone 1 epoch 1 export (`soak.nfr`) verified byte-identical replay: 1689 ticks, 7 players, 2588 outputs, 162098 bytes compared (0 digest-only), in 207.5ms.
 - **Historical debug 8-client local smoke (2026-10-09):** All eight clients passed their scenario assertions with `--seconds 120`, completing 30 iterations total in 120.188–157.775s per client (Gauntlet wall 168s). Combat tick p99 was 34.371ms under the superseded `increase()` calculation (complete cumulative histogram approximately35.136ms). This exceeds the required <20ms budget, so the debug smoke does not satisfy performance acceptance. The complete zone 1 epoch 1 recording replayed 1690 ticks, 30 players, 11455 outputs and 2781171 bytes identically in 824.8ms; API shutdown exited 0. Evidence is under `Saved/Soak/smoke-8x120/`.
 
+### Diagnostics and wire audit (E1.6/E1.7)
+
+Bot scenarios generate schema 1 failure bundles (`<out>/<scenario>.failure.json`) and descriptor-backed wire coverage reports (`<out>/<scenario>.coverage.contract.json`):
+
+- **Failure bundle:** On step failure, retains first-failed evaluation, captures the last 50 typed events with exact uint64 decimal ticks (null for unticked events, with `nearest_preceding_tick`), combat projections, and move position history without auth credentials.
+- **Coverage & regression gate:** `sim-contract.py` aggregates descriptor-backed wire counts into `coverage.contract.json`, gates on baseline presence regressions, and preserves historical coverage upon explicit promotion.
+- **Server audit:** `sim-contract-audit.py` cross-checks client observations against JetStream `NF_SESSIONS` (isolated fresh stack only; close codes excluded; session out queue precedes delivery so disconnect tails are reported).
+
+Complete schema, privacy rules, and delivery semantics: [docs/engineering/sim-diagnostics.md](../../docs/engineering/sim-diagnostics.md).
+
 ## Installing Unreal on Linux
 
 Epic requires an account. Two routes:
