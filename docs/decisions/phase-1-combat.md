@@ -26,7 +26,7 @@ Phase 1 delivers the minimal playable Lineage 2 loop: targeting, auto-attacking 
 
 ## Known limitations
 
-- Debug-build tick p99 of 55 ms with 200 players and 200 keltirs needs a release-build measurement against the <20 ms budget.
+- Release build meets the <20 ms budget on Ryzen 9 3900X (Rust 1.98.1): 200 players + 200 keltirs fighting p50 0.604 ms / p99 2.215 ms; 1,000 moving NPCs p50 0.418 ms / p99 0.445 ms; 50 players + 50 keltirs p50 0.131 ms / p99 0.317 ms (asserted by release-only `api:perf-check`), but profiling shows 72% of the tick in canonical JSON state digest and 24% in AOI output generation (follow-up E6.5).
 - The return-home arrival-order bug found by a property test and fixed (path overshoot/arrival sequence).
 - Fab licence labels unverified (public Fab pages exposed empty licence fields; owner must inspect at download).
 - Scope excludes skills, items/inventory (beyond fixed starter weapon), equipment slots, and parties/shared XP.
