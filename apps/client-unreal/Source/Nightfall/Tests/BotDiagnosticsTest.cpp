@@ -113,7 +113,7 @@ bool FBotFailureValueTest::RunTest(const FString& Parameters)
 	Executor.Tick(101.1);
 	TestTrue(TEXT("timeout retains first failure context"), Executor.GetFailedStep().IsSet());
 	TestEqual(TEXT("two live evaluations only"), Evaluations, 2);
-	TestTrue(TEXT("predicate timeout classification is explicit"), BotJUnit::Write(TEXT("test"), Executor.GetTestCases(), 1.1).Contains(TEXT("type=\"bot_expectation\"")));
+	TestTrue(TEXT("predicate timeout classification is explicit"), BotJUnit::Write(TEXT("test"), Executor.GetTestCases(), 1.1, {}).Contains(TEXT("type=\"bot_expectation\"")));
 	if (Executor.GetFailedStep().IsSet())
 	{
 		TestEqual(TEXT("last value preserved"), Executor.GetFailedStep()->Observed, FString(TEXT("81")));
@@ -152,7 +152,7 @@ bool FBotUnevaluatedFailureTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("current assertion cannot inherit preceding value"), Executor.GetFailedStep()->Observed, FString(TEXT("not evaluated")));
 		TestEqual(TEXT("current assertion context"), Executor.GetFailedStep()->Predicate, FString(TEXT("own_hp == 0")));
 	}
-	const FString Xml = BotJUnit::Write(TEXT("test"), Executor.GetTestCases(), 0.1);
+	const FString Xml = BotJUnit::Write(TEXT("test"), Executor.GetTestCases(), 0.1, {});
 	TestTrue(TEXT("shutdown is infrastructure, not a quarantinable assertion"), Xml.Contains(TEXT("type=\"failure\"")));
 	return true;
 }
