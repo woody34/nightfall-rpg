@@ -1,7 +1,7 @@
 # Shared helpers for run-sim.sh and run-sim-multi.sh. Source it; it runs nothing by itself.
 #
 # Environment overrides (mainly for tests):
-#   SIM_BOT_BIN       bot executable to run instead of Binaries/Linux/Nightfall (no uproject arg is passed)
+#   SIM_BOT_BIN       bot executable to run instead of the UnrealEditor binary (no uproject arg is passed)
 #   SIM_SKIP_BUILD=1  never build
 #   SIM_SAVED_DIR     where the bot writes its outputs (default <project>/Saved/Sim)
 #   SIM_REPLAY_CMD    command run as `$SIM_REPLAY_CMD <file.nfr>` (default: nightfall-replay --source file --file)
@@ -39,21 +39,24 @@ sim_resolve_env() {
   fi
 }
 
-sim_bot_bin() { echo "${SIM_BOT_BIN:-$SIM_PROJECT_DIR/Binaries/Linux/Nightfall}"; }
+# The bot is the editor binary run with -game (README "Headless"): the Nightfall game target needs
+# cooked content and crashes loading engine packages. The staleness probe is the project module.
+sim_bot_bin() { echo "${SIM_BOT_BIN:-$UE_ROOT/Engine/Binaries/Linux/UnrealEditor}"; }
+sim_module_lib() { echo "$SIM_PROJECT_DIR/Binaries/Linux/libUnrealEditor-Nightfall.so"; }
 
 # Builds the Nightfall game target when the binary is missing or older than any source/uproject file.
 sim_ensure_build() {
   [[ -n "${SIM_SKIP_BUILD:-}" || -n "${SIM_BOT_BIN:-}" ]] && return 0
-  local bin; bin="$(sim_bot_bin)"
-  if [[ -x "$bin" ]] && [[ -z "$(find "$SIM_PROJECT_DIR/Source" "$SIM_PROJECT_DIR/Nightfall.uproject" \
+  local bin; bin="$(sim_module_lib)"
+  if [[ -f "$bin" ]] && [[ -z "$(find "$SIM_PROJECT_DIR/Source" "$SIM_PROJECT_DIR/Nightfall.uproject" \
         -type f \( -name '*.cpp' -o -name '*.h' -o -name '*.cs' -o -name '*.uproject' \) -newer "$bin" -print -quit 2>/dev/null)" ]]; then
     sim_log "game binary is up to date"
     return 0
   fi
-  sim_log "building Nightfall (Linux Development)"
+  sim_log "building NightfallEditor (Linux Development)"
   bash "$SIM_HERE/setup-turbolink.sh" >&2
-  "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh" Nightfall Linux Development \
-    -Project="$SIM_PROJECT_DIR/Nightfall.uproject" -WaitMutex >&2 || sim_die "build failed"
+  "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh" NightfallEditor Linux Development \
+    -Project="$SIM_PROJECT_DIR/Nightfall.uproject" -WaitMutex -NoHotReloadFromIDE >&2 || sim_die "build failed"
 }
 
 sim_api_healthy() { curl -sf -m 2 -o /dev/null "$SIM_API_URL/health"; }
@@ -143,14 +146,37 @@ sim_collect() {
 
 sim_new_marker() { local m; m="$(mktemp)"; touch "$m"; sleep 0.05; echo "$m"; }
 
-# Replays one recording; returns the tool's exit code.
+# nightfall-replay binary (built once per script run). SIM_REPLAY_BIN overrides.
+sim_replay_bin() {
+  if [[ -z "${SIM_REPLAY_BIN:-}" ]]; then
+    (cd "$SIM_REPO" && cargo build --quiet -p nightfall-api --bin nightfall-replay >&2) || sim_die "building nightfall-replay failed"
+    SIM_REPLAY_BIN="$(cd "$SIM_REPO" && cargo metadata --format-version 1 --no-deps | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')/debug/nightfall-replay"
+  fi
+  echo "$SIM_REPLAY_BIN"
+}
+
+# Exports the bot's session from the live event log (the server records every session; the bot
+# writes no file): $1 = artifact dir, $2 = scenario name. The player entity is the JUnit
+# own_entity_id. Zone SIM_ZONE_ID (default 1, test_zone) at its newest epoch; NATS from NATS_URL.
+# Does nothing when a recording is already there or the report names no entity.
+sim_export_recording() {
+  local dest="$1" name="$2" entity bin
+  [[ -f "$dest/$name.nfr" ]] && return 0
+  [[ -n "${SIM_REPLAY_CMD:-}" ]] && return 0
+  entity="$(sed -n 's/.*name="own_entity_id" value="\([^"]*\)".*/\1/p' "$dest/$name.xml" 2>/dev/null | head -1)"
+  [[ -n "$entity" ]] || return 1
+  bin="$(sim_replay_bin)"
+  "$bin" export --zone "${SIM_ZONE_ID:-1}" --latest --session "$entity" --live --out "$dest/$name.nfr" >"$dest/$name.export.log" 2>&1
+}
+
+# Replays one recording; returns the tool's exit code (non-zero = divergence).
 sim_replay() {
   local nfr="$1" log="$2"
   if [[ -n "${SIM_REPLAY_CMD:-}" ]]; then
     # shellcheck disable=SC2086
     $SIM_REPLAY_CMD "$nfr" >"$log" 2>&1
   else
-    (cd "$SIM_REPO/apps/api" && cargo run --quiet --bin nightfall-replay -- --source file --file "$nfr") >"$log" 2>&1
+    "$(sim_replay_bin)" check --file "$nfr" >"$log" 2>&1
   fi
 }
 

@@ -347,6 +347,8 @@ Commands (all also work typed into a running client's console):
 | `nf.Attack` | `Attack` on the selection, once while idle (`AttackSelection`, same rules as clicking the NPC) |
 | `nf.StopAttack` | `StopAttack` while attacking (what a ground click sends) |
 | `nf.Respawn` | `Respawn` while dead, once until answered |
+| `nf.Logout` | Disconnects and forgets the tokens (the server despawns the entity) |
+| `nf.LoginGroup` | Test only (like `nf.DropSocket`): logs in as the `test:<uuid>` account derived from `-SimGroup`, so every process of one `run-sim-multi.sh` group is the same account (and enters the same character) |
 | `nf.DropSocket` | Test only: closes the WebSocket as a network failure would; the client reconnects with a fresh ticket. Registered only in non-shipping builds and only when `-BotScenario` is given (plan R5) |
 
 Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op> <n>` with op in
@@ -358,6 +360,16 @@ Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op
 | `ws_connected` | the WebSocket is open | net |
 | `in_world` | WebSocket open, own `EntitySpawn` in the cache, world map (`ANightfallGameMode`) loaded | net, world |
 | `own_at <x> <y> <tol>` | newest server position of the own entity within `tol` tiles | net snapshots |
+| `acks <op> <n>` | intent Acks received (rejections excluded) | observations |
+| `own_spawns <op> <n>` | `EntitySpawn`s of the own entity received: one per admission, a reconnect adds one | observations |
+| `own_entity_unchanged` | the own entity id equals the one of the first own spawn | observations, net |
+| `ticket_refreshed` | at least two play tickets were presented and the newest differs from the one before | net |
+| `close_code <op> <n>` | WebSocket close code of the newest close (4409 = replaced by a newer session; the client then does not reconnect, api-guidelines "Close codes") | net |
+| `ws_closed` | the client is not connected | net |
+| `other_players <op> <n>` | other players in view (NPCs excluded, unlike `proxies`) | net cache |
+| `proxy_at <x> <y> <tol>` | some entity other than the player has its newest server sample within `tol` tiles | net snapshots |
+| `proxy_actors <op> <n>` | live proxy actors | `UWorldProxySubsystem` |
+| `proxy_actors_in_sync` | the proxy actors are exactly the entities in view other than the player (none leaked, none missing) | net cache, world |
 | `proxies <op> <n>` | entities in view other than the own one | net cache |
 | `target == <name\|id\|none>` / `!=` | confirmed selection (after `TargetChanged`), by name or id | projection |
 | `target_hp <op> <n>` | HP of the selection; once it clears, of the last selection (0 when it died) | projection |
@@ -368,6 +380,19 @@ Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op
 | `damage_numbers <op> <n>` | floating numbers shown (one per distinct `AttackResult`) | `OnDamageNumber` |
 | `rejected == <reason\|none>` / `!=` | newest `IntentRejected` reason: `TOO_FAR`, `REJECT_REASON_TOO_FAR` or `2`; `none` = none seen | `OnIntentRejected` |
 | `last_ack_seq <op> <n>` | highest acked intent seq | `OnIntentAck` |
+
+### Scenario catalogue (Phase 0b back-fill)
+
+| Scenario | Run with | Covers | Typical run |
+|---|---|---|---|
+| `0b-login-enter-world` | `run-sim.sh` | dev-token login, character created on a fresh account, play ticket, WebSocket, own spawn at the origin | 11 s |
+| `0b-click-move` | `run-sim.sh` | three click moves, each Acked, own position reconciles within 1 tile | 21 s |
+| `0b-move-rejected` | `run-sim.sh` | a destination over 64 tiles away: `IntentRejected` `TOO_FAR`, no Ack, position unchanged | 13 s |
+| `0b-reconnect` | `run-sim.sh` | `nf.DropSocket`: fresh play ticket, second own spawn, same entity id | 11 s |
+| `0b-two-clients-a` / `-b` | `run-sim-multi.sh` | A walks to (12, 9) and logs out; B sees A's proxy within 2 tiles, then its despawn, with no leaked proxy actor | 20 s |
+| `0b-login-replaces-a` / `-b` | `run-sim-multi.sh` | both enter as the same account and character (`nf.LoginGroup`); B's login closes A with 4409, A does not reconnect, B stays `in_world` | 31 s |
+
+The pairs run together: `Scripts/run-sim-multi.sh Scenarios/0b-two-clients-a.nfs Scenarios/0b-two-clients-b.nfs`.
 
 A new predicate is one `Register*` call in `FBotPredicateRegistry::RegisterBuiltins` (or from a
 later phase's module): `RegisterFlag`, `RegisterNumber`, `RegisterEquality` or `Register` for
@@ -745,8 +770,8 @@ Scripts/run-tests.sh --require-live-api   # CI: a down API fails them (also on w
 
 ### Running simulations
 
-A scenario (`Scenarios/*.nfs`) is run by the shipped game binary in bot mode:
-`Nightfall -game -nullrhi -nosound -unattended -BotScenario=<path.nfs>`. It exits 0 on pass and 1
+A scenario (`Scenarios/*.nfs`) is run by the editor binary in game mode (the `Nightfall` game target needs cooked content and
+crashes loading engine packages): `$UE_ROOT/Engine/Binaries/Linux/UnrealEditor Nightfall.uproject -game -nullrhi -nosound -unattended -BotScenario=<path.nfs>`. It exits 0 on pass and 1
 on fail and writes `Saved/Sim/<scenario>.xml` (JUnit), `<scenario>.log` and the session recording
 (`.nfr`). Plan: [phase-1a-simulation-testing.md](../../docs/plans/phase-1a-simulation-testing.md).
 
@@ -757,6 +782,7 @@ moon run client-unreal:sim -- 'Scenarios/1-*.nfs' --api start --artifacts /tmp/s
 moon run client-unreal:sim-all            # every Scenarios/*.nfs; extra args after -- are appended
 ```
 
+- The bot writes no recording. After the run the scripts export the session from the live event log (`nightfall-replay export --zone $SIM_ZONE_ID --latest --session <own_entity_id from the JUnit> --live --out <scenario>.nfr`, default zone 1, NATS from `NATS_URL`) and check it (`nightfall-replay check --file <scenario>.nfr`); the API under test must use that NATS.
 - `UE_ROOT` and `LINUX_MULTIARCH_ROOT` come from the environment, else from `~/.bashrc`.
 - The `Nightfall` game target is built (`Build.sh`) when the binary is missing or older than any
   file under `Source/`.
@@ -791,7 +817,7 @@ DIR/group.xml                  multi only: merged JUnit
 CI mode: `run-tests.sh --require-live-api` as above; the sim scripts already fail on any problem.
 
 Test overrides (used by `Scripts/test/sim.test.sh`, which drives the scripts with a stub bot and
-needs no engine, API or Docker): `SIM_BOT_BIN` (bot executable instead of `Binaries/Linux/Nightfall`),
+needs no engine, API or Docker): `SIM_BOT_BIN` (bot executable instead of `UnrealEditor`),
 `SIM_TRACE_CMD` (trace tool prefix, default `cargo run --quiet --bin nightfall-replay --`),
 `SIM_SKIP_BUILD=1`, `SIM_SAVED_DIR`, `SIM_REPLAY_CMD` (run as `$SIM_REPLAY_CMD file.nfr`),
 `SIM_API_URL`, `SIM_TIMEOUT` (seconds, default 600).

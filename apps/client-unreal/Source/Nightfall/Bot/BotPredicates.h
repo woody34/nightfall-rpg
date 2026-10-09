@@ -20,6 +20,9 @@ struct NIGHTFALL_API FBotObservations
 	uint32 LastRejectReason = 0; // nightfall.v1.RejectReason of the newest rejection
 	uint32 LastRejectSeq = 0;
 	int32 DamageNumbers = 0;     // UCombatStateSubsystem::OnDamageNumber count (deduped AttackResults)
+	int32 Acks = 0;              // Acks received (every Ack, keep-alives excluded by the server: they are rejected)
+	int32 OwnSpawns = 0;         // EntitySpawns of the own entity (one per session admission)
+	FString FirstOwnEntityId;    // the own entity id at the first own spawn; own_entity_unchanged compares it
 	FString LastTargetId;        // the newest non-empty selection, kept after it clears (target_hp reads it)
 	TOptional<uint32> LastTargetHp; // its newest HP from AttackResult / EntityDied (0) / the projection; survives its despawn
 
@@ -32,7 +35,7 @@ struct NIGHTFALL_API FBotObservations
 private:
 	TWeakObjectPtr<UNetClientSubsystem> BoundNet;
 	TWeakObjectPtr<UCombatStateSubsystem> BoundCombat;
-	FDelegateHandle AckHandle, RejectHandle, NumberHandle, TargetHandle, HitHandle, DiedHandle;
+	FDelegateHandle SpawnHandle, AckHandle, RejectHandle, NumberHandle, TargetHandle, HitHandle, DiedHandle;
 };
 
 /** Everything a predicate may read. Accessors return nullptr when that part is absent. */

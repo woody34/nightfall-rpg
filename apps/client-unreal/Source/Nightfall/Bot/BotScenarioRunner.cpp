@@ -266,7 +266,9 @@ void UBotScenarioRunner::WriteArtifacts(const TArray<FBotTestCase>& Cases, doubl
 		Properties.Emplace(FString::Printf(TEXT("allow.%d"), Entry.Line), FString::Printf(TEXT("%s | %s | %s | hits=%d"), *Entry.Category, *Entry.Substring, *Entry.Reason, Entry.Hits));
 	}
 	if (!GeneratedAccount.IsEmpty()) Properties.Emplace(TEXT("account"), TEXT("test:") + GeneratedAccount);
-	if (Net && !Net->GetOwnEntityId().IsEmpty()) Properties.Emplace(TEXT("own_entity_id"), Net->GetOwnEntityId());
+	// After nf.Logout the net cache has forgotten the entity; the observation kept its first id.
+	const FString OwnEntity = Net && !Net->GetOwnEntityId().IsEmpty() ? Net->GetOwnEntityId() : Observations.FirstOwnEntityId;
+	if (!OwnEntity.IsEmpty()) Properties.Emplace(TEXT("own_entity_id"), OwnEntity);
 
 	const FString JUnitPath = FPaths::Combine(OutDir, ScenarioName + TEXT(".xml"));
 	if (!FFileHelper::SaveStringToFile(BotJUnit::Write(ScenarioName, Cases, TotalSeconds, Properties), *JUnitPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))

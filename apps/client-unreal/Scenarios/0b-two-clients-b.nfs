@@ -1,0 +1,17 @@
+# covers: 0b 1.5, 1a 2.4
+# 0b-two-clients-b: the observer of 0b-two-clients-a. Sees A's proxy appear, sees it arrive
+# within 2 tiles of (12, 9) after the interpolation delay, then sees it despawn when A logs out.
+# The proxy_actors_in_sync checks catch a proxy actor that outlives its entity (a leaked proxy).
+#
+# Timeouts (R1): as in A (45 s to find the other client). A walks ~2 s then waits 5 s before it
+# logs out, so the arrival is waited for 30 s and the despawn 30 s (server close + Despawn).
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor other_players >= 1 45
+nf.WaitFor proxy_actors_in_sync 5
+nf.WaitFor proxy_at 12 9 2 30
+nf.WaitFor other_players == 0 30      # A logged out: EntityDespawn removed it from the cache
+nf.WaitFor proxy_actors_in_sync 5     # and the world's proxy actor is gone (none leaked)
+nf.Within 150

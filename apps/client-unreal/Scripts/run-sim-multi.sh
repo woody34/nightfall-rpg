@@ -147,6 +147,9 @@ ET.ElementTree(root).write(os.path.join(art, "group.xml"), encoding="utf-8", xml
 PY
 
 if ((REPLAY)); then
+  for scenario in "${SCENARIOS[@]}"; do
+    n="$(basename "$scenario" .nfs)"; sim_export_recording "$ARTIFACTS/$n" "$n" || true
+  done
   shopt -s nullglob
   nfrs=("$ARTIFACTS"/*.nfr "$ARTIFACTS"/*/*.nfr)
   shopt -u nullglob

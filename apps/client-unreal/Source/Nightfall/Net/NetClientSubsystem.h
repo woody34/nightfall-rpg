@@ -131,6 +131,20 @@ public:
 
 	FSnapshotBuffer& Snapshots() { return SnapshotBuffer; }
 
+	/** WebSocket close code and reason of the newest close (0 / empty before the first one). */
+	int32 GetLastCloseCode() const { return LastCloseCode; }
+	const FString& GetLastCloseReason() const { return LastCloseReason; }
+
+	/**
+	 * Play tickets presented to the server so far (every Open), and whether the newest differs from
+	 * the one before it. Only digests are kept, never the tickets (plan §8 #9: a ticket is single-use).
+	 */
+	int32 GetTicketsPresented() const { return TicketsPresented; }
+	bool IsNewestTicketFresh() const { return TicketsPresented >= 2 && NewestTicketDigest != PreviousTicketDigest; }
+
+	/** Close code 4409: a newer session of the same entity replaced this one; do not reconnect (api-guidelines §4). */
+	static constexpr int32 CloseCodeReplaced = 4409;
+
 	/** Entities spawned and not yet despawned. A world that loads after connecting starts from these. */
 	const TMap<FString, FEntitySpawn>& GetKnownEntities() const { return KnownEntities; }
 
@@ -194,6 +208,11 @@ private:
 	int64 ServerClockOffsetMs = 0;
 	TOptional<int64> TickTimeOriginMs;
 	FString OwnEntityId;
+	int32 LastCloseCode = 0;
+	FString LastCloseReason;
+	int32 TicketsPresented = 0;
+	FString NewestTicketDigest;
+	FString PreviousTicketDigest;
 	TArray<uint8> Frame;              // reassembly buffer for fragmented frames
 	FSnapshotBuffer SnapshotBuffer;
 	TMap<FString, FEntitySpawn> KnownEntities;

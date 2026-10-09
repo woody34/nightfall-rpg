@@ -1,0 +1,13 @@
+# covers: 0b 1.5, 1a 2.5
+# 0b-login-replaces-b: the second login for the character 0b-login-replaces-a is playing. It
+# waits (15 s, 3x A's login chain) so A's character exists and A is connected, then enters with
+# it; it must end in_world and stay there.
+nf.LoginGroup
+nf.WaitFor connected 15
+nf.Sleep 15
+nf.EnterWorld                     # the account's first (only) character
+nf.WaitFor in_world 15
+nf.Sleep 5                        # A's 4409 and its aftermath must not disturb this session
+nf.Expect in_world
+nf.Expect own_spawns == 1
+nf.Within 90

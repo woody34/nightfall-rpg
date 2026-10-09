@@ -1,0 +1,16 @@
+# covers: 0b 1.5, 1a 2.2
+# 0b-move-rejected: a destination further than MAX_MOVE_DISTANCE_TILES (64) from the player is
+# IntentRejected{TOO_FAR}; no Ack, the server position does not change.
+#
+# Timeouts (R1): the rejection is one round trip, 5 s. The 3 s pause is 30 server ticks, far more
+# than the single tick a (wrongly accepted) move would need to show up.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.ClickMove 100 100              # 141 tiles from the spawn at (0, 0)
+nf.WaitFor rejected == TOO_FAR 5
+nf.Sleep 3
+nf.Expect acks == 0
+nf.Expect own_at 0 0 1
+nf.Within 45

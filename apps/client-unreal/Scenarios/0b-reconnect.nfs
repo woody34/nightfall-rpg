@@ -1,0 +1,18 @@
+# covers: 0b 1.5, 1a 2.3
+# 0b-reconnect: the socket is lost (nf.DropSocket, as a network failure); the client fetches a
+# FRESH play ticket (tickets are single use), reconnects, and rebuilds its projections from the
+# spawn stream: a second own EntitySpawn, the same entity id.
+#
+# Timeouts (R1): backoff 0.5 s + IssuePlayTicket (5 s deadline) + upgrade; 3x of 5.5 s rounded up.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.Expect own_spawns == 1
+nf.DropSocket
+nf.WaitFor own_spawns >= 2 20     # the new session's spawn stream arrived
+nf.WaitFor in_world 5
+nf.Expect ticket_refreshed        # >= 2 tickets presented, the newest differs from the first
+nf.Expect own_entity_unchanged
+nf.Expect connected
+nf.Within 60

@@ -3,6 +3,7 @@
 #include "Combat/CombatStateSubsystem.h"
 #include "Game/NightfallGameMode.h"
 #include "Net/NetClientSubsystem.h"
+#include "World/WorldProxySubsystem.h"
 #include "SNightfallV1/WorldMessage.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -17,7 +18,13 @@ void FBotObservations::Bind(UGameInstance* GameInstance)
 	if (Net)
 	{
 		BoundNet = Net;
-		AckHandle = Net->OnIntentAck.AddLambda([this](const FAck& Ack) { LastAckSeq = FMath::Max(LastAckSeq, Ack.Seq); });
+		AckHandle = Net->OnIntentAck.AddLambda([this](const FAck& Ack) { ++Acks; LastAckSeq = FMath::Max(LastAckSeq, Ack.Seq); });
+		SpawnHandle = Net->OnEntitySpawn.AddLambda([this, Net](const FEntitySpawn& Spawn)
+		{
+			if (!Net->IsOwnEntity(Spawn.EntityId)) return;
+			++OwnSpawns;
+			if (FirstOwnEntityId.IsEmpty()) FirstOwnEntityId = Spawn.EntityId.ToLower();
+		});
 		RejectHandle = Net->OnIntentRejected.AddLambda([this](const FIntentRejected& Rejected)
 		{
 			bRejected = true;
@@ -53,6 +60,7 @@ void FBotObservations::Unbind()
 {
 	if (UNetClientSubsystem* Net = BoundNet.Get())
 	{
+		Net->OnEntitySpawn.Remove(SpawnHandle);
 		Net->OnIntentAck.Remove(AckHandle);
 		Net->OnIntentRejected.Remove(RejectHandle);
 		Net->OnTargetChanged.Remove(TargetHandle);
@@ -69,6 +77,9 @@ void FBotObservations::Unbind()
 
 void FBotObservations::Reset()
 {
+	Acks = 0;
+	OwnSpawns = 0;
+	FirstOwnEntityId.Reset();
 	LastAckSeq = 0;
 	bRejected = false;
 	LastRejectReason = 0;
@@ -339,6 +350,82 @@ void FBotPredicateRegistry::RegisterBuiltins()
 			if (Value.Equals(TEXT("none"), ESearchCase::IgnoreCase)) return !bAny;
 			return bAny && static_cast<int32>(O->LastRejectReason) == ParseRejectReason(Value);
 		});
+
+	// --- Phase 1a E2: reconnect, two clients, replacement ---------------------------------------
+	RegisterNumber(TEXT("acks"), TEXT("Intent Acks received so far (rejections excluded)"),
+		[](const FBotContext& C) -> TOptional<double> { return C.Observations ? TOptional<double>(C.Observations->Acks) : TOptional<double>(); });
+	RegisterNumber(TEXT("own_spawns"), TEXT("EntitySpawns of the own entity received (one per admission; a reconnect adds one)"),
+		[](const FBotContext& C) -> TOptional<double> { return C.Observations ? TOptional<double>(C.Observations->OwnSpawns) : TOptional<double>(); });
+	RegisterFlag(TEXT("own_entity_unchanged"), TEXT("The own entity id equals the one of the first own spawn"),
+		[](const FBotContext& C)
+		{
+			const UNetClientSubsystem* N = C.Net();
+			return N && C.Observations && !C.Observations->FirstOwnEntityId.IsEmpty() && N->IsOwnEntity(C.Observations->FirstOwnEntityId);
+		});
+	RegisterFlag(TEXT("ticket_refreshed"), TEXT("At least two play tickets were presented and the newest differs from the one before (a reconnect fetched a fresh ticket)"),
+		[](const FBotContext& C) { const UNetClientSubsystem* N = C.Net(); return N && N->IsNewestTicketFresh(); });
+	RegisterFlag(TEXT("ws_closed"), TEXT("The WebSocket is closed and the client is not connected (after a 4409 it stays closed: no reconnect)"),
+		[](const FBotContext& C) { const UNetClientSubsystem* N = C.Net(); return N && !N->IsConnected(); });
+	RegisterNumber(TEXT("proxy_actors"), TEXT("Live proxy actors in the world (UWorldProxySubsystem): a despawn that leaks an actor leaves this above proxies"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const UWorld* W = C.World();
+			const UWorldProxySubsystem* P = W ? W->GetSubsystem<UWorldProxySubsystem>() : nullptr;
+			return P ? TOptional<double>(P->GetProxies().Num()) : TOptional<double>();
+		});
+	RegisterNumber(TEXT("other_players"), TEXT("Other players in view (net cache; NPCs excluded, unlike proxies)"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const UNetClientSubsystem* N = C.Net();
+			if (!N) return {};
+			int32 Count = 0;
+			for (const TPair<FString, FEntitySpawn>& Known : N->GetKnownEntities()) Count += !N->IsOwnEntity(Known.Key) && Known.Value.Kind == 1;
+			return static_cast<double>(Count);
+		});
+	RegisterFlag(TEXT("proxy_actors_in_sync"), TEXT("The world's proxy actors are exactly the entities in view other than the player (none leaked, none missing)"),
+		[](const FBotContext& C)
+		{
+			const UNetClientSubsystem* N = C.Net();
+			const UWorld* W = C.World();
+			const UWorldProxySubsystem* P = W ? W->GetSubsystem<UWorldProxySubsystem>() : nullptr;
+			if (!N || !P) return false;
+			int32 Expected = 0;
+			for (const TPair<FString, FEntitySpawn>& Known : N->GetKnownEntities())
+			{
+				if (N->IsOwnEntity(Known.Key)) continue;
+				++Expected;
+				if (!P->GetProxies().Contains(Known.Key)) return false;
+			}
+			return P->GetProxies().Num() == Expected;
+		});
+	RegisterNumber(TEXT("close_code"), TEXT("The WebSocket close code of the newest close (4409 = replaced by a newer session); unknown before the first close"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const UNetClientSubsystem* N = C.Net();
+			return N && N->GetLastCloseCode() != 0 ? TOptional<double>(N->GetLastCloseCode()) : TOptional<double>();
+		});
+	Register({ TEXT("proxy_at"), TEXT("proxy_at <x> <y> <tol>"), TEXT("Some entity other than the player is within <tol> tiles of (x, y) (newest server sample)"),
+		[](const TArray<FString>& Args, FString& OutError) -> FBotPredicateFn
+		{
+			double X = 0, Y = 0, Tol = 0;
+			if (Args.Num() != 3 || !ParseNumber(Args[0], X) || !ParseNumber(Args[1], Y) || !ParseNumber(Args[2], Tol)) { OutError = TEXT("expects three numbers"); return nullptr; }
+			return [X, Y, Tol](const FBotContext& C) -> FBotPredicateValue
+			{
+				UNetClientSubsystem* N = C.Net();
+				if (!N) return { false, TEXT("no net") };
+				double Best = TNumericLimits<double>::Max();
+				FString Seen = TEXT("no proxies");
+				for (const TPair<FString, FEntitySpawn>& Known : N->GetKnownEntities())
+				{
+					if (N->IsOwnEntity(Known.Key)) continue;
+					FNetVec2 Pos = Known.Value.Position;
+					N->Snapshots().Sample(Known.Key, TNumericLimits<int64>::Max() / 2, Pos);
+					const double D = FVector2D::Distance(FVector2D(Pos.X, Pos.Y), FVector2D(X, Y));
+					if (D < Best) { Best = D; Seen = FString::Printf(TEXT("%s (%.2f, %.2f)"), *Known.Key, Pos.X, Pos.Y); }
+				}
+				return { Best <= Tol, Seen };
+			};
+		} });
 
 	// --- Phase 1: combat projection (UCombatStateSubsystem) -------------------------------------
 	RegisterEquality(TEXT("target"), TEXT("target == <name|id|none>"), TEXT("The confirmed selection (TargetChanged), by entity name or id; none = no selection"),

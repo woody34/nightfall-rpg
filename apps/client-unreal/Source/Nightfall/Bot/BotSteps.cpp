@@ -1,7 +1,9 @@
 #include "BotSteps.h"
+#include "Misc/SecureHash.h"
 #include "BotPredicates.h"
 #include "BotScenarioRunner.h"
 #include "Nightfall.h"
+#include "Auth/AuthSubsystem.h"
 #include "Combat/CombatStateSubsystem.h"
 #include "Net/NetClientSubsystem.h"
 #include "Containers/Ticker.h"
@@ -504,6 +506,25 @@ namespace BotSteps
 					UE_LOG(LogNightfallBot, Display, TEXT("nf.DropSocket: dropping the WebSocket"));
 					Net->DropSocketForTesting();
 				}
+			}), ECVF_Default));
+		// Two processes of one -SimGroup that must act as the same account (the replacement
+		// scenarios) log in with a token derived from the group id.
+		Registered.Add(IConsoleManager::Get().RegisterConsoleCommand(TEXT("nf.LoginGroup"),
+			TEXT("Test only (-BotScenario): logs in as the test:<uuid> account derived from -SimGroup, shared by every process of the group"),
+			FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
+			{
+				FString Group;
+				UGameInstance* GI = GameInstanceOf(World);
+				UAuthSubsystem* Auth = GI ? GI->GetSubsystem<UAuthSubsystem>() : nullptr;
+				if (!Auth || !FParse::Value(FCommandLine::Get(), TEXT("SimGroup="), Group) || Group.IsEmpty())
+				{
+					UE_LOG(LogNightfallBot, Error, TEXT("nf.LoginGroup: needs -SimGroup=<id> (run it with run-sim-multi.sh)"));
+					return;
+				}
+				const FString Digest = FMD5::HashAnsiString(*Group);   // 32 hex digits
+				const FString Uuid = FString::Printf(TEXT("%s-%s-%s-%s-%s"), *Digest.Left(8), *Digest.Mid(8, 4), *Digest.Mid(12, 4), *Digest.Mid(16, 4), *Digest.Mid(20, 12));
+				UE_LOG(LogNightfallBot, Display, TEXT("nf.LoginGroup: account test:%s"), *Uuid);
+				Auth->LoginWithDevToken(FString::Printf(TEXT("test:%s"), *Uuid));
 			}), ECVF_Default));
 		return Registered;
 	}

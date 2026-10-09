@@ -1,0 +1,19 @@
+# covers: 0b 1.5, 1a 2.4
+# 0b-two-clients-a: runs with 0b-two-clients-b under run-sim-multi.sh. Waits until it sees the
+# other client, walks to (12, 9), stays long enough for B to observe it, then logs out (B must
+# see the despawn).
+#
+# Timeouts (R1): the other process starts at the same time, so its login chain (15 s) is 3x'd
+# to 45 s. 12 tiles take ~2 s; 15 s is generous. The 5 s pause is 30x B's interpolation delay
+# (150 ms) plus a round trip.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor other_players >= 1 45
+nf.ClickMove 12 9
+nf.WaitFor acks >= 1 5
+nf.WaitFor own_at 12 9 1 15
+nf.Sleep 5
+nf.Logout
+nf.Within 120

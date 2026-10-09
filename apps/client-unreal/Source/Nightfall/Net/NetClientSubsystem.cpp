@@ -3,6 +3,7 @@
 #include "IWebSocket.h"
 #include "WebSocketsModule.h"
 #include "Containers/Ticker.h"
+#include "Misc/SecureHash.h"
 
 void UNetClientSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -74,6 +75,9 @@ void UNetClientSubsystem::CloseSocket()
 void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 {
 	CloseSocket();
+	PreviousTicketDigest = NewestTicketDigest;
+	NewestTicketDigest = FMD5::HashAnsiString(*PlayTicket);
+	++TicketsPresented;
 	Socket = SocketFactory(MakeUpgradeRequest(WsUrl, PlayTicket));
 	UE_LOG(LogNightfall, Log, TEXT("ws connecting to %s"), *WsUrl);
 
@@ -107,7 +111,15 @@ void UNetClientSubsystem::HandleClosed(int32 StatusCode, const FString& Reason, 
 {
 	UE_LOG(LogNightfall, Log, TEXT("ws closed (%d, clean=%d): %s"), StatusCode, bWasClean, *Reason);
 	bConnected = false;
+	LastCloseCode = StatusCode;
+	LastCloseReason = Reason;
 	CancelKeepAlive();
+	if (StatusCode == CloseCodeReplaced)
+	{
+		// Replaced by a newer session of this entity: reconnecting would replace that one in turn.
+		UE_LOG(LogNightfall, Log, TEXT("ws: replaced by a newer session; not reconnecting"));
+		bWantConnected = false;
+	}
 	OnDisconnected.Broadcast(Reason);
 	ScheduleReconnect();
 }
@@ -225,6 +237,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		}
 		if (E.Despawn.IsSet())
 		{
+			UE_LOG(LogNightfall, Log, TEXT("ws: despawn %s"), *E.Despawn->EntityId);
 			SnapshotBuffer.Remove(E.Despawn->EntityId);
 			if (const FEntitySpawn* Gone = KnownEntities.Find(E.Despawn->EntityId)) Tombstones.Add(E.Despawn->EntityId, *Gone);
 			KnownEntities.Remove(E.Despawn->EntityId);
