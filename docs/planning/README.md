@@ -31,11 +31,25 @@ Every phase document follows the same outline so it can be used as a checklist d
 8. **Open questions** — decisions deferred to implementation time.
 9. **Sources** — links used for the research.
 
+### Phase plan template
+
+Phase plans under `docs/plans/` follow this outline:
+
+- **Goal**
+- **Decisions table**
+- **Architecture**
+- **Epics with Story/Tasks/Model/Done-when tables incl. the simulation story**
+- **Order and estimate**
+- **Risks**
+- **Out of scope**
+- **Outcome**
+
 ## Conventions
 
 - Stack: Rust + axum (HTTP) + tonic (gRPC) server, Unreal Engine 5 thin client (C++), protobuf contracts in `packages/proto`.
 - Server is authoritative for everything. The client renders and sends intent only.
 - Lineage 2 is the reference, not the target. Where its numbers are quoted they are a starting point for tuning, not a spec.
+- Every client-facing epic in every phase plan from Phase 2 on includes a story 'Simulation scenario(s)' whose Done-when names the `.nfs` files under `apps/client-unreal/Scenarios/`, and the first scenario each phase must ship is listed in [docs/plans/phase-1a-simulation-testing.md](../plans/phase-1a-simulation-testing.md) §4.1.
 
 ## Engineering standards
 

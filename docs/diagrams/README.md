@@ -18,6 +18,7 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 | [Bot runner lifecycle](bot-runner-lifecycle.html) | State machine | `-BotScenario` → armed (run log, sentinel, allow-list, parse) → wait for world → one step per tick → JUnit report → exit 0 only when steps passed and the log/ensure sentinel is clean; inert without the flag. |
 | [NPC state machine](npc-state-machine.html) | State machine | Idle / Active / Attack / ReturnHome / Dead with think, aggro, clan call, leash and timeout guards; corpse → hidden → respawn of a spawn-slot member. |
 | [Proxy animation states](proxy-animation-states.html) | State machine | Idle / Walk / Run / Attack / Flinch / Dying / Corpse with speed guards, swing impact lead, hit reaction, death priority, late AOI entry and respawn. |
+| [Simulation pipeline](simulation-pipeline.html) | Swimlane | Push-to-main/nightly and PR-nonblocking lanes, self-hosted runner, Compose stack, dev-token API, N bot processes, artifacts, server replay-check, coverage summary and quarantine list. |
 
 ## Regenerate and validate
 
