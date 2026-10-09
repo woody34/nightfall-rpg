@@ -1,0 +1,18 @@
+# covers: 0b 1.5, 1a 2.5
+# 0b-login-replaces-a: runs with 0b-login-replaces-b under run-sim-multi.sh; both log in as the
+# SAME account (nf.LoginGroup) and so the same character. A is first in; when B's session takes
+# over the entity, A's socket is closed with 4409 (api-guidelines "Close codes") and A must NOT
+# reconnect (that would replace B in turn).
+#
+# Timeouts (R1): B waits 15 s (the 3x login chain) before it enters, then needs its own 15 s
+# chain; A waits 60 s for the close. The 4 s pause is > 3x the 0.5 s first reconnect backoff plus
+# a ticket round trip.
+nf.LoginGroup
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor close_code == 4409 60
+nf.Sleep 4
+nf.Expect ws_closed               # no automatic reconnect
+nf.Expect own_spawns == 1         # a reconnect would have produced a second spawn stream
+nf.Within 120

@@ -185,6 +185,41 @@ bool FNetClientReconnectTicketTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNetClientReplacedTest, "Nightfall.Net.NetClient.ReplacedClosesForGood", NetTestFlags)
+
+bool FNetClientReplacedTest::RunTest(const FString& Parameters)
+{
+	FScopedTestGameInstance Instance;
+	UNetClientSubsystem* Net = Instance.Get<UNetClientSubsystem>();
+	FSocketRecorder Recorder;
+	Recorder.Install(Net);
+	Net->SetTicketProvider([](UNetClientSubsystem::FTicketCallback OnTicket)
+	{
+		FPlayTicket Ticket;
+		Ticket.WsUrl = WsUrl;
+		Ticket.Ticket = TEXT("fresh");
+		OnTicket(true, Ticket);
+	});
+
+	Net->Connect(WsUrl, TEXT("first"));
+	TestEqual(TEXT("one ticket presented"), Net->GetTicketsPresented(), 1);
+	TestFalse(TEXT("one ticket is not a refresh"), Net->IsNewestTicketFresh());
+	Recorder.Sockets.Last()->Connected.Broadcast();
+	Recorder.Sockets.Last()->Closed.Broadcast(4409, TEXT("replaced"), true);
+	TestEqual(TEXT("close code kept"), Net->GetLastCloseCode(), 4409);
+	TestEqual(TEXT("close reason kept"), Net->GetLastCloseReason(), FString(TEXT("replaced")));
+	for (TPair<float, TFunction<void()>>& Timer : Recorder.Timers) Timer.Value();
+	TestEqual(TEXT("4409 is never retried"), Recorder.Requests.Num(), 1);
+
+	// A different close does reconnect, with a different ticket.
+	Net->Connect(WsUrl, TEXT("second"));
+	Recorder.Sockets.Last()->Connected.Broadcast();
+	Recorder.Sockets.Last()->Closed.Broadcast(1006, TEXT("dropped"), false);
+	for (TPair<float, TFunction<void()>>& Timer : Recorder.Timers) Timer.Value();
+	TestTrue(TEXT("newest ticket differs from the previous one"), Net->IsNewestTicketFresh());
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNetClientKeepAliveTest, "Nightfall.Net.NetClient.KeepAliveWhenIdle", NetTestFlags)
 
 bool FNetClientKeepAliveTest::RunTest(const FString& Parameters)

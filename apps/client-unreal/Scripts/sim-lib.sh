@@ -1,7 +1,7 @@
 # Shared helpers for run-sim.sh and run-sim-multi.sh. Source it; it runs nothing by itself.
 #
 # Environment overrides (mainly for tests):
-#   SIM_BOT_BIN       bot executable to run instead of Binaries/Linux/Nightfall (no uproject arg is passed)
+#   SIM_BOT_BIN       bot executable to run instead of the UnrealEditor binary (no uproject arg is passed)
 #   SIM_SKIP_BUILD=1  never build
 #   SIM_SAVED_DIR     where the bot writes its outputs (default <project>/Saved/Sim)
 #   SIM_REPLAY_CMD    command run as `$SIM_REPLAY_CMD <file.nfr>` (default: nightfall-replay --source file --file)
@@ -39,21 +39,24 @@ sim_resolve_env() {
   fi
 }
 
-sim_bot_bin() { echo "${SIM_BOT_BIN:-$SIM_PROJECT_DIR/Binaries/Linux/Nightfall}"; }
+# The bot is the editor binary run with -game (README "Headless"): the Nightfall game target needs
+# cooked content and crashes loading engine packages. The staleness probe is the project module.
+sim_bot_bin() { echo "${SIM_BOT_BIN:-$UE_ROOT/Engine/Binaries/Linux/UnrealEditor}"; }
+sim_module_lib() { echo "$SIM_PROJECT_DIR/Binaries/Linux/libUnrealEditor-Nightfall.so"; }
 
 # Builds the Nightfall game target when the binary is missing or older than any source/uproject file.
 sim_ensure_build() {
   [[ -n "${SIM_SKIP_BUILD:-}" || -n "${SIM_BOT_BIN:-}" ]] && return 0
-  local bin; bin="$(sim_bot_bin)"
-  if [[ -x "$bin" ]] && [[ -z "$(find "$SIM_PROJECT_DIR/Source" "$SIM_PROJECT_DIR/Nightfall.uproject" \
+  local bin; bin="$(sim_module_lib)"
+  if [[ -f "$bin" ]] && [[ -z "$(find "$SIM_PROJECT_DIR/Source" "$SIM_PROJECT_DIR/Nightfall.uproject" \
         -type f \( -name '*.cpp' -o -name '*.h' -o -name '*.cs' -o -name '*.uproject' \) -newer "$bin" -print -quit 2>/dev/null)" ]]; then
     sim_log "game binary is up to date"
     return 0
   fi
-  sim_log "building Nightfall (Linux Development)"
+  sim_log "building NightfallEditor (Linux Development)"
   bash "$SIM_HERE/setup-turbolink.sh" >&2
-  "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh" Nightfall Linux Development \
-    -Project="$SIM_PROJECT_DIR/Nightfall.uproject" -WaitMutex >&2 || sim_die "build failed"
+  "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh" NightfallEditor Linux Development \
+    -Project="$SIM_PROJECT_DIR/Nightfall.uproject" -WaitMutex -NoHotReloadFromIDE >&2 || sim_die "build failed"
 }
 
 sim_api_healthy() { curl -sf -m 2 -o /dev/null "$SIM_API_URL/health"; }
