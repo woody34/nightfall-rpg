@@ -190,6 +190,7 @@ private:
 	void CloseSocket();
 	void HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T BytesRemaining);
 	void HandleClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
+	void ApplyClosedState(int32 StatusCode, const FString& Reason, bool bWasClean);
 	void ScheduleReconnect();
 	void Reconnect();
 	void Send(const FClientMessage& Msg);

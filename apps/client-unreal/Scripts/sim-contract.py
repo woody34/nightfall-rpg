@@ -42,7 +42,7 @@ def merge(paths):
         elif data.get('wire_numbers') != numbers:
             raise ValueError(f'{path}: compiled descriptor numbers differ between clients')
         for group in GROUPS:
-            if counts[group] and group != 'close_codes' and set(counts[group]) != set(data['counts'][group]):
+            if counts[group] and group not in ('close_codes', 'reasons') and set(counts[group]) != set(data['counts'][group]):
                 raise ValueError(f'{path}: descriptor catalogue differs for {group}')
             for name, count in data['counts'][group].items():
                 counts[group][name] = counts[group].get(name, 0) + int(count)

@@ -34,8 +34,8 @@ def varint(data, offset):
     raise ValueError('oversize protobuf varint')
 
 
-def fields(data):
-    result = {}
+def field_items(data):
+    result = []
     offset = 0
     while offset < len(data):
         key, offset = varint(data, offset)
@@ -55,29 +55,45 @@ def fields(data):
             offset += length
         else:
             raise ValueError(f'unsupported protobuf wire type {wire}')
-        result[tag] = value  # protobuf scalar/oneof last value wins
+        result.append((tag, value))
     return result
 
 
+def fields(data):
+    return dict(field_items(data))  # scalar fields use the last wire value
+
+
+def selected_oneof(data, numbers):
+    names = {number: name for name, number in numbers.items()}
+    selected = None
+    value = b''
+    for tag, payload in field_items(data):
+        if tag not in names:
+            continue
+        if not isinstance(payload, bytes):
+            raise ValueError('message oneof has a non-message wire value')
+        name = names[tag]
+        # A different member replaces the previous one; repeats of the same message member
+        # merge, as protobuf parsing does. Concatenating message bytes preserves that merge.
+        value = value + payload if selected == name else payload
+        selected = name
+    return selected, value
+
+
 def tally_frame(frame, incoming, numbers, counts):
-    envelope = fields(frame)
     group = 'intents' if incoming else 'payloads'
-    found = [(name, tag) for name, tag in numbers[group].items() if tag in envelope]
-    if len(found) > 1:
-        raise ValueError('multiple oneof cases in an audited frame')
-    if not found:
+    name, payload = selected_oneof(frame, numbers[group])
+    if name is None:
         return
-    name, tag = found[0]
     counts[group][name] += 1
     if incoming:
         return
     if name == 'event':
-        event = fields(envelope[tag])
-        for case, number in numbers['events'].items():
-            if number in event:
-                counts['events'][case] += 1
+        case, _ = selected_oneof(payload, numbers['events'])
+        if case is not None:
+            counts['events'][case] += 1
     elif name == 'rejected':
-        reason = fields(envelope[tag]).get(2, 0)
+        reason = fields(payload).get(2, 0)
         known = next((case for case, number in numbers['reasons'].items() if number == reason), f'unknown_{reason}')
         counts['reasons'][known] = counts['reasons'].get(known, 0) + 1
 

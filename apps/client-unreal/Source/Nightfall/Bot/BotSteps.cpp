@@ -178,7 +178,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 			Trace(Now, FString::Printf(TEXT("L%d > %s"), Step.Line, *Step.Source));
 		}
 		const double Waited = Now - StepStartSeconds;
-		auto Advance = [this] { ++Current; StepStartSeconds = -1.0; };
+		auto Advance = [this] { ++Current; StepStartSeconds = -1.0; LastObserved = TEXT("not evaluated"); };
 
 		switch (Step.Kind)
 		{
@@ -200,7 +200,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 			if (!V.bTrue)
 			{
 				FailStep(Step, Now, FString::Printf(TEXT("expected '%s', observed %s"), *Step.PredicateText, *V.Observed),
-					FString::Printf(TEXT("predicate: %s\nobserved: %s"), *Step.PredicateText, *V.Observed));
+					FString::Printf(TEXT("predicate: %s\nobserved: %s"), *Step.PredicateText, *V.Observed), TEXT("bot_assertion"));
 				return false;
 			}
 			FBotTestCase& Case = CaseFor(Current);
@@ -227,7 +227,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 			if (Waited >= Step.Seconds)
 			{
 				FailStep(Step, Now, FString::Printf(TEXT("timed out after %s waiting for '%s'; last observed %s"), *FormatSeconds(Waited), *Step.PredicateText, *V.Observed),
-					FString::Printf(TEXT("predicate: %s\ntimeout: %s\nlast observed: %s"), *Step.PredicateText, *FormatSeconds(Step.Seconds), *V.Observed));
+					FString::Printf(TEXT("predicate: %s\ntimeout: %s\nlast observed: %s"), *Step.PredicateText, *FormatSeconds(Step.Seconds), *V.Observed), TEXT("bot_expectation"));
 				return false;
 			}
 			return true;
@@ -245,7 +245,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 	return false;
 }
 
-void FBotScenarioExecutor::FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail)
+void FBotScenarioExecutor::FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail, const FString& Type)
 {
 	if (!FailedStep.IsSet())
 	{
@@ -256,8 +256,7 @@ void FBotScenarioExecutor::FailStep(const FBotStep& Step, double Now, const FStr
 	const int32 StepIndex = Scenario.Steps.IndexOfByPredicate([&](const FBotStep& S) { return S.Line == Step.Line; });
 	FBotTestCase& Case = CaseFor(StepIndex);
 	Case.Status = FBotTestCase::EStatus::Failed;
-	if (Step.Kind == EBotStepKind::Expect) Case.FailureType = TEXT("bot_assertion");
-	else if (Step.Kind == EBotStepKind::WaitFor) Case.FailureType = TEXT("bot_expectation");
+	Case.FailureType = Type;
 	Case.Seconds = StepStartSeconds >= 0.0 ? Now - StepStartSeconds : 0.0;
 	Case.Message = Message;
 	Case.Detail = Detail;

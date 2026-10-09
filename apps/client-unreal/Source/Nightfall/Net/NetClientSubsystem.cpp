@@ -110,6 +110,11 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 void UNetClientSubsystem::HandleClosed(int32 StatusCode, const FString& Reason, bool bWasClean)
 {
 	OnWireClosed.Broadcast(StatusCode);
+	ApplyClosedState(StatusCode, Reason, bWasClean);
+}
+
+void UNetClientSubsystem::ApplyClosedState(int32 StatusCode, const FString& Reason, bool bWasClean)
+{
 	UE_LOG(LogNightfall, Log, TEXT("ws closed (%d, clean=%d): %s"), StatusCode, bWasClean, *Reason);
 	bConnected = false;
 	LastCloseCode = StatusCode;
@@ -380,6 +385,6 @@ void UNetClientSubsystem::DropSocketForTesting()
 {
 	if (!Socket.IsValid()) return;
 	CloseSocket();
-	HandleClosed(1006, TEXT("dropped by nf.DropSocket"), false);
+	ApplyClosedState(1006, TEXT("dropped by nf.DropSocket"), false);
 }
 #endif

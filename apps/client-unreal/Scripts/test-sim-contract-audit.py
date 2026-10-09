@@ -33,6 +33,19 @@ class AuditTests(unittest.TestCase):
         self.assertEqual({row['case'] for row in result['differences']},
                          {'payloads.rejected', 'reasons.REJECT_REASON_INVALID', 'server_frames'})
 
+    def test_oneof_last_member_and_repeated_message_merge(self):
+        numbers = {'intents': {'respawn': 15}, 'payloads': {'ack': 1, 'event': 2},
+                   'events': {'spawn': 1, 'move': 2}, 'reasons': {}}
+        counts = {'intents': {'respawn': 0}, 'payloads': {'ack': 0, 'event': 0},
+                  'events': {'spawn': 0, 'move': 0}, 'reasons': {}}
+        # Parseable WorldEvent spawn followed by move: only the final different member counts.
+        audit.tally_frame(bytes.fromhex('0a0012040a001200'), False, numbers, counts)
+        self.assertEqual(counts['payloads'], {'ack': 0, 'event': 1})
+        self.assertEqual(counts['events'], {'spawn': 0, 'move': 1})
+        # Repeated event message field with an empty second payload merges without erasing spawn.
+        audit.tally_frame(bytes.fromhex('12020a001200'), False, numbers, counts)
+        self.assertEqual(counts['events'], {'spawn': 1, 'move': 1})
+
     def test_truncated_wire_fails_closed(self):
         for frame in (b'\x80', b'\x0a\x02\x01', b'\x00'):
             with self.assertRaises(ValueError):

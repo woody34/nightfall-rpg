@@ -123,7 +123,7 @@ public:
 	const TOptional<FBotFailedStep>& GetFailedStep() const { return FailedStep; }
 
 private:
-	void FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail);
+	void FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail, const FString& Type = TEXT("failure"));
 	void Finish(double Now);
 	void Trace(double Now, const FString& Text) const;
 	FBotTestCase& CaseFor(int32 StepIndex);
@@ -144,7 +144,7 @@ private:
 	bool bFailed = false;
 	FString Failure;
 	TOptional<FBotFailedStep> FailedStep;
-	FString LastObserved;
+	FString LastObserved = TEXT("not evaluated");
 };
 
 namespace BotJUnit

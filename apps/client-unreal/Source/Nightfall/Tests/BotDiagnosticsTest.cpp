@@ -121,4 +121,39 @@ bool FBotFailureValueTest::RunTest(const FString& Parameters)
 	}
 	return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBotUnevaluatedFailureTest, "Nightfall.Bot.Diagnostics.UnevaluatedFailure", Flags)
+bool FBotUnevaluatedFailureTest::RunTest(const FString& Parameters)
+{
+	FBotScenario Scenario;
+	Scenario.Name = TEXT("unevaluated");
+	FBotStep First;
+	First.Line = 1;
+	First.Kind = EBotStepKind::WaitFor;
+	First.Source = TEXT("nf.WaitFor connected 1");
+	First.PredicateText = TEXT("connected");
+	First.Predicate = [](const FBotContext&) { return FBotPredicateValue{ true, TEXT("connected") }; };
+	Scenario.Steps.Add(First);
+	FBotStep Second = First;
+	Second.Line = 2;
+	Second.Source = TEXT("nf.WaitFor own_hp == 0 1");
+	Second.PredicateText = TEXT("own_hp == 0");
+	Second.Predicate = [](const FBotContext&) { return FBotPredicateValue{ false, TEXT("81") }; };
+	Scenario.Steps.Add(Second);
+	int32 Evaluations = 0;
+	FBotScenarioExecutor Executor(MoveTemp(Scenario), [](const FString&, FString&) { return true; },
+		[&](const FBotPredicateFn& Fn) { ++Evaluations; return Fn(FBotContext()); });
+	Executor.Start(100.0);
+	Executor.Tick(100.0); // connected passes; next predicate has not evaluated
+	Executor.Abort(100.1, TEXT("engine shutdown"));
+	TestEqual(TEXT("shutdown does not evaluate next predicate"), Evaluations, 1);
+	TestTrue(TEXT("shutdown retains failure context"), Executor.GetFailedStep().IsSet());
+	if (Executor.GetFailedStep().IsSet())
+	{
+		TestEqual(TEXT("current assertion cannot inherit preceding value"), Executor.GetFailedStep()->Observed, FString(TEXT("not evaluated")));
+		TestEqual(TEXT("current assertion context"), Executor.GetFailedStep()->Predicate, FString(TEXT("own_hp == 0")));
+	}
+	const FString Xml = BotJUnit::Write(TEXT("test"), Executor.GetTestCases(), 0.1);
+	TestTrue(TEXT("shutdown is infrastructure, not a quarantinable assertion"), Xml.Contains(TEXT("type=\"failure\"")));
+	return true;
+}
 #endif
