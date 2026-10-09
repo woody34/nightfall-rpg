@@ -101,6 +101,19 @@ class PolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ci.fixture([a])
 
+    def test_real_scenario_catalogue_fixture_routing(self):
+        batches = ci.units(sorted((ci.PROJECT / "Scenarios").glob("*.nfs")))
+        routes = {tuple(path.stem for path in batch): ci.fixture(batch) for batch in batches}
+        dedicated = {
+            ("1-social-aggro-a", "1-social-aggro-b"): "phase1a-social-aggro",
+            ("1-late-entry-a", "1-late-entry-b"): "phase1a-late-entry",
+        }
+        for roles in dedicated:
+            self.assertIn(roles, routes)
+        for roles, selected in routes.items():
+            with self.subTest(roles=roles):
+                self.assertEqual(selected, dedicated.get(roles, "default"))
+
 
 if __name__ == "__main__":
     unittest.main()
