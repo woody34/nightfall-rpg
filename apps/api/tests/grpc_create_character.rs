@@ -228,6 +228,24 @@ impl CharacterRepository for BrokenRepository {
     ) -> Result<CreateOutcome, RepositoryError> {
         Err(RepositoryError::Other(anyhow::anyhow!("connection to {LEAK} refused")))
     }
+
+    async fn load_for_admission(
+        &self,
+        _id: nightfall_api::domain::CharacterId,
+    ) -> anyhow::Result<Option<nightfall_api::application::ProgressionState>> {
+        anyhow::bail!("down")
+    }
+
+    async fn checkpoint(
+        &self,
+        _checkpoint: &nightfall_api::application::CharacterCheckpoint,
+        _events: &[nightfall_api::domain::DomainEvent],
+    ) -> Result<
+        nightfall_api::application::CheckpointOutcome,
+        nightfall_api::application::CheckpointError,
+    > {
+        Err(nightfall_api::application::CheckpointError::Other(anyhow::anyhow!("down")))
+    }
 }
 
 #[tokio::test]

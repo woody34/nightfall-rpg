@@ -17,6 +17,7 @@ pub mod zone_registry;
 
 pub use error::{parse_id, AppError};
 pub use ports::{
-    AccountRepository, CharacterRepository, Clock, CreateOutcome, EventBus, IdempotencyKey,
+    AccountRepository, CharacterCheckpoint, CharacterRepository, CheckpointError,
+    CheckpointOutcome, Clock, CreateOutcome, EventBus, IdempotencyKey, ProgressionState,
     SecretGenerator, SessionAudit, SessionRepository, TokenVerifier,
 };

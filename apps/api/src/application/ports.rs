@@ -2,8 +2,8 @@
 
 use crate::domain::ids::uuid_id;
 use crate::domain::{
-    AccountId, Character, CharacterId, DomainEvent, PlayTicket, SessionGeneration, SessionId,
-    TicketHash,
+    AccountId, Character, CharacterId, DomainEvent, PlayTicket, Position, SessionGeneration,
+    SessionId, TicketHash,
 };
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -73,6 +73,143 @@ pub trait CharacterRepository: Send + Sync {
         fingerprint: &str,
         character: &Character,
     ) -> Result<CreateOutcome, RepositoryError>;
+
+    /// The committed progression state, read when a character is admitted to a zone.
+    /// `Ok(None)` when the character does not exist.
+    async fn load_for_admission(
+        &self,
+        character_id: CharacterId,
+    ) -> anyhow::Result<Option<ProgressionState>>;
+
+    /// One transaction: verifies `checkpoint.revision_seen` equals the stored revision, writes
+    /// level/xp/hp/mp/alive/position, bumps the revision, stages `events` in the outbox, and
+    /// records `checkpoint.idempotency` with the resulting revision as its response.
+    ///
+    /// A known key is checked first: same body replays the stored outcome
+    /// ([`CheckpointOutcome::Replayed`]), different body is [`CheckpointError::KeyReused`].
+    /// A stale `revision_seen` returns [`CheckpointOutcome::Stale`] and writes nothing.
+    async fn checkpoint(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> Result<CheckpointOutcome, CheckpointError>;
+}
+
+/// Level range the `characters.level` check constraint enforces.
+pub const LEVEL_RANGE: std::ops::RangeInclusive<u32> = 1..=85;
+
+/// What a zone needs from the database to admit a character.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProgressionState {
+    /// Current level (1..=85).
+    pub level: u32,
+    /// Cumulative experience.
+    pub xp: u64,
+    /// Current HP; `None` means full (the stat engine knows the maximum).
+    pub hp: Option<u32>,
+    /// Current MP; `None` means full.
+    pub mp: Option<u32>,
+    /// False while dead; stays false across reconnects until a respawn checkpoint.
+    pub alive: bool,
+    /// Class profile id (`packages/data/classes/<id>.toml`).
+    pub class_profile: String,
+    /// Bumped by every applied checkpoint; the fence for the next one.
+    pub revision: u64,
+}
+
+/// A full persistence checkpoint for one character (plan §3.3).
+#[derive(Debug, Clone, PartialEq)]
+pub struct CharacterCheckpoint {
+    /// Whose checkpoint.
+    pub character_id: CharacterId,
+    /// The revision the zone loaded or last saw acknowledged.
+    pub revision_seen: u64,
+    /// Level.
+    pub level: u32,
+    /// Cumulative experience.
+    pub xp: u64,
+    /// Current HP.
+    pub hp: u32,
+    /// Current MP.
+    pub mp: u32,
+    /// False when dead.
+    pub alive: bool,
+    /// Where the character is.
+    pub position: Position,
+    /// `(operation, key)` of the idempotency record; operation matches `^[a-z][a-z_]*$`.
+    pub idempotency: (String, IdempotencyKey),
+}
+
+impl CharacterCheckpoint {
+    /// Stable digest of everything except the idempotency key: what "same body" means for a
+    /// retry. Both adapters use it, so they agree on replay versus [`CheckpointError::KeyReused`].
+    #[must_use]
+    pub fn fingerprint(&self, events: &[DomainEvent]) -> String {
+        use sha2::{Digest, Sha256};
+        let body = serde_json::json!({
+            "character_id": self.character_id.as_uuid(),
+            "revision_seen": self.revision_seen,
+            "level": self.level,
+            "xp": self.xp,
+            "hp": self.hp,
+            "mp": self.mp,
+            "alive": self.alive,
+            "position": [self.position.x, self.position.y],
+            "events": events,
+        });
+        Sha256::digest(body.to_string().as_bytes())
+            .iter()
+            .fold(String::new(), |mut s, b| {
+                use std::fmt::Write;
+                let _ = write!(s, "{b:02x}");
+                s
+            })
+    }
+
+    /// Mirrors the `characters` check constraints so the in-memory adapter rejects what
+    /// Postgres would. Returns the violated constraint's name.
+    #[must_use]
+    pub fn violated_constraint(&self) -> Option<&'static str> {
+        if !LEVEL_RANGE.contains(&self.level) {
+            Some("characters_level_range")
+        } else if i64::try_from(self.xp).is_err() {
+            Some("characters_xp_nonneg")
+        } else if i32::try_from(self.hp).is_err() {
+            Some("characters_hp_nonneg")
+        } else if i32::try_from(self.mp).is_err() {
+            Some("characters_mp_nonneg")
+        } else {
+            None
+        }
+    }
+}
+
+/// Result of [`CharacterRepository::checkpoint`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckpointOutcome {
+    /// Written; the character is now at this revision.
+    Applied(u64),
+    /// `revision_seen` did not match the stored revision; nothing was written.
+    Stale,
+    /// Same key and body as an applied checkpoint: its stored revision, nothing written.
+    Replayed(u64),
+}
+
+/// Why a checkpoint failed.
+#[derive(Debug, thiserror::Error)]
+pub enum CheckpointError {
+    /// The key was used before with a different body.
+    #[error("idempotency key reused with a different checkpoint")]
+    KeyReused,
+    /// No such character.
+    #[error("character not found")]
+    NotFound,
+    /// A value violates the named database constraint (e.g. `characters_level_range`).
+    #[error("checkpoint violates constraint {0}")]
+    Constraint(String),
+    /// Anything else.
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
 
 /// Repository failures the use case distinguishes.

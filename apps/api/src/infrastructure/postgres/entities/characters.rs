@@ -27,6 +27,13 @@ pub struct Model {
     pub pos_y: f32,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
+    pub xp: i64,
+    pub hp: Option<i32>,
+    pub mp: Option<i32>,
+    #[sea_orm(column_type = "Text")]
+    pub class_profile: String,
+    pub alive: bool,
+    pub revision: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -153,6 +153,22 @@ mod tests {
         ) -> Result<CreateOutcome, RepositoryError> {
             Err(RepositoryError::Other(anyhow::anyhow!("down")))
         }
+
+        async fn load_for_admission(
+            &self,
+            _id: crate::domain::CharacterId,
+        ) -> anyhow::Result<Option<crate::application::ProgressionState>> {
+            anyhow::bail!("down")
+        }
+
+        async fn checkpoint(
+            &self,
+            _checkpoint: &crate::application::CharacterCheckpoint,
+            _events: &[crate::domain::DomainEvent],
+        ) -> Result<crate::application::CheckpointOutcome, crate::application::CheckpointError>
+        {
+            Err(crate::application::CheckpointError::Other(anyhow::anyhow!("down")))
+        }
     }
 
     #[tokio::test]

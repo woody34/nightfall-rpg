@@ -72,6 +72,18 @@ impl Race {
         }
     }
 
+    /// Id of the race's starting fighter profile (`packages/data/classes/<id>.toml`).
+    #[must_use]
+    pub const fn starting_class_profile(self) -> &'static str {
+        match self {
+            Race::Human => "human_fighter",
+            Race::Elf => "elven_fighter",
+            Race::DarkElf => "dark_fighter",
+            Race::Orc => "orc_fighter",
+            Race::Dwarf => "dwarven_fighter",
+        }
+    }
+
     /// Stable string form used in the database and in NATS subjects.
     #[must_use]
     pub const fn as_str(self) -> &'static str {

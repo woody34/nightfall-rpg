@@ -1,9 +1,10 @@
 use std::future::Future;
 
 use async_trait::async_trait;
+use sea_orm::sea_query::Expr;
 use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder,
-    RuntimeErr, TransactionTrait,
+    QuerySelect, RuntimeErr, TransactionTrait,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -11,7 +12,10 @@ use uuid::Uuid;
 use super::entities::{characters, outbox};
 use super::idempotency::{self, operation, Claim};
 use crate::application::ports::RepositoryError;
-use crate::application::{CharacterRepository, CreateOutcome, IdempotencyKey};
+use crate::application::{
+    CharacterCheckpoint, CharacterRepository, CheckpointError, CheckpointOutcome, CreateOutcome,
+    IdempotencyKey, ProgressionState,
+};
 use crate::domain::{
     AccountId, BaseStats, Character, CharacterId, CharacterName, DomainEvent, Position, Race,
 };
@@ -110,6 +114,12 @@ fn character_active_model(c: &Character) -> anyhow::Result<characters::ActiveMod
         pos_y: set(c.position.y),
         created_at: ActiveValue::NotSet,
         updated_at: ActiveValue::NotSet,
+        xp: ActiveValue::NotSet,
+        hp: ActiveValue::NotSet,
+        mp: ActiveValue::NotSet,
+        class_profile: set(c.race.starting_class_profile().to_owned()),
+        alive: ActiveValue::NotSet,
+        revision: ActiveValue::NotSet,
     })
 }
 
@@ -152,9 +162,166 @@ impl CharacterRepository for PgCharacterRepository {
         self.timed("create_idempotent", self.create_idempotent_tx(key, fingerprint, character))
             .await
     }
+
+    async fn load_for_admission(
+        &self,
+        character_id: CharacterId,
+    ) -> anyhow::Result<Option<ProgressionState>> {
+        self.timed(
+            "load_for_admission",
+            characters::Entity::find_by_id(character_id.as_uuid()).one(&self.db),
+        )
+        .await?
+        .map(|m| {
+            Ok(ProgressionState {
+                level: u32::try_from(m.level)?,
+                xp: u64::try_from(m.xp)?,
+                hp: m.hp.map(u32::try_from).transpose()?,
+                mp: m.mp.map(u32::try_from).transpose()?,
+                alive: m.alive,
+                class_profile: m.class_profile,
+                revision: u64::try_from(m.revision)?,
+            })
+        })
+        .transpose()
+    }
+
+    /// One transaction:
+    /// 1. Read the owner (immutable) to scope the idempotency key.
+    /// 2. Claim `(account, operation, key)` with the body fingerprint and the revision this
+    ///    checkpoint will produce. Existing key: replay or `KeyReused`; this precedes the
+    ///    revision check because a retry arrives after the revision moved on.
+    /// 3. `UPDATE ... WHERE id AND revision = revision_seen`; zero rows is `Stale` and the
+    ///    transaction (claim included) rolls back. Check violations roll back as `Constraint`.
+    /// 4. Stage the events in `outbox`; commit.
+    async fn checkpoint(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        self.timed("checkpoint", self.checkpoint_tx(checkpoint, events))
+            .await
+    }
+}
+
+/// What a checkpoint idempotency record stores: the revision the checkpoint produced.
+#[derive(Serialize, Deserialize)]
+struct StoredCheckpoint {
+    revision: u64,
+}
+
+/// Maps a failed statement to `Constraint` when Postgres reports a check violation (23514).
+fn checkpoint_db_error(e: DbErr) -> CheckpointError {
+    let (DbErr::Exec(RuntimeErr::SqlxError(s)) | DbErr::Query(RuntimeErr::SqlxError(s))) = &e
+    else {
+        return CheckpointError::Other(e.into());
+    };
+    let violated = s
+        .as_database_error()
+        .filter(|d| d.code().as_deref() == Some("23514"))
+        .and_then(|d| d.constraint().map(str::to_owned));
+    violated.map_or_else(|| CheckpointError::Other(e.into()), CheckpointError::Constraint)
 }
 
 impl PgCharacterRepository {
+    async fn checkpoint_tx(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        let other = |e: DbErr| CheckpointError::Other(e.into());
+        if let Some(name) = cp.violated_constraint() {
+            // Values the column types cannot even hold; no statement needed to know.
+            return Err(CheckpointError::Constraint(name.to_owned()));
+        }
+        let fingerprint = cp.fingerprint(events);
+        let tx = self.db.begin().await.map_err(other)?;
+
+        let account = characters::Entity::find_by_id(cp.character_id.as_uuid())
+            .select_only()
+            .column(characters::Column::AccountId)
+            .into_tuple::<Uuid>()
+            .one(&tx)
+            .await
+            .map_err(other)?
+            .ok_or(CheckpointError::NotFound)?;
+
+        let produced = cp
+            .revision_seen
+            .checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("revision overflow"))?;
+        let claim = idempotency::claim(
+            &tx,
+            AccountId::from_uuid(account),
+            &cp.idempotency.0,
+            &cp.idempotency.1,
+            &fingerprint,
+            serde_json::to_value(StoredCheckpoint { revision: produced })
+                .map_err(anyhow::Error::from)?,
+        )
+        .await?;
+        if let Claim::Existing {
+            fingerprint: stored_fp,
+            response,
+        } = claim
+        {
+            tx.commit().await.map_err(other)?;
+            if stored_fp != fingerprint {
+                return Err(CheckpointError::KeyReused);
+            }
+            let stored: StoredCheckpoint =
+                serde_json::from_value(response).map_err(anyhow::Error::from)?;
+            return Ok(CheckpointOutcome::Replayed(stored.revision));
+        }
+
+        let to_i32 = |v: u32| i32::try_from(v).map_err(anyhow::Error::from);
+        let updated = characters::Entity::update_many()
+            .col_expr(characters::Column::Level, Expr::value(to_i32(cp.level)?))
+            .col_expr(
+                characters::Column::Xp,
+                Expr::value(i64::try_from(cp.xp).map_err(anyhow::Error::from)?),
+            )
+            .col_expr(characters::Column::Hp, Expr::value(to_i32(cp.hp)?))
+            .col_expr(characters::Column::Mp, Expr::value(to_i32(cp.mp)?))
+            .col_expr(characters::Column::Alive, Expr::value(cp.alive))
+            .col_expr(characters::Column::PosX, Expr::value(cp.position.x))
+            .col_expr(characters::Column::PosY, Expr::value(cp.position.y))
+            .col_expr(
+                characters::Column::Revision,
+                Expr::value(i64::try_from(produced).map_err(anyhow::Error::from)?),
+            )
+            .col_expr(characters::Column::UpdatedAt, Expr::current_timestamp())
+            .filter(characters::Column::Id.eq(cp.character_id.as_uuid()))
+            .filter(
+                characters::Column::Revision
+                    .eq(i64::try_from(cp.revision_seen).map_err(anyhow::Error::from)?),
+            )
+            .exec(&tx)
+            .await
+            .map_err(checkpoint_db_error)?;
+        if updated.rows_affected == 0 {
+            tx.rollback().await.map_err(other)?;
+            return Ok(CheckpointOutcome::Stale);
+        }
+
+        for event in events {
+            let staged = outbox::ActiveModel {
+                subject: ActiveValue::Set(event.subject().to_owned()),
+                payload: ActiveValue::Set(
+                    serde_json::to_value(event).map_err(anyhow::Error::from)?,
+                ),
+                ..Default::default()
+            };
+            outbox::Entity::insert(staged)
+                .exec_without_returning(&tx)
+                .await
+                .map_err(other)?;
+        }
+
+        tx.commit().await.map_err(other)?;
+        Ok(CheckpointOutcome::Applied(produced))
+    }
+
     async fn create_idempotent_tx(
         &self,
         key: &IdempotencyKey,
