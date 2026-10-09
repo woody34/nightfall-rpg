@@ -67,6 +67,9 @@ class PolicyTests(unittest.TestCase):
         report.write_text('<testsuite tests="1"><testcase name="pipeline"><failure/></testcase></testsuite>')
         self.assertFalse(ci.has_scenario_failure(self.path, "failure"))
         report.write_text('<testsuite tests="1"><testcase name="nf.Expect"><failure/></testcase></testsuite>')
+        self.assertFalse(ci.has_scenario_failure(self.path, "failure"))
+        report.write_text('<testsuite tests="1" failures="1"><testcase name="nf.Expect">'
+                          '<failure type="bot_assertion"/></testcase></testsuite>')
         self.assertTrue(ci.has_scenario_failure(self.path, "failure"))
 
     def test_story_coverage_checks_completed_visible_rows(self):

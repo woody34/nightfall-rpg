@@ -4,6 +4,8 @@
 #   SIM_BOT_BIN       bot executable to run instead of the UnrealEditor binary (no uproject arg is passed)
 #   SIM_SKIP_BUILD=1  never build
 #   SIM_SAVED_DIR     where the bot writes its outputs (default <project>/Saved/Sim)
+#   SIM_COVERAGE_CMD  CLI prefix accepting `coverage --file PATH --out PATH` (default Rust replay CLI)
+#   SIM_PIPELINE_VERDICT completed schema v1 JSON; written only after final wrapper gates
 #   SIM_REPLAY_CMD    command run as `$SIM_REPLAY_CMD <file.nfr>` (default: nightfall-replay --source file --file)
 #   SIM_API_URL       API base for the health check (default http://localhost:3000)
 #   SIM_REQUIRE_OWNED_API=1 reject attach/occupied endpoints; verify the launched API owns its listener
@@ -282,8 +284,8 @@ sim_replay_bin() {
   echo "$SIM_REPLAY_BIN"
 }
 
-# Exports the bot's session from the live event log (the server records every session; the bot
-# writes no file): $1 = artifact dir, $2 = scenario name. The player entity is the JUnit
+# Exports the whole live zone prefix, checking the bot's session presence (not filtering):
+# $1 = artifact dir, $2 = scenario name. The player entity is the JUnit
 # own_entity_id. Zone SIM_ZONE_ID (default 1, test_zone) at its newest epoch; NATS from NATS_URL.
 # Does nothing when a recording is already there or the report names no entity.
 sim_export_recording() {
@@ -294,6 +296,14 @@ sim_export_recording() {
   [[ -n "$entity" ]] || return 1
   bin="$(sim_replay_bin)"
   "$bin" export --zone "${SIM_ZONE_ID:-1}" --latest --session "$entity" --live --out "$dest/$name.nfr" >"$dest/$name.export.log" 2>&1
+}
+
+sim_capture_group() {
+  local scenario bin names=()
+  for scenario in "$@"; do names+=("$(basename "$scenario" .nfs)"); done
+  bin="$(sim_replay_bin)" || return 1
+  python3 "$SIM_HERE/sim-gates.py" capture-group --folder "$ARTIFACTS" \
+    --binary "$bin" --zone "${SIM_ZONE_ID:-1}" "${names[@]}"
 }
 
 # Replays one recording; returns the tool's exit code (non-zero = divergence).
@@ -309,3 +319,76 @@ sim_replay() {
 
 # Runs `cmd...` with a wall-clock limit of $1 seconds; 124 on timeout.
 sim_with_timeout() { local t="$1"; shift; timeout --kill-after=10 "$t" "$@"; }
+
+# Wrappers claim an empty destination before any launch. CI pre-opens orchestration.log only.
+# Evidence is retained on rejection; hidden files count as nonempty too.
+sim_claim_artifacts() {
+  local scenario names=()
+  for scenario in "$@"; do names+=("$(basename "$scenario" .nfs)"); done
+  python3 "$SIM_HERE/sim-gates.py" claim "$ARTIFACTS" "${names[@]}" || sim_die "artifact destination must be empty"
+  # Snapshot even in local attach mode so future-dated unchanged Saved outputs cannot be reused.
+  export SIM_REQUIRE_FRESH_ARTIFACTS=1
+}
+
+# Every current recording is counted using the Rust catalogue; never infer it from scenarios.
+# --no-replay still covers any recording the bot produced, but permits no recordings locally.
+sim_transition_coverage() {
+  local dest="$1" required="$2" nfr failed=0 inputs=() nfrs=()
+  shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
+  if ((${#nfrs[@]} == 0)); then
+    ((required == 0)) && [[ "${SIM_REQUIRE_TRANSITION_COVERAGE:-0}" != 1 ]] && return 0
+    sim_log "missing transition coverage: no current recording"; return 1
+  fi
+  for nfr in "${nfrs[@]}"; do
+    python3 "$SIM_HERE/sim-gates.py" coverage --file "$nfr" --out "${nfr%.nfr}.coverage.transitions.json" || failed=1
+    inputs+=("${nfr%.nfr}.coverage.transitions.json")
+  done
+  python3 "$SIM_HERE/sim-gates.py" merge-transitions --unique-recordings --out "$dest/coverage.transitions.json" "${inputs[@]}" || failed=1
+  ((failed == 0))
+}
+
+sim_suite_transitions() {
+  local scenario name nfr failed=0 inputs=() raw=() shared=()
+  for scenario in "$@"; do
+    name="$(basename "$scenario" .nfs)"
+    if [[ ! -f "$ARTIFACTS/$name/coverage.transitions.json" ]] && {
+      ((REPLAY)) || [[ "${SIM_REQUIRE_TRANSITION_COVERAGE:-0}" == 1 ]];
+    }; then
+      failed=1
+    fi
+    shopt -s nullglob; raw=("$ARTIFACTS/$name"/*.nfr); shopt -u nullglob
+    if [[ "${GROUP_CAPTURE:-0}" != 1 ]]; then
+      for nfr in "${raw[@]}"; do inputs+=("${nfr%.nfr}.coverage.transitions.json"); done
+    fi
+  done
+  # Legacy bots may write one shared group recording without a scenario prefix.
+  # Canonical live groups count only group.nfr; per-role gates above remain mandatory.
+  # Offline fixtures can also contain independent recordings, deduplicated within this unit.
+  shopt -s nullglob; shared=("$ARTIFACTS"/*.nfr); shopt -u nullglob
+  for nfr in "${shared[@]}"; do
+    if [[ "${GROUP_CAPTURE:-0}" == 1 && "$nfr" != "$ARTIFACTS/group.nfr" ]]; then failed=1; continue; fi
+    if ((REPLAY)); then sim_replay "$nfr" "${nfr%.nfr}.replay.log" || failed=1; fi
+    # A shared recording has no unique client report/session. Generate a whole-zone trace.
+    if ! python3 "$SIM_HERE/sim-trace.py" "$nfr" "$ARTIFACTS/_shared-trace-report.xml" || [[ ! -s "${nfr%.nfr}.trace.html" || ! -r "${nfr%.nfr}.trace.html" ]]; then failed=1; fi
+    python3 "$SIM_HERE/sim-gates.py" coverage --file "$nfr" --out "${nfr%.nfr}.coverage.transitions.json" || failed=1
+    inputs+=("${nfr%.nfr}.coverage.transitions.json")
+  done
+  if [[ "${GROUP_CAPTURE:-0}" == 1 ]]; then
+    [[ -f "$ARTIFACTS/group.nfr" ]] || failed=1
+  fi
+  ((${#inputs[@]})) || { ((failed == 0)); return; }
+  python3 "$SIM_HERE/sim-gates.py" merge-transitions --unique-recordings --out "$ARTIFACTS/coverage.transitions.json" "${inputs[@]}" || failed=1
+  ((failed == 0))
+}
+
+# Only called after all gates and group merge. Early aborts cannot publish completed evidence.
+sim_finalize_verdict() {
+  local code="$1"; shift
+  local scenario names=() args=()
+  for scenario in "${SCENARIOS[@]}"; do names+=("$(basename "$scenario" .nfs)"); done
+  if [[ -n "${GROUP:-}" ]]; then args+=(--group "$ARTIFACTS/group.xml"); fi
+  for scenario in "$@"; do args+=(--infrastructure "$scenario"); done
+  python3 "$SIM_HERE/sim-gates.py" finalize --folder "$ARTIFACTS" \
+    --out "${SIM_PIPELINE_VERDICT:-$ARTIFACTS/pipeline-verdict.json}" --code "$code" \
+    "${args[@]}" "${names[@]}"
+}

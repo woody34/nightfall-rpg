@@ -5,7 +5,8 @@
 #
 #   --api attach   (default) use the API already answering :3000/health, e.g. `moon run api:dev`
 #   --api start    docker compose up -d, then start the API with AUTH_DEV_TOKENS=1 (stopped on exit)
-#   --artifacts    where Saved/Sim output and recordings go (default Saved/SimArtifacts/<timestamp>)
+#   --artifacts    must be empty (including hidden files); retains prior evidence on rejection.
+#                  where Saved/Sim output and recordings go (default Saved/SimArtifacts/<timestamp>)
 #   --no-replay    skip the server replay check of each recording
 #   --timeout      per-scenario wall clock limit, default 600
 #   --video        render one diagnostic retry only after a headless failure (optional prerequisites)
@@ -45,6 +46,8 @@ SIM_API_LOG="$ARTIFACTS/api.log"
 mapfile -t SCENARIOS < <(sim_expand_scenarios "${ARGS[@]}")
 ((${#SCENARIOS[@]})) || sim_die "no scenario matches: ${ARGS[*]}"
 
+sim_claim_artifacts "${SCENARIOS[@]}"
+
 sim_resolve_env
 sim_ensure_build
 sim_api_prepare "$API_MODE"
@@ -65,7 +68,7 @@ for scenario in "${SCENARIOS[@]}"; do
   sim_collect "$marker" "$dest"
   rm -f "$marker"
 
-  status=PASS; note=""
+  status=PASS; note=""; INFRA=()
   if ((code == 124 || code == 137)); then status=FAIL; note="timeout after ${SIM_TIMEOUT}s"
   elif ((code != 0)); then status=FAIL; note="bot exit $code"; fi
   [[ -f "$dest/$name.xml" ]] || { status=FAIL; note="${note:+$note; }no JUnit report"; }
@@ -78,11 +81,13 @@ for scenario in "${SCENARIOS[@]}"; do
     sim_export_recording "$dest" "$name" || true
     shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
     if ((${#nfrs[@]} == 0)); then
+      INFRA+=(missing_recording)
       replay="none"; status=FAIL; note="${note:+$note; }no session recording"
     else
       replay="ok"
       for nfr in "${nfrs[@]}"; do
         if ! sim_replay "$nfr" "${nfr%.nfr}.replay.log"; then
+          INFRA+=(replay_check)
           replay="DIVERGED($(basename "$nfr"))"; status=FAIL; note="${note:+$note; }replay check failed"
         fi
       done
@@ -90,12 +95,22 @@ for scenario in "${SCENARIOS[@]}"; do
   fi
   shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
   for nfr in "${nfrs[@]}"; do
-    if ! python3 "$HERE/sim-trace.py" "$nfr" "$dest/$name.xml"; then
+    if ! python3 "$HERE/sim-trace.py" "$nfr" "$dest/$name.xml" || [[ ! -s "${nfr%.nfr}.trace.html" || ! -r "${nfr%.nfr}.trace.html" ]]; then
+      INFRA+=(trace_generation)
       status=FAIL; note="${note:+$note; }trace generation failed"
     fi
   done
   if ! python3 "$HERE/sim-contract.py" merge --out "$dest/coverage.contract.json" --report "$dest/$name.xml" "$dest/$name.coverage.contract.json"; then
+    INFRA+=(contract_coverage)
     status=FAIL; note="${note:+$note; }contract coverage missing or invalid"
+  fi
+  if ! sim_transition_coverage "$dest" "$REPLAY"; then
+    INFRA+=(transition_coverage)
+    status=FAIL; note="${note:+$note; }transition coverage missing or invalid"
+  fi
+  if ! python3 "$HERE/sim-gates.py" scenario --report "$dest/$name.xml" --out "$dest/pipeline-state.json" \
+      --scenario "$name" --code "$code" "${INFRA[@]}"; then
+    status=FAIL; note="${note:+$note; }bot report classification or infrastructure failure"
   fi
   if [[ "$status" != PASS ]]; then
     FAILED=$((FAILED + 1))
@@ -112,6 +127,13 @@ for scenario in "${SCENARIOS[@]}"; do
   SUMMARY+=("$line")
   echo "$line"
 done
+
+FINAL_INFRA=()
+if ! sim_suite_transitions "${SCENARIOS[@]}"; then
+  FINAL_INFRA+=(suite_transition_coverage); FAILED=$((FAILED + 1))
+fi
+final_code=0; ((FAILED == 0)) || final_code=1
+sim_finalize_verdict "$final_code" "${FINAL_INFRA[@]}" || sim_die "cannot finalize pipeline verdict"
 
 echo "sim: ${#SCENARIOS[@]} scenario(s), $FAILED failed; artifacts in $ARTIFACTS"
 ((FAILED == 0))

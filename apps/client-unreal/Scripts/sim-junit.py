@@ -42,7 +42,7 @@ def failure(path, name, message):
     suite.set("tests", str(int(suite.get("tests", "0")) + 1))
     suite.set("failures", str(int(suite.get("failures", "0")) + 1))
     if root.tag == "testsuites":
-        for key in ("tests", "failures", "errors"):
+        for key in ("tests", "failures", "errors", "skipped"):
             root.set(key, str(sum(int(s.get(key, "0")) for s in suites)))
     ET.ElementTree(root).write(path, encoding="utf-8", xml_declaration=True)
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
             for suite in read(Path(path))[1]:
                 suite.set("group", group)
                 root.append(suite)
-        for key in ("tests", "failures", "errors"):
+        for key in ("tests", "failures", "errors", "skipped"):
             root.set(key, str(sum(int(s.get(key, "0")) for s in root)))
         ET.ElementTree(root).write(destination, encoding="utf-8", xml_declaration=True)
     else:
