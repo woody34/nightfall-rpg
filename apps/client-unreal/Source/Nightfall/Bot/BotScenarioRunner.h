@@ -63,6 +63,7 @@ private:
 	bool Tick(float DeltaSeconds);
 	void Begin();
 	void Complete();
+	bool AdvanceLoop();
 	void WriteArtifacts(const TArray<FBotTestCase>& Cases, double TotalSeconds, int32 ExitCode);
 	bool ExecLine(const FString& Line, FString& OutError);
 	void Log(const FString& Line);
@@ -70,6 +71,7 @@ private:
 	bool bActive = false;
 	bool bBegun = false;
 	bool bCompleted = false;
+	bool bResettingWorld = false;
 	FString ScenarioPath;
 	FString ScenarioName;
 	FString OutDir;
@@ -84,4 +86,8 @@ private:
 	FTSTicker::FDelegateHandle TickHandle;
 	TArray<IConsoleObject*> TestOnlyCommands;
 	double LaunchSeconds = 0.0;
+	double LoopSeconds = 0.0;
+	double LoopStartSeconds = 0.0;
+	int32 LoopIterations = 0;
+	TArray<FBotTestCase> LoopCases;
 };

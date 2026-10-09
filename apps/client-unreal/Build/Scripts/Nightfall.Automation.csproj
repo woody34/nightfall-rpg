@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Nightfall.Automation</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <OutputPath>../../Saved/GauntletScripts/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <UAT>$(UE_ROOT)/Engine/Binaries/DotNET/AutomationTool</UAT>
+  </PropertyGroup>
+  <!-- Installed-engine references: never rebuild or write into the engine installation. -->
+  <ItemGroup>
+    <Reference Include="Gauntlet.Automation" HintPath="$(UAT)/AutomationScripts/Gauntlet/net10.0/Gauntlet.Automation.dll" Private="false" />
+    <Reference Include="AutomationUtils.Automation" HintPath="$(UAT)/AutomationUtils/net10.0/AutomationUtils.Automation.dll" Private="false" />
+    <Reference Include="UnrealBuildTool" HintPath="$(UAT)/UnrealBuildTool.dll" Private="false" />
+    <Reference Include="EpicGames.Core" HintPath="$(UAT)/EpicGames.Core.dll" Private="false" />
+  </ItemGroup>
+</Project>

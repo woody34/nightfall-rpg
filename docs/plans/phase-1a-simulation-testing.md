@@ -261,3 +261,74 @@ without it.
   tracked numbers are E1.7's contract coverage and E3.9's transition coverage.
 - Horde or BuildGraph. Plain workflow jobs until the build graph has more than one platform.
 - Windows/Mac runners. Linux only, matching the API's CI.
+
+## 8. Outcome
+
+### 8.1 Verification status and acceptance scope
+
+All metrics, runtimes, and validation results below represent **locally measured evidence** gathered on the local Linux development machine. The persistent self-hosted Linux CI runner (`[self-hosted, unreal]`, Story 4.1) is not yet registered, and no hosted or self-hosted GitHub Actions execution has been performed. Consequently:
+
+- **No CI run or nightly success is claimed**: Story 4.2 pipeline execution and Story 4.5 two-week zero-flake PR gating remain unmeasured and pending runner availability.
+- **Story 6.3 acceptance status**: The original E6.3 acceptance criterion ("Numbers come from CI runs, not estimates") remains formally **pending** until the runner is online; local measured evidence is documented here to establish the verified baseline.
+- **Pre-diagnostics regression status**: Prior to ongoing diagnostics changes, Unreal editor and game targets compiled cleanly (editor: 10.04 s via `/tmp/nightfall-phase1a/editor-final-build.log`; game: 24.84 s via `/tmp/nightfall-phase1a/game-final-build.log`). Nightfall automation tests passed 47/47 on a live stack (`/tmp/nightfall-phase1a/automation.log`), and Rust suites passed 338 library tests and 2 replay binary tests (`/tmp/nightfall-phase1a/social-main-tests.log`). These suites will require a final regression run after in-progress diagnostics work is integrated.
+
+### 8.2 Environment isolation and infrastructure configurations
+
+To avoid conflation between scenario execution and soak testing, two distinct infrastructure configurations were used:
+
+1. **Scenario suite (15 logical execution units)**: Executed against fresh per-unit in-memory API repositories (`AUTH_DEV_TOKENS=1`), real gRPC and WebSocket endpoints, and a fresh NATS JetStream volume/journal per run. To isolate the final corrected scenario pass from concurrent soak and diagnostics runs, dedicated ports were allocated (API 3100, gRPC 50151, NATS 4226).
+2. **Gauntlet soak suite**: Executed against a complete, fresh Docker Compose stack with persistent backing services (PostgreSQL with baseline migrations, NATS JetStream, Keycloak identity provider, and LGTM telemetry stack).
+
+### 8.3 Scenario coverage and measured execution runtimes
+
+The test suite contains **19 `.nfs` scenario files** representing **15 logical execution units** (11 single-client scenarios and 4 paired two-client scenarios). Independent client-visible traceability analysis confirms that **25/25 tagged `[client-visible]` stories** across Phase 0b and Phase 1 are mapped by scenario headers. This is traceability, not proof of every interaction: headless login uses dev tokens and does not exercise the interactive browser device flow. Late-entry live scenarios verify reconnect and same-life HP; adversarial stale-incarnation rejection is covered by decoder/projection automation rather than injected by the live server.
+
+Measured runtimes reflect the latest relevant execution runs from local integration passes (`/tmp/nightfall-phase1a/results.txt`, `/tmp/nightfall-phase1a/retest/results.txt`, and `/tmp/nightfall-phase1a/final/results.txt`). No aggregate CI runtime estimate is provided, as execution depends on runner parallelism and topology.
+
+| Logical Unit | Scenario Files (`apps/client-unreal/Scenarios/`) | Topology | Measurement Stage | Measured Wall Time | Status |
+|---|---|---|---|---|---|
+| login | `0b-login-enter-world.nfs` | Single (1 bot) | Retest (actor assertions) | 18 s | PASS |
+| click | `0b-click-move.nfs` | Single (1 bot) | Retest (reconcile / exactness) | 23 s | PASS |
+| move-rejected | `0b-move-rejected.nfs` | Single (1 bot) | Initial | 13 s | PASS |
+| reconnect | `0b-reconnect.nfs` | Single (1 bot) | Initial | 10 s | PASS |
+| two-clients | `0b-two-clients-a.nfs`, `0b-two-clients-b.nfs` | Paired (2 bots) | Retest | 26 s | PASS |
+| login-replaces | `0b-login-replaces-a.nfs`, `0b-login-replaces-b.nfs` | Paired (2 bots) | Initial | 36 s | PASS |
+| target-attack | `1-target-attack.nfs` | Single (1 bot) | Initial | 39 s | PASS |
+| target-unknown | `1-target-unknown.nfs` | Single (1 bot) | Initial | 10 s | PASS |
+| kill | `1-kill-one-monster.nfs` | Single (1 bot) | Retest (reward exactness) | 55 s | PASS |
+| chase | `1-chase-leash.nfs` | Single (1 bot) | Final (first-hit wait fix) | 61 s | PASS |
+| npc-respawn | `1-npc-respawn.nfs` | Single (1 bot) | Final (corpse/despawn/new-life) | 85 s | PASS |
+| die-respawn | `1-die-respawn.nfs` | Single (1 bot) | Initial | 73 s | PASS |
+| delevel | `1-delevel.nfs` | Single (1 bot) | Initial | 82 s | PASS |
+| late-entry | `1-late-entry-a.nfs`, `1-late-entry-b.nfs` | Paired (2 bots) | Final | 61 s | PASS |
+| social | `1-social-aggro-a.nfs`, `1-social-aggro-b.nfs` | Paired (2 bots) | Final (deterministic fixture) | 47 s | PASS |
+
+### 8.4 Gauntlet soak testing results
+
+Nightfall Gauntlet soak testing was validated locally using staged Linux builds against the full Compose stack. The historical debug soak runs below executed without crashes, ensures, assertion failures, or replay divergences. Their original reporter incorrectly used a 50ms operational alert threshold instead of the Phase 1 acceptance budget of p99 <20ms and used `increase()` rather than the complete isolated cumulative histogram. They are functional evidence only; the eight-client debug smoke fails performance acceptance. The corrected reporter requires <20ms and verifies histogram observation count against every replayed tick; subsequent acceptance runs use a release API. The full 8-client × 1200-second (20-minute) soak remains pending and will be documented in a subsequent update.
+
+- **Soak 2×120 (`apps/client-unreal/Saved/Soak/final-2x120`)**:
+  - **Configuration**: 2 headless clients looping `1-kill-one-monster` for a nominal 120-second target.
+  - **Completed iterations**: 7 total (client-01: 3 iterations, 120.155 s; client-02: 4 iterations, 157.783 s).
+  - **Wall time**: 168 seconds (start unix 1791586461 to end unix 1791586629).
+  - **Performance**: Combat tick p99 was **16.350 ms** under the superseded `increase()` calculation; not a release performance acceptance result.
+  - **Deterministic replay**: Zone 1 epoch 1 matched byte-identically via `api:replay-check`; 1,689 ticks replayed (1,689 recorded), 7 players, 2,588 outputs, 162,098 bytes compared, 0 digest-only, in 207.5 ms. Zero failures.
+- **Soak 8×120 (`apps/client-unreal/Saved/Soak/smoke-8x120`)**:
+  - **Configuration**: 8 headless clients looping `1-kill-one-monster` for a nominal 120-second target.
+  - **Completed iterations**: 30 total iterations across 8 clients, ranging from 120.188 s to 157.775 s (client-01: 4/156.3s, client-02: 4/157.8s, client-03: 3/120.2s, client-04: 4/156.4s, client-05: 4/156.7s, client-06: 4/156.1s, client-07: 4/157.7s, client-08: 3/121.8s).
+  - **Wall time**: 168 seconds (start unix 1791586778 to end unix 1791586946).
+  - **Performance**: Combat tick p99 was **34.371 ms** under the superseded calculation (approximately35.136ms from the complete cumulative histogram), exceeding the required <20ms budget.
+  - **Deterministic replay**: Zone 1 epoch 1 matched byte-identically via `api:replay-check`; 1,690 ticks replayed (1,690 recorded), 30 players, 11,455 outputs, 2,781,171 bytes compared, 0 digest-only, in 824.8 ms. Zero failures.
+
+### 8.5 Diagnostics and coverage tracking status
+
+- **Failure bundle and contract coverage (E1.6, E1.7)**: Diagnostics failure-bundle generation and cross-scenario contract-coverage verification remain in progress across active integration workers; coverage figures are marked **pending** until integration concludes.
+- **State transition coverage (E3.9)**: Acceptance aggregation selects the latest passing recording for each of the 19 current scenario files and rechecks every replay (`/tmp/nightfall-phase1a/acceptance-coverage/summary.json`). NPC intentions cover **7/10 reachable edges**; `Idle->Attack`, `Idle->Dead`, and `Active->Dead` were not observed. Player attack state covers **3/4 reachable edges**; `pending->idle` was not observed. The full tables also label 15 NPC and 5 player edges unreachable. Historical failed/superseded recordings are excluded. The final full-suite coordinator gate remains pending after diagnostics integration.
+
+### 8.6 Three lessons learned
+
+1. **Wait for authoritative projections and check actual fixture mechanics.** A successful transport connection does not prove actor readiness. Combat waits must allow misses and tick phasing; the social fixture must distinguish clan help from ordinary proximity aggro.
+
+2. **Logout does not unload the Unreal world.** Repeated scenarios reload `L_Login` and await map readiness to remove old proxies. The soak completes each final iteration so every started assertion has a verdict; a nominal 120-second client therefore ran as long as 157.8 seconds.
+
+3. **A fixed seed and a faithful replay are different checks.** Fresh Postgres/NATS storage pins the zone seed to `(1, 1)`, while client identities and arrival order can vary between runs. Replaying the recorded commands verifies that run byte-identically; flushing metrics before teardown separately verifies its performance gate.

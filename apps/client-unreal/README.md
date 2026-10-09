@@ -512,6 +512,43 @@ paired multi-client roles, quarantine JSON schema, and PR gating policy are docu
   label. Fork PRs never run on the persistent runner. Known flakes are recorded in
   `Scenarios/quarantine.json`; entries past their `expires` date fail the suite immediately.
 
+### Nightly Gauntlet soak
+
+Multi-client endurance simulation driven by Unreal's Gauntlet automation framework (`Build/Scripts/NightfallSoak.cs`) and `Scripts/run-soak.sh`.
+
+```bash
+# Quick local run (2 clients, 120 seconds)
+bash Scripts/run-soak.sh --clients 2 --seconds 120
+
+# Default soak (8 clients, 1200 seconds / 20 minutes)
+bash Scripts/run-soak.sh
+# or explicitly: bash Scripts/run-soak.sh --clients 8 --seconds 1200
+```
+
+- **Staged build:** `Scripts/stage-linux.sh` cooks and stages a Development Linux standalone client into `Saved/StagedBuilds/Linux` via RunUAT `BuildCookRun` (`-clientconfig=Development -build -cook -stage -nullrhi -nosound`). Development configuration is required because `AUTH_DEV_TOKENS` and `BotScenario` are disabled in Shipping builds. Staging uses unsigned loose content (`-skipiostore`, `bUsePakFile=False`, `bUseIoStore=False`), so no pak signing keys or release certs are required. Pass `--skip-stage` to `run-soak.sh` to reuse an already staged build.
+- **Disposable stack:** Each run creates a fresh, disposable Docker Compose project (`nightfall-soak-<pid>-<timestamp>`) with dedicated ports offset by `SOAK_PORT_OFFSET` (default `+10000`, placing gRPC at `15051`, HTTP at `13000`, Postgres at `15432`, and Prometheus/Grafana at `13300`). The default API build uses Cargo release mode, matching Phase 1 performance validation. `SOAK_API_BIN` may override it with a prebuilt release API and sibling replay binary. On script exit, a cleanup trap shuts the compose stack down and deletes all isolated volumes (`docker compose down -v`), preventing port conflicts or database contamination with normal local dev stacks. A failed or timed-out teardown changes the final JSON/JUnit verdict and shell exit to failure.
+- **Auth and radial lanes:** The API server runs with `AUTH_DEV_TOKENS=1` dev tokens. The 1..8 client cap accounts for both NPC maximum drift (9.375 tiles per axis) plus 8-tile clan help: `Scripts/soak-fixtures.py` provisions a single zone (`test_zone.toml`) with radial spokes spaced >= 35 tiles apart at home (accounting for both NPCs' maximum drift plus clan help), and generates per-client scenarios from the canonical `Scenarios/1-kill-one-monster.nfs`. Per-client respawn is 5 seconds with 0 jitter, while original template combat stats and XP rewards remain unchanged. Movement waypoints (`nf.ClickMove`) and wait budgets (`nf.WaitFor own_at ... 1 40`) are adapted to each lane, while every combat expectation and assertion is left untouched.
+- **Looping and account rotation:** Headless clients (`-nullrhi -nosound -unattended`) run under Gauntlet with `-BotLoop=<seconds>`. When an iteration passes, `UBotScenarioRunner::AdvanceLoop` resets the session via `nf.Logout`, clears observations, rotates the generated disposable `test:<uuid>` account (preserving explicit dev tokens if provided), and returns to the login map. The scenario's `nf.Login` and `nf.EnterWorld` then log in as a fresh character, preventing position, HP, or XP leakage across iterations.
+- **Whole-iteration completion and process timeouts:** The runner always completes its final whole scenario iteration even if it runs beyond the requested duration—an unfinished step is never cut short or converted into a passing timeout. Gauntlet enforces an upper process timeout bound (`MaxDuration = Seconds + 180`, tick budget check at `Seconds + 150`) and fails if any role crashes, exceeds its process budget, or exits non-zero.
+- **Metrics flush and API shutdown:** Cumulative metrics are flushed by stopping the API before the final Prometheus scrape. `run-soak.sh` gracefully shuts down the API via SIGTERM (with a 15-second grace period) so that final combat histograms are fully exported without adding idle ticks. Any forced (SIGKILL) or non-zero API shutdown is treated as a runner failure (`runner-errors.txt`), ensuring incomplete metrics or hung processes fail the run.
+- **Artifacts and reporting:** Per-client JUnit XML (`1-kill-one-monster.xml` with `iteration N:` testcases, `loop_iterations`, and `loop_seconds`), engine logs, and isolated `UserDir` directories land in `Saved/Soak/<timestamp>-<pid>/client-XX/` (or `--artifacts <dir>`). `run-soak.sh` now automatically exports the complete `soak.nfr` (zone 1 epoch 1) and checks replay with `nightfall-replay check`. `Scripts/soak-report.py` aggregates these into:
+  - `soak.xml`: unified JUnit testsuite combining all client runs and a `soak-gates` suite;
+  - `report.json`: machine-readable summary of iterations, elapsed time, tick metrics, gate results, and recorded zone seed (`zone_seed: {"zone": 1, "epoch": 1}`);
+  - `combat-telemetry.json`: raw Prometheus combat metrics queried via the Grafana proxy, preserving evidence after stack cleanup;
+  - `dashboard URL`: Grafana dashboard URL scoped to the exact run window (`from=<start>&to=<end>`), pointing at the ephemeral local Grafana instance;
+  - `summary.txt`: console and CI step summary.
+- **Replay verification and seed:** A fresh, isolated Postgres+NATS stack yields the deterministic zone 1 epoch 1 RNG seed; clock origin, accounts, and arrival timings are naturally variable (the seed does not derive from the live clock). Replay verification confirms determinism across the soak recording.
+- **Performance gate:** `soak-report.py` queries Prometheus through Grafana for the combat tick duration 99th percentile over all ticks in the fresh isolated stack (`histogram_quantile(0.99, sum by (le) (nightfall_combat_tick_duration_seconds_bucket))`). The run requires combat tick p99 <20ms, matching Phase 1 E6.2 acceptance; the separate operational alert at 50ms is not the acceptance budget. Missing telemetry, an incomplete final histogram, or p99 >=20ms fails. The cumulative histogram count must equal the number of ticks in the complete byte-identical recording.
+- **Nightly CI workflow:** `.github/workflows/soak.yml` runs nightly (`cron: '17 8 * * *'`) and via manual dispatch on `[self-hosted, linux, unreal]`. The workflow is nonblocking (`continue-on-error: true`). Real self-hosted runner registration on the host is still needed, and no nightly CI run is claimed.
+- **Historical debug run (2026-10-09, local 2-client soak):** Actual validation from `Saved/Soak/final-2x120/report.json` and `replay-export.log`/`replay-check.log`:
+  - **Configuration:** Two clients requested 120s (`--clients 2 --seconds 120`).
+  - **Client iterations:** `client-01` completed three iterations in 120.155s; `client-02` completed four iterations in 157.783s.
+  - **Errors:** Zero assertion or sentinel errors.
+  - **Combat tick p99:** 16.350ms using the superseded `increase()` calculation; this is historical functional evidence, not final release performance acceptance.
+  - **Gauntlet wall time:** 168s (RunUAT Gauntlet wall clock 168s, allowing clients to finish their final whole iteration).
+  - **Byte-identical replay:** Zone 1 epoch 1 export (`soak.nfr`) verified byte-identical replay: 1689 ticks, 7 players, 2588 outputs, 162098 bytes compared (0 digest-only), in 207.5ms.
+- **Historical debug 8-client local smoke (2026-10-09):** All eight clients passed their scenario assertions with `--seconds 120`, completing 30 iterations total in 120.188–157.775s per client (Gauntlet wall 168s). Combat tick p99 was 34.371ms under the superseded `increase()` calculation (complete cumulative histogram approximately35.136ms). This exceeds the required <20ms budget, so the debug smoke does not satisfy performance acceptance. The complete zone 1 epoch 1 recording replayed 1690 ticks, 30 players, 11455 outputs and 2781171 bytes identically in 824.8ms; API shutdown exited 0. Evidence is under `Saved/Soak/smoke-8x120/`.
+
 ## Installing Unreal on Linux
 
 Epic requires an account. Two routes:

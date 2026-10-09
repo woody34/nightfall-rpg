@@ -1,0 +1,46 @@
+name: Nightly Gauntlet soak
+on:
+  schedule:
+    - cron: '17 8 * * *'
+  workflow_dispatch:
+    inputs:
+      clients:
+        description: Concurrent clients (1-8)
+        default: '8'
+      seconds:
+        description: Loop duration per client
+        default: '1200'
+permissions:
+  contents: read
+concurrency:
+  group: nightfall-unreal-stack
+  cancel-in-progress: false
+jobs:
+  soak:
+    runs-on: [self-hosted, linux, unreal]
+    continue-on-error: true
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Stage and soak
+        env:
+          SOAK_CLIENTS: ${{ inputs.clients || '8' }}
+          SOAK_SECONDS: ${{ inputs.seconds || '1200' }}
+        run: |
+          apps/client-unreal/Scripts/run-soak.sh \
+            --clients "$SOAK_CLIENTS" --seconds "$SOAK_SECONDS" \
+            --artifacts "$GITHUB_WORKSPACE/apps/client-unreal/Saved/Soak/nightly"
+      - name: Report
+        if: always()
+        run: |
+          report=apps/client-unreal/Saved/Soak/nightly/summary.txt
+          if [[ -f "$report" ]]; then cat "$report" >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gauntlet-soak-${{ github.run_id }}
+          path: |
+            apps/client-unreal/Saved/Soak/nightly/
+          retention-days: 14

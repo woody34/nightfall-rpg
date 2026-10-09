@@ -4,6 +4,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
@@ -52,6 +53,11 @@ void UBotScenarioRunner::Initialize(FSubsystemCollectionBase& Collection)
 	LaunchSeconds = FPlatformTime::Seconds();
 	ScenarioPath = ResolveScenarioPath(Path);
 	ScenarioName = FPaths::GetBaseFilename(ScenarioPath);
+	if (FParse::Value(FCommandLine::Get(), TEXT("BotLoop="), LoopSeconds)
+		&& (!FMath::IsFinite(LoopSeconds) || LoopSeconds <= 0.0))
+	{
+		ParseErrors.Add(TEXT("BotLoop must be a positive finite duration in seconds"));
+	}
 	if (!FParse::Value(FCommandLine::Get(), TEXT("BotOutDir="), OutDir) || OutDir.IsEmpty())
 	{
 		OutDir = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Sim"));
@@ -173,6 +179,12 @@ bool UBotScenarioRunner::Tick(float DeltaSeconds)
 		Complete();   // parse errors: report and exit
 		return false;
 	}
+	if (bResettingWorld)
+	{
+		const UWorld* World = GetGameInstance()->GetWorld();
+		if (!World || !World->HasBegunPlay() || World->GetOutermost()->GetName() != TEXT("/Game/Maps/L_Login")) return true;
+		bResettingWorld = false;
+	}
 	if (!bBegun)
 	{
 		// Commands need a world (the login map) to run in.
@@ -182,6 +194,7 @@ bool UBotScenarioRunner::Tick(float DeltaSeconds)
 	}
 	Observations.Observe(GetGameInstance()->GetSubsystem<UCombatStateSubsystem>());
 	if (Executor->Tick(FPlatformTime::Seconds())) return true;
+	if (AdvanceLoop()) return true;
 	Complete();
 	return false;
 }
@@ -189,7 +202,50 @@ bool UBotScenarioRunner::Tick(float DeltaSeconds)
 void UBotScenarioRunner::Begin()
 {
 	bBegun = true;
+	if (LoopStartSeconds == 0.0) LoopStartSeconds = FPlatformTime::Seconds();
 	Executor->Start(FPlatformTime::Seconds());
+}
+
+bool UBotScenarioRunner::AdvanceLoop()
+{
+	if (LoopSeconds <= 0.0 || !Executor->HasPassed() || Sentinel.NumUnallowed() != 0) return false;
+	++LoopIterations;
+	for (FBotTestCase Case : Executor->GetTestCases())
+	{
+		Case.Name = FString::Printf(TEXT("iteration %d: %s"), LoopIterations, *Case.Name);
+		LoopCases.Add(MoveTemp(Case));
+	}
+	// Finish whole scenarios, never turn an unfinished assertion into a passing timeout.
+	if (FPlatformTime::Seconds() - LoopStartSeconds >= LoopSeconds) return false;
+	Log(FString::Printf(TEXT("loop iteration %d passed; resetting login and projections"), LoopIterations));
+	FString Error;
+	if (!ExecLine(TEXT("nf.Logout"), Error))
+	{
+		ParseErrors.Add(TEXT("loop logout failed: ") + Error);
+		Executor.Reset();
+		return false;
+	}
+	Observations.Reset();
+	// The fixture begins at the new-character spawn. Avoid carrying position/HP/XP across loops.
+	// Explicit user-supplied tokens are retained; generated disposable identities rotate.
+	if (!GeneratedAccount.IsEmpty())
+	{
+		const FString Previous = GeneratedAccount;
+		GeneratedAccount = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
+		const FString CommandLine = FString(FCommandLine::Get()).Replace(*Previous, *GeneratedAccount);
+		FCommandLine::Set(*CommandLine);
+	}
+	FBotScenario Scenario = Executor->GetScenario();
+	Executor = MakeUnique<FBotScenarioExecutor>(MoveTemp(Scenario),
+		[this](const FString& Line, FString& OutError) { return ExecLine(Line, OutError); },
+		[this](const FBotPredicateFn& Predicate) { return Predicate(MakeContext()); },
+		[this](const FString& Line) { Log(Line); });
+	bBegun = false;
+	// nf.Logout disconnects but does not destroy actors. Reload the login world to remove
+	// old proxies and pawn state, and wait for its BeginPlay before the scenario's nf.Login.
+	bResettingWorld = true;
+	UGameplayStatics::OpenLevel(GetGameInstance()->GetWorld(), FName(TEXT("/Game/Maps/L_Login")));
+	return true;
 }
 
 TArray<FBotTestCase> UBotScenarioRunner::ReportCases(const FBotScenarioExecutor& Executor, const FBotLogSentinel& Sentinel)
@@ -227,11 +283,23 @@ void UBotScenarioRunner::Complete()
 	if (Executor && bBegun)
 	{
 		Cases = ReportCases(*Executor, Sentinel);
+		if (LoopSeconds > 0.0)
+		{
+			// Successful final iteration is already accumulated; retain its sentinel only.
+			if (Executor->HasPassed() && Sentinel.NumUnallowed() == 0 && LoopIterations > 0)
+			{
+				FBotTestCase SentinelCase = Cases.Last();
+				Cases = LoopCases;
+				Cases.Add(MoveTemp(SentinelCase));
+			}
+			else Cases.Insert(LoopCases, 0);
+		}
 		Seconds = Executor->ElapsedSeconds();
 		bStepsPassed = Executor->HasPassed();
 	}
 	else
 	{
+		Cases = LoopCases;
 		FBotTestCase& Case = Cases.AddDefaulted_GetRef();
 		Case.Name = ParseErrors.IsEmpty() ? TEXT("start scenario") : TEXT("parse scenario");
 		Case.Status = FBotTestCase::EStatus::Failed;
@@ -245,7 +313,7 @@ void UBotScenarioRunner::Complete()
 	UE_LOG(LogNightfallBot, Display, TEXT("bot: %s %s (steps %s, %d unallowed log line(s)/ensure(s)); exit code %d"),
 		*ScenarioName, ExitCode == 0 ? TEXT("PASSED") : TEXT("FAILED"),
 		bStepsPassed ? TEXT("passed") : Executor ? *Executor->GetFailure() : TEXT("not run"), Unallowed, ExitCode);
-	WriteArtifacts(Cases, Seconds, ExitCode);
+	WriteArtifacts(Cases, LoopSeconds > 0.0 && LoopStartSeconds > 0.0 ? FPlatformTime::Seconds() - LoopStartSeconds : Seconds, ExitCode);
 
 	// Always: on Linux this is what sets the process return code, also when the engine is already
 	// exiting (killed or quit mid-run) and a second exit request changes nothing else.
@@ -258,6 +326,11 @@ void UBotScenarioRunner::WriteArtifacts(const TArray<FBotTestCase>& Cases, doubl
 	TArray<TPair<FString, FString>> Properties;
 	Properties.Emplace(TEXT("scenario_file"), ScenarioPath);
 	Properties.Emplace(TEXT("exit_code"), FString::FromInt(ExitCode));
+	if (LoopSeconds > 0.0)
+	{
+		Properties.Emplace(TEXT("loop_seconds"), FString::SanitizeFloat(LoopSeconds));
+		Properties.Emplace(TEXT("loop_iterations"), FString::FromInt(LoopIterations));
+	}
 	if (Executor) Properties.Emplace(TEXT("budget_seconds"), FString::SanitizeFloat(Executor->GetScenario().BudgetSeconds));
 	Properties.Emplace(TEXT("sentinel_unallowed"), FString::FromInt(Sentinel.NumUnallowed()));
 	Properties.Emplace(TEXT("sentinel_allowed"), FString::FromInt(Sentinel.NumAllowed()));
