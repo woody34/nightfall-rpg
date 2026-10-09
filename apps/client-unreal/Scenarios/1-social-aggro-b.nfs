@@ -1,4 +1,4 @@
-# covers: 1 E3.2, 1a 3.7
+# covers: 1 E2.5, 1 E3.2, 1a E3.7
 # Requires AUTH_DEV_TOKENS=1 ZONE_SIM_FIXTURE=phase1a-social-aggro, zone/replay id 1.
 # Only A and B enter this fresh stack. B sees all three NPC AttackResults and no attacks on B;
 # with exactly one other player in view, their target is A. A also asserts attacked_by == 3.

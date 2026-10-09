@@ -78,7 +78,7 @@ def fixture(batch):
         if len(values) > 1:
             raise ValueError(f"duplicate fixture header: {path.name}")
         value = values[0] if values else "default"
-        if value not in ("default", "phase1a-social-aggro"):
+        if value not in ("default", "phase1a-social-aggro", "phase1a-late-entry"):
             raise ValueError(f"unsupported fixture {value}: {path.name}")
         fixtures.append(value)
     if len(set(fixtures)) != 1:
@@ -160,7 +160,10 @@ def main():
         code = 2
         env = dict(os.environ)
         env.pop("ZONE_SIM_FIXTURE", None)
-        if fixture_name != "default":
+        env.pop("ZONE_FILE", None)
+        if fixture_name == "phase1a-late-entry":
+            env["ZONE_FILE"] = str(REPO / "apps/api/fixtures/phase1a-late-entry/zones/late_entry.toml")
+        elif fixture_name != "default":
             env["ZONE_SIM_FIXTURE"] = fixture_name
         with (dest / "orchestration.log").open("w") as log:
             try:
