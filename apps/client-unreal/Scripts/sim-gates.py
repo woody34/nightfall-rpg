@@ -7,9 +7,11 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
+import uuid
 import xml.etree.ElementTree as ET
 
 BOT_FAILURE_KINDS = frozenset({'bot_assertion', 'bot_expectation', 'bot_scenario'})
@@ -167,6 +169,90 @@ def count(value):
     return value
 
 
+def capture_group(folder, names, binary, zone):
+    """One live zone cut, then offline output-presence checks for every fresh role report.
+
+    Entity IDs belong to this run's collected reports, not filenames or other roles.
+    Attach mode intentionally includes earlier activity in the shared epoch; it does not
+    claim ownership of that epoch. CI's fresh owned API gate establishes unit isolation.
+    """
+    started = time.time_ns()
+    owner = json.loads((folder / '.sim-run.json').read_text())
+    if owner['scenarios'] != names or owner['started_ns'] >= started:
+        raise ValueError('group capture does not match artifact claim')
+    recording = folder / 'group.nfr'
+    pending = folder / 'group.nfr.pending'
+    states = {name: {'infrastructure_failures': []} for name in names}
+    entities = {}
+    for name, state in states.items():
+        try:
+            report = folder / name / f'{name}.xml'
+            if not owner['started_ns'] < report.stat().st_mtime_ns <= started:
+                raise ValueError('report is outside current run')
+            root = read_report(report)
+            suites = [root] if root.tag == 'testsuite' else list(root)
+            if any(s.get('name') != name for s in suites):
+                raise ValueError('report scenario attribution mismatch')
+            own = root.findall(".//property[@name='own_entity_id']")
+            if len(own) != 1 or not own[0].get('value'):
+                raise ValueError('missing or ambiguous own_entity_id')
+            # EntityId uses Rust's UUID-backed id_newtype! FromStr, not a number.
+            entity = str(uuid.UUID(own[0].get('value')))
+            entities[name] = entity
+            state['own_entity_id'] = entity
+            if list((folder / name).glob('*.nfr')):
+                raise ValueError('unexpected per-role recording before canonical capture')
+        except (OSError, ValueError, ET.ParseError) as error:
+            state['infrastructure_failures'].append(str(error))
+    # Multiple roles can legitimately share an EntityId (LoginGroup replacement).
+    # Rust --session selects entity outputs, not a WebSocket connection identity.
+    try:
+        if list(folder.glob('*.nfr')) or pending.exists():
+            raise ValueError('unexpected recording before canonical capture')
+        with (folder / 'group.export.log').open('w') as log:
+            subprocess.run([binary, 'export', '--zone', str(zone), '--latest', '--live',
+                            '--out', str(pending)], stdout=log, stderr=subprocess.STDOUT, check=True)
+        if not pending.is_file() or not pending.stat().st_size:
+            raise ValueError('export produced no recording')
+        pending.replace(recording)
+        digest = hashlib.sha256(recording.read_bytes()).hexdigest()
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        for state in states.values():
+            state['infrastructure_failures'].append('canonical export: ' + str(error))
+        digest = None
+    for name, state in states.items():
+        if state['infrastructure_failures']:
+            continue
+        try:
+            # Rust check refuses a selected session with zero compared players. Export's
+            # --session would only check presence and still export another entire zone cut.
+            with (folder / name / f'{name}.session.log').open('w') as log:
+                subprocess.run([binary, 'check', '--file', str(recording), '--session',
+                                str(entities[name])], stdout=log, stderr=subprocess.STDOUT, check=True)
+            target = folder / name / f'{name}.nfr'
+            with target.open('xb') as out, recording.open('rb') as source:
+                shutil.copyfileobj(source, out)
+            state['recording_source'] = str(recording)
+            state['recording_sha256'] = digest
+        except (OSError, subprocess.SubprocessError) as error:
+            state['infrastructure_failures'].append('canonical session check: ' + str(error))
+    write_json(folder / 'group-recording.json', {
+        'schema_version': 1, 'run_started_ns': owner['started_ns'], 'capture_started_ns': started,
+        'zone': zone, 'recording_source': str(recording), 'recording_sha256': digest, 'roles': states})
+    return any(state['infrastructure_failures'] for state in states.values())
+
+
+def capture_role(folder, name):
+    capture = json.loads((folder / 'group-recording.json').read_text())
+    owner = json.loads((folder / '.sim-run.json').read_text())
+    state = capture['roles'][name]
+    if capture['run_started_ns'] != owner['started_ns'] or state['infrastructure_failures']:
+        raise ValueError(f'{name}: invalid current-run canonical session association')
+    for path in (folder / 'group.nfr', folder / name / f'{name}.nfr'):
+        if hashlib.sha256(path.read_bytes()).hexdigest() != state['recording_sha256']:
+            raise ValueError(f'{name}: canonical recording changed')
+
+
 def read_transitions(path):
     data = json.loads(Path(path).read_text())
     if not isinstance(data, dict) or type(data.get('schema_version')) is not int or data['schema_version'] != 1:
@@ -228,9 +314,13 @@ def merge_transitions(paths, unique_recordings=False):
     if not paths:
         raise ValueError('no current-run transition coverage inputs')
     output = None
-    sources, seen = [], {}
+    sources, seen, provenance = [], {}, {}
     for path in paths:
         data = read_transitions(path)
+        provenance[str(path)] = {key: data[key] for key in
+                                ('recording_source', 'recording_sha256', 'group_capture',
+                                 'sources', 'source_provenance')
+                                if key in data}
         if unique_recordings:
             digest = data.get('recording_sha256')
             if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
@@ -256,6 +346,7 @@ def merge_transitions(paths, unique_recordings=False):
             for name, amount in data[key].items():
                 output[key][name] = output[key].get(name, 0) + amount
     output['sources'] = sources
+    output['source_provenance'] = provenance
     output['summary'] = transition_summary(output)
     return output
 
@@ -284,6 +375,12 @@ def coverage(recording, out):
     data = read_transitions(out)
     data['recording_source'] = str(recording)
     data['recording_sha256'] = hashlib.sha256(recording.read_bytes()).hexdigest()
+    manifest = recording.parent / 'group-recording.json'
+    if recording.name == 'group.nfr' and manifest.is_file():
+        capture = json.loads(manifest.read_text())
+        if capture['recording_sha256'] != data['recording_sha256']:
+            raise ValueError('canonical capture identity changed')
+        data['group_capture'] = capture
     write_json(out, data)
 
 
@@ -309,6 +406,14 @@ def main():
     p = sub.add_parser('coverage')
     p.add_argument('--file', required=True, type=Path)
     p.add_argument('--out', required=True, type=Path)
+    p = sub.add_parser('capture-group')
+    p.add_argument('--folder', required=True, type=Path)
+    p.add_argument('--binary', required=True)
+    p.add_argument('--zone', required=True, type=int)
+    p.add_argument('names', nargs='+')
+    p = sub.add_parser('capture-role')
+    p.add_argument('--folder', required=True, type=Path)
+    p.add_argument('--name', required=True)
     p = sub.add_parser('merge-transitions')
     p.add_argument('--unique-recordings', action='store_true')
     p.add_argument('--out', required=True, type=Path)
@@ -328,6 +433,10 @@ def main():
                 return 1
         elif args.command == 'coverage':
             coverage(args.file, args.out)
+        elif args.command == 'capture-group':
+            return int(capture_group(args.folder, args.names, args.binary, args.zone))
+        elif args.command == 'capture-role':
+            capture_role(args.folder, args.name)
         else:
             result = merge_transitions(args.inputs, args.unique_recordings)
             write_json(args.out, result)

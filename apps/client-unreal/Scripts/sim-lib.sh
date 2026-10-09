@@ -284,8 +284,8 @@ sim_replay_bin() {
   echo "$SIM_REPLAY_BIN"
 }
 
-# Exports the bot's session from the live event log (the server records every session; the bot
-# writes no file): $1 = artifact dir, $2 = scenario name. The player entity is the JUnit
+# Exports the whole live zone prefix, checking the bot's session presence (not filtering):
+# $1 = artifact dir, $2 = scenario name. The player entity is the JUnit
 # own_entity_id. Zone SIM_ZONE_ID (default 1, test_zone) at its newest epoch; NATS from NATS_URL.
 # Does nothing when a recording is already there or the report names no entity.
 sim_export_recording() {
@@ -296,6 +296,14 @@ sim_export_recording() {
   [[ -n "$entity" ]] || return 1
   bin="$(sim_replay_bin)"
   "$bin" export --zone "${SIM_ZONE_ID:-1}" --latest --session "$entity" --live --out "$dest/$name.nfr" >"$dest/$name.export.log" 2>&1
+}
+
+sim_capture_group() {
+  local scenario bin names=()
+  for scenario in "$@"; do names+=("$(basename "$scenario" .nfs)"); done
+  bin="$(sim_replay_bin)" || return 1
+  python3 "$SIM_HERE/sim-gates.py" capture-group --folder "$ARTIFACTS" \
+    --binary "$bin" --zone "${SIM_ZONE_ID:-1}" "${names[@]}"
 }
 
 # Replays one recording; returns the tool's exit code (non-zero = divergence).
@@ -349,18 +357,25 @@ sim_suite_transitions() {
       failed=1
     fi
     shopt -s nullglob; raw=("$ARTIFACTS/$name"/*.nfr); shopt -u nullglob
-    for nfr in "${raw[@]}"; do inputs+=("${nfr%.nfr}.coverage.transitions.json"); done
+    if [[ "${GROUP_CAPTURE:-0}" != 1 ]]; then
+      for nfr in "${raw[@]}"; do inputs+=("${nfr%.nfr}.coverage.transitions.json"); done
+    fi
   done
   # Legacy bots may write one shared group recording without a scenario prefix.
-  # Cover/check/trace it once, then deduplicate byte-identical per-role exports in this unit.
+  # Canonical live groups count only group.nfr; per-role gates above remain mandatory.
+  # Offline fixtures can also contain independent recordings, deduplicated within this unit.
   shopt -s nullglob; shared=("$ARTIFACTS"/*.nfr); shopt -u nullglob
   for nfr in "${shared[@]}"; do
+    if [[ "${GROUP_CAPTURE:-0}" == 1 && "$nfr" != "$ARTIFACTS/group.nfr" ]]; then failed=1; continue; fi
     if ((REPLAY)); then sim_replay "$nfr" "${nfr%.nfr}.replay.log" || failed=1; fi
     # A shared recording has no unique client report/session. Generate a whole-zone trace.
     if ! python3 "$SIM_HERE/sim-trace.py" "$nfr" "$ARTIFACTS/_shared-trace-report.xml" || [[ ! -s "${nfr%.nfr}.trace.html" || ! -r "${nfr%.nfr}.trace.html" ]]; then failed=1; fi
     python3 "$SIM_HERE/sim-gates.py" coverage --file "$nfr" --out "${nfr%.nfr}.coverage.transitions.json" || failed=1
     inputs+=("${nfr%.nfr}.coverage.transitions.json")
   done
+  if [[ "${GROUP_CAPTURE:-0}" == 1 ]]; then
+    [[ -f "$ARTIFACTS/group.nfr" ]] || failed=1
+  fi
   ((${#inputs[@]})) || { ((failed == 0)); return; }
   python3 "$SIM_HERE/sim-gates.py" merge-transitions --unique-recordings --out "$ARTIFACTS/coverage.transitions.json" "${inputs[@]}" || failed=1
   ((failed == 0))

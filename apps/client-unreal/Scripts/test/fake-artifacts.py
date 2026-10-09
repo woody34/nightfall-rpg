@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import sys
+import uuid
 import xml.etree.ElementTree as ET
 
 REPO = Path(__file__).resolve().parents[4]
@@ -52,14 +53,36 @@ def bot(out, name, result, report_fail, amount):
         suite = ET.Element('testsuite', name=name, tests='1', failures=str(report_fail), errors='0')
         props = ET.SubElement(suite, 'properties')
         ET.SubElement(props, 'property', name='sentinel_unallowed', value='1' if result == 'ensure' else '0')
+        ET.SubElement(props, 'property', name='own_entity_id',
+                      value=str(uuid.uuid5(uuid.NAMESPACE_URL, 'shared-character' if result == 'sameentity' else name)))
         case = ET.SubElement(suite, 'testcase', classname=name, name='nf.Expect')
         if report_fail:
             kind = {'ensure': 'generalError', 'unknown': 'unknown', 'expectation': 'bot_expectation',
                     'scenario': 'bot_scenario'}.get(result, 'bot_assertion')
             ET.SubElement(case, 'failure', type=kind, message='seeded failure').text = 'seeded failure'
+        root = suite
+        if result in ('skippedfail', 'skippedinfra'):
+            # BotJUnit::Write emits an outer testsuites, executed WaitFor, failed Expect,
+            # then later assertions skipped after the first failure.
+            suite.set('tests', '5')
+            suite.set('skipped', '2')
+            case.set('name', 'line 2: nf.WaitFor world.ready')
+            case.remove(case.find('failure'))
+            ET.SubElement(suite, 'testcase', classname='sim.' + name,
+                          name='line 3: nf.WaitFor npc.visible')
+            failed = ET.SubElement(suite, 'testcase', classname='sim.' + name,
+                                   name='line 4: nf.Expect npc.dead')
+            ET.SubElement(failed, 'failure', type='bot_assertion', message='predicate failed').text = 'observed: alive'
+            for label in ('line 5: nf.Expect xp.changed', 'line 6: nf.WaitFor npc.respawned'):
+                later = ET.SubElement(suite, 'testcase', classname='sim.' + name, name=label)
+                ET.SubElement(later, 'skipped', message='not reached after failure')
+            if result == 'skippedinfra':
+                ET.SubElement(props, 'property', name='sentinel_unallowed', value='1')
+            root = ET.Element('testsuites', name='nightfall-sim', tests='5', failures='1', errors='0', skipped='2')
+            root.append(suite)
         if result == 'inconsistent':
             suite.set('failures', '1')
-        ET.ElementTree(suite).write(out / f'{name}.xml', encoding='utf-8', xml_declaration=True)
+        ET.ElementTree(root).write(out / f'{name}.xml', encoding='utf-8', xml_declaration=True)
         if result == 'unreadable':
             (out / f'{name}.xml').write_text('<broken')
     if result != 'nocontract':

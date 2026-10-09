@@ -23,11 +23,11 @@ echo "fake-bot $name group=${group:-none}" | tee "$out/$name.log"
 sleep "$sleep_s"
 [[ "$result" == crash ]] && exit 139
 fail=0
-case "$result" in fail|expectation|scenario|ensure|unknown) fail=1 ;; esac
+case "$result" in fail|expectation|scenario|ensure|unknown|skippedfail|skippedinfra) fail=1 ;; esac
 ((needgroup)) && [[ -z "$group" ]] && fail=1
 report_fail=$fail; [[ "$result" == redreport ]] && report_fail=1
 python3 "$(dirname "$0")/fake-artifacts.py" "$out" "$name" "$result" "$report_fail" "$amount"
-if [[ "$result" != norecording ]]; then
+if [[ "$result" != norecording && "${FAKE_LIVE_BOT:-0}" != 1 ]]; then
   printf "%s %s\n" "$result" "$amount" >"$out/$name.nfr"
 fi
 if [[ "$result" == sharedrecording ]]; then

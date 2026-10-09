@@ -109,6 +109,15 @@ for f in "$ARTIFACTS"/_all/*; do mv "$f" "$ARTIFACTS/"; done
 shopt -u nullglob
 rmdir "$ARTIFACTS/_all" 2>/dev/null || true
 
+# Production live exports are whole-zone prefixes. Capture one cut after all clients
+# finish, then require each role's own output in that file before associating it.
+# SIM_REPLAY_CMD is the legacy offline fixture path; it never performs live exports.
+GROUP_CAPTURE=0
+if ((REPLAY)) && [[ -z "${SIM_REPLAY_CMD:-}" ]]; then
+  GROUP_CAPTURE=1
+  sim_capture_group "${SCENARIOS[@]}" || sim_log "canonical group capture/session validation failed"
+fi
+
 FAILED=0
 REPORTS=()
 for scenario in "${SCENARIOS[@]}"; do
@@ -122,7 +131,14 @@ for scenario in "${SCENARIOS[@]}"; do
     status=FAIL; note="${note:+$note; }JUnit failure or missing or unreadable report"
   fi
   if ((REPLAY)); then
-    sim_export_recording "$dest" "$n" || true
+    if ((GROUP_CAPTURE)); then
+      if ! python3 "$HERE/sim-gates.py" capture-role --folder "$ARTIFACTS" --name "$n"; then
+        INFRA+=(canonical_session_recording)
+        status=FAIL; note="${note:+$note; }canonical recording/session validation failed"
+      fi
+    else
+      sim_export_recording "$dest" "$n" || true
+    fi
     shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
     if ((${#nfrs[@]} == 0)); then
       INFRA+=(missing_recording)

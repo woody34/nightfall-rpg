@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 
@@ -75,6 +76,205 @@ class FinalGatesTests(unittest.TestCase):
         self.quarantine.write_text(json.dumps({'schema_version': 1, 'scenarios': [
             {'scenario': name, 'owner': 'team', 'reason': 'seeded', 'issue': 'NF-1', 'expires': '2099-01-01'}
             for name in names]}))
+
+    def live_env(self, **overrides):
+        binary = self.root / 'bin/zone-cli'
+        binary.write_text('#!/bin/sh\nexec "' + sys.executable + '" "' +
+                          str(SCRIPTS / 'test/fake-zone-cli.py') + '" "$@"\n')
+        binary.chmod(0o755)
+        return {'SIM_REPLAY_CMD': '', 'SIM_REPLAY_BIN': str(binary),
+                'SIM_TRACE_CMD': str(binary), 'SIM_COVERAGE_CMD': str(binary),
+                'FAKE_LIVE_BOT': '1', 'FAKE_ZONE_CALLS': str(self.root / 'zone-calls.jsonl'),
+                **overrides}
+
+    def zone_calls(self):
+        return [json.loads(line) for line in (self.root / 'zone-calls.jsonl').read_text().splitlines()]
+
+    def test_realistic_failed_group_preserves_skipped_totals_and_quarantine(self):
+        self.scenario('pair-a', 'skippedfail')
+        self.scenario('pair-b')
+        self.allow(['pair-a'])
+        run, summary = self.run_ci()
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(summary['units'][0]['status'], 'QUARANTINED')
+        folder = self.root / 'suite/pair'
+        group = gates.read_report(folder / 'group.xml')
+        self.assertEqual(group.get('tests'), '7')  # 5 assertions, pipeline failure, partner
+        self.assertEqual(group.get('skipped'), '2')
+        role = gates.read_report(folder / 'pair-a/pair-a.xml')
+        self.assertEqual(role.get('skipped'), '2')
+        self.assertEqual(len(role.findall('.//skipped')), 2)
+        verdict = json.loads((folder / 'pipeline-verdict.json').read_text())
+        self.assertEqual(verdict['infrastructure_failures'], [])
+        # Consistency remains strict; forged outer totals cannot unlock quarantine.
+        group.set('skipped', '0')
+        ET.ElementTree(group).write(folder / 'group.xml')
+        self.assertFalse(ci.group_report_matches(folder, ['pair-a', 'pair-b']))
+        verdict = gates.finalize(folder, ['pair-a', 'pair-b'], 1, [], folder / 'group.xml')
+        self.assertTrue(any('outer JUnit skipped' in e for e in verdict['infrastructure_failures']))
+        gates.write_json(folder / 'pipeline-verdict.json', verdict)
+        self.assertFalse(ci.quarantine_verdict(folder, ['pair-a', 'pair-b'], 1, ['pair-a'], {'pair-a': {}}))
+
+    def test_realistic_skipped_group_with_infrastructure_stays_blocking(self):
+        self.scenario('pair-a', 'skippedinfra')
+        self.scenario('pair-b')
+        self.allow(['pair-a'])
+        run, summary = self.run_ci()
+        self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+        self.assertEqual(summary['units'][0]['status'], 'FAIL')
+        group = gates.read_report(self.root / 'suite/pair/group.xml')
+        self.assertEqual(group.get('skipped'), '2')
+        self.assertTrue(summary['units'][0]['infrastructure_errors'])
+
+    def test_live_group_captures_one_prefix_after_clients_finish(self):
+        self.scenario('pair-a')
+        late = self.scenario('pair-b')
+        late.write_text(late.read_text() + 'fake sleep 1\n')
+        run, summary = self.run_ci(**self.live_env())
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        folder = self.root / 'suite/pair'
+        calls = self.zone_calls()
+        exports = [c for c in calls if c['command'] == 'export']
+        self.assertEqual(len(exports), 1)  # fake would advance its cut on a second export
+        self.assertNotIn('--session', exports[0]['flags'])
+        canonical = (folder / 'group.nfr').read_bytes()
+        for name in ('pair-a', 'pair-b'):
+            dest = folder / name
+            self.assertEqual((dest / f'{name}.nfr').read_bytes(), canonical)
+            for suffix in ('session.log', 'replay.log', 'trace.html'):
+                self.assertTrue((dest / f'{name}.{suffix}').is_file())
+        checks = [c for c in calls if c['command'] == 'check' and '--session' in c['flags']]
+        self.assertEqual(len(checks), 2)
+        self.assertEqual(len({c['flags']['--session'] for c in checks}), 2)
+        unit = json.loads((folder / 'coverage.transitions.json').read_text())
+        self.assertEqual(unit['sources'], [str(folder / 'group.coverage.transitions.json')])
+        for coverage in (unit, summary['coverage']['transitions']):
+            for table in gates.TABLES:
+                self.assertEqual(sum(r['count'] for r in coverage[table]), 4)
+            self.assertEqual(coverage['life_incarnations']['npc:1->2'], 4)
+            self.assertEqual(coverage['deaths']['npc'], 4)
+            self.assertEqual(coverage['respawns']['npc'], 4)
+            self.assertEqual(coverage['intent_rejected']['Invalid'], 4)
+        manifest = json.loads((folder / 'group-recording.json').read_text())
+        self.assertEqual(set(manifest['roles']), {'pair-a', 'pair-b'})
+        self.assertTrue(all(not r['infrastructure_failures'] for r in manifest['roles'].values()))
+        provenance = unit['source_provenance'][unit['sources'][0]]
+        self.assertEqual(provenance['group_capture'], manifest)
+        root = json.loads((self.root / 'suite/coverage.transitions.json').read_text())
+        self.assertEqual(root['source_provenance'][root['sources'][0]]['source_provenance'], unit['source_provenance'])
+        (folder / 'pair-a/pair-a.nfr').write_bytes(canonical + b'changed')
+        with self.assertRaisesRegex(ValueError, 'recording changed'):
+            gates.capture_role(folder, 'pair-a')
+
+    def test_live_epoch_one_counts_separately_for_distinct_units(self):
+        for name in ('first-a', 'first-b', 'second-a', 'second-b'):
+            self.scenario(name)
+        run, summary = self.run_ci(**self.live_env())
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(len([c for c in self.zone_calls() if c['command'] == 'export']), 2)
+        for unit in ('first', 'second'):
+            capture = json.loads((self.root / f'suite/{unit}/group.nfr').read_text())
+            self.assertEqual(capture['epoch'], 1)
+        transitions = summary['coverage']['transitions']
+        self.assertEqual(transitions['deaths']['npc'], 8)
+        self.assertEqual(len(transitions['sources']), 2)
+
+    def test_suite_merge_preserves_identical_hashes_from_distinct_units(self):
+        value = fixtures.transition_fixture(4)
+        value['recording_sha256'] = 'a' * 64
+        inputs = [self.root / 'first-unit.json', self.root / 'second-unit.json']
+        for path in inputs:
+            path.write_text(json.dumps(value))
+        merged = gates.merge_transitions(inputs)  # coordinator merges logical units, not hashes
+        self.assertEqual(merged['deaths']['npc'], 8)
+        self.assertEqual(merged['sources'], list(map(str, inputs)))
+
+    def test_live_shared_capture_cannot_hide_failing_role_missing_session(self):
+        self.scenario('pair-a', 'skippedfail')
+        self.scenario('pair-b')
+        self.allow(['pair-a'])
+        run, summary = self.run_ci(**self.live_env(FAKE_SESSION_OMIT='pair-a'))
+        self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+        self.assertEqual(summary['units'][0]['status'], 'FAIL')
+        folder = self.root / 'suite/pair'
+        self.assertTrue((folder / 'group.nfr').is_file())
+        self.assertTrue((folder / 'pair-b/pair-b.nfr').is_file())
+        self.assertFalse((folder / 'pair-a/pair-a.nfr').exists())
+        verdict = json.loads((folder / 'pipeline-verdict.json').read_text())
+        self.assertIn('pair-a:canonical_session_recording', verdict['infrastructure_failures'])
+        self.assertEqual(gates.read_report(folder / 'group.xml').get('skipped'), '2')
+
+    def test_live_failed_role_with_valid_session_can_be_quarantined(self):
+        self.scenario('pair-a', 'skippedfail')
+        self.scenario('pair-b')
+        self.allow(['pair-a'])
+        run, summary = self.run_ci(**self.live_env())
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(summary['units'][0]['status'], 'QUARANTINED')
+        self.assertFalse(summary['units'][0]['infrastructure_errors'])
+
+    def test_live_login_replacement_roles_can_share_the_same_entity(self):
+        self.scenario('pair-a', 'sameentity')
+        self.scenario('pair-b', 'sameentity')
+        run, summary = self.run_ci(**self.live_env())
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(summary['units'][0]['status'], 'PASS')
+        checks = [c for c in self.zone_calls() if c['command'] == 'check' and '--session' in c['flags']]
+        self.assertEqual(len(checks), 2)  # both fresh reports still independently checked
+        self.assertEqual(len({c['flags']['--session'] for c in checks}), 1)
+        self.assertEqual(summary['coverage']['transitions']['deaths']['npc'], 4)
+
+    def test_live_export_replay_trace_failures_block_quarantine(self):
+        for error in ('FAKE_EXPORT_FAIL', 'FAKE_REPLAY_FAIL', 'FAKE_TRACE_FAIL'):
+            with self.subTest(error=error):
+                self.scenario('pair-a', 'skippedfail')
+                self.scenario('pair-b')
+                self.allow(['pair-a'])
+                run, summary = self.run_ci(**self.live_env(**{error: '1'}))
+                self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+                self.assertEqual(summary['units'][0]['status'], 'FAIL')
+                self.assertTrue(summary['units'][0]['infrastructure_errors'])
+                import shutil
+                shutil.rmtree(self.root / 'suite')
+                (self.root / 'zone-calls.jsonl').unlink()
+
+    def test_canonical_capture_requires_fresh_valid_unambiguous_role_reports(self):
+        binary = self.live_env()['SIM_REPLAY_BIN']
+        for defect in ('stale', 'missing', 'inconsistent', 'noentity', 'badentity', 'ambiguousentity', 'oldrecording'):
+            with self.subTest(defect=defect):
+                folder = self.root / defect
+                gates.claim(folder, ['a', 'b'])
+                for name in ('a', 'b'):
+                    fixtures.bot(folder / name, name, 'pass', 0, 1)
+                report = folder / 'a/a.xml'
+                tree = ET.parse(report)
+                if defect == 'stale':
+                    os.utime(report, ns=(1, 1))
+                elif defect == 'missing':
+                    report.unlink()
+                elif defect == 'oldrecording':
+                    (folder / 'a/a.nfr').write_text('retained old recording')
+                else:
+                    if defect == 'inconsistent':
+                        tree.getroot().set('tests', '20')
+                    elif defect == 'noentity':
+                        tree.find('.//properties').remove(tree.find(".//property[@name='own_entity_id']"))
+                    elif defect == 'badentity':
+                        tree.find(".//property[@name='own_entity_id']").set('value', '123')
+                    elif defect == 'ambiguousentity':
+                        ET.SubElement(tree.find('.//properties'), 'property', name='own_entity_id',
+                                      value=tree.find(".//property[@name='own_entity_id']").get('value'))
+                    tree.write(report)
+                run = subprocess.run([sys.executable, str(SCRIPTS / 'sim-gates.py'), 'capture-group',
+                    '--folder', str(folder), '--binary', binary, '--zone', '1', 'a', 'b'],
+                    env={**self.env, **self.live_env()}, capture_output=True, text=True, timeout=10)
+                self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+                state = json.loads((folder / 'group-recording.json').read_text())
+                self.assertTrue(state['roles']['a']['infrastructure_failures'])
+                if defect == 'oldrecording':
+                    self.assertEqual((folder / 'a/a.nfr').read_text(), 'retained old recording')
+                else:
+                    self.assertFalse((folder / 'a/a.nfr').exists())
 
     def test_completed_bot_only_verdict_uses_actual_failure_types(self):
         for result, kind in [('fail', 'bot_assertion'), ('expectation', 'bot_expectation'), ('scenario', 'bot_scenario')]:
