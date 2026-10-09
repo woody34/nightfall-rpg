@@ -8,7 +8,7 @@
 
 namespace
 {
-	constexpr EAutomationTestFlags CodecTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
+	constexpr EAutomationTestFlags CodecTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProtoCodecEncodeTest, "Nightfall.Net.ProtoCodec.Encode", CodecTestFlags)

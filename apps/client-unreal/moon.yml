@@ -26,10 +26,28 @@ tasks:
     command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh Nightfall Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex"'
     deps: ['~:setup']
     preset: 'utility'
-  # Headless automation tests. Nightfall.Net.SessionClient.Ping needs the API running (api:dev).
+  # Headless automation tests (ProductFilter only, so `Nightfall` selects just ours). The live ones
+  # (Nightfall.*.EndToEnd, Nightfall.Net.SessionClient.Ping) need the API running (api:dev) and skip
+  # with a warning without it. CI mode: `moon run client-unreal:test-editor -- --require-live-api`
+  # (also on when CI=true) turns that skip into a failure so a down server never shows green.
   test-editor:
     command: 'bash Scripts/run-tests.sh'
     deps: ['~:build-editor']
+    preset: 'utility'
+  # Headless bot simulation (Phase 1a). Runs scenario files through the Nightfall game binary, copies
+  # Saved/Sim output and the session recording to Saved/SimArtifacts/<timestamp>, replay-checks each
+  # recording, exits non-zero on any failure. Builds the game target itself when stale.
+  #   moon run client-unreal:sim -- Scenarios/0b-login-enter-world.nfs
+  #   moon run client-unreal:sim -- 'Scenarios/1-*.nfs' --api start --artifacts /tmp/sim
+  # Default `--api attach` needs the API up (api:dev with AUTH_DEV_TOKENS=1); `--api start` starts
+  # the compose stack and the API itself. Multi-client groups: `bash Scripts/run-sim-multi.sh`.
+  sim:
+    command: 'bash Scripts/run-sim.sh'
+    preset: 'utility'
+  # Every scenario under Scenarios/, sequentially. Extra args (e.g. `-- --api start`) are appended.
+  sim-all:
+    command: 'bash Scripts/run-sim.sh'
+    args: ['Scenarios/*.nfs']
     preset: 'utility'
   # Regenerates Content/{Input,Blueprints,UI,Maps} headless from Scripts/create_content.py.
   create-content:

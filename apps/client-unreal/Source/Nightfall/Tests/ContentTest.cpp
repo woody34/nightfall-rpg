@@ -32,7 +32,7 @@ namespace
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FContentWiringTest, "Nightfall.Content.Wiring",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FContentWiringTest::RunTest(const FString& Parameters)
 {

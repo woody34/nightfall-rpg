@@ -47,10 +47,11 @@ namespace
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLoginEndToEndTest, "Nightfall.Login.EndToEnd",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FLoginEndToEndTest::RunTest(const FString& Parameters)
 {
+	NightfallTest::AllowApiUnavailableLogs(*this);
 	FScopedTestGameInstance Instance;
 	USessionClient* Session = Instance.Get<USessionClient>();
 	UAuthSubsystem* Auth = Instance.Get<UAuthSubsystem>();
@@ -67,9 +68,8 @@ bool FLoginEndToEndTest::RunTest(const FString& Parameters)
 	Session->Ping([&](const FNetResult& R, const FGrpcNightfallV1PingResponse&) { PingResult = R; bPinged = true; });
 	if (!PumpUntil(Session, bPinged) || !PingResult.IsOk())
 	{
-		AddWarning(FString::Printf(TEXT("API not reachable at %s (%s); end-to-end login skipped. Start it with `moon run api:dev`."),
+		return NightfallTest::SkipLive(*this, FString::Printf(TEXT("API not reachable at %s (%s); end-to-end login skipped. Start it with `moon run api:dev`."),
 			*Session->GetEndpoint(), *PingResult.Message));
-		return true;
 	}
 
 	// Developer bypass: a token from the command line goes through StartLogin like a player would.

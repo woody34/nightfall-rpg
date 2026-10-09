@@ -10,16 +10,37 @@
 #   otherwise none, and the test uses a fresh `test:<uuid>` account (API needs AUTH_DEV_TOKENS=1).
 # The token goes through a 0600 temp file (deleted on exit), not the command line, which UE logs.
 #
-# Usage: Scripts/run-tests.sh [test filter, default "Nightfall"]
+# CI mode: --require-live-api passes -RequireLiveApi, which turns a live test's "API not reachable,
+# skipped" warning into a failure, so a down server can never show green. Without it they skip.
+# Also on when CI=true in the environment. The suite is ProductFilter-only, so "Nightfall" selects
+# just our tests.
+#
+# $RUN_TESTS_EXTRA_ARGS (word-split) is appended to the editor command line, e.g. an -ini: override.
+#
+# Usage: Scripts/run-tests.sh [--require-live-api] [test filter, default "Nightfall"]
 set -euo pipefail
 : "${UE_ROOT:?UE_ROOT must point at the Unreal install}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="$(cd "$HERE/.." && pwd)/Nightfall.uproject"
 REPO="$(cd "$HERE/../../.." && pwd)"
-FILTER="${1:-Nightfall}"
+REQUIRE_LIVE=0
+[[ "${CI:-}" == "true" ]] && REQUIRE_LIVE=1
+POSITIONAL=()
+for arg in "$@"; do
+  case "$arg" in
+    --require-live-api) REQUIRE_LIVE=1 ;;
+    -h|--help) sed -n '2,/^set -/p' "$0" | sed '$d'; exit 0 ;;
+    *) POSITIONAL+=("$arg") ;;
+  esac
+done
+FILTER="${POSITIONAL[0]:-Nightfall}"
 ISSUER="${OIDC_ISSUER:-http://localhost:8080/realms/nightfall}"
 
 EXTRA=()
+if [[ "$REQUIRE_LIVE" == 1 ]]; then
+  EXTRA+=("-RequireLiveApi")
+  echo "run-tests: CI mode, live tests fail when the API is unreachable" >&2
+fi
 TOKEN="${NIGHTFALL_DEV_TOKEN:-}"
 if [[ -z "$TOKEN" ]] && command -v jq >/dev/null && command -v openssl >/dev/null \
   && curl -sf -o /dev/null "$ISSUER/.well-known/openid-configuration"; then
@@ -36,4 +57,4 @@ fi
 # This engine build resolves Engine/Content relative to the working directory.
 cd "$UE_ROOT/Engine/Binaries/Linux"
 ./UnrealEditor "$PROJECT" -ExecCmds="Automation RunTests $FILTER; Quit" \
-  -TestExit="Automation Test Queue Empty" -unattended -nullrhi -nosplash -nosound -log -stdout "${EXTRA[@]}"
+  -TestExit="Automation Test Queue Empty" -unattended -nullrhi -nosplash -nosound -log -stdout ${EXTRA[@]+"${EXTRA[@]}"} ${RUN_TESTS_EXTRA_ARGS:-}
