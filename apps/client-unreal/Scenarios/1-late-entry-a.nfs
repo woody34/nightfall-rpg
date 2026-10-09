@@ -1,0 +1,57 @@
+# covers: 1 E5.2, 1 E6.1, 1a 3.6
+# 1-late-entry-a (with 1-late-entry-b, run-sim-multi.sh): A fights at the keltir meadow; B walks
+# in mid-fight and checks the spawns it receives carry the current HP and life. A also drops its
+# socket mid-fight: XP shows "--" until the next StatsChanged, then the pre-drop total.
+#
+# A kills two keltirs and wounds the third, so only one keltir is left hitting it (~45 s to kill
+# a full-HP player) while B arrives; then A resumes the attack in front of B and drops its socket. Timeouts are 3x: walks at 5 tiles/s, kills ~3 s, reconnect
+# 0.5 s backoff + a play ticket (5 s gRPC deadline).
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor players_in_view >= 1 30 # B at the spawn: both processes are up
+nf.ClickMove 40 40
+nf.WaitFor own_at 40 40 1 35
+nf.ClickMove 80 85
+nf.WaitFor own_at 80 85 1 35
+nf.ClickMove 97 100
+nf.WaitFor own_at 97 100 1 15
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack
+nf.WaitFor target_hp == 0 30
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack
+nf.WaitFor target_hp == 0 30
+nf.WaitFor xp_known 3
+nf.Expect own_xp > 0
+# Wound the third keltir and stop: it keeps fighting us and stays wounded while B walks in.
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack
+nf.WaitFor target_wounded 10
+nf.StopAttack
+nf.WaitFor attack_state == idle 3
+nf.WaitFor players_in_view >= 1 90 # B enters our view (and we its): it got the wounded spawn
+nf.Expect own_hp > 0
+nf.Expect target != none
+nf.Expect target_wounded
+nf.Attack                          # resume: B checks our next hit against the HP its spawn carried
+nf.WaitFor target_hits >= 3 10     # a swing every ~1 s (the keltir may die on it: 44 HP, ~7 hits in all)
+# Drop the socket mid-fight. The server despawns a dropped session's player
+# (SessionRegistry::leave), so the fight ends and the reconnect is a new admission: spawns and
+# StatsChanged are re-sent, the selection is not.
+nf.DropSocket
+nf.WaitFor reconnects >= 1 20      # 0.5 s backoff + play ticket (5 s gRPC deadline), 3x
+nf.WaitFor in_world 15
+nf.WaitFor xp_known 5              # admission sends StatsChanged with the spawns
+nf.Expect xp_unknown_after_reconnect   # the HUD showed XP -- until it arrived
+nf.Expect xp_known_before_stats == 0
+nf.Expect xp_restored              # the pre-drop total
+nf.Expect own_level_matches_xp
+nf.Expect target == none
+nf.Expect attack_state == idle
+nf.WaitFor proxies >= 1 3          # the meadow is re-sent
+nf.Within 240

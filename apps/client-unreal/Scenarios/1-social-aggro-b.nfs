@@ -1,0 +1,28 @@
+# covers: 1 E3.2, 1a 3.7
+# 1-social-aggro-b (with 1-social-aggro-a): B stands where it sees the keltir meadow but no keltir
+# can ever aggro it, and watches the keltirs engage: all three swing at a player that is not B
+# (A attacked one; the clan call adds the others' hate for A, keltir_b's from outside its aggro
+# range of A).
+#
+# Deviation from the plan's wording ("asserts it engages B"): the server's clan call adds hate for
+# the caller's target (state_ai.rs clan_call), so the helper engages A, not a bystander; a keltir
+# engaging B would be its own aggro, not social aggro. B is the independent observer instead.
+# Post (124, 120): 26.9 tiles from the keltir_b home, 31.2 from keltir_a's. A keltir never leaves
+# its 15-tile leash and aggroes at 6 tiles, so nothing can reach B; it shares the meadow's AOI cell.
+# Route along y = 40 and x = 130 keeps 23+ tiles from every home.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor players_in_view >= 1 30
+nf.ClickMove 40 40
+nf.WaitFor own_at 40 40 1 35       # 56.6 tiles: 11.3 s, 3x
+nf.ClickMove 100 40
+nf.WaitFor own_at 100 40 1 36      # 60 tiles: 12 s, 3x
+nf.ClickMove 130 90
+nf.WaitFor own_at 130 90 1 36      # 58.3 tiles: 11.7 s, 3x
+nf.ClickMove 124 120
+nf.WaitFor own_at 124 120 1 20     # 30.6 tiles: 6.1 s, 3x
+nf.WaitFor npcs_fighting >= 3 90   # A's walk (~28 s) and the fight
+nf.Expect attacked_by == 0
+nf.Within 180

@@ -382,17 +382,42 @@ namespace
 		return GI ? GI->GetSubsystem<UCombatStateSubsystem>() : nullptr;
 	}
 
-	FAutoConsoleCommandWithWorldAndArgs TargetCommand(TEXT("nf.Target"), TEXT("nf.Target <entity id|nearest_attackable|none>: SetTarget without attacking"),
+	FAutoConsoleCommandWithWorldAndArgs TargetCommand(TEXT("nf.Target"), TEXT("nf.Target <entity id|nearest_attackable|attacker|last|none>: SetTarget without attacking"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			UCombatStateSubsystem* Combat = CombatOf(World);
 			if (!Combat || Args.Num() != 1)
 			{
-				UE_LOG(LogNightfallBot, Warning, TEXT("nf.Target: usage nf.Target <entity id|nearest_attackable|none>"));
+				UE_LOG(LogNightfallBot, Warning, TEXT("nf.Target: usage nf.Target <entity id|nearest_attackable|attacker|last|none>"));
 				return;
 			}
 			FString Id = Args[0];
 			if (Id.Equals(TEXT("none"), ESearchCase::IgnoreCase)) Id.Reset();
+			else if (Id.Equals(TEXT("attacker"), ESearchCase::IgnoreCase))
+			{
+				// The nearest living NPC that swung at us: also one whose spawn said "not attackable"
+				// (it was walking home) and that the server made attackable again without an event.
+				UGameInstance* GI = GameInstanceOf(World);
+				UBotScenarioRunner* Runner = GI ? GI->GetSubsystem<UBotScenarioRunner>() : nullptr;
+				Id = Runner ? BotPredicates::NearestAttacker(Runner->MakeContext()) : FString();
+				if (Id.IsEmpty())
+				{
+					UE_LOG(LogNightfallBot, Warning, TEXT("nf.Target attacker: no living NPC that attacked us is in view"));
+					return;
+				}
+			}
+			else if (Id.Equals(TEXT("last"), ESearchCase::IgnoreCase))
+			{
+				// The newest selection the bot saw, also after it cleared (e.g. an NPC that walked home).
+				UGameInstance* GI = GameInstanceOf(World);
+				UBotScenarioRunner* Runner = GI ? GI->GetSubsystem<UBotScenarioRunner>() : nullptr;
+				Id = Runner ? BotPredicates::CurrentOrLastTarget(Runner->MakeContext()) : FString();
+				if (Id.IsEmpty())
+				{
+					UE_LOG(LogNightfallBot, Warning, TEXT("nf.Target last: nothing was selected yet"));
+					return;
+				}
+			}
 			else if (Id.Equals(TEXT("nearest_attackable"), ESearchCase::IgnoreCase))
 			{
 				const FBotContext Context{ GameInstanceOf(World), nullptr };
@@ -425,6 +450,17 @@ namespace
 			{
 				const uint32 Seq = Combat->NoteGroundClick();
 				UE_LOG(LogNightfallBot, Display, TEXT("nf.StopAttack: %s"), Seq ? *FString::Printf(TEXT("StopAttack seq %u"), Seq) : TEXT("nothing sent (not attacking)"));
+			}
+		}));
+
+	FAutoConsoleCommandWithWorld MarkCommand(TEXT("nf.Mark"), TEXT("Remembers the landed-hit counts per target, the baseline of target_hits_since_mark and target_hit_from_full"),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
+		{
+			UGameInstance* GI = GameInstanceOf(World);
+			if (UBotScenarioRunner* Runner = GI ? GI->GetSubsystem<UBotScenarioRunner>() : nullptr)
+			{
+				Runner->MarkHits();
+				UE_LOG(LogNightfallBot, Display, TEXT("nf.Mark: hit counts remembered"));
 			}
 		}));
 

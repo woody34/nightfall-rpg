@@ -42,6 +42,8 @@ public:
 
 	/** The predicate context over this game instance; binds the observations on first use. */
 	FBotContext MakeContext();
+	/** nf.Mark: hit-count baseline for target_hits_since_mark / target_hit_from_full. */
+	void MarkHits() { MakeContext(); Observations.MarkHits(); }
 
 	const FBotObservations& GetObservations() const { return Observations; }
 

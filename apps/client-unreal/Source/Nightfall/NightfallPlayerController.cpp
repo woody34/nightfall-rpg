@@ -155,7 +155,7 @@ namespace
 				UWorld* Current = GEngine != nullptr && GEngine->GetWorldContexts().Num() > 0 ? GEngine->GetWorldContexts()[0].World() : nullptr;
 				ANightfallPlayerController* PC = Current != nullptr ? Cast<ANightfallPlayerController>(Current->GetFirstPlayerController()) : nullptr;
 				if (PC == nullptr) return false;
-				PC->MoveToWorldLocation(Target);
+				PC->ClickGroundLocation(Target);   // the whole ground click: StopAttack first when attacking, then MoveTo
 				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([PC = TWeakObjectPtr<ANightfallPlayerController>(PC)](float)
 				{
 					if (PC.IsValid() && PC->GetPawn()) UE_LOG(LogNightfall, Log, TEXT("nf.ClickMove: pawn now at %s"), *PC->GetPawn()->GetActorLocation().ToString());

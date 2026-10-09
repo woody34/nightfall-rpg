@@ -1,0 +1,48 @@
+# covers: 1 E3.2, 1 E3.3, 1a 3.3
+# 1-chase-leash: wound a keltir, step away inside its leash and see it follow, then run past the
+# leash and see it walk home, where it is back at full HP.
+#
+# Derived from packages/data/npcs/keltir.toml and zones/test_zone.toml: keltirs walk 4 tiles/s
+# (move_speed 400 milli-tiles/tick), reach 1.5 tiles (attack_range 1500) + 0.3 (collision_radius),
+# leash 15 tiles (leash_radius 15000) around their slot home ((100, 100) or (104, 102)), and walk
+# home when the fight passes it. Players walk 5 tiles/s. Timeouts are 3x the walk times.
+#
+# The heal at home is not on the wire (ReturnHome restores HP with no event), so the projection
+# keeps the old HP; the next hit shows it: hp_after + damage == max HP (target_hit_from_full).
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.ClickMove 40 40
+nf.WaitFor own_at 40 40 1 35       # 56.6 tiles: 11.3 s, 3x
+nf.ClickMove 80 85
+nf.WaitFor own_at 80 85 1 35       # 60.2 tiles: 12.0 s, 3x
+nf.ClickMove 97 100
+nf.WaitFor own_at 97 100 1 15      # 22.7 tiles: 4.5 s, 3x
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack                          # hate: the keltir now fights us whatever its aggro range says
+nf.WaitFor target_hits >= 2 10     # two landed swings (~1 s apart): the newest one does not start from full HP
+nf.Expect target_wounded
+nf.WaitFor target_distance <= 2.5 10   # in melee: reach 1.8 tiles plus a tick of movement
+# Chase: 8 tiles south, inside the leash of both homes ((97, 92) is 8.5 and 12.2 tiles from them).
+nf.ClickMove 97 92                 # a ground click ends our attack (StopAttack, MoveTo); the keltir keeps its hate
+nf.WaitFor own_at 97 92 1 6        # 8 tiles: 1.6 s, 3x
+nf.Expect attack_state == idle
+nf.WaitFor target_distance <= 2.5 6    # it followed 8 tiles at 4 tiles/s: 2 s, 3x
+nf.Expect target_engaged_me
+# Leash: 26 more tiles south; the keltir turns home once it is 15 tiles from its home.
+nf.ClickMove 97 66
+nf.WaitFor own_at 97 66 1 16       # 26 tiles: 5.2 s, 3x
+nf.WaitFor npc_home_distance <= 0.1 15   # back home and standing: <= 15 tiles at 4 tiles/s = 3.75 s, 3x
+nf.Expect target_distance > 15     # it did not follow us out of its leash
+# Full HP at home: go back, pick the same keltir and hit it once more.
+nf.ClickMove 97 96
+nf.WaitFor own_at 97 96 1 18       # 30 tiles: 6 s, 3x
+nf.Target last
+nf.WaitFor target != none 3
+nf.Mark                            # hits before the leash do not count
+nf.Attack
+nf.WaitFor target_hits_since_mark >= 1 10
+nf.Expect target_hit_from_full
+nf.Within 150                      # a pass takes ~55 s

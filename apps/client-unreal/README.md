@@ -268,7 +268,7 @@ sliding of the 14.6 s cockatrice walk at 4 tiles/s, blend pops, camera framing);
 (staged) build's runtime; the legacy UE4 run retarget; the cockatrice's real hit-reaction clip
 (the FBX's `Damage` takes are empty).
 
-## Simulation (Phase 1a E1.1-E1.3)
+## Simulation (Phase 1a)
 
 Plan: [phase-1a-simulation-testing.md](../../docs/plans/phase-1a-simulation-testing.md).
 Diagram: [bot runner lifecycle](../../docs/diagrams/bot-runner-lifecycle.html).
@@ -303,6 +303,7 @@ Scripts (`run-sim.sh`, `run-sim-multi.sh`, CI) rely on exactly this:
 |---|---|
 | `-BotScenario=<path>` | Scenario to run. Absolute, else relative to the launch directory, else to the project directory. Its base name (`1-kill-one-monster`) names the artifacts. |
 | `-BotOutDir=<dir>` | Artifact directory. Default `<project>/Saved/Sim`. Give each parallel process its own, or distinct scenario names. |
+| `-BotDataDir=<dir>` | Server fixture data directory (`tables/*.toml`, `zones/*.toml`). Default `<project>/../../packages/data`. |
 | `-DevToken=<token>` / `-DevTokenFile=<path>` | As for any run. When neither is given, `nf.Login` uses a fresh `test:<uuid>` account (the API must run with `AUTH_DEV_TOKENS=1`); the account is recorded in the JUnit `account` property. |
 | `-game -nullrhi -nosound -unattended` | The headless client (plan D1). `-unattended` keeps ensures and dialogs from blocking. |
 
@@ -342,10 +343,11 @@ Commands (all also work typed into a running client's console):
 |---|---|
 | `nf.Login` | `UAuthSubsystem::StartLogin` (dev token, stored login, or device flow) |
 | `nf.EnterWorld [name]` | Lists characters, enters the named one or the first; on an account with none, creates a human with a random letters-only name first |
-| `nf.ClickMove <tileX> <tileY> [delay]` | The click-to-move path without a mouse; one move covers at most 64 tiles |
-| `nf.Target <id\|nearest_attackable\|none>` | `SetTarget` without attacking (`UCombatStateSubsystem::SelectTarget`); `nearest_attackable` picks the closest attackable entity in view; any id is sent as given |
+| `nf.ClickMove <tileX> <tileY> [delay]` | Runs the whole ground click (`ClickGroundLocation`: StopAttack first when attacking, then MoveTo), like a mouse click on the ground; one move covers at most 64 tiles |
+| `nf.Target <id\|nearest_attackable\|attacker\|last\|none>` | `SetTarget` without attacking (`UCombatStateSubsystem::SelectTarget`); `nearest_attackable` picks the closest attackable entity in view; `attacker` = the nearest living NPC that swung at the player since its newest respawn/reconnect (also one whose spawn said not attackable because it was walking home; the server makes it attackable again without an event); `last` = the newest selection, also after it cleared; any id is sent as given |
 | `nf.Attack` | `Attack` on the selection, once while idle (`AttackSelection`, same rules as clicking the NPC) |
 | `nf.StopAttack` | `StopAttack` while attacking (what a ground click sends) |
+| `nf.Mark` | Remembers the landed-hit count per target: the baseline of `target_hits_since_mark` and `target_hit_from_full` |
 | `nf.Respawn` | `Respawn` while dead, once until answered |
 | `nf.DropSocket` | Test only: closes the WebSocket as a network failure would; the client reconnects with a fresh ticket. Registered only in non-shipping builds and only when `-BotScenario` is given (plan R5) |
 
@@ -368,11 +370,36 @@ Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op
 | `damage_numbers <op> <n>` | floating numbers shown (one per distinct `AttackResult`) | `OnDamageNumber` |
 | `rejected == <reason\|none>` / `!=` | newest `IntentRejected` reason: `TOO_FAR`, `REJECT_REASON_TOO_FAR` or `2`; `none` = none seen | `OnIntentRejected` |
 | `last_ack_seq <op> <n>` | highest acked intent seq | `OnIntentAck` |
+| `hud_target_visible` | the HUD target frame shows the selection | HUD model |
+| `acks <op> <n>` | Acks received (one per accepted intent; keep-alives are refused, never Acked) | `OnIntentAck` |
+| `own_mp <op> <n>` | the player's MP | projection |
+| `own_hp_is_respawn_hp`, `own_mp_is_respawn_mp` | own HP == max(1, floor(maxHP * restore_hp_q / 1e6)), MP == floor(maxMP * restore_mp_q / 1e6) (65 %, 0) | projection, `tables/formulas.toml` |
+| `protection_active` | inferred from the server rule (no flag on the wire): an `EntityRespawned` for the player, no Attack accepted since, fewer than spawn_protection_seconds * 10 ticks elapsed | events, `tables/formulas.toml` |
+| `own_level_matches_xp` | own level == the highest `experience.toml` level the XP total reaches | projection, `tables/experience.toml` |
+| `death_xp_loss <op> <n>`, `death_xp_loss_matches_table` | XP the newest death took; equals min(XP, round((X[L+1] - X[L]) * fraction_q[L] / 1e6)) for the level L died on | `StatsChanged`, `tables/penalties.toml` |
+| `attack_results <op> <n>`, `damage_numbers_match_results` | distinct AttackResults received; one floating number per distinct AttackResult | `OnAttackResult`, `OnDamageNumber` |
+| `target_distance <op> <n>` | tiles from the player to the selection (after it clears, the last one) | net snapshots |
+| `npc_home_distance <op> <n>` | tiles from where the (last) selection stands to the nearest spawn-slot home of its template; unknown while it walks | net snapshots, `zones/test_zone.toml` |
+| `target_wounded`, `target_hp_full` | the (last) selection is alive below / at its max HP in the projection | projection |
+| `target_hits <op> <n>`, `target_hits_since_mark <op> <n>`, `target_hit_from_full` | landed hits on the (last) selection, in all or since the newest `nf.Mark`; the newest hit (after the mark, when there is one) started from max HP (hp_after + damage == max), which shows a heal the wire does not report | `OnAttackResult` |
+| `target_engaged_me` | the (last) selection swung at the player | `OnAttackResult` |
+| `attacked_by <op> <n>` | distinct NPCs that swung at the player since its newest respawn or reconnect | `OnAttackResult` |
+| `npcs_fighting <op> <n>` | distinct NPCs seen swinging at any player | `OnAttackResult` |
+| `players_in_view <op> <n>` | other players in view | net cache |
+| `reconnects <op> <n>` | WebSocket connections after the first | net (polled) |
+| `xp_unknown_after_reconnect`, `xp_known_before_stats <op> <n>`, `xp_restored` | after a disconnect the HUD showed `XP --` until StatsChanged/XpGained; ticks it showed a total before one (must stay 0); the total equals the pre-drop total plus XpGained since | projection, events |
+| `spawns_mid_fight <op> <n>`, `late_spawn_hp_ok <op> <n>`, `late_spawn_hp_bad <op> <n>`, `late_spawn_projection_ok <op> <n>`, `late_spawn_projection_bad <op> <n>` | NPC spawns that arrived wounded, dead or in a later life; wounded spawns whose next hit continued from the spawn's HP (hp_after == spawn HP - damage), or did not; wounded spawns the combat projection showed with the spawn HP and life before any hit, or did not | `OnEntitySpawn`, `OnAttackResult` |
 
 A new predicate is one `Register*` call in `FBotPredicateRegistry::RegisterBuiltins` (or from a
 later phase's module): `RegisterFlag`, `RegisterNumber`, `RegisterEquality` or `Register` for
 custom arguments. Its argument parsing runs at scenario parse time, so a typo fails before the
 client logs in. Add a row here and a transition test in `Nightfall.Bot.Predicates.Transitions`.
+
+Fixture data: predicates that compare with server tables read them through `FBotFixtureData`
+(`Bot/BotFixtureData.{h,cpp}`) from `packages/data` (`tables/experience.toml`, `penalties.toml`,
+`formulas.toml`, `zones/test_zone.toml`), by default `<project>/../../packages/data`, overridable with
+`-BotDataDir=<dir>`; a missing or unparsable table makes those predicates false with the reason as
+the observed value.
 
 Example (`Scenarios/0b-login-enter-world.nfs`, abridged):
 
@@ -385,6 +412,23 @@ nf.WaitFor in_world 15
 nf.Expect own_at 0 0 1            # a new character stands at the zone origin
 nf.Within 45
 ```
+
+### Scenario catalogue
+
+| Scenario | Covers | What it checks | Runs with | Pass time (local) |
+|---|---|---|---|---|
+| `0b-login-enter-world` | 0b 1.5, 6.2; 1a 2.1 | dev-token login, character, play ticket, WebSocket, own spawn at (0, 0) | run-sim.sh | - |
+| `1-target-attack` | 1 E2.2, E5.3; 1a 3.1 | `nf.Target nearest_attackable` -> TargetChanged and target frame; `nf.Attack` -> one Ack, active; a second `nf.Attack` sends nothing (no Ack); `nf.StopAttack` -> idle, selection kept | run-sim.sh | ~29 s |
+| `1-kill-one-monster` | 1 E2.2, E2.3, E2.5, E5.2, E5.3; 1a 3.2 | kill a keltir: one damage number per AttackResult, HP 0, target clears, XP known, level matches experience.toml | run-sim.sh | ~31 s |
+| `1-chase-leash` | 1 E3.2, E3.3; 1a 3.3 | wounded keltir follows the player 8 tiles, leashes 15 tiles from home, stands at its home again (npc_home_distance <= 0.1) and the next hit (after nf.Mark) starts from full HP | run-sim.sh | ~46 s |
+| `1-die-respawn` | 1 E2.4, E3.2, E5.2, E5.3; 1a 3.4 | die to keltirs without fighting back; dead overlay; respawn HP/MP from formulas.toml at the safe point (126, 126), no target, idle, protection on; protected player is not aggroed; an accepted Attack ends protection | run-sim.sh | 48-64 s |
+| `1-delevel` | 1 E2.4, E2.6; 1a 3.5 | three kills reach level 2, a death takes the penalties.toml loss and the level returns to 1 | run-sim.sh | 73-95 s |
+| `1-late-entry-a` / `-b` | 1 E5.2, E6.1; 1a 3.6 | A wounds a keltir, B walks into view: its spawn is wounded, the projection shows that HP and life, and the next hit continues from it; A drops its socket mid-fight: XP -- until StatsChanged, then the pre-drop total | run-sim-multi.sh | ~44 s |
+| `1-social-aggro-a` / `-b` | 1 E3.2; 1a 3.7 | A attacks one keltir and all three swing at A, keltir_b (9.2 tiles away, aggro range 6) by the clan call; B, out of every keltir reach, sees three keltirs fighting and is never attacked | run-sim-multi.sh | ~48 s |
+
+- Two-client pairs coordinate through the server: one waits until the other leaves or enters its view (`players_in_view`); `1-late-entry-b` also waits a fixed 12 s derived from A's measured schedule (see the file header). That 12 s is a timing window, not a handshake: B must enter view after A wounded the third keltir and before A falls (~16 s of margin measured); a slow kill or a client stall can fail the pair.
+- Deviation in `1-social-aggro`: the plan says B asserts the other keltir engages B; the server's clan call adds hate for the caller's target (A), so B observes the helpers engage A and asserts it is never attacked itself. A keltir_b that wandered within 6 tiles of A (drift up to 9.4 tiles per axis) would also engage A without the call, so the scenario cannot tell the two apart in every run.
+- Not on the wire (found by these scenarios): an NPC that walks home heals and becomes attackable again without any event, so a client keeps its old HP and the `attackable = false` its spawn carried until it re-enters view. A dropped socket despawns the player server-side (`SessionRegistry::leave`): the reconnect is a new admission, the selection is not re-sent and NPCs fighting it walk home.
 
 ### Log and ensure sentinel (D6)
 

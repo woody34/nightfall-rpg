@@ -1,4 +1,6 @@
 #include "BotPredicates.h"
+#include "BotFixtureData.h"
+#include "BotScenarioRunner.h"
 #include "Auth/AuthSubsystem.h"
 #include "Combat/CombatStateSubsystem.h"
 #include "Game/NightfallGameMode.h"
@@ -41,6 +43,7 @@ void FBotObservations::Bind(UGameInstance* GameInstance)
 		{
 			if (!LastTargetId.IsEmpty() && Died.Entity.Equals(LastTargetId, ESearchCase::IgnoreCase)) LastTargetHp = 0u;
 		});
+		BindPhase1(Net);
 	}
 	if (Combat)
 	{
@@ -59,6 +62,8 @@ void FBotObservations::Unbind()
 		Net->OnAttackResult.Remove(HitHandle);
 		Net->OnEntityDied.Remove(DiedHandle);
 	}
+	for (const TFunction<void()>& Unbind : Phase1Unbinders) Unbind();
+	Phase1Unbinders.Reset();
 	if (UCombatStateSubsystem* Combat = BoundCombat.Get())
 	{
 		Combat->OnDamageNumber.Remove(NumberHandle);
@@ -76,11 +81,41 @@ void FBotObservations::Reset()
 	DamageNumbers = 0;
 	LastTargetId.Reset();
 	LastTargetHp.Reset();
+	Acks = 0;
+	AttackResultKeys.Reset();
+	NpcsAttackingOwn.Reset();
+	NpcsAttackingPlayers.Reset();
+	NewestTick = 0;
+	bOwnRespawned = false;
+	OwnRespawnTick = 0;
+	bAttackedSinceRespawn = false;
+	TrackedXp.Reset();
+	TrackedLevel = 0;
+	bOwnDeathStatsSeen = false;
+	XpBeforeDeath.Reset();
+	LevelBeforeDeath = 0;
+	XpAfterDeath.Reset();
+	Connects = 0;
+	bAwaitingStats = false;
+	bXpUnknownSeenAfterReconnect = false;
+	XpKnownBeforeStats = 0;
+	XpAtDisconnect.Reset();
+	XpGainedSinceReconnect = 0;
+	WoundedSpawns.Reset();
+	SpawnsMidFight = 0;
+	LateSpawnHpOk = 0;
+	LateSpawnHpBad = 0;
+	MovingEntities.Reset();
+	LastHitOn.Reset();
+	LateSpawnProjectionOk = 0;
+	LateSpawnProjectionBad = 0;
+	HitMarks.Reset();
 }
 
 void FBotObservations::Observe(const UCombatStateSubsystem* Combat)
 {
 	if (!Combat) return;
+	ObservePhase1(Combat);
 	if (!Combat->GetTargetId().IsEmpty() && Combat->GetTargetId() != LastTargetId)
 	{
 		LastTargetId = Combat->GetTargetId();
@@ -89,6 +124,163 @@ void FBotObservations::Observe(const UCombatStateSubsystem* Combat)
 	if (const FCombatEntity* E = LastTargetId.IsEmpty() ? nullptr : Combat->FindEntity(LastTargetId))
 	{
 		LastTargetHp = E->bDead ? 0u : E->Hp;
+	}
+}
+
+void FBotObservations::BindPhase1(UNetClientSubsystem* Net)
+{
+	TWeakObjectPtr<UNetClientSubsystem> Weak(Net);
+	auto KindOf = [Weak](const FString& Id) -> uint32
+	{
+		const UNetClientSubsystem* N = Weak.Get();
+		const FEntitySpawn* S = N ? N->GetKnownEntities().Find(Id) : nullptr;
+		if (!S) S = N ? N->GetKnownEntities().Find(Id.ToLower()) : nullptr;
+		return S ? S->Kind : 0u;
+	};
+	const FDelegateHandle Ack = Net->OnIntentAck.AddLambda([this](const FAck& A)
+	{
+		++Acks;
+		NewestTick = FMath::Max(NewestTick, A.Tick);
+	});
+	const FDelegateHandle Hit = Net->OnAttackResult.AddLambda([this, Weak, KindOf](const FAttackResult& R)
+	{
+		const UNetClientSubsystem* N = Weak.Get();
+		if (!N || R.Outcome == ENetAttackOutcome::Unspecified) return;
+		NewestTick = FMath::Max(NewestTick, R.Tick);
+		AttackResultKeys.Add(FString::Printf(TEXT("%llu|%s|%s"), R.Tick, *R.Attacker.ToLower(), *R.Target.ToLower()));
+		if (R.Outcome != ENetAttackOutcome::Miss)
+		{
+			FLastHit& Last = LastHitOn.FindOrAdd(R.Target.ToLower());
+			Last.HpAfter = R.TargetHpAfter;
+			Last.Damage = R.Damage;
+			++Last.Count;
+		}
+		const bool bOwnTarget = N->IsOwnEntity(R.Target);
+		if (KindOf(R.Attacker) == 2 && (bOwnTarget || KindOf(R.Target) == 1))
+		{
+			NpcsAttackingPlayers.Add(R.Attacker.ToLower());
+			if (bOwnTarget) NpcsAttackingOwn.Add(R.Attacker.ToLower());
+		}
+		// A wounded NPC that entered view: its next hit must continue from the HP its spawn carried.
+		if (FLateSpawn* Late = WoundedSpawns.Find(R.Target.ToLower()); Late && !Late->bChecked
+			&& (R.TargetIncarnation == 0 || Late->Incarnation == 0 || R.TargetIncarnation == Late->Incarnation))
+		{
+			Late->bChecked = true;
+			const uint32 Expected = Late->Hp > R.Damage ? Late->Hp - R.Damage : 0u;
+			(R.TargetHpAfter == Expected ? LateSpawnHpOk : LateSpawnHpBad)++;
+			if (R.TargetHpAfter != Expected)
+			{
+				UE_LOG(LogNightfallBot, Display, TEXT("bot: late spawn HP mismatch on %s: spawn hp %u, damage %u, hp after %u"), *R.Target, Late->Hp, R.Damage, R.TargetHpAfter);
+			}
+		}
+	});
+	const FDelegateHandle Spawn = Net->OnEntitySpawn.AddLambda([this, Weak](const FEntitySpawn& S)
+	{
+		const UNetClientSubsystem* N = Weak.Get();
+		if (!N || N->IsOwnEntity(S.EntityId) || S.Kind != 2 || !S.bCombatant) return;
+		const bool bWounded = !S.bDead && S.Hp < S.MaxHp;
+		if (bWounded || S.bDead || S.LifeIncarnation > 1) ++SpawnsMidFight;
+		if (bWounded) WoundedSpawns.Add(S.EntityId.ToLower(), FLateSpawn{ S.Hp, S.LifeIncarnation, false });
+	});
+	const FDelegateHandle Move = Net->OnEntityMove.AddLambda([this](const FEntityMove& M)
+	{
+		NewestTick = FMath::Max(NewestTick, M.Tick);
+		if (M.Destination.X != 0.f || M.Destination.Y != 0.f) MovingEntities.Add(M.EntityId.ToLower());
+		else MovingEntities.Remove(M.EntityId.ToLower());
+	});
+	const FDelegateHandle Died = Net->OnEntityDied.AddLambda([this](const FEntityDied& D) { NewestTick = FMath::Max(NewestTick, D.Tick); });
+	const FDelegateHandle Respawned = Net->OnEntityRespawned.AddLambda([this, Weak](const FEntityRespawned& R)
+	{
+		NewestTick = FMath::Max(NewestTick, R.Tick);
+		const UNetClientSubsystem* N = Weak.Get();
+		if (!N || !N->IsOwnEntity(R.Entity)) return;
+		bOwnRespawned = true;
+		OwnRespawnTick = R.Tick;
+		bAttackedSinceRespawn = false;
+		NpcsAttackingOwn.Reset();
+	});
+	const FDelegateHandle Stats = Net->OnStatsChanged.AddLambda([this, Weak](const FStatsChanged& S)
+	{
+		const UNetClientSubsystem* N = Weak.Get();
+		if (!N || !N->IsOwnEntity(S.Entity)) return;
+		if (S.Hp == 0)
+		{
+			// Dead: the first HP-0 StatsChanged may still carry the old total (the loss follows in
+			// a later one), so "before" is the total before the first and "after" the newest.
+			if (!bOwnDeathStatsSeen)
+			{
+				bOwnDeathStatsSeen = true;
+				XpBeforeDeath = TrackedXp;
+				LevelBeforeDeath = TrackedLevel;
+			}
+			XpAfterDeath = S.Xp;
+		}
+		else
+		{
+			bOwnDeathStatsSeen = false;
+		}
+		TrackedXp = S.Xp;
+		TrackedLevel = S.Level;
+		bAwaitingStats = false;
+	});
+	const FDelegateHandle Xp = Net->OnXpGained.AddLambda([this, Weak](const FXpGained& G)
+	{
+		const UNetClientSubsystem* N = Weak.Get();
+		if (!N || !N->IsOwnEntity(G.Entity)) return;
+		TrackedXp = G.Total;
+		XpGainedSinceReconnect += G.Amount;
+		bAwaitingStats = false;
+	});
+	Phase1Unbinders.Add([Weak, Ack, Hit, Spawn, Move, Died, Respawned, Stats, Xp]
+	{
+		if (UNetClientSubsystem* N = Weak.Get())
+		{
+			N->OnIntentAck.Remove(Ack);
+			N->OnAttackResult.Remove(Hit);
+			N->OnEntitySpawn.Remove(Spawn);
+			N->OnEntityMove.Remove(Move);
+			N->OnEntityDied.Remove(Died);
+			N->OnEntityRespawned.Remove(Respawned);
+			N->OnStatsChanged.Remove(Stats);
+			N->OnXpGained.Remove(Xp);
+		}
+	});
+}
+
+void FBotObservations::ObservePhase1(const UCombatStateSubsystem* Combat)
+{
+	// OnConnected / OnDisconnected are dynamic delegates (UFUNCTION only), so the socket is polled.
+	const UNetClientSubsystem* Net = BoundNet.Get();
+	const bool bConnected = Net && Net->IsConnected();
+	if (bConnected && !bWasConnected) ++Connects;
+	if (!bConnected && bWasConnected)
+	{
+		XpAtDisconnect = TrackedXp;
+		TrackedXp.Reset();
+		XpGainedSinceReconnect = 0;
+		bAwaitingStats = true;
+		bXpUnknownSeenAfterReconnect = false;
+		NpcsAttackingOwn.Reset();   // the server despawns a dropped player: the reconnect is a new life on the wire
+	}
+	bWasConnected = bConnected;
+	if (bAwaitingStats)
+	{
+		if (Combat->GetOwn().bXpKnown) ++XpKnownBeforeStats;
+		else bXpUnknownSeenAfterReconnect = true;
+	}
+	if (bOwnRespawned && Combat->GetAttackState() == EAttackState::Active) bAttackedSinceRespawn = true;
+	// A wounded spawn must show up in the projection as it arrived (HP and life) until it is hit.
+	for (TPair<FString, FLateSpawn>& Late : WoundedSpawns)
+	{
+		const FCombatEntity* E = Combat->FindEntity(Late.Key);
+		if (Late.Value.bProjectionChecked || Late.Value.bChecked || !E) continue;
+		Late.Value.bProjectionChecked = true;
+		const bool bOk = !E->bDead && E->Hp == Late.Value.Hp && (Late.Value.Incarnation == 0 || E->Incarnation == Late.Value.Incarnation);
+		(bOk ? LateSpawnProjectionOk : LateSpawnProjectionBad)++;
+		if (!bOk)
+		{
+			UE_LOG(LogNightfallBot, Display, TEXT("bot: late spawn %s: spawn hp %u life %u, projection hp %u life %u"), *Late.Key, Late.Value.Hp, Late.Value.Incarnation, E->Hp, E->Incarnation);
+		}
 	}
 }
 
@@ -149,6 +341,47 @@ namespace BotPredicates
 			if (Distance < BestDistance) { BestDistance = Distance; Best = Known.Key; }
 		}
 		return Best;
+	}
+
+	bool EntityPosition(const FBotContext& Context, const FString& EntityId, FVector2D& OutTiles)
+	{
+		UNetClientSubsystem* Net = Context.Net();
+		if (!Net || EntityId.IsEmpty()) return false;
+		const FEntitySpawn* Known = Net->GetKnownEntities().Find(EntityId);
+		if (!Known) Known = Net->GetKnownEntities().Find(EntityId.ToLower());
+		FNetVec2 Pos;
+		if (Net->Snapshots().Sample(Known ? Known->EntityId : EntityId, TNumericLimits<int64>::Max() / 2, Pos))
+		{
+			OutTiles = FVector2D(Pos.X, Pos.Y);
+			return true;
+		}
+		if (!Known) return false;
+		OutTiles = FVector2D(Known->Position.X, Known->Position.Y);
+		return true;
+	}
+
+	FString NearestAttacker(const FBotContext& Context)
+	{
+		const UCombatStateSubsystem* Combat = Context.Combat();
+		FVector2D Own(0.0, 0.0), Pos;
+		if (!Combat || !Context.Observations || !OwnPosition(Context, Own)) return FString();
+		FString Best;
+		double BestDistance = TNumericLimits<double>::Max();
+		for (const FString& Id : Context.Observations->NpcsAttackingOwn)
+		{
+			const FCombatEntity* E = Combat->FindEntity(Id);
+			if (!E || E->bDead || !EntityPosition(Context, E->Spawn.EntityId, Pos)) continue;
+			const double Distance = FVector2D::Distance(Own, Pos);
+			if (Distance < BestDistance) { BestDistance = Distance; Best = Id; }
+		}
+		return Best;
+	}
+
+	FString CurrentOrLastTarget(const FBotContext& Context)
+	{
+		const UCombatStateSubsystem* Combat = Context.Combat();
+		if (Combat && !Combat->GetTargetId().IsEmpty()) return Combat->GetTargetId();
+		return Context.Observations ? Context.Observations->LastTargetId : FString();
 	}
 
 	bool ParseNumber(const FString& Text, double& Out)
@@ -402,4 +635,222 @@ void FBotPredicateRegistry::RegisterBuiltins()
 		});
 	RegisterNumber(TEXT("damage_numbers"), TEXT("Floating damage numbers shown so far (one per distinct AttackResult)"),
 		[](const FBotContext& C) -> TOptional<double> { return C.Observations ? TOptional<double>(C.Observations->DamageNumbers) : TOptional<double>(); });
+
+	// --- Phase 1a E3: combat scenarios (1-target-attack ... 1-social-aggro) ---------------------
+	// Values that come from packages/data (XP table, death penalty, town respawn) are read through
+	// FBotFixtureData, so a changed table row changes what these predicates expect.
+	auto Own = [](const FBotContext& C) -> const FCombatEntity*
+	{
+		const UCombatStateSubsystem* Combat = C.Combat();
+		const FCombatEntity* O = Combat ? Combat->FindOwnEntity() : nullptr;
+		return O && O->bCombatant ? O : nullptr;
+	};
+	auto Fixture = [](FString& OutObserved) -> const FBotFixtureData*
+	{
+		const FBotFixtureData& D = FBotFixtureData::Get();
+		if (D.IsValid()) return &D;
+		OutObserved = D.Error;
+		return nullptr;
+	};
+	auto Count = [](TFunction<int32(const FBotObservations&)> Of)
+	{
+		return [Of](const FBotContext& C) -> TOptional<double> { return C.Observations ? TOptional<double>(Of(*C.Observations)) : TOptional<double>(); };
+	};
+	auto Custom = [this](const FString& Name, const FString& Description, TFunction<FBotPredicateValue(const FBotContext&)> Eval)
+	{
+		Register({ Name, Name, Description, [Eval](const TArray<FString>& Args, FString& OutError) -> FBotPredicateFn
+		{
+			if (!Args.IsEmpty()) { OutError = TEXT("takes no arguments"); return nullptr; }
+			return Eval;
+		} });
+	};
+
+	RegisterFlag(TEXT("hud_target_visible"), TEXT("The HUD target frame shows the selection"),
+		[](const FBotContext& C) { const UCombatStateSubsystem* Combat = C.Combat(); return Combat && Combat->BuildHudModel().bTargetVisible; });
+	RegisterNumber(TEXT("acks"), TEXT("Acks received so far (one per accepted intent; keep-alives are refused, never Acked)"),
+		Count([](const FBotObservations& O) { return O.Acks; }));
+	RegisterNumber(TEXT("own_mp"), TEXT("The player's MP (owner-only StatsChanged)"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const UCombatStateSubsystem* Combat = C.Combat();
+			return Combat && Combat->GetOwn().bMpKnown ? TOptional<double>(Combat->GetOwn().Mp) : TOptional<double>();
+		});
+	Custom(TEXT("own_hp_is_respawn_hp"), TEXT("Own HP == max(1, floor(maxHP * restore_hp_q / 1e6)) from tables/formulas.toml [formulas.town_respawn] (65 %)"),
+		[Own, Fixture](const FBotContext& C) -> FBotPredicateValue
+		{
+			FString Observed;
+			const FBotFixtureData* D = Fixture(Observed);
+			const FCombatEntity* O = Own(C);
+			if (!D || !O) return { false, Observed.IsEmpty() ? FString(TEXT("unknown")) : Observed };
+			const uint32 Expected = D->RespawnHp(O->MaxHp);
+			return { O->Hp == Expected, FString::Printf(TEXT("%u / %u (respawn HP %u)"), O->Hp, O->MaxHp, Expected) };
+		});
+	Custom(TEXT("own_mp_is_respawn_mp"), TEXT("Own MP == floor(maxMP * restore_mp_q / 1e6) from tables/formulas.toml (0)"),
+		[Fixture](const FBotContext& C) -> FBotPredicateValue
+		{
+			FString Observed;
+			const FBotFixtureData* D = Fixture(Observed);
+			const UCombatStateSubsystem* Combat = C.Combat();
+			if (!D || !Combat || !Combat->GetOwn().bMpKnown) return { false, Observed.IsEmpty() ? FString(TEXT("unknown")) : Observed };
+			const FOwnCombatState& O = Combat->GetOwn();
+			const uint32 Expected = D->RespawnMp(O.MaxMp);
+			return { O.Mp == Expected, FString::Printf(TEXT("%u / %u (respawn MP %u)"), O.Mp, O.MaxMp, Expected) };
+		});
+	Custom(TEXT("protection_active"), TEXT("Respawn protection holds by the server's rule (world.proto RespawnRequest): an EntityRespawned for the player, no Attack accepted since, and fewer than spawn_protection_seconds * 10 ticks elapsed (newest tick seen). Inferred: the wire carries no protection flag"),
+		[Fixture](const FBotContext& C) -> FBotPredicateValue
+		{
+			FString Observed;
+			const FBotFixtureData* D = Fixture(Observed);
+			const FBotObservations* O = C.Observations;
+			const UCombatStateSubsystem* Combat = C.Combat();
+			if (!D || !O || !Combat) return { false, Observed.IsEmpty() ? FString(TEXT("unknown")) : Observed };
+			if (!O->bOwnRespawned) return { false, TEXT("not respawned") };
+			if (O->bAttackedSinceRespawn) return { false, TEXT("ended by an accepted Attack") };
+			const uint64 Until = O->OwnRespawnTick + static_cast<uint64>(D->SpawnProtectionSeconds) * 10;
+			const bool b = O->NewestTick < Until && !Combat->IsOwnDead();
+			return { b, FString::Printf(TEXT("respawned tick %llu, until %llu, newest %llu"), O->OwnRespawnTick, Until, O->NewestTick) };
+		});
+	Custom(TEXT("own_level_matches_xp"), TEXT("Own level == the highest level whose tables/experience.toml threshold the XP total reaches"),
+		[Own, Fixture](const FBotContext& C) -> FBotPredicateValue
+		{
+			FString Observed;
+			const FBotFixtureData* D = Fixture(Observed);
+			const UCombatStateSubsystem* Combat = C.Combat();
+			const FCombatEntity* O = Own(C);
+			if (!D || !O || !Combat->GetOwn().bXpKnown) return { false, Observed.IsEmpty() ? FString(TEXT("unknown")) : Observed };
+			const uint32 Expected = D->LevelForXp(Combat->GetOwn().Xp);
+			return { O->Level == Expected, FString::Printf(TEXT("level %u at XP %llu (table: level %u)"), O->Level, Combat->GetOwn().Xp, Expected) };
+		});
+	RegisterNumber(TEXT("death_xp_loss"), TEXT("XP the newest death took: total before it minus the total its StatsChanged carried"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const FBotObservations* O = C.Observations;
+			if (!O || !O->XpBeforeDeath.IsSet() || !O->XpAfterDeath.IsSet()) return {};
+			return static_cast<double>(O->XpBeforeDeath.GetValue()) - static_cast<double>(O->XpAfterDeath.GetValue());
+		});
+	Custom(TEXT("death_xp_loss_matches_table"), TEXT("The newest death took min(XP, round((X[L+1] - X[L]) * fraction_q[L] / 1e6)) at the level L it died on (tables/penalties.toml, experience.toml)"),
+		[Fixture](const FBotContext& C) -> FBotPredicateValue
+		{
+			FString Observed;
+			const FBotFixtureData* D = Fixture(Observed);
+			const FBotObservations* O = C.Observations;
+			if (!D || !O || !O->XpBeforeDeath.IsSet() || !O->XpAfterDeath.IsSet()) return { false, Observed.IsEmpty() ? FString(TEXT("no death seen")) : Observed };
+			const uint64 Before = O->XpBeforeDeath.GetValue(), After = O->XpAfterDeath.GetValue();
+			const TOptional<uint64> Row = D->DeathXpLoss(O->LevelBeforeDeath);
+			if (!Row.IsSet()) return { false, FString::Printf(TEXT("no table row for level %u"), O->LevelBeforeDeath) };
+			const uint64 Expected = FMath::Min(Row.GetValue(), Before);
+			return { After <= Before && Before - After == Expected,
+				FString::Printf(TEXT("XP %llu -> %llu at level %u (table loss %llu)"), Before, After, O->LevelBeforeDeath, Expected) };
+		});
+	RegisterNumber(TEXT("attack_results"), TEXT("Distinct AttackResults received (tick + attacker + target), whoever was involved"),
+		Count([](const FBotObservations& O) { return O.AttackResultKeys.Num(); }));
+	Custom(TEXT("damage_numbers_match_results"), TEXT("Exactly one floating damage number was shown per distinct AttackResult received"),
+		[](const FBotContext& C) -> FBotPredicateValue
+		{
+			const FBotObservations* O = C.Observations;
+			if (!O) return { false, TEXT("unknown") };
+			return { O->DamageNumbers == O->AttackResultKeys.Num(), FString::Printf(TEXT("%d numbers, %d results"), O->DamageNumbers, O->AttackResultKeys.Num()) };
+		});
+	RegisterNumber(TEXT("target_distance"), TEXT("Tiles from the player to the selection (after it clears, the last selection), newest server positions"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			FVector2D OwnPos, TargetPos;
+			if (!OwnPosition(C, OwnPos) || !EntityPosition(C, CurrentOrLastTarget(C), TargetPos)) return {};
+			return FVector2D::Distance(OwnPos, TargetPos);
+		});
+	RegisterNumber(TEXT("npc_home_distance"), TEXT("Tiles from where the selection (or last selection) stands to the nearest spawn-slot home of its template (zones/test_zone.toml); unknown while it walks (newest EntityMove has a destination)"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const UNetClientSubsystem* Net = C.Net();
+			const FString Id = CurrentOrLastTarget(C);
+			const FEntitySpawn* Known = Net && !Id.IsEmpty() ? Net->GetKnownEntities().Find(Id) : nullptr;
+			if (Net && !Known)
+			{
+				for (const TPair<FString, FEntitySpawn>& E : Net->GetKnownEntities()) if (E.Key.Equals(Id, ESearchCase::IgnoreCase)) Known = &E.Value;
+			}
+			FVector2D Pos;
+			const FBotFixtureData& D = FBotFixtureData::Get();
+			if (!Known || !D.IsValid() || !C.Observations || C.Observations->MovingEntities.Contains(Id.ToLower()) || !EntityPosition(C, Known->EntityId, Pos)) return {};
+			return D.NearestHomeDistance(Pos, Known->TemplateId);
+		});
+	RegisterFlag(TEXT("target_wounded"), TEXT("The selection (or last selection) is alive and below its max HP in the projection"),
+		[](const FBotContext& C)
+		{
+			const UCombatStateSubsystem* Combat = C.Combat();
+			const FCombatEntity* E = Combat ? Combat->FindEntity(CurrentOrLastTarget(C)) : nullptr;
+			return E && !E->bDead && E->MaxHp > 0 && E->Hp < E->MaxHp;
+		});
+	RegisterFlag(TEXT("target_hp_full"), TEXT("The selection (or last selection) is alive at its max HP in the projection"),
+		[](const FBotContext& C)
+		{
+			const UCombatStateSubsystem* Combat = C.Combat();
+			const FCombatEntity* E = Combat ? Combat->FindEntity(CurrentOrLastTarget(C)) : nullptr;
+			return E && !E->bDead && E->MaxHp > 0 && E->Hp == E->MaxHp;
+		});
+	Custom(TEXT("target_hit_from_full"), TEXT("The newest landed hit on the selection (or last selection), after the newest nf.Mark when there is one, started from its max HP: hp_after + damage == max HP. Shows a heal the wire does not report (an NPC that walked home)"),
+		[](const FBotContext& C) -> FBotPredicateValue
+		{
+			const UCombatStateSubsystem* Combat = C.Combat();
+			const FString Id = CurrentOrLastTarget(C).ToLower();
+			const FCombatEntity* E = Combat ? Combat->FindEntity(Id) : nullptr;
+			const FBotObservations::FLastHit* Hit = C.Observations ? C.Observations->LastHitOn.Find(Id) : nullptr;
+			if (!E || !Hit) return { false, TEXT("no hit seen") };
+			if (const int32* Mark = C.Observations->HitMarks.Find(Id); Mark && Hit->Count <= *Mark) return { false, TEXT("no hit since nf.Mark") };
+			return { Hit->HpAfter + Hit->Damage == E->MaxHp, FString::Printf(TEXT("hp after %u + damage %u, max %u"), Hit->HpAfter, Hit->Damage, E->MaxHp) };
+		});
+	RegisterNumber(TEXT("target_hits"), TEXT("Landed hits (HIT/CRIT AttackResults) on the selection (or last selection), by anyone"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const FBotObservations::FLastHit* Hit = C.Observations ? C.Observations->LastHitOn.Find(CurrentOrLastTarget(C).ToLower()) : nullptr;
+			return C.Observations ? TOptional<double>(Hit ? Hit->Count : 0) : TOptional<double>();
+		});
+	RegisterNumber(TEXT("target_hits_since_mark"), TEXT("Landed hits on the selection (or last selection) since the newest nf.Mark"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			if (!C.Observations) return {};
+			const FString Id = CurrentOrLastTarget(C).ToLower();
+			const FBotObservations::FLastHit* Hit = C.Observations->LastHitOn.Find(Id);
+			return static_cast<double>((Hit ? Hit->Count : 0) - C.Observations->HitMarks.FindRef(Id));
+		});
+	RegisterFlag(TEXT("target_engaged_me"), TEXT("The selection (or last selection) swung at the player (an AttackResult with it as attacker) in the player's current life"),
+		[](const FBotContext& C) { return C.Observations && C.Observations->NpcsAttackingOwn.Contains(CurrentOrLastTarget(C).ToLower()); });
+	RegisterNumber(TEXT("attacked_by"), TEXT("Distinct NPCs that swung at the player (AttackResult, hit or miss) since its newest respawn or reconnect"),
+		Count([](const FBotObservations& O) { return O.NpcsAttackingOwn.Num(); }));
+	RegisterNumber(TEXT("npcs_fighting"), TEXT("Distinct NPCs seen swinging at any player, this one or another"),
+		Count([](const FBotObservations& O) { return O.NpcsAttackingPlayers.Num(); }));
+	RegisterNumber(TEXT("players_in_view"), TEXT("Other players in view (net cache, kind PLAYER)"),
+		[](const FBotContext& C) -> TOptional<double>
+		{
+			const UNetClientSubsystem* N = C.Net();
+			if (!N) return {};
+			int32 Players = 0;
+			for (const TPair<FString, FEntitySpawn>& Known : N->GetKnownEntities()) Players += Known.Value.Kind == 1 && !N->IsOwnEntity(Known.Key);
+			return static_cast<double>(Players);
+		});
+	RegisterNumber(TEXT("reconnects"), TEXT("WebSocket connections opened after the first"),
+		Count([](const FBotObservations& O) { return FMath::Max(0, O.Connects - 1); }));
+	RegisterFlag(TEXT("xp_unknown_after_reconnect"), TEXT("After the newest disconnect the HUD showed XP -- until a StatsChanged / XpGained arrived"),
+		[](const FBotContext& C) { return C.Observations && C.Observations->bXpUnknownSeenAfterReconnect; });
+	RegisterNumber(TEXT("xp_known_before_stats"), TEXT("Ticks the projection showed an XP total after a disconnect before any StatsChanged / XpGained (must stay 0)"),
+		Count([](const FBotObservations& O) { return O.XpKnownBeforeStats; }));
+	Custom(TEXT("xp_restored"), TEXT("The XP total is known again and equals the total before the newest disconnect plus XpGained since"),
+		[](const FBotContext& C) -> FBotPredicateValue
+		{
+			const FBotObservations* O = C.Observations;
+			const UCombatStateSubsystem* Combat = C.Combat();
+			if (!O || !Combat || !O->XpAtDisconnect.IsSet()) return { false, TEXT("no disconnect seen") };
+			if (!Combat->GetOwn().bXpKnown) return { false, TEXT("XP --") };
+			const uint64 Expected = O->XpAtDisconnect.GetValue() + O->XpGainedSinceReconnect;
+			return { Combat->GetOwn().Xp == Expected, FString::Printf(TEXT("XP %llu (before the drop %llu, gained since %llu)"), Combat->GetOwn().Xp, O->XpAtDisconnect.GetValue(), O->XpGainedSinceReconnect) };
+		});
+	RegisterNumber(TEXT("spawns_mid_fight"), TEXT("NPC spawns received wounded, dead or in a life after the first (late AOI entry onto a fight)"),
+		Count([](const FBotObservations& O) { return O.SpawnsMidFight; }));
+	RegisterNumber(TEXT("late_spawn_hp_ok"), TEXT("Wounded NPC spawns whose next AttackResult continued from the spawn's HP (hp_after = spawn HP - damage)"),
+		Count([](const FBotObservations& O) { return O.LateSpawnHpOk; }));
+	RegisterNumber(TEXT("late_spawn_projection_ok"), TEXT("Wounded NPC spawns the combat projection showed with the spawn's HP and life before any hit on them"),
+		Count([](const FBotObservations& O) { return O.LateSpawnProjectionOk; }));
+	RegisterNumber(TEXT("late_spawn_projection_bad"), TEXT("Wounded NPC spawns the projection showed with another HP or life (must stay 0)"),
+		Count([](const FBotObservations& O) { return O.LateSpawnProjectionBad; }));
+	RegisterNumber(TEXT("late_spawn_hp_bad"), TEXT("Wounded NPC spawns whose next AttackResult did not continue from the spawn's HP (must stay 0)"),
+		Count([](const FBotObservations& O) { return O.LateSpawnHpBad; }));
 }

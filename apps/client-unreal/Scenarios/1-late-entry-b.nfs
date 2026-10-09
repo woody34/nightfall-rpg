@@ -1,0 +1,33 @@
+# covers: 1 E5.2, 1a 3.6
+# 1-late-entry-b (with 1-late-entry-a): waits out of view while A walks to the keltir meadow and
+# starts fighting, then walks in. The keltir spawns that arrive on its AOI entry must carry the
+# fight's state (wounded HP, dead, or a later life), and the next hit on a wounded one must
+# continue from the HP its spawn carried (hp_after == spawn HP - damage).
+#
+# Coordination is through the server only. B walks to a holding point (20, 60) from which nothing
+# of the meadow is visible (AOI cells are 32 tiles: from cell (0, 1) only x < 64, y < 96 is in
+# view; every keltir stays at x >= 90 inside its leash) and waits there until A, walking the same
+# first leg, has passed out of its view (x >= 64). A then needs ~10 s to reach the meadow, ~8 s for
+# two kills and ~1 s to wound the third keltir (~18 s, measured 17.8 s), and survives the one
+# keltir left on it for ~16 s more (measured: 2 HP left 34 s after leaving view). B's walk from
+# the holding point brings the meadow into its view after ~10.5 s, so it starts 12 s late: entry
+# at ~22.5 s, ~4.5 s after A is ready and ~11 s before A would fall. A waits for B before it
+# resumes the attack.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.ClickMove 20 60
+nf.WaitFor own_at 20 60 1 40       # 63.2 tiles: 12.6 s, 3x
+nf.WaitFor players_in_view >= 1 30 # A, walking (0, 0) -> (40, 40) -> (80, 85)
+nf.WaitFor players_in_view == 0 60 # A crossed x = 64
+nf.Sleep 12
+nf.ClickMove 70 90                 # 31.6 tiles from the keltir_a home: no keltir (15-tile leash, 6-tile aggro) reaches it
+nf.WaitFor own_at 70 90 1 36       # 58.3 tiles: 11.7 s, 3x
+nf.WaitFor spawns_mid_fight >= 1 10
+nf.WaitFor late_spawn_projection_ok >= 1 3   # the projection shows the wounded spawn's HP and life
+nf.Expect late_spawn_projection_bad == 0
+nf.WaitFor late_spawn_hp_ok >= 1 15    # A resumes its attack once it sees us: a swing within ~1 s, 3x and margin
+nf.Expect late_spawn_hp_bad == 0
+nf.Expect attacked_by == 0
+nf.Within 240

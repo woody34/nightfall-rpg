@@ -1,0 +1,38 @@
+# covers: 1 E2.2, 1 E5.3, 1a 3.1
+# 1-target-attack: select the nearest attackable NPC (TargetChanged, HUD target frame), attack it
+# (one Ack, attack active), press attack again (nothing is sent: no second Ack), stop (idle).
+#
+# Timeouts (plan R1: server constants with a 3x margin): players walk 5 tiles/s (Speed::DEFAULT,
+# 500 milli-tiles per 100 ms tick); a hop of at most 64 tiles takes <= 12.8 s. An intent is applied
+# on the next tick (100 ms) and Acked with that tick's output, so 1 s covers any Ack 10 times over.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.ClickMove 40 40                 # the keltir meadow (zones/test_zone.toml) is outside the spawn's view
+nf.WaitFor own_at 40 40 1 35       # 56.6 tiles: 11.3 s, 3x
+nf.ClickMove 80 85
+nf.WaitFor own_at 80 85 1 35       # 60.2 tiles: 12.0 s, 3x
+nf.ClickMove 97 100
+nf.WaitFor own_at 97 100 1 15      # 22.7 tiles: 4.5 s, 3x
+nf.Expect acks == 3                # one Ack per MoveTo, nothing else sent yet
+nf.Expect target == none
+nf.Target nearest_attackable
+nf.WaitFor target == Keltir 3      # TargetChanged
+nf.Expect hud_target_visible
+nf.Expect acks == 4
+nf.Expect attack_state == idle
+nf.Attack
+nf.WaitFor attack_state == active 3   # Acked
+nf.Expect acks == 5
+nf.Attack                          # already attacking: the client must not send a second Attack
+nf.Sleep 1                         # 10 ticks: a second Ack would be back within 1-2
+nf.Expect acks == 5
+nf.Expect attack_state == active   # a keltir (44 HP) takes ~7 swings; it is alive 1.7 s in
+nf.Expect rejected == none
+nf.StopAttack
+nf.WaitFor attack_state == idle 3
+nf.WaitFor acks == 6 1            # its Ack (the HUD goes idle when StopAttack is sent)
+nf.Expect target == Keltir         # StopAttack keeps the selection
+nf.Expect hud_target_visible
+nf.Within 90                       # a pass takes ~31 s

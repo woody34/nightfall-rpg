@@ -1,0 +1,44 @@
+# covers: 1 E2.4, 1 E2.6, 1a 3.5
+# 1-delevel: three keltir kills reach level 2 (tables/experience.toml: 68 XP; keltir.toml
+# xp_reward 28), then die: the XP lost equals the HF death penalty row for the level died on
+# (tables/penalties.toml, read by death_xp_loss_matches_table) and the level drops back to 1.
+#
+# Timeouts (3x): walks at 5 tiles/s; a kill takes ~3 s (44 HP); the slots respawn after
+# 30-40 s (keltir_a) and 20-25 s (keltir_b) and aggro us again on their next think.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.ClickMove 40 40
+nf.WaitFor own_at 40 40 1 35
+nf.ClickMove 80 85
+nf.WaitFor own_at 80 85 1 35
+nf.ClickMove 97 100
+nf.WaitFor own_at 97 100 1 15
+# Kill 1
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack
+nf.WaitFor target_hp == 0 30
+nf.WaitFor xp_known 3
+nf.Expect own_level_matches_xp
+# Kill 2
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack
+nf.WaitFor target_hp == 0 30
+nf.Expect own_level_matches_xp
+# Kill 3: level 2
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack
+nf.WaitFor target_hp == 0 30
+nf.WaitFor own_level == 2 3        # LevelUp + StatsChanged follow the XpGained
+nf.Expect own_level_matches_xp
+# Die: the respawned keltirs find us standing at their home.
+nf.WaitFor own_dead 150            # respawn <= 40 s, then a death ~15-45 s; 3x of ~50 s
+nf.WaitFor death_xp_loss_matches_table 3   # the death's StatsChanged carries the reduced XP
+nf.Expect death_xp_loss > 0
+nf.Expect own_level == 1
+nf.Expect own_level_matches_xp
+nf.Within 240                      # a pass takes ~90 s

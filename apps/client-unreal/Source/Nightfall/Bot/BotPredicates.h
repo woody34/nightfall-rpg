@@ -23,6 +23,47 @@ struct NIGHTFALL_API FBotObservations
 	FString LastTargetId;        // the newest non-empty selection, kept after it clears (target_hp reads it)
 	TOptional<uint32> LastTargetHp; // its newest HP from AttackResult / EntityDied (0) / the projection; survives its despawn
 
+	// --- Phase 1a E3 (combat scenarios). Own XP/level are tracked from the events here, not read
+	// from the projection, so a death or reconnect can be compared against what came before. ---
+	int32 Acks = 0;                         // Acks received (keep-alives are refused, never Acked)
+	TSet<FString> AttackResultKeys;         // distinct valid AttackResults seen: tick|attacker|target
+	TSet<FString> NpcsAttackingOwn;         // NPCs whose AttackResult targeted the player since its newest respawn / reconnect
+	TSet<FString> NpcsAttackingPlayers;     // NPCs seen swinging at any player (this one or another)
+	uint64 NewestTick = 0;                  // newest server tick seen in an Ack or a combat fact
+	bool bOwnRespawned = false;             // an EntityRespawned for the player arrived
+	uint64 OwnRespawnTick = 0;
+	bool bAttackedSinceRespawn = false;     // an Attack was accepted (attack state active) after it
+	TOptional<uint64> TrackedXp;            // own XP from StatsChanged / XpGained; reset on disconnect
+	uint32 TrackedLevel = 0;
+	bool bOwnDeathStatsSeen = false;        // a StatsChanged with HP 0 arrived for the current death
+	TOptional<uint64> XpBeforeDeath;        // own XP / level just before the newest death's StatsChanged
+	uint32 LevelBeforeDeath = 0;
+	TOptional<uint64> XpAfterDeath;
+	int32 Connects = 0;                     // WebSocket connections opened (1 + reconnects)
+	bool bAwaitingStats = false;            // disconnected or reconnected; no StatsChanged / XpGained since
+	bool bXpUnknownSeenAfterReconnect = false;
+	int32 XpKnownBeforeStats = 0;           // ticks the projection showed XP while bAwaitingStats (must stay 0)
+	TOptional<uint64> XpAtDisconnect;
+	uint64 XpGainedSinceReconnect = 0;
+	struct FLateSpawn { uint32 Hp = 0; uint32 Incarnation = 0; bool bChecked = false; bool bProjectionChecked = false; };
+	TMap<FString, FLateSpawn> WoundedSpawns; // NPC spawns that arrived wounded, until the next AttackResult on them
+	int32 SpawnsMidFight = 0;               // NPC spawns that arrived wounded, dead or in a life after the first
+	int32 LateSpawnHpOk = 0;                // the next AttackResult on a wounded spawn continued from its HP
+	int32 LateSpawnHpBad = 0;
+	int32 LateSpawnProjectionOk = 0;        // the projection showed a wounded spawn's HP and life before any hit on it
+	int32 LateSpawnProjectionBad = 0;
+	TMap<FString, int32> HitMarks;          // nf.Mark: landed hits per target at the mark
+	TSet<FString> MovingEntities;           // entities whose newest EntityMove has a destination
+	struct FLastHit { uint32 HpAfter = 0; uint32 Damage = 0; int32 Count = 0; };
+	TMap<FString, FLastHit> LastHitOn;      // newest landed hit (HIT/CRIT) per target
+
+	/** nf.Mark: the current landed-hit count per target becomes the baseline. */
+	void MarkHits()
+	{
+		HitMarks.Reset();
+		for (const TPair<FString, FLastHit>& Hit : LastHitOn) HitMarks.Add(Hit.Key, Hit.Value.Count);
+	}
+
 	void Bind(UGameInstance* GameInstance);
 	void Unbind();
 	void Reset();
@@ -30,9 +71,14 @@ struct NIGHTFALL_API FBotObservations
 	void Observe(const UCombatStateSubsystem* Combat);
 
 private:
+	void BindPhase1(UNetClientSubsystem* Net);
+	void ObservePhase1(const UCombatStateSubsystem* Combat);
+
 	TWeakObjectPtr<UNetClientSubsystem> BoundNet;
 	TWeakObjectPtr<UCombatStateSubsystem> BoundCombat;
 	FDelegateHandle AckHandle, RejectHandle, NumberHandle, TargetHandle, HitHandle, DiedHandle;
+	TArray<TFunction<void()>> Phase1Unbinders;
+	bool bWasConnected = false;
 };
 
 /** Everything a predicate may read. Accessors return nullptr when that part is absent. */
@@ -124,4 +170,13 @@ namespace BotPredicates
 
 	/** The attackable entity closest to the player (net cache + projection); empty when none is in view. */
 	NIGHTFALL_API FString NearestAttackable(const FBotContext& Context);
+
+	/** An entity's newest server position in tiles (net cache), if it is in view. */
+	NIGHTFALL_API bool EntityPosition(const FBotContext& Context, const FString& EntityId, FVector2D& OutTiles);
+
+	/** The nearest living NPC in view that swung at the player in its current life; empty when none. */
+	NIGHTFALL_API FString NearestAttacker(const FBotContext& Context);
+
+	/** The selection, or after it cleared the last one (the id target_hp reads); empty when none yet. */
+	NIGHTFALL_API FString CurrentOrLastTarget(const FBotContext& Context);
 }
