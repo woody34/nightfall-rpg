@@ -1680,6 +1680,16 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod combat_tests {
+    #[test]
+    fn unknown_record_schema_is_rejected_clearly() {
+        let pb = super::PbRecord {
+            schema: 999,
+            ..Default::default()
+        };
+        let error = super::decode_record(&prost::Message::encode_to_vec(&pb)).unwrap_err();
+        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3 and 4)");
+    }
+
     use super::*;
     use crate::domain::zone::AttackOutcome;
     fn id(n: u128) -> EntityId {

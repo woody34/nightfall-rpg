@@ -216,6 +216,8 @@ pub struct CodecError(pub String);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WatermarkReason {
+    /// Local file capture boundary; does not close the live epoch in the log.
+    Capture,
     /// The process shut down gracefully.
     Shutdown,
     /// The epoch ended while the process kept running.

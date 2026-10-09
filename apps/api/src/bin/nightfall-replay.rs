@@ -4,7 +4,7 @@
 //! ```text
 //! nightfall-replay [verify] --zone ID (--epoch N | --latest) [--session ENTITY] [--out DIR]
 //! nightfall-replay [verify] --source file --file PATH [--session ENTITY] [--out DIR]
-//! nightfall-replay export --zone ID (--epoch N | --latest) --out FILE
+//! nightfall-replay export --zone ID (--epoch N | --latest) [--live] [--session ENTITY] --out FILE
 //! ```
 //!
 //! `--source jetstream` (default) reads `NATS_URL` (or `--nats URL`). `--session` selects whose
@@ -17,6 +17,9 @@
     clippy::print_stdout, // a CLI report is the point of this binary
     clippy::print_stderr
 )]
+
+#[path = "replay/coverage.rs"]
+mod coverage;
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -34,7 +37,9 @@ use nightfall_api::infrastructure::telemetry::Metrics;
 const USAGE: &str = "usage:
   nightfall-replay [verify] --zone ID (--epoch N | --latest) [--session ENTITY] [--out DIR] [--nats URL]
   nightfall-replay [verify] --source file --file PATH [--session ENTITY] [--out DIR]
-  nightfall-replay export --zone ID (--epoch N | --latest) --out FILE [--nats URL]
+  nightfall-replay export --zone ID (--epoch N | --latest) [--live] [--session ENTITY] --out FILE [--nats URL]
+  nightfall-replay check --file PATH [--session ENTITY] [--out DIR]
+  nightfall-replay coverage --file PATH [--out coverage.transitions.json]
 exit: 0 match, 1 divergence, 2 error, 3 epoch incomplete";
 
 const MATCH: u8 = 0;
@@ -46,6 +51,7 @@ const INCOMPLETE: u8 = 3;
 enum Command {
     Verify,
     Export,
+    Coverage,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +67,7 @@ struct Args {
     zone: Option<ZoneId>,
     epoch: Option<u64>,
     latest: bool,
+    live: bool,
     session: Option<EntityId>,
     file: Option<PathBuf>,
     out: Option<PathBuf>,
@@ -74,7 +81,11 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
             it.next();
             Command::Export
         },
-        Some("verify") => {
+        Some("coverage") => {
+            it.next();
+            Command::Coverage
+        },
+        Some("verify" | "check") => {
             it.next();
             Command::Verify
         },
@@ -86,12 +97,17 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
         zone: None,
         epoch: None,
         latest: false,
+        live: false,
         session: None,
         file: None,
         out: None,
         nats: std::env::var("NATS_URL").unwrap_or_else(|_| "nats://localhost:4222".to_owned()),
     };
     while let Some(flag) = it.next() {
+        if flag == "--live" {
+            a.live = true;
+            continue;
+        }
         if flag == "--latest" {
             a.latest = true;
             continue;
@@ -116,6 +132,15 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
     }
     if a.epoch.is_some() && a.latest {
         bail!("--epoch and --latest are exclusive");
+    }
+    if a.file.is_some() {
+        a.source = Source::File;
+    }
+    if a.live && a.command != Command::Export {
+        bail!("--live is only valid for export");
+    }
+    if a.command == Command::Coverage && (a.source != Source::File || a.session.is_some()) {
+        bail!("coverage requires --file PATH and counts the whole recording (no --session)");
     }
     match (a.command, a.source) {
         (Command::Export, Source::File) => bail!("export reads from jetstream"),
@@ -256,10 +281,26 @@ async fn export(a: &Args) -> anyhow::Result<u8> {
     let (log, zone, epoch) = source(a).await?;
     let out = a.out.as_deref().context("export needs --out FILE")?;
     // Check completeness first so an incomplete epoch gets its own exit code.
-    if let Err(code) = open(log.as_ref(), zone, epoch).await {
-        return Ok(code);
+    let rec = if a.live {
+        Recording::export_live(log.as_ref(), zone, epoch).await?
+    } else {
+        if let Err(code) = open(log.as_ref(), zone, epoch).await {
+            return Ok(code);
+        }
+        Recording::export(log.as_ref(), zone, epoch).await?
+    };
+    if let Some(session) = a.session {
+        let present =
+            rec.snapshot.entities.iter().any(|e| {
+                e.id == session && e.kind == nightfall_api::domain::zone::EntityKind::Player
+            }) || rec
+                .records
+                .iter()
+                .any(|r| r.outputs.iter().any(|o| o.entity == session));
+        if !present {
+            bail!("session {session} has no output in zone {} epoch {epoch}", zone.0);
+        }
     }
-    let rec = Recording::export(log.as_ref(), zone, epoch).await?;
     rec.write(out)?;
     println!(
         "zone {} epoch {epoch}: {} records written to {}",
@@ -267,6 +308,21 @@ async fn export(a: &Args) -> anyhow::Result<u8> {
         rec.records.len(),
         out.display()
     );
+    Ok(MATCH)
+}
+
+async fn coverage(a: &Args) -> anyhow::Result<u8> {
+    let (log, zone, epoch) = source(a).await?;
+    let rec = Recording::export(log.as_ref(), zone, epoch).await?;
+    let report = coverage::collect(&rec)?;
+    let out = a
+        .out
+        .as_deref()
+        .unwrap_or_else(|| Path::new("coverage.transitions.json"));
+    std::fs::write(out, serde_json::to_vec_pretty(&report)?)
+        .with_context(|| format!("write {}", out.display()))?;
+    report.print();
+    println!("coverage written to {}", out.display());
     Ok(MATCH)
 }
 
@@ -282,6 +338,7 @@ async fn main() -> ExitCode {
     let result = match args.command {
         Command::Verify => verify(&args).await,
         Command::Export => export(&args).await,
+        Command::Coverage => coverage(&args).await,
     };
     match result {
         Ok(code) => ExitCode::from(code),

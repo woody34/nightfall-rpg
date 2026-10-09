@@ -382,6 +382,86 @@ if needed to observe all three seeded attack outcomes (bounded to 12 lives). It 
 to a temporary directory, changing only zone ID and XP reward 28→68 (X[2]), so one kill
 levels A and the subsequent 29-XP death loss delevels A; shipped balance data is unchanged.
 
+**Simulation scripts (Phase 1a E3.8/E3.9).** From the repository root, build once,
+then use these stable commands for each scenario. `SESSION_ENTITY` is the player's
+character/entity UUID (the failure bundle's own entity id), **not** the WebSocket audit
+connection UUID. The zone and epoch must be supplied; `--latest` can replace `--epoch`
+for an isolated stack. Export validates that the selected entity occurs in the capture,
+but retains every player's commands and outputs: filtering the zone would break replay.
+
+```bash
+cargo build -p nightfall-api --bin nightfall-replay
+REPLAY=target/debug/nightfall-replay
+"$REPLAY" export --zone "$ZONE_ID" --epoch "$EPOCH" --session "$SESSION_ENTITY" \
+  --live --out "$ARTIFACTS/session.nfr"   # reads NATS_URL; or pass --nats URL
+"$REPLAY" check --file "$ARTIFACTS/session.nfr" --out "$ARTIFACTS/divergence"
+"$REPLAY" coverage --file "$ARTIFACTS/session.nfr" \
+  --out "$ARTIFACTS/coverage.transitions.json"
+```
+
+`check` aliases `verify` (also the default command), with the exit codes above. `--file`
+implies `--source file`. Run the check without `--session` to compare all players.
+Use shell `set -e` or propagate its status so divergence fails the sim job. `--live` is
+export-only: it captures the finite durable prefix present when the log reader opens,
+checks contiguous ticks and zone/epoch identity, and writes a **local** watermark with
+`reason: "capture"`. It never writes a completion watermark to JetStream or stops the
+server. Wait for the scenario's final acknowledgement before capturing. Without `--live`,
+export still requires graceful epoch completion and exits 3 otherwise. A live capture
+proves only its recorded prefix, not that the scenario or epoch finished.
+
+**Transition coverage JSON, schema version 1.** Coverage prints a table including every
+pair (25 NPC pairs, 9 player pairs), reachable covered/total, never-seen pairs and pairs
+unreachable under the current rules. It writes JSON to `--out`, defaulting to
+`coverage.transitions.json` in the current directory. Zero coverage and replay divergence
+do not fail coverage; invalid input/usage or an unreadable/unwritable file exits 2.
+Verification remains the separate divergence gate. The fixed top-level shape is:
+
+```json
+{
+  "schema_version": 1,
+  "npc_intentions": [{"from": "Idle", "to": "Active", "reachable": true, "count": 0}],
+  "player_attack_states": [{"from": "idle", "to": "pending", "reachable": true, "count": 0}],
+  "life_incarnations": {"npc:1->2": 0, "player:1->2": 0},
+  "deaths": {"npc": 0, "player": 0},
+  "respawns": {"npc": 0, "player": 0},
+  "intent_rejected": {"OutOfBounds": 0}
+}
+```
+
+The example abbreviates the two pair arrays. Each contains the full Cartesian product
+in the state order `Idle, Active, Attack, ReturnHome, Dead` / `idle, pending, active`,
+including self-pairs (unreachable: unchanged state is not a transition). Counts are
+unsigned 64-bit integers. NPC reachability follows `domain/zone/state_ai.rs`: Idle→Active,
+Active→Idle, Idle/Active→Attack, Attack→ReturnHome, ReturnHome→Active,
+Idle/Active/Attack→Dead and Dead→Idle. No coverage threshold is imposed.
+
+NPC transitions and deaths/respawns count zone events once, not once per AOI observer.
+Incarnations are tracked per entity from the initial snapshot, including decayed NPC
+members, across despawn/respawn; first sightings establish a baseline, repeated spawn and
+respawn facts for the same life count once. The `life_incarnations` map aggregates observed
+changes as `<npc|player>:<old>-><new>`. Death and respawn maps always contain both kinds.
+`intent_rejected` counts each recorded disposition once, using the domain `RejectReason`
+variant name (for example `OutOfBounds`), not transport-only rejections missing from `.nfr`.
+These two variable-key maps contain observed keys only; absent keys mean zero.
+
+Player states describe the **server-observable request lifecycle**: idle = auto-attack off,
+pending = an Attack request awaiting its recorded disposition, active = accepted auto-attack
+(including chase, swing and cooldown). Idle→pending→active or idle→pending→idle is counted
+within the same tick; repeated Attack while active is a no-op. Successful movement,
+StopMove, StopAttack, target changes and despawn end active state; replayed end-of-tick
+combat state accounts for automatic termination on death/target loss. The initial snapshot
+is a baseline, not a transition. This is not a measurement of the client's local pending
+time or speculative UI transitions; those require client contract coverage.
+
+Coverage replays commands to recover attack state. Encoded records supply the recorded
+zone facts even if verification would diverge; digest-only records supply replayed facts
+because the originals cannot be recovered from SHA-256. Run `check` first before treating
+such coverage as evidence. Schema 1 describes this interpretation; incompatible semantics,
+state names or field types require a version bump. Sim mergers must require equal schema
+versions and pair metadata, sum counts by `(from,to)` and map key, and recompute covered/total
+from the merged counts (never sum covered/total). Coverage always covers the whole recording;
+`--session` is rejected to avoid silently reporting a partial zone.
+
 ### 2.6 Sessions and zones
 
 [Device login → zone admission](../diagrams/login-zone-sequence.html) follows the access
