@@ -816,3 +816,169 @@ async fn kill_xp_is_owner_only_and_reads_back_from_the_zone() {
     let msgs = wa.until(|m| stats(m).is_some()).await;
     assert_eq!(stats(msgs.last().unwrap()).unwrap().xp, 28);
 }
+
+#[tokio::test]
+async fn checkpoint_kill_disconnect_reconnect_and_generation_replacement_preserve_level() {
+    use nightfall_api::application::CharacterRepository as _;
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    let repo = std::sync::Arc::new(
+        nightfall_api::infrastructure::postgres::PgCharacterRepository::new(pool),
+    );
+    let (zone, npc) = keltir_zone(11, Some(1), None);
+    let mut snapshot = zone.snapshot();
+    if let nightfall_api::domain::zone::CombatRole::Npc { xp_reward, .. } = &mut snapshot
+        .entities
+        .iter_mut()
+        .find(|e| e.id == npc)
+        .unwrap()
+        .combat
+        .as_mut()
+        .unwrap()
+        .role
+    {
+        *xp_reward = 400;
+    }
+    let zone = ZoneState::from_snapshot(snapshot).unwrap();
+    let delayed = std::sync::Arc::new(DelayedCheckpoint {
+        inner: repo.clone(),
+        entered: tokio::sync::Notify::new(),
+        release: tokio::sync::Notify::new(),
+        first: std::sync::atomic::AtomicBool::new(true),
+    });
+    let injected = delayed.clone();
+    let app = TestApp::spawn_with_zone(move |deps| deps.characters = injected, zone).await;
+    let p = seed_player(&app, "Saver", 10.0, 10.0);
+    let c = app.characters.get_for_test(p.character).unwrap();
+    repo.create_idempotent(
+        &nightfall_api::application::IdempotencyKey::from_uuid(Uuid::now_v7()),
+        "create",
+        &c,
+    )
+    .await
+    .unwrap();
+    let mut old = enter(&app, &p).await;
+    old.send(&target(1, npc)).await;
+    old.send(&attack(2)).await;
+    tokio::time::timeout(WAIT, delayed.entered.notified())
+        .await
+        .unwrap();
+    // New admission is held behind the old generation's in-flight checkpoint.
+    let mut replacement = join(&app, &p).await;
+    assert!(replacement.recv(Duration::from_millis(100)).await.is_none());
+    delayed.release.notify_one();
+    replacement
+        .until(|m| stats(m).is_some_and(|s| s.level == 3))
+        .await;
+    assert_eq!(
+        repo.load_for_admission(p.character)
+            .await
+            .unwrap()
+            .unwrap()
+            .level,
+        3
+    );
+    // Replacement flushes the prior generation first, and preserves the live entity.
+    assert_eq!(old.closed(WAIT).await, Some(4409));
+    replacement.socket.send(Message::Close(None)).await.unwrap();
+    tokio::time::timeout(WAIT, async {
+        loop {
+            if !app
+                .zone
+                .snapshot()
+                .await
+                .unwrap()
+                .entities
+                .iter()
+                .any(|e| e.id.as_uuid() == p.character.as_uuid())
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let mut rejoined = join(&app, &p).await;
+    let messages = rejoined.until(|m| stats(m).is_some()).await;
+    let persisted = stats(messages.last().unwrap()).unwrap();
+    assert_eq!((persisted.level, persisted.xp), (3, 400));
+    let revision = repo
+        .load_for_admission(p.character)
+        .await
+        .unwrap()
+        .unwrap()
+        .revision;
+    // A late command from the replaced generation cannot remove or save over the new one.
+    app.zone
+        .send(ZoneInput {
+            source: nightfall_api::domain::zone::CommandSource::Session {
+                entity: EntityId::from_uuid(p.character.as_uuid()),
+                generation: SessionGeneration(1),
+            },
+            seq: None,
+            command: ZoneCommand::Despawn {
+                entity: EntityId::from_uuid(p.character.as_uuid()),
+            },
+        })
+        .unwrap();
+    rejoined.send(&stop_move(1)).await;
+    rejoined.until(|m| ack(m).is_some_and(|a| a.seq == 1)).await;
+    let after = repo.load_for_admission(p.character).await.unwrap().unwrap();
+    assert_eq!((after.level, after.xp), (3, 400));
+    assert!(after.revision >= revision);
+}
+
+struct DelayedCheckpoint {
+    inner: std::sync::Arc<dyn nightfall_api::application::CharacterRepository>,
+    first: std::sync::atomic::AtomicBool,
+    entered: tokio::sync::Notify,
+    release: tokio::sync::Notify,
+}
+#[async_trait::async_trait]
+impl nightfall_api::application::CharacterRepository for DelayedCheckpoint {
+    async fn get(
+        &self,
+        id: nightfall_api::domain::CharacterId,
+    ) -> anyhow::Result<Option<nightfall_api::domain::Character>> {
+        self.inner.get(id).await
+    }
+    async fn list_by_account(
+        &self,
+        id: nightfall_api::domain::AccountId,
+    ) -> anyhow::Result<Vec<nightfall_api::domain::Character>> {
+        self.inner.list_by_account(id).await
+    }
+    async fn create_idempotent(
+        &self,
+        k: &nightfall_api::application::IdempotencyKey,
+        f: &str,
+        c: &nightfall_api::domain::Character,
+    ) -> Result<
+        nightfall_api::application::CreateOutcome,
+        nightfall_api::application::ports::RepositoryError,
+    > {
+        self.inner.create_idempotent(k, f, c).await
+    }
+    async fn load_for_admission(
+        &self,
+        id: nightfall_api::domain::CharacterId,
+    ) -> anyhow::Result<Option<nightfall_api::application::ProgressionState>> {
+        self.inner.load_for_admission(id).await
+    }
+    async fn checkpoint(
+        &self,
+        cp: &nightfall_api::application::CharacterCheckpoint,
+        events: &[nightfall_api::domain::DomainEvent],
+    ) -> Result<
+        nightfall_api::application::CheckpointOutcome,
+        nightfall_api::application::CheckpointError,
+    > {
+        if self.first.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            self.entered.notify_one();
+            self.release.notified().await;
+        }
+        self.inner.checkpoint(cp, events).await
+    }
+}

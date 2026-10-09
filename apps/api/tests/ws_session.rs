@@ -448,14 +448,14 @@ async fn the_audit_log_holds_exactly_what_the_client_sent_and_received() {
         .iter()
         .filter_map(|f| match f {
             AuditedFrame::In { seq, frame } => Some((*seq, frame.to_vec())),
-            AuditedFrame::Out { .. } => None,
+            AuditedFrame::Out { .. } | AuditedFrame::Checkpoint(_) => None,
         })
         .collect();
     let outs: Vec<Vec<u8>> = frames
         .iter()
         .filter_map(|f| match f {
             AuditedFrame::Out { frame } => Some(frame.to_vec()),
-            AuditedFrame::In { .. } => None,
+            AuditedFrame::In { .. } | AuditedFrame::Checkpoint(_) => None,
         })
         .collect();
     let expected_in: Vec<(Option<u32>, Vec<u8>)> = vec![

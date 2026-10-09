@@ -25,7 +25,7 @@
 //! from the state, `server_time_ms` from the zone's time origin. The one clock read is a
 //! monotonic `Instant` around the tick body that feeds [`TickStats::duration_micros`] only.
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -263,6 +263,8 @@ struct Queued {
 /// Cheap, cloneable access to a running zone.
 #[derive(Debug, Clone)]
 pub struct ZoneHandle {
+    /// Serial persistence lane, installed before admitting sockets.
+    pub checkpoints: super::checkpoint::CheckpointLane,
     commands: mpsc::Sender<Queued>,
     snapshots: mpsc::Sender<oneshot::Sender<ZoneSnapshot>>,
     ticks: broadcast::Sender<Arc<AppliedTick>>,
@@ -342,6 +344,7 @@ impl ZoneHandle {
 
 /// The task that owns a zone. Construct with [`ZoneActor::spawn`].
 pub struct ZoneActor<T, G> {
+    checkpoints: super::checkpoint::CheckpointLane,
     state: ZoneState,
     ticks: T,
     gate: G,
@@ -388,7 +391,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
         let paused = gate.paused();
+        let checkpoints = super::checkpoint::CheckpointLane::default();
         let actor = Self {
+            checkpoints: checkpoints.clone(),
             state,
             ticks,
             gate,
@@ -405,6 +410,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         tokio::spawn(actor.run());
         ZoneHandle {
+            checkpoints,
             commands: cmd_tx,
             snapshots: snap_tx,
             ticks: out_tx,
@@ -457,7 +463,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         self.collect();
         let (record, applied) = match self.unrecorded.take() {
             Some(record) => (record, 0),
-            None => match self.run_next() {
+            None => match self.run_next().await {
                 Ok(ran) => ran,
                 Err((tick, e)) => {
                     // Unreachable by construction: the draft came from this state just above.
@@ -476,6 +482,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             self.publish_stats(tick, started, 0);
             return TickOutcome::Held(tick);
         }
+        if let Some(service) = self.checkpoints.service() {
+            service
+                .lock()
+                .await
+                .admitted(&record, &self.state.snapshot())
+                .await;
+        }
         if !record.is_idle() {
             // No subscribers is fine: nobody is connected yet.
             let _ = self.out.send(record);
@@ -491,7 +504,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     }
 
     /// Drafts and runs the next tick, consuming its inputs from `pending`.
-    fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
+    async fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
         let admitted = self.select_admitted();
         let inputs: Vec<ZoneInput> = admitted
             .iter()
@@ -518,6 +531,17 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             index = index.saturating_add(1);
             keep
         });
+        if let Some(service) = self.checkpoints.service() {
+            let mut service = service.lock().await;
+            for command in &draft.commands {
+                if let crate::domain::zone::ZoneCommand::Despawn { entity }
+                | crate::domain::zone::ZoneCommand::ReplaceSession { entity, .. } =
+                    command.command
+                {
+                    service.flush(entity).await;
+                }
+            }
+        }
         let record = self.state.run_tick(draft).map_err(|e| (tick, e))?;
         trace_applied(&record, &traces);
         Ok((Arc::new(record), applied))
@@ -541,13 +565,31 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     fn select_admitted(&self) -> Vec<usize> {
         let mut per_session: BTreeMap<EntityId, usize> = BTreeMap::new();
         let mut admitted = Vec::new();
+        let mut touched = BTreeSet::new();
+        let checkpoints = self.checkpoints.service().is_some();
         for (i, queued) in self.pending.iter().enumerate() {
+            // A preceding Respawn/Spawn/intent must reach an admitted boundary before the
+            // same player's final save. Otherwise Respawn + disconnect in one draft could
+            // remove the entity before its progression delta is emitted.
+            if checkpoints {
+                if let crate::domain::zone::ZoneCommand::Despawn { entity }
+                | crate::domain::zone::ZoneCommand::ReplaceSession { entity, .. } =
+                    queued.input.command
+                {
+                    if touched.contains(&entity) {
+                        break;
+                    }
+                }
+            }
             if let CommandSource::Session { entity, .. } = queued.input.source {
                 let used = per_session.entry(entity).or_default();
                 if *used >= SESSION_COMMANDS_PER_TICK {
                     continue;
                 }
                 *used = used.saturating_add(1);
+            }
+            if let Some(entity) = queued.input.command.entity() {
+                touched.insert(entity);
             }
             admitted.push(i);
         }

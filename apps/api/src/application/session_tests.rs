@@ -401,14 +401,14 @@ async fn audit_records_inbound_and_outbound_frames_in_order() {
         .iter()
         .filter_map(|f| match f {
             AuditedFrame::In { seq, frame } => Some((*seq, frame.clone())),
-            AuditedFrame::Out { .. } => None,
+            AuditedFrame::Out { .. } | AuditedFrame::Checkpoint(_) => None,
         })
         .collect();
     let outs: Vec<_> = audited
         .iter()
         .filter_map(|f| match f {
             AuditedFrame::Out { frame } => Some(frame.clone()),
-            AuditedFrame::In { .. } => None,
+            AuditedFrame::In { .. } | AuditedFrame::Checkpoint(_) => None,
         })
         .collect();
     assert_eq!(

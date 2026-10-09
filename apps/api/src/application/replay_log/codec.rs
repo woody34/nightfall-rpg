@@ -25,7 +25,7 @@
 //! message SpawnPlayer { bytes entity = 1; string name = 2; Vec2 pos = 3; uint32 speed = 4;
 //!                       uint64 generation = 5; PlayerLoad load = 6; }
 //! message PlayerLoad { string class = 1; uint32 level = 2; uint64 xp = 3; optional uint32 hp = 4;
-//!                      optional uint32 mp = 5; bool dead = 6; }
+//!                      optional uint32 mp = 5; bool dead = 6; optional uint64 checkpoint_revision = 7; }
 //! message SpawnNpc { string name = 1; Vec2 pos = 2; uint32 speed = 3; NpcCombat combat = 4; }
 //! message NpcCombat { string template = 1; Stats stats = 2; sint32 attack_range = 3;
 //!                     sint32 collision_radius = 4; uint64 xp_reward = 5; }
@@ -176,6 +176,8 @@ struct PbAddAggro {
 
 #[derive(Clone, PartialEq, Message)]
 struct PbPlayerLoad {
+    #[prost(uint64, optional, tag = "7")]
+    checkpoint_revision: Option<u64>,
     #[prost(string, tag = "1")]
     class: String,
     #[prost(uint32, tag = "2")]
@@ -668,6 +670,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             speed: speed.milli_tiles_per_tick(),
             generation: generation.0,
             load: load.as_ref().map(|l| PbPlayerLoad {
+                checkpoint_revision: l.checkpoint_revision,
                 class: l.class.clone(),
                 level: l.level,
                 xp: l.xp,
@@ -1390,6 +1393,7 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
             generation: SessionGeneration(s.generation),
             load: s.load.map(|l| {
                 Box::new(PlayerLoad {
+                    checkpoint_revision: l.checkpoint_revision,
                     class: l.class,
                     level: l.level,
                     xp: l.xp,

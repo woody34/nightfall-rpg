@@ -54,6 +54,7 @@ fn checkpoint(c: &Character, revision_seen: u64, k: &str) -> CharacterCheckpoint
 
 fn leveled(c: &Character, level: u32) -> DomainEvent {
     DomainEvent::CharacterLeveled {
+        metadata: nightfall_api::domain::EventMetadata::default(),
         character_id: c.id,
         level,
     }
@@ -115,6 +116,10 @@ async fn checkpoint_round_trips_and_stages_events() {
     dead.alive = false;
     dead.hp = 0;
     let died = DomainEvent::CharacterDied {
+        metadata: nightfall_api::domain::EventMetadata::default(),
+        level: 1,
+        xp: 0,
+        xp_lost: 0,
         character_id: c.id,
         killer: "npc:1".to_owned(),
     };

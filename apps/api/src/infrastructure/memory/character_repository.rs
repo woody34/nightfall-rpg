@@ -29,6 +29,7 @@ impl State {
         self.progression.insert(
             c.id,
             ProgressionState {
+                position: c.position,
                 level: c.level,
                 xp: 0,
                 hp: None,
@@ -179,6 +180,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
             .checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("revision overflow"))?;
         if let Some(p) = s.progression.get_mut(&checkpoint.character_id) {
+            p.position = checkpoint.position;
             p.level = checkpoint.level;
             p.xp = checkpoint.xp;
             p.hp = Some(checkpoint.hp);
@@ -238,6 +240,7 @@ mod tests {
         assert_eq!(p.class_profile, "dwarven_fighter");
 
         let ev = [DomainEvent::CharacterLeveled {
+            metadata: crate::domain::EventMetadata::default(),
             character_id: c.id,
             level: 2,
         }];

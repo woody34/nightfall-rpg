@@ -35,14 +35,9 @@ async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
     let (mut deps, relay, db) = build_dependencies(&cfg, metrics.clone(), &shutdown).await?;
     deps.metrics = metrics.clone();
     // A new zone epoch every start (plan §8 #5); closed with a watermark on the way out.
-    let zone = zone_runtime::start(
-        &ZoneRuntimeConfig::from_env(),
-        cfg.nats_url.as_deref(),
-        db,
-        deps.clock.clone(),
-        metrics.clone(),
-    )
-    .await?;
+    let zone =
+        zone_runtime::start(&ZoneRuntimeConfig::from_env(), cfg.nats_url.as_deref(), db, &deps)
+            .await?;
     let services = build_grpc_services(&deps);
 
     let zones = ZoneRegistry::from_handle(zone.handle().clone());
@@ -168,6 +163,11 @@ async fn build_dependencies(
         let bus = infrastructure::nats::NatsEventBus::connect(url).await?;
         let client = bus.client().clone();
         deps.bus = Arc::new(bus);
+        deps.audit = Arc::new(infrastructure::eventlog::CheckpointAudit::spawn(
+            client.clone(),
+            deps.audit.clone(),
+            Arc::new(metrics.clone()),
+        ));
         if let Some(db) = db.clone() {
             // The relay is the only publisher of domain events: acknowledged JetStream publish,
             // deduplicated by outbox row id.

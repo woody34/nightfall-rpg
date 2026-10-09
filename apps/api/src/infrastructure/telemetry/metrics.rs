@@ -257,7 +257,6 @@ impl Metrics {
     }
 
     /// E4.2 hook: age of the oldest pending checkpoint across workers; zero when drained.
-    /// TODO(E4.2): the checkpoint worker is not wired yet; update on each worker cycle.
     pub fn set_checkpoint_lag(&self, lag: Duration) {
         self.checkpoint_lag_seconds.record(lag.as_secs_f64(), &[]);
     }

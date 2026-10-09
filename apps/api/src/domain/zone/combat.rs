@@ -177,6 +177,9 @@ pub struct CombatView {
 /// repository (plan D5). HP/MP `None` means full (a character never saved in combat).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerLoad {
+    /// Repository fence recorded at admission; absent in simulation-only fixtures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkpoint_revision: Option<u64>,
     /// Class data id; resolved against the zone's injected rules.
     pub class: String,
     /// Saved level; must equal the level of `xp`.
@@ -201,6 +204,7 @@ impl PlayerLoad {
     #[must_use]
     pub fn fresh(class: impl Into<String>) -> Self {
         Self {
+            checkpoint_revision: None,
             class: class.into(),
             level: 1,
             xp: 0,

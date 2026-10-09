@@ -139,9 +139,15 @@ pub fn start_realtime(
 ) -> Realtime {
     let zone = zones.fixture().clone();
     tokio::spawn(record_tick_stats(zone.stats(), deps.metrics.clone()));
+    zone.checkpoints
+        .install(application::checkpoint::CheckpointService::new(
+            deps.characters.clone(),
+            deps.audit.clone(),
+            Arc::new(deps.metrics.clone()),
+        ));
     let sessions = Arc::new(SessionContext {
         zone,
-        registry: SessionRegistry::default(),
+        registry: SessionRegistry::with_characters(deps.characters.clone()),
         audit: deps.audit.clone(),
         metrics: Arc::new(deps.metrics.clone()),
         codec: Arc::new(ProstCodec),

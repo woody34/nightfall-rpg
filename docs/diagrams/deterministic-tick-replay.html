@@ -199,16 +199,45 @@
 
       </svg>
     </div>
+    <div class="diagram-container" style="margin-top:24px">
+      <svg viewBox="0 0 728 168" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="checkpoint-lane-title checkpoint-lane-desc">
+        <title id="checkpoint-lane-title">Checkpoint lane after durable admission</title>
+        <desc id="checkpoint-lane-desc">Admitted ticks produce revision-fenced checkpoint transactions and outbox facts, then the relay publishes; startup recovers pending saves from the validated durable prefix.</desc>
+        <defs><marker id="checkpoint-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker></defs>
+        <rect width="728" height="168" fill="#f5f5f5"/>
+        <line x1="0" y1="20" x2="728" y2="20" stroke="#bfc0c0"/>
+        <line x1="140" y1="20" x2="140" y2="108" stroke="#bfc0c0"/>
+        <text x="70" y="68" text-anchor="middle" font-family="'Geist Mono',monospace" font-size="8" fill="#4f5d75">CHECKPOINT</text>
+        <line x1="300" y1="64" x2="340" y2="64" stroke="#4f5d75" marker-end="url(#checkpoint-arrow)"/>
+        <line x1="492" y1="64" x2="532" y2="64" stroke="#4f5d75" stroke-dasharray="5,4" marker-end="url(#checkpoint-arrow)"/>
+        <rect x="148" y="32" width="152" height="64" rx="6" fill="#fff" stroke="#4f5d75"/>
+        <text x="224" y="54" text-anchor="middle" font-family="'Geist',sans-serif" font-size="12" font-weight="600" fill="#2d3142">Admitted tick</text>
+        <text x="224" y="72" text-anchor="middle" font-family="'Geist Mono',monospace" font-size="9" fill="#4f5d75">50 ticks · death · level</text>
+        <text x="224" y="86" text-anchor="middle" font-family="'Geist Mono',monospace" font-size="9" fill="#4f5d75">save before Despawn</text>
+        <rect x="340" y="32" width="152" height="64" rx="6" fill="#fff" stroke="#eb6c36"/>
+        <text x="416" y="54" text-anchor="middle" font-family="'Geist',sans-serif" font-size="12" font-weight="600" fill="#2d3142">Checkpoint + outbox</text>
+        <text x="416" y="72" text-anchor="middle" font-family="'Geist Mono',monospace" font-size="9" fill="#4f5d75">revision fence · retry key</text>
+        <text x="416" y="86" text-anchor="middle" font-family="'Geist Mono',monospace" font-size="9" fill="#4f5d75">commit then audit ack</text>
+        <rect x="532" y="32" width="168" height="64" rx="6" fill="#fff" stroke="#4f5d75"/>
+        <text x="616" y="54" text-anchor="middle" font-family="'Geist',sans-serif" font-size="12" font-weight="600" fill="#2d3142">Existing relay</text>
+        <text x="616" y="72" text-anchor="middle" font-family="'Geist Mono',monospace" font-size="9" fill="#4f5d75">character.leveled / .died</text>
+        <text x="616" y="86" text-anchor="middle" font-family="'Geist Mono',monospace" font-size="9" fill="#4f5d75">stable IDs · ordered facts</text>
+        <line x1="0" y1="108" x2="728" y2="108" stroke="#bfc0c0"/>
+        <text x="148" y="128" font-family="'Geist Mono',monospace" font-size="9" fill="#4f5d75">RECOVERY   durable prefix / identical save requests / admission</text>
+        <text x="148" y="150" font-family="'Geist Mono',monospace" font-size="9" fill="#4f5d75">Solid: awaited save   Dashed: async relay   Coral: atomic transaction</text>
+      </svg>
+    </div>
     <div class="notes">
 <p>
-<code>AppliedTickDraft → ZoneState::run_tick → AppliedTick → DurableTickGate::admit</code>. Every 100 ms, inputs are drafted in receive order, with at most 8 per session; excess waits. The gate appends <code>AppliedTickRecord</code> and awaits the JetStream ack. Only then does the actor broadcast non-idle ticks; sessions encode their player’s ordered outputs and the writer sends them to sockets. Idle ticks are still logged; applied records are never sampled.</p>
+<code>AppliedTickDraft → ZoneState::run_tick → AppliedTick → DurableTickGate::admit</code>. Every 100 ms, inputs are drafted in receive order, with at most 8 per session; excess waits. The gate appends <code>AppliedTickRecord</code> and awaits the JetStream ack. The checkpoint lane consumes the admitted batch before the actor broadcasts non-idle ticks; sessions encode their player’s ordered outputs and the writer sends them to sockets. Idle ticks are still logged; applied records are never sampled.</p>
 <p>Append failure holds the same record: no broadcast, next draft or snapshot. Backoff is 10 ms–1 s; after 5 s the zone pauses and sessions reject intents with <code>OVERLOADED</code>. A successful ack resumes it.</p>
 <p>
 <strong>Shutdown:</strong> after the actor stops, write the completion watermark. If shutdown interrupts a stalled gate, the watermark names only acknowledged ticks. Without a watermark (crash, failure to stop, or failed write), the epoch is incomplete and replay refuses it.</p>
-<p><strong>Replay:</strong> <code>open_epoch</code> requires a snapshot and completion watermark, and checks contiguous records. <code>ZoneState::from_snapshot</code> restores state; <code>run_tick</code> re-runs recorded drafts. <code>AppliedTickRecord::reproduced_by</code> compares encodings, hashing outputs when the stored record uses <code>SHA256</code>. This is a library/test path, not an automatic restart recovery service.</p>
+<p><strong>Replay:</strong> <code>open_epoch</code> requires a snapshot and completion watermark, and checks contiguous records. <code>ZoneState::from_snapshot</code> restores state; <code>run_tick</code> re-runs recorded drafts. <code>AppliedTickRecord::reproduced_by</code> compares encodings, hashing outputs when the stored record uses <code>SHA256</code>. The verifier stays read-only. A separate startup checkpoint projection validates the durable prefix and recovers pending critical saves, including from incomplete epochs, before admission.</p>
 <p>
 <code>NF_ZONES: nightfall.zone.&lt;zone&gt;.&lt;epoch&gt;.{snapshot,applied,watermark}</code>. The Postgres <code>zone_snapshots</code> row indexes the epoch-start snapshot. Best-effort <code>NF_SESSIONS</code> audit frames are not replay inputs.</p>
-<p>Source: <a href="../../apps/api/src/application/zone_actor.rs">zone_actor.rs</a> · <a href="../../apps/api/src/application/replay_log/gate.rs">gate.rs</a> · <a href="../../apps/api/src/application/replay_log/epoch.rs">epoch.rs</a> · <a href="../../apps/api/tests/replay_log.rs">replay_log.rs</a>.</p>
+<p><strong>Persistence:</strong> saves retry unchanged with 100 ms–5 s backoff, holding the actor until acknowledged. Fresh admission loads committed state; final saves precede Despawn. Event IDs hash character, zone, epoch, tick and ordinal; the outbox transaction orders facts by revision and ordinal. Ordinary unsaved progress may roll back by five seconds.</p>
+<p>Source: <a href="../../apps/api/src/application/checkpoint.rs">checkpoint.rs</a> · <a href="../../apps/api/src/application/zone_actor.rs">zone_actor.rs</a> · <a href="../../apps/api/src/application/replay_log/gate.rs">gate.rs</a> · <a href="../../apps/api/src/application/replay_log/epoch.rs">epoch.rs</a> · <a href="../../apps/api/tests/replay_log.rs">replay_log.rs</a>.</p>
 </div>
   </div>
 </body>

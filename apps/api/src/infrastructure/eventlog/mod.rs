@@ -10,7 +10,9 @@
 //! | `nightfall.zone.<zone>.<epoch>.watermark` | `NF_ZONES` | JSON `Watermark` |
 //! | `nightfall.session.<session>.in` / `.out` | `NF_SESSIONS` | protobuf audit frames |
 
+mod checkpoint_audit;
 mod jetstream;
+pub use checkpoint_audit::CheckpointAudit;
 mod memory;
 mod metrics;
 mod recording;

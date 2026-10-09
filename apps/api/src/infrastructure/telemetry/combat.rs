@@ -167,3 +167,12 @@ impl TickTelemetry for CombatConsumer {
 #[cfg(test)]
 #[path = "combat_tests.rs"]
 mod tests;
+
+impl crate::application::checkpoint::CheckpointMetrics for Metrics {
+    fn failed(&self) {
+        self.record_checkpoint_failure();
+    }
+    fn lag(&self, age: Duration) {
+        self.set_checkpoint_lag(age);
+    }
+}

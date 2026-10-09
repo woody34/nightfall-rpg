@@ -279,3 +279,133 @@ async fn gauges_track_a_stalled_relay_even_while_publishes_fail_then_reset_when_
     wait_for_gauge(&metrics, "nightfall_outbox_lag_seconds", |v| v == 0.0).await;
     stop(relay, token).await;
 }
+
+#[tokio::test]
+async fn progression_failed_commit_publishes_nothing_and_committed_retry_is_broker_deduped() {
+    use nightfall_api::application::checkpoint::domain_events;
+    use nightfall_api::application::{CharacterCheckpoint, CharacterRepository, IdempotencyKey};
+    use nightfall_api::domain::zone::{
+        DeathFact, EntityId, ProgressionDelta, Tick, Vec2Fixed, ZoneId,
+    };
+    use nightfall_api::domain::{AccountId, Character, CharacterName, Position, Race};
+    use nightfall_api::infrastructure::postgres::PgCharacterRepository;
+    let Some((pool, db)) = migrated().await else {
+        return;
+    };
+    let Ok(url) = std::env::var("NATS_URL") else {
+        return;
+    };
+    let client = async_nats::connect(url).await.unwrap();
+    let publisher = Arc::new(JetStreamPublisher::connect(client.clone()).await.unwrap());
+    let repo = PgCharacterRepository::new(db.clone());
+    let c = Character::create(
+        AccountId::from_uuid(Uuid::now_v7()),
+        CharacterName::new("Relayer").unwrap(),
+        Race::Human,
+    );
+    repo.create_idempotent(&IdempotencyKey::from_uuid(Uuid::now_v7()), "create", &c)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE outbox SET published_at = now()")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let delta = ProgressionDelta {
+        tick: Tick(9),
+        entity: EntityId::from_uuid(c.id.as_uuid()),
+        level_before: 1,
+        xp_before: 60,
+        level: 2,
+        xp: 340,
+        hp: 0,
+        mp: 12,
+        alive: false,
+        pos: Vec2Fixed::from_tiles(1, 2),
+        xp_gained: 330,
+        levels_gained: vec![2, 3],
+        died: Some(DeathFact {
+            killer: None,
+            killer_template: Some("keltir".into()),
+            xp_lost: 50,
+        }),
+        respawned: false,
+    };
+    let events = domain_events(ZoneId(1), 2, 1, &delta);
+    let cp = CharacterCheckpoint {
+        character_id: c.id,
+        revision_seen: 0,
+        level: 2,
+        xp: 340,
+        hp: 0,
+        mp: 12,
+        alive: false,
+        position: Position { x: 1.0, y: 2.0 },
+        idempotency: ("save_checkpoint".into(), IdempotencyKey::from_uuid(Uuid::now_v7())),
+    };
+    sqlx::query("ALTER TABLE outbox ADD CONSTRAINT reject_checkpoint CHECK (false) NOT VALID")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(repo.checkpoint(&cp, &events).await.is_err());
+    assert_eq!(pending(&pool).await, 0);
+    assert_eq!(
+        repo.load_for_admission(c.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .revision,
+        0
+    );
+    sqlx::query("ALTER TABLE outbox DROP CONSTRAINT reject_checkpoint")
+        .execute(&pool)
+        .await
+        .unwrap();
+    // Independent test schemas share a broker: use globally distinct row ids in this fixture.
+    let base = i64::try_from(Uuid::now_v7().as_u128() >> 80).unwrap();
+    sqlx::query("SELECT setval(pg_get_serial_sequence('outbox', 'id'), $1)")
+        .bind(base)
+        .execute(&pool)
+        .await
+        .unwrap();
+    repo.checkpoint(&cp, &events).await.unwrap();
+    let rows: Vec<(i64, String, serde_json::Value)> = sqlx::query_as(
+        "SELECT id,subject,payload FROM outbox WHERE published_at IS NULL ORDER BY id",
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(rows.len(), 3);
+    let stream = async_nats::jetstream::new(client)
+        .get_stream("NF_EVENTS")
+        .await
+        .unwrap();
+    let before = progression_count(&stream).await;
+    // Crash after each broker ack, before any database publish mark.
+    for (id, subject, payload) in &rows {
+        publisher
+            .publish(subject, *id, Bytes::from(serde_json::to_vec(payload).unwrap()))
+            .await
+            .unwrap();
+    }
+    let stop_token = CancellationToken::new();
+    let relay = OutboxRelay::spawn(db, publisher, &Metrics::detached(), stop_token.clone());
+    wait_until_drained(&pool).await;
+    stop(relay, stop_token).await;
+    assert_eq!(progression_count(&stream).await, before + 3);
+    assert_eq!(
+        repo.checkpoint(&cp, &events).await.unwrap(),
+        nightfall_api::application::CheckpointOutcome::Replayed(1)
+    );
+    assert_eq!(pending(&pool).await, 0);
+}
+
+async fn progression_count(stream: &async_nats::jetstream::stream::Stream) -> usize {
+    let mut count = 0_usize;
+    for subject in ["nightfall.character.leveled", "nightfall.character.died"] {
+        let mut info = stream.info_with_subjects(subject).await.unwrap();
+        while let Some(row) = info.next().await {
+            count = count.checked_add(row.unwrap().1).unwrap();
+        }
+    }
+    count
+}
