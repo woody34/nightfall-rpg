@@ -11,6 +11,7 @@ mod m20261007_000002_accounts;
 mod m20261007_000003_play_tickets;
 mod m20261007_000004_zone_snapshots;
 mod m20261008_000005_character_progression;
+mod m20261009_000006_zone_epochs;
 
 /// All migrations in application order.
 #[derive(Debug, Clone, Copy)]
@@ -25,6 +26,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261007_000003_play_tickets::Migration),
             Box::new(m20261007_000004_zone_snapshots::Migration),
             Box::new(m20261008_000005_character_progression::Migration),
+            Box::new(m20261009_000006_zone_epochs::Migration),
         ]
     }
 }

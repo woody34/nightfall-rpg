@@ -173,7 +173,8 @@ and by **0** for all nine unmodified profiles at all 85 levels.
 ### 3.3 Progression and persistence boundary
 
 One kill grants the template's full XP once to the eligible live player landing the killing blow;
-this slice's allocation policy is explicit, with no party or shared reward system. Process multiple
+cancelled or unvalidated same-tick swings receive no credit, regardless of prior damage.
+There is no party or shared reward system. Process multiple
 thresholds in order, emitting LevelUp per gained level and final StatsChanged. Recalculate stats on
 level loss too (StatsChanged carries old/new level); keep current HP/MP, clamped to new maxima.
 Death sets HP zero, cancels combat, charges XP loss once, and retains dead state through reconnect.
@@ -222,7 +223,7 @@ No endpoint means W is inapplicable, not an excuse to omit its domain/adapter/UE
 | ✅ 2.3 Auto-attack and damage | Target/enable/disable/chase, integer impact/ready deadlines, range recheck at impact, miss/crit/spread, damage and cycle events for player and NPC | Opus high | U+W: §3.1 vectors, repeat Attack without extra swing, cancellation, target replacement, moving out of reach, simultaneous lethal impacts and seeded hit/crit boundaries pass; client cannot supply damage |
 | ✅ 2.4 Death and player respawn | One-shot death consequences, HP zero, cycle cancellation, H5 XP loss/delevel, dead-state admission, safe-point Respawn and protection | Opus high | U+W: duplicate lethal/respawn attempts cannot charge twice or revive living actors; dead movement/attack rejected; 65% HP/0 MP/protection expiry and early Attack cancellation tested; reconnect preserves death |
 | ✅ 2.5 Aggro and hate core | Ordered hate/damage ledger, H5 damage hate/cap, target eligibility, retain-current/ID ties, forget on death/despawn; expose deterministic aggression commands/events to E3 | Opus high | U: arithmetic/cap/tie vectors, two attackers, disconnect/death cleanup and identical-command/seed properties pass; rejected attacks add no hate |
-| ✅ 2.6 XP and level transition | Exactly-once kill credit, H5 threshold search/cap, LevelUp/XpGained/StatsChanged, HP/MP clamp on recalc, checkpoint facts | Sonnet medium | U+W: XP 60→70→41 example, multi-level reward, capped XP, two same-tick killers and repeated death yield one reward; owner-only XP and read-after-write state asserted |
+| ✅ 2.6 XP and level transition | Exactly-once kill credit, H5 threshold search/cap, LevelUp/XpGained/StatsChanged, HP/MP clamp on recalc, checkpoint facts | Sonnet medium | U+W: XP 60→70→41 example, multi-level reward, capped XP, same-tick attackers credit only the landed killing blow; repeated death yields no second reward; owner-only XP and read-after-write state asserted |
 
 ### E3: NPC data and AI
 
@@ -255,9 +256,21 @@ No endpoint means W is inapplicable, not an excuse to omit its domain/adapter/UE
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
 | ✅ 6.1 Fight recording and CI | Extend the two-player recording scenario with target/chase, hit/miss/crit, social aggro/leash, NPC death/respawn, XP/level, player death/delevel/respawn and disconnect; write versioned `apps/api/fixtures/sessions/two-players-fight-v2.nfr`; update replay-check and codec fixtures | Codex high | Byte/digest replay passes from epoch and mid-fight snapshot; old movement coverage retained under explicit schema policy; changed coefficient, RNG draw, AI event or off-AOI state causes failure; gaps/incomplete watermark still refused |
-| ✅ 6.2 Combat telemetry | Add bounded-label combat event/hit/miss/crit/death/respawn/level counters, AI intention counts, combat tick duration, save lag/failures; consume admitted events only, update Grafana dashboard | Sonnet medium | Instrumentation tests count each durable event once, no entity/account IDs in metric labels, no replay publishing; load test stays within existing 200-session tick p99 <20 ms budget with defined monster count |
+| 6.2 (acceptance reopened) Combat telemetry | Add bounded-label combat event/hit/miss/crit/death/respawn/level counters, AI intention counts, combat tick duration, save lag/failures; consume admitted events only, update Grafana dashboard | Sonnet medium | Instrumentation tests count each durable event once, no entity/account IDs in metric labels, no replay publishing; load test stays within existing 200-session tick p99 <20 ms budget with defined monster count |
 | ✅ 6.3 Three diagrams | Use [diagram-design skill](/home/matt-woodruff/.claude/plugins/marketplaces/diagram-design/skills/diagram-design/SKILL.md) and [diagram README](../diagrams/README.md): `combat-sequence.html`, `npc-state-machine.html`, `stat-derivation-data-flow.html`; minimal-light/default, static inline SVG, fitted sequence/state and doc-inline data flow; link from README | agy medium | Docs-only validation: matching type/semantic/style/output references read, self_check and available geometry checker pass, rendered desktop/narrow/print inspected; diagrams match final code, include durable gate and data provenance |
 | 6.4 (in progress) Decision record and integration review | Write one short `docs/decisions/phase-1-combat.md` covering HF precedence, the resolved damage coefficient, 500000, fixed scales, AI/replay, asset choice/licence and limitations; update architecture/API/client/replay instructions and diagram links | Codex high | Link/schema checks and code-to-doc review pass; required U/W/A matrix, UE tests, fight replay and `moon ci` green; record all source errata and measured playtest/load results without claiming unrun checks |
+
+E6.2 acceptance is reopened after the post-merge review. `moon run api:perf-check` runs the
+ignored-by-default actor timing test in release mode and fails when p99 is not below 20 ms.
+This 200-player/200-monster OpenGate microbenchmark is only a regression budget. Acceptance
+still requires a passing release measurement with 200 socket sessions, defined monster count,
+JetStream admission and production checkpoint persistence. That measurement is being performed
+in a separate Codex session; the recorded 55 ms debug sample does not satisfy acceptance.
+
+Snapshot schema 5 adds persistence lanes; schema 4 remains readable for replay. Record schema 3
+and the existing `.nfr` fixtures are unchanged. Recovery uses the durable `zone_epochs` index,
+refreshed recovery snapshots at least daily (23-hour cadence) and on clean shutdown, and refuses
+admission when unresolved history is missing. See architecture §2.8 for fail-closed semantics.
 
 ## 5. Order and estimate
 

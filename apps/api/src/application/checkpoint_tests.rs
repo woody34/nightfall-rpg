@@ -386,3 +386,240 @@ async fn intent_then_disconnect_saves_the_last_admitted_position() {
     assert_eq!(saved.revision, 1);
     assert!(zone.snapshot().await.unwrap().entities.is_empty());
 }
+
+#[tokio::test]
+async fn mid_fight_actor_snapshot_restores_checkpoint_cadence_revision_and_pending_events() {
+    use crate::application::zone_actor::{manual_ticks, ZoneActor};
+    use crate::domain::zone::NpcCombat;
+    let mut h = Harness::new().await;
+    let def = crate::infrastructure::zone_data::parse_zone(
+        crate::infrastructure::zone_data::TEST_ZONE_TOML,
+    )
+    .unwrap();
+    let rules = rules_data::load_rules(&rules_data::RulesSource::embedded())
+        .unwrap()
+        .rules;
+    let npc = NpcCombat::from_template(&rules, &def.npc_templates[0]).unwrap();
+    let batch = h
+        .state
+        .run_tick(h.state.draft(vec![ZoneInput::system(ZoneCommand::SpawnNpc {
+            name: "Keltir".into(),
+            pos: Vec2Fixed::from_tiles(11, 10),
+            speed: Speed::DEFAULT,
+            combat: Some(Box::new(npc)),
+        })]))
+        .unwrap();
+    h.service.admitted(&batch, &h.state.snapshot()).await;
+    let target = h
+        .state
+        .snapshot()
+        .entities
+        .iter()
+        .find(|e| e.id != h.id)
+        .unwrap()
+        .id;
+    let batch = h
+        .state
+        .run_tick(h.state.draft(vec![
+            ZoneInput::system(ZoneCommand::SetTarget {
+                entity: h.id,
+                target: Some(target),
+            }),
+            ZoneInput::system(ZoneCommand::Attack { entity: h.id }),
+        ]))
+        .unwrap();
+    h.service.admitted(&batch, &h.state.snapshot()).await;
+    assert!(h
+        .state
+        .snapshot()
+        .entities
+        .iter()
+        .any(|e| e.combat.as_ref().is_some_and(|c| c.swing.is_some())));
+    // Pending facts normally flush immediately; explicitly retain one to test the full lane payload.
+    let pending = DomainEvent::CharacterLeveled {
+        character_id: h.id.as_uuid().into(),
+        level: 2,
+        metadata: EventMetadata {
+            event_id: Uuid::from_u128(19),
+            sequence: (1, 0),
+        },
+    };
+    h.service
+        .players
+        .get_mut(&h.id)
+        .unwrap()
+        .events
+        .push(pending.clone());
+    let (ticks, _driver) = manual_ticks();
+    let actor = ZoneActor::spawn(h.state, ticks);
+    actor.checkpoints.install(h.service);
+    let snapshot = actor.snapshot().await.unwrap();
+    assert!(snapshot.checkpoints[0].dirty);
+    let snapshot: ZoneSnapshot =
+        serde_json::from_slice(&serde_json::to_vec(&snapshot).unwrap()).unwrap();
+    let (ticks, driver) = manual_ticks();
+    let restored = ZoneActor::spawn(ZoneState::from_snapshot(snapshot.clone()).unwrap(), ticks);
+    restored.checkpoints.install(CheckpointService::new(
+        h.repo.clone(),
+        h.audit,
+        Arc::new(Metrics::detached()),
+    ));
+    assert_eq!(restored.snapshot().await.unwrap().checkpoints, snapshot.checkpoints);
+    // Continue combat, then force the same lifecycle save as a disconnect.
+    for _ in 0..5 {
+        driver.step().await.unwrap();
+    }
+    restored
+        .send(ZoneInput::system(ZoneCommand::Despawn { entity: h.id }))
+        .unwrap();
+    driver.step().await.unwrap();
+    let loaded = h
+        .repo
+        .load_for_admission(h.id.as_uuid().into())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(loaded.revision, 1);
+    assert_eq!(h.repo.staged_events(), vec![pending]);
+}
+
+#[tokio::test]
+async fn refreshed_baseline_preserves_replay_start_and_shutdown_closes_durable_index() {
+    use crate::application::replay_log::{EventLog, ZoneSnapshotStore};
+    use crate::infrastructure::eventlog::{InMemoryEventLog, InMemoryZoneSnapshotStore};
+    let mut h = Harness::new().await;
+    let log = Arc::new(InMemoryEventLog::default());
+    let store = Arc::new(InMemoryZoneSnapshotStore::default());
+    let initial = h.state.snapshot();
+    log.write_snapshot(&initial).await.unwrap();
+    h.service = h.service.with_durability(log.clone(), store.clone());
+    h.service.refreshed = Instant::now() - Duration::from_hours(24);
+    h.step().await;
+    let fresh = log
+        .read_recovery_snapshot(initial.seed.zone, initial.seed.epoch)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(fresh.snapshot.tick > initial.tick);
+    assert!(!fresh.snapshot.checkpoints.is_empty());
+    assert_eq!(
+        log.read_snapshot(initial.seed.zone, initial.seed.epoch)
+            .await
+            .unwrap()
+            .unwrap()
+            .snapshot
+            .tick,
+        initial.tick
+    );
+    assert_eq!(store.unresolved(initial.seed.zone).await.unwrap().len(), 1);
+    store
+        .set_first_seq(
+            initial.seed.zone,
+            initial.seed.epoch,
+            crate::application::replay_log::Seq(2),
+        )
+        .await
+        .unwrap();
+    h.service.shutdown(&h.state.snapshot()).await.unwrap();
+    let final_snapshot = log
+        .read_recovery_snapshot(initial.seed.zone, initial.seed.epoch)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        final_snapshot.seq > fresh.seq,
+        "a same-tick shutdown flush must not dedupe against the periodic snapshot"
+    );
+    assert!(!final_snapshot.snapshot.checkpoints[0].dirty);
+    assert_eq!(final_snapshot.snapshot.checkpoints[0].revision, 1);
+    let row = store
+        .get(initial.seed.zone, initial.seed.epoch)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        row.snapshot,
+        crate::application::replay_log::encode_snapshot(&final_snapshot.snapshot).unwrap()
+    );
+    assert_eq!(row.first_seq, Some(crate::application::replay_log::Seq(2)));
+    assert!(store
+        .unresolved(initial.seed.zone)
+        .await
+        .unwrap()
+        .is_empty());
+    assert_eq!(h.stored().await.revision, 1);
+}
+
+#[tokio::test]
+async fn restored_cadence_saves_on_the_original_fiftieth_tick() {
+    let mut h = Harness::new().await;
+    for _ in 0..49 {
+        h.step().await;
+    }
+    let mut snapshot = h.state.snapshot();
+    h.service.snapshot(&mut snapshot);
+    let mut service =
+        CheckpointService::new(h.repo.clone(), h.audit.clone(), Arc::new(Metrics::detached()));
+    service.restore(&snapshot);
+    h.service = service;
+    h.state = ZoneState::from_snapshot(snapshot).unwrap();
+    assert_eq!(h.stored().await.revision, 0);
+    h.step().await;
+    assert_eq!(h.stored().await.revision, 1);
+}
+
+#[tokio::test]
+async fn missing_tail_is_refused_even_when_a_fresh_baseline_survives() {
+    use crate::application::replay_log::ZoneSnapshotStore;
+    use crate::infrastructure::eventlog::{InMemoryEventLog, InMemoryZoneSnapshotStore};
+    let mut h = Harness::new().await;
+    let log = Arc::new(InMemoryEventLog::default());
+    let store = Arc::new(InMemoryZoneSnapshotStore::default());
+    let snapshot = h.state.snapshot();
+    h.service = h.service.with_durability(log.clone(), store.clone());
+    h.service.refresh(&snapshot).await.unwrap();
+    // The index remembers a final attempt, but its applied message is no longer retained.
+    store
+        .recording(snapshot.seed.zone, snapshot.seed.epoch, snapshot.tick)
+        .await
+        .unwrap();
+    let mut recovery = CheckpointService::new(h.repo, h.audit, Arc::new(Metrics::detached()));
+    let error = recovery
+        .recover_indexed(log.as_ref(), store.as_ref(), snapshot.seed.zone)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("ends before indexed tick"));
+    assert_eq!(store.unresolved(snapshot.seed.zone).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn recovery_commits_critical_facts_retained_in_a_baseline_without_later_records() {
+    use crate::infrastructure::eventlog::{InMemoryEventLog, InMemoryZoneSnapshotStore};
+    let mut h = Harness::new().await;
+    let event = DomainEvent::CharacterLeveled {
+        character_id: h.id.as_uuid().into(),
+        level: 2,
+        metadata: EventMetadata {
+            event_id: Uuid::from_u128(20),
+            sequence: (1, 0),
+        },
+    };
+    h.service
+        .players
+        .get_mut(&h.id)
+        .unwrap()
+        .events
+        .push(event.clone());
+    let log = Arc::new(InMemoryEventLog::default());
+    let store = Arc::new(InMemoryZoneSnapshotStore::default());
+    h.service = h.service.with_durability(log.clone(), store.clone());
+    h.service.refresh(&h.state.snapshot()).await.unwrap();
+    let mut recovery =
+        CheckpointService::new(h.repo.clone(), h.audit.clone(), Arc::new(Metrics::detached()));
+    recovery
+        .recover_indexed(log.as_ref(), store.as_ref(), h.state.seed().zone)
+        .await
+        .unwrap();
+    assert_eq!(h.stored().await.revision, 1);
+    assert_eq!(h.repo.staged_events(), vec![event]);
+}

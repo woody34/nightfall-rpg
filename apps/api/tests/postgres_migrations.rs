@@ -43,6 +43,7 @@ async fn fresh_install_creates_schema_and_is_rerunnable() {
         "play_tickets",
         "seaql_migrations",
         "zone_snapshots",
+        "zone_epochs",
     ] {
         assert!(tables.contains(&t.to_owned()), "missing {t}: {tables:?}");
     }

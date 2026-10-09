@@ -47,6 +47,8 @@ pub struct CheckpointService {
     players: BTreeMap<EntityId, Player>,
     sessions: BTreeMap<EntityId, SessionId>,
     last: Option<(u64, Tick)>,
+    durability: Option<(Arc<dyn EventLog>, Arc<dyn super::replay_log::ZoneSnapshotStore>)>,
+    refreshed: Instant,
 }
 
 impl CheckpointService {
@@ -63,7 +65,177 @@ impl CheckpointService {
             players: BTreeMap::new(),
             sessions: BTreeMap::new(),
             last: None,
+            durability: None,
+            refreshed: Instant::now(),
         }
+    }
+
+    /// Enables durable discovery and periodic recovery baselines in the production lane.
+    #[must_use]
+    pub fn with_durability(
+        mut self,
+        log: Arc<dyn EventLog>,
+        store: Arc<dyn super::replay_log::ZoneSnapshotStore>,
+    ) -> Self {
+        self.durability = Some((log, store));
+        self
+    }
+
+    /// Records intent before the log gate, so even a missing final record fails closed.
+    pub async fn recording(&self, zone: ZoneId, epoch: u64, tick: Tick) {
+        self.index_tick(zone, epoch, tick, false).await;
+    }
+
+    async fn index_tick(&self, zone: ZoneId, epoch: u64, tick: Tick, completed: bool) {
+        let Some((_, store)) = &self.durability else {
+            return;
+        };
+        loop {
+            let result = if completed {
+                store.checkpointed(zone, epoch, tick).await
+            } else {
+                store.recording(zone, epoch, tick).await
+            };
+            match result {
+                Ok(()) => return,
+                Err(error) => {
+                    self.metrics.failed();
+                    tracing::error!(zone = zone.0, epoch, error = %error, "epoch index update retained for retry");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                },
+            }
+        }
+    }
+
+    async fn refresh(&mut self, snapshot: &ZoneSnapshot) -> anyhow::Result<()> {
+        let Some((log, store)) = &self.durability else {
+            return Ok(());
+        };
+        let mut snapshot = snapshot.clone();
+        self.snapshot(&mut snapshot);
+        let seq = log.write_recovery_snapshot(&snapshot).await?;
+        store
+            .insert(&super::replay_log::ZoneSnapshotRow {
+                zone: snapshot.seed.zone,
+                epoch: snapshot.seed.epoch,
+                snapshot: super::replay_log::encode_snapshot(&snapshot)?,
+                snapshot_seq: seq,
+                first_seq: None,
+                time_origin_ms: snapshot.time_origin_ms,
+                build_id: snapshot.meta.build_id.clone(),
+                config_hash: snapshot.meta.config_hash.clone(),
+                schema_version: snapshot.meta.schema_version,
+            })
+            .await?;
+        self.refreshed = Instant::now();
+        Ok(())
+    }
+
+    /// Saves every remaining player and a fresh baseline before marking the epoch resolved.
+    pub async fn shutdown(&mut self, snapshot: &ZoneSnapshot) -> anyhow::Result<()> {
+        let players: Vec<_> = self.players.keys().copied().collect();
+        for entity in players {
+            self.flush(entity).await;
+        }
+        self.refresh(snapshot).await?;
+        if let Some((_, store)) = &self.durability {
+            store.close(snapshot.seed.zone, snapshot.seed.epoch).await?;
+        }
+        Ok(())
+    }
+
+    /// Recovers every unresolved durable-index epoch before a new zone can admit players.
+    /// Missing or noncontiguous history is an error even if stream discovery sees no epoch.
+    pub async fn recover_indexed(
+        &mut self,
+        log: &dyn EventLog,
+        store: &dyn super::replay_log::ZoneSnapshotStore,
+        zone: ZoneId,
+    ) -> anyhow::Result<()> {
+        for indexed in store.unresolved(zone).await? {
+            let result = self
+                .recover_through(log, zone, indexed.epoch, indexed.last_recorded_tick)
+                .await;
+            if let Err(error) = result {
+                tracing::error!(zone = zone.0, epoch = indexed.epoch, error = %error, "zone admission refused: unresolved checkpoint recovery history");
+                return Err(error);
+            }
+            if let Some(tick) = indexed.last_recorded_tick {
+                store.checkpointed(zone, indexed.epoch, tick).await?;
+            }
+            store.close(zone, indexed.epoch).await?;
+        }
+        Ok(())
+    }
+
+    /// Captures every lane at a boundary after all in-flight requests have completed.
+    pub fn snapshot(&self, snapshot: &mut ZoneSnapshot) {
+        snapshot.checkpoints = self
+            .players
+            .iter()
+            .map(|(entity, p)| crate::domain::zone::CheckpointSnapshot {
+                entity: *entity,
+                revision: p.revision,
+                last_saved: p.last_saved,
+                dirty: p.dirty,
+                fenced: p.fenced,
+                events: p.events.clone(),
+                latest: p.latest.as_ref().map(|cp| {
+                    crate::domain::zone::CheckpointRequestSnapshot {
+                        revision_seen: cp.revision_seen,
+                        level: cp.level,
+                        xp: cp.xp,
+                        hp: cp.hp,
+                        mp: cp.mp,
+                        alive: cp.alive,
+                        position_bits: [cp.position.x.to_bits(), cp.position.y.to_bits()],
+                        key: cp.idempotency.1.as_uuid(),
+                    }
+                }),
+            })
+            .collect();
+    }
+
+    /// Restores revision fences, cadence and pending facts before accepting another tick.
+    pub fn restore(&mut self, snapshot: &ZoneSnapshot) {
+        self.players = snapshot
+            .checkpoints
+            .iter()
+            .map(|p| {
+                (
+                    p.entity,
+                    Player {
+                        revision: p.revision,
+                        last_saved: p.last_saved,
+                        dirty: p.dirty,
+                        fenced: p.fenced,
+                        events: p.events.clone(),
+                        latest: p.latest.as_ref().map(|cp| CharacterCheckpoint {
+                            character_id: CharacterId::from_uuid(p.entity.as_uuid()),
+                            revision_seen: cp.revision_seen,
+                            level: cp.level,
+                            xp: cp.xp,
+                            hp: cp.hp,
+                            mp: cp.mp,
+                            alive: cp.alive,
+                            position: Position {
+                                x: f32::from_bits(cp.position_bits[0]),
+                                y: f32::from_bits(cp.position_bits[1]),
+                            },
+                            idempotency: (
+                                "save_checkpoint".to_owned(),
+                                IdempotencyKey::from_uuid(cp.key),
+                            ),
+                        }),
+                    },
+                )
+            })
+            .collect();
+        self.last = snapshot
+            .tick
+            .0
+            .checked_sub(1)
+            .map(|tick| (snapshot.seed.epoch, Tick(tick)));
     }
 
     /// Associates acknowledgements with the owning socket. Replacements share the same lane.
@@ -203,6 +375,20 @@ impl CheckpointService {
             present
         });
         self.last = Some((tick.epoch, tick.tick));
+        self.index_tick(snapshot.seed.zone, tick.epoch, tick.tick, true)
+            .await;
+        self.refresh_if_due(snapshot).await;
+    }
+
+    async fn refresh_if_due(&mut self, snapshot: &ZoneSnapshot) {
+        // 23 hours leaves an hour of margin beneath the 24-hour baseline requirement.
+        if self.refreshed.elapsed() >= Duration::from_hours(23) {
+            while let Err(error) = self.refresh(snapshot).await {
+                self.metrics.failed();
+                tracing::error!(error = %error, "recovery baseline refresh retained for retry");
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        }
     }
 
     /// Recovers only a durable, contiguous, validated prefix before the next epoch/admission.
@@ -213,14 +399,38 @@ impl CheckpointService {
         zone: ZoneId,
         epoch: u64,
     ) -> anyhow::Result<()> {
+        self.recover_through(log, zone, epoch, None).await
+    }
+
+    async fn recover_through(
+        &mut self,
+        log: &dyn EventLog,
+        zone: ZoneId,
+        epoch: u64,
+        required: Option<Tick>,
+    ) -> anyhow::Result<()> {
         let stored = log
-            .read_snapshot(zone, epoch)
+            .read_recovery_snapshot(zone, epoch)
             .await?
             .ok_or_else(|| anyhow::anyhow!("checkpoint recovery snapshot missing"))?;
+        anyhow::ensure!(
+            stored.snapshot.meta.schema_version >= 5
+                || stored
+                    .snapshot
+                    .entities
+                    .iter()
+                    .all(|e| e.kind != crate::domain::zone::EntityKind::Player),
+            "legacy mid-fight snapshot lacks checkpoint lanes"
+        );
+        self.restore(&stored.snapshot);
+        let first_tick = stored.snapshot.tick;
         let mut state = ZoneState::from_snapshot(stored.snapshot)?;
         let mut records = log.read_epoch(zone, epoch).await?;
         while let Some(record) = records.next().await {
             let record = record?;
+            if record.tick < first_tick {
+                continue;
+            }
             anyhow::ensure!(
                 record.zone == zone && record.epoch == epoch,
                 "checkpoint prefix crossed epochs"
@@ -244,6 +454,20 @@ impl CheckpointService {
                 }
             }
             self.admitted(&applied, &state.snapshot()).await;
+        }
+        anyhow::ensure!(
+            required.is_none_or(|tick| state.snapshot().tick > tick),
+            "checkpoint recovery history ends before indexed tick {required:?}"
+        );
+        // A baseline can itself carry pending critical facts, even without a later record.
+        let pending: Vec<_> = self
+            .players
+            .iter()
+            .filter(|(_, p)| !p.events.is_empty())
+            .map(|(id, _)| *id)
+            .collect();
+        for entity in pending {
+            self.flush(entity).await;
         }
         // Ordinary progress may roll back; critical facts have already been checkpointed.
         self.players.clear();
@@ -332,6 +556,8 @@ pub struct CheckpointAck {
 }
 
 fn position(pos: crate::domain::zone::Vec2Fixed) -> Position {
+    // i32 milli-tiles divided by 1000 fit the finite f32 range. Rounding to the
+    // persistence Position precision is intentional at this infrastructure boundary.
     #[allow(clippy::cast_possible_truncation)]
     let tiles = |raw: i32| (f64::from(raw) / f64::from(UNITS_PER_TILE)) as f32;
     Position {
@@ -401,6 +627,7 @@ pub fn domain_events(
 #[derive(Clone, Default)]
 pub struct CheckpointLane(
     Arc<parking_lot::RwLock<Option<Arc<tokio::sync::Mutex<CheckpointService>>>>>,
+    Option<Arc<ZoneSnapshot>>,
 );
 
 impl std::fmt::Debug for CheckpointLane {
@@ -410,8 +637,17 @@ impl std::fmt::Debug for CheckpointLane {
 }
 
 impl CheckpointLane {
+    pub(crate) fn with_snapshot(snapshot: ZoneSnapshot) -> Self {
+        Self(Arc::default(), Some(Arc::new(snapshot)))
+    }
+
     /// Installs exactly once; bootstrap may already have installed a recovered lane.
-    pub fn install(&self, service: CheckpointService) {
+    pub fn install(&self, mut service: CheckpointService) {
+        if let Some(snapshot) = &self.1 {
+            if !snapshot.checkpoints.is_empty() {
+                service.restore(snapshot);
+            }
+        }
         self.0
             .write()
             .get_or_insert_with(|| Arc::new(tokio::sync::Mutex::new(service)));

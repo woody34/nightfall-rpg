@@ -32,8 +32,8 @@ use crate::infrastructure::telemetry::Metrics;
 pub const ZONES_STREAM: &str = "NF_ZONES";
 /// Stream holding per-session audit frames.
 pub const SESSIONS_STREAM: &str = "NF_SESSIONS";
-/// How long the broker keeps both streams. An epoch's snapshot and log age out together
-/// (they share the stream), so an epoch is replayable for at least this long.
+/// Per-message retention in both streams. Initial snapshots can expire before later records;
+/// recovery uses refreshed baselines and the durable database epoch index.
 pub const RETENTION: Duration = Duration::from_hours(7 * 24);
 /// Room kept below `max_payload` for the headers of a record message (`Nats-Msg-Id` is under
 /// 100 bytes).
@@ -212,6 +212,29 @@ impl EventLog for JetStreamEventLog {
                 })
             })
             .transpose()
+    }
+
+    async fn write_recovery_snapshot(&self, snapshot: &ZoneSnapshot) -> anyhow::Result<Seq> {
+        let subject =
+            format!("nightfall.zone.{}.{}.recovery", snapshot.seed.zone.0, snapshot.seed.epoch);
+        let payload = encode_snapshot(snapshot)?;
+        let id = super::recovery_msg_id(&subject, snapshot.tick, &payload);
+        self.publish("snapshot", subject, Some(id), payload).await
+    }
+
+    async fn read_recovery_snapshot(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+    ) -> anyhow::Result<Option<StoredSnapshot>> {
+        let subject = format!("nightfall.zone.{}.{epoch}.recovery", zone.0);
+        if let Some((seq, bytes)) = self.last(&subject).await? {
+            return Ok(Some(StoredSnapshot {
+                seq,
+                snapshot: decode_snapshot(&bytes)?,
+            }));
+        }
+        self.read_snapshot(zone, epoch).await
     }
 
     async fn write_watermark(&self, watermark: &Watermark) -> anyhow::Result<Seq> {

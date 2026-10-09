@@ -73,6 +73,11 @@ impl InMemoryEventLog {
         }
     }
 
+    /// Deletes a retained message to simulate stream expiry in recovery tests.
+    pub fn delete_message(&self, seq: Seq) {
+        self.log.lock().messages.retain(|(s, _, _)| *s != seq);
+    }
+
     /// Every stored message's sequence and subject, in order. For ordering assertions.
     #[must_use]
     pub fn subjects(&self) -> Vec<(Seq, String)> {
@@ -153,6 +158,37 @@ impl EventLog for InMemoryEventLog {
             .transpose()
     }
 
+    async fn write_recovery_snapshot(&self, snapshot: &ZoneSnapshot) -> anyhow::Result<Seq> {
+        let subject =
+            format!("nightfall.zone.{}.{}.recovery", snapshot.seed.zone.0, snapshot.seed.epoch);
+        let payload = encode_snapshot(snapshot)?;
+        let id = super::recovery_msg_id(&subject, snapshot.tick, &payload);
+        Ok(self.log.lock().append(subject, Some(id), payload))
+    }
+
+    async fn read_recovery_snapshot(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+    ) -> anyhow::Result<Option<StoredSnapshot>> {
+        let subject = format!("nightfall.zone.{}.{epoch}.recovery", zone.0);
+        let stored = self
+            .log
+            .lock()
+            .last(&subject)
+            .map(|(seq, _, bytes)| {
+                Ok::<_, anyhow::Error>(StoredSnapshot {
+                    seq: *seq,
+                    snapshot: decode_snapshot(bytes)?,
+                })
+            })
+            .transpose()?;
+        match stored {
+            Some(stored) => Ok(Some(stored)),
+            None => self.read_snapshot(zone, epoch).await,
+        }
+    }
+
     async fn write_watermark(&self, watermark: &Watermark) -> anyhow::Result<Seq> {
         let subject = watermark_subject(watermark.zone, watermark.epoch);
         Ok(self
@@ -219,14 +255,58 @@ impl EventLog for InMemoryEventLog {
 #[derive(Default)]
 pub struct InMemoryZoneSnapshotStore {
     rows: Mutex<BTreeMap<(ZoneId, u64), ZoneSnapshotRow>>,
+    epochs: Mutex<BTreeMap<(ZoneId, u64), (Option<crate::domain::zone::Tick>, bool)>>,
 }
 
 #[async_trait]
 impl ZoneSnapshotStore for InMemoryZoneSnapshotStore {
+    async fn unresolved(
+        &self,
+        zone: ZoneId,
+    ) -> anyhow::Result<Vec<crate::application::replay_log::RecoveryEpoch>> {
+        Ok(self
+            .epochs
+            .lock()
+            .iter()
+            .filter(|((z, _), (_, closed))| *z == zone && !closed)
+            .map(|((_, epoch), (tick, _))| crate::application::replay_log::RecoveryEpoch {
+                epoch: *epoch,
+                last_recorded_tick: *tick,
+            })
+            .collect())
+    }
+    async fn recording(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        tick: crate::domain::zone::Tick,
+    ) -> anyhow::Result<()> {
+        self.epochs.lock().entry((zone, epoch)).or_default().0 = Some(tick);
+        Ok(())
+    }
+    async fn checkpointed(
+        &self,
+        _zone: ZoneId,
+        _epoch: u64,
+        _tick: crate::domain::zone::Tick,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn close(&self, zone: ZoneId, epoch: u64) -> anyhow::Result<()> {
+        self.epochs.lock().entry((zone, epoch)).or_default().1 = true;
+        Ok(())
+    }
+
     async fn insert(&self, row: &ZoneSnapshotRow) -> anyhow::Result<()> {
+        self.epochs.lock().entry((row.zone, row.epoch)).or_default();
         self.rows
             .lock()
             .entry((row.zone, row.epoch))
+            .and_modify(|stored| {
+                stored.snapshot.clone_from(&row.snapshot);
+                stored.snapshot_seq = row.snapshot_seq;
+                stored.schema_version = row.schema_version;
+            })
             .or_insert_with(|| row.clone());
         Ok(())
     }

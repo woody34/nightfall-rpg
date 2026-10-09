@@ -32,10 +32,11 @@ use super::stat_sheet::StatSheet;
 pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 
 /// Version of the [`ZoneSnapshot`] layout. Bump on any change to the snapshot or to the
-/// meaning of a field; `from_snapshot` refuses other versions. 2: combat state, hate
+/// meaning of a field; `from_snapshot` accepts 4 and 5. 2: combat state, hate
 /// ledgers and the stat rules (Phase 1 E2.2). 3: NPC AI blocks, spawn slots and the respawn
 /// scheduler (Phase 1 E3.2–E3.4). 4: safe point and the player's `alive` load flag (E2.4).
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 4;
+/// 5: application checkpoint lanes, excluded from the simulation digest.
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 5;
 
 /// Identity of a zone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -177,6 +178,9 @@ impl Default for SnapshotMeta {
 /// [`AppliedTick`]s, which replay (Story 3.3) relies on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ZoneSnapshot {
+    /// Persistence lanes, filled by the actor at an admitted boundary. Schema 4 lacks them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub checkpoints: Vec<CheckpointSnapshot>,
     /// Provenance.
     pub meta: SnapshotMeta,
     /// Zone and epoch.
@@ -209,6 +213,46 @@ pub struct ZoneSnapshot {
     pub spawn_members: Vec<MemberState>,
     /// Where dead players respawn (E2.4); `None` respawns them where they fell.
     pub safe_point: Option<Vec2Fixed>,
+}
+
+/// Persistence metadata owned by the application; it never participates in simulation hashes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CheckpointSnapshot {
+    /// Player identity.
+    pub entity: EntityId,
+    /// Last acknowledged repository revision.
+    pub revision: u64,
+    /// Tick of the last cadence save.
+    pub last_saved: Tick,
+    /// Unsaved progression or resources.
+    pub dirty: bool,
+    /// A newer writer has fenced this lane.
+    pub fenced: bool,
+    /// Facts awaiting the next transaction.
+    pub events: Vec<crate::domain::DomainEvent>,
+    /// Exact latest checkpoint request, if a tick has supplied one.
+    pub latest: Option<CheckpointRequestSnapshot>,
+}
+
+/// Integer-only representation of an application checkpoint request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CheckpointRequestSnapshot {
+    /// Revision used by the request (may precede an acknowledged lane revision).
+    pub revision_seen: u64,
+    /// Level.
+    pub level: u32,
+    /// Total experience.
+    pub xp: u64,
+    /// Current health.
+    pub hp: u32,
+    /// Current mana.
+    pub mp: u32,
+    /// Whether the character is alive.
+    pub alive: bool,
+    /// IEEE wire-position bits retained losslessly; the simulation never interprets them.
+    pub position_bits: [u32; 2],
+    /// Stable idempotency key.
+    pub key: uuid::Uuid,
 }
 
 /// One NPC's hate ledger in a snapshot.
@@ -288,6 +332,8 @@ pub enum TickError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZoneState {
     seed: ZoneSeed,
+    checkpoints: Vec<CheckpointSnapshot>,
+    meta: SnapshotMeta,
     rng: ChaCha12Rng,
     bounds: ZoneBounds,
     time_origin_ms: i64,
@@ -332,6 +378,8 @@ impl ZoneState {
     pub fn new(seed: ZoneSeed, bounds: ZoneBounds, time_origin_ms: i64) -> Self {
         Self {
             seed,
+            checkpoints: Vec::new(),
+            meta: SnapshotMeta::default(),
             rng: ChaCha12Rng::from_seed(seed.key()),
             bounds,
             time_origin_ms,
@@ -384,7 +432,7 @@ impl ZoneState {
 
     /// Rebuilds a zone from a snapshot, validating it.
     pub fn from_snapshot(snapshot: ZoneSnapshot) -> Result<Self, SnapshotError> {
-        if snapshot.meta.schema_version != SNAPSHOT_SCHEMA_VERSION {
+        if ![4, SNAPSHOT_SCHEMA_VERSION].contains(&snapshot.meta.schema_version) {
             return Err(SnapshotError::Schema(snapshot.meta.schema_version));
         }
         if snapshot.rng.key != snapshot.seed.key() {
@@ -409,6 +457,9 @@ impl ZoneState {
         {
             return Err(SnapshotError::SafePointOutOfBounds);
         }
+        state.meta = snapshot.meta;
+        state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
+        state.checkpoints = snapshot.checkpoints;
         state.safe_point = snapshot.safe_point;
         state.rng = snapshot.rng.restore();
         state.next_tick = snapshot.tick;
@@ -457,7 +508,8 @@ impl ZoneState {
     #[must_use]
     pub fn snapshot(&self) -> ZoneSnapshot {
         ZoneSnapshot {
-            meta: SnapshotMeta::default(),
+            checkpoints: self.checkpoints.clone(),
+            meta: self.meta.clone(),
             seed: self.seed,
             tick: self.next_tick,
             next_ordinal: self.next_ordinal,

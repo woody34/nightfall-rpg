@@ -42,6 +42,20 @@ pub trait EventLog: Send + Sync {
         epoch: u64,
     ) -> anyhow::Result<Option<StoredSnapshot>>;
 
+    /// Refreshes a recovery baseline without replacing the original replay snapshot.
+    async fn write_recovery_snapshot(&self, snapshot: &ZoneSnapshot) -> anyhow::Result<Seq> {
+        self.write_snapshot(snapshot).await
+    }
+
+    /// Latest recovery baseline, falling back to the initial snapshot.
+    async fn read_recovery_snapshot(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+    ) -> anyhow::Result<Option<StoredSnapshot>> {
+        self.read_snapshot(zone, epoch).await
+    }
+
     /// Closes an epoch. Written after the zone actor has stopped.
     async fn write_watermark(&self, watermark: &Watermark) -> anyhow::Result<Seq>;
 
@@ -63,7 +77,7 @@ pub trait EventLog: Send + Sync {
     async fn append_session_out(&self, records: &[SessionOutRecord]) -> anyhow::Result<u64>;
 }
 
-/// One row of `zone_snapshots`: the epoch-start snapshot bytes (identical to the log's) plus
+/// One row of `zone_snapshots`: the latest recovery snapshot bytes (identical to the log's) plus
 /// where the epoch lives in the log.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZoneSnapshotRow {
@@ -71,7 +85,7 @@ pub struct ZoneSnapshotRow {
     pub zone: ZoneId,
     /// The epoch.
     pub epoch: u64,
-    /// `encode_snapshot` of the epoch-start snapshot.
+    /// `encode_snapshot` of the latest recovery snapshot.
     pub snapshot: Vec<u8>,
     /// Log position of the snapshot message.
     pub snapshot_seq: Seq,
@@ -87,11 +101,39 @@ pub struct ZoneSnapshotRow {
     pub schema_version: u32,
 }
 
-/// The Postgres index of epochs (`zone_snapshots`). Lets operators and the replay tool find an
-/// epoch without scanning the stream.
+/// An unresolved epoch discovered independently of retained stream messages.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecoveryEpoch {
+    /// Epoch identifier.
+    pub epoch: u64,
+    /// Highest tick that may have reached the log, recorded before admission.
+    pub last_recorded_tick: Option<crate::domain::zone::Tick>,
+}
+
+/// Durable epoch discovery (`zone_epochs`) and recovery baselines (`zone_snapshots`).
+/// Unresolved epochs must remain discoverable after all their stream messages expire.
 #[async_trait]
 pub trait ZoneSnapshotStore: Send + Sync {
-    /// Inserts the row. Inserting the same `(zone, epoch)` again is a no-op.
+    /// All unresolved epochs, oldest first. Completed recovery closes each one.
+    async fn unresolved(&self, zone: ZoneId) -> anyhow::Result<Vec<RecoveryEpoch>>;
+    /// Record a tick before attempting its durable admission (a crash may leave uncertainty).
+    async fn recording(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        tick: crate::domain::zone::Tick,
+    ) -> anyhow::Result<()>;
+    /// All critical checkpoints through this admitted tick have completed.
+    async fn checkpointed(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        tick: crate::domain::zone::Tick,
+    ) -> anyhow::Result<()>;
+    /// Recovery or clean shutdown resolved all critical checkpoints.
+    async fn close(&self, zone: ZoneId, epoch: u64) -> anyhow::Result<()>;
+
+    /// Writes a fresh baseline and its epoch index in one transaction.
     async fn insert(&self, row: &ZoneSnapshotRow) -> anyhow::Result<()>;
 
     /// Records the log position of the epoch's first applied record.

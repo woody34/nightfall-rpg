@@ -19,7 +19,8 @@ pub use epoch::{
 };
 pub use gate::{DurableTickGate, EpochProgress, GateConfig};
 pub use port::{
-    EventLog, NoReplayMetrics, RecordStream, ReplayLogMetrics, ZoneSnapshotRow, ZoneSnapshotStore,
+    EventLog, NoReplayMetrics, RecordStream, RecoveryEpoch, ReplayLogMetrics, ZoneSnapshotRow,
+    ZoneSnapshotStore,
 };
 pub use record::{
     decode_events, decode_outputs, decode_snapshot, encode_events, encode_outputs, encode_snapshot,

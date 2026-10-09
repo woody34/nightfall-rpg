@@ -169,7 +169,10 @@ needs a selected, living, attackable target in the AOI (`UNKNOWN_ENTITY` with no
 `NON_ATTACKABLE_TARGET`, `TARGET_NOT_IN_AOI`, `PROTECTED`); a fresh-seq repeat Acks without a
 second swing. StopAttack Acks and cancels the pending swing. MoveTo, StopMove and a target
 change end the attack. Every intent but Respawn from a dead actor returns `DEAD_ACTOR`.
-Respawn is still the E2.1 stub (`NOT_YET_IMPLEMENTED`) until E2.4. `OUT_OF_RANGE` is never a
+Respawn is implemented: a dead player returns to the safe point with 65% maximum HP
+(floored, minimum 1), zero MP, a new incarnation and 6000 ticks of spawn protection. An accepted
+Attack ends protection early. It emits EntityRespawned and owner StatsChanged without refunding
+XP; a living player receives `INVALID`. `OUT_OF_RANGE` is never a
 rejection: a target out of reach at impact cancels the swing (`AttackCancelled`
 `OUT_OF_RANGE`). New events: `AttackStarted` (start/impact/ready ticks) and `AttackCancelled`;
 `EntitySpawn` gained combat fields 6–14; `AttackResult.target_incarnation` and

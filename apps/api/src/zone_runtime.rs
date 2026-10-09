@@ -75,7 +75,12 @@ pub async fn start(
         deps.audit.clone(),
         Arc::new(metrics.clone()),
     );
-    if let Some(epoch) = log.latest_epoch(def.zone).await? {
+    if let Some(store) = &snapshots {
+        checkpoints
+            .recover_indexed(log.as_ref(), store.as_ref(), def.zone)
+            .await?;
+        checkpoints = checkpoints.with_durability(log.clone(), store.clone());
+    } else if let Some(epoch) = log.latest_epoch(def.zone).await? {
         checkpoints.recover(log.as_ref(), def.zone, epoch).await?;
     }
     let running = ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics.clone()))
