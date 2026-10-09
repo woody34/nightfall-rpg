@@ -396,32 +396,43 @@ async fn admission_holds_fanout_and_replay_do_not_duplicate_metrics() {
 
 /// A repeatable actor-only timing sample, not the 200-WebSocket-session acceptance load.
 #[tokio::test]
-#[ignore = "benchmark: prints tick p99 for 200 players and 200 monsters"]
+#[ignore = "benchmark: prints tick p50/p99 for 50 and 200 fighting pairs"]
 #[allow(clippy::print_stdout)]
 async fn combat_tick_p99_simulation() {
     use crate::application::zone_actor::OpenGate;
-    let m = Metrics::detached();
-    let (state, inputs) = arena(200);
-    let initial = state.snapshot();
-    let (ticks, driver) = manual_ticks();
-    let handle =
-        ZoneActor::spawn_gated_with_telemetry(state, ticks, OpenGate, Some(m.consumer(&initial)));
-    for input in inputs {
-        handle.send(input).unwrap();
+    for pairs in [200, 50] {
+        let m = Metrics::detached();
+        let (state, inputs) = arena(pairs);
+        let initial = state.snapshot();
+        let (ticks, driver) = manual_ticks();
+        let handle = ZoneActor::spawn_gated_with_telemetry(
+            state,
+            ticks,
+            OpenGate,
+            Some(m.consumer(&initial)),
+        );
+        for input in inputs {
+            handle.send(input).unwrap();
+        }
+        let readings = handle.stats();
+        let mut samples = Vec::new();
+        for _ in 0..500 {
+            driver.step().await.unwrap();
+            samples.push(readings.borrow().duration_micros);
+        }
+        samples.sort_unstable();
+        let attacks: f64 = ["miss", "hit", "crit"]
+            .iter()
+            .map(|o| value(&m, "nightfall_combat_attacks_total{", &format!("outcome=\"{o}\"")))
+            .sum();
+        assert!(attacks > 0.0);
+        let profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        };
+        println!("{pairs} players, {pairs} Keltirs initially fighting, 500 manual ticks, OpenGate, {profile} build: p50={} us; p99={} us; attacks={attacks}", samples[249], samples[494]);
     }
-    let readings = handle.stats();
-    let mut samples = Vec::new();
-    for _ in 0..500 {
-        driver.step().await.unwrap();
-        samples.push(readings.borrow().duration_micros);
-    }
-    samples.sort_unstable();
-    let attacks: f64 = ["miss", "hit", "crit"]
-        .iter()
-        .map(|o| value(&m, "nightfall_combat_attacks_total{", &format!("outcome=\"{o}\"")))
-        .sum();
-    assert!(attacks > 0.0);
-    println!("200 players, 200 Keltirs initially fighting, 500 manual ticks, OpenGate, debug build: p99={} us; attacks={attacks}", samples[494]);
 }
 
 #[test]

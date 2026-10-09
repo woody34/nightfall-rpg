@@ -20,6 +20,7 @@
     clippy::panic,
     clippy::print_stdout,
     clippy::arithmetic_side_effects,
+    clippy::indexing_slicing,
     clippy::cast_precision_loss
 )]
 
@@ -122,18 +123,22 @@ fn bench(c: &mut Criterion) {
     }
 }
 
-/// Mean full-tick time over the first 100 ticks of the walk.
-fn mean_tick(zone: &ZoneState) -> Duration {
+/// Mean and nearest-rank p50/p99 over the first 100 ticks of the walk.
+fn tick_distribution(zone: &ZoneState) -> (Duration, Duration, Duration) {
     let mut z = zone.clone();
     let mut total = Duration::ZERO;
+    let mut samples = Vec::new();
     for _ in 0..100 {
         let draft = z.draft(Vec::new());
         let started = Instant::now();
         let t = z.run_tick(draft).unwrap();
-        total += started.elapsed();
+        let elapsed = started.elapsed();
+        total += elapsed;
+        samples.push(elapsed);
         black_box(t);
     }
-    total / 100
+    samples.sort_unstable();
+    (total / 100, samples[49], samples[98])
 }
 
 fn main() {
@@ -146,8 +151,8 @@ fn main() {
         ("1000 moving players, all observers", moving_zone(true), ALL_PLAYERS_CEILING),
     ];
     for (name, zone, budget) in cases {
-        let mean = mean_tick(&zone);
-        println!("budget check: {name}: mean full tick {mean:?} (budget {budget:?})");
+        let (mean, p50, p99) = tick_distribution(&zone);
+        println!("budget check: {name}: mean full tick {mean:?}, p50 {p50:?}, p99 {p99:?} (budget {budget:?})");
         assert!(mean < budget, "{name}: mean tick {mean:?} exceeds {budget:?}");
     }
 }
