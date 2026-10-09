@@ -82,6 +82,12 @@ for scenario in "${SCENARIOS[@]}"; do
       done
     fi
   fi
+  shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
+  for nfr in "${nfrs[@]}"; do
+    if ! python3 "$HERE/sim-trace.py" "$nfr" "$dest/$name.xml"; then
+      status=FAIL; note="${note:+$note; }trace generation failed"
+    fi
+  done
   [[ "$status" == PASS ]] || FAILED=$((FAILED + 1))
   line="$status $name (${secs}s, replay=$replay)${note:+ - $note}"
   SUMMARY+=("$line")

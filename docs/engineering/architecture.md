@@ -350,6 +350,20 @@ nightfall-replay ... --session <entity-id> --out /tmp/div   # verify one player;
 nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-players-v4.nfr
 ```
 
+`nightfall-replay trace --file run.nfr [--session <entity-id>] [--fail-tick N] --out trace.html`
+(E6.4) writes a self-contained offline page using the diagram palette and local font fallbacks:
+snapshot-bounded zone grid, sampled entity paths with tick dots, unsampled hit/miss/crit, death,
+respawn, target, intention and rejection glyphs, range controls and a tick scrubber. The failure
+tick stays pinned; a decoded commands, zone facts and observer-output table covers its ±20-tick
+window (the first tick when omitted), highlighting the selected session's outputs. Sampling
+retains event ticks and the table window; both committed fixtures are tested below 2 MB (and
+thus the 5 MB fight-fixture ceiling). Digest-only map facts are explicitly reconstructed by the
+current engine; digest-only observer messages remain labelled unavailable. Trace generation
+validates recording completeness but is not a replay verification. `run-sim.sh` generates
+`<recording>.trace.html` even with `--no-replay`, adds a relative JUnit artifact reference and
+pins a replay divergence when one is reported; bot failures without a recorded tick can be
+regenerated with `--fail-tick`.
+
 | Exit | Meaning |
 |---|---|
 | 0 | every tick matched; prints ticks, players, bytes compared, time |

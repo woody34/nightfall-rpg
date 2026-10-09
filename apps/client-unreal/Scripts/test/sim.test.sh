@@ -15,6 +15,7 @@ trap 'kill $HTTP 2>/dev/null; rm -rf "$WORK"' EXIT
 for _ in $(seq 50); do curl -sf "http://localhost:$PORT/health" >/dev/null && break; sleep 0.1; done
 
 export SIM_BOT_BIN="$T/fake-bot.sh" SIM_REPLAY_CMD="$T/fake-replay.sh" SIM_API_URL="http://localhost:$PORT" SIM_SKIP_BUILD=1
+export SIM_TRACE_CMD="bash $T/fake-trace.sh"
 export SIM_SAVED_DIR="$WORK/saved"
 
 mk() { local f="$WORK/sc/$1.nfs"; mkdir -p "$WORK/sc"; shift; printf '# scenario\n%s\n' "$*" >"$f"; }
@@ -45,8 +46,13 @@ check "single passing scenario" 0 "$(run "$WORK/sc/ok-a.nfs")"
 contains "one-line summary" "$WORK/out" "^PASS ok-a "
 
 check "glob runs all, one failure fails the run" 1 "$(run "$WORK/sc/ok-*.nfs" "$WORK/sc/bad.nfs")"
+contains "trace artifact reference" "$WORK/art/bad/bad.xml" "bad.trace.html"
 contains "pass line for ok-b" "$WORK/out" "^PASS ok-b "
 contains "fail line for bad" "$WORK/out" "^FAIL bad .*bot exit 1"
+check "trace failure fails scenario" 1 "$(SIM_TRACE_CMD=false run "$WORK/sc/ok-a.nfs")"
+contains "trace failure reported" "$WORK/out" "trace generation failed"
+check "trace still generated with --no-replay" 0 "$(run --no-replay "$WORK/sc/ok-a.nfs")"
+contains "trace is self-contained HTML" "$WORK/art/ok-a/ok-a.trace.html" "doctype html"
 check "quoted glob" 0 "$(run "$WORK/sc/ok-*.nfs")"
 check "crash fails" 1 "$(run "$WORK/sc/crash.nfs")"
 contains "crash exit code reported" "$WORK/out" "bot exit 139"
