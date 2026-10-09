@@ -1,30 +1,31 @@
 # covers: 1 E3.2, 1a 3.7
-# 1-social-aggro-a (with 1-social-aggro-b): A attacks one keltir; the clan call (keltir.toml
-# clan_id "keltir", clan_help_range 8 tiles) brings the others into the fight. A stands at
-# (95, 100): 5 tiles from the keltir_a home (two members, which may aggro A on their own) and
-# 9.2 from keltir_b's, outside its aggro range (6 tiles). keltir_b swinging at A, i.e. all three
-# keltirs, is the social aggro: keltir_b's home is 4.5 tiles from keltir_a's, inside the call.
-# (A keltir_b that wandered within 6 tiles of A would aggro it on its own: the wander drift is up
-# to 9.4 tiles per axis around home, 1 think in 30.)
-#
-# B walks out first (along y = 40) so it is at its post before A fights; A waits until B has left
-# its view. Timeouts 3x: walks at 5 tiles/s, aggro on the next 1 s think, swings every ~2 s.
+# Requires a fresh two-client stack: AUTH_DEV_TOKENS=1 ZONE_SIM_FIXTURE=phase1a-social-aggro.
+# Zone/replay id remains 1. Run with 1-social-aggro-b; no other clients in this zone.
+# The fixture has exactly three passive, stationary, high-HP NPCs with minimal damage. A alone attacks
+# caller at (100,100). Helpers (104,100)/(104,104) receive hate for A only through clan_call.
+# B is closer to the helpers than A; it never attacks. All three must swing at A.
+# Position rendezvous keeps B observing before the first swing and A connected until B passes.
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
-nf.WaitFor players_in_view >= 1 30
-nf.WaitFor players_in_view == 0 60 # B crossed x = 64
+nf.WaitFor players_in_view == 1 30
 nf.ClickMove 40 40
-nf.WaitFor own_at 40 40 1 35
+nf.WaitFor own_at 40 40 0.25 35
 nf.ClickMove 80 85
-nf.WaitFor own_at 80 85 1 35
-nf.ClickMove 95 100
-nf.WaitFor own_at 95 100 1 15
+nf.WaitFor own_at 80 85 0.25 36
+nf.ClickMove 99 100
+nf.WaitFor own_at 99 100 0.25 15
+nf.WaitFor proxy_at 104 102 0.25 30
+nf.Expect players_in_view == 1
+nf.Expect attacked_by == 0
 nf.Target nearest_attackable
-nf.WaitFor target != none 3
+nf.WaitFor target == SocialAggroFixture 3
+nf.Expect target_hp == 1000000
 nf.Attack
 nf.WaitFor attack_state == active 3
-nf.WaitFor attacked_by >= 3 15     # all three, keltir_b by the clan call: think 1 s + swing 2 s + a 4-tile walk, 3x
-nf.WaitFor target_hp == 0 30
-nf.Within 180
+nf.WaitFor attacked_by == 3 15
+nf.StopAttack
+nf.WaitFor attack_state == idle 3
+nf.WaitFor proxy_at 104 103 0.25 15 # B signals its independent observation passed
+nf.Within 150
