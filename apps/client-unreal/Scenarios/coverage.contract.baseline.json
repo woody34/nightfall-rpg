@@ -1,0 +1,105 @@
+{
+  "baseline_kind": "historical observed presence",
+  "counts": {
+    "close_codes": {
+      "4400": "0",
+      "4408": "0",
+      "4409": "0",
+      "4429": "0"
+    },
+    "events": {
+      "attack_cancelled": "1",
+      "attack_result": "1",
+      "attack_started": "1",
+      "despawn": "1",
+      "entity_died": "1",
+      "entity_respawned": "1",
+      "level_up": "0",
+      "move": "1",
+      "spawn": "1",
+      "stats_changed": "1",
+      "target_changed": "1",
+      "xp_gained": "1"
+    },
+    "intents": {
+      "attack": "1",
+      "move_to": "1",
+      "respawn": "1",
+      "set_target": "1",
+      "stop_attack": "1",
+      "stop_move": "0"
+    },
+    "payloads": {
+      "ack": "1",
+      "event": "1",
+      "rejected": "1"
+    },
+    "reasons": {
+      "REJECT_REASON_DEAD_ACTOR": "0",
+      "REJECT_REASON_INVALID": "0",
+      "REJECT_REASON_NON_ATTACKABLE_TARGET": "0",
+      "REJECT_REASON_NOT_YET_IMPLEMENTED": "0",
+      "REJECT_REASON_OUT_OF_BOUNDS": "0",
+      "REJECT_REASON_OUT_OF_RANGE": "0",
+      "REJECT_REASON_OVERLOADED": "0",
+      "REJECT_REASON_PROTECTED": "0",
+      "REJECT_REASON_RATE_LIMITED": "0",
+      "REJECT_REASON_TARGET_NOT_IN_AOI": "0",
+      "REJECT_REASON_TOO_FAR": "1",
+      "REJECT_REASON_UNKNOWN_ENTITY": "0",
+      "REJECT_REASON_UNSPECIFIED": "0"
+    }
+  },
+  "observed_scenarios": [
+    "0b-click-move",
+    "0b-move-rejected",
+    "1-die-respawn",
+    "1-kill-one-monster",
+    "1-target-attack"
+  ],
+  "schema_version": 1,
+  "wire_numbers": {
+    "events": {
+      "attack_cancelled": 12,
+      "attack_result": 4,
+      "attack_started": 11,
+      "despawn": 3,
+      "entity_died": 5,
+      "entity_respawned": 6,
+      "level_up": 9,
+      "move": 2,
+      "spawn": 1,
+      "stats_changed": 7,
+      "target_changed": 10,
+      "xp_gained": 8
+    },
+    "intents": {
+      "attack": 13,
+      "move_to": 10,
+      "respawn": 15,
+      "set_target": 12,
+      "stop_attack": 14,
+      "stop_move": 11
+    },
+    "payloads": {
+      "ack": 1,
+      "event": 2,
+      "rejected": 3
+    },
+    "reasons": {
+      "REJECT_REASON_DEAD_ACTOR": 7,
+      "REJECT_REASON_INVALID": 6,
+      "REJECT_REASON_NON_ATTACKABLE_TARGET": 8,
+      "REJECT_REASON_NOT_YET_IMPLEMENTED": 12,
+      "REJECT_REASON_OUT_OF_BOUNDS": 1,
+      "REJECT_REASON_OUT_OF_RANGE": 10,
+      "REJECT_REASON_OVERLOADED": 4,
+      "REJECT_REASON_PROTECTED": 11,
+      "REJECT_REASON_RATE_LIMITED": 5,
+      "REJECT_REASON_TARGET_NOT_IN_AOI": 9,
+      "REJECT_REASON_TOO_FAR": 2,
+      "REJECT_REASON_UNKNOWN_ENTITY": 3,
+      "REJECT_REASON_UNSPECIFIED": 0
+    }
+  }
+}
