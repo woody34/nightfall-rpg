@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nightfall · Session trace</title>
+<style>
+:root{--paper:#f5f5f5;--ink:#2d3142;--muted:#4f5d75;--accent:#eb6c36;font-family:Geist,system-ui,sans-serif;color:var(--ink);background:var(--paper)}
+*{box-sizing:border-box}body{margin:0;padding:2rem}main{max-width:1280px;margin:auto}h1,h2{font-family:'Instrument Serif',serif;font-weight:400}h1{font-size:2.5rem;margin:.5rem 0}p{line-height:1.6}.eyebrow{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}code,pre,.eyebrow{font-family:'Geist Mono',ui-monospace,monospace}.controls{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;padding:1rem;background:white;border:1px solid #ddd}input[type=number]{width:8rem}input[type=range]{width:240px}.map{overflow:auto;margin-top:1rem}svg{display:block;width:100%;min-width:700px;background:white;border:1px solid #ddd}.event{fill:var(--ink);font-size:14px;text-anchor:middle;paint-order:stroke;stroke:white;stroke-width:2px}.event.pinned{fill:var(--accent);font-weight:bold;stroke:#ffe4d5;stroke-width:4px}.own{border-left:4px solid var(--accent);background:#fff0e8;padding-left:.5rem}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px;background:white}td,th{border:1px solid #ddd;padding:.6rem;vertical-align:top}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:65ch;font-size:11px}tr.failure{outline:3px solid var(--accent);outline-offset:-3px}tr.current th{background:#ffe4d5}#entities{display:flex;gap:.7rem;flex-wrap:wrap;font-size:12px}#entities span{padding:.5rem;border:1px solid #ddd}summary{cursor:pointer}button,input{font:inherit}a{color:#2e5aa8}
+</style><main>
+<p class="eyebrow">Nightfall · Replay diagnostics · Minimal light</p><h1>Session trace</h1>
+<p>@@SUMMARY@@</p><p id="pin"></p>
+<div class="controls"><label>Range start <input id="start" type="number"></label><label>Range end <input id="end" type="number"></label><label>Tick <input id="scrub" type="range"></label><output id="tick"></output><button id="reset" type="button">Full range</button></div>
+<p>● hit · ○ miss · ★ critical · × death · ↥ respawn · ◇ intention · ◎ target · ! rejection. Hover a glyph or tick dot for details. Orange identifies the selected session; orange event halos pin the failure tick. Paths stop at the scrubber. Dashed paths distinguish entities; paths break at teleports and despawns.</p>
+<div id="entities"></div><div class="map"><svg id="map" viewBox="0 0 1000 760" role="img" aria-labelledby="map-title map-desc"><title id="map-title">Zone paths and events</title><desc id="map-desc">Snapshot bounds in tiles. Recorded tick markers and event glyphs, filtered by tick range. Unlocated events appear below the grid.</desc><g id="grid"></g><g id="paths"></g><g id="events">@@EVENTS@@</g></svg></div>
+<p id="bounds"></p><noscript>Enable JavaScript to draw paths and scrub ticks. The decoded table below remains available.</noscript>
+<h2>Decoded tick window · @@WINDOW@@</h2><p>The fixed window is ±20 ticks around the failure (or the first recorded tick), clipped to the recording. All observers remain visible; selected-session outputs are highlighted. Digest-only output bytes cannot be decoded; any digest-only map facts are reconstructed by the current replay engine, not verified recorded bytes.</p>
+<div class="scroll"><table><thead><tr><th>Tick</th><th>Applied commands / rejections</th><th>Decoded observer messages</th><th>Zone facts (including off-AOI)</th></tr></thead><tbody>@@ROWS@@</tbody></table></div>
+<script type="application/json" id="data">@@DATA@@</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('data').textContent);
+const el=id=>document.getElementById(id), ns='http://www.w3.org/2000/svg';
+const make=(tag,attrs,parent,text)=>{const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;parent.append(n);return n;};
+const [xmin,ymin,xmax,ymax]=data.bounds;
+const scale=Math.min(880/Math.max(1,xmax-xmin),620/Math.max(1,ymax-ymin));
+const xy=(x,y)=>[60+(x-xmin)*scale,680-(y-ymin)*scale];
+for(let i=0;i<=16;i++){const x=xmin+(xmax-xmin)*i/16,y=ymin+(ymax-ymin)*i/16;const [px]=xy(x,ymin),[,py]=xy(xmin,y);make('line',{x1:px,y1:xy(x,ymax)[1],x2:px,y2:680,stroke:'#e0e2e7'},el('grid'));make('line',{x1:60,y1:py,x2:xy(xmax,y)[0],y2:py,stroke:'#e0e2e7'},el('grid'));if(i%4===0){make('text',{x:px,y:701,'text-anchor':'middle','font-size':11},el('grid'),(x/1000).toFixed(1));make('text',{x:53,y:py,'text-anchor':'end','font-size':11},el('grid'),(y/1000).toFixed(1));}}
+make('text',{x:60,y:739,'font-size':11},el('grid'),'Unlocated events:');
+el('bounds').textContent=`Snapshot bounds: (${xmin/1000}, ${ymin/1000})–(${xmax/1000}, ${ymax/1000}) tiles. Grid divisions span 1/16 of each axis.`;
+for(const id of ['start','end','scrub']){el(id).min=data.first;el(id).max=data.last;el(id).step=1;}
+el('start').value=data.first;el('end').value=data.last;el('scrub').value=data.fail??data.last;
+if(data.fail!==null){const a=document.createElement('a');a.href=`#tick-${data.fail}`;a.textContent=`Failure pinned at tick ${data.fail} · jump to decoded messages`;el('pin').append(a);}else el('pin').textContent='No failure tick supplied.';
+const colors=['#4f5d75','#2e5aa8','#43705c','#7d5575','#806438'];
+data.tracks.forEach((t,i)=>{const s=document.createElement('span');s.textContent=`${i+1}. ${t.name} · ${t.id}`;s.style.color=t.id===data.session?'#eb6c36':colors[i%colors.length];if(t.id===data.session)s.className='own';el('entities').append(s);});
+const markers=[...document.querySelectorAll('.event')];
+function draw(){
+ const lo=Math.max(data.first,Math.min(data.last,Number(el('start').value))),hi=Math.max(lo,Math.min(data.last,Number(el('end').value)));
+ el('start').value=lo;el('end').value=hi;el('scrub').min=lo;el('scrub').max=hi;
+ const tick=Math.max(lo,Math.min(hi,Number(el('scrub').value)));el('scrub').value=tick;el('tick').textContent=tick;
+ el('paths').replaceChildren();
+ data.tracks.forEach((t,i)=>{const color=t.id===data.session?'#eb6c36':colors[i%colors.length],points=t.points.filter(p=>p[0]>=lo&&p[0]<=tick);let segment=null,line=null;
+ for(const p of points){const [x,y]=xy(p[1],p[2]);if(segment!==p[3]){line=make('polyline',{fill:'none',stroke:color,'stroke-width':t.id===data.session?2.5:1.5,'stroke-dasharray':`${3+i%5} ${i%3}`,points:''},el('paths'));segment=p[3];}line.setAttribute('points',line.getAttribute('points')+`${x},${y} `);const dot=make('circle',{cx:x,cy:y,r:p[0]===tick?4:1.6,fill:color},el('paths'));make('title',{},dot,`${t.name} · tick ${p[0]} · (${p[1]/1000}, ${p[2]/1000})`);}
+ });
+ let rail=0;for(const m of markers){const t=Number(m.dataset.tick),pin=t===data.fail,visible=(t>=lo&&t<=tick)||pin;m.style.display=visible?'':'none';m.classList.toggle('pinned',pin);const [x,y]=m.dataset.x===''?[185+(rail++%65)*11,739]:xy(Number(m.dataset.x),Number(m.dataset.y));m.setAttribute('x',x);m.setAttribute('y',y);}
+ document.querySelectorAll('tr.current').forEach(r=>r.classList.remove('current'));el(`tick-${tick}`)?.classList.add('current');
+}
+for(const id of ['start','end','scrub'])el(id).addEventListener('input',draw);
+el('reset').addEventListener('click',()=>{el('start').value=data.first;el('end').value=data.last;el('scrub').max=data.last;el('scrub').value=data.last;draw();});draw();
+</script></main></html>

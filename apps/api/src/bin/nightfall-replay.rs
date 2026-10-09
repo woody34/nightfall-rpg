@@ -5,6 +5,7 @@
 //! nightfall-replay [verify] --zone ID (--epoch N | --latest) [--session ENTITY] [--out DIR]
 //! nightfall-replay [verify] --source file --file PATH [--session ENTITY] [--out DIR]
 //! nightfall-replay export --zone ID (--epoch N | --latest) [--live] [--session ENTITY] --out FILE
+//! nightfall-replay trace --file PATH [--session ENTITY] [--fail-tick N] --out trace.html
 //! ```
 //!
 //! `--source jetstream` (default) reads `NATS_URL` (or `--nats URL`). `--session` selects whose
@@ -20,6 +21,8 @@
 
 #[path = "replay/coverage.rs"]
 mod coverage;
+#[path = "replay/trace.rs"]
+mod trace;
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -40,6 +43,7 @@ const USAGE: &str = "usage:
   nightfall-replay export --zone ID (--epoch N | --latest) [--live] [--session ENTITY] --out FILE [--nats URL]
   nightfall-replay check --file PATH [--session ENTITY] [--out DIR]
   nightfall-replay coverage --file PATH [--out coverage.transitions.json]
+  nightfall-replay trace --file PATH [--session ENTITY] [--fail-tick N] --out trace.html
 exit: 0 match, 1 divergence, 2 error, 3 epoch incomplete";
 
 const MATCH: u8 = 0;
@@ -52,6 +56,7 @@ enum Command {
     Verify,
     Export,
     Coverage,
+    Trace,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,6 +77,7 @@ struct Args {
     file: Option<PathBuf>,
     out: Option<PathBuf>,
     nats: String,
+    fail_tick: Option<u64>,
 }
 
 fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
@@ -80,6 +86,10 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
         Some("export") => {
             it.next();
             Command::Export
+        },
+        Some("trace") => {
+            it.next();
+            Command::Trace
         },
         Some("coverage") => {
             it.next();
@@ -93,6 +103,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
     };
     let mut a = Args {
         command,
+        fail_tick: None,
         source: Source::JetStream,
         zone: None,
         epoch: None,
@@ -114,6 +125,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
         }
         let value = it.next().with_context(|| format!("{flag} needs a value"))?;
         match flag.as_str() {
+            "--fail-tick" => a.fail_tick = Some(value.parse().context("--fail-tick")?),
             "--zone" => a.zone = Some(ZoneId(value.parse().context("--zone")?)),
             "--epoch" => a.epoch = Some(value.parse().context("--epoch")?),
             "--session" => a.session = Some(value.parse().context("--session")?),
@@ -141,6 +153,12 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
     }
     if a.command == Command::Coverage && (a.source != Source::File || a.session.is_some()) {
         bail!("coverage requires --file PATH and counts the whole recording (no --session)");
+    }
+    if a.fail_tick.is_some() && a.command != Command::Trace {
+        bail!("--fail-tick is only valid for trace");
+    }
+    if a.command == Command::Trace && (a.file.is_none() || a.out.is_none()) {
+        bail!("trace requires --file PATH and --out FILE");
     }
     match (a.command, a.source) {
         (Command::Export, Source::File) => bail!("export reads from jetstream"),
@@ -326,6 +344,16 @@ async fn coverage(a: &Args) -> anyhow::Result<u8> {
     Ok(MATCH)
 }
 
+async fn trace_page(a: &Args) -> anyhow::Result<u8> {
+    let (log, zone, epoch) = source(a).await?;
+    let rec = Recording::export(log.as_ref(), zone, epoch).await?;
+    let page = trace::render(&rec, a.session, a.fail_tick)?;
+    let out = a.out.as_deref().context("trace needs --out FILE")?;
+    std::fs::write(out, &page).with_context(|| format!("write {}", out.display()))?;
+    println!("trace written to {} ({} bytes)", out.display(), page.len());
+    Ok(MATCH)
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let args = match parse_args(std::env::args().skip(1)) {
@@ -339,6 +367,7 @@ async fn main() -> ExitCode {
         Command::Verify => verify(&args).await,
         Command::Export => export(&args).await,
         Command::Coverage => coverage(&args).await,
+        Command::Trace => trace_page(&args).await,
     };
     match result {
         Ok(code) => ExitCode::from(code),
