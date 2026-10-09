@@ -78,3 +78,26 @@ The initial historical presence floor comes from five passing scenarios: death/r
 Removing the only death/respawn report from those real measurements makes the gate exit 1 for `intents.respawn` and `events.entity_respawned`. The synthetic regression tests separately verify that reducing a still-positive count does not fail.
 
 After the server wire audit adapter was connected, a separate fresh dedicated NATS/API run of `0b-move-rejected` passed in 13 seconds with replay and trace. Runtime and NF_SESSIONS agreed exactly across one socket session and five audited wire frames: one inbound MoveTo and four outbound frames. The stream also contained one checkpoint JSON record, which was excluded. All intent, payload, event and rejection counters matched with zero differences. Close codes were excluded by the documented audit limitation. This controlled run establishes agreement; it does not erase possible queue-versus-delivery differences during intentional disconnect tests.
+
+## Final complete-suite validation
+
+The measured local run in `/tmp/nightfall-phase1a/final-ci-suite` passed all 15/15 fresh owned-stack logical units and 19 scenario client files with coordinator exit 0, no quarantine entries, no infrastructure errors, and a total summed unit execution time of 1180.369s. Every role has raw coverage, recording, replay, trace, and transition coverage.
+
+Independent historical baseline comparison passed before explicit promotion, preserving all previous positive cases and adding presence for:
+
+- `events.level_up`
+- `reasons.REJECT_REASON_INVALID`
+- `reasons.REJECT_REASON_UNKNOWN_ENTITY`
+- `close_codes.4409`
+
+The raw runtime totals across the suite were 75 client frames and 5547 server frames. Contract coverage across all compiled categories:
+
+- Intents: 5/6 covered; missing `stop_move`.
+- Payloads: 3/3 covered; no missing.
+- Events: 12/12 covered; no missing.
+- Reasons: 3/13 observed (`REJECT_REASON_INVALID`, `REJECT_REASON_TOO_FAR`, `REJECT_REASON_UNKNOWN_ENTITY`); missing `REJECT_REASON_DEAD_ACTOR`, `REJECT_REASON_NON_ATTACKABLE_TARGET`, `REJECT_REASON_NOT_YET_IMPLEMENTED`, `REJECT_REASON_OUT_OF_BOUNDS`, `REJECT_REASON_OUT_OF_RANGE`, `REJECT_REASON_OVERLOADED`, `REJECT_REASON_PROTECTED`, `REJECT_REASON_RATE_LIMITED`, `REJECT_REASON_TARGET_NOT_IN_AOI`, and `REJECT_REASON_UNSPECIFIED`.
+- Documented close codes: 1/4 observed (`4409`); missing `4400`, `4408`, and `4429`.
+
+A final exact session audit on the preserved fresh final stack of the last unit (`1-target-unknown`) demonstrated zero differences: 1 socket session, 5 audited wire frames, and 6 stream records including 1 ignored checkpoint JSON record. Descriptor-backed counts agreed across 1 inbound `SetTarget`, 4 outbound frames (payloads: 3 `event`, 1 `rejected`), events (2 `spawn`, 1 `stats_changed`), and 1 rejection reason `REJECT_REASON_UNKNOWN_ENTITY`. Close codes were excluded by audit design, and the queue-versus-delivery distinction remains.
+
+CI runner registration and the two-week gating stability window remain pending.
