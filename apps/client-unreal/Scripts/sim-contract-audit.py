@@ -192,8 +192,11 @@ def main():
             message = client.request('$JS.API.STREAM.MSG.GET.NF_SESSIONS', {'seq': sequence})['message']
             records.append((message['subject'], base64.b64decode(message['data'], validate=True)))
         data = compare(coverage, records)
+        frame_count = sum(int(count) for count in data['audit_frames'].values())
+        data['stream_records'] = len(records)
+        data['ignored_checkpoint_records'] = len(records) - frame_count
         args.out.write_text(json.dumps(data, indent=2, sort_keys=True) + '\n')
-        print(f"contract audit: {len(records)} frames, {data['sessions']} sessions, {len(data['differences'])} differences")
+        print(f"contract audit: {frame_count} wire frames, {data['sessions']} sessions, {len(data['differences'])} differences ({len(records)} stream records)")
         return bool(data['differences'])
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f'contract audit failed: {error}', file=sys.stderr)
