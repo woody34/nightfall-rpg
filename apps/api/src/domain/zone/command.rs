@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::ai::Intention;
 use super::combat::{CombatView, NpcCombat, PlayerLoad, SwingCancel};
 use super::entity::{EntityId, EntityKind, Tick};
 use super::fixed::{Speed, Vec2Fixed};
@@ -357,6 +358,18 @@ pub enum ZoneEvent {
         /// Damage dealt so far.
         damage: u64,
     },
+    /// Internal: a spawn-slot NPC's AI intention changed (E3.2). Never sent to a client;
+    /// recorded so replay and telemetry see off-AOI AI decisions.
+    NpcIntentionChanged {
+        /// Tick of the fact.
+        tick: Tick,
+        /// The NPC.
+        entity: EntityId,
+        /// Intention before.
+        from: Intention,
+        /// Intention after.
+        to: Intention,
+    },
     /// Authoritative entity respawned fact.
     EntityRespawned {
         /// respawned entity UUID.
@@ -476,7 +489,8 @@ impl ZoneEvent {
             | Self::TargetChanged { tick, .. }
             | Self::AttackStarted { tick, .. }
             | Self::AttackCancelled { tick, .. }
-            | Self::HateChanged { tick, .. } => *tick,
+            | Self::HateChanged { tick, .. }
+            | Self::NpcIntentionChanged { tick, .. } => *tick,
         }
     }
 
@@ -492,7 +506,8 @@ impl ZoneEvent {
             | Self::StatsChanged { entity, .. }
             | Self::XpGained { entity, .. }
             | Self::LevelUp { entity, .. }
-            | Self::TargetChanged { entity, .. } => *entity,
+            | Self::TargetChanged { entity, .. }
+            | Self::NpcIntentionChanged { entity, .. } => *entity,
             Self::AttackResult { attacker, .. }
             | Self::AttackStarted { attacker, .. }
             | Self::AttackCancelled { attacker, .. } => *attacker,

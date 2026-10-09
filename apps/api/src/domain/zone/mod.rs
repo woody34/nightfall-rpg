@@ -24,6 +24,7 @@
     clippy::suboptimal_flops
 )]
 
+mod ai;
 mod aoi;
 mod combat;
 mod combat_math;
@@ -39,6 +40,10 @@ mod stat_sheet;
 mod stat_tests;
 mod state;
 
+pub use ai::{
+    Intention, MemberState, NpcAi, NpcBrain, SlotMember, SpawnSlotSpec, MAX_ATTACK_TIMEOUT_TICKS,
+    MAX_DRIFT_RANGE, MAX_DRIFT_RANGE_L2, RANDOM_WALK_RATE, THINK_INTERVAL_TICKS,
+};
 pub use aoi::{aoi_cells_for, AoiCell, AoiIndex, CellCoord, AOI_CELL_TILES};
 pub use combat::{
     weapon_reach, CombatRole, CombatState, CombatView, HateEntry, HateLedger, NpcCombat,
@@ -77,8 +82,11 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 17] = [
+    const SOURCES: [(&str, &str); 20] = [
         ("mod.rs", include_str!("mod.rs")),
+        ("ai.rs", include_str!("ai.rs")),
+        ("ai_tests.rs", include_str!("ai_tests.rs")),
+        ("state_ai.rs", include_str!("state_ai.rs")),
         ("aoi.rs", include_str!("aoi.rs")),
         ("combat.rs", include_str!("combat.rs")),
         ("combat_tests.rs", include_str!("combat_tests.rs")),

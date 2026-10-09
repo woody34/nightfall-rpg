@@ -79,7 +79,8 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::TargetChanged { .. }
                 | ZoneEvent::AttackStarted { .. }
                 | ZoneEvent::AttackCancelled { .. }
-                | ZoneEvent::HateChanged { .. }),
+                | ZoneEvent::HateChanged { .. }
+                | ZoneEvent::NpcIntentionChanged { .. }),
             ) => (4, 0, None),
         };
         let mut ranks: Vec<_> = out.iter().map(rank).collect();

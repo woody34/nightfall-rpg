@@ -373,7 +373,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             reason: cancel_to_pb(*reason).into(),
         }))],
         // Internal; never in an observer's output.
-        ZoneEvent::HateChanged { .. } => Vec::new(),
+        ZoneEvent::HateChanged { .. } | ZoneEvent::NpcIntentionChanged { .. } => Vec::new(),
         ZoneEvent::EntityRespawned {
             entity,
             tick,

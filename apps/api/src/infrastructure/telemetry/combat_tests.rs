@@ -421,3 +421,45 @@ async fn combat_tick_p99_simulation() {
     assert!(attacks > 0.0);
     println!("200 players, 200 Keltirs initially fighting, 500 manual ticks, OpenGate, debug build: p99={} us; attacks={attacks}", samples[494]);
 }
+
+#[test]
+fn admitted_intention_changes_count_by_target_intention_only() {
+    use crate::domain::zone::{AppliedTick, Intention, ZoneEvent};
+    let m = Metrics::detached();
+    let mut consumer = m.consumer(&fresh().snapshot());
+    let npc = EntityId::from_uuid(uuid::Uuid::from_u128(9));
+    let change = |from, to| ZoneEvent::NpcIntentionChanged {
+        tick: Tick(3),
+        entity: npc,
+        from,
+        to,
+    };
+    consumer.admitted(&AppliedTick {
+        epoch: 1,
+        tick: Tick(3),
+        server_time_ms: 0,
+        commands: Vec::new(),
+        dispositions: Vec::new(),
+        events: vec![
+            change(Intention::Idle, Intention::Active),
+            change(Intention::Active, Intention::Attack),
+            change(Intention::Attack, Intention::ReturnHome),
+            change(Intention::ReturnHome, Intention::Active),
+        ],
+        outputs: std::collections::BTreeMap::new(),
+        state_digest: [0; 32],
+    });
+    for (label, n) in [
+        ("idle", 0.0),
+        ("active", 2.0),
+        ("attack", 1.0),
+        ("return_home", 1.0),
+        ("dead", 0.0),
+    ] {
+        assert_eq!(
+            value(&m, "nightfall_npc_intention_transitions_total{", &format!("to=\"{label}\"")),
+            n,
+            "{label}"
+        );
+    }
+}

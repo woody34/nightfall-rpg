@@ -49,7 +49,11 @@
 //!                               TargetChanged target_changed = 12;
 //!                               AttackStarted attack_started = 13;
 //!                               AttackCancelled attack_cancelled = 14;
-//!                               HateChanged hate_changed = 15; } }
+//!                               HateChanged hate_changed = 15;
+//!                               NpcIntentionChanged npc_intention_changed = 16; } }
+//! message NpcIntentionChanged { bytes entity = 1; uint64 tick = 2; Intention from = 3;
+//!                               Intention to = 4; }
+//! enum Intention { UNSPECIFIED = 0; IDLE = 1; ACTIVE = 2; ATTACK = 3; RETURN_HOME = 4; DEAD = 5; }
 //! // Spawn gains `CombatView combat = 9`; AttackResult `target_incarnation = 7`;
 //! // EntityDied `incarnation = 4`.
 //! message Accepted { uint32 seq = 1; uint64 tick = 2; uint64 ordinal = 3; }
@@ -70,8 +74,8 @@ use super::record::{
 };
 use crate::domain::zone::{
     AppliedCommand, CombatView, CommandSource, Disposition, EntityId, EntityKind, FinalStats,
-    Fixed, NpcCombat, ObserverOutput, Ordinal, PlayerLoad, RejectReason, Scaled, SessionGeneration,
-    Speed, Swing, SwingCancel, Tick, Vec2Fixed, ZoneCommand, ZoneEvent, ZoneId,
+    Fixed, Intention, NpcCombat, ObserverOutput, Ordinal, PlayerLoad, RejectReason, Scaled,
+    SessionGeneration, Speed, Swing, SwingCancel, Tick, Vec2Fixed, ZoneCommand, ZoneEvent, ZoneId,
 };
 
 #[derive(Clone, PartialEq, Message)]
@@ -291,6 +295,18 @@ struct PbHateChanged {
 }
 
 #[derive(Clone, PartialEq, Message)]
+struct PbNpcIntentionChanged {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(uint64, tag = "2")]
+    tick: u64,
+    #[prost(int32, tag = "3")]
+    from: i32,
+    #[prost(int32, tag = "4")]
+    to: i32,
+}
+
+#[derive(Clone, PartialEq, Message)]
 struct PbSpawnPlayer {
     #[prost(bytes = "vec", tag = "1")]
     entity: Vec<u8>,
@@ -374,7 +390,7 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16"
     )]
     item: Option<PbOutputItem>,
 }
@@ -411,6 +427,8 @@ enum PbOutputItem {
     AttackCancelled(PbAttackCancelled),
     #[prost(message, tag = "15")]
     HateChanged(PbHateChanged),
+    #[prost(message, tag = "16")]
+    NpcIntentionChanged(PbNpcIntentionChanged),
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -901,6 +919,27 @@ const fn cancel_to_pb(r: SwingCancel) -> i32 {
     }
 }
 
+const fn intention_to_pb(i: Intention) -> i32 {
+    match i {
+        Intention::Idle => 1,
+        Intention::Active => 2,
+        Intention::Attack => 3,
+        Intention::ReturnHome => 4,
+        Intention::Dead => 5,
+    }
+}
+
+fn intention_from_pb(v: i32) -> Result<Intention, CodecError> {
+    Ok(match v {
+        1 => Intention::Idle,
+        2 => Intention::Active,
+        3 => Intention::Attack,
+        4 => Intention::ReturnHome,
+        5 => Intention::Dead,
+        other => return Err(CodecError(format!("unknown intention {other}"))),
+    })
+}
+
 fn cancel_from_pb(v: i32) -> Result<SwingCancel, CodecError> {
     Ok(match v {
         1 => SwingCancel::Stopped,
@@ -986,6 +1025,17 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             tick: tick.0,
             hate: *hate,
             damage: *damage,
+        }),
+        ZoneEvent::NpcIntentionChanged {
+            tick,
+            entity,
+            from,
+            to,
+        } => PbOutputItem::NpcIntentionChanged(PbNpcIntentionChanged {
+            entity: entity_bytes(*entity),
+            tick: tick.0,
+            from: intention_to_pb(*from),
+            to: intention_to_pb(*to),
         }),
         ZoneEvent::EntityRespawned {
             entity,
@@ -1403,6 +1453,12 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             target: entity_from(&e.target)?,
             hate: e.hate,
             damage: e.damage,
+        },
+        PbOutputItem::NpcIntentionChanged(e) => ZoneEvent::NpcIntentionChanged {
+            tick: Tick(e.tick),
+            entity: entity_from(&e.entity)?,
+            from: intention_from_pb(e.from)?,
+            to: intention_from_pb(e.to)?,
         },
         PbOutputItem::AttackResult(e) => ZoneEvent::AttackResult {
             attacker: entity_from(&e.attacker)?,

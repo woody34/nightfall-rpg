@@ -47,8 +47,9 @@ The stack is OpenTelemetry end to end with Grafana LGTM (`grafana/otel-lgtm`, st
   next broadcast; session AOI output and replay never increment it. Labels are only
   `outcome=miss|hit|crit`, `kind=player|npc`, and `to=idle|active|attack|return_home|dead`.
   `nightfall_combat_tick_duration_seconds` uses every `TickStats` sample (idle ticks and
-  admission waits included); its p99 alert fires above 50 ms for 1 minute. E3.2 intention
-  events and the E4.2 checkpoint worker still need to call the documented catalogue hooks;
+  admission waits included); its p99 alert fires above 50 ms for 1 minute. Admitted
+  `NpcIntentionChanged` events count by `to`; the E4.2 checkpoint worker still needs to call
+  its documented catalogue hooks;
   checkpoint lag is the oldest pending save's age, reset to zero when drained.
 - **Never record secrets.** Spans take the URL path, not the query or headers. Do not put
   tokens, tickets or passwords in span fields or log fields.

@@ -128,8 +128,9 @@ releases output. A failed append holds the same record and prevents the next dra
   A session sends exactly this stream. The AOI is the 3x3 block of 32-tile cells, diffed
   every tick against what the player already knows. `state_digest` is SHA-256 of the
   canonical end-of-tick state (entities, hate, RNG, counters).
-- **Snapshot.** `ZoneSnapshot` (schema 2) holds full entity state including combat blocks,
-  RNG state, next ordinal, AOI index, hate ledgers, the stat rules themselves,
+- **Snapshot.** `ZoneSnapshot` (schema 3) holds full entity state including combat and AI
+  blocks, RNG state, next ordinal, AOI index, hate ledgers, spawn slots and the respawn
+  scheduler, the stat rules themselves,
   `time_origin_ms` and provenance (`schema_version`, `build_id`, `config_hash`, `rules_hash`,
   `first_log_seq`). Other schema versions are refused. `ZoneState::from_snapshot` validates it. Replaying the logged drafts from
   it reproduces the same `AppliedTick`s.
@@ -153,7 +154,8 @@ Phase 1 E2.2–E2.5. Flow: [combat sequence](../diagrams/combat-sequence.html). 
 - **Spawning.** `SpawnPlayer.load` = `PlayerLoad { class, level, xp, hp, mp }`, resolved
   against the rules with the starter weapon (`InvalidLoad` if they disagree). `SpawnNpc.combat`
   = `NpcCombat`, resolved once at bootstrap from the template (accuracy, evasion and crit from
-  HF monster base stats; reach in milli-tiles). Bootstrap spawns each spawn slot's `count`.
+  HF monster base stats; reach in milli-tiles). Spawn-slot monsters are spawned by the zone
+  itself (NPC AI below), not by `SpawnNpc`.
 - **Commands.** `SetTarget` (E2.1 checks); changing or clearing it, `MoveTo` and `StopMove`
   end the attack. `Attack` needs a live attackable target in AOI and is idempotent;
   `StopAttack` cancels the swing; both keep the selection. `AddAggro { npc, target }` (system,
@@ -168,12 +170,55 @@ Phase 1 E2.2–E2.5. Flow: [combat sequence](../diagrams/combat-sequence.html). 
   targets its most hated (ties keep the current, then lowest id) and auto-attacks. HP 0 emits
   `EntityDied` once per life, cancels the victim's swing, clears every attacker's target and
   drops the victim from all ledgers; `Despawn` does the same. Death consequences proper
-  (XP loss, respawn) are E2.4.
+  (XP loss, player respawn) are E2.4; NPC corpse and respawn are below.
 - **Visibility.** Owner-only: `StatsChanged`, `XpGained`, `LevelUp`, `TargetChanged`.
   `AttackStarted`/`AttackResult`/`AttackCancelled` reach observers that know both sides;
   `EntityDied` those that know the entity; `HateChanged` nobody. Everything is still in
   `AppliedTick.events` and the record. `EntitySpawn` carries public combat state (life, HP,
   level, pending swing), so AOI entry and `ReplaceSession` rebuild the picture.
+
+#### NPC AI
+
+Phase 1 E3.2–E3.4. Flow: [NPC state machine](../diagrams/npc-state-machine.html). Code:
+`domain::zone::{ai, state_ai}`; constants follow L2J `L2AttackableAI` at 100 ms ticks.
+
+- **State.** `Entity.ai: Option<NpcAi>` on spawn-slot NPCs only: slot member, home,
+  `Intention` (`Idle`, `Active`, `Attack`, `ReturnHome`, `Dead`), `last_hit`, `called_help`,
+  `corpse_until`. `SpawnNpc` NPCs keep the bare E2.5 behaviour.
+- **Spawn slots.** `slot_specs` resolves each zone slot once (`NpcCombat` + `NpcBrain`: aggro,
+  clan, help range, leash, corpse decay; respawn delay/random); bootstrap installs them with
+  `ZoneState::with_spawn_slots`. The scheduler keeps one `MemberState { entity, incarnation,
+  respawn_at }` per member. Both are in the snapshot; members are in the state digest.
+- **Tick.** Commands → spawn phase (expired corpses `Despawn`, then due members respawn in
+  (slot, member) order) → AI phase (NPCs in id order) → chase → movement → impacts → hit
+  bookkeeping → next swings → AOI output.
+- **Think.** Every 10 ticks at phase `EntityId % 10`. `Idle` → `Active` when a living player is
+  in the NPC's AOI, back when none. `Active`: aggressive NPCs give the nearest eligible player in
+  `aggro_range` 1 hate (equal distance → lowest id); otherwise a mobile NPC wanders on
+  `roll_below(30) == 0` to home ± `MAX_DRIFT_RANGE` (300 L2 units = 9375 milli-tiles) per axis,
+  clamped to the bounds. `Attack` re-selects (ties keep the current target).
+- **Clan help.** Acquiring a target from `Idle`/`Active` (aggro, a player's hit, a call) enters
+  `Attack`; the first engagement calls idle/active NPCs of the same clan within the caller's
+  `clan_help_range`, in id order, 1 hate each. Helpers never call (no recursion).
+- **Leash and timeout.** Checked every tick in `Attack`: no target, farther than
+  `leash_radius` from home, or 1200 ticks since entering `Attack` or the last landed hit →
+  `ReturnHome`: hate, target and swing cleared, unattackable (`SetTarget`
+  `NON_ATTACKABLE_TARGET`, `AddAggro` `NotPermitted`), walks home on the integer movement; on
+  exact arrival full HP/MP, attackable, `Active`. Overshoot is at most one step.
+- **Death and respawn.** `Dead` with `corpse_until = death + corpse_decay_ticks`; jitter
+  `0..=random` drawn once in the death consequences (no draw for 0); `respawn_at =
+  max(death + 10·(delay + jitter), corpse_until + 1)`. The decayed corpse leaves the zone, so
+  every reference is `UNKNOWN_ENTITY` until the member respawns with the same `EntityId`,
+  `incarnation + 1`, full stats, `Idle` at home (`EntitySpawn`, `EntityRespawned`). A member
+  whose entity is still in the zone is never spawned again.
+- **RNG.** First lives draw their id; wander draws `roll_below(30)` then `dx`, `dy`; death draws
+  the jitter. Order: spawn slots, then AI by NPC id, then impacts by attacker id.
+- **Replay and visibility.** Every intention change emits `NpcIntentionChanged { tick, entity,
+  from, to }`: in `AppliedTick.events` and the record (output tag 16), never sent to clients.
+  No wire event announces `ReturnHome` or its heal: observers see cancelled swings, and the
+  restored HP only in a later `EntitySpawn` or `AttackResult` (gap for E5.4/E6.2).
+- **Hooks for E2.4.** `kill` calls `npc_died` (corpse deadline, jitter, schedule) and
+  `reselect` calls `ai_target_changed`; death-consequence work keeps both calls.
 
 ### 2.5 Replay log
 
@@ -268,9 +313,9 @@ Story 3.3. Flow: [replay tool diagram](../diagrams/replay-tool.html). Code:
 
 ```bash
 nightfall-replay --zone 1 --epoch 3                 # or --latest; reads NATS_URL / --nats
-nightfall-replay --source file --file two-players-v2.nfr
+nightfall-replay --source file --file two-players-v3.nfr
 nightfall-replay ... --session <entity-id> --out /tmp/div   # verify one player; dump divergence
-nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-players-v2.nfr
+nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-players-v3.nfr
 ```
 
 | Exit | Meaning |
@@ -283,12 +328,13 @@ nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-
 `--session` takes the player's entity id (its character id) and selects whose outputs are
 compared; every command is still applied. `.nfr` = `NFREPLAY` magic, `u32` format version, zlib
 protobuf of snapshot, records and watermark (`recording.rs`). `moon run api:replay-check`
-replays `apps/api/fixtures/sessions/two-players-v2.nfr` (136 ticks, two players, an
-out-of-bounds rejection, a `StopMove`; snapshot schema 2 and record schema 2, so it carries the
-stat rules, zone events and state digests); CI runs it on every push. Re-record with
+replays `apps/api/fixtures/sessions/two-players-v3.nfr` (234 ticks, two players, an
+out-of-bounds rejection, a `StopMove`, the zone spawning its Keltir slots on tick 0; snapshot
+schema 3 and record schema 2, so it carries the stat rules, spawn slots, zone events and state
+digests; recorded as zone 41 via `ZONE_FILE`); CI runs it on every push. Re-record with
 `examples/record_session.rs` only for an intended behaviour change, and bump the file name.
-v1 (movement only, record schema 1) was retired by Phase 1 E2.2: both schemas changed, and
-replay refuses other versions rather than migrating them.
+v1 (movement only, record schema 1) was retired by Phase 1 E2.2 and v2 by E3.4 (snapshot
+schema 3); replay refuses other versions rather than migrating them.
 
 ### 2.6 Sessions and zones
 

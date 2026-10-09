@@ -858,7 +858,7 @@
       "id": 17,
       "type": "timeseries",
       "title": "NPC intention transitions / s",
-      "description": "Fixed E3.2 intention labels; zero until durable intention-transition events exist.",
+      "description": "Admitted NpcIntentionChanged events by target intention (fixed E3.2 labels).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

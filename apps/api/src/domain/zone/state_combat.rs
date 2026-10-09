@@ -99,6 +99,9 @@ impl ZoneState {
         if npc_e.targeting.dead {
             return Err(RejectReason::DeadActor);
         }
+        if self.is_returning(npc) {
+            return Err(RejectReason::NotPermitted);
+        }
         let prey = self
             .entities
             .get(&target)
@@ -202,7 +205,7 @@ impl ZoneState {
     }
 
     /// Adds hate (and damage) to `npc`'s ledger for `target`, then re-selects its target.
-    fn add_hate(
+    pub(super) fn add_hate(
         &mut self,
         tick: Tick,
         npc: EntityId,
@@ -231,7 +234,7 @@ impl ZoneState {
 
     /// Points `npc` at its most hated eligible entity (ties keep the current target, then the
     /// lowest id) and enables auto-attack; with nobody eligible it stands down.
-    fn reselect(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
+    pub(super) fn reselect(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
         let Some(me) = self.entities.get(&npc) else {
             return;
         };
@@ -260,6 +263,8 @@ impl ZoneState {
         if let Some(c) = self.entities.get_mut(&npc).and_then(|e| e.combat.as_mut()) {
             c.auto_attack = chosen.is_some();
         }
+        // E3.2 hook: intention follows the target (state_ai.rs).
+        self.ai_target_changed(tick, npc, chosen, events);
     }
 
     /// The attacker's current target, if it may still be fought: alive, attackable by this
@@ -525,7 +530,7 @@ impl ZoneState {
     /// Death (plan E2.3; the consequences proper are E2.4's): HP 0, cycles cancelled, the
     /// victim's selection cleared, every attacker's target cleared, hate forgotten. Emits
     /// `EntityDied` exactly once per life.
-    fn kill(
+    pub(super) fn kill(
         &mut self,
         tick: Tick,
         victim: EntityId,
@@ -568,6 +573,8 @@ impl ZoneState {
             killer,
             incarnation,
         });
+        // E3.4 hook: corpse deadline and respawn schedule of a spawn-slot NPC (state_ai.rs).
+        self.npc_died(tick, victim, events);
         if let Some(ledger) = self.hate.remove(&victim) {
             for (target, _) in ledger.iter() {
                 events.push(ZoneEvent::HateChanged {
@@ -637,7 +644,7 @@ impl ZoneState {
 }
 
 /// Players fight attackable NPCs; NPCs fight players. Both must be living combatants.
-fn may_attack(attacker: &Entity, target: &Entity) -> bool {
+pub(super) fn may_attack(attacker: &Entity, target: &Entity) -> bool {
     if attacker.id == target.id || target.targeting.dead || target.combat.is_none() {
         return false;
     }
