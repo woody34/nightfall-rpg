@@ -1,0 +1,141 @@
+{
+  "death_xp": {
+    "maximum": "1",
+    "witness": [
+      1,
+      6,
+      7
+    ]
+  },
+  "accuracy_q_to_rounded": {
+    "maximum": "124297/250000",
+    "witness": [
+      1,
+      55,
+      45497188,
+      45
+    ]
+  },
+  "evasion_q_to_rounded": {
+    "maximum": "124971/250000",
+    "witness": [
+      82,
+      56,
+      142499884,
+      142
+    ]
+  },
+  "hit_permille_unclamped_bound": {
+    "maximum": "19",
+    "witness": [
+      1,
+      26,
+      21
+    ]
+  },
+  "hit_permille_same_level": {
+    "maximum": "19",
+    "witness": [
+      1,
+      26,
+      21,
+      861,
+      880
+    ]
+  },
+  "crit_cast_then_half": {
+    "maximum": "0",
+    "witness": [
+      4,
+      0
+    ]
+  },
+  "crit_binary_storage": {
+    "maximum": "0",
+    "witness": [
+      4,
+      0
+    ]
+  },
+  "attack_speed": {
+    "maximum": "49/100",
+    "witness": [
+      379,
+      78,
+      "64051/100",
+      641
+    ]
+  },
+  "interval_ms": {
+    "maximum": "46261/19329",
+    "witness": [
+      379,
+      22,
+      "25000000/19329",
+      1291
+    ]
+  },
+  "impact_ms": {
+    "maximum": "32795/19329",
+    "witness": [
+      379,
+      22,
+      "12500000/19329",
+      645
+    ]
+  },
+  "cycle_ticks": {
+    "maximum": "1",
+    "witness": [
+      300,
+      17
+    ]
+  },
+  "impact_ticks": {
+    "maximum": "1",
+    "witness": [
+      300,
+      39
+    ]
+  },
+  "hp_binary_storage": {
+    "maximum": "1",
+    "witness": [
+      "dark_fighter",
+      40,
+      79,
+      3363,
+      3362
+    ]
+  },
+  "hp_binary_storage_profiles": {
+    "maximum": "0",
+    "witness": [
+      "dark_fighter",
+      1,
+      32,
+      107,
+      107
+    ]
+  },
+  "mp_binary_storage": {
+    "maximum": "1",
+    "witness": [
+      "dark_fighter",
+      36,
+      22,
+      321,
+      320
+    ]
+  },
+  "mp_binary_storage_profiles": {
+    "maximum": "0",
+    "witness": [
+      "dark_fighter",
+      1,
+      26,
+      39,
+      39
+    ]
+  }
+}

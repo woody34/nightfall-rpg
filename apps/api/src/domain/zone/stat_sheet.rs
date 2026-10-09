@@ -8,7 +8,7 @@
 
 use crate::domain::BaseStats;
 
-use super::scaled::{add, floor_div, isqrt, mul, narrow, Scaled, StatError, Q128};
+use super::scaled::{add, floor_div, isqrt, mul, narrow, round_div, Scaled, StatError, Q128};
 use super::stat_rules::{ClassTemplate, FormulaConstants, StatKind, StatRules, WeaponBlock};
 
 /// Derived stats an attack or a resource bar reads. Fields are private so every sheet has
@@ -134,12 +134,12 @@ impl StatSheet {
     pub const fn p_def(&self) -> Scaled {
         self.p_def
     }
-    /// Accuracy, unrounded.
+    /// Accuracy, rounded to whole units as in HF `CharStat.getAccuracy`.
     #[must_use]
     pub const fn accuracy(&self) -> Scaled {
         self.accuracy
     }
-    /// Evasion, unrounded and capped.
+    /// Evasion, rounded to whole units and capped.
     #[must_use]
     pub const fn evasion(&self) -> Scaled {
         self.evasion
@@ -149,7 +149,7 @@ impl StatSheet {
     pub const fn crit_permille(&self) -> u32 {
         self.crit_permille
     }
-    /// Attack speed, unrounded and capped; always > 0.
+    /// Attack speed, rounded to whole units and capped; always > 0.
     #[must_use]
     pub const fn attack_speed(&self) -> Scaled {
         self.attack_speed
@@ -194,7 +194,7 @@ pub fn sqrt_dex(dex: u32) -> Result<Scaled, StatError> {
     Scaled::from_i128(i128::try_from(isqrt(radicand)).map_err(|_| StatError::Overflow)?)
 }
 
-/// `acc_Q = m * root_Q + L*Q + levelAdd_Q + weapon_Q` (HF `FuncAtkAccuracy`, m = 6).
+/// `acc_Q = Q * round((m * root_Q + L*Q + levelAdd_Q + weapon_Q) / Q)` (HF `FuncAtkAccuracy`, m = 6).
 pub fn accuracy(
     c: &FormulaConstants,
     base: &BaseStats,
@@ -205,10 +205,10 @@ pub fn accuracy(
     let root = mul(sqrt_dex(base.dex)?.raw().into(), c.accuracy_dex_multiplier.into())?;
     let lvl = mul(level.into(), Q128)?;
     let sum = add(add(add(root, lvl)?, level_add.raw().into())?, weapon.raw().into())?;
-    Scaled::from_i128(sum)
+    Scaled::from_i128(mul(round_div(sum, Q128)?, Q128)?)
 }
 
-/// `eva_Q = min(cap*Q, m * root_Q + L*Q + levelAdd_Q)` (HF `FuncAtkEvasion`, player branch).
+/// `eva_Q = Q * min(cap, round((m * root_Q + L*Q + levelAdd_Q) / Q))` (HF `FuncAtkEvasion`, player branch).
 pub fn evasion(
     c: &FormulaConstants,
     base: &BaseStats,
@@ -218,7 +218,7 @@ pub fn evasion(
     let root = mul(sqrt_dex(base.dex)?.raw().into(), c.evasion_dex_multiplier.into())?;
     let sum = add(add(root, mul(level.into(), Q128)?)?, level_add.raw().into())?;
     let cap = mul(c.evasion_cap.into(), Q128)?;
-    Scaled::from_i128(sum.min(cap))
+    Scaled::from_i128(mul(round_div(sum, Q128)?, Q128)?.min(cap))
 }
 
 /// `crit‰ = min(cap, F(base * DEX_Q * scale / Q))`.
@@ -228,10 +228,11 @@ pub fn crit_permille(c: &FormulaConstants, base: u32, dex: Scaled) -> Result<u32
     narrow(rate)
 }
 
-/// `speed_Q = min(cap*Q, F(base_Q * DEX_Q / Q))`; must stay positive.
+/// `speed_Q = Q * min(cap, round(base * DEX_Q / Q))`; must stay positive.
 pub fn attack_speed(c: &FormulaConstants, base: u32, dex: Scaled) -> Result<Scaled, StatError> {
     let product = mul(mul(base.into(), Q128)?, dex.raw().into())?;
-    let speed = floor_div(product, Q128)?.min(mul(c.attack_speed_cap.into(), Q128)?);
+    let speed = mul(round_div(product, mul(Q128, Q128)?)?, Q128)?
+        .min(mul(c.attack_speed_cap.into(), Q128)?);
     if speed <= 0 {
         return Err(StatError::NonPositiveDivisor);
     }

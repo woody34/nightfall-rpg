@@ -8,6 +8,8 @@
 //! [`ResolvedRules::config_hash`] is a SHA-256 over a canonical JSON encoding of the parsed
 //! files, so comments and formatting do not change it and any value change does.
 
+use super::exact_decimal::parse_decimal;
+
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::Path;
@@ -118,45 +120,6 @@ impl std::error::Error for RulesError {}
 // ---------------------------------------------------------------------------
 // Exact decimals
 // ---------------------------------------------------------------------------
-
-/// Parses a plain decimal (`-?digits(.digits)?`) to exact `1/Q` units. Rejects exponents,
-/// signs other than a leading `-`, whitespace, more than six significant fractional digits
-/// and values that overflow `i64`. No floating point is involved.
-pub fn parse_decimal(s: &str) -> Result<Scaled, String> {
-    let (negative, body) = match s.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, s),
-    };
-    let (int_part, frac_part) = match body.split_once('.') {
-        Some((i, f)) => (i, Some(f)),
-        None => (body, None),
-    };
-    let digits = |t: &str| !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit());
-    if !digits(int_part) || frac_part.is_some_and(|f| !digits(f)) {
-        return Err(format!("{s:?} is not a plain decimal"));
-    }
-    let frac = frac_part.unwrap_or("").trim_end_matches('0');
-    if frac.len() > 6 {
-        return Err(format!("{s:?} has more than 6 fractional digits (not exact at Q)"));
-    }
-    let overflow = || format!("{s:?} overflows the scaled range");
-    let mut raw: i64 = 0;
-    for b in int_part.bytes().chain(frac.bytes()) {
-        raw = raw
-            .checked_mul(10)
-            .and_then(|r| r.checked_add(i64::from(b.saturating_sub(b'0'))))
-            .ok_or_else(overflow)?;
-    }
-    let pad = 6_u32.saturating_sub(u32::try_from(frac.len()).unwrap_or(6));
-    raw = 10_i64
-        .checked_pow(pad)
-        .and_then(|scale| raw.checked_mul(scale))
-        .ok_or_else(overflow)?;
-    if negative {
-        raw = raw.checked_neg().ok_or_else(overflow)?;
-    }
-    Ok(Scaled::from_raw(raw))
-}
 
 /// Collects errors while converting, so one bad value does not hide the next.
 #[derive(Default)]

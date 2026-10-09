@@ -16,6 +16,7 @@
 pub mod auth;
 pub mod data_hash;
 pub mod eventlog;
+mod exact_decimal;
 pub mod memory;
 pub mod nats;
 pub mod npc_data;

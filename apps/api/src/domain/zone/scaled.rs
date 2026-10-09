@@ -1,11 +1,11 @@
 //! Fixed-point arithmetic for stats (plan docs/plans/phase-1-kill-a-monster.md §3.1).
 //!
 //! [`Scaled`] is a decimal with six fractional digits stored as an `i64` count of
-//! `1 / Q`. Bonuses, coefficients and fractional derived stats (P.Atk, P.Def, accuracy,
-//! evasion, attack speed) are `Scaled`; whole quantities (base stats, levels, live HP/MP,
+//! `1 / Q`. Bonuses, coefficients and derived stats are `Scaled`; accuracy, evasion
+//! and speed retain Q encoding after source integer rounding. Whole quantities (base stats, levels, live HP/MP,
 //! damage, hate, XP) stay plain integers. Every product is formed in `i128`/`u128` with
 //! checked operations and divided once at the end, with the rounding the plan names:
-//! [`floor_div`] (mathematical floor, also for negative numerators) or [`ceil_div`].
+//! [`floor_div`] (also for negative numerators), [`ceil_div`] or [`round_div`].
 
 use std::fmt;
 
@@ -119,6 +119,15 @@ pub fn floor_div(n: i128, d: i128) -> Result<i128, StatError> {
 pub fn ceil_div(n: i128, d: i128) -> Result<i128, StatError> {
     let neg = n.checked_neg().ok_or(StatError::Overflow)?;
     floor_div(neg, d)?.checked_neg().ok_or(StatError::Overflow)
+}
+
+/// Java `Math.round(n / d)` without floating point: nearest, ties toward +infinity.
+/// Quotient/remainder avoid overflowing `2*n` or `n + d/2` at the type bounds.
+pub(crate) fn round_div(n: i128, d: i128) -> Result<i128, StatError> {
+    let whole = floor_div(n, d)?;
+    let remainder = n.checked_rem_euclid(d).ok_or(StatError::Overflow)?;
+    let threshold = sub(d, d / 2)?;
+    add(whole, i128::from(remainder >= threshold))
 }
 
 /// Floor integer square root.

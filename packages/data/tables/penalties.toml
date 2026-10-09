@@ -5,7 +5,7 @@
 # (L2PcInstance.calculateDeathExpPenalty). `percent` is the literal source value,
 # `fraction_q` = percent / 100 as an exact Q-scaled integer.
 # Source literal: lostExp = Math.round(((getStat().getExpForLevel(lvl + 1) - getStat().getExpForLevel(lvl)) * percentLost) / 100);
-# Nightfall floors instead of Math.round (plan §3.1); see SOURCES.md errata E-7.
+# Nightfall matches Math.round with exact rational arithmetic (plan §3.1); see SOURCES.md errata E-7.
 
 source = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/chars/playerXpPercentLost.xml", symbol = "PlayerXpPercentLostData" }
 max_level = 85

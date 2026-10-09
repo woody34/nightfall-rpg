@@ -5,7 +5,7 @@
 //! max level's death-loss span is `X[max + 1] - X[max]`. Level is derived from XP by
 //! threshold search, never stored independently of it.
 
-use super::scaled::{floor_div, mul, narrow, StatError, Q128};
+use super::scaled::{mul, narrow, round_div, StatError, Q128};
 use super::stat_rules::StatRules;
 
 /// Highest XP a character can hold: `X[max_level + 1] - 1`.
@@ -38,7 +38,7 @@ pub fn add_xp(rules: &StatRules, xp: u64, reward: u64) -> Result<u64, StatError>
     Ok(xp.saturating_add(reward).min(xp_cap(rules)?))
 }
 
-/// XP lost dying at `level`: `F((X[L+1] − X[L]) * loss_Q[L] / Q)`.
+/// XP lost dying at `level`: `round((X[L+1] − X[L]) * loss_Q[L] / Q)` (HF `Math.round`).
 pub fn death_xp_loss(rules: &StatRules, level: u32) -> Result<u64, StatError> {
     let fraction = rules.death_loss_fraction(level)?;
     let next = level.checked_add(1).ok_or(StatError::Overflow)?;
@@ -46,7 +46,7 @@ pub fn death_xp_loss(rules: &StatRules, level: u32) -> Result<u64, StatError> {
         .xp_to_level(next)?
         .checked_sub(rules.xp_to_level(level)?)
         .ok_or(StatError::Overflow)?;
-    narrow(floor_div(mul(span.into(), fraction.raw().into())?, Q128)?)
+    narrow(round_div(mul(span.into(), fraction.raw().into())?, Q128)?)
 }
 
 /// XP after dying with `xp` at `level`: `max(0, xp − loss)`. The caller re-derives the
