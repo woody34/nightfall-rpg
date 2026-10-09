@@ -452,3 +452,67 @@ fn close_codes_match_the_contract() {
         assert_eq!(end.close_code(), code, "{end:?}");
     }
 }
+
+#[tokio::test]
+async fn session_actor_dispatches_raw_frames_with_metadata_to_the_event_log() {
+    use crate::application::replay_log::NoReplayMetrics;
+    use crate::infrastructure::eventlog::{EventLogSessionAudit, InMemoryEventLog};
+    use crate::infrastructure::memory::ManualClock;
+
+    let mut h = harness(SessionLimits::default());
+    let log = Arc::new(InMemoryEventLog::default());
+    let (adapter, drain) = EventLogSessionAudit::spawn(
+        log.clone(),
+        Arc::new(ManualClock::default()),
+        Arc::new(NoReplayMetrics),
+        1024,
+    );
+    Arc::get_mut(&mut h.ctx).unwrap().audit = Arc::new(adapter);
+    let mut client = open(&h, player(1, 10), 1, false);
+    step(&h).await;
+    let seen = h.ctx.zone.audit_context();
+    client.send(&[1, 1]).await;
+    client.send(&[9, 9, 9]).await;
+    step(&h).await;
+    // A duplicate seq is audited before it closes the session, never forwarded.
+    client.send(&[1, 1]).await;
+    let end = tokio::time::timeout(Duration::from_secs(5), &mut client.task)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(end, SessionEnd::SeqRegression);
+    let sent: Vec<Bytes> = client
+        .frames()
+        .into_iter()
+        .filter_map(|f| match f {
+            OutboundFrame::Binary(b) => Some(b),
+            OutboundFrame::Close { .. } => None,
+        })
+        .collect();
+    drain.shutdown().await;
+    let ins = log.session_in();
+    assert_eq!(
+        ins.iter()
+            .map(|r| (r.seq, r.frame.clone()))
+            .collect::<Vec<_>>(),
+        vec![
+            (1, Bytes::from_static(&[1, 1])),
+            (0, Bytes::from_static(&[9, 9, 9])),
+            (1, Bytes::from_static(&[1, 1])),
+        ]
+    );
+    assert_eq!(ins[0].tick_seen, seen.tick);
+    let outs = log.session_out();
+    assert_eq!(outs.iter().map(|r| r.frame.clone()).collect::<Vec<_>>(), sent);
+    let accepted = outs
+        .iter()
+        .find(|r| r.frame.starts_with(b"out:Accepted"))
+        .unwrap();
+    assert_eq!(accepted.tick, seen.tick);
+    assert!(ins
+        .iter()
+        .all(|r| r.session == client.id.as_uuid() && r.zone == seen.zone && r.epoch == seen.epoch));
+    assert!(outs
+        .iter()
+        .all(|r| r.session == client.id.as_uuid() && r.zone == seen.zone && r.epoch == seen.epoch));
+}

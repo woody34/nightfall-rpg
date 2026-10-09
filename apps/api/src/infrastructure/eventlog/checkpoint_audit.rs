@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 
 use crate::application::checkpoint::CheckpointAck;
 use crate::application::replay_log::ReplayLogMetrics;
-use crate::application::SessionAudit;
+use crate::application::{SessionAudit, SessionAuditContext};
 use crate::domain::SessionId;
 
 /// Adds `.checkpoint` records to a session audit adapter. Wire-frame recording remains with
@@ -59,6 +59,18 @@ impl SessionAudit for CheckpointAudit {
     }
     fn record_out(&self, session: SessionId, frame: &Bytes) {
         self.inner.record_out(session, frame);
+    }
+    fn record_in_context(
+        &self,
+        session: SessionId,
+        seq: Option<u32>,
+        frame: &Bytes,
+        context: SessionAuditContext,
+    ) {
+        self.inner.record_in_context(session, seq, frame, context);
+    }
+    fn record_out_context(&self, session: SessionId, frame: &Bytes, context: SessionAuditContext) {
+        self.inner.record_out_context(session, frame, context);
     }
     fn record_checkpoint(&self, session: SessionId, ack: &CheckpointAck) {
         self.inner.record_checkpoint(session, ack);

@@ -17,10 +17,12 @@ pub use checkpoint_audit::CheckpointAudit;
 mod memory;
 mod metrics;
 mod recording;
+mod session_audit;
 
 pub use jetstream::{JetStreamEventLog, HEADER_ROOM, RETENTION, SESSIONS_STREAM, ZONES_STREAM};
 pub use memory::{InMemoryEventLog, InMemoryZoneSnapshotStore};
 pub use recording::{Recording, RECORDING_FORMAT_VERSION};
+pub use session_audit::{EventLogSessionAudit, SessionAuditDrain};
 
 use uuid::Uuid;
 

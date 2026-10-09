@@ -20,5 +20,5 @@ pub use error::{parse_id, AppError};
 pub use ports::{
     AccountRepository, CharacterCheckpoint, CharacterRepository, CheckpointError,
     CheckpointOutcome, Clock, CreateOutcome, EventBus, IdempotencyKey, ProgressionState,
-    SecretGenerator, SessionAudit, SessionRepository, TokenVerifier,
+    SecretGenerator, SessionAudit, SessionAuditContext, SessionRepository, TokenVerifier,
 };
