@@ -46,17 +46,32 @@ void UWorldProxySubsystem::HandleSpawn(const FEntitySpawn& Spawn)
 	const UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
 	const UNetClientSubsystem* Net = GI ? GI->GetSubsystem<UNetClientSubsystem>() : nullptr;
 	if (Net && Net->IsOwnEntity(Spawn.EntityId)) return;
-	if (!World || !EntityClass) 
+	const TSubclassOf<ARemoteEntityActor> Class = ClassFor(Spawn);
+	if (!World || !Class) 
 	{
 		UE_LOG(LogNightfall, Warning, TEXT("EntityClass not set; cannot spawn %s"), *Spawn.EntityId);
 		return;
 	}
-	ARemoteEntityActor* Actor = World->SpawnActor<ARemoteEntityActor>(EntityClass);
+	ARemoteEntityActor* Actor = World->SpawnActor<ARemoteEntityActor>(Class);
 	if (!Actor) return;
 	Actor->EntityId = Spawn.EntityId;
 	Actor->DisplayName = Spawn.Name;
 	Actor->Bind(World->GetGameInstance()->GetSubsystem<UNetClientSubsystem>());
 	Entities.Add(Spawn.EntityId, Actor);
+}
+
+TSubclassOf<ARemoteEntityActor> UWorldProxySubsystem::ClassFor(const FEntitySpawn& Spawn) const
+{
+	constexpr uint32 KindPlayer = 1, KindNpc = 2;
+	if (Spawn.Kind == KindNpc)
+	{
+		if (const TSubclassOf<ARemoteEntityActor>* Found = TemplateClasses.Find(Spawn.TemplateId.ToLower()))
+		{
+			if (*Found) return *Found;
+		}
+	}
+	if (Spawn.Kind == KindPlayer && PlayerClass) return PlayerClass;
+	return EntityClass;
 }
 
 void UWorldProxySubsystem::HandleDespawn(const FEntityDespawn& Despawn)

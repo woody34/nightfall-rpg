@@ -16,6 +16,7 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 | [Stat derivation](stat-derivation-data-flow.html) | Data flow | Pinned L2J HF source → decimal generator → TOML → `rules_data` → `StatRules` → `StatSheet` → combat and progression. |
 | [Combat sequence](combat-sequence.html) | Sequence | Proxy raycast → SetTarget / Attack → chase → swing start → durable ack → impact draws → dispatch to combat state & HUD dedupe/numbers, with the per-impact loop; then death consequences, kill XP or death XP loss, `DEAD_ACTOR` and `Respawn`. |
 | [NPC state machine](npc-state-machine.html) | State machine | Idle / Active / Attack / ReturnHome / Dead with think, aggro, clan call, leash and timeout guards; corpse → hidden → respawn of a spawn-slot member. |
+| [Proxy animation states](proxy-animation-states.html) | State machine | Idle / Walk / Run / Attack / Flinch / Dying / Corpse with speed guards, swing impact lead, hit reaction, death priority, late AOI entry and respawn. |
 
 ## Regenerate and validate
 

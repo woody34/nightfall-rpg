@@ -21,6 +21,12 @@ void ANightfallGameMode::InitGame(const FString& MapName, const FString& Options
 	if (UWorldProxySubsystem* Proxies = GetWorld()->GetSubsystem<UWorldProxySubsystem>())
 	{
 		Proxies->EntityClass = EntityClass;
+		Proxies->PlayerClass = PlayerClass;
+		Proxies->TemplateClasses.Reset();
+		for (const TPair<FString, TSubclassOf<ARemoteEntityActor>>& Entry : TemplateClasses)
+		{
+			Proxies->TemplateClasses.Add(Entry.Key.ToLower(), Entry.Value);
+		}
 	}
 }
 

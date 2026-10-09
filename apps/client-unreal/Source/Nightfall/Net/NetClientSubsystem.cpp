@@ -83,6 +83,7 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 		Frame.Reset();
 		KnownEntities.Reset();
 		Tombstones.Reset();   // the server re-sends every spawn in our area of interest
+		TickTimeOriginMs.Reset();   // a new session may be a new zone epoch; the next EntityMove re-learns it
 		UE_LOG(LogNightfall, Log, TEXT("ws connected"));
 		OnConnected.Broadcast();
 	});
@@ -207,6 +208,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 			const int64 Observed = E.Move->ServerTimeMs - LocalNow;
 			ServerClockOffsetMs = (ServerClockOffsetMs == 0) ? Observed : (ServerClockOffsetMs * 7 + Observed) / 8;
 
+			TickTimeOriginMs = E.Move->ServerTimeMs - static_cast<int64>(E.Move->Tick) * TICK_MS;
 			SnapshotBuffer.Push(E.Move->EntityId, E.Move->Position, E.Move->ServerTimeMs);
 			OnEntityMove.Broadcast(*E.Move);
 		}
@@ -304,6 +306,11 @@ void UNetClientSubsystem::Send(const FClientMessage& Msg)
 	TArray<uint8> Bytes;
 	NightfallProto::Encode(Msg, Bytes);
 	Socket->Send(Bytes.GetData(), Bytes.Num(), /*bIsBinary=*/true);
+}
+
+int64 UNetClientSubsystem::TickToServerTimeMs(uint64 Tick) const
+{
+	return TickTimeOriginMs.IsSet() ? *TickTimeOriginMs + static_cast<int64>(Tick) * TICK_MS : EstimatedServerTimeMs();
 }
 
 int64 UNetClientSubsystem::EstimatedServerTimeMs() const
