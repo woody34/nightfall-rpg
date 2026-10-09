@@ -30,10 +30,11 @@
 //  - repeated clicks while Active send nothing;
 //  - a ground click sends StopAttack, which the server Acks.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatEndToEndTest, "Nightfall.Combat.EndToEnd",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FCombatEndToEndTest::RunTest(const FString& Parameters)
 {
+	NightfallTest::AllowApiUnavailableLogs(*this);
 	FScopedTestGameInstance Instance;
 	USessionClient* Session = Instance.Get<USessionClient>();
 	UAuthSubsystem* Auth = Instance.Get<UAuthSubsystem>();
@@ -54,11 +55,11 @@ bool FCombatEndToEndTest::RunTest(const FString& Parameters)
 		return Done();
 	};
 
-	const bool bRequireServer = FParse::Param(FCommandLine::Get(), TEXT("RequireCombatServer"));
+	const bool bRequireServer = (FParse::Param(FCommandLine::Get(), TEXT("RequireCombatServer")) || NightfallTest::RequireLiveApi());
 	auto Skip = [&](const FString& Why)
 	{
 		const FString Text = FString::Printf(TEXT("SKIPPED (no combat coverage): %s"), *Why);
-		if (bRequireServer) AddError(Text + TEXT(" [-RequireCombatServer]")); else AddWarning(Text);
+		if (bRequireServer) AddError(Text + TEXT(" [-RequireCombatServer / -RequireLiveApi]")); else AddWarning(Text);
 		return !bRequireServer;
 	};
 

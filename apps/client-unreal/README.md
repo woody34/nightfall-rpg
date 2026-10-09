@@ -61,7 +61,11 @@ Scripts/
   setup-turbolink.sh         Submodule + prebuilt gRPC/protobuf libs + links into the plugin (moon: setup)
   gen-proto.sh               Regenerates Generated/ (moon: gen-proto)
   install-proto-tools.sh     Builds protoc 23.4, grpc_cpp_plugin 1.57, protoc-gen-turbolink for Linux
-  run-tests.sh               Headless automation tests (moon: test-editor); fetches a Keycloak token for EndToEnd
+  run-tests.sh               Headless automation tests (moon: test-editor); fetches a Keycloak token for EndToEnd; --require-live-api for CI
+  run-sim.sh                 Runs bot scenarios through the Nightfall game binary, one by one (moon: sim, sim-all)
+  run-sim-multi.sh           N concurrent bot processes sharing a -SimGroup, merged JUnit
+  sim-lib.sh                 Helpers shared by the two sim scripts
+  test/                      Stub bot + plain-bash tests for the sim scripts: bash Scripts/test/sim.test.sh
   create-content.sh          Regenerates Content/ headless from create_content.py (moon: create-content)
   import-vendor.sh, import_vendor.py  Imports vendor art into Content/Vendor headless (moon: import-vendor)
   playtest.sh                Two scripted game clients against a running API (moon: playtest)
@@ -725,6 +729,70 @@ set `NIGHTFALL_DEV_TOKEN` to use another token. Without Keycloak, run the API wi
 | `Nightfall.Combat.EndToEnd` | yes (skips if down) | Real server: `SetTarget` on a live NPC yields `TargetChanged`; `Attack` answered by whichever the server does (see test comment) |
 | `Nightfall.Net.SessionClient.Ping` | yes | Ping round trip; `server_version` equals the Cargo workspace version |
 | `Nightfall.Login.EndToEnd` | yes (skips if down) | Dev-token login, `ListMyCharacters`, `CreateCharacter` (fresh key), listed, two `IssuePlayTicket` calls give two distinct tickets and a `ws://` URL without the ticket |
+
+### Tests are ProductFilter, and live tests have a CI mode
+
+Every Nightfall automation test is `ProductFilter`, so `Automation RunTests Nightfall` selects only
+ours (no engine tests). The live tests (`Nightfall.Login.EndToEnd`, `Nightfall.Movement.EndToEnd`,
+`Nightfall.Combat.EndToEnd`, `Nightfall.Net.SessionClient.Ping`) need the API. Without it they warn
+and skip. With `-RequireLiveApi` the same condition is an error, so a down server cannot show green:
+
+```bash
+Scripts/run-tests.sh                      # local: live tests skip with a warning when the API is down
+Scripts/run-tests.sh --require-live-api   # CI: a down API fails them (also on when CI=true)
+```
+
+### Running simulations
+
+A scenario (`Scenarios/*.nfs`) is run by the shipped game binary in bot mode:
+`Nightfall -game -nullrhi -nosound -unattended -BotScenario=<path.nfs>`. It exits 0 on pass and 1
+on fail and writes `Saved/Sim/<scenario>.xml` (JUnit), `<scenario>.log` and the session recording
+(`.nfr`). Plan: [phase-1a-simulation-testing.md](../../docs/plans/phase-1a-simulation-testing.md).
+
+```bash
+Scripts/run-sim.sh [--api attach|start] [--artifacts DIR] [--no-replay] [--timeout SECS] SCENARIO|GLOB...
+moon run client-unreal:sim -- Scenarios/0b-login-enter-world.nfs
+moon run client-unreal:sim -- 'Scenarios/1-*.nfs' --api start --artifacts /tmp/sim
+moon run client-unreal:sim-all            # every Scenarios/*.nfs; extra args after -- are appended
+```
+
+- `UE_ROOT` and `LINUX_MULTIARCH_ROOT` come from the environment, else from `~/.bashrc`.
+- The `Nightfall` game target is built (`Build.sh`) when the binary is missing or older than any
+  file under `Source/`.
+- `--api attach` (default) needs an API answering `:3000/health` (`moon run api:dev` with
+  `AUTH_DEV_TOKENS=1`). `--api start` runs `docker compose up -d --wait`, starts the API with
+  `AUTH_DEV_TOKENS=1` and stops it on exit; a healthy API already on `:3000` is reused.
+- Scenarios run sequentially. Each recording is replayed with `nightfall-replay` and must match
+  byte for byte (`--no-replay` skips this). One line per scenario is printed, for example
+  `PASS 1-kill-one-monster (41s, replay=ok)`; the exit status is non-zero if any scenario failed
+  (bot exit code, timeout, no JUnit report, no recording, replay divergence). Exit 2 is a usage or
+  setup error (no match, no API, build failed).
+
+Several clients at once (the two-client scenarios) use `Scripts/run-sim-multi.sh`:
+
+```bash
+Scripts/run-sim-multi.sh [--api ...] [--artifacts DIR] [--group ID] [--timeout SECS] [--no-replay] A.nfs B.nfs...
+```
+
+Each argument is one process, all started together with `-SimGroup=<ID>` and coordinating only
+through the server. `--timeout` bounds the whole group; survivors are killed and count as failed.
+The per-process JUnit files are merged into `DIR/group.xml` (a missing report becomes a failed
+testcase). Exit 0 only if every process passed and every recording replays.
+
+Artifact layout (default `Saved/SimArtifacts/<timestamp>`, or `<group>` for multi):
+
+```
+DIR/<scenario>/<scenario>.xml  .log  .nfr  *.replay.log  stdout.log
+DIR/api.log                    only with --api start
+DIR/group.xml                  multi only: merged JUnit
+```
+
+CI mode: `run-tests.sh --require-live-api` as above; the sim scripts already fail on any problem.
+
+Test overrides (used by `Scripts/test/sim.test.sh`, which drives the scripts with a stub bot and
+needs no engine, API or Docker): `SIM_BOT_BIN` (bot executable instead of `Binaries/Linux/Nightfall`),
+`SIM_SKIP_BUILD=1`, `SIM_SAVED_DIR`, `SIM_REPLAY_CMD` (run as `$SIM_REPLAY_CMD file.nfr`),
+`SIM_API_URL`, `SIM_TIMEOUT` (seconds, default 600).
 
 ## Build status
 

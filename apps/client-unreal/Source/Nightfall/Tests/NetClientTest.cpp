@@ -10,7 +10,7 @@
 
 namespace
 {
-	constexpr EAutomationTestFlags NetTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
+	constexpr EAutomationTestFlags NetTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter;
 
 	/** Records Connect() and Send() and lets the test fire the socket's events. */
 	class FFakeWebSocket final : public IWebSocket

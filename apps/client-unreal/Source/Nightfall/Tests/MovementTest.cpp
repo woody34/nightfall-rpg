@@ -57,7 +57,7 @@ namespace
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FClickToMoveTest, "Nightfall.Movement.ClickToMove",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FClickToMoveTest::RunTest(const FString& Parameters)
 {
@@ -133,10 +133,11 @@ bool FClickToMoveTest::RunTest(const FString& Parameters)
 // Ack -> EntityMove for the own entity -> pawn follows; then an out-of-bounds click is rejected.
 // Skipped with a warning when the API is not reachable.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovementEndToEndTest, "Nightfall.Movement.EndToEnd",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FMovementEndToEndTest::RunTest(const FString& Parameters)
 {
+	NightfallTest::AllowApiUnavailableLogs(*this);
 	FScopedTestGameInstance Instance;
 	USessionClient* Session = Instance.Get<USessionClient>();
 	UAuthSubsystem* Auth = Instance.Get<UAuthSubsystem>();
@@ -161,8 +162,7 @@ bool FMovementEndToEndTest::RunTest(const FString& Parameters)
 	Session->Ping([&](const FNetResult& R, const FGrpcNightfallV1PingResponse&) { PingResult = R; bPinged = true; });
 	if (!Pump([&] { return bPinged; }, 10.0) || !PingResult.IsOk())
 	{
-		AddWarning(FString::Printf(TEXT("API not reachable at %s; movement end-to-end skipped."), *Session->GetEndpoint()));
-		return true;
+		return NightfallTest::SkipLive(*this, FString::Printf(TEXT("API not reachable at %s; movement end-to-end skipped."), *Session->GetEndpoint()));
 	}
 	if (!UAuthSubsystem::GetCommandLineDevToken().IsEmpty()) Auth->StartLogin();
 	else Auth->LoginWithDevToken(TEXT("test:") + FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower));

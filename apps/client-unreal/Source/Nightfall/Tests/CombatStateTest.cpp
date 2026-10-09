@@ -18,7 +18,7 @@
 
 namespace
 {
-	constexpr EAutomationTestFlags CombatTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
+	constexpr EAutomationTestFlags CombatTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter;
 
 	const TCHAR* const OwnId = TEXT("0b6e2f6e-0000-4000-8000-000000000001");
 	const TCHAR* const Wolf = TEXT("0b6e2f6e-0000-4000-8000-0000000000a1");

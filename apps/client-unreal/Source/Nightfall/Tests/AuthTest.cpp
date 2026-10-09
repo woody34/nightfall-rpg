@@ -17,7 +17,7 @@
 
 namespace
 {
-	constexpr EAutomationTestFlags AuthTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
+	constexpr EAutomationTestFlags AuthTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter;
 	const TCHAR* const TestSlot = TEXT("NightfallAuthTest");
 
 	FString Hex(const TArray<uint8>& Bytes)
