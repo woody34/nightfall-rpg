@@ -13,6 +13,7 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 | [Session lifecycle](session-lifecycle.html) | State machine | HTTP admission, active session, recoverable rate limiting, replacement, idle timeout and close codes. |
 | [Persistence model](data-model.html) | ER / data model | All columns of the seven current tables, keys and declared versus logical relationships. |
 | [Module dependencies](module-dependencies.html) | Dependency graph | Composition, shared inner layers and the interface-to-infrastructure telemetry exception. |
+| [Stat derivation](stat-derivation-data-flow.html) | Data flow | Pinned L2J HF source → decimal generator → TOML → `rules_data` → `StatRules` → `StatSheet` → combat and progression. |
 
 ## Regenerate and validate
 
@@ -30,7 +31,8 @@ Open locally in a browser; repository viewers may show HTML source instead of re
    process steps; the replay tool is a top-down flowchart with a merge dot. The system uses
    `doc-wide` (1280×720), dependencies use `doc-inline`
    (960×600), and sequence/state/ER use fitted canvases. The process uses the type reference's
-   parametric five-step, four-lane canvas (728×436); the replay tool a fitted 720×700.
+   parametric five-step, four-lane canvas (728×436); the replay tool a fitted 720×700; stat
+   derivation the data-flow type's parametric six-step, four-lane canvas (840×436).
 5. Apply the skill's taste gate: complexity limits, ≤2 general focal elements (the process
    uses its type-specific focal step/node/handoff set), orthogonal connectors, masked labels,
    distinct ports, accessibility, readable type and local horizontal scrolling. Keep each
@@ -70,5 +72,7 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 - Component/module families are grouped; login retries and character-selection RPCs are
   omitted from the happy-path sequence. The dependency graph counts visible edges and
   omits direct composition imports of inner layers, tests and third-party crates.
+- Stat derivation groups the five tables and nine class files into one node and omits NPC
+  final values (`StatSheet::from_final`) and the replay/snapshot use of `config_hash` (E2.2).
 - Names and values shown were verified in code/configuration. The older docs' NATS command
   bus is a future design, not the current runtime path.

@@ -11,6 +11,7 @@
 //! * `data_hash`: composite config hash over data files.
 //! * `npc_data`: NPC template and spawn-slot parsing and validation.
 //! * `zone_data`: zone definitions from `packages/data/zones/`.
+//! * `rules_data`: stat rules from `packages/data/tables/` and `packages/data/classes/`.
 
 pub mod auth;
 pub mod data_hash;
@@ -20,6 +21,7 @@ pub mod nats;
 pub mod npc_data;
 pub mod outbox;
 pub mod postgres;
+pub mod rules_data;
 pub mod secrets;
 pub mod telemetry;
 pub mod zone_data;

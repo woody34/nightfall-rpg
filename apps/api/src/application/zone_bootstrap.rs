@@ -22,8 +22,8 @@ use super::replay_log::{
 };
 use super::zone_actor::{TickOutcome, TickSource, ZoneActor, ZoneHandle};
 use crate::domain::zone::{
-    NpcTemplate, SpawnSlot, Speed, Vec2Fixed, ZoneBounds, ZoneCommand, ZoneId, ZoneInput, ZoneSeed,
-    ZoneState,
+    NpcTemplate, SpawnSlot, Speed, StatRules, Vec2Fixed, ZoneBounds, ZoneCommand, ZoneId,
+    ZoneInput, ZoneSeed, ZoneState,
 };
 
 /// How long shutdown waits for the actor to finish its current tick.
@@ -61,8 +61,19 @@ pub struct ZoneDefinition {
     pub config_hash: String,
 }
 
+/// Validated stat rules and the canonical hash of the files they came from (Story E1.2).
+/// Loaded once at startup; immutable afterwards.
+#[derive(Debug, Clone)]
+pub struct ResolvedRules {
+    /// The rules every stat and combat calculation reads.
+    pub rules: Arc<StatRules>,
+    /// `sha256:` hash of the canonical rule data, for snapshot provenance.
+    pub config_hash: String,
+}
+
 /// Starts zones. Holds the ports every epoch needs.
 pub struct ZoneBootstrap {
+    rules: Option<ResolvedRules>,
     log: Arc<dyn EventLog>,
     snapshots: Option<Arc<dyn ZoneSnapshotStore>>,
     clock: Arc<dyn Clock>,
@@ -80,6 +91,7 @@ impl ZoneBootstrap {
         metrics: Arc<dyn ReplayLogMetrics>,
     ) -> Self {
         Self {
+            rules: None,
             log,
             snapshots,
             clock,
@@ -93,6 +105,20 @@ impl ZoneBootstrap {
     pub const fn with_gate_config(mut self, gate: GateConfig) -> Self {
         self.gate = gate;
         self
+    }
+
+    /// Injects the stat rules the zone will simulate with. Combat state and snapshot
+    /// provenance read them from here (Stories E2.2+); until then they are only held.
+    #[must_use]
+    pub fn with_rules(mut self, rules: ResolvedRules) -> Self {
+        self.rules = Some(rules);
+        self
+    }
+
+    /// The injected stat rules, if any.
+    #[must_use]
+    pub const fn rules(&self) -> Option<&ResolvedRules> {
+        self.rules.as_ref()
     }
 
     /// Starts `def` in a new epoch, ticking on `ticks`.

@@ -25,20 +25,42 @@
 )]
 
 mod aoi;
+mod combat_math;
 mod command;
 mod entity;
 mod fixed;
 mod npc_template;
+mod progression;
+mod scaled;
+mod stat_rules;
+mod stat_sheet;
+#[cfg(test)]
+mod stat_tests;
 mod state;
 
 pub use aoi::{aoi_cells_for, AoiCell, AoiIndex, CellCoord, AOI_CELL_TILES};
+pub use combat_math::{
+    add_hate, attack_timing, crit_lands, damage_hate, hit_chance_permille, hit_lands,
+    npc_respawn_tick, physical_damage, spawn_protection_ticks, town_respawn_vitals, AttackTiming,
+};
 pub use command::{
     AppliedCommand, AppliedTick, AppliedTickDraft, AttackOutcome, CommandSource, Disposition,
     ObserverOutput, Ordinal, RejectReason, SessionGeneration, ZoneCommand, ZoneEvent, ZoneInput,
 };
 pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
 pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
-pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot, Q};
+pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot};
+pub use progression::{add_xp, death_xp_loss, level_for_xp, xp_after_death, xp_cap};
+pub use scaled::{ceil_div, floor_div, isqrt, Scaled, StatError, Q};
+pub use stat_rules::{
+    Archetype, BonusTable, ClassTemplate, FormulaConstants, Quadratic, RuleViolation,
+    StatBonusTables, StatKind, StatRules, StatRulesParts, WeaponBlock, BONUS_TABLE_LEN,
+    MAX_SUPPORTED_LEVEL,
+};
+pub use stat_sheet::{
+    accuracy, attack_speed, crit_permille, evasion, fist_random_damage, level_mod, p_atk, p_def,
+    resource_max, sqrt_dex, FinalStats, StatSheet,
+};
 pub use state::{
     InvalidBounds, RngState, SnapshotError, SnapshotMeta, TickError, ZoneBounds, ZoneId, ZoneSeed,
     ZoneSnapshot, ZoneState, MAX_MOVE_DISTANCE_TILES, SNAPSHOT_SCHEMA_VERSION,
@@ -50,13 +72,19 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 8] = [
+    const SOURCES: [(&str, &str); 14] = [
         ("mod.rs", include_str!("mod.rs")),
         ("aoi.rs", include_str!("aoi.rs")),
+        ("combat_math.rs", include_str!("combat_math.rs")),
         ("command.rs", include_str!("command.rs")),
         ("entity.rs", include_str!("entity.rs")),
         ("fixed.rs", include_str!("fixed.rs")),
         ("npc_template.rs", include_str!("npc_template.rs")),
+        ("progression.rs", include_str!("progression.rs")),
+        ("scaled.rs", include_str!("scaled.rs")),
+        ("stat_rules.rs", include_str!("stat_rules.rs")),
+        ("stat_sheet.rs", include_str!("stat_sheet.rs")),
+        ("stat_tests.rs", include_str!("stat_tests.rs")),
         ("state.rs", include_str!("state.rs")),
         ("state_tests.rs", include_str!("state_tests.rs")),
     ];

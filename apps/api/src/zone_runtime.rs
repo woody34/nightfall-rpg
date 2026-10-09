@@ -13,7 +13,7 @@ use crate::application::Clock;
 use crate::infrastructure::eventlog::{InMemoryEventLog, JetStreamEventLog};
 use crate::infrastructure::postgres::PgZoneSnapshotStore;
 use crate::infrastructure::telemetry::Metrics;
-use crate::infrastructure::zone_data;
+use crate::infrastructure::{rules_data, zone_data};
 
 /// Where the zone comes from.
 #[derive(Debug, Clone, Default)]
@@ -21,6 +21,9 @@ pub struct ZoneRuntimeConfig {
     /// `ZONE_FILE`: a zone TOML. `None` uses the compiled-in fixture
     /// (`packages/data/zones/test_zone.toml`).
     pub zone_file: Option<PathBuf>,
+    /// `RULES_DIR`: a `packages/data` directory holding `tables/` and `classes/`. `None`
+    /// uses the compiled-in rule files.
+    pub rules_dir: Option<PathBuf>,
 }
 
 impl ZoneRuntimeConfig {
@@ -29,6 +32,9 @@ impl ZoneRuntimeConfig {
     pub fn from_env() -> Self {
         Self {
             zone_file: std::env::var_os("ZONE_FILE")
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from),
+            rules_dir: std::env::var_os("RULES_DIR")
                 .filter(|v| !v.is_empty())
                 .map(PathBuf::from),
         }
@@ -48,6 +54,12 @@ pub async fn start(
         Some(path) => zone_data::load_zone(path)?,
         None => zone_data::parse_zone(zone_data::TEST_ZONE_TOML)?,
     };
+    // Invalid rules abort startup with every error listed (Story E1.2).
+    let rules = match &cfg.rules_dir {
+        Some(dir) => rules_data::load_rules_dir(dir)?,
+        None => rules_data::load_rules(&rules_data::RulesSource::embedded())?,
+    };
+    tracing::info!(config_hash = %rules.config_hash, "stat rules loaded");
     let log: Arc<dyn EventLog> = if let Some(url) = nats_url {
         let client = async_nats::connect(url).await?;
         Arc::new(JetStreamEventLog::connect(client, metrics.clone()).await?)
@@ -60,6 +72,7 @@ pub async fn start(
             as Arc<dyn ZoneSnapshotStore>
     });
     ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics))
+        .with_rules(rules)
         .start(&def, IntervalTicks::new())
         .await
 }

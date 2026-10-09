@@ -1,15 +1,17 @@
 # packages/data
 
 TOML game data, loaded and validated at server start by `apps/api/src/infrastructure/`
-(`zone_data`, `npc_data`). Any error aborts startup and **all** problems are listed together.
+(`zone_data`, `npc_data`, `rules_data`). Any error aborts startup and **all** problems are listed together.
 Numbers are integers or exact decimal strings (`"8.8"`, up to 6 places); float literals are
 rejected. The zone's `config_hash` is a `DataHash` (`data_hash.rs`) over the zone file and every
-NPC template, so any data change changes the hash recorded in snapshots.
+NPC template, so any data change changes the hash recorded in snapshots. The stat rules carry
+their own canonical `config_hash` (`rules_data`); folding it into snapshots is Story E2.2.
 
 | Path | Holds |
 |------|-------|
 | `zones/<id>.toml` | bounds, fixed non-combat `[[npcs]]` (`attackable = false`), `[safe_point]`, `[[spawn_slots]]` |
 | `npcs/<id>.toml` | one attackable monster template; file stem must equal `id` |
+| `tables/*.toml`, `classes/*.toml` | **generated** HF stat rules (bonuses, formulas, XP, death loss, starter weapon, starting classes); see [SOURCES.md](SOURCES.md), never hand-edit |
 
 ## Units
 
