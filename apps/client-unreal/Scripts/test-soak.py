@@ -78,14 +78,35 @@ class SoakTests(unittest.TestCase):
             (role / '1-kill-one-monster.xml').write_text('''<testsuites><testsuite time="125"><properties>
               <property name="loop_iterations" value="3"/><property name="exit_code" value="0"/>
               </properties><testcase name="kill"/></testsuite></testsuites>''')
-            for value, expected in [('0.012', 0), ('0.051', 1), ('NaN', 1)]:
-                payload = json.dumps({'data': {'result': [{'value': [150, value]}]}}).encode()
-                with patch('urllib.request.urlopen', side_effect=lambda *a, **kw: io.BytesIO(payload)):
+            (out / 'replay-check.log').write_text('zone 1 epoch 1: match. 100 ticks replayed (100 recorded), 1 players')
+            def replies(value='0.012', ticks='100'):
+                return [io.BytesIO(json.dumps({'data': {'result': [{'value': [150, value]}]}}).encode()),
+                        io.BytesIO(json.dumps({'data': {'result': [{'metric': {'__name__': 'nightfall_combat_tick_duration_seconds_count'}, 'value': [150, ticks]}]}}).encode())]
+            for value, expected in [('0.012', 0), ('0.020', 1), ('0.034', 1), ('NaN', 1)]:
+                with patch('urllib.request.urlopen', side_effect=replies(value)):
                     self.assertEqual(reporting.report(out, 1, 120, 10, 150, 0), expected)
-            with patch('urllib.request.urlopen', side_effect=lambda *a, **kw: io.BytesIO(json.dumps({'data': {'result': [{'value': [150, '0.012']}]}}).encode())):
+            for ticks in ('99', '101', 'NaN'):
+                with patch('urllib.request.urlopen', side_effect=replies(ticks=ticks)):
+                    self.assertEqual(reporting.report(out, 1, 120, 10, 150, 0), 1)
+            with patch('urllib.request.urlopen', side_effect=replies()):
                 self.assertEqual(reporting.report(out, 1, 130, 10, 150, 0), 1)
+            with patch('urllib.request.urlopen', side_effect=replies()):
                 (out / 'runner-errors.txt').write_text('API shutdown forced; final metrics unavailable')
                 self.assertEqual(reporting.report(out, 1, 120, 10, 150, 0), 1)
+
+    def test_teardown_failure_changes_final_verdict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            (out / 'report.json').write_text(json.dumps({'passed': True, 'errors': []}))
+            (out / 'soak.xml').write_text('<testsuites/>')
+            (out / 'summary.txt').write_text('Soak: PASS\n')
+            self.assertEqual(reporting.teardown(out, 0), 0)
+            self.assertTrue(json.loads((out / 'report.json').read_text())['passed'])
+            self.assertEqual(reporting.teardown(out, 124), 1)
+            result = json.loads((out / 'report.json').read_text())
+            self.assertFalse(result['passed'])
+            self.assertEqual(result['cleanup_exit_code'], 124)
+            self.assertIsNotNone(ET.parse(out / 'soak.xml').find('.//failure'))
 
 
 if __name__ == '__main__':

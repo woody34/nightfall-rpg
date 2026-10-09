@@ -58,16 +58,20 @@ stop_api() {
   return "$stop_code"
 }
 cleanup() {
-  stop_api || true
+  local original_code="$1" cleanup_code=0
+  trap - EXIT
+  stop_api || original_code=1
   "${COMPOSE[@]}" logs --no-color >"$OUT/compose.log" 2>&1 || true
-  timeout --kill-after=10 60 "${COMPOSE[@]}" down -v >"$OUT/cleanup.log" 2>&1 || true
+  timeout --kill-after=10 60 "${COMPOSE[@]}" down -v >"$OUT/cleanup.log" 2>&1 || cleanup_code=$?
+  python3 "$HERE/soak-report.py" --teardown "$OUT" "$cleanup_code" || original_code=1
+  exit "$original_code"
 }
-trap cleanup EXIT
+trap 'cleanup "$?"' EXIT
 trap 'exit 130' INT TERM
 "${COMPOSE[@]}" up -d --wait >"$OUT/compose-start.log" 2>&1
 if [[ -z "${SOAK_API_BIN:-}" ]]; then
-  (cd "$SIM_REPO" && cargo build --quiet -p nightfall-api --bins) >"$OUT/api-build.log" 2>&1
-  SOAK_API_BIN="$(cd "$SIM_REPO" && cargo metadata --format-version 1 --no-deps | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')/debug/nightfall-api"
+  (cd "$SIM_REPO" && cargo build --release --quiet -p nightfall-api --bins) >"$OUT/api-build.log" 2>&1
+  SOAK_API_BIN="$(cd "$SIM_REPO" && cargo metadata --format-version 1 --no-deps | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')/release/nightfall-api"
 fi
 SOAK_REPLAY_BIN="${SOAK_REPLAY_BIN:-$(dirname "$SOAK_API_BIN")/nightfall-replay}"
 [[ -x "$SOAK_REPLAY_BIN" ]] || sim_die "nightfall-replay missing beside API; build --bins or set SOAK_REPLAY_BIN"
