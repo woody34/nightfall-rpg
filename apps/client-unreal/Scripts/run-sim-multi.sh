@@ -137,6 +137,9 @@ for scenario in "${SCENARIOS[@]}"; do
       status=FAIL; note="${note:+$note; }trace generation failed"
     fi
   done
+  if ! python3 "$HERE/sim-contract.py" merge --out "$dest/coverage.contract.json" --report "$dest/$n.xml" "$dest/$n.coverage.contract.json"; then
+    status=FAIL; note="${note:+$note; }contract coverage missing or invalid"
+  fi
   if [[ "$status" != PASS ]]; then
     FAILED=$((FAILED + 1))
     python3 "$HERE/sim-junit.py" failure "$dest/$n.xml" "$n" "$note"
