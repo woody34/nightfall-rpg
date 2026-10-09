@@ -1,4 +1,5 @@
 #include "LoginFlowSubsystem.h"
+#include "Bot/BotCharacterName.h"
 #include "Nightfall.h"
 #include "Auth/AuthSubsystem.h"
 #include "Net/NetSettings.h"
@@ -317,9 +318,7 @@ namespace
 				{
 					// A fresh account (a bot's test:<uuid>): create a character with a unique
 					// letters-only name (3-16, the server's rule) and enter with it.
-					const FString Hex = FGuid::NewGuid().ToString(EGuidFormats::Digits);
-					FString Name = TEXT("Bot");
-					for (int32 I = 0; I < 12; ++I) Name.AppendChar(TEXT('a') + static_cast<TCHAR>(FParse::HexDigit(Hex[I])));
+					const FString Name = BotCharacterName::FromGuid(FGuid::NewGuid());
 					UE_LOG(LogNightfall, Display, TEXT("nf.EnterWorld: no characters; creating %s"), *Name);
 					Weak->CreateCharacter(Name, EGrpcNightfallV1Race::RACE_HUMAN, [Weak](const FNetResult& Created, const FGrpcNightfallV1Character& Character)
 					{
