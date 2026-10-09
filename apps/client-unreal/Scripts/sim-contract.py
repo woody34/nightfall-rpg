@@ -42,7 +42,7 @@ def merge(paths):
         elif data.get('wire_numbers') != numbers:
             raise ValueError(f'{path}: compiled descriptor numbers differ between clients')
         for group in GROUPS:
-            if counts[group] and group != 'close_codes' and set(counts[group]) != set(data['counts'][group]):
+            if counts[group] and group not in ('close_codes', 'reasons') and set(counts[group]) != set(data['counts'][group]):
                 raise ValueError(f'{path}: descriptor catalogue differs for {group}')
             for name, count in data['counts'][group].items():
                 counts[group][name] = counts[group].get(name, 0) + int(count)
@@ -74,8 +74,10 @@ def promote(candidate, previous=None):
             for name, count in entries.items():
                 if int(count) > 0:
                     counts[group][name] = '1'
+    scenarios = set(previous.get('observed_scenarios', [])) if previous else set()
+    scenarios.update(Path(path).name.removesuffix('.coverage.contract.json') for path in candidate.get('sources', []))
     return {'schema_version': 1, 'baseline_kind': 'historical observed presence',
-            'counts': counts, 'wire_numbers': candidate.get('wire_numbers')}
+            'counts': counts, 'wire_numbers': candidate.get('wire_numbers'), 'observed_scenarios': sorted(scenarios)}
 
 
 def attach(report, coverage):

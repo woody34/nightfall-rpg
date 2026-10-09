@@ -178,7 +178,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 			Trace(Now, FString::Printf(TEXT("L%d > %s"), Step.Line, *Step.Source));
 		}
 		const double Waited = Now - StepStartSeconds;
-		auto Advance = [this] { ++Current; StepStartSeconds = -1.0; };
+		auto Advance = [this] { ++Current; StepStartSeconds = -1.0; LastObserved = TEXT("not evaluated"); };
 
 		switch (Step.Kind)
 		{
@@ -196,10 +196,11 @@ bool FBotScenarioExecutor::Tick(double Now)
 		case EBotStepKind::Expect:
 		{
 			const FBotPredicateValue V = Eval(Step.Predicate);
+			LastObserved = V.Observed;
 			if (!V.bTrue)
 			{
 				FailStep(Step, Now, FString::Printf(TEXT("expected '%s', observed %s"), *Step.PredicateText, *V.Observed),
-					FString::Printf(TEXT("predicate: %s\nobserved: %s"), *Step.PredicateText, *V.Observed));
+					FString::Printf(TEXT("predicate: %s\nobserved: %s"), *Step.PredicateText, *V.Observed), TEXT("bot_assertion"));
 				return false;
 			}
 			FBotTestCase& Case = CaseFor(Current);
@@ -212,6 +213,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 		case EBotStepKind::WaitFor:
 		{
 			const FBotPredicateValue V = Eval(Step.Predicate);
+			LastObserved = V.Observed;
 			if (V.bTrue)
 			{
 				FBotTestCase& Case = CaseFor(Current);
@@ -225,7 +227,7 @@ bool FBotScenarioExecutor::Tick(double Now)
 			if (Waited >= Step.Seconds)
 			{
 				FailStep(Step, Now, FString::Printf(TEXT("timed out after %s waiting for '%s'; last observed %s"), *FormatSeconds(Waited), *Step.PredicateText, *V.Observed),
-					FString::Printf(TEXT("predicate: %s\ntimeout: %s\nlast observed: %s"), *Step.PredicateText, *FormatSeconds(Step.Seconds), *V.Observed));
+					FString::Printf(TEXT("predicate: %s\ntimeout: %s\nlast observed: %s"), *Step.PredicateText, *FormatSeconds(Step.Seconds), *V.Observed), TEXT("bot_expectation"));
 				return false;
 			}
 			return true;
@@ -243,11 +245,18 @@ bool FBotScenarioExecutor::Tick(double Now)
 	return false;
 }
 
-void FBotScenarioExecutor::FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail)
+void FBotScenarioExecutor::FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail, const FString& Type)
 {
+	if (!FailedStep.IsSet())
+	{
+		FailedStep = FBotFailedStep{ Step.Line, Step.Source, Step.PredicateText,
+			Step.IsAssertion() ? LastObserved : FString(), StepStartSeconds >= 0.0 ? Now - StepStartSeconds : 0.0,
+			Now - StartSeconds };
+	}
 	const int32 StepIndex = Scenario.Steps.IndexOfByPredicate([&](const FBotStep& S) { return S.Line == Step.Line; });
 	FBotTestCase& Case = CaseFor(StepIndex);
 	Case.Status = FBotTestCase::EStatus::Failed;
+	Case.FailureType = Type;
 	Case.Seconds = StepStartSeconds >= 0.0 ? Now - StepStartSeconds : 0.0;
 	Case.Message = Message;
 	Case.Detail = Detail;
@@ -295,9 +304,12 @@ void FBotScenarioExecutor::Finish(double Now)
 		else
 		{
 			Case.Status = FBotTestCase::EStatus::Failed;
+			Case.FailureType = TEXT("bot_scenario");
 			Case.Message = FString::Printf(TEXT("scenario took %s, budget %s"), *FormatSeconds(Elapsed), *FormatSeconds(Scenario.BudgetSeconds));
 			bFailed = true;
 			if (Failure.IsEmpty()) Failure = Case.Message;
+			if (!FailedStep.IsSet()) FailedStep = FBotFailedStep{ Scenario.BudgetLine, TEXT("nf.Within"),
+				TEXT("scenario wall-clock budget"), FString::SanitizeFloat(Elapsed), Elapsed, Elapsed };
 		}
 	}
 	Cases.StableSort([](const FBotTestCase& A, const FBotTestCase& B) { return A.Line < B.Line; });
@@ -362,8 +374,8 @@ FString BotJUnit::Write(const FString& Scenario, const TArray<FBotTestCase>& Cas
 			Xml += Head + FString::Printf(TEXT(">\n      <skipped message=\"%s\"/>\n    </testcase>\n"), *Escape(Case.Message));
 			break;
 		case FBotTestCase::EStatus::Failed:
-			Xml += Head + FString::Printf(TEXT(">\n      <failure message=\"%s\" type=\"failure\">%s</failure>\n    </testcase>\n"),
-				*Escape(Case.Message), *Escape(Case.Detail.IsEmpty() ? Case.Message : Case.Detail));
+			Xml += Head + FString::Printf(TEXT(">\n      <failure message=\"%s\" type=\"%s\">%s</failure>\n    </testcase>\n"),
+				*Escape(Case.Message), *Escape(Case.FailureType), *Escape(Case.Detail.IsEmpty() ? Case.Message : Case.Detail));
 			break;
 		}
 	}

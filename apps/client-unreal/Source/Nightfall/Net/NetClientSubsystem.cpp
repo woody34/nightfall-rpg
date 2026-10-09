@@ -109,6 +109,12 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 
 void UNetClientSubsystem::HandleClosed(int32 StatusCode, const FString& Reason, bool bWasClean)
 {
+	OnWireClosed.Broadcast(StatusCode);
+	ApplyClosedState(StatusCode, Reason, bWasClean);
+}
+
+void UNetClientSubsystem::ApplyClosedState(int32 StatusCode, const FString& Reason, bool bWasClean)
+{
 	UE_LOG(LogNightfall, Log, TEXT("ws closed (%d, clean=%d): %s"), StatusCode, bWasClean, *Reason);
 	bConnected = false;
 	LastCloseCode = StatusCode;
@@ -172,6 +178,7 @@ void UNetClientSubsystem::HandleRawMessage(const void* Data, SIZE_T Size, SIZE_T
 	if (BytesRemaining > 0) return; // fragmented frame; wait for the rest
 
 	FServerMessage Msg;
+	OnWireReceived.Broadcast(Frame); // diagnostics validates raw envelopes before projection conversion
 	const bool bOk = NightfallProto::Decode(Frame.GetData(), Frame.Num(), Msg);
 	Frame.Reset();
 	if (!bOk)
@@ -331,6 +338,7 @@ void UNetClientSubsystem::Send(const FClientMessage& Msg)
 	TArray<uint8> Bytes;
 	NightfallProto::Encode(Msg, Bytes);
 	Socket->Send(Bytes.GetData(), Bytes.Num(), /*bIsBinary=*/true);
+	OnWireSent.Broadcast(Bytes);
 	bSentSinceKeepAliveArmed = true;
 }
 
@@ -377,6 +385,6 @@ void UNetClientSubsystem::DropSocketForTesting()
 {
 	if (!Socket.IsValid()) return;
 	CloseSocket();
-	HandleClosed(1006, TEXT("dropped by nf.DropSocket"), false);
+	ApplyClosedState(1006, TEXT("dropped by nf.DropSocket"), false);
 }
 #endif

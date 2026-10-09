@@ -6,6 +6,7 @@
 #include "BotPredicates.h"
 #include "BotSteps.h"
 #include "BotLogSentinel.h"
+#include "BotDiagnostics.h"
 #include "BotScenarioRunner.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNightfallBot, Log, All);
@@ -81,6 +82,7 @@ private:
 	TUniquePtr<FBotScenarioExecutor> Executor;
 	FBotLogSentinel Sentinel;
 	FBotObservations Observations;
+	TUniquePtr<FBotDiagnostics> Diagnostics;
 	bool bObserving = false;
 	TUniquePtr<FArchive> RunLog;
 	FTSTicker::FDelegateHandle TickHandle;

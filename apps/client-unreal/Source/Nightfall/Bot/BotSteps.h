@@ -68,6 +68,18 @@ struct FBotTestCase
 	double Seconds = 0.0;
 	FString Message;           // failure / skip reason (one line)
 	FString Detail;            // failure body
+	FString FailureType = TEXT("failure"); // explicit predicate failures may be quarantined; infrastructure stays generic
+};
+
+/** Structured first failure; never re-evaluate a predicate while writing diagnostic artifacts. */
+struct FBotFailedStep
+{
+	int32 Line = 0;
+	FString Source;
+	FString Predicate;
+	FString Observed;
+	double WaitSeconds = 0.0;
+	double ElapsedSeconds = 0.0;
 };
 
 /**
@@ -108,9 +120,10 @@ public:
 	const TArray<FBotTestCase>& GetTestCases() const { return Cases; }
 	/** Step that failed the run, its message; empty when passed. */
 	const FString& GetFailure() const { return Failure; }
+	const TOptional<FBotFailedStep>& GetFailedStep() const { return FailedStep; }
 
 private:
-	void FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail);
+	void FailStep(const FBotStep& Step, double Now, const FString& Message, const FString& Detail, const FString& Type = TEXT("failure"));
 	void Finish(double Now);
 	void Trace(double Now, const FString& Text) const;
 	FBotTestCase& CaseFor(int32 StepIndex);
@@ -130,6 +143,8 @@ private:
 	bool bFinished = false;
 	bool bFailed = false;
 	FString Failure;
+	TOptional<FBotFailedStep> FailedStep;
+	FString LastObserved = TEXT("not evaluated");
 };
 
 namespace BotJUnit

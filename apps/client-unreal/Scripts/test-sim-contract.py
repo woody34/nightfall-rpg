@@ -50,6 +50,15 @@ class ContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 contract.merge([path])
 
+    def test_unknown_reason_is_unioned_without_descriptor_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first, second = (Path(directory) / name for name in ('known.json', 'unknown.json'))
+            data = fixture(0)
+            first.write_text(json.dumps(data))
+            data['counts']['reasons']['unknown_99'] = '1'
+            second.write_text(json.dumps(data))
+            self.assertEqual(contract.merge([first, second])['counts']['reasons']['unknown_99'], '1')
+
     def test_uint64_counters_are_exact(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'large.json'
