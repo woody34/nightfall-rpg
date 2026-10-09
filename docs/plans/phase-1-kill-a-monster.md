@@ -67,7 +67,8 @@ only the specified operations. Static curves become checked-in lookup tables, no
 NPC template combat stats are final values; do not apply player class bonuses to them a second time.
 The chosen level-1 monster does not trigger HF's level-78+ NPC damage penalty (stats §2.9).
 
-Let `F` mean mathematical floor, `C` ceiling; signed divisions must implement floor explicitly.
+Let `F` mean mathematical floor, `C` ceiling, and `R(x)=F(x+1/2)` the source
+`Math.round` rule (ties toward positive infinity); signed divisions implement floor explicitly.
 Evaluate each expression below as one rational product before its stated final division. Do not
 truncate bonuses, P.Atk or P.Def to whole units before damage. Resource maxima floor to whole units;
 UI rounding never feeds back into simulation. `isqrt(n)` is the floor integer square root.
@@ -78,13 +79,13 @@ UI rounding never feeds back into simulation. `isqrt(n)` is the floor integer sq
 | Level modifier | `LM_Q = (L+89)*10000`, exact representation of `(L+89)/100`. |
 | P.Atk / P.Def | `A_Q = F(atk_Q*STR_Q*LM_Q/Q²)` where `atk` is the weapon's P.Atk when one is held (L2J `<set>` replaces the fist value, E-5) else the class fist P.Atk; `D_Q = F(baseUnarmouredDef_Q*LM_Q/Q)`. No occupied armour slots in this phase. |
 | HP / MP | `n=L−1`; class table values from stats §2.5: `H_Q=baseHP_Q+aHP_Q*n+bHP_Q*n²`, analogously `M_Q`; `maxHP=F(H_Q*CON_Q/Q²)`, `maxMP=F(M_Q*MEN_Q/Q²)`. Reconcile expanded rows with the source tables. |
-| Accuracy / evasion | `root_Q=isqrt(DEX*Q²)`; `acc_Q=6*root_Q+L*Q+accAdd_Q[L]+weaponAccuracy_Q`; `eva_Q=min(250*Q,6*root_Q+L*Q+evaAdd_Q[L])`. HF additions as exact per-level entries: accuracy `+(L−69)` above 69 and `+(L−76)` above 77; evasion `+(L−69)` from 70, ×1.2 from 78 (E-3). |
-| Hit | Flat/front condition multiplier is Q. `chance‰=clamp(F((800*Q+20*(acc_Q−eva_Q))/Q),200,980)`. Preserve the docs' comparator: **hit iff roll ≤ chance**, roll uniform `0..999`; thus “80%” nominal is 801/1000 outcomes. Test this boundary explicitly, do not quietly change `>=` to `>`. |
+| Accuracy / evasion | `root_Q=isqrt(DEX*Q²)`; `acc_Q=Q*R((6*root_Q+L*Q+accAdd_Q[L]+weaponAccuracy_Q)/Q)`; `eva_Q=Q*min(250,R((6*root_Q+L*Q+evaAdd_Q[L])/Q))`. Round each getter before hit calculation (E1.4); the independent bounded-root oracle proves Q root truncation does not change a rounded result for DEX 0–99. HF additions as exact per-level entries: accuracy `+(L−69)` above 69 and `+(L−76)` above 77; evasion `+(L−69)` from 70, ×1.2 from 78 (E-3). |
+| Hit | Flat/front condition multiplier is Q. `chance‰=clamp(800+20*(R(acc_Q/Q)−R(eva_Q/Q)),200,980)`. This also rounds final NPC accuracy/evasion inputs as the source getters do. Preserve the docs' comparator: **hit iff roll ≤ chance**, roll uniform `0..999`; thus “80%” nominal is 801/1000 outcomes. Test this boundary explicitly, do not quietly change `>=` to `>`. |
 | Physical crit | `crit‰=min(500,F(base*DEX_Q*10/Q))`, base = HF fist 4 or the weapon's (Squire's Sword 8); crit iff roll `< crit‰`; multiplier 2, additive crit modifiers 0. |
 | Physical damage | `max(1,F(K*A_Q*criticalFactor*(100+j)/(D_Q*100)))` with `K` = **76** (resolved, `calcPhysDam`), integer `j` uniform in `[-r,r]` from the weapon's random-damage radius (Squire's Sword 10; bare hands `5+isqrt(L)`). This is the documented physical pipeline with D2's constant; soulshots, position, traits, attributes, PvP and buffs are neutral (1 or 0). No skills. |
-| Attack timing | `speed_Q=min(1500*Q,F(baseAtkSpeed_Q*DEX_Q/Q))`, base = weapon speed when held (379) else fist (300), strictly positive. Exact interval is `500000*Q/speed_Q` ms. Impact after `max(1,C(500000*Q/(2*speed_Q*100)))` ticks; next cycle after `max(1,C(500000*Q/(speed_Q*100)))` ticks. Quantize independently from the exact fraction, never from a rounded millisecond display. |
+| Attack timing | `speed_Q=Q*min(1500,R(baseAtkSpeed*DEX_Q/Q))`, base = weapon speed when held (379) else fist (300), strictly positive. Follow HF casts: `interval_ms=F(500000*Q/speed_Q)`, `impact_ms=F(interval_ms/2)`; then impact after `max(1,C(impact_ms/100))` ticks and next cycle after `max(1,C(interval_ms/100))` ticks. E1.4 replaces the earlier exact-fraction scheduling because it differed by up to one tick. |
 | Hate | On landed damage `d`, add `F(d*100/(npcLevel+7))`, cap total at `999999999`; track actual damage separately. Auto/social aggro adds 1 hate. |
-| XP / death | HF cumulative XP `X[L]` in `experience.toml` (L1–85 plus sentinel `X[86]`; XP capped at `X[86]−1`), rate 1 and template reward, no Nightfall level-gap XP multiplier. `loss=F((X[L+1]−X[L])*loss_Q[L]/Q)` then `xp=max(0,xp−loss)`; derive level by threshold search. HF loss is 10% at L1, −0.125 percentage points/level through L49, 4% through L75, 2.5/2/1.5% at L76/77/78, 1% at L79–85. Store every row; e.g. L2 fraction is 98750/Q. |
+| XP / death | HF cumulative XP `X[L]` in `experience.toml` (L1–85 plus sentinel `X[86]`; XP capped at `X[86]−1`), rate 1 and template reward, no Nightfall level-gap XP multiplier. `loss=R((X[L+1]−X[L])*loss_Q[L]/Q)` then `xp=max(0,xp−loss)`; derive level by threshold search. HF loss is 10% at L1, −0.125 percentage points/level through L49, 4% through L75, 2.5/2/1.5% at L76/77/78, 1% at L79–85. Store every row; e.g. L2 fraction is 98750/Q. |
 | Respawn | NPC delay in integer ticks: `deathTick+10*(delaySeconds+uniform(0..randomSeconds))`, inclusive random endpoints. Player town respawn: `HP=max(1,F(maxHP*65/100))`, MP 0, protection `PlayerSpawnProtection` = 600 **s** = 6000 ticks (E-6); Attack ends protection. |
 
 Worked vectors (tests must assert the integer encodings as well as displayed values):
@@ -99,17 +100,28 @@ Worked vectors (tests must assert the integer encodings as well as displayed val
    Those bonuses test arithmetic; the HF table has CON 43 = 1.58 (E-4), giving 1007 HP.
 3. Accuracy 40 versus evasion 35 → 900‰; rolls 900/901 hit/miss. Differences −31/+10
    clamp to 200/980‰. HF DEX 30 bonus 1.10 gives fist crit 44‰: rolls 43/44 crit/normal;
-   with Squire's Sword (base 8) 88‰. HF Human Fighter L1 accuracy `6*5477225+1Q=33863350`.
+   with Squire's Sword (base 8) 88‰. HF Human Fighter L1 accuracy
+   `Q*R((6*5477225+1Q)/Q)=34000000` (34).
    Stats §3.3's Interlude base-44 example instead floors to 48‰; test it only as a labelled legacy vector.
 4. K=76 (resolved): P.Atk 100, P.Def 50, spread 0: `76*100/50=152`; crit = 304. Spread −10 gives
    `floor(136.8)=136`; miss = 0 damage, no crit/spread draw. Damage 152 to an L20 mob adds `floor(152*100/27)=562` hate.
-5. Docs' speed 300: exact interval 1666⅔ ms, impact tick +9, next swing +17.
-   Speed 1500: 333⅓ ms, impact +2, next swing +4. Displayed 1667/333 ms is not scheduling input.
-   Squire's Sword at DEX 30: speed `F(379*1.10)=416.9`, impact +6, next swing +12.
+5. Speed 300: raw interval 1666⅔ ms → source interval 1666 ms, half 833 ms,
+   impact tick +9, next swing +17. Speed 1500: interval 333 ms, half 166 ms, impact +2,
+   next swing +4. Squire's Sword at DEX 30: `R(379*1.10)=417`, interval 1199 ms,
+   half 599 ms, impact +6, next swing +12. Bare hands DEX 17: speed 294, interval
+   1700 ms → cycle +17 (the superseded exact-fraction contract gave +18).
 6. Docs' HF thresholds `X[1]=0, X[2]=68, X[3]=363`: XP 60 + reward 10 → 70, level 2.
-   Death at L2 loses `floor((363−68)*0.09875)=29`, leaving XP 41 and level 1.
+   Death at L2 loses `R((363−68)*0.09875)=29`, leaving XP 41 and level 1.
    At maxHP 126, town respawn restores 81 HP. XP stops at `X[86]−1 = 16890558727` (level 85);
-   the L86 sentinel supplies L85's death-loss span (`F(3710077625*0.01)=37100776`), not a level.
+   the L86 sentinel supplies L85's death-loss span (`R(3710077625*0.01)=37100776`), not a level.
+
+E1.4 fidelity review: the independent rational oracle and measured discrepancy ledger are in
+[SOURCES.md §E1.4](../../packages/data/SOURCES.md#e14-independent-fidelity-review).
+The former fractional hit calculation differed by **19‰**; floored death loss differed by
+**1 XP** and could prevent delevelling (L5, XP 3183: old 2884/L5, source 2883/L4).
+Both now match source rounding. HP/MP retain exact decimal source rows under D3: Java
+binary32 storage differs by at most **1 resource unit** across the extended attribute grid,
+and by **0** for all nine unmodified profiles at all 85 levels.
 
 ### 3.2 Commands, state, AI and replay
 

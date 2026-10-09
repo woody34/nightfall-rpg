@@ -264,7 +264,7 @@ def gen_penalties(dp: Repo, game: Repo, max_level: int) -> str:
         "# (L2PcInstance.calculateDeathExpPenalty). `percent` is the literal source value,\n"
         "# `fraction_q` = percent / 100 as an exact Q-scaled integer.\n"
         f"# Source literal: {loss}\n"
-        "# Nightfall floors instead of Math.round (plan §3.1); see SOURCES.md errata E-7.\n\n"
+        "# Nightfall matches Math.round with exact rational arithmetic (plan §3.1); see SOURCES.md errata E-7.\n\n"
     )
     out += source_block(rel, DATAPACK_REPOSITORY, DATAPACK_REVISION, "PlayerXpPercentLostData")
     out += f"max_level = {max_level}\n"

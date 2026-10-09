@@ -2,6 +2,8 @@
 //! integers and decimal strings, floats are rejected. Validation collects every problem so a bad
 //! data set is reported in full at startup.
 
+use super::exact_decimal::parse_decimal;
+
 use std::collections::BTreeSet;
 use std::fmt;
 
@@ -18,7 +20,7 @@ pub const KELTIR_TOML: &str = include_str!("../../../../packages/data/npcs/kelti
 /// Embedded templates as `(file stem, source)`.
 pub const EMBEDDED_TEMPLATES: [(&str, &str); 1] = [("keltir", KELTIR_TOML)];
 
-/// An integer or an exact decimal string with at most six places, as Q units (1e-6).
+/// An integer or a decimal string exactly representable as Q units (1e-6).
 #[derive(Debug, Clone, Copy)]
 struct QDecimal(i64);
 
@@ -44,36 +46,12 @@ impl<'de> Deserialize<'de> for QDecimal {
                 Err(E::custom("float literals are not allowed; use an integer or a decimal string"))
             }
             fn visit_str<E: de::Error>(self, s: &str) -> Result<QDecimal, E> {
-                parse_decimal_q(s).map(QDecimal).map_err(E::custom)
+                parse_decimal(s)
+                    .map(|v| QDecimal(v.raw()))
+                    .map_err(E::custom)
             }
         }
         d.deserialize_any(V)
-    }
-}
-
-/// Parses `[-]digits[.digits{1,6}]` exactly into Q units.
-fn parse_decimal_q(s: &str) -> Result<i64, String> {
-    let bad = || format!("invalid decimal {s:?}: expected digits with at most 6 decimal places");
-    let (neg, body) = s.strip_prefix('-').map_or((false, s), |b| (true, b));
-    let (whole, frac) = body.split_once('.').unwrap_or((body, ""));
-    let digits = |p: &str| p.bytes().all(|b| b.is_ascii_digit());
-    if whole.is_empty() || !digits(whole) || !digits(frac) || frac.len() > 6 {
-        return Err(bad());
-    }
-    let whole: i64 = whole.parse().map_err(|_| bad())?;
-    let frac_q: i64 = if frac.is_empty() {
-        0
-    } else {
-        format!("{frac:0<6}").parse().map_err(|_| bad())?
-    };
-    let q = whole
-        .checked_mul(Q)
-        .and_then(|w| w.checked_add(frac_q))
-        .ok_or_else(|| format!("decimal {s:?} is too large"))?;
-    if neg {
-        q.checked_neg().ok_or_else(bad)
-    } else {
-        Ok(q)
     }
 }
 
@@ -297,15 +275,6 @@ mod tests {
         assert_eq!(t.p_def_q, 26_900_000);
         assert_eq!(t.level, 1);
         assert_eq!(t.respawn_delay_secs, 30);
-    }
-
-    #[test]
-    fn decimals_are_exact_and_bounded() {
-        assert_eq!(parse_decimal_q("0.000001"), Ok(1));
-        assert_eq!(parse_decimal_q("-1.5"), Ok(-1_500_000));
-        assert!(parse_decimal_q("1.0000001").is_err());
-        assert!(parse_decimal_q("1e3").is_err());
-        assert!(parse_decimal_q(".5").is_err());
     }
 
     #[test]

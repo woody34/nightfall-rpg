@@ -225,8 +225,8 @@ fn derived_human_fighter_sheet_at_level_1() {
     assert_eq!(bare.p_def(), q(72_000_000));
     assert_eq!(bare.max_hp(), 126); // F(80 * 1.58)
     assert_eq!(bare.max_mp(), 38); // F(30 * 1.28)
-    assert_eq!(bare.accuracy(), q(33_863_350)); // 6 * 5.477225 + 1
-    assert_eq!(bare.evasion(), q(33_863_350));
+    assert_eq!(bare.accuracy(), q(34_000_000)); // round(6 * sqrt(30) + 1)
+    assert_eq!(bare.evasion(), q(34_000_000));
     assert_eq!(bare.crit_permille(), 44);
     assert_eq!(bare.attack_speed(), q(330_000_000));
     assert_eq!(bare.random_damage(), 6); // fist: 5 + isqrt(1)
@@ -234,7 +234,7 @@ fn derived_human_fighter_sheet_at_level_1() {
     let armed = StatSheet::for_player(&r, class, 1, Some(r.starter_weapon())).unwrap();
     assert_eq!(armed.p_atk(), q(6_480_000));
     assert_eq!(armed.crit_permille(), 88); // F(8 * 1.10 * 10)
-    assert_eq!(armed.attack_speed(), q(416_900_000)); // F(379 * 1.10)
+    assert_eq!(armed.attack_speed(), q(417_000_000)); // round(379 * 1.10)
     assert_eq!(armed.random_damage(), 10);
 }
 
@@ -295,11 +295,11 @@ fn vector_3_hit_chance_clamps() {
 }
 
 #[test]
-fn hit_chance_floors_fractional_differences() {
+fn hit_chance_rounds_each_source_getter_before_subtraction() {
     let c = hf_constants();
-    // diff -0.05: 800 - 1 = 799 exactly; diff -0.051: F(798.98) = 798.
-    assert_eq!(hit_chance_permille(&c, q(0), q(50_000)).unwrap(), 799);
-    assert_eq!(hit_chance_permille(&c, q(0), q(51_000)).unwrap(), 798);
+    // Both fractional evasion values round to zero before subtraction.
+    assert_eq!(hit_chance_permille(&c, q(0), q(50_000)).unwrap(), 800);
+    assert_eq!(hit_chance_permille(&c, q(0), q(51_000)).unwrap(), 800);
 }
 
 #[test]
@@ -369,15 +369,14 @@ fn vector_5_speed_300_and_cap_1500() {
     let t300 = attack_timing(&c, Scaled::from_int(300).unwrap()).unwrap();
     assert_eq!((t300.impact_ticks, t300.cycle_ticks), (9, 17));
     let (n, d) = t300.interval_ms;
-    assert_eq!((n * 3, d * 3), (1_500_000_000_000, 900_000_000)); // 1666 2/3 ms
-    assert_eq!(n * 3 / d, 5000);
+    assert_eq!((n, d), (1666, 1)); // HF truncates 1666 2/3 ms before scheduling.
     let t1500 = attack_timing(&c, Scaled::from_int(1500).unwrap()).unwrap();
     assert_eq!((t1500.impact_ticks, t1500.cycle_ticks), (2, 4));
 }
 
 #[test]
-fn starter_weapon_timing_uses_the_exact_fraction() {
-    // 379 * 1.10 = 416.9: interval 1199.33 ms, impact C(5.997) = 6, next C(11.99) = 12.
+fn starter_weapon_timing_uses_source_rounding() {
+    // round(379 * 1.10) = 417: interval 1199 ms, impact 599 ms => 6/12 ticks.
     let t = attack_timing(&hf_constants(), q(416_900_000)).unwrap();
     assert_eq!((t.impact_ticks, t.cycle_ticks), (6, 12));
 }
@@ -413,7 +412,7 @@ fn xp_is_capped_one_below_the_sentinel() {
     assert_eq!(add_xp(&r, 1000, 10_000).unwrap(), 1167);
     assert_eq!(level_for_xp(&r, 1167), 3);
     assert_eq!(level_for_xp(&r, u64::MAX), 3);
-    // The max level's loss spans to the sentinel: F((1168 - 363) * 0.0975) = 78.
+    // The max level's loss spans to the sentinel: round(805 * 0.0975) = 78.
     assert_eq!(death_xp_loss(&r, 3).unwrap(), 78);
     assert_eq!(xp_after_death(&r, 10, 3).unwrap(), 0);
     assert_eq!(death_xp_loss(&r, 4), Err(StatError::LevelOutOfRange(4)));
@@ -627,4 +626,25 @@ proptest! {
             prop_assert!(s.evasion() <= Scaled::from_int(250).unwrap());
         }
     }
+}
+
+#[test]
+fn java_rounding_ties_and_integer_bounds() {
+    use super::scaled::round_div;
+    for (n, d, expected) in [
+        (1, 2, 1),
+        (-1, 2, 0),
+        (-3, 2, -1),
+        (4, 3, 1),
+        (5, 3, 2),
+        (i128::MAX, 1, i128::MAX),
+        (i128::MIN, 1, i128::MIN),
+    ] {
+        assert_eq!(round_div(n, d).unwrap(), expected);
+    }
+    assert_eq!(round_div(1, 0), Err(StatError::NonPositiveDivisor));
+    assert_eq!(attack_timing(&hf_constants(), q(499_999)), Err(StatError::NonPositiveDivisor));
+    // Source casts matter at exact 100ms deadlines.
+    let fist = attack_timing(&hf_constants(), q(294_000_000)).unwrap();
+    assert_eq!((fist.impact_ticks, fist.cycle_ticks), (9, 17));
 }

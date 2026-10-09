@@ -4,12 +4,14 @@
 //! passes them in, so these functions never touch the zone's generator.
 
 use super::entity::{Tick, TICK_MS};
-use super::scaled::{add, ceil_div, floor_div, mul, narrow, sub, Scaled, StatError, Q128};
+use super::scaled::{
+    add, ceil_div, floor_div, mul, narrow, round_div, sub, Scaled, StatError, Q128,
+};
 use super::stat_rules::FormulaConstants;
 use super::stat_sheet::StatSheet;
 
-/// `chance‰ = clamp(F((base*scale*Q + per_point*scale*(acc_Q − eva_Q)) / Q), min, max)`;
-/// with the HF constants `clamp(F((800Q + 20(acc − eva)) / Q), 200, 980)`. Condition bonus
+/// Round accuracy/evasion separately as HF getters do, then
+/// `chance‰ = clamp(800 + 20 * (round(acc) − round(eva)), 200, 980)`. Condition bonus
 /// (position, terrain, weather) is neutral in Phase 1.
 pub fn hit_chance_permille(
     c: &FormulaConstants,
@@ -18,7 +20,10 @@ pub fn hit_chance_permille(
 ) -> Result<u32, StatError> {
     let base = mul(mul(c.hit_base.into(), c.hit_scale.into())?, Q128)?;
     let per_point = mul(c.hit_per_point.into(), c.hit_scale.into())?;
-    let diff = sub(accuracy.raw().into(), evasion.raw().into())?;
+    let diff = mul(
+        sub(round_div(accuracy.raw().into(), Q128)?, round_div(evasion.raw().into(), Q128)?)?,
+        Q128,
+    )?;
     let chance = floor_div(add(base, mul(per_point, diff)?)?, Q128)?;
     narrow(chance.clamp(c.hit_min_permille.into(), c.hit_max_permille.into()))
 }
@@ -70,27 +75,30 @@ pub fn physical_damage(
 /// When a swing lands and when the next may start, in whole ticks from the swing's start.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AttackTiming {
-    /// Exact interval in ms as `numerator / denominator` (display only; never scheduled).
+    /// Source interval in integer ms, retained as `(ms, 1)` for display compatibility.
     pub interval_ms: (i128, i128),
-    /// Ticks from swing start to impact: `max(1, C(N*Q / (2 * speed_Q * TICK_MS)))`.
+    /// Ticks to impact: ceiling of the source integer half-interval over `TICK_MS`.
     pub impact_ticks: u64,
-    /// Ticks from swing start to the next swing: `max(1, C(N*Q / (speed_Q * TICK_MS)))`.
+    /// Ticks to next swing: ceiling of the source integer interval over `TICK_MS`.
     pub cycle_ticks: u64,
 }
 
 /// Attack timing from `speed_Q` (HF `calculateTimeBetweenAttacks` = 500000 / pAtkSpd,
-/// impact at half). Both deadlines quantize the exact fraction independently.
+/// impact at half). Match HF integer millisecond casts before ceiling to ticks.
 pub fn attack_timing(c: &FormulaConstants, speed: Scaled) -> Result<AttackTiming, StatError> {
     let speed = i128::from(speed.raw());
     if speed <= 0 {
         return Err(StatError::NonPositiveDivisor);
     }
-    let numerator = mul(c.attack_interval_ms.into(), Q128)?;
-    let tick: i128 = TICK_MS.into();
-    let cycle = ceil_div(numerator, mul(speed, tick)?)?.max(1);
-    let impact = ceil_div(numerator, mul(mul(speed, c.impact_divisor.into())?, tick)?)?.max(1);
+    // HF rounds speed, truncates the interval to integer ms, then halves that integer.
+    // Quantize those source deadlines to ticks; do not skip the millisecond casts.
+    let speed = round_div(speed, Q128)?;
+    let interval = floor_div(c.attack_interval_ms.into(), speed)?;
+    let impact_ms = floor_div(interval, c.impact_divisor.into())?;
+    let cycle = ceil_div(interval, TICK_MS.into())?.max(1);
+    let impact = ceil_div(impact_ms, TICK_MS.into())?.max(1);
     Ok(AttackTiming {
-        interval_ms: (numerator, speed),
+        interval_ms: (interval, 1),
         impact_ticks: narrow(impact)?,
         cycle_ticks: narrow(cycle)?,
     })
