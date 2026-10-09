@@ -284,6 +284,10 @@ before dependent mechanical stories; keep this phase to a playable fight rather 
 
 ## 7. Out of scope for this phase
 
+- Headless simulation scenarios for the loop above: Phase 1a
+  ([phase-1a-simulation-testing.md](phase-1a-simulation-testing.md)) back-fills them for Phases 0b–1
+  after this phase closes; E5.4's two-client scripted playtest stays manual until then.
+
 - Skills, spells, buffs/debuffs (including Death Penalty/Lucky passives), resurrection skills/scrolls.
 - Items, loot, inventory, equipment or enhancement beyond the fixed starter weapon stat block;
   shields, soulshots, bows, dual attacks, polearm sweeps and positional/elemental combat modifiers.
