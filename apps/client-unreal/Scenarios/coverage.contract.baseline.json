@@ -4,7 +4,7 @@
     "close_codes": {
       "4400": "0",
       "4408": "0",
-      "4409": "0",
+      "4409": "1",
       "4429": "0"
     },
     "events": {
@@ -14,7 +14,7 @@
       "despawn": "1",
       "entity_died": "1",
       "entity_respawned": "1",
-      "level_up": "0",
+      "level_up": "1",
       "move": "1",
       "spawn": "1",
       "stats_changed": "1",
@@ -36,7 +36,7 @@
     },
     "reasons": {
       "REJECT_REASON_DEAD_ACTOR": "0",
-      "REJECT_REASON_INVALID": "0",
+      "REJECT_REASON_INVALID": "1",
       "REJECT_REASON_NON_ATTACKABLE_TARGET": "0",
       "REJECT_REASON_NOT_YET_IMPLEMENTED": "0",
       "REJECT_REASON_OUT_OF_BOUNDS": "0",
@@ -46,16 +46,30 @@
       "REJECT_REASON_RATE_LIMITED": "0",
       "REJECT_REASON_TARGET_NOT_IN_AOI": "0",
       "REJECT_REASON_TOO_FAR": "1",
-      "REJECT_REASON_UNKNOWN_ENTITY": "0",
+      "REJECT_REASON_UNKNOWN_ENTITY": "1",
       "REJECT_REASON_UNSPECIFIED": "0"
     }
   },
   "observed_scenarios": [
     "0b-click-move",
+    "0b-login-enter-world",
+    "0b-login-replaces-a",
+    "0b-login-replaces-b",
     "0b-move-rejected",
+    "0b-reconnect",
+    "0b-two-clients-a",
+    "0b-two-clients-b",
+    "1-chase-leash",
+    "1-delevel",
     "1-die-respawn",
     "1-kill-one-monster",
-    "1-target-attack"
+    "1-late-entry-a",
+    "1-late-entry-b",
+    "1-npc-respawn",
+    "1-social-aggro-a",
+    "1-social-aggro-b",
+    "1-target-attack",
+    "1-target-unknown"
   ],
   "schema_version": 1,
   "wire_numbers": {
