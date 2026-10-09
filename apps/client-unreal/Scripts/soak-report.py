@@ -66,7 +66,7 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
             raise ValueError('combat tick p99 is unavailable')
         if p99 >= .020:
             errors.append(f'combat tick p99 {p99 * 1000:.3f}ms does not meet the Phase 1 budget of <20ms')
-        telemetry['combat'] = fetch('{__name__=~"nightfall_combat_.*"}')
+        telemetry['combat'] = fetch('{__name__=~"nightfall_(combat|eventlog_publish|db_query).*"}')
         rows = telemetry['combat']['data']['result']
         counts = [float(row['value'][1]) for row in rows
                   if row['metric']['__name__'] == 'nightfall_combat_tick_duration_seconds_count']
