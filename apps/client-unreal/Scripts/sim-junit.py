@@ -12,7 +12,11 @@ def read(path):
         raise ValueError("no testsuite element")
     for suite in suites:
         for key in ("tests", "failures", "errors"):
-            int(suite.get(key, "0"))
+            if int(suite.get(key, "0")) < 0:
+                raise ValueError("negative JUnit counter")
+    tests = sum(int(suite.get("tests", "0")) for suite in suites)
+    if tests <= 0 or len(root.findall(".//testcase")) != tests:
+        raise ValueError("JUnit must contain a nonempty testcase set matching tests count")
     return root, suites
 
 

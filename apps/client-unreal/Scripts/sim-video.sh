@@ -20,7 +20,10 @@ sim_bot_cmd "$scenario"
 args=()
 for arg in "${SIM_BOT_CMD[@]}"; do [[ "$arg" == -nullrhi ]] || args+=("$arg"); done
 [[ -z "${3:-}" ]] || args+=("-SimGroup=$3")
-args+=(-vulkan -RenderOffscreen -DumpMovie -ForceRes -ResX=960 -ResY=540 -FPS=15 -NoVSync)
+args+=(-vulkan -sm5 -AllowSoftwareRendering -RenderOffscreen -DumpMovie -ForceRes -ResX=960 -ResY=540 -FPS=15 -NoVSync)
+# Lavapipe does not satisfy UE's SM6 profile. Force SM5 for the diagnostic retry; disable
+# renderer features requiring SM6 without changing any networking/gameplay configuration.
+args+=("-ini:Engine:[/Script/Engine.RendererSettings]:r.DynamicGlobalIlluminationMethod=0,r.ReflectionMethod=0,r.Shadow.Virtual.Enable=0,r.Nanite.ProjectEnabled=False")
 # UE's GameScreenshotSaveDirectory drives -DumpMovie output. Config override avoids stale frames
 # and keeps the frames for this retry separate even on a persistent runner.
 frames="$dest/frames"

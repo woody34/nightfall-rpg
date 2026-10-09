@@ -38,7 +38,7 @@ Phase plans under `docs/plans/` follow this outline:
 - **Goal**
 - **Decisions table**
 - **Architecture**
-- **Epics with Story/Tasks/Model/Done-when tables incl. the simulation story**
+- **Epics with Story/Tasks/Model/Done-when tables incl. the simulation story**: stories defining client-observable contract or state behavior are tagged `[client-visible]` independently during plan authoring, before scenarios are written.
 - **Order and estimate**
 - **Risks**
 - **Out of scope**
@@ -49,6 +49,7 @@ Phase plans under `docs/plans/` follow this outline:
 - Stack: Rust + axum (HTTP) + tonic (gRPC) server, Unreal Engine 5 thin client (C++), protobuf contracts in `packages/proto`.
 - Server is authoritative for everything. The client renders and sends intent only.
 - Lineage 2 is the reference, not the target. Where its numbers are quoted they are a starting point for tuning, not a spec.
+- Client-observable contract and state behavior: stories specifying gameplay or client contracts carry the literal tag `[client-visible]` in their story title. New phase plans must add `[client-visible]` tags independently before writing scenarios. The simulation traceability checker (`apps/client-unreal/Scripts/sim-traceability.sh`) verifies all completed (`✅`) tagged stories against scenario coverage (`# covers:` headers in `.nfs` files under `apps/client-unreal/Scenarios/`). Rendering-only portions retain automation test and asset cooking validation, but tags remain on those stories and any uncovered cases are explicitly reported by the checker rather than silently omitted.
 - Every client-facing epic in every phase plan from Phase 2 on includes a story 'Simulation scenario(s)' whose Done-when names the `.nfs` files under `apps/client-unreal/Scenarios/`, and the first scenario each phase must ship is listed in [docs/plans/phase-1a-simulation-testing.md](../plans/phase-1a-simulation-testing.md) §4.1.
 
 ## Engineering standards
