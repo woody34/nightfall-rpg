@@ -129,12 +129,13 @@ releases output. A failed append holds the same record and prevents the next dra
   A session sends exactly this stream. The AOI is the 3x3 block of 32-tile cells, diffed
   every tick against what the player already knows. `state_digest` is SHA-256 of the
   canonical end-of-tick state (entities, hate, RNG, counters).
-- **Snapshot.** `ZoneSnapshot` (schema 4) holds full entity state including combat and AI
+- **Snapshot.** `ZoneSnapshot` (schema 5) holds full entity state including combat and AI
   blocks, RNG state, next ordinal, AOI index, hate ledgers, spawn slots and the respawn
   scheduler, the safe point, the stat rules themselves,
   `time_origin_ms` and provenance (`schema_version`, `build_id`, `config_hash`, `rules_hash`,
-  `first_log_seq`). Other schema versions are refused. `ZoneState::from_snapshot` validates it. Replaying the logged drafts from
-  it reproduces the same `AppliedTick`s.
+  `first_log_seq`), plus application checkpoint lanes. Schema 4 remains readable for replay;
+  earlier versions are refused. `ZoneState::from_snapshot` validates it. Replaying the logged
+  drafts from it reproduces the same `AppliedTick`s.
 - **Wire.** `interface::zone_mapping` converts to and from `nightfall.v1` world.proto, with
   one function per message (`spawn_to_pb`, `move_to_pb`, `despawn_to_pb`, `disposition_to_pb`,
   `observer_output_to_pb`). It is the only place zone values become floats. A spawn of a moving
@@ -181,9 +182,9 @@ Phase 1 E2.2–E2.6. Flow: [combat sequence](../diagrams/combat-sequence.html). 
   (`ZoneState::with_safe_point`): `HP = max(1, F(maxHP*65/100))`, MP 0, new incarnation,
   6000-tick protection that an accepted `Attack` ends; `EntityRespawned` + `StatsChanged`; no
   XP refund.
-- **XP and level (E2.6).** An NPC's XP is credited once, on its death, to one living player: of
-  the blow's attacker and every player whose swing at that life was due the same tick, the most
-  recorded damage (blow included), then the lowest id. `XpGained` (capped at `X[86]−1`), one
+- **XP and level (E2.6).** An NPC's XP is credited once, on its death, to the living player whose
+  validated attack landed the killing blow. Pending swings cancelled by the death earn no
+  credit; historical damage never reallocates XP. `XpGained` (capped at `X[86]−1`), one
   `LevelUp` per level, one `StatsChanged`; HP/MP kept, clamped to new maxima.
 - **Progression facts.** At tick end, one `ZoneEvent::Progression(ProgressionDelta)` per player
   whose XP, level or life changed (end values, `levels_gained`, `died`, `respawned`), via
@@ -271,9 +272,15 @@ floats), fully validated at startup, and hashed with `DataHash` into `config_has
 file storage, `max_age` 7 days, created or updated on startup. `NF_EVENTS` is
 `nightfall.*.*` (domain events only), so no two streams overlap. Zone publishes carry
 `Nats-Msg-Id` (`<zone>/<epoch>/<tick>` for records; the subject for snapshot and watermark) and
-the broker drops a retry inside its 2-minute duplicate window. **Retention:** an epoch's
-snapshot and its log live in the same stream and age out together, so an epoch is replayable
-for at least 7 days; `zone_snapshots` rows are kept at least as long.
+the broker drops a retry inside its 2-minute duplicate window. **Retention:** messages expire
+individually after seven days. The original replay snapshot
+can expire before later records. A separate `.recovery` snapshot is refreshed every 23 hours
+at an admitted boundary and on clean shutdown; its message ID includes the boundary tick and payload hash
+so a shutdown flush at the same tick cannot deduplicate different checkpoint state.
+`zone_snapshots` holds this latest baseline; `zone_epochs` is a durable, unpruned discovery
+index inserted in the same transaction. It records start, first sequence, checkpoint progress
+and closure independently of JetStream retention. `last_recorded_tick` is a conservative
+upper bound written before log admission, so losing a final record cannot hide a pending save.
 
 **Record.** `AppliedTickRecord { zone, epoch, tick, server_time_ms, commands (ordinal, source,
 seq, command), dispositions, outputs, output_form }`, where `outputs` is each player's ordered
@@ -281,7 +288,7 @@ output encoded with `encode_outputs` (or its digest, below), in entity-id order.
 and compares the re-encoded record **byte for byte**. Encoding: protobuf through hand-derived
 `prost` messages (schema in `replay_log/codec.rs`); serde with bincode was rejected because the
 zone's internally tagged serde enums cannot be decoded by non-self-describing formats. The
-snapshot and watermark are canonical JSON (written once per epoch, readable in an incident);
+snapshot and watermark are canonical JSON (readable in an incident);
 `zone_snapshots.snapshot` holds the same bytes as the log message, plus
 `jetstream_snapshot_seq`, `jetstream_first_seq` (filled once the first record is acked),
 `time_origin_ms`, `build_id`, `config_hash` and `schema_version`.
@@ -351,8 +358,13 @@ replays both `apps/api/fixtures/sessions/two-players-v4.nfr` (movement, rejectio
 aggro/leash, kill/XP/level, corpse decay/NPC respawn, player death/delevel/protected respawn,
 `StopAttack`, mid-fight disconnect). CI also runs epoch/mid-fight byte/digest replay, codec
 round-trips, coefficient/RNG/AI/off-AOI mutations and incomplete/gap refusal tests. Both
-fixtures use snapshot schema 4, record schema 3 and `.nfr` format 1. Movement v1 was retired
-by E2.2, v2 by E3.4, v3 by E2.4/E2.6; incompatible schemas are refused rather than migrated,
+fixtures retain snapshot schema 4, record schema 3 and `.nfr` format 1. New snapshots use
+schema 5, adding checkpoint lanes (revision, cadence, dirty/fenced state, exact pending request
+and events). Schema 4 remains readable for replay, with empty lanes; schemas 1–3 are refused.
+Persistence recovery refuses legacy mid-fight snapshots containing players but no lanes.
+Checkpoint metadata does not enter the simulation digest; record schema and fixtures are
+unchanged. Movement v1 was retired
+by E2.2, v2 by E3.4, v3 by E2.4/E2.6; older incompatible schemas are refused rather than migrated,
 and the surviving v4 movement fixture is retained unchanged. Re-record only for intended
 behaviour changes: movement uses `cargo run -p nightfall-api --example record_session`
 against a dev-token API followed by graceful shutdown and `nightfall-replay export`; fight
@@ -428,13 +440,21 @@ zone, epoch and tick; event IDs add the fact ordinal. Event sequence is the orde
 Only the existing outbox relay publishes. Save acknowledgements are separate session audit
 records (`nightfall.session.<id>.checkpoint`, JSON); audit failure cannot undo a committed save.
 
-Before opening the next epoch, startup reconstructs and validates the latest durable prefix
+Before opening the next epoch, startup reads every unresolved epoch from `zone_epochs` and
+reconstructs and validates its durable prefix
 against its snapshot, including digest-only records, and projects the same checkpoint requests.
 Known requests replay their stored responses; missing critical saves and outbox facts commit
 once. The applied log is the durable pending queue, so recovery needs neither a save audit ack
 nor an epoch watermark. Ordinary progress after the last checkpoint may roll back. This path
 is separate from replay verification: `open_epoch` still refuses incomplete epochs and the
-verifier has no persistence port. Runtime snapshots are answered only after pending saves finish.
+verifier has no persistence port. Runtime snapshots are answered only after pending saves
+finish and include the lanes.
+Recovery restores those lanes before replaying records after the baseline. Missing snapshots,
+gaps, divergence or a prefix ending before the indexed attempted tick log an error and refuse
+zone startup/admission. Even uncertainty about an unacknowledged final publish fails closed.
+Only completed recovery or a successful final save and snapshot closes an index row; closed
+epochs need no stream history for admission. The checkpoint service updates
+`last_checkpointed_tick` after all critical saves through that tick complete.
 
 ## 3. Request lifecycle: `CreateCharacter`
 

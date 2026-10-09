@@ -9,7 +9,9 @@
 mod common;
 
 use nightfall_api::application::checkpoint::CheckpointService;
-use nightfall_api::application::replay_log::{AppliedTickRecord, EpochStatus, EventLog};
+use nightfall_api::application::replay_log::{
+    encode_snapshot, AppliedTickRecord, EpochStatus, EventLog, ZoneSnapshotRow, ZoneSnapshotStore,
+};
 use nightfall_api::application::{CharacterRepository, IdempotencyKey};
 use nightfall_api::domain::zone::{
     EntityId, EntityKind, PlayerLoad, SessionGeneration, Speed, Vec2Fixed, ZoneCommand, ZoneInput,
@@ -18,14 +20,15 @@ use nightfall_api::domain::zone::{
 use nightfall_api::domain::{AccountId, Character, CharacterName, DomainEvent, Race};
 use nightfall_api::infrastructure::eventlog::InMemoryEventLog;
 use nightfall_api::infrastructure::memory::InMemorySessionAudit;
-use nightfall_api::infrastructure::postgres::PgCharacterRepository;
+use nightfall_api::infrastructure::postgres::{PgCharacterRepository, PgZoneSnapshotStore};
 use nightfall_api::infrastructure::telemetry::Metrics;
 use std::sync::Arc;
 use uuid::Uuid;
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)] // One end-to-end crash matrix shares the same combat setup.
 async fn crash_before_or_after_transaction_and_missing_audit_ack_recovers_identical_facts() {
-    for commit_before_crash in [false, true] {
+    for (commit_before_crash, expire_snapshot) in [(false, false), (true, false), (false, true)] {
         let Some(pool) = common::pg::migrated_pool().await else {
             return;
         };
@@ -62,7 +65,22 @@ async fn crash_before_or_after_transaction_and_missing_audit_ack_recovers_identi
             .find(|e| e.kind == EntityKind::Npc)
             .unwrap()
             .id;
-        log.write_snapshot(&snap).await.unwrap();
+        let snapshot_seq = log.write_snapshot(&snap).await.unwrap();
+        let store = PgZoneSnapshotStore::new(pool.clone());
+        store
+            .insert(&ZoneSnapshotRow {
+                zone: snap.seed.zone,
+                epoch: snap.seed.epoch,
+                snapshot: encode_snapshot(&snap).unwrap(),
+                snapshot_seq,
+                first_seq: None,
+                time_origin_ms: snap.time_origin_ms,
+                build_id: snap.meta.build_id.clone(),
+                config_hash: snap.meta.config_hash.clone(),
+                schema_version: snap.meta.schema_version,
+            })
+            .await
+            .unwrap();
         let audit = Arc::new(InMemorySessionAudit::default());
         let metrics = Arc::new(Metrics::detached());
         let mut live = CheckpointService::new(repo.clone(), audit.clone(), metrics.clone());
@@ -89,6 +107,10 @@ async fn crash_before_or_after_transaction_and_missing_audit_ack_recovers_identi
             let applied = state
                 .run_tick(state.draft(std::mem::take(&mut inputs)))
                 .unwrap();
+            store
+                .recording(snap.seed.zone, snap.seed.epoch, applied.tick)
+                .await
+                .unwrap();
             log.append_applied(&AppliedTickRecord::from_applied(snap.seed.zone, &applied))
                 .await
                 .unwrap();
@@ -109,11 +131,32 @@ async fn crash_before_or_after_transaction_and_missing_audit_ack_recovers_identi
         ));
         // No completion watermark or save audit ack: only the admitted prefix survives.
         drop(live);
+        if expire_snapshot {
+            log.delete_message(snapshot_seq);
+            assert_eq!(log.latest_epoch(snap.seed.zone).await.unwrap(), None);
+            let mut restarted =
+                CheckpointService::new(repo.clone(), audit.clone(), metrics.clone());
+            let error = restarted
+                .recover_indexed(&log, &store, snap.seed.zone)
+                .await
+                .unwrap_err();
+            assert!(error.to_string().contains("snapshot missing"));
+            assert_eq!(store.unresolved(snap.seed.zone).await.unwrap().len(), 1);
+            assert_eq!(
+                repo.load_for_admission(c.id)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .revision,
+                0
+            );
+            continue;
+        }
         for _ in 0..2 {
             let mut restarted =
                 CheckpointService::new(repo.clone(), audit.clone(), metrics.clone());
             restarted
-                .recover(&log, snap.seed.zone, snap.seed.epoch)
+                .recover_indexed(&log, &store, snap.seed.zone)
                 .await
                 .unwrap();
         }

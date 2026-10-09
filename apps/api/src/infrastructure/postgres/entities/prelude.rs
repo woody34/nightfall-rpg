@@ -6,4 +6,5 @@ pub use super::characters::Entity as Characters;
 pub use super::idempotency_keys::Entity as IdempotencyKeys;
 pub use super::outbox::Entity as Outbox;
 pub use super::play_tickets::Entity as PlayTickets;
+pub use super::zone_epochs::Entity as ZoneEpochs;
 pub use super::zone_snapshots::Entity as ZoneSnapshots;

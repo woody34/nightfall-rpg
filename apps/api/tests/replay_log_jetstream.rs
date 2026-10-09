@@ -335,7 +335,7 @@ async fn the_zone_snapshots_row_holds_the_log_bytes_and_first_seq() {
 }
 
 #[tokio::test]
-async fn zone_snapshot_rows_insert_once_and_record_the_first_seq() {
+async fn zone_snapshot_rows_refresh_and_preserve_the_first_seq() {
     let Some(pool) = common::pg::empty_schema_pool().await else {
         return;
     };
@@ -359,11 +359,24 @@ async fn zone_snapshot_rows_insert_once_and_record_the_first_seq() {
     store.insert(&other).await.unwrap();
     assert_eq!(
         store.get(ZoneId(3), 9).await.unwrap(),
-        Some(row.clone()),
-        "second insert is a no-op"
+        Some(other.clone()),
+        "a fresh recovery baseline replaces the stored bytes"
     );
     store.set_first_seq(ZoneId(3), 9, Seq(11)).await.unwrap();
     assert_eq!(store.get(ZoneId(3), 9).await.unwrap().unwrap().first_seq, Some(Seq(11)));
+    other.snapshot_seq = Seq(20);
+    store.insert(&other).await.unwrap();
+    assert_eq!(store.get(ZoneId(3), 9).await.unwrap().unwrap().first_seq, Some(Seq(11)));
+    assert_eq!(store.unresolved(ZoneId(3)).await.unwrap().len(), 1);
+    let mut invalid = row.clone();
+    invalid.epoch = 10;
+    invalid.schema_version = 0;
+    assert!(store.insert(&invalid).await.is_err());
+    assert_eq!(
+        store.latest_epoch(ZoneId(3)).await.unwrap(),
+        Some(9),
+        "snapshot failure rolls back epoch insertion"
+    );
     assert_eq!(store.latest_epoch(ZoneId(3)).await.unwrap(), Some(9));
     assert_eq!(store.latest_epoch(ZoneId(4)).await.unwrap(), None);
     assert_eq!(store.get(ZoneId(3), 8).await.unwrap(), None);
@@ -458,4 +471,42 @@ async fn ack_latency() {
             samples[samples.len() - 1]
         );
     }
+}
+
+#[tokio::test]
+async fn recovery_snapshots_dedupe_only_identical_payloads_at_the_same_boundary() {
+    let Some((_, log)) = jetstream().await else {
+        return;
+    };
+    let zone = unique_zone();
+    let state = nightfall_api::domain::zone::ZoneState::new(
+        nightfall_api::domain::zone::ZoneSeed {
+            zone: ZoneId(zone),
+            epoch: 1,
+        },
+        zone_def(zone).bounds,
+        0,
+    );
+    let mut snapshot = state.snapshot();
+    let first = log.write_recovery_snapshot(&snapshot).await.unwrap();
+    assert_eq!(log.write_recovery_snapshot(&snapshot).await.unwrap(), first);
+    snapshot
+        .checkpoints
+        .push(nightfall_api::domain::zone::CheckpointSnapshot {
+            entity: EntityId::from_uuid(Uuid::from_u128(1)),
+            revision: 1,
+            last_saved: Tick(0),
+            dirty: false,
+            fenced: false,
+            events: vec![],
+            latest: None,
+        });
+    let second = log.write_recovery_snapshot(&snapshot).await.unwrap();
+    assert!(second > first);
+    let stored = log
+        .read_recovery_snapshot(ZoneId(zone), 1)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.snapshot, snapshot);
 }

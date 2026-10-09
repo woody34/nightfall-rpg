@@ -209,52 +209,84 @@ pub struct WeaponBlock {
 /// Formula constants, each parsed from a literal line of the pinned source
 /// (`tables/formulas.toml`).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[allow(missing_docs)]
 pub struct FormulaConstants {
+    /// Level modifier additive offset.
     pub level_mod_offset: u32,
+    /// Level modifier denominator.
     pub level_mod_divisor: u32,
+    /// Multiplier of the square root of DEX for accuracy.
     pub accuracy_dex_multiplier: u32,
+    /// Multiplier of the square root of DEX for evasion.
     pub evasion_dex_multiplier: u32,
+    /// Maximum evasion.
     pub evasion_cap: u32,
+    /// Base hit chance before accuracy adjustment.
     pub hit_base: u32,
+    /// Hit chance adjustment per accuracy/evasion point.
     pub hit_per_point: u32,
+    /// Scale of the hit chance formula.
     pub hit_scale: u32,
+    /// Minimum hit chance in permille.
     pub hit_min_permille: u32,
+    /// Maximum hit chance in permille.
     pub hit_max_permille: u32,
+    /// Exclusive upper bound of the hit roll.
     pub hit_roll_range: u32,
+    /// Critical chance scale.
     pub crit_scale: u32,
+    /// Maximum critical chance in permille.
     pub crit_cap_permille: u32,
+    /// Exclusive upper bound of the critical roll.
     pub crit_roll_range: u32,
+    /// Normal physical damage coefficient.
     pub damage_coefficient: u32,
+    /// Critical damage multiplier.
     pub crit_multiplier: u32,
+    /// Unarmed random damage base.
     pub fist_random_base: u32,
+    /// Random damage percentage denominator.
     pub random_divisor: u32,
+    /// Maximum attack speed.
     pub attack_speed_cap: u32,
+    /// Numerator of attack interval in milliseconds.
     pub attack_interval_ms: u32,
+    /// Divisor placing impact within the attack interval.
     pub impact_divisor: u32,
+    /// Damage-to-hate numerator.
     pub hate_numerator: u32,
+    /// Level offset in the hate denominator.
     pub hate_level_offset: u32,
+    /// Maximum accumulated hate.
     pub hate_cap: u64,
+    /// Town respawn HP fraction.
     pub respawn_restore_hp: Scaled,
+    /// Town respawn MP fraction.
     pub respawn_restore_mp: Scaled,
+    /// Spawn protection duration in seconds.
     pub spawn_protection_seconds: u32,
 }
 
 /// Everything [`StatRules::new`] needs, as parsed. Index `i` of every per-level vector is
 /// level `i + 1`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[allow(missing_docs)]
 pub struct StatRulesParts {
+    /// Highest playable level covered by the rule tables.
     pub max_level: u32,
+    /// Base-stat bonus multipliers at the fixed scale.
     pub bonus: StatBonusTables,
+    /// Validated formula coefficients and caps.
     pub constants: FormulaConstants,
+    /// Additional accuracy for each level.
     pub accuracy_level_add: Vec<Scaled>,
+    /// Additional evasion for each level.
     pub evasion_level_add: Vec<Scaled>,
     /// Cumulative XP to reach levels `1..=max_level + 1` (the last is the sentinel).
     pub xp_to_level: Vec<u64>,
     /// Death XP loss fraction for levels `1..=max_level`.
     pub death_loss: Vec<Scaled>,
+    /// Playable class templates and per-level resource tables.
     pub classes: Vec<ClassTemplate>,
+    /// Fixed starter weapon replacing unarmed values.
     pub starter_weapon: WeaponBlock,
 }
 

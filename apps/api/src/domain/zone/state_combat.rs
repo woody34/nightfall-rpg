@@ -9,10 +9,8 @@
 //! player respawn draw nothing.
 //!
 //! Kill credit (E2.6): the NPC's full template XP goes once, on the death transition, to one
-//! living player. Candidates are the player landing the killing blow and every other player
-//! whose swing at the same life is due on the same tick (it is cancelled, undrawn, because
-//! the target is dead). The candidate with the most recorded damage on the victim wins (the
-//! hate ledger's damage, the killing blow included); ties go to the lowest `EntityId`.
+//! living player whose validated impact actually landed the killing blow. Pending swings
+//! cancelled by that death confer no credit, irrespective of historical damage.
 
 use super::super::combat::{CombatRole, HateEntry, Swing, SwingCancel};
 use super::super::combat_math::{
@@ -27,11 +25,10 @@ use super::super::stat_rules::FormulaConstants;
 use super::super::stat_sheet::StatSheet;
 use super::{stats_changed, ProgressNote, ZoneState};
 
-/// The hit that killed: who landed it and for how much.
+/// The attacker whose validated hit killed the target.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Blow {
     pub(super) attacker: EntityId,
-    pub(super) damage: u32,
 }
 
 /// What [`ZoneState::engagement`] found for an attacker's current target.
@@ -488,15 +485,7 @@ impl ZoneState {
             }
         }
         if hp_after == 0 {
-            self.kill(
-                tick,
-                swing.target,
-                Some(Blow {
-                    attacker: id,
-                    damage,
-                }),
-                events,
-            );
+            self.kill(tick, swing.target, Some(Blow { attacker: id }), events);
         } else if t_kind == EntityKind::Npc {
             // HF: landed damage adds F(d*100/(L+7)); an attack worth 0 (a miss, or a scratch)
             // still adds 1 (SOURCES.md E-10, L2AttackableAI.onEvtAttacked).
@@ -572,7 +561,7 @@ impl ZoneState {
             return;
         }
         let incarnation = e.combat.as_ref().map_or(0, |c| c.incarnation);
-        let credit = self.kill_credit(tick, victim, blow);
+        let credit = self.kill_credit(victim, blow);
         self.disengage(tick, victim, SwingCancel::AttackerDied, events);
         if let Some(e) = self.entities.get_mut(&victim) {
             e.targeting.dead = true;
@@ -634,49 +623,16 @@ impl ZoneState {
         }
     }
 
-    /// Who gets an NPC victim's XP (module docs): computed before the death clears the
-    /// ledger and the same-tick swings. `None` for a player victim or without a player.
-    fn kill_credit(&self, tick: Tick, victim: EntityId, blow: Option<Blow>) -> Option<EntityId> {
-        let v = self.entities.get(&victim)?;
-        let vc = v.combat.as_ref()?;
-        if !matches!(vc.role, CombatRole::Npc { .. }) {
+    /// Only the living player whose validated impact killed an NPC receives its XP.
+    fn kill_credit(&self, victim: EntityId, blow: Option<Blow>) -> Option<EntityId> {
+        let victim = self.entities.get(&victim)?.combat.as_ref()?;
+        if !matches!(victim.role, CombatRole::Npc { .. }) {
             return None;
         }
-        let ledger = self.hate.get(&victim);
-        let recorded = |id: EntityId| ledger.and_then(|l| l.get(id)).map_or(0, |r| r.damage);
-        let is_player = |e: &Entity| {
-            !e.targeting.dead
-                && matches!(e.combat.as_ref().map(|c| &c.role), Some(CombatRole::Player { .. }))
-        };
-        let mut best: Option<(u64, EntityId)> = None;
-        let mut consider = |id: EntityId, damage: u64| {
-            // Ids arrive in ascending order after the blow, so `>` keeps the lowest on ties;
-            // the blow is compared explicitly.
-            let better = match best {
-                None => true,
-                Some((d, chosen)) => damage > d || (damage == d && id < chosen),
-            };
-            if better {
-                best = Some((damage, id));
-            }
-        };
-        if let Some(b) = blow {
-            if self.entities.get(&b.attacker).is_some_and(is_player) {
-                consider(b.attacker, recorded(b.attacker).saturating_add(b.damage.into()));
-            }
-        }
-        for e in self.entities.values() {
-            if Some(e.id) == blow.map(|b| b.attacker) || !is_player(e) {
-                continue;
-            }
-            let due = e.combat.as_ref().and_then(|c| c.swing).is_some_and(|s| {
-                s.target == victim && s.impact == tick && s.target_incarnation == vc.incarnation
-            });
-            if due {
-                consider(e.id, recorded(e.id));
-            }
-        }
-        best.map(|(_, id)| id)
+        let attacker = self.entities.get(&blow?.attacker)?;
+        (!attacker.targeting.dead
+            && matches!(attacker.combat.as_ref()?.role, CombatRole::Player { .. }))
+        .then_some(attacker.id)
     }
 
     /// A dead player pays the HF death loss once, `R((X[L+1]−X[L]) * loss[L])`, and drops to

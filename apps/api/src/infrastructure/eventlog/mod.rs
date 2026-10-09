@@ -6,6 +6,7 @@
 //! | Subject | Stream | Payload |
 //! |---------|--------|---------|
 //! | `nightfall.zone.<zone>.<epoch>.snapshot` | `NF_ZONES` | JSON `ZoneSnapshot` |
+//! | `nightfall.zone.<zone>.<epoch>.recovery` | `NF_ZONES` | refreshed JSON `ZoneSnapshot` |
 //! | `nightfall.zone.<zone>.<epoch>.applied` | `NF_ZONES` | protobuf `AppliedTickRecord`, one per tick |
 //! | `nightfall.zone.<zone>.<epoch>.watermark` | `NF_ZONES` | JSON `Watermark` |
 //! | `nightfall.session.<session>.in` / `.out` | `NF_SESSIONS` | protobuf audit frames |
@@ -64,4 +65,11 @@ pub fn applied_msg_id(zone: ZoneId, epoch: u64, tick: Tick) -> String {
 fn snapshot_epoch(zone: ZoneId, subject: &str) -> Option<u64> {
     let rest = subject.strip_prefix(&format!("nightfall.zone.{}.", zone.0))?;
     rest.strip_suffix(".snapshot")?.parse().ok()
+}
+
+// A shutdown flush can advance a revision at the same tick as a periodic baseline.
+// Hash the full payload so changed lanes are retained while identical retries dedupe.
+fn recovery_msg_id(subject: &str, tick: Tick, payload: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    format!("{subject}/{}/{:x}", tick.0, Sha256::digest(payload))
 }

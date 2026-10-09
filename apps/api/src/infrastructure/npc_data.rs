@@ -100,6 +100,21 @@ fn to_fixed(v: u32) -> Option<Fixed> {
     i32::try_from(v).ok().map(Fixed::from_raw)
 }
 
+// roll_below takes a u32 exclusive bound: the inclusive jitter range has
+// random + 1 outcomes, which must fit u32. Delay is stored as u32, without sampling.
+fn respawn_value(v: i64, random: bool, err: &mut dyn FnMut(&str)) -> Option<u32> {
+    let (name, min, max) = if random {
+        ("respawn_random_secs", 0, i64::from(u32::MAX.saturating_sub(1)))
+    } else {
+        ("respawn_delay_secs", 1, i64::from(u32::MAX))
+    };
+    if !(min..=max).contains(&v) {
+        err(&format!("{name} must be {min}..={max}"));
+        return None;
+    }
+    u32::try_from(v).ok()
+}
+
 /// Parses and validates one template; `stem` is its file name without `.toml`. All problems
 /// found are pushed to `errors`; `None` when any exist.
 pub fn parse_template(stem: &str, src: &str, errors: &mut Vec<String>) -> Option<NpcTemplate> {
@@ -152,12 +167,8 @@ pub fn parse_template(stem: &str, src: &str, errors: &mut Vec<String>) -> Option
     if f.clan_help_range > 0 && f.clan_id.is_none() {
         err("clan_help_range needs a clan_id");
     }
-    if f.respawn_delay_secs < 1 {
-        err("respawn_delay_secs must be at least 1");
-    }
-    if f.respawn_random_secs < 0 {
-        err("respawn_random_secs must not be negative");
-    }
+    let delay = respawn_value(f.respawn_delay_secs, false, &mut err);
+    let random = respawn_value(f.respawn_random_secs, true, &mut err);
     let dist = |name: &str, v: u32, err: &mut dyn FnMut(&str)| {
         let r = to_fixed(v);
         if r.is_none() {
@@ -170,8 +181,6 @@ pub fn parse_template(stem: &str, src: &str, errors: &mut Vec<String>) -> Option
     let aggro_range = dist("aggro_range", f.aggro_range, &mut err);
     let clan_help_range = dist("clan_help_range", f.clan_help_range, &mut err);
     let leash_radius = dist("leash_radius", f.leash_radius, &mut err);
-    let delay = u32::try_from(f.respawn_delay_secs).unwrap_or(0);
-    let random = u32::try_from(f.respawn_random_secs).unwrap_or(0);
     if errors.len() > before {
         return None;
     }
@@ -194,8 +203,8 @@ pub fn parse_template(stem: &str, src: &str, errors: &mut Vec<String>) -> Option
         clan_help_range,
         leash_radius,
         corpse_decay_ticks: f.corpse_decay_ticks,
-        respawn_delay_secs: delay,
-        respawn_random_secs: random,
+        respawn_delay_secs: delay?,
+        respawn_random_secs: random?,
     })
 }
 
@@ -233,25 +242,21 @@ pub(super) fn resolve_slots(
             err("count must be 1..=256");
             ok = false;
         }
-        if s.respawn_delay_secs.is_some_and(|d| d < 1) {
-            err("respawn_delay_secs must be at least 1");
-            ok = false;
-        }
-        if s.respawn_random_secs.is_some_and(|d| d < 0) {
-            err("respawn_random_secs must not be negative");
-            ok = false;
-        }
+        let delay = s
+            .respawn_delay_secs
+            .map(|v| respawn_value(v, false, &mut err));
+        let random = s
+            .respawn_random_secs
+            .map(|v| respawn_value(v, true, &mut err));
+        ok &= !matches!(delay, Some(None)) && !matches!(random, Some(None));
         if let (true, Some(t), Some(count)) = (ok, template, count) {
-            let pick = |o: Option<i64>, default: u32| {
-                o.map_or(default, |v| u32::try_from(v).unwrap_or(default))
-            };
             out.push(SpawnSlot {
                 id: s.id.clone(),
                 template: t.id.clone(),
                 home,
                 count,
-                respawn_delay_secs: pick(s.respawn_delay_secs, t.respawn_delay_secs),
-                respawn_random_secs: pick(s.respawn_random_secs, t.respawn_random_secs),
+                respawn_delay_secs: delay.flatten().unwrap_or(t.respawn_delay_secs),
+                respawn_random_secs: random.flatten().unwrap_or(t.respawn_random_secs),
             });
         }
     }
@@ -259,7 +264,7 @@ pub(super) fn resolve_slots(
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::arithmetic_side_effects)]
 mod tests {
     use super::*;
 
@@ -299,5 +304,73 @@ mod tests {
         let mut errors = Vec::new();
         assert!(parse_template("wolf", KELTIR_TOML, &mut errors).is_none());
         assert_eq!(errors.len(), 1);
+    }
+    #[test]
+    fn respawn_template_bounds_and_inclusive_sampling_width_are_checked() {
+        for (field, original, accepted, rejected) in [
+            (
+                "respawn_delay_secs",
+                30,
+                vec![1, i64::from(u32::MAX)],
+                vec![0, -1, i64::from(u32::MAX) + 1],
+            ),
+            (
+                "respawn_random_secs",
+                10,
+                vec![0, i64::from(i32::MAX), i64::from(u32::MAX) - 1],
+                vec![-1, i64::from(u32::MAX), i64::from(u32::MAX) + 1],
+            ),
+        ] {
+            for value in accepted {
+                let src = KELTIR_TOML
+                    .replace(&format!("{field} = {original}"), &format!("{field} = {value}"));
+                let parsed = parse(&src).unwrap();
+                assert!(parsed.respawn_random_secs.checked_add(1).is_some());
+            }
+            for value in rejected {
+                let src = KELTIR_TOML
+                    .replace(&format!("{field} = {original}"), &format!("{field} = {value}"));
+                assert!(parse(&src).is_err(), "{field}={value}");
+            }
+        }
+        for value in [i64::from(i32::MAX), i64::from(i32::MAX) + 1] {
+            let src =
+                KELTIR_TOML.replace("attack_range = 1500", &format!("attack_range = {value}"));
+            assert_eq!(parse(&src).is_ok(), value == i64::from(i32::MAX));
+        }
+    }
+
+    #[test]
+    fn slot_overrides_reject_overflow_instead_of_falling_back() {
+        let template = parse(KELTIR_TOML).unwrap();
+        let bounds =
+            ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(10, 10)).unwrap();
+        for (delay, random, valid) in [
+            (1, 0, true),
+            (i64::from(u32::MAX), i64::from(u32::MAX) - 1, true),
+            (i64::from(u32::MAX) + 1, 0, false),
+            (1, i64::from(u32::MAX), false),
+            (1, i64::from(u32::MAX) + 1, false),
+            (-1, 0, false),
+            (1, -1, false),
+        ] {
+            let mut errors = Vec::new();
+            let slots = resolve_slots(
+                "test",
+                vec![SlotFile {
+                    id: "one".into(),
+                    template: "keltir".into(),
+                    home: [1, 1],
+                    count: 1,
+                    respawn_delay_secs: Some(delay),
+                    respawn_random_secs: Some(random),
+                }],
+                std::slice::from_ref(&template),
+                bounds,
+                &mut errors,
+            );
+            assert_eq!(errors.is_empty(), valid, "{delay}, {random}: {errors:?}");
+            assert_eq!(slots.len(), usize::from(valid));
+        }
     }
 }

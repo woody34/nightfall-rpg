@@ -159,6 +159,9 @@ impl ZoneBootstrap {
             snapshot.meta.rules_hash.clone_from(&rules.config_hash);
         }
 
+        // Keep provenance in all subsequent recovery snapshots.
+        state = ZoneState::from_snapshot(snapshot.clone())?;
+
         // Snapshot first: no gate (and so no applied record) exists without this proof.
         let started = start_epoch(self.log.as_ref(), &snapshot)
             .await
@@ -321,6 +324,15 @@ impl RunningZone {
         tokio::time::timeout(STOP_TIMEOUT, self.handle.stopped())
             .await
             .map_err(|_| anyhow::anyhow!("zone {} did not stop in time", self.zone.0))?;
+        if let Some(mut snapshot) = self.handle.final_snapshot() {
+            if let Some(service) = self.handle.checkpoints.service() {
+                let mut service = service.lock().await;
+                service.shutdown(&snapshot).await?;
+                service.snapshot(&mut snapshot);
+            }
+            // Also refresh when the lane has no database (NATS-only development mode).
+            self.log.write_recovery_snapshot(&snapshot).await?;
+        }
         let progress = *self.progress.borrow();
         let watermark = Watermark {
             zone: self.zone,

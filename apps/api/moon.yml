@@ -13,6 +13,12 @@ dependsOn:
   - 'proto'
 
 tasks:
+  perf-check:
+    command: 'cargo test -p nightfall-api --release combat_tick_p99_simulation -- --ignored --nocapture'
+    description: 'Enforce the actor-only combat p99 budget; E6.2 also requires the production-path load measurement.'
+    options:
+      cache: false
+      runInCI: false
   dev:
     command: 'cargo run -p nightfall-api'
     preset: 'server'

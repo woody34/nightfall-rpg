@@ -396,8 +396,8 @@ async fn admission_holds_fanout_and_replay_do_not_duplicate_metrics() {
 
 /// A repeatable actor-only timing sample, not the 200-WebSocket-session acceptance load.
 #[tokio::test]
-#[ignore = "benchmark: prints tick p99 for 200 players and 200 monsters"]
-#[allow(clippy::print_stdout)]
+#[ignore = "release performance check: run moon run api:perf-check"]
+#[allow(clippy::print_stdout)] // Explicitly invoked benchmark reports its measurement.
 async fn combat_tick_p99_simulation() {
     use crate::application::zone_actor::OpenGate;
     let m = Metrics::detached();
@@ -421,7 +421,12 @@ async fn combat_tick_p99_simulation() {
         .map(|o| value(&m, "nightfall_combat_attacks_total{", &format!("outcome=\"{o}\"")))
         .sum();
     assert!(attacks > 0.0);
-    println!("200 players, 200 Keltirs initially fighting, 500 manual ticks, OpenGate, debug build: p99={} us; attacks={attacks}", samples[494]);
+    assert!(
+        !std::hint::black_box(cfg!(debug_assertions)),
+        "perf-check must run with --release"
+    );
+    println!("200 players, 200 Keltirs, 500 ticks, actor-only OpenGate release: p99={} us; attacks={attacks}", samples[494]);
+    assert!(samples[494] < 20_000, "combat p99 must be below 20 ms");
 }
 
 #[test]

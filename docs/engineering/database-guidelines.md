@@ -76,6 +76,17 @@ in the same transaction. The key fingerprint covers the whole body including the
 with a different body is `KeyReused`. Check violations (`23514`) surface as typed
 `CheckpointError::Constraint(name)`. `hp`/`mp` NULL means full, because the stat engine owns maxima.
 
+## 2c. Zone recovery epochs
+
+`zone_epochs` is durable recovery evidence, retained independently of JetStream messages and
+snapshot cleanup. Baseline writes update `zone_snapshots` and insert the epoch row in one
+transaction. `started_at` and `closed_at` are its lifecycle timestamps; `first_seq` remains the
+epoch's first applied sequence as recovery snapshots advance. `last_recorded_tick` is a
+conservative upper bound recorded before log admission; `last_checkpointed_tick` advances
+only after all critical saves through that tick complete. Unclosed rows require recovery before
+admission. Missing history (including an uncertain final publish) fails closed and is logged;
+only completed recovery or a successful clean-shutdown save and baseline closes the row.
+
 ## 3. Queries
 
 - No `SELECT *`. Name the columns; the row mapper depends on them.

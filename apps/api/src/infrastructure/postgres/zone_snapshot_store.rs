@@ -1,4 +1,4 @@
-//! `zone_snapshots`: the Postgres index of zone epochs (Story 3.4).
+//! Recovery baselines and durable epoch discovery, independent of `JetStream` retention.
 
 use std::future::Future;
 
@@ -6,7 +6,8 @@ use async_trait::async_trait;
 use chrono::Utc;
 use sea_orm::sea_query::{Expr, OnConflict};
 use sea_orm::{
-    ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect,
+    ActiveValue, ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait,
+    QueryFilter, Statement, TransactionTrait,
 };
 
 use super::entities::zone_snapshots;
@@ -14,7 +15,8 @@ use crate::application::replay_log::{Seq, ZoneSnapshotRow, ZoneSnapshotStore};
 use crate::domain::zone::ZoneId;
 use crate::infrastructure::telemetry::Metrics;
 
-/// Zone epoch index in Postgres. Each method is one statement, so one atomic unit.
+/// Zone epoch index in Postgres. Baseline and first-sequence writes update both tables
+/// transactionally; progress and closure updates are single atomic statements.
 #[derive(Clone)]
 pub struct PgZoneSnapshotStore {
     db: DatabaseConnection,
@@ -76,6 +78,13 @@ fn model_to_row(m: zone_snapshots::Model) -> anyhow::Result<ZoneSnapshotRow> {
 #[async_trait]
 impl ZoneSnapshotStore for PgZoneSnapshotStore {
     async fn insert(&self, row: &ZoneSnapshotRow) -> anyhow::Result<()> {
+        let tx = self.db.begin().await?;
+        tx.execute_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            "INSERT INTO zone_epochs (zone_id, epoch) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            [zone_col(row.zone)?.into(), epoch_col(row.epoch)?.into()],
+        ))
+        .await?;
         let now = Utc::now().fixed_offset();
         let model = zone_snapshots::ActiveModel {
             zone_id: ActiveValue::Set(zone_col(row.zone)?),
@@ -98,17 +107,27 @@ impl ZoneSnapshotStore for PgZoneSnapshotStore {
                         zone_snapshots::Column::ZoneId,
                         zone_snapshots::Column::Epoch,
                     ])
-                    .do_nothing()
+                    .update_columns([
+                        zone_snapshots::Column::Snapshot,
+                        zone_snapshots::Column::JetstreamSnapshotSeq,
+                        zone_snapshots::Column::SchemaVersion,
+                        zone_snapshots::Column::UpdatedAt,
+                    ])
                     .to_owned(),
                 )
                 .try_insert()
-                .exec(&self.db),
+                .exec(&tx),
         )
         .await?;
+        tx.commit().await?;
         Ok(())
     }
 
     async fn set_first_seq(&self, zone: ZoneId, epoch: u64, seq: Seq) -> anyhow::Result<()> {
+        let tx = self.db.begin().await?;
+        tx.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
+            "UPDATE zone_epochs SET first_seq = COALESCE(first_seq, $3) WHERE zone_id = $1 AND epoch = $2",
+            [zone_col(zone)?.into(), epoch_col(epoch)?.into(), seq_col(seq)?.into()])).await?;
         self.timed(
             "set_first_seq",
             zone_snapshots::Entity::update_many()
@@ -116,9 +135,10 @@ impl ZoneSnapshotStore for PgZoneSnapshotStore {
                 .col_expr(zone_snapshots::Column::UpdatedAt, Expr::current_timestamp())
                 .filter(zone_snapshots::Column::ZoneId.eq(zone_col(zone)?))
                 .filter(zone_snapshots::Column::Epoch.eq(epoch_col(epoch)?))
-                .exec(&self.db),
+                .exec(&tx),
         )
         .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -133,19 +153,63 @@ impl ZoneSnapshotStore for PgZoneSnapshotStore {
     }
 
     async fn latest_epoch(&self, zone: ZoneId) -> anyhow::Result<Option<u64>> {
-        let epoch: Option<i64> = self
-            .timed(
-                "latest_epoch",
-                zone_snapshots::Entity::find()
-                    .select_only()
-                    .column(zone_snapshots::Column::Epoch)
-                    .filter(zone_snapshots::Column::ZoneId.eq(zone_col(zone)?))
-                    .order_by_desc(zone_snapshots::Column::Epoch)
-                    .limit(1)
-                    .into_tuple()
-                    .one(&self.db),
-            )
+        let row = self
+            .db
+            .query_one_raw(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "SELECT MAX(epoch) AS epoch FROM zone_epochs WHERE zone_id = $1",
+                [zone_col(zone)?.into()],
+            ))
             .await?;
+        let epoch: Option<i64> = row.map(|r| r.try_get("", "epoch")).transpose()?.flatten();
         Ok(epoch.map(u64::try_from).transpose()?)
+    }
+
+    async fn unresolved(
+        &self,
+        zone: ZoneId,
+    ) -> anyhow::Result<Vec<crate::application::replay_log::RecoveryEpoch>> {
+        self.db.query_all_raw(Statement::from_sql_and_values(DbBackend::Postgres,
+            "SELECT epoch, last_recorded_tick FROM zone_epochs WHERE zone_id = $1 AND closed_at IS NULL ORDER BY epoch", [zone_col(zone)?.into()])).await?
+            .into_iter().map(|row| {
+                let epoch: i64 = row.try_get("", "epoch")?;
+                let tick: Option<i64> = row.try_get("", "last_recorded_tick")?;
+                Ok(crate::application::replay_log::RecoveryEpoch { epoch: u64::try_from(epoch)?, last_recorded_tick: tick.map(|t| u64::try_from(t).map(crate::domain::zone::Tick)).transpose()? })
+            }).collect()
+    }
+
+    async fn recording(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        tick: crate::domain::zone::Tick,
+    ) -> anyhow::Result<()> {
+        self.db.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
+            "UPDATE zone_epochs SET last_recorded_tick = GREATEST(last_recorded_tick, $3) WHERE zone_id = $1 AND epoch = $2",
+            [zone_col(zone)?.into(), epoch_col(epoch)?.into(), i64::try_from(tick.0)?.into()])).await?;
+        Ok(())
+    }
+
+    async fn checkpointed(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        tick: crate::domain::zone::Tick,
+    ) -> anyhow::Result<()> {
+        self.db.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
+            "UPDATE zone_epochs SET last_checkpointed_tick = GREATEST(last_checkpointed_tick, $3) WHERE zone_id = $1 AND epoch = $2",
+            [zone_col(zone)?.into(), epoch_col(epoch)?.into(), i64::try_from(tick.0)?.into()])).await?;
+        Ok(())
+    }
+
+    async fn close(&self, zone: ZoneId, epoch: u64) -> anyhow::Result<()> {
+        self.db
+            .execute_raw(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "UPDATE zone_epochs SET closed_at = now() WHERE zone_id = $1 AND epoch = $2",
+                [zone_col(zone)?.into(), epoch_col(epoch)?.into()],
+            ))
+            .await?;
+        Ok(())
     }
 }

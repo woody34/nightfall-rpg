@@ -270,9 +270,14 @@ pub struct ZoneHandle {
     ticks: broadcast::Sender<Arc<AppliedTick>>,
     stats: watch::Receiver<TickStats>,
     paused: watch::Receiver<bool>,
+    final_snapshot: Arc<parking_lot::RwLock<Option<ZoneSnapshot>>>,
 }
 
 impl ZoneHandle {
+    pub(crate) fn final_snapshot(&self) -> Option<ZoneSnapshot> {
+        self.final_snapshot.read().clone()
+    }
+
     /// Queues an input for the next tick without waiting. Inputs from one handle are applied
     /// in the order sent. Refused with [`ZoneSendError::Paused`] while the gate reports the
     /// zone paused.
@@ -345,6 +350,7 @@ impl ZoneHandle {
 /// The task that owns a zone. Construct with [`ZoneActor::spawn`].
 pub struct ZoneActor<T, G> {
     checkpoints: super::checkpoint::CheckpointLane,
+    final_snapshot: Arc<parking_lot::RwLock<Option<ZoneSnapshot>>>,
     state: ZoneState,
     ticks: T,
     gate: G,
@@ -391,8 +397,10 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
         let paused = gate.paused();
-        let checkpoints = super::checkpoint::CheckpointLane::default();
+        let checkpoints = super::checkpoint::CheckpointLane::with_snapshot(state.snapshot());
+        let final_snapshot = Arc::default();
         let actor = Self {
+            final_snapshot: Arc::clone(&final_snapshot),
             checkpoints: checkpoints.clone(),
             state,
             ticks,
@@ -410,6 +418,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         tokio::spawn(actor.run());
         ZoneHandle {
+            final_snapshot,
             checkpoints,
             commands: cmd_tx,
             snapshots: snap_tx,
@@ -425,7 +434,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 biased;
                 Some(reply) = self.snapshots.recv() => {
                     self.waiting_snapshots.push(reply);
-                    self.answer_snapshots();
+                    self.answer_snapshots().await;
                 },
                 go = self.ticks.next_tick() => {
                     if !go {
@@ -433,24 +442,34 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                     }
                     let outcome = self.tick().await;
                     self.ticks.tick_done(outcome);
-                    self.answer_snapshots();
+                    self.answer_snapshots().await;
                     if self.commands_closed && self.pending.is_empty() && self.unrecorded.is_none() {
                         break;
                     }
                 },
             }
         }
+        if self.unrecorded.is_none() {
+            let mut snapshot = self.state.snapshot();
+            if let Some(service) = self.checkpoints.service() {
+                service.lock().await.snapshot(&mut snapshot);
+            }
+            *self.final_snapshot.write() = Some(snapshot);
+        }
         tracing::debug!(zone = self.state.seed().zone.0, "zone actor stopped");
     }
 
     /// Snapshots are only taken at a tick boundary with nothing deferred and nothing
     /// unrecorded.
-    fn answer_snapshots(&mut self) {
+    async fn answer_snapshots(&mut self) {
         if self.pending.is_empty()
             && self.unrecorded.is_none()
             && !self.waiting_snapshots.is_empty()
         {
-            let snap = self.state.snapshot();
+            let mut snap = self.state.snapshot();
+            if let Some(service) = self.checkpoints.service() {
+                service.lock().await.snapshot(&mut snap);
+            }
             for reply in self.waiting_snapshots.drain(..) {
                 let _ = reply.send(snap.clone());
             }
@@ -475,6 +494,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         let tick = record.tick;
 
+        if let Some(service) = self.checkpoints.service() {
+            service
+                .lock()
+                .await
+                .recording(self.state.seed().zone, record.epoch, record.tick)
+                .await;
+        }
         if let Err(e) = self.gate.admit(&record).await {
             self.gate_holds = self.gate_holds.saturating_add(1);
             tracing::warn!(tick = tick.0, error = %e, "tick held by gate");

@@ -763,7 +763,7 @@ fn blow(t: &AppliedTick) -> u64 {
 }
 
 #[test]
-fn two_same_tick_killers_credit_the_larger_damage_share_then_the_lowest_id_once() {
+fn only_the_landed_killing_blow_receives_credit_regardless_of_damage_history() {
     let epoch = (0..40)
         .find(|e| two_killers(*e, 0).is_some())
         .expect("some seed lands player 1's swing");
@@ -781,22 +781,22 @@ fn two_same_tick_killers_credit_the_larger_damage_share_then_the_lowest_id_once(
             .count(),
         1
     );
-    // No recorded damage for player 2: player 1 (more damage) is credited.
+    // Player 1 landed the killing blow.
     assert_eq!(xp_events(std::slice::from_ref(&t)), vec![(id(1), 28, 28)]);
     // Repeated death: a dead NPC can't die again, so later ticks credit nothing.
     let later: Vec<_> = (0..30).map(|_| run(&mut z, Vec::new())).collect();
     assert!(xp_events(&later).is_empty());
-    // Equal shares (player 2 recorded exactly the blow): lowest id, player 1.
+    // Equal historical damage does not change the killing blow.
     let (_, t, _) = two_killers(epoch, d).unwrap();
     assert_eq!(blow(&t), d, "same seed, same draws");
     assert_eq!(xp_events(std::slice::from_ref(&t)), vec![(id(1), 28, 28)]);
-    // Player 2 recorded more: player 2 is credited although player 1 landed the blow.
+    // Player 2 recorded more, but its pending swing never lands.
     let (z2, t, _) = two_killers(epoch, d + 1).unwrap();
-    assert_eq!(xp_events(std::slice::from_ref(&t)), vec![(id(2), 28, 28)]);
-    assert_eq!(xp_of(&z2, id(1)), 0);
+    assert_eq!(xp_events(std::slice::from_ref(&t)), vec![(id(1), 28, 28)]);
+    assert_eq!(xp_of(&z2, id(2)), 0);
     let d = deltas(std::slice::from_ref(&t));
     assert_eq!(d.len(), 1);
-    assert_eq!(d[0].entity, id(2));
+    assert_eq!(d[0].entity, id(1));
 }
 
 #[test]

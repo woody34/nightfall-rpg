@@ -22,7 +22,7 @@ Phase 1 delivers the minimal playable Lineage 2 loop: targeting, auto-attacking 
 - Full High Five combat formula fidelity with bit-exact determinism across platforms and headless replay.
 - Pure integer zone simulation ensures byte-identical replay verification from snapshots and applied logs.
 - Database outages stall the zone actor rather than allowing progression drift or race conditions.
-- Animation playback is driven strictly by server combat cycle deadlines and life states; client never determines damage or hit success.
+- Current client combat presentation projects authoritative results, health, damage numbers and life state. Attack-start/cancel events are not yet used to drive animation. Deadline-driven attack animation is deferred to E5.4; the server determines damage and hit success.
 
 ## Known limitations
 

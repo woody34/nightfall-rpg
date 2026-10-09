@@ -412,7 +412,10 @@ fn snapshots_of_another_schema_or_with_inconsistent_combat_are_refused() {
     run(&mut z, vec![target(1, 1, npc), attack(1, 2)]);
     idle(&mut z, 3);
     let snap = z.snapshot();
-    assert_eq!(snap.meta.schema_version, 4);
+    assert_eq!(snap.meta.schema_version, 5);
+    let mut compatible = snap.clone();
+    compatible.meta.schema_version = 4;
+    assert!(ZoneState::from_snapshot(compatible).is_ok());
     for v in [1, 2, 3] {
         let mut old = snap.clone();
         old.meta.schema_version = v;
