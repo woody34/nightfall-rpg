@@ -1,20 +1,37 @@
 //! The combat phases of [`ZoneState::run_tick`] and the combat commands (plan §3.2, Stories
-//! E2.3 and E2.5). Tick order: commands → chase → movement → due impacts by attacker id
-//! (with their immediate damage and death consequences) → start eligible swings → AOI output.
+//! E2.3–E2.6). Tick order: commands → chase → movement → due impacts by
+//! attacker id (with their immediate damage, death, XP and level consequences) → start
+//! eligible swings → progression facts → AOI output.
 //!
 //! RNG draws happen only at a valid impact, in this order: hit roll, then on a hit the crit
-//! roll and (radius > 0) the damage spread. Cancelled or invalid swings draw nothing.
+//! roll and (radius > 0) the damage spread. Cancelled or invalid swings draw nothing; death,
+//! XP and respawn draw nothing either.
+//!
+//! Kill credit (E2.6): the NPC's full template XP goes once, on the death transition, to one
+//! living player. Candidates are the player landing the killing blow and every other player
+//! whose swing at the same life is due on the same tick (it is cancelled, undrawn, because
+//! the target is dead). The candidate with the most recorded damage on the victim wins (the
+//! hate ledger's damage, the killing blow included); ties go to the lowest `EntityId`.
 
 use super::super::combat::{CombatRole, HateEntry, Swing, SwingCancel};
 use super::super::combat_math::{
     attack_timing, crit_lands, damage_hate, hit_chance_permille, hit_lands, physical_damage,
+    spawn_protection_ticks, town_respawn_vitals,
 };
-use super::super::command::{AttackOutcome, RejectReason, ZoneEvent};
+use super::super::command::{AttackOutcome, DeathFact, ProgressionDelta, RejectReason, ZoneEvent};
 use super::super::entity::{Entity, EntityId, EntityKind, Tick};
 use super::super::fixed::Vec2Fixed;
+use super::super::progression::{add_xp, death_xp_loss, level_for_xp};
 use super::super::stat_rules::FormulaConstants;
 use super::super::stat_sheet::StatSheet;
-use super::{stats_changed, ZoneState};
+use super::{stats_changed, ProgressNote, ZoneState};
+
+/// The hit that killed: who landed it and for how much.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Blow {
+    pub(super) attacker: EntityId,
+    pub(super) damage: u32,
+}
 
 /// What [`ZoneState::engagement`] found for an attacker's current target.
 struct Engagement {
@@ -98,6 +115,9 @@ impl ZoneState {
         }
         if npc_e.targeting.dead {
             return Err(RejectReason::DeadActor);
+        }
+        if self.is_returning(npc) {
+            return Err(RejectReason::NotPermitted);
         }
         let prey = self
             .entities
@@ -202,7 +222,7 @@ impl ZoneState {
     }
 
     /// Adds hate (and damage) to `npc`'s ledger for `target`, then re-selects its target.
-    fn add_hate(
+    pub(super) fn add_hate(
         &mut self,
         tick: Tick,
         npc: EntityId,
@@ -231,7 +251,7 @@ impl ZoneState {
 
     /// Points `npc` at its most hated eligible entity (ties keep the current target, then the
     /// lowest id) and enables auto-attack; with nobody eligible it stands down.
-    fn reselect(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
+    pub(super) fn reselect(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
         let Some(me) = self.entities.get(&npc) else {
             return;
         };
@@ -260,6 +280,8 @@ impl ZoneState {
         if let Some(c) = self.entities.get_mut(&npc).and_then(|e| e.combat.as_mut()) {
             c.auto_attack = chosen.is_some();
         }
+        // E3.2 hook: intention follows the target (state_ai.rs).
+        self.ai_target_changed(tick, npc, chosen, events);
     }
 
     /// The attacker's current target, if it may still be fought: alive, attackable by this
@@ -465,7 +487,15 @@ impl ZoneState {
             }
         }
         if hp_after == 0 {
-            self.kill(tick, swing.target, Some(id), events);
+            self.kill(
+                tick,
+                swing.target,
+                Some(Blow {
+                    attacker: id,
+                    damage,
+                }),
+                events,
+            );
         } else if t_kind == EntityKind::Npc {
             // HF: landed damage adds F(d*100/(L+7)); an attack worth 0 (a miss, or a scratch)
             // still adds 1 (SOURCES.md E-10, L2AttackableAI.onEvtAttacked).
@@ -522,14 +552,16 @@ impl ZoneState {
         ))
     }
 
-    /// Death (plan E2.3; the consequences proper are E2.4's): HP 0, cycles cancelled, the
-    /// victim's selection cleared, every attacker's target cleared, hate forgotten. Emits
-    /// `EntityDied` exactly once per life.
-    fn kill(
+    /// Death (plan E2.3, E2.4): HP 0, cycles cancelled, the victim's selection cleared, every
+    /// attacker's target cleared, hate forgotten, then the one-shot consequences: a player
+    /// pays the HF death XP loss and may de-level; an NPC's XP is credited (see the module
+    /// docs). Everything runs once per life: a second lethal hit
+    /// finds the victim dead and does nothing.
+    pub(super) fn kill(
         &mut self,
         tick: Tick,
         victim: EntityId,
-        killer: Option<EntityId>,
+        blow: Option<Blow>,
         events: &mut Vec<ZoneEvent>,
     ) {
         let Some(e) = self.entities.get(&victim) else {
@@ -539,11 +571,13 @@ impl ZoneState {
             return;
         }
         let incarnation = e.combat.as_ref().map_or(0, |c| c.incarnation);
+        let credit = self.kill_credit(tick, victim, blow);
         self.disengage(tick, victim, SwingCancel::AttackerDied, events);
         if let Some(e) = self.entities.get_mut(&victim) {
             e.targeting.dead = true;
             if let Some(c) = e.combat.as_mut() {
                 c.hp = 0;
+                c.protected_until = None;
             }
             if e.dest.take().is_some() {
                 events.push(ZoneEvent::EntityMove {
@@ -562,12 +596,15 @@ impl ZoneState {
                 });
             }
         }
+        let killer = blow.map(|b| b.attacker);
         events.push(ZoneEvent::EntityDied {
             entity: victim,
             tick,
             killer,
             incarnation,
         });
+        // E3.4 hook: corpse deadline and respawn schedule of a spawn-slot NPC (state_ai.rs).
+        self.npc_died(tick, victim, events);
         if let Some(ledger) = self.hate.remove(&victim) {
             for (target, _) in ledger.iter() {
                 events.push(ZoneEvent::HateChanged {
@@ -580,6 +617,302 @@ impl ZoneState {
             }
         }
         self.release_target(tick, victim, events);
+        let role = self
+            .entities
+            .get(&victim)
+            .and_then(|e| e.combat.as_ref())
+            .map(|c| c.role.clone());
+        match role {
+            Some(CombatRole::Player { .. }) => self.charge_death(tick, victim, killer, events),
+            Some(CombatRole::Npc { xp_reward, .. }) => {
+                if let Some(player) = credit {
+                    self.award_xp(tick, player, xp_reward, events);
+                }
+            },
+            None => {},
+        }
+    }
+
+    /// Who gets an NPC victim's XP (module docs): computed before the death clears the
+    /// ledger and the same-tick swings. `None` for a player victim or without a player.
+    fn kill_credit(&self, tick: Tick, victim: EntityId, blow: Option<Blow>) -> Option<EntityId> {
+        let v = self.entities.get(&victim)?;
+        let vc = v.combat.as_ref()?;
+        if !matches!(vc.role, CombatRole::Npc { .. }) {
+            return None;
+        }
+        let ledger = self.hate.get(&victim);
+        let recorded = |id: EntityId| ledger.and_then(|l| l.get(id)).map_or(0, |r| r.damage);
+        let is_player = |e: &Entity| {
+            !e.targeting.dead
+                && matches!(e.combat.as_ref().map(|c| &c.role), Some(CombatRole::Player { .. }))
+        };
+        let mut best: Option<(u64, EntityId)> = None;
+        let mut consider = |id: EntityId, damage: u64| {
+            // Ids arrive in ascending order after the blow, so `>` keeps the lowest on ties;
+            // the blow is compared explicitly.
+            let better = match best {
+                None => true,
+                Some((d, chosen)) => damage > d || (damage == d && id < chosen),
+            };
+            if better {
+                best = Some((damage, id));
+            }
+        };
+        if let Some(b) = blow {
+            if self.entities.get(&b.attacker).is_some_and(is_player) {
+                consider(b.attacker, recorded(b.attacker).saturating_add(b.damage.into()));
+            }
+        }
+        for e in self.entities.values() {
+            if Some(e.id) == blow.map(|b| b.attacker) || !is_player(e) {
+                continue;
+            }
+            let due = e.combat.as_ref().and_then(|c| c.swing).is_some_and(|s| {
+                s.target == victim && s.impact == tick && s.target_incarnation == vc.incarnation
+            });
+            if due {
+                consider(e.id, recorded(e.id));
+            }
+        }
+        best.map(|(_, id)| id)
+    }
+
+    /// A dead player pays the HF death loss once, `R((X[L+1]−X[L]) * loss[L])`, and drops to
+    /// the level its XP now reaches; stats are recalculated and MP clamped.
+    fn charge_death(
+        &mut self,
+        tick: Tick,
+        player: EntityId,
+        killer: Option<EntityId>,
+        events: &mut Vec<ZoneEvent>,
+    ) {
+        let Some(rules) = self.rules.clone() else {
+            return;
+        };
+        let killer_template = killer
+            .and_then(|k| self.entities.get(&k))
+            .and_then(|k| k.combat.as_ref())
+            .and_then(|c| match &c.role {
+                CombatRole::Npc { template, .. } => Some(template.clone()),
+                CombatRole::Player { .. } => None,
+            });
+        self.note_progress(player);
+        let Some(c) = self
+            .entities
+            .get_mut(&player)
+            .and_then(|e| e.combat.as_mut())
+        else {
+            return;
+        };
+        let level = c.sheet.level();
+        let CombatRole::Player { xp, .. } = &mut c.role else {
+            return;
+        };
+        let loss = death_xp_loss(&rules, level).unwrap_or(0).min(*xp);
+        *xp = xp.saturating_sub(loss);
+        if let Some(note) = self.progress.get_mut(&player) {
+            note.died = Some(DeathFact {
+                killer,
+                killer_template,
+                xp_lost: loss,
+            });
+        }
+        self.relevel(player);
+        if let Some(c) = self.entities.get(&player).and_then(|e| e.combat.as_ref()) {
+            events.push(stats_changed(tick, player, c));
+        }
+    }
+
+    /// Adds `reward` (capped at `X[86] − 1`) to a living player's XP, then emits `XpGained`,
+    /// one `LevelUp` per threshold crossed and a final `StatsChanged` (plan §3.3).
+    fn award_xp(&mut self, tick: Tick, player: EntityId, reward: u64, events: &mut Vec<ZoneEvent>) {
+        let Some(rules) = self.rules.clone() else {
+            return;
+        };
+        self.note_progress(player);
+        let Some(c) = self
+            .entities
+            .get_mut(&player)
+            .and_then(|e| e.combat.as_mut())
+        else {
+            return;
+        };
+        let CombatRole::Player { xp, .. } = &mut c.role else {
+            return;
+        };
+        let before = *xp;
+        *xp = add_xp(&rules, before, reward).unwrap_or(before);
+        let (amount, total) = (xp.saturating_sub(before), *xp);
+        if let Some(note) = self.progress.get_mut(&player) {
+            note.xp_gained = note.xp_gained.saturating_add(amount);
+        }
+        events.push(ZoneEvent::XpGained {
+            tick,
+            entity: player,
+            amount,
+            total,
+        });
+        if let Some((old, new)) = self.relevel(player) {
+            for level in old.saturating_add(1)..=new {
+                events.push(ZoneEvent::LevelUp {
+                    tick,
+                    entity: player,
+                    level,
+                });
+                if let Some(note) = self.progress.get_mut(&player) {
+                    note.levels_gained.push(level);
+                }
+            }
+            if let Some(c) = self.entities.get(&player).and_then(|e| e.combat.as_ref()) {
+                events.push(stats_changed(tick, player, c));
+            }
+        }
+    }
+
+    /// Re-derives a player's level from its XP by threshold search; on a change rebuilds the
+    /// stat sheet and clamps HP/MP to the new maxima (current values are kept otherwise).
+    /// Returns `(old, new)` when the level changed.
+    fn relevel(&mut self, player: EntityId) -> Option<(u32, u32)> {
+        let rules = self.rules.clone()?;
+        let c = self.entities.get_mut(&player)?.combat.as_mut()?;
+        let CombatRole::Player { class, xp } = &c.role else {
+            return None;
+        };
+        let (old, new) = (c.sheet.level(), level_for_xp(&rules, *xp));
+        if old == new {
+            return None;
+        }
+        let sheet =
+            StatSheet::for_player(&rules, rules.class(class)?, new, Some(rules.starter_weapon()))
+                .ok()?;
+        c.sheet = sheet;
+        c.hp = c.hp.min(sheet.max_hp());
+        c.mp = c.mp.min(sheet.max_mp());
+        Some((old, new))
+    }
+
+    /// `Respawn` (E2.4): a dead player returns to the safe point with
+    /// `HP = max(1, F(maxHP * 65 / 100))`, MP 0, a new life and `PlayerSpawnProtection`
+    /// (6000 ticks; an accepted `Attack` ends it early). No XP is refunded.
+    pub(super) fn respawn_player(
+        &mut self,
+        tick: Tick,
+        entity: EntityId,
+    ) -> Result<Vec<ZoneEvent>, RejectReason> {
+        let e = self
+            .entities
+            .get(&entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        if e.kind != EntityKind::Player {
+            return Err(RejectReason::NotAPlayer);
+        }
+        let c = e.combat.as_ref().ok_or(RejectReason::NotPermitted)?;
+        if !e.targeting.dead {
+            return Err(RejectReason::NotDead);
+        }
+        let rules = self.rules.clone().ok_or(RejectReason::NotPermitted)?;
+        let (hp, mp) = town_respawn_vitals(rules.constants(), &c.sheet)
+            .map_err(|_| RejectReason::NotPermitted)?;
+        let protection =
+            spawn_protection_ticks(rules.constants()).map_err(|_| RejectReason::NotPermitted)?;
+        let (from, to) = (e.pos, self.safe_point.unwrap_or(e.pos));
+        self.note_progress(entity);
+        if let Some(note) = self.progress.get_mut(&entity) {
+            note.respawned = true;
+        }
+        let e = self
+            .entities
+            .get_mut(&entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        e.pos = to;
+        e.dest = None;
+        e.targeting.dead = false;
+        let speed = e.speed;
+        let c = e.combat.as_mut().ok_or(RejectReason::NotPermitted)?;
+        c.hp = hp;
+        c.mp = mp;
+        c.incarnation = c.incarnation.saturating_add(1);
+        c.protected_until = Some(Tick(tick.0.saturating_add(protection)));
+        c.swing = None;
+        c.auto_attack = false;
+        c.chasing = false;
+        let incarnation = c.incarnation;
+        let stats = stats_changed(tick, entity, c);
+        self.aoi.relocate(entity, from, to);
+        let mut events = Vec::new();
+        if from != to {
+            events.push(ZoneEvent::EntityMove {
+                tick,
+                entity,
+                pos: to,
+                dest: None,
+                speed,
+            });
+        }
+        events.push(ZoneEvent::EntityRespawned {
+            entity,
+            tick,
+            position: to,
+            hp,
+            incarnation,
+        });
+        events.push(stats);
+        Ok(events)
+    }
+
+    /// Records a player's start-of-tick level and XP the first time its progression changes
+    /// this tick.
+    fn note_progress(&mut self, player: EntityId) {
+        let Some((level, xp)) = self.entities.get(&player).and_then(|e| {
+            let c = e.combat.as_ref()?;
+            match c.role {
+                CombatRole::Player { xp, .. } => Some((c.sheet.level(), xp)),
+                CombatRole::Npc { .. } => None,
+            }
+        }) else {
+            return;
+        };
+        self.progress.entry(player).or_insert_with(|| ProgressNote {
+            level_before: level,
+            xp_before: xp,
+            xp_gained: 0,
+            levels_gained: Vec::new(),
+            died: None,
+            respawned: false,
+        });
+    }
+
+    /// End of tick: one `Progression` fact per player whose progression changed, in id
+    /// order, with the end-of-tick values a checkpoint persists (E4.2).
+    pub(super) fn flush_progression(&mut self, tick: Tick, events: &mut Vec<ZoneEvent>) {
+        for (entity, note) in std::mem::take(&mut self.progress) {
+            let Some(e) = self.entities.get(&entity) else {
+                continue;
+            };
+            let Some(c) = e.combat.as_ref() else {
+                continue;
+            };
+            let CombatRole::Player { xp, .. } = c.role else {
+                continue;
+            };
+            events.push(ZoneEvent::Progression(ProgressionDelta {
+                tick,
+                entity,
+                level_before: note.level_before,
+                xp_before: note.xp_before,
+                level: c.sheet.level(),
+                xp,
+                hp: c.hp,
+                mp: c.mp,
+                alive: !e.targeting.dead,
+                pos: e.pos,
+                xp_gained: note.xp_gained,
+                levels_gained: note.levels_gained,
+                died: note.died,
+                respawned: note.respawned,
+            }));
+        }
     }
 
     /// After impacts: every idle auto-attacker whose cooldown is over and whose target is in
@@ -637,7 +970,7 @@ impl ZoneState {
 }
 
 /// Players fight attackable NPCs; NPCs fight players. Both must be living combatants.
-fn may_attack(attacker: &Entity, target: &Entity) -> bool {
+pub(super) fn may_attack(attacker: &Entity, target: &Entity) -> bool {
     if attacker.id == target.id || target.targeting.dead || target.combat.is_none() {
         return false;
     }

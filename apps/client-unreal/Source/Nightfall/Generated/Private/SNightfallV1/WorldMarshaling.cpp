@@ -505,6 +505,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityRespawned* in, FGrpcNightfal
     out->Tick=in->tick();
     GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
     out->Hp=in->hp();
+    out->Incarnation=in->incarnation();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityRespawned* in, ::nightfall::v1::EntityRespawned* out)
@@ -513,6 +514,7 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityRespawned* in, ::nightfall::v
     out->set_tick(in->Tick);
     TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
     out->set_hp(in->Hp);
+    out->set_incarnation(in->Incarnation);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::StatsChanged* in, FGrpcNightfallV1StatsChanged* out)
@@ -523,6 +525,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::StatsChanged* in, FGrpcNightfallV1
     out->Mp=in->mp();
     out->MaxMp=in->max_mp();
     out->Level=in->level();
+    out->Xp=in->xp();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::StatsChanged* out)
@@ -533,6 +536,7 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::
     out->set_mp(in->Mp);
     out->set_max_mp(in->MaxMp);
     out->set_level(in->Level);
+    out->set_xp(in->Xp);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::XpGained* in, FGrpcNightfallV1XpGained* out)

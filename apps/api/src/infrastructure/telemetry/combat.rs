@@ -8,10 +8,11 @@ use opentelemetry::KeyValue;
 use super::Metrics;
 use crate::application::zone_actor::{TickStats, TickTelemetry, ZoneTelemetry};
 use crate::domain::zone::{
-    AppliedTick, AttackOutcome, EntityId, EntityKind, ZoneEvent, ZoneSnapshot,
+    AppliedTick, AttackOutcome, EntityId, EntityKind, Intention, ZoneEvent, ZoneSnapshot,
 };
 
-/// Fixed E3.2 intention label set. No string-valued API can create unbounded series.
+/// Fixed E3.2 intention label set (one per [`Intention`]). No string-valued API can create
+/// unbounded series.
 #[derive(Debug, Clone, Copy)]
 pub enum NpcIntention {
     /// No current activity.
@@ -24,6 +25,18 @@ pub enum NpcIntention {
     ReturnHome,
     /// Waiting for corpse removal or respawn.
     Dead,
+}
+
+impl From<Intention> for NpcIntention {
+    fn from(i: Intention) -> Self {
+        match i {
+            Intention::Idle => Self::Idle,
+            Intention::Active => Self::Active,
+            Intention::Attack => Self::Attack,
+            Intention::ReturnHome => Self::ReturnHome,
+            Intention::Dead => Self::Dead,
+        }
+    }
 }
 
 impl NpcIntention {
@@ -66,8 +79,7 @@ impl Metrics {
         }
     }
 
-    /// TODO(E3.2): call from the admitted-event match below when the domain gains an
-    /// intention-transition event. Do not count AI decisions before durable admission.
+    /// One admitted `NpcIntentionChanged`. Never counts AI decisions before durable admission.
     pub fn record_npc_intention_transition(&self, to: NpcIntention) {
         self.npc_intention_transitions_total
             .add(1, &[KeyValue::new("to", to.label())]);
@@ -131,12 +143,15 @@ impl TickTelemetry for CombatConsumer {
                     self.metrics.combat_xp_gained_total.add(*amount, &[]);
                 },
                 ZoneEvent::LevelUp { .. } => self.metrics.combat_levelups_total.add(1, &[]),
-                // TODO(E3.2): match the durable intention-transition event here once it exists.
+                ZoneEvent::NpcIntentionChanged { to, .. } => {
+                    self.metrics.record_npc_intention_transition((*to).into());
+                },
                 ZoneEvent::AttackStarted { .. }
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::TargetChanged { .. }
+                | ZoneEvent::Progression(_)
                 | ZoneEvent::EntityMove { .. } => {},
             }
         }

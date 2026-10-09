@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::ids::uuid_id;
 
+use super::ai::NpcAi;
 use super::combat::CombatState;
 use super::command::SessionGeneration;
 use super::fixed::{Speed, Vec2Fixed};
@@ -81,6 +82,9 @@ pub struct Entity {
     /// HP, stats, attack cycle and life (E2.2); `None` for noncombat fixtures.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub combat: Option<CombatState>,
+    /// Intention, home and slot of a spawn-slot NPC (E3.2); `None` for everyone else.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai: Option<NpcAi>,
 }
 
 /// Selection and eligibility needed for intent validation. Existing NPCs default to noncombat.

@@ -3,8 +3,9 @@
 //! One epoch per zone run (plan §8 #5): every start is a new epoch, numbered one past the
 //! highest epoch the log or the snapshot index knows. Starting writes the epoch-start snapshot
 //! to the log (and its row to `zone_snapshots`) before the actor exists, so the snapshot
-//! always precedes the first applied record. The zone's starting content (NPCs) enters through
-//! `SpawnNpc` commands on the first tick, so it is in the applied log like every other change.
+//! always precedes the first applied record. Fixture NPCs enter through `SpawnNpc` commands on
+//! the first tick, so they are in the applied log like every other change; spawn-slot monsters
+//! are part of the snapshot (`ZoneState::with_spawn_slots`) and the zone spawns them itself.
 //! [`RunningZone::shutdown`] stops the actor and writes the completion watermark.
 
 use std::future::Future;
@@ -22,8 +23,8 @@ use super::replay_log::{
 };
 use super::zone_actor::{TickOutcome, TickSource, ZoneActor, ZoneHandle, ZoneTelemetry};
 use crate::domain::zone::{
-    NpcCombat, NpcTemplate, SpawnSlot, Speed, StatRules, Vec2Fixed, ZoneBounds, ZoneCommand,
-    ZoneId, ZoneInput, ZoneSeed, ZoneState,
+    NpcCombat, NpcTemplate, SpawnSlot, SpawnSlotSpec, Speed, StatRules, Vec2Fixed, ZoneBounds,
+    ZoneCommand, ZoneId, ZoneInput, ZoneSeed, ZoneState,
 };
 
 /// How long shutdown waits for the actor to finish its current tick.
@@ -145,11 +146,12 @@ impl ZoneBootstrap {
             },
             def.bounds,
             time_origin_ms,
-        );
-        let mut monsters = Vec::new();
+        )
+        .with_safe_point(def.safe_point);
         if let Some(rules) = &self.rules {
-            state = state.with_rules(rules.rules.clone());
-            monsters = slot_spawns(&rules.rules, def)?;
+            state = state
+                .with_rules(rules.rules.clone())
+                .with_spawn_slots(slot_specs(&rules.rules, def)?);
         }
         let mut snapshot = state.snapshot();
         snapshot.meta.config_hash.clone_from(&def.config_hash);
@@ -206,11 +208,6 @@ impl ZoneBootstrap {
                 }))
                 .map_err(|e| anyhow::anyhow!("queue starting NPC {}: {e}", npc.name))?;
         }
-        for command in monsters {
-            handle
-                .send(ZoneInput::system(command))
-                .map_err(|e| anyhow::anyhow!("queue spawn-slot monster: {e}"))?;
-        }
         if let Some(store) = &self.snapshots {
             tokio::spawn(record_first_seq(
                 store.clone(),
@@ -244,10 +241,9 @@ impl ZoneBootstrap {
     }
 }
 
-/// The first life of every spawn slot's monsters, `count` per slot at its home, slots in file
-/// order, with combat profiles resolved from their templates once, here. Respawn and slot
-/// ownership are E3.4's.
-pub fn slot_spawns(rules: &StatRules, def: &ZoneDefinition) -> anyhow::Result<Vec<ZoneCommand>> {
+/// The zone's spawn slots in file order, with combat and AI profiles resolved from their
+/// templates once, here. The zone spawns and respawns their members (E3.4).
+pub fn slot_specs(rules: &StatRules, def: &ZoneDefinition) -> anyhow::Result<Vec<SpawnSlotSpec>> {
     let mut out = Vec::new();
     for slot in &def.spawn_slots {
         let template = def
@@ -257,14 +253,7 @@ pub fn slot_spawns(rules: &StatRules, def: &ZoneDefinition) -> anyhow::Result<Ve
             .with_context(|| format!("spawn slot {} names an unknown template", slot.id))?;
         let combat = NpcCombat::from_template(rules, template)
             .with_context(|| format!("resolve template {}", template.id.0))?;
-        for _ in 0..slot.count {
-            out.push(ZoneCommand::SpawnNpc {
-                name: template.name.clone(),
-                pos: slot.home,
-                speed: template.move_speed,
-                combat: Some(Box::new(combat.clone())),
-            });
-        }
+        out.push(SpawnSlotSpec::new(slot, template, combat));
     }
     Ok(out)
 }
@@ -391,17 +380,30 @@ mod tests {
     use crate::infrastructure::zone_data::{parse_zone, TEST_ZONE_TOML};
 
     #[test]
-    fn spawn_slots_become_resolved_combat_spawns_in_file_order() {
+    fn spawn_slots_resolve_in_file_order_and_the_zone_spawns_their_members() {
         let rules = load_rules(&RulesSource::embedded()).unwrap().rules;
         let def = parse_zone(TEST_ZONE_TOML).unwrap();
-        let spawns = slot_spawns(&rules, &def).unwrap();
-        let homes: Vec<Vec2Fixed> = spawns
+        let specs = slot_specs(&rules, &def).unwrap();
+        let ids: Vec<&str> = specs.iter().map(|s| s.id.as_str()).collect();
+        assert_eq!(ids, ["keltir_a", "keltir_b"]);
+        assert!(specs.iter().all(|s| s.combat.template == "keltir"));
+        assert_eq!((specs[1].respawn_delay_secs, specs[1].respawn_random_secs), (20, 5));
+        let mut zone = ZoneState::new(
+            ZoneSeed {
+                zone: def.zone,
+                epoch: 1,
+            },
+            def.bounds,
+            0,
+        )
+        .with_rules(rules)
+        .with_spawn_slots(specs);
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let homes: Vec<Vec2Fixed> = tick
+            .events
             .iter()
-            .map(|c| match c {
-                ZoneCommand::SpawnNpc { pos, combat, .. } => {
-                    assert_eq!(combat.as_ref().unwrap().template, "keltir");
-                    *pos
-                },
+            .map(|e| match e {
+                crate::domain::zone::ZoneEvent::EntitySpawn { pos, .. } => *pos,
                 other => panic!("unexpected {other:?}"),
             })
             .collect();

@@ -1,4 +1,4 @@
-//! Drives the fixed two-player session recorded as `fixtures/sessions/two-players-v2.nfr`
+//! Drives the fixed two-player session recorded as `fixtures/sessions/two-players-v4.nfr`
 //! (Story 3.3): both join, walk, one sends an out-of-bounds `MoveTo` (rejected), the other
 //! stops mid-walk with `StopMove`, both disconnect. Re-record after a deliberate change to
 //! zone behaviour (docs/engineering/architecture.md §2.5, "Replay tool"):
@@ -8,8 +8,12 @@
 //! cargo run -p nightfall-api --example record_session
 //! # stop the server with ctrl-c (writes the watermark), then:
 //! cargo run -p nightfall-api --bin nightfall-replay -- export --zone 1 --latest \
-//!   --out apps/api/fixtures/sessions/two-players-v2.nfr
+//!   --out apps/api/fixtures/sessions/two-players-v4.nfr
 //! ```
+//!
+//! v4 (like v3) was recorded with `ZONE_FILE` pointing at a copy of `test_zone.toml` with `zone_id = 41`
+//! (and `HTTP_ADDR`/`GRPC_ADDR` on spare ports) so it could not share an epoch stream with a
+//! running dev zone; export with `--zone 41` in that case.
 //!
 //! Flags: `--http URL` (`http://127.0.0.1:3000`), `--grpc URL` (`http://127.0.0.1:50051`).
 

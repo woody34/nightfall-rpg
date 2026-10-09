@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NPC state machine · Nightfall</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;   /* white-smoke */
+      --color-ink:     #2d3142;   /* jet-black */
+      --color-muted:   #4f5d75;   /* blue-slate */
+      --color-accent:  #eb6c36;   /* atomic-tangerine */
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1080px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 16px; max-width: 100ch; }
+    .notes p + p { margin-top: 8px; }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+    /* The SVG holds its readable width (min-width == the viewBox width, so the
+       type ramp is never silently scaled down). This wrapper lets a narrow
+       screen scroll the diagram instead of the whole page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 1080px; display: block; }
+    /* Paper has no scrollbar, so the local scroller would clip instead of
+       scroll. Let the diagram scale down to the sheet: smaller but whole
+       beats sharp but cut off. Must come after the svg rule above - a media
+       query adds no specificity, so a later plain rule would win. */
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · State machine · Minimal light</p>
+    <h1>NPC state machine</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1080 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="npc-sm-title npc-sm-desc">
+        <title id="npc-sm-title">NPC state machine</title>
+        <desc id="npc-sm-desc">Spawn-slot NPCs move between the intentions Idle, Active, Attack, ReturnHome and Dead; a decayed corpse is hidden by the respawn scheduler until its slot member respawns as a new incarnation.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+<polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+</marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+<circle cx="52" cy="152" r="6" fill="#2d3142"/>
+<path d="M 60,152 H 100" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="60.4" y="130" width="39.2" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="80" y="140" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">TICK 0</text>
+<path d="M 300,144 H 440" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="332.2" y="124" width="75.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="370" y="134" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">PLAYER IN AOI</text>
+<path d="M 440,184 H 300" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="342.6" y="164" width="54.8" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="370" y="174" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">AOI EMPTY</text>
+<path d="M 640,152 H 780" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="674.8" y="130" width="70.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="710" y="140" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">AGGRO · HATE</text>
+<path d="M 200,120 V 92 Q 200,84 208,84 H 872 Q 880,84 880,92 V 120" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="437.2" y="78" width="205.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="540" y="88" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">HIT · CLAN CALL (1 HATE, NO RECURSION)</text>
+<path d="M 880,204 V 340" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="831.8" y="252" width="96.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="880" y="262" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">NO TARGET · LEASH</text>
+<rect x="831.8" y="268" width="96.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="880" y="278" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">1200 TICKS NO HIT</text>
+<path d="M 780,382 H 620 Q 612,382 612,374 V 204" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="636.2" y="360" width="127.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="700" y="370" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">EXACT ARRIVAL · FULL HP</text>
+<path d="M 520,204 V 520" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="456.2" y="430" width="127.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="520" y="440" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">HP 0 · ANY LIVING STATE</text>
+<path d="M 440,562 H 300" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="334.8" y="540" width="70.4" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="370" y="550" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">CORPSE_UNTIL</text>
+<path d="M 200,520 V 204" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="170.0" y="370" width="60.0" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="200" y="380" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">RESPAWN_AT</text>
+<rect x="136.2" y="386" width="127.6" height="14" rx="2" fill="#f5f5f5" stroke="none"/>
+<text x="200" y="396" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">SAME ID · INCARNATION+1</text>
+<rect x="100" y="120" width="200" height="84" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="100" y="120" width="200" height="84" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="108" y="128" width="41" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="128.6" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">INTENT</text>
+<text x="200.0" y="156" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Idle</text>
+<text x="200.0" y="172" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">no player in AOI</text>
+<text x="200.0" y="186" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">thinks only to wake</text>
+<rect x="440" y="120" width="200" height="84" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="440" y="120" width="200" height="84" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="448" y="128" width="41" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="468.6" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">INTENT</text>
+<text x="540.0" y="156" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Active</text>
+<text x="540.0" y="172" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">aggro: nearest, 1 hate</text>
+<text x="540.0" y="186" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">else 1/30 wander ≤ 9375</text>
+<rect x="780" y="120" width="200" height="84" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="780" y="120" width="200" height="84" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<rect x="788" y="128" width="41" height="12" rx="2" fill="none" stroke="#eb6c36"/>
+<text x="808.6" y="137" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">INTENT</text>
+<text x="880.0" y="156" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Attack</text>
+<text x="880.0" y="172" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">chase to reach · swing</text>
+<text x="880.0" y="186" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">think: reselect (ties keep)</text>
+<rect x="780" y="340" width="200" height="88" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="780" y="340" width="200" height="88" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="788" y="348" width="41" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="808.6" y="357" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">INTENT</text>
+<text x="880.0" y="376" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">ReturnHome</text>
+<text x="880.0" y="392" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">hate, target, swing cleared</text>
+<text x="880.0" y="406" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">unattackable · no aggro</text>
+<text x="880.0" y="420" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">walks home</text>
+<rect x="440" y="520" width="200" height="88" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="440" y="520" width="200" height="88" rx="6" fill="#ffffff" stroke="#2d3142"/>
+<rect x="448" y="528" width="41" height="12" rx="2" fill="none" stroke="#2d3142"/>
+<text x="468.6" y="537" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">INTENT</text>
+<text x="540.0" y="556" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Dead</text>
+<text x="540.0" y="572" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">corpse in AOI</text>
+<text x="540.0" y="586" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">jitter drawn once</text>
+<text x="540.0" y="600" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">respawn ≥ corpse_until+1</text>
+<rect x="100" y="520" width="200" height="88" rx="6" fill="#f5f5f5" stroke="none"/>
+<rect x="100" y="520" width="200" height="88" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+<rect x="108" y="528" width="57" height="12" rx="2" fill="none" stroke="#4f5d75"/>
+<text x="136.4" y="537" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="middle" fill="#4f5d75">SCHEDULER</text>
+<text x="200.0" y="556" font-family="'Geist', sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#2d3142">Hidden</text>
+<text x="200.0" y="572" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">out of zone and AOI</text>
+<text x="200.0" y="586" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">refs: UNKNOWN_ENTITY</text>
+<text x="200.0" y="600" font-family="'Geist Mono', monospace" font-size="9" font-weight="400" text-anchor="middle" fill="#4f5d75">slot member keeps id</text>
+<line x1="40" y1="664" x2="1040" y2="664" stroke="#bfc0c0" stroke-width="1.2"/>
+<line x1="40" y1="688" x2="68" y2="688" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="80" y="691" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Guard / transition (emits NpcIntentionChanged)</text>
+<rect x="340" y="680" width="24" height="16" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36"/>
+<text x="376" y="691" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Fighting</text>
+<rect x="460" y="680" width="24" height="16" rx="2" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+<text x="496" y="691" font-family="'Geist Mono', monospace" font-size="8" font-weight="400" text-anchor="start" fill="#4f5d75">Scheduler state, not an intention</text>
+
+      </svg>
+    </div>
+    <div class="notes">
+<p>Tick order: commands → spawn phase (expired corpses despawn, then due members respawn in slot/member order) → AI phase (NPCs in id order) → chase → movement → impacts → hit bookkeeping → next swings → AOI output. <code>Attack</code> and <code>ReturnHome</code> are checked every tick; everything else runs on the think tick, <code>tick % 10 == EntityId % 10</code>.</p>
+<p>Entering <code>Attack</code> comes from the <code>reselect</code> hook whenever an idle or active NPC acquires a target: its own aggro scan, a player's hit, or a clan call. The first engagement calls idle/active NPCs of the same clan within <code>clan_help_range</code> (id order, 1 hate each); helpers never call. Leash is the NPC's distance from home; the timeout counts from entering <code>Attack</code> or the last landed hit.</p>
+<p>RNG: a first life draws its id; an <code>Active</code> mobile NPC without prey draws <code>roll_below(30)</code> per think and, on 0, <code>dx</code> then <code>dy</code>; death draws the respawn jitter <code>0..=random</code> unless it is 0. Respawn at <code>max(death + 10·(delay + jitter), corpse_until + 1)</code>. Intention changes are internal events: in <code>AppliedTick</code> and the record, never on the wire.</p>
+<p>Source: <a href="../../apps/api/src/domain/zone/ai.rs">ai.rs</a> · <a href="../../apps/api/src/domain/zone/state_ai.rs">state_ai.rs</a> · <a href="../../apps/api/src/domain/zone/state_combat.rs">state_combat.rs</a> · <a href="../../apps/api/src/domain/zone/state.rs">state.rs</a>.</p>
+</div>
+  </div>
+</body>
+</html>

@@ -46,8 +46,10 @@ E2.1 implemented target selection; E2.2/E2.3 implement Attack and StopAttack and
 | `EntitySpawn` | `combatant` 6 … `pending_swing` 14 | Public combat state on AOI entry: template, life incarnation, dead, attackable, HP/max HP, level, swing in flight. |
 | Facts | `AttackResult.target_incarnation` 7, `EntityDied.incarnation` 4 | The life a fact refers to. |
 
-Respawn remains a `NOT_YET_IMPLEMENTED` stub until E2.4. Fixture NPCs from zone `[[npcs]]`
-stay noncombat; spawn-slot monsters are combatants.
+E2.4/E2.6 implement Respawn and XP and add `EntityRespawned.incarnation` 5 and
+`StatsChanged.xp` 7 (owner-only cumulative XP, including death loss). A `Respawn` from a living
+actor is `INVALID` ("the actor is alive and cannot respawn"); `NOT_YET_IMPLEMENTED` is no longer
+produced. Fixture NPCs from zone `[[npcs]]` stay noncombat; spawn-slot monsters are combatants.
 
 After contract changes, `cargo build` regenerates Rust through `build.rs`. With the proto tools
 already installed, `apps/client-unreal/Scripts/gen-proto.sh --generate-only` regenerates the

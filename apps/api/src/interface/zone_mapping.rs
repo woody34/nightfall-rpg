@@ -373,18 +373,21 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             reason: cancel_to_pb(*reason).into(),
         }))],
         // Internal; never in an observer's output.
-        ZoneEvent::HateChanged { .. } => Vec::new(),
+        ZoneEvent::HateChanged { .. }
+        | ZoneEvent::NpcIntentionChanged { .. }
+        | ZoneEvent::Progression(_) => Vec::new(),
         ZoneEvent::EntityRespawned {
             entity,
             tick,
             position,
             hp,
-            ..
+            incarnation,
         } => vec![world(Event::EntityRespawned(pb::EntityRespawned {
             entity: entity.to_string(),
             tick: tick.0,
             position: Some(position_to_pb(*position)),
             hp: *hp,
+            incarnation: *incarnation,
         }))],
         ZoneEvent::StatsChanged {
             entity,
@@ -393,6 +396,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             mp,
             max_mp,
             level,
+            xp,
             ..
         } => vec![world(Event::StatsChanged(pb::StatsChanged {
             entity: entity.to_string(),
@@ -401,6 +405,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             mp: *mp,
             max_mp: *max_mp,
             level: *level,
+            xp: *xp,
         }))],
         ZoneEvent::XpGained {
             entity,
@@ -445,7 +450,8 @@ pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
         | RejectReason::NotPermitted
         | RejectReason::StaleSession
         | RejectReason::NotAPlayer
-        | RejectReason::InvalidLoad => pb::RejectReason::Invalid,
+        | RejectReason::InvalidLoad
+        | RejectReason::NotDead => pb::RejectReason::Invalid,
     }
 }
 
@@ -731,6 +737,7 @@ mod combat_tests {
             tick: Tick(31),
             position: Vec2Fixed::from_tiles(23, 24),
             hp: 24,
+            incarnation: 3,
         };
         let expected = pb::WorldEvent {
             event: Some(Event::EntityRespawned(pb::EntityRespawned {
@@ -738,6 +745,7 @@ mod combat_tests {
                 tick: 31,
                 position: Some(pb::Position { x: 23.0, y: 24.0 }),
                 hp: 24,
+                incarnation: 3,
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
@@ -757,6 +765,7 @@ mod combat_tests {
             mp: 24,
             max_mp: 25,
             level: 26,
+            xp: u64::MAX,
         };
         let expected = pb::WorldEvent {
             event: Some(Event::StatsChanged(pb::StatsChanged {
@@ -766,6 +775,7 @@ mod combat_tests {
                 mp: 24,
                 max_mp: 25,
                 level: 26,
+                xp: u64::MAX,
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
