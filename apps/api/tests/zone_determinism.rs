@@ -152,7 +152,8 @@ fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::AttackStarted { .. }
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
-                | ZoneEvent::NpcIntentionChanged { .. }),
+                | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::Progression(_)),
             ) => (4, 0, None),
         };
         let mut ranks: Vec<_> = out.iter().map(rank).collect();
@@ -306,13 +307,17 @@ fn rules() -> Arc<nightfall_api::domain::zone::StatRules> {
 }
 
 /// A combat zone after a fixed setup tick: three players and three Keltirs within a few
-/// tiles of each other. Returns the zone and the monsters' (seeded) ids.
+/// tiles of each other. Player 0 enters nearly dead and with XP to lose, so fights cover
+/// death, de-level and respawn (E2.4, E2.6).
+/// Returns the zone and the monsters' (seeded) ids.
 fn arena(epoch: u64) -> (ZoneState, Vec<EntityId>) {
     use nightfall_api::domain::zone::{NpcCombat, PlayerLoad};
     use nightfall_api::infrastructure::zone_data::{parse_zone, TEST_ZONE_TOML};
     let def = parse_zone(TEST_ZONE_TOML).unwrap();
     let keltir = NpcCombat::from_template(&rules(), &def.npc_templates[0]).unwrap();
-    let mut z = fresh(epoch).with_rules(rules());
+    let mut z = fresh(epoch)
+        .with_rules(rules())
+        .with_safe_point(Vec2Fixed::from_tiles(14, 14));
     let mut setup: Vec<ZoneInput> = (0..3_u8)
         .map(|n| {
             ZoneInput::system(ZoneCommand::SpawnPlayer {
@@ -321,7 +326,16 @@ fn arena(epoch: u64) -> (ZoneState, Vec<EntityId>) {
                 pos: Vec2Fixed::from_tiles(10 + i32::from(n), 10),
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
-                load: Some(Box::new(PlayerLoad::fresh("human_fighter"))),
+                load: Some(Box::new(if n == 0 {
+                    PlayerLoad {
+                        level: 2,
+                        xp: 70,
+                        hp: Some(5),
+                        ..PlayerLoad::fresh("human_fighter")
+                    }
+                } else {
+                    PlayerLoad::fresh("human_fighter")
+                })),
             })
         })
         .collect();
@@ -359,6 +373,7 @@ enum Op {
     Move(u8, i32, i32),
     Aggro(usize, u8),
     Leave(u8),
+    Respawn(u8),
 }
 
 fn op() -> impl Strategy<Value = Op> {
@@ -370,7 +385,8 @@ fn op() -> impl Strategy<Value = Op> {
         1 => p.clone().prop_map(Op::Stop),
         1 => (p.clone(), 5..20_i32, 5..20_i32).prop_map(|(p, x, y)| Op::Move(p, x, y)),
         2 => (m, p.clone()).prop_map(|(m, p)| Op::Aggro(m, p)),
-        1 => p.prop_map(Op::Leave),
+        1 => p.clone().prop_map(Op::Leave),
+        2 => p.prop_map(Op::Respawn),
     ]
 }
 
@@ -378,7 +394,7 @@ fn op() -> impl Strategy<Value = Op> {
 fn fight() -> impl Strategy<Value = Vec<Vec<Op>>> {
     prop::collection::vec(
         prop_oneof![4 => Just(Vec::new()), 1 => prop::collection::vec(op(), 1..4)],
-        10..90,
+        10..160,
     )
 }
 
@@ -412,6 +428,7 @@ fn resolve(ops: &[Vec<Op>], npcs: &[EntityId]) -> Vec<Vec<ZoneInput>> {
                             target: id(p),
                         }),
                         Op::Leave(p) => ZoneInput::system(ZoneCommand::Despawn { entity: id(p) }),
+                        Op::Respawn(p) => s(p, ZoneCommand::Respawn { entity: id(p) }),
                     }
                 })
                 .collect()
@@ -447,7 +464,7 @@ proptest! {
     }
 
     #[test]
-    fn a_mid_fight_snapshot_restore_continues_byte_identically(ops in fight(), split in 0..90_usize) {
+    fn a_mid_fight_snapshot_restore_continues_byte_identically(ops in fight(), split in 0..160_usize) {
         let (mut z, npcs) = arena(6);
         let script = resolve(&ops, &npcs);
         let split = split.min(script.len());

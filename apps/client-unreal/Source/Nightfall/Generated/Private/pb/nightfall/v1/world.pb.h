@@ -4245,6 +4245,7 @@ class EntityRespawned final :
     kPositionFieldNumber = 3,
     kTickFieldNumber = 2,
     kHpFieldNumber = 4,
+    kIncarnationFieldNumber = 5,
   };
   // string entity = 1;
   void clear_entity() ;
@@ -4300,6 +4301,16 @@ class EntityRespawned final :
   void _internal_set_hp(::uint32_t value);
 
   public:
+  // uint32 incarnation = 5;
+  void clear_incarnation() ;
+  ::uint32_t incarnation() const;
+  void set_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_incarnation() const;
+  void _internal_set_incarnation(::uint32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.EntityRespawned)
  private:
   class _Internal;
@@ -4314,6 +4325,7 @@ class EntityRespawned final :
     ::nightfall::v1::Position* position_;
     ::uint64_t tick_;
     ::uint32_t hp_;
+    ::uint32_t incarnation_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
@@ -4452,6 +4464,7 @@ class StatsChanged final :
     kMaxHpFieldNumber = 3,
     kMpFieldNumber = 4,
     kMaxMpFieldNumber = 5,
+    kXpFieldNumber = 7,
     kLevelFieldNumber = 6,
   };
   // string entity = 1;
@@ -4514,6 +4527,16 @@ class StatsChanged final :
   void _internal_set_max_mp(::uint32_t value);
 
   public:
+  // uint64 xp = 7;
+  void clear_xp() ;
+  ::uint64_t xp() const;
+  void set_xp(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_xp() const;
+  void _internal_set_xp(::uint64_t value);
+
+  public:
   // uint32 level = 6;
   void clear_level() ;
   ::uint32_t level() const;
@@ -4537,6 +4560,7 @@ class StatsChanged final :
     ::uint32_t max_hp_;
     ::uint32_t mp_;
     ::uint32_t max_mp_;
+    ::uint64_t xp_;
     ::uint32_t level_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
@@ -8665,6 +8689,26 @@ inline void EntityRespawned::_internal_set_hp(::uint32_t value) {
   _impl_.hp_ = value;
 }
 
+// uint32 incarnation = 5;
+inline void EntityRespawned::clear_incarnation() {
+  _impl_.incarnation_ = 0u;
+}
+inline ::uint32_t EntityRespawned::incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntityRespawned.incarnation)
+  return _internal_incarnation();
+}
+inline void EntityRespawned::set_incarnation(::uint32_t value) {
+  _internal_set_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntityRespawned.incarnation)
+}
+inline ::uint32_t EntityRespawned::_internal_incarnation() const {
+  return _impl_.incarnation_;
+}
+inline void EntityRespawned::_internal_set_incarnation(::uint32_t value) {
+  ;
+  _impl_.incarnation_ = value;
+}
+
 // -------------------------------------------------------------------
 
 // StatsChanged
@@ -8814,6 +8858,26 @@ inline ::uint32_t StatsChanged::_internal_level() const {
 inline void StatsChanged::_internal_set_level(::uint32_t value) {
   ;
   _impl_.level_ = value;
+}
+
+// uint64 xp = 7;
+inline void StatsChanged::clear_xp() {
+  _impl_.xp_ = ::uint64_t{0u};
+}
+inline ::uint64_t StatsChanged::xp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.xp)
+  return _internal_xp();
+}
+inline void StatsChanged::set_xp(::uint64_t value) {
+  _internal_set_xp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.xp)
+}
+inline ::uint64_t StatsChanged::_internal_xp() const {
+  return _impl_.xp_;
+}
+inline void StatsChanged::_internal_set_xp(::uint64_t value) {
+  ;
+  _impl_.xp_ = value;
 }
 
 // -------------------------------------------------------------------

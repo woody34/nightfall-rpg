@@ -128,9 +128,9 @@ releases output. A failed append holds the same record and prevents the next dra
   A session sends exactly this stream. The AOI is the 3x3 block of 32-tile cells, diffed
   every tick against what the player already knows. `state_digest` is SHA-256 of the
   canonical end-of-tick state (entities, hate, RNG, counters).
-- **Snapshot.** `ZoneSnapshot` (schema 3) holds full entity state including combat and AI
+- **Snapshot.** `ZoneSnapshot` (schema 4) holds full entity state including combat and AI
   blocks, RNG state, next ordinal, AOI index, hate ledgers, spawn slots and the respawn
-  scheduler, the stat rules themselves,
+  scheduler, the safe point, the stat rules themselves,
   `time_origin_ms` and provenance (`schema_version`, `build_id`, `config_hash`, `rules_hash`,
   `first_log_seq`). Other schema versions are refused. `ZoneState::from_snapshot` validates it. Replaying the logged drafts from
   it reproduces the same `AppliedTick`s.
@@ -143,15 +143,17 @@ releases output. A failed append holds the same record and prevents the next dra
 
 #### Combat
 
-Phase 1 E2.2–E2.5. Flow: [combat sequence](../diagrams/combat-sequence.html). Code:
+Phase 1 E2.2–E2.6. Flow: [combat sequence](../diagrams/combat-sequence.html). Code:
 `domain::zone::{combat, state_combat}` on top of the stat engine (§2.7).
 
 - **State.** `Entity.combat: Option<CombatState>`: role (player class and XP, or NPC template
   and XP reward), `StatSheet`, HP/MP, reach and body radius, life `incarnation`, `auto_attack`,
   `chasing`, the in-flight `Swing { target, target_incarnation, start, impact, ready }`,
-  `ready_at`, `protected_until`. `ZoneState.hate`: per NPC an ordered `HateLedger` of
+  `ready_at`, `protected_until`. `ZoneState::with_safe_point` sets the town respawn point.
+  `ZoneState.hate`: per NPC an ordered `HateLedger` of
   `{ hate, damage }`. Rules arrive with `ZoneState::with_rules` (bootstrap) or the snapshot.
-- **Spawning.** `SpawnPlayer.load` = `PlayerLoad { class, level, xp, hp, mp }`, resolved
+- **Spawning.** `SpawnPlayer.load` = `PlayerLoad { class, level, xp, hp, mp, alive }` (`alive:
+  false` spawns dead, so death survives reconnect), resolved
   against the rules with the starter weapon (`InvalidLoad` if they disagree). `SpawnNpc.combat`
   = `NpcCombat`, resolved once at bootstrap from the template (accuracy, evasion and crit from
   HF monster base stats; reach in milli-tiles). Spawn-slot monsters are spawned by the zone
@@ -159,9 +161,11 @@ Phase 1 E2.2–E2.5. Flow: [combat sequence](../diagrams/combat-sequence.html). 
 - **Commands.** `SetTarget` (E2.1 checks); changing or clearing it, `MoveTo` and `StopMove`
   end the attack. `Attack` needs a live attackable target in AOI and is idempotent;
   `StopAttack` cancels the swing; both keep the selection. `AddAggro { npc, target }` (system,
-  for the E3.2 AI) adds 1 hate. Dead actors get `DEAD_ACTOR`. No command carries damage.
-- **Tick.** Commands → chase (out of reach: head for the target) → movement → impacts by
-  attacker id → next swings by attacker id → AOI output. A swing starts in reach once
+  for the E3.2 AI) adds 1 hate. `Respawn` (dead players only; a living actor gets `NotDead`,
+  wire `INVALID`). Dead actors get `DEAD_ACTOR` for every other intent. No command carries damage.
+- **Tick.** Commands → spawn and AI phases (below) → chase (out of reach: head for the target) → movement →
+  impacts by attacker id (with death, XP and level consequences) → next swings by attacker id →
+  progression facts → AOI output. A swing starts in reach once
   `ready_at` has passed; impact and next swing come from `attack_timing` (Squire's Sword at
   DEX 30: +6/+12). An impact rechecks attacker, target life and reach (`AttackCancelled`
   otherwise, no draw), then draws hit, and on a hit crit and spread, applies damage, emits
@@ -169,11 +173,24 @@ Phase 1 E2.2–E2.5. Flow: [combat sequence](../diagrams/combat-sequence.html). 
 - **Hate and death.** A hit on an NPC adds `F(d*100/(L+7))`, a miss or zero 1, capped; the NPC
   targets its most hated (ties keep the current, then lowest id) and auto-attacks. HP 0 emits
   `EntityDied` once per life, cancels the victim's swing, clears every attacker's target and
-  drops the victim from all ledgers; `Despawn` does the same. Death consequences proper
-  (XP loss, player respawn) are E2.4; NPC corpse and respawn are below.
+  drops the victim from all ledgers; `Despawn` does the same. NPC corpse and respawn are below.
+- **Death and respawn (E2.4).** Once per life. A player pays the HF loss
+  `R((X[L+1]−X[L])*loss[L])`, de-levels by threshold search, stats recalculated, MP clamped,
+  owner `StatsChanged`. `Respawn` moves a dead player to the safe point
+  (`ZoneState::with_safe_point`): `HP = max(1, F(maxHP*65/100))`, MP 0, new incarnation,
+  6000-tick protection that an accepted `Attack` ends; `EntityRespawned` + `StatsChanged`; no
+  XP refund.
+- **XP and level (E2.6).** An NPC's XP is credited once, on its death, to one living player: of
+  the blow's attacker and every player whose swing at that life was due the same tick, the most
+  recorded damage (blow included), then the lowest id. `XpGained` (capped at `X[86]−1`), one
+  `LevelUp` per level, one `StatsChanged`; HP/MP kept, clamped to new maxima.
+- **Progression facts.** At tick end, one `ZoneEvent::Progression(ProgressionDelta)` per player
+  whose XP, level or life changed (end values, `levels_gained`, `died`, `respawned`), via
+  `AppliedTick::progression()`; recorded, never sent. E4.2 checkpoints from these.
 - **Visibility.** Owner-only: `StatsChanged`, `XpGained`, `LevelUp`, `TargetChanged`.
   `AttackStarted`/`AttackResult`/`AttackCancelled` reach observers that know both sides;
-  `EntityDied` those that know the entity; `HateChanged` nobody. Everything is still in
+  `EntityDied` those that know the entity; `HateChanged`, `Progression` nobody.
+  `StatsChanged` carries XP (owner-only); `EntityRespawned` the new incarnation. Everything is still in
   `AppliedTick.events` and the record. `EntitySpawn` carries public combat state (life, HP,
   level, pending swing), so AOI entry and `ReplaceSession` rebuild the picture.
 
@@ -191,7 +208,7 @@ Phase 1 E3.2–E3.4. Flow: [NPC state machine](../diagrams/npc-state-machine.htm
   respawn_at }` per member. Both are in the snapshot; members are in the state digest.
 - **Tick.** Commands → spawn phase (expired corpses `Despawn`, then due members respawn in
   (slot, member) order) → AI phase (NPCs in id order) → chase → movement → impacts → hit
-  bookkeeping → next swings → AOI output.
+  bookkeeping → next swings → progression facts → AOI output.
 - **Think.** Every 10 ticks at phase `EntityId % 10`. `Idle` → `Active` when a living player is
   in the NPC's AOI, back when none. `Active`: aggressive NPCs give the nearest eligible player in
   `aggro_range` 1 hate (equal distance → lowest id); otherwise a mobile NPC wanders on
@@ -313,9 +330,9 @@ Story 3.3. Flow: [replay tool diagram](../diagrams/replay-tool.html). Code:
 
 ```bash
 nightfall-replay --zone 1 --epoch 3                 # or --latest; reads NATS_URL / --nats
-nightfall-replay --source file --file two-players-v3.nfr
+nightfall-replay --source file --file two-players-v4.nfr
 nightfall-replay ... --session <entity-id> --out /tmp/div   # verify one player; dump divergence
-nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-players-v3.nfr
+nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-players-v4.nfr
 ```
 
 | Exit | Meaning |
@@ -328,13 +345,14 @@ nightfall-replay export --zone 1 --epoch 3 --out apps/api/fixtures/sessions/two-
 `--session` takes the player's entity id (its character id) and selects whose outputs are
 compared; every command is still applied. `.nfr` = `NFREPLAY` magic, `u32` format version, zlib
 protobuf of snapshot, records and watermark (`recording.rs`). `moon run api:replay-check`
-replays `apps/api/fixtures/sessions/two-players-v3.nfr` (234 ticks, two players, an
-out-of-bounds rejection, a `StopMove`, the zone spawning its Keltir slots on tick 0; snapshot
-schema 3 and record schema 2, so it carries the stat rules, spawn slots, zone events and state
+replays `apps/api/fixtures/sessions/two-players-v4.nfr` (two players, an out-of-bounds
+rejection, a `StopMove`, the zone spawning its Keltir slots on tick 0; snapshot schema 4 and
+record schema 3, so it carries the stat rules, spawn slots, safe point, zone events and state
 digests; recorded as zone 41 via `ZONE_FILE`); CI runs it on every push. Re-record with
 `examples/record_session.rs` only for an intended behaviour change, and bump the file name.
-v1 (movement only, record schema 1) was retired by Phase 1 E2.2 and v2 by E3.4 (snapshot
-schema 3); replay refuses other versions rather than migrating them.
+v1 (movement only, record schema 1) was retired by Phase 1 E2.2, v2 by E3.4 (snapshot schema
+3) and v3 by E2.4/E2.6 (snapshot 4, record 3); replay refuses other versions rather than
+migrating them.
 
 ### 2.6 Sessions and zones
 

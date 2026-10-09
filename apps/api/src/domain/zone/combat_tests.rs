@@ -412,10 +412,15 @@ fn snapshots_of_another_schema_or_with_inconsistent_combat_are_refused() {
     run(&mut z, vec![target(1, 1, npc), attack(1, 2)]);
     idle(&mut z, 3);
     let snap = z.snapshot();
-    assert_eq!(snap.meta.schema_version, 3);
-    let mut old = snap.clone();
-    old.meta.schema_version = 2;
-    assert_eq!(ZoneState::from_snapshot(old), Err(SnapshotError::Schema(2)));
+    assert_eq!(snap.meta.schema_version, 4);
+    for v in [1, 2, 3] {
+        let mut old = snap.clone();
+        old.meta.schema_version = v;
+        assert_eq!(ZoneState::from_snapshot(old), Err(SnapshotError::Schema(v)));
+    }
+    let mut outside = snap.clone();
+    outside.safe_point = Some(Vec2Fixed::from_tiles(300, 0));
+    assert_eq!(ZoneState::from_snapshot(outside), Err(SnapshotError::SafePointOutOfBounds));
     let mut no_rules = snap.clone();
     no_rules.rules = None;
     assert_eq!(ZoneState::from_snapshot(no_rules), Err(SnapshotError::CombatMismatch));

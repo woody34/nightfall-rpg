@@ -233,6 +233,7 @@ pub fn fixture_zone() -> nightfall_api::domain::zone::ZoneState {
     nightfall_api::application::zone_registry::fixture_state(1_000_000)
         .unwrap()
         .with_rules(rules())
+        .with_safe_point(nightfall_api::domain::zone::Vec2Fixed::from_tiles(126, 126))
 }
 
 /// The Keltir combat profile from the embedded test zone and rules.

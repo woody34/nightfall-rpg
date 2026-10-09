@@ -431,6 +431,8 @@ PROTOBUF_CONSTEXPR EntityRespawned::EntityRespawned(
   , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
 
   , /*decltype(_impl_.hp_)*/ 0u
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
 } {}
 struct EntityRespawnedDefaultTypeInternal {
   PROTOBUF_CONSTEXPR EntityRespawnedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -456,6 +458,8 @@ PROTOBUF_CONSTEXPR StatsChanged::StatsChanged(
   , /*decltype(_impl_.mp_)*/ 0u
 
   , /*decltype(_impl_.max_mp_)*/ 0u
+
+  , /*decltype(_impl_.xp_)*/ ::uint64_t{0u}
 
   , /*decltype(_impl_.level_)*/ 0u
 
@@ -793,9 +797,11 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_.tick_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_.position_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_.hp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityRespawned, _impl_.incarnation_),
     ~0u,
     ~0u,
     0,
+    ~0u,
     ~0u,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _internal_metadata_),
@@ -811,6 +817,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.mp_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.max_mp_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.xp_),
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::XpGained, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -864,11 +871,11 @@ static const ::_pbi::MigrationSchema
         { 201, -1, -1, sizeof(::nightfall::v1::EntityDied)},
         { 213, -1, -1, sizeof(::nightfall::v1::AttackStarted)},
         { 227, -1, -1, sizeof(::nightfall::v1::AttackCancelled)},
-        { 239, 251, -1, sizeof(::nightfall::v1::EntityRespawned)},
-        { 255, -1, -1, sizeof(::nightfall::v1::StatsChanged)},
-        { 269, -1, -1, sizeof(::nightfall::v1::XpGained)},
-        { 280, -1, -1, sizeof(::nightfall::v1::LevelUp)},
-        { 290, -1, -1, sizeof(::nightfall::v1::TargetChanged)},
+        { 239, 252, -1, sizeof(::nightfall::v1::EntityRespawned)},
+        { 257, -1, -1, sizeof(::nightfall::v1::StatsChanged)},
+        { 272, -1, -1, sizeof(::nightfall::v1::XpGained)},
+        { 283, -1, -1, sizeof(::nightfall::v1::LevelUp)},
+        { 293, -1, -1, sizeof(::nightfall::v1::TargetChanged)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -961,39 +968,40 @@ const char descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto[] PROTOBUF_S
     "_incarnation\030\006 \001(\r\"r\n\017AttackCancelled\022\020\n"
     "\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\022\014\n\004tick\030"
     "\003 \001(\004\022/\n\006reason\030\004 \001(\0162\037.nightfall.v1.Swi"
-    "ngCancelReason\"e\n\017EntityRespawned\022\016\n\006ent"
+    "ngCancelReason\"z\n\017EntityRespawned\022\016\n\006ent"
     "ity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022(\n\010position\030\003 \001("
-    "\0132\026.nightfall.v1.Position\022\n\n\002hp\030\004 \001(\r\"e\n"
-    "\014StatsChanged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001("
-    "\r\022\016\n\006max_hp\030\003 \001(\r\022\n\n\002mp\030\004 \001(\r\022\016\n\006max_mp\030"
-    "\005 \001(\r\022\r\n\005level\030\006 \001(\r\"9\n\010XpGained\022\016\n\006enti"
-    "ty\030\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\""
-    "(\n\007LevelUp\022\016\n\006entity\030\001 \001(\t\022\r\n\005level\030\002 \001("
-    "\r\"/\n\rTargetChanged\022\016\n\006entity\030\001 \001(\t\022\016\n\006ta"
-    "rget\030\002 \001(\t*\264\003\n\014RejectReason\022\035\n\031REJECT_RE"
-    "ASON_UNSPECIFIED\020\000\022\037\n\033REJECT_REASON_OUT_"
-    "OF_BOUNDS\020\001\022\031\n\025REJECT_REASON_TOO_FAR\020\002\022 "
-    "\n\034REJECT_REASON_UNKNOWN_ENTITY\020\003\022\034\n\030REJE"
-    "CT_REASON_OVERLOADED\020\004\022\036\n\032REJECT_REASON_"
-    "RATE_LIMITED\020\005\022\031\n\025REJECT_REASON_INVALID\020"
-    "\006\022\034\n\030REJECT_REASON_DEAD_ACTOR\020\007\022\'\n#REJEC"
-    "T_REASON_NON_ATTACKABLE_TARGET\020\010\022#\n\037REJE"
-    "CT_REASON_TARGET_NOT_IN_AOI\020\t\022\036\n\032REJECT_"
-    "REASON_OUT_OF_RANGE\020\n\022\033\n\027REJECT_REASON_P"
-    "ROTECTED\020\013\022%\n!REJECT_REASON_NOT_YET_IMPL"
-    "EMENTED\020\014*V\n\nEntityKind\022\033\n\027ENTITY_KIND_U"
-    "NSPECIFIED\020\000\022\026\n\022ENTITY_KIND_PLAYER\020\001\022\023\n\017"
-    "ENTITY_KIND_NPC\020\002*y\n\rAttackOutcome\022\036\n\032AT"
-    "TACK_OUTCOME_UNSPECIFIED\020\000\022\027\n\023ATTACK_OUT"
-    "COME_MISS\020\001\022\026\n\022ATTACK_OUTCOME_HIT\020\002\022\027\n\023A"
-    "TTACK_OUTCOME_CRIT\020\003*\222\002\n\021SwingCancelReas"
-    "on\022#\n\037SWING_CANCEL_REASON_UNSPECIFIED\020\000\022"
-    "\037\n\033SWING_CANCEL_REASON_STOPPED\020\001\022&\n\"SWIN"
-    "G_CANCEL_REASON_TARGET_CHANGED\020\002\022\035\n\031SWIN"
-    "G_CANCEL_REASON_MOVED\020\003\022$\n SWING_CANCEL_"
-    "REASON_OUT_OF_RANGE\020\004\022#\n\037SWING_CANCEL_RE"
-    "ASON_TARGET_LOST\020\005\022%\n!SWING_CANCEL_REASO"
-    "N_ATTACKER_DIED\020\006b\006proto3"
+    "\0132\026.nightfall.v1.Position\022\n\n\002hp\030\004 \001(\r\022\023\n"
+    "\013incarnation\030\005 \001(\r\"q\n\014StatsChanged\022\016\n\006en"
+    "tity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006max_hp\030\003 \001(\r\022\n"
+    "\n\002mp\030\004 \001(\r\022\016\n\006max_mp\030\005 \001(\r\022\r\n\005level\030\006 \001("
+    "\r\022\n\n\002xp\030\007 \001(\004\"9\n\010XpGained\022\016\n\006entity\030\001 \001("
+    "\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\"(\n\007Leve"
+    "lUp\022\016\n\006entity\030\001 \001(\t\022\r\n\005level\030\002 \001(\r\"/\n\rTa"
+    "rgetChanged\022\016\n\006entity\030\001 \001(\t\022\016\n\006target\030\002 "
+    "\001(\t*\264\003\n\014RejectReason\022\035\n\031REJECT_REASON_UN"
+    "SPECIFIED\020\000\022\037\n\033REJECT_REASON_OUT_OF_BOUN"
+    "DS\020\001\022\031\n\025REJECT_REASON_TOO_FAR\020\002\022 \n\034REJEC"
+    "T_REASON_UNKNOWN_ENTITY\020\003\022\034\n\030REJECT_REAS"
+    "ON_OVERLOADED\020\004\022\036\n\032REJECT_REASON_RATE_LI"
+    "MITED\020\005\022\031\n\025REJECT_REASON_INVALID\020\006\022\034\n\030RE"
+    "JECT_REASON_DEAD_ACTOR\020\007\022\'\n#REJECT_REASO"
+    "N_NON_ATTACKABLE_TARGET\020\010\022#\n\037REJECT_REAS"
+    "ON_TARGET_NOT_IN_AOI\020\t\022\036\n\032REJECT_REASON_"
+    "OUT_OF_RANGE\020\n\022\033\n\027REJECT_REASON_PROTECTE"
+    "D\020\013\022%\n!REJECT_REASON_NOT_YET_IMPLEMENTED"
+    "\020\014*V\n\nEntityKind\022\033\n\027ENTITY_KIND_UNSPECIF"
+    "IED\020\000\022\026\n\022ENTITY_KIND_PLAYER\020\001\022\023\n\017ENTITY_"
+    "KIND_NPC\020\002*y\n\rAttackOutcome\022\036\n\032ATTACK_OU"
+    "TCOME_UNSPECIFIED\020\000\022\027\n\023ATTACK_OUTCOME_MI"
+    "SS\020\001\022\026\n\022ATTACK_OUTCOME_HIT\020\002\022\027\n\023ATTACK_O"
+    "UTCOME_CRIT\020\003*\222\002\n\021SwingCancelReason\022#\n\037S"
+    "WING_CANCEL_REASON_UNSPECIFIED\020\000\022\037\n\033SWIN"
+    "G_CANCEL_REASON_STOPPED\020\001\022&\n\"SWING_CANCE"
+    "L_REASON_TARGET_CHANGED\020\002\022\035\n\031SWING_CANCE"
+    "L_REASON_MOVED\020\003\022$\n SWING_CANCEL_REASON_"
+    "OUT_OF_RANGE\020\004\022#\n\037SWING_CANCEL_REASON_TA"
+    "RGET_LOST\020\005\022%\n!SWING_CANCEL_REASON_ATTAC"
+    "KER_DIED\020\006b\006proto3"
 };
 static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fworld_2eproto_deps[1] =
     {
@@ -1003,7 +1011,7 @@ static ::absl::once_flag descriptor_table_nightfall_2fv1_2fworld_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fworld_2eproto = {
     false,
     false,
-    3865,
+    3898,
     descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto,
     "nightfall/v1/world.proto",
     &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
@@ -6690,6 +6698,8 @@ EntityRespawned::EntityRespawned(const EntityRespawned& from)
     , decltype(_impl_.tick_) {}
 
     , decltype(_impl_.hp_) {}
+
+    , decltype(_impl_.incarnation_) {}
   };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -6704,8 +6714,8 @@ EntityRespawned::EntityRespawned(const EntityRespawned& from)
     _this->_impl_.position_ = new ::nightfall::v1::Position(*from._impl_.position_);
   }
   ::memcpy(&_impl_.tick_, &from._impl_.tick_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.hp_) -
-    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.hp_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.incarnation_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.incarnation_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.EntityRespawned)
 }
 
@@ -6720,6 +6730,8 @@ inline void EntityRespawned::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.tick_) { ::uint64_t{0u} }
 
     , decltype(_impl_.hp_) { 0u }
+
+    , decltype(_impl_.incarnation_) { 0u }
 
   };
   _impl_.entity_.InitDefault();
@@ -6760,8 +6772,8 @@ void EntityRespawned::Clear() {
     _impl_.position_->Clear();
   }
   ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.hp_) -
-      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.hp_));
+      reinterpret_cast<char*>(&_impl_.incarnation_) -
+      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.incarnation_));
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -6806,6 +6818,15 @@ const char* EntityRespawned::_InternalParse(const char* ptr, ::_pbi::ParseContex
       case 4:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
           _impl_.hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -6871,6 +6892,13 @@ failure:
         4, this->_internal_hp(), target);
   }
 
+  // uint32 incarnation = 5;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_incarnation(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -6913,6 +6941,12 @@ failure:
         this->_internal_hp());
   }
 
+  // uint32 incarnation = 5;
+  if (this->_internal_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_incarnation());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -6944,6 +6978,9 @@ void EntityRespawned::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const 
   if (from._internal_hp() != 0) {
     _this->_internal_set_hp(from._internal_hp());
   }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -6967,8 +7004,8 @@ void EntityRespawned::InternalSwap(EntityRespawned* other) {
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
                                        &other->_impl_.entity_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(EntityRespawned, _impl_.hp_)
-      + sizeof(EntityRespawned::_impl_.hp_)
+      PROTOBUF_FIELD_OFFSET(EntityRespawned, _impl_.incarnation_)
+      + sizeof(EntityRespawned::_impl_.incarnation_)
       - PROTOBUF_FIELD_OFFSET(EntityRespawned, _impl_.position_)>(
           reinterpret_cast<char*>(&_impl_.position_),
           reinterpret_cast<char*>(&other->_impl_.position_));
@@ -7004,6 +7041,8 @@ StatsChanged::StatsChanged(const StatsChanged& from)
 
     , decltype(_impl_.max_mp_) {}
 
+    , decltype(_impl_.xp_) {}
+
     , decltype(_impl_.level_) {}
 
     , /*decltype(_impl_._cached_size_)*/{}};
@@ -7034,6 +7073,8 @@ inline void StatsChanged::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.mp_) { 0u }
 
     , decltype(_impl_.max_mp_) { 0u }
+
+    , decltype(_impl_.xp_) { ::uint64_t{0u} }
 
     , decltype(_impl_.level_) { 0u }
 
@@ -7138,6 +7179,15 @@ const char* StatsChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* 
           goto handle_unusual;
         }
         continue;
+      // uint64 xp = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.xp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -7210,6 +7260,13 @@ failure:
         6, this->_internal_level(), target);
   }
 
+  // uint64 xp = 7;
+  if (this->_internal_xp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        7, this->_internal_xp(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -7256,6 +7313,12 @@ failure:
         this->_internal_max_mp());
   }
 
+  // uint64 xp = 7;
+  if (this->_internal_xp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_xp());
+  }
+
   // uint32 level = 6;
   if (this->_internal_level() != 0) {
     total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
@@ -7294,6 +7357,9 @@ void StatsChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   }
   if (from._internal_max_mp() != 0) {
     _this->_internal_set_max_mp(from._internal_max_mp());
+  }
+  if (from._internal_xp() != 0) {
+    _this->_internal_set_xp(from._internal_xp());
   }
   if (from._internal_level() != 0) {
     _this->_internal_set_level(from._internal_level());

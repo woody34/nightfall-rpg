@@ -43,7 +43,7 @@ use replay_support::{unique_zone, zone_def, FixedClock};
 use uuid::Uuid;
 
 fn fixture_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/sessions/two-players-v3.nfr")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/sessions/two-players-v4.nfr")
 }
 
 fn fixture() -> Recording {

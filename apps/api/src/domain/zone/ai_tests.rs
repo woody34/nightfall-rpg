@@ -797,6 +797,7 @@ fn death_corpse_decay_and_respawn_make_a_new_incarnation_and_reject_stale_target
         tick,
         position: Vec2Fixed::from_tiles(100, 100),
         hp: max,
+        incarnation: 2,
     }));
     assert!(t.events.contains(&ZoneEvent::NpcIntentionChanged {
         tick,
@@ -895,7 +896,7 @@ fn snapshots_with_an_inconsistent_scheduler_are_refused() {
     let mut z = zone(vec![slot("a", 100, 100), slot("b", 104, 102)]);
     run(&mut z, Vec::new());
     let snap = z.snapshot();
-    assert_eq!(snap.meta.schema_version, 3);
+    assert_eq!(snap.meta.schema_version, SNAPSHOT_SCHEMA_VERSION);
     assert!(ZoneState::from_snapshot(snap.clone()).is_ok());
     let mut missing = snap.clone();
     missing.spawn_members.pop();

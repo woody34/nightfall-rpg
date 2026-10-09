@@ -187,6 +187,13 @@ pub struct PlayerLoad {
     pub hp: Option<u32>,
     /// Saved MP, clamped to the maximum.
     pub mp: Option<u32>,
+    /// `false` spawns the character dead (HP 0) so death survives reconnect (E2.4).
+    #[serde(default = "alive_default")]
+    pub alive: bool,
+}
+
+const fn alive_default() -> bool {
+    true
 }
 
 impl PlayerLoad {
@@ -199,6 +206,7 @@ impl PlayerLoad {
             xp: 0,
             hp: None,
             mp: None,
+            alive: true,
         }
     }
 }

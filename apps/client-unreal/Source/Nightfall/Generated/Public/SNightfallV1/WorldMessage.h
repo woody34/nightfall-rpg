@@ -466,6 +466,9 @@ struct FGrpcNightfallV1EntityRespawned : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 Hp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Incarnation = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.StatsChanged"))
@@ -491,6 +494,9 @@ struct FGrpcNightfallV1StatsChanged : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 Level = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Xp = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.XpGained"))

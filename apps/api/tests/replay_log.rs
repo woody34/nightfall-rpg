@@ -317,11 +317,11 @@ fn bounded_keeps_a_record_that_fits_and_digests_one_that_does_not() {
 #[test]
 fn a_record_with_encoded_outputs_has_a_fixed_wire_format() {
     // Field 8 (output_form) and an empty field 9 (events) are omitted at their defaults; the
-    // state digest (10) and the record schema (11, RECORD_SCHEMA_VERSION 2) always follow.
+    // state digest (10) and the record schema (11, RECORD_SCHEMA_VERSION 3) always follow.
     let tail = |out: &mut Vec<u8>| {
         out.extend_from_slice(&[0x52, 0x20]);
         out.extend_from_slice(&[0; 32]);
-        out.extend_from_slice(&[0x58, 0x02]);
+        out.extend_from_slice(&[0x58, 0x03]);
     };
     let mut record = empty_record(1, 2);
     let mut expected = vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02];

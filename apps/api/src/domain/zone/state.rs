@@ -18,8 +18,8 @@ use super::combat::{
     weapon_reach, CombatRole, CombatState, HateLedger, NpcCombat, PlayerLoad, SwingCancel,
 };
 use super::command::{
-    AppliedCommand, AppliedTick, AppliedTickDraft, CommandSource, Disposition, ObserverOutput,
-    Ordinal, RejectReason, SessionGeneration, ZoneCommand, ZoneEvent, ZoneInput,
+    AppliedCommand, AppliedTick, AppliedTickDraft, CommandSource, DeathFact, Disposition,
+    ObserverOutput, Ordinal, RejectReason, SessionGeneration, ZoneCommand, ZoneEvent, ZoneInput,
 };
 use super::entity::{Entity, EntityId, EntityKind, Tick};
 use super::fixed::{Fixed, Speed, Vec2Fixed};
@@ -34,8 +34,8 @@ pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 /// Version of the [`ZoneSnapshot`] layout. Bump on any change to the snapshot or to the
 /// meaning of a field; `from_snapshot` refuses other versions. 2: combat state, hate
 /// ledgers and the stat rules (Phase 1 E2.2). 3: NPC AI blocks, spawn slots and the respawn
-/// scheduler (Phase 1 E3.2–E3.4).
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 3;
+/// scheduler (Phase 1 E3.2–E3.4). 4: safe point and the player's `alive` load flag (E2.4).
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 4;
 
 /// Identity of a zone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -207,6 +207,8 @@ pub struct ZoneSnapshot {
     /// The respawn scheduler: every slot member, in (slot, member) order.
     #[serde(default)]
     pub spawn_members: Vec<MemberState>,
+    /// Where dead players respawn (E2.4); `None` respawns them where they fell.
+    pub safe_point: Option<Vec2Fixed>,
 }
 
 /// One NPC's hate ledger in a snapshot.
@@ -247,6 +249,9 @@ pub enum SnapshotError {
     /// member does not name it.
     #[error("spawn scheduler does not match the spawn slots or entities")]
     SpawnMismatch,
+    /// The safe point lies outside the bounds.
+    #[error("safe point is out of bounds")]
+    SafePointOutOfBounds,
 }
 
 /// A draft that does not continue this zone: replay has diverged or the log has a gap.
@@ -302,6 +307,22 @@ pub struct ZoneState {
     slots: Vec<SpawnSlotSpec>,
     /// Respawn scheduler: one record per slot member.
     members: BTreeMap<SlotMember, MemberState>,
+    /// Town respawn point (E2.4), part of the immutable zone configuration.
+    safe_point: Option<Vec2Fixed>,
+    /// Per player: progression transitions of the tick in progress (E2.6). Always empty at a
+    /// tick boundary (flushed into `Progression` events), so never snapshotted.
+    progress: BTreeMap<EntityId, ProgressNote>,
+}
+
+/// What one player's progression did so far this tick; see [`ZoneState::note_progress`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProgressNote {
+    level_before: u32,
+    xp_before: u64,
+    xp_gained: u64,
+    levels_gained: Vec<u32>,
+    died: Option<DeathFact>,
+    respawned: bool,
 }
 
 impl ZoneState {
@@ -323,7 +344,22 @@ impl ZoneState {
             hate: BTreeMap::new(),
             slots: Vec::new(),
             members: BTreeMap::new(),
+            safe_point: None,
+            progress: BTreeMap::new(),
         }
+    }
+
+    /// Where dead players respawn (the zone file's `[safe_point]`); must be inside the bounds.
+    #[must_use]
+    pub fn with_safe_point(mut self, point: Vec2Fixed) -> Self {
+        self.safe_point = self.bounds.contains(point).then_some(point);
+        self
+    }
+
+    /// The town respawn point, if configured.
+    #[must_use]
+    pub const fn safe_point(&self) -> Option<Vec2Fixed> {
+        self.safe_point
     }
 
     /// The zone with combat: players spawned with a [`super::PlayerLoad`] get stats from
@@ -367,6 +403,13 @@ impl ZoneState {
             })?;
             state.rules = Some(Arc::new(rules));
         }
+        if snapshot
+            .safe_point
+            .is_some_and(|p| !state.bounds.contains(p))
+        {
+            return Err(SnapshotError::SafePointOutOfBounds);
+        }
+        state.safe_point = snapshot.safe_point;
         state.rng = snapshot.rng.restore();
         state.next_tick = snapshot.tick;
         state.next_ordinal = snapshot.next_ordinal;
@@ -434,6 +477,7 @@ impl ZoneState {
                 .collect(),
             spawn_slots: self.slots.clone(),
             spawn_members: self.members.values().copied().collect(),
+            safe_point: self.safe_point,
         }
     }
 
@@ -604,6 +648,7 @@ impl ZoneState {
         self.land_impacts(tick, &mut events);
         self.note_hits(tick, events.get(impacts..).unwrap_or_default());
         self.start_swings(tick, &mut events);
+        self.flush_progression(tick, &mut events);
         let responses = responses(tick, &draft.commands, &dispositions);
         let outputs = self.observe(tick, responses, &events);
         self.next_tick = tick.next();
@@ -790,12 +835,7 @@ impl ZoneState {
             ZoneCommand::SetTarget { entity, target } => self.set_target(tick, *entity, *target),
             ZoneCommand::Attack { entity } => self.attack(tick, *entity),
             ZoneCommand::StopAttack { entity } => self.stop_attack(tick, *entity),
-            ZoneCommand::Respawn { entity } => {
-                self.entities
-                    .get(entity)
-                    .ok_or(RejectReason::UnknownEntity)?;
-                Err(RejectReason::NotYetImplemented)
-            },
+            ZoneCommand::Respawn { entity } => self.respawn_player(tick, *entity),
             ZoneCommand::MoveTo { entity, dest } => self.move_to(tick, *entity, *dest),
             ZoneCommand::StopMove { entity } => {
                 let mut events = Vec::new();
@@ -1115,6 +1155,7 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         },
         ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
+        | ZoneEvent::Progression(_)
         | ZoneEvent::EntitySpawn { .. }
         | ZoneEvent::EntityMove { .. }
         | ZoneEvent::EntityDespawn { .. } => false,
@@ -1256,12 +1297,17 @@ fn player_combat(rules: &StatRules, load: &PlayerLoad) -> Result<CombatState, Re
     let weapon = rules.starter_weapon();
     let sheet = StatSheet::for_player(rules, class, load.level, Some(weapon))
         .map_err(|_| RejectReason::InvalidLoad)?;
+    let hp = if load.alive {
+        load.hp.map_or(sheet.max_hp(), |hp| hp.min(sheet.max_hp()))
+    } else {
+        0
+    };
     Ok(CombatState {
         role: CombatRole::Player {
             class: load.class.clone(),
             xp: load.xp,
         },
-        hp: load.hp.map_or(sheet.max_hp(), |hp| hp.min(sheet.max_hp())),
+        hp,
         mp: load.mp.map_or(sheet.max_mp(), |mp| mp.min(sheet.max_mp())),
         sheet,
         attack_range: weapon_reach(weapon).map_err(|_| RejectReason::InvalidLoad)?,
@@ -1310,6 +1356,10 @@ pub(super) fn stats_changed(tick: Tick, entity: EntityId, c: &CombatState) -> Zo
         mp: c.mp,
         max_mp: c.sheet.max_mp(),
         level: c.sheet.level(),
+        xp: match c.role {
+            CombatRole::Player { xp, .. } => xp,
+            CombatRole::Npc { .. } => 0,
+        },
     }
 }
 
@@ -1352,3 +1402,18 @@ mod ai_tests;
     clippy::unreachable
 )]
 mod combat_tests;
+
+#[cfg(test)]
+#[path = "death_tests.rs"]
+#[allow(
+    clippy::many_single_char_names,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::arithmetic_side_effects,
+    clippy::too_many_lines,
+    clippy::wildcard_enum_match_arm,
+    clippy::unreachable
+)]
+mod death_tests;

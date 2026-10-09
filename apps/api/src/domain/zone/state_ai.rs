@@ -157,6 +157,7 @@ impl ZoneState {
                 tick,
                 position: spec.home,
                 hp,
+                incarnation,
             });
             events.push(ZoneEvent::NpcIntentionChanged {
                 tick,

@@ -99,6 +99,7 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
             tick: Tick(1),
             position: Vec2Fixed::from_tiles(1, 1),
             hp: 10,
+            incarnation: 2,
         });
     }
     batch.events.extend([
@@ -121,6 +122,7 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
             mp: 5,
             max_mp: 5,
             level: 2,
+            xp: 100,
         },
         ZoneEvent::TargetChanged {
             entity: player,

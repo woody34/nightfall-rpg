@@ -1,6 +1,7 @@
 //! Combat through real sockets: E2.1 contract and intent plumbing, E2.3 auto-attack and
-//! damage, E2.2 AOI privacy of combat facts (Respawn stays a stub until E2.4).
+//! damage, E2.2 AOI privacy of combat facts, E2.4 death and respawn, E2.6 XP.
 #![allow(
+    clippy::many_single_char_names,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::indexing_slicing,
@@ -299,7 +300,7 @@ async fn mixed_intents_preserve_actor_stream_and_repeated_attack_is_inert_and_re
         })
         .collect();
     // Attack twice is accepted twice and inert the second time; StopMove ends the attack
-    // before a swing starts; StopAttack is then a no-op; Respawn is still a stub (E2.4).
+    // before a swing starts; StopAttack is then a no-op; Respawn of a living actor is INVALID.
     assert_eq!(
         responses,
         vec![
@@ -309,7 +310,7 @@ async fn mixed_intents_preserve_actor_stream_and_repeated_attack_is_inert_and_re
             (4, Some(3)),
             (5, None),
             (6, None),
-            (7, Some(12))
+            (7, Some(6))
         ]
     );
     for a in received.iter().filter_map(ack) {
@@ -662,4 +663,156 @@ async fn a_kill_is_announced_once_clears_the_target_and_a_dead_player_is_refused
             .await;
         assert_eq!(rejected(r.last().unwrap()).unwrap().reason, i32::from(RejectReason::DeadActor));
     }
+}
+
+fn respawn_msg(seq: u32) -> ClientMessage {
+    ClientMessage {
+        seq,
+        intent: Some(Intent::Respawn(pb::RespawnRequest {})),
+    }
+}
+fn respawned(msg: &pb::ServerMessage) -> Option<&pb::EntityRespawned> {
+    match event(msg) {
+        Some(Event::EntityRespawned(r)) => Some(r),
+        _ => None,
+    }
+}
+
+/// The fixture zone with one Keltir at (11, 10) that one-shots a starter character and
+/// cannot be killed by one.
+fn brute_zone() -> (ZoneState, EntityId) {
+    let mut brute = common::keltir();
+    brute.stats.p_atk = nightfall_api::domain::zone::Scaled::from_raw(5_000_000_000);
+    brute.stats.max_hp = 1_000_000;
+    let mut z = common::fixture_zone();
+    let draft = z.draft(vec![ZoneInput::system(ZoneCommand::SpawnNpc {
+        name: "Brute".into(),
+        pos: Vec2Fixed::from_tiles(11, 10),
+        speed: Speed::DEFAULT,
+        combat: Some(Box::new(brute)),
+    })]);
+    z.run_tick(draft).unwrap();
+    let npc = z.entities().find(|e| e.kind == EntityKind::Npc).unwrap().id;
+    (z, npc)
+}
+
+#[tokio::test]
+async fn a_dead_player_is_refused_keeps_death_across_reconnect_and_respawns_once() {
+    let (zone, npc) = brute_zone();
+    let app = TestApp::spawn_with_zone(|_| {}, zone).await;
+    let p = seed_player(&app, "Alpha", 10.0, 10.0);
+    let me = p.entity_id();
+    let mut ws = enter(&app, &p).await;
+    ws.send(&target(1, npc)).await;
+    ws.send(&attack(2)).await;
+    // The brute answers the first hit and kills the player.
+    let msgs = ws.until(|m| died(m).is_some_and(|d| d.entity == me)).await;
+    let dead = msgs
+        .iter()
+        .rev()
+        .find_map(stats)
+        .expect("owner StatsChanged at death");
+    assert_eq!(dead.hp, 0);
+    let max_hp = dead.max_hp;
+    // Dead actors cannot move, select or attack.
+    for (seq, msg) in [
+        (3, common::ws::move_to(3, 12.0, 12.0)),
+        (4, target(4, npc)),
+        (5, attack(5)),
+    ] {
+        ws.send(&msg).await;
+        let got = ws
+            .until(|m| rejected(m).is_some_and(|r| r.seq == seq))
+            .await;
+        let r = rejected(got.last().unwrap()).unwrap();
+        assert_eq!(r.reason, i32::from(RejectReason::DeadActor));
+    }
+    // Reconnect: the replacement session sees itself dead.
+    let mut ws = join(&app, &p).await;
+    let msgs = ws.until(|m| stats(m).is_some()).await;
+    assert!(msgs
+        .iter()
+        .any(|m| spawn_of(m).is_some_and(|s| s.entity_id == me && s.dead && s.hp == 0)));
+    assert_eq!(stats(msgs.last().unwrap()).unwrap().hp, 0);
+    // Respawn: safe point, 65 % HP, MP 0, a new life.
+    ws.send(&respawn_msg(1)).await;
+    let msgs = ws.until(|m| stats(m).is_some_and(|s| s.hp > 0)).await;
+    assert!(msgs.iter().any(|m| ack(m).is_some_and(|a| a.seq == 1)));
+    let r = msgs.iter().find_map(respawned).unwrap();
+    let want = (max_hp * 65 / 100).max(1);
+    assert_eq!(r.entity, me);
+    assert_eq!(r.hp, want);
+    assert_eq!(r.incarnation, 2);
+    assert_eq!(r.position, Some(pb::Position { x: 126.0, y: 126.0 }));
+    let s = stats(msgs.last().unwrap()).unwrap();
+    assert_eq!((s.hp, s.mp), (want, 0));
+    // A repeat cannot revive the living actor.
+    ws.send(&respawn_msg(2)).await;
+    let got = ws.until(|m| rejected(m).is_some_and(|r| r.seq == 2)).await;
+    let r = rejected(got.last().unwrap()).unwrap();
+    assert_eq!(r.reason, i32::from(RejectReason::Invalid));
+    assert!(r.detail.contains("alive"));
+    assert!(got.iter().all(|m| respawned(m).is_none()));
+    // Read after write: the zone holds the respawned, protected player.
+    let snap = app.zone.snapshot().await.unwrap();
+    let e = snap
+        .entities
+        .iter()
+        .find(|e| e.id.to_string() == me)
+        .unwrap();
+    assert!(!e.targeting.dead);
+    assert_eq!(e.pos, Vec2Fixed::from_tiles(126, 126));
+    let c = e.combat.as_ref().unwrap();
+    assert_eq!((c.hp, c.incarnation), (want, 2));
+    assert!(c.protected_until.is_some());
+}
+
+#[tokio::test]
+async fn kill_xp_is_owner_only_and_reads_back_from_the_zone() {
+    let (mut zone, npc) = npc_zone(false, true, 11);
+    let mut snapshot = zone.snapshot();
+    let c = snapshot
+        .entities
+        .iter_mut()
+        .find(|e| e.id == npc)
+        .unwrap()
+        .combat
+        .as_mut()
+        .unwrap();
+    c.hp = 1;
+    zone = ZoneState::from_snapshot(snapshot).unwrap();
+    let app = TestApp::spawn_with_zone(|_| {}, zone).await;
+    let a = seed_player(&app, "Alpha", 10.0, 10.0);
+    let b = seed_player(&app, "Bravo", 10.0, 11.0);
+    let mut wa = enter(&app, &a).await;
+    let mut wb = enter(&app, &b).await;
+    wa.send(&target(1, npc)).await;
+    wa.send(&attack(2)).await;
+    let msgs = wa
+        .until(|m| matches!(event(m), Some(Event::XpGained(_))))
+        .await;
+    let Some(Event::XpGained(x)) = event(msgs.last().unwrap()) else {
+        unreachable!()
+    };
+    assert_eq!((x.entity.as_str(), x.amount, x.total), (a.entity_id().as_str(), 28, 28));
+    let seen = wb.until(|m| died(m).is_some()).await;
+    let mut seen = seen;
+    seen.extend(wb.drain(Duration::from_millis(300)).await);
+    assert!(seen
+        .iter()
+        .all(|m| !matches!(event(m), Some(Event::XpGained(_) | Event::LevelUp(_)))));
+    let snap = app.zone.snapshot().await.unwrap();
+    let e = snap
+        .entities
+        .iter()
+        .find(|e| e.id.to_string() == a.entity_id())
+        .unwrap();
+    assert!(matches!(
+        e.combat.as_ref().unwrap().role,
+        nightfall_api::domain::zone::CombatRole::Player { xp: 28, .. }
+    ));
+    // A replacement session reads the XP back from its first StatsChanged.
+    let mut wa = join(&app, &a).await;
+    let msgs = wa.until(|m| stats(m).is_some()).await;
+    assert_eq!(stats(msgs.last().unwrap()).unwrap().xp, 28);
 }

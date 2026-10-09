@@ -80,7 +80,8 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::AttackStarted { .. }
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
-                | ZoneEvent::NpcIntentionChanged { .. }),
+                | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::Progression(_)),
             ) => (4, 0, None),
         };
         let mut ranks: Vec<_> = out.iter().map(rank).collect();
@@ -751,11 +752,11 @@ fn combat_commands_are_fenced_and_stubs_do_not_change_state_or_rng() {
             assert!(t.events.is_empty());
         }
     }
-    // Respawn is still a stub (E2.4); a noncombat player (no rules, no load) cannot attack.
+    // A noncombat player (no rules, no load) can neither attack nor respawn.
     for (command, reason) in [
         (ZoneCommand::Attack { entity: id(1) }, RejectReason::NotPermitted),
         (ZoneCommand::StopAttack { entity: id(1) }, RejectReason::NotPermitted),
-        (ZoneCommand::Respawn { entity: id(1) }, RejectReason::NotYetImplemented),
+        (ZoneCommand::Respawn { entity: id(1) }, RejectReason::NotPermitted),
     ] {
         let before = z.snapshot();
         let t = run(
@@ -820,7 +821,8 @@ fn combat_validation_rejects_dead_or_missing_actor_and_dead_or_distant_target() 
             ZoneCommand::Respawn { entity: id(1) },
         )],
     );
-    assert_eq!(reasons(&t), vec![RejectReason::NotYetImplemented]);
+    // Without a combat block there is nothing to restore.
+    assert_eq!(reasons(&t), vec![RejectReason::NotPermitted]);
     assert!(z.entity(id(1)).unwrap().targeting.dead);
     for command in [
         ZoneCommand::SetTarget {

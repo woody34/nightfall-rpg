@@ -152,7 +152,8 @@ pub enum ZoneCommand {
         /// Session-owned actor.
         entity: EntityId,
     },
-    /// Request town respawn for a dead actor. E2.1 records a `NotYetImplemented` disposition.
+    /// Town respawn for a dead player (E2.4): safe point, 65 % HP, 0 MP, spawn protection.
+    /// A living actor is refused with `NotDead`, so a repeat can never revive twice.
     Respawn {
         /// Session-owned actor.
         entity: EntityId,
@@ -225,6 +226,8 @@ pub enum RejectReason {
     NotAPlayer,
     /// `SpawnPlayer` carried a class, level or XP the zone's rules do not accept.
     InvalidLoad,
+    /// `Respawn` from an actor that is alive.
+    NotDead,
 }
 
 impl RejectReason {
@@ -250,6 +253,7 @@ impl RejectReason {
             Self::StaleSession => "session generation is not current",
             Self::NotAPlayer => "entity is not a player",
             Self::InvalidLoad => "character state does not match the zone's rules",
+            Self::NotDead => "the actor is alive and cannot respawn",
         }
     }
 }
@@ -380,6 +384,8 @@ pub enum ZoneEvent {
         position: Vec2Fixed,
         /// restored whole HP.
         hp: u32,
+        /// The new life.
+        incarnation: u32,
     },
     /// Authoritative stats changed fact.
     StatsChanged {
@@ -397,6 +403,8 @@ pub enum ZoneEvent {
         max_mp: u32,
         /// current level, including decreases after death.
         level: u32,
+        /// cumulative whole XP (players; 0 for NPCs), including death loss.
+        xp: u64,
     },
     /// Authoritative xp gained fact.
     XpGained {
@@ -463,6 +471,8 @@ pub enum ZoneEvent {
         /// Movement speed.
         speed: Speed,
     },
+    /// Internal: one player's checkpoint facts for the tick (E2.6), for persistence (E4.2).
+    Progression(ProgressionDelta),
     /// An entity left (the zone, or an observer's AOI).
     EntityDespawn {
         /// When.
@@ -491,6 +501,7 @@ impl ZoneEvent {
             | Self::AttackCancelled { tick, .. }
             | Self::HateChanged { tick, .. }
             | Self::NpcIntentionChanged { tick, .. } => *tick,
+            Self::Progression(d) => d.tick,
         }
     }
 
@@ -508,6 +519,7 @@ impl ZoneEvent {
             | Self::LevelUp { entity, .. }
             | Self::TargetChanged { entity, .. }
             | Self::NpcIntentionChanged { entity, .. } => *entity,
+            Self::Progression(d) => d.entity,
             Self::AttackResult { attacker, .. }
             | Self::AttackStarted { attacker, .. }
             | Self::AttackCancelled { attacker, .. } => *attacker,
@@ -584,6 +596,64 @@ impl AppliedTick {
     pub fn is_idle(&self) -> bool {
         self.commands.is_empty() && self.events.is_empty() && self.outputs.is_empty()
     }
+
+    /// The tick's checkpoint facts, one per player whose XP, level or life changed, in
+    /// entity-id order (plan §3.3). Part of `events`, so the durable record carries them.
+    pub fn progression(&self) -> impl Iterator<Item = &ProgressionDelta> {
+        self.events.iter().filter_map(|e| {
+            if let ZoneEvent::Progression(d) = e {
+                Some(d)
+            } else {
+                None
+            }
+        })
+    }
+}
+
+/// One player's progression change on one tick (E2.6): the end-of-tick values a checkpoint
+/// writes plus the transitions that need outbox events (`CharacterLeveled`,
+/// `CharacterDied`). Emitted once per player per tick, after every combat phase.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProgressionDelta {
+    /// The tick.
+    pub tick: Tick,
+    /// The player.
+    pub entity: EntityId,
+    /// Level at the start of the tick.
+    pub level_before: u32,
+    /// XP at the start of the tick.
+    pub xp_before: u64,
+    /// Level at the end of the tick.
+    pub level: u32,
+    /// XP at the end of the tick.
+    pub xp: u64,
+    /// HP at the end of the tick.
+    pub hp: u32,
+    /// MP at the end of the tick.
+    pub mp: u32,
+    /// Alive at the end of the tick.
+    pub alive: bool,
+    /// Position at the end of the tick.
+    pub pos: Vec2Fixed,
+    /// XP awarded this tick, after the cap.
+    pub xp_gained: u64,
+    /// Every level newly attained this tick, ascending (one `CharacterLeveled` each).
+    pub levels_gained: Vec<u32>,
+    /// The death this tick, if any.
+    pub died: Option<DeathFact>,
+    /// The player respawned this tick.
+    pub respawned: bool,
+}
+
+/// A player's death in a [`ProgressionDelta`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeathFact {
+    /// Who landed the killing blow.
+    pub killer: Option<EntityId>,
+    /// The killer's NPC template, for `CharacterDied.killer`.
+    pub killer_template: Option<String>,
+    /// XP charged (HF death loss).
+    pub xp_lost: u64,
 }
 
 /// Physical hit outcome, excluding the invalid wire UNSPECIFIED value.

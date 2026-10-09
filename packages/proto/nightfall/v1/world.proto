@@ -69,8 +69,9 @@ message AttackRequest {}
 message StopAttackRequest {}
 
 // Respawn a dead actor at the town safe point: floor(65% maxHP), minimum 1 HP, MP 0,
-// protection for 600 ticks. Repeating must never revive a living actor or charge twice.
-// E2.1 records this command with NOT_YET_IMPLEMENTED; E2.4 supplies respawn behaviour.
+// protection for 6000 ticks (600 s) that an accepted Attack ends early. A living actor is
+// refused with INVALID ("the actor is alive and cannot respawn"), so a repeat never revives
+// twice; respawn refunds no XP.
 message RespawnRequest {}
 
 // Server-to-client envelope. Per session the server emits one ordered stream of Acks,
@@ -112,7 +113,7 @@ enum RejectReason {
   REJECT_REASON_TARGET_NOT_IN_AOI = 9; // existing target is outside the actor's 3x3-cell AOI
   REJECT_REASON_OUT_OF_RANGE = 10; // target is outside melee range at impact; distinct from move TOO_FAR
   REJECT_REASON_PROTECTED = 11; // target has active respawn protection
-  REJECT_REASON_NOT_YET_IMPLEMENTED = 12; // intent recorded, but its behaviour is not implemented yet (Respawn until E2.4)
+  REJECT_REASON_NOT_YET_IMPLEMENTED = 12; // intent recorded, but its behaviour is not implemented yet (unused since E2.4)
 
 }
 
@@ -238,6 +239,7 @@ message EntityRespawned {
   uint64 tick = 2; // respawn tick
   Position position = 3; // authoritative safe point in tile units
   uint32 hp = 4; // restored whole HP
+  uint32 incarnation = 5; // the new life; facts about older lives are stale
 }
 
 // Authoritative stats changed fact; responses precede facts, spawns precede references.
@@ -248,6 +250,7 @@ message StatsChanged {
   uint32 mp = 4; // current whole MP
   uint32 max_mp = 5; // maximum whole MP
   uint32 level = 6; // current level, including decreases after death
+  uint64 xp = 7; // cumulative whole XP, including death loss (owner-only)
 }
 
 // Authoritative xp gained fact; responses precede facts, spawns precede references.

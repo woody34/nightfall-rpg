@@ -146,7 +146,8 @@ impl ZoneBootstrap {
             },
             def.bounds,
             time_origin_ms,
-        );
+        )
+        .with_safe_point(def.safe_point);
         if let Some(rules) = &self.rules {
             state = state
                 .with_rules(rules.rules.clone())

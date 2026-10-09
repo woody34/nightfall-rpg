@@ -25,7 +25,7 @@
 //! message SpawnPlayer { bytes entity = 1; string name = 2; Vec2 pos = 3; uint32 speed = 4;
 //!                       uint64 generation = 5; PlayerLoad load = 6; }
 //! message PlayerLoad { string class = 1; uint32 level = 2; uint64 xp = 3; optional uint32 hp = 4;
-//!                      optional uint32 mp = 5; }
+//!                      optional uint32 mp = 5; bool dead = 6; }
 //! message SpawnNpc { string name = 1; Vec2 pos = 2; uint32 speed = 3; NpcCombat combat = 4; }
 //! message NpcCombat { string template = 1; Stats stats = 2; sint32 attack_range = 3;
 //!                     sint32 collision_radius = 4; uint64 xp_reward = 5; }
@@ -50,12 +50,19 @@
 //!                               AttackStarted attack_started = 13;
 //!                               AttackCancelled attack_cancelled = 14;
 //!                               HateChanged hate_changed = 15;
-//!                               NpcIntentionChanged npc_intention_changed = 16; } }
+//!                               NpcIntentionChanged npc_intention_changed = 16;
+//!                               Progression progression = 17; } }
 //! message NpcIntentionChanged { bytes entity = 1; uint64 tick = 2; Intention from = 3;
 //!                               Intention to = 4; }
 //! enum Intention { UNSPECIFIED = 0; IDLE = 1; ACTIVE = 2; ATTACK = 3; RETURN_HOME = 4; DEAD = 5; }
 //! // Spawn gains `CombatView combat = 9`; AttackResult `target_incarnation = 7`;
-//! // EntityDied `incarnation = 4`.
+//! // EntityDied `incarnation = 4`; EntityRespawned `incarnation = 5`; StatsChanged `xp = 8`.
+//! message Progression { bytes entity = 1; uint64 tick = 2; uint32 level_before = 3;
+//!   uint64 xp_before = 4; uint32 level = 5; uint64 xp = 6; uint32 hp = 7; uint32 mp = 8;
+//!   bool alive = 9; Vec2 pos = 10; uint64 xp_gained = 11; repeated uint32 levels_gained = 12;
+//!   DeathFact died = 13; bool respawned = 14; }
+//! message DeathFact { optional bytes killer = 1; optional string killer_template = 2;
+//!                     uint64 xp_lost = 3; }
 //! message Accepted { uint32 seq = 1; uint64 tick = 2; uint64 ordinal = 3; }
 //! message SessionIn  { bytes session = 1; uint64 seq = 2; uint32 zone = 3; uint64 epoch = 4;
 //!                      uint64 tick_seen = 5; int64 recv_unix_ms = 6; bytes frame = 7; }
@@ -73,9 +80,10 @@ use super::record::{
     AppliedTickRecord, CodecError, OutputForm, PlayerOutput, SessionInRecord, SessionOutRecord,
 };
 use crate::domain::zone::{
-    AppliedCommand, CombatView, CommandSource, Disposition, EntityId, EntityKind, FinalStats,
-    Fixed, Intention, NpcCombat, ObserverOutput, Ordinal, PlayerLoad, RejectReason, Scaled,
-    SessionGeneration, Speed, Swing, SwingCancel, Tick, Vec2Fixed, ZoneCommand, ZoneEvent, ZoneId,
+    AppliedCommand, CombatView, CommandSource, DeathFact, Disposition, EntityId, EntityKind,
+    FinalStats, Fixed, Intention, NpcCombat, ObserverOutput, Ordinal, PlayerLoad, ProgressionDelta,
+    RejectReason, Scaled, SessionGeneration, Speed, Swing, SwingCancel, Tick, Vec2Fixed,
+    ZoneCommand, ZoneEvent, ZoneId,
 };
 
 #[derive(Clone, PartialEq, Message)]
@@ -178,6 +186,8 @@ struct PbPlayerLoad {
     hp: Option<u32>,
     #[prost(uint32, optional, tag = "5")]
     mp: Option<u32>,
+    #[prost(bool, tag = "6")]
+    dead: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Message)]
@@ -390,7 +400,7 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17"
     )]
     item: Option<PbOutputItem>,
 }
@@ -429,6 +439,8 @@ enum PbOutputItem {
     HateChanged(PbHateChanged),
     #[prost(message, tag = "16")]
     NpcIntentionChanged(PbNpcIntentionChanged),
+    #[prost(message, tag = "17")]
+    Progression(PbProgression),
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -563,8 +575,10 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
 }
 
 /// Version of the applied-tick record layout. 2 (Phase 1 E2.2): zone events, state digest,
-/// combat commands and facts. Decoding refuses other versions (1 had no field, so reads 0).
-pub const RECORD_SCHEMA_VERSION: u32 = 2;
+/// combat commands and facts. 3 (E2.4/E2.6): progression facts, the
+/// `alive` load flag, XP on `StatsChanged`. Decoding refuses other versions (1 had no field,
+/// so reads 0).
+pub const RECORD_SCHEMA_VERSION: u32 = 3;
 
 pub(super) fn encode_events(events: &[ZoneEvent]) -> Vec<u8> {
     PbOutputs {
@@ -659,6 +673,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
                 xp: l.xp,
                 hp: l.hp,
                 mp: l.mp,
+                dead: !l.alive,
             }),
         }),
         ZoneCommand::SpawnNpc {
@@ -737,6 +752,7 @@ const fn reason_to_pb(r: RejectReason) -> i32 {
         RejectReason::Protected => 12,
         RejectReason::NotYetImplemented => 13,
         RejectReason::InvalidLoad => 14,
+        RejectReason::NotDead => 15,
     }
 }
 
@@ -756,6 +772,7 @@ fn reason_from_pb(v: i32) -> Result<RejectReason, CodecError> {
         12 => RejectReason::Protected,
         13 => RejectReason::NotYetImplemented,
         14 => RejectReason::InvalidLoad,
+        15 => RejectReason::NotDead,
 
         other => return Err(CodecError(format!("unknown reject reason {other}"))),
     })
@@ -818,6 +835,50 @@ struct PbEntityRespawned {
     position: Option<PbVec>,
     #[prost(uint32, tag = "4")]
     hp: u32,
+    #[prost(uint32, tag = "5")]
+    incarnation: u32,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbDeathFact {
+    #[prost(bytes = "vec", optional, tag = "1")]
+    killer: Option<Vec<u8>>,
+    #[prost(string, optional, tag = "2")]
+    killer_template: Option<String>,
+    #[prost(uint64, tag = "3")]
+    xp_lost: u64,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct PbProgression {
+    #[prost(bytes = "vec", tag = "1")]
+    entity: Vec<u8>,
+    #[prost(uint64, tag = "2")]
+    tick: u64,
+    #[prost(uint32, tag = "3")]
+    level_before: u32,
+    #[prost(uint64, tag = "4")]
+    xp_before: u64,
+    #[prost(uint32, tag = "5")]
+    level: u32,
+    #[prost(uint64, tag = "6")]
+    xp: u64,
+    #[prost(uint32, tag = "7")]
+    hp: u32,
+    #[prost(uint32, tag = "8")]
+    mp: u32,
+    #[prost(bool, tag = "9")]
+    alive: bool,
+    #[prost(message, optional, tag = "10")]
+    pos: Option<PbVec>,
+    #[prost(uint64, tag = "11")]
+    xp_gained: u64,
+    #[prost(uint32, repeated, tag = "12")]
+    levels_gained: Vec<u32>,
+    #[prost(message, optional, tag = "13")]
+    died: Option<PbDeathFact>,
+    #[prost(bool, tag = "14")]
+    respawned: bool,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -836,6 +897,8 @@ struct PbStatsChanged {
     level: u32,
     #[prost(uint64, tag = "7")]
     tick: u64,
+    #[prost(uint64, tag = "8")]
+    xp: u64,
 }
 
 #[derive(Clone, PartialEq, Message)]
@@ -1042,11 +1105,33 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             tick,
             position,
             hp,
+            incarnation,
         } => PbOutputItem::EntityRespawned(PbEntityRespawned {
             entity: entity_bytes(*entity),
             tick: tick.0,
             position: Some(vec_to_pb(*position)),
             hp: *hp,
+            incarnation: *incarnation,
+        }),
+        ZoneEvent::Progression(d) => PbOutputItem::Progression(PbProgression {
+            entity: entity_bytes(d.entity),
+            tick: d.tick.0,
+            level_before: d.level_before,
+            xp_before: d.xp_before,
+            level: d.level,
+            xp: d.xp,
+            hp: d.hp,
+            mp: d.mp,
+            alive: d.alive,
+            pos: Some(vec_to_pb(d.pos)),
+            xp_gained: d.xp_gained,
+            levels_gained: d.levels_gained.clone(),
+            died: d.died.as_ref().map(|f| PbDeathFact {
+                killer: f.killer.map(entity_bytes),
+                killer_template: f.killer_template.clone(),
+                xp_lost: f.xp_lost,
+            }),
+            respawned: d.respawned,
         }),
         ZoneEvent::StatsChanged {
             entity,
@@ -1055,6 +1140,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             mp,
             max_mp,
             level,
+            xp,
             tick,
         } => PbOutputItem::StatsChanged(PbStatsChanged {
             entity: entity_bytes(*entity),
@@ -1064,6 +1150,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             max_mp: *max_mp,
             level: *level,
             tick: tick.0,
+            xp: *xp,
         }),
         ZoneEvent::XpGained {
             entity,
@@ -1308,6 +1395,7 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
                     xp: l.xp,
                     hp: l.hp,
                     mp: l.mp,
+                    alive: !l.dead,
                 })
             }),
         },
@@ -1485,7 +1573,33 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             tick: Tick(e.tick),
             position: vec_from(e.position)?,
             hp: e.hp,
+            incarnation: e.incarnation,
         },
+        PbOutputItem::Progression(d) => ZoneEvent::Progression(ProgressionDelta {
+            tick: Tick(d.tick),
+            entity: entity_from(&d.entity)?,
+            level_before: d.level_before,
+            xp_before: d.xp_before,
+            level: d.level,
+            xp: d.xp,
+            hp: d.hp,
+            mp: d.mp,
+            alive: d.alive,
+            pos: vec_from(d.pos)?,
+            xp_gained: d.xp_gained,
+            levels_gained: d.levels_gained,
+            died: d
+                .died
+                .map(|f| {
+                    Ok::<_, CodecError>(DeathFact {
+                        killer: f.killer.map(|id| entity_from(&id)).transpose()?,
+                        killer_template: f.killer_template,
+                        xp_lost: f.xp_lost,
+                    })
+                })
+                .transpose()?,
+            respawned: d.respawned,
+        }),
         PbOutputItem::StatsChanged(e) => ZoneEvent::StatsChanged {
             entity: entity_from(&e.entity)?,
             hp: e.hp,
@@ -1493,6 +1607,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             mp: e.mp,
             max_mp: e.max_mp,
             level: e.level,
+            xp: e.xp,
             tick: Tick(e.tick),
         },
         PbOutputItem::XpGained(e) => ZoneEvent::XpGained {
@@ -1593,6 +1708,7 @@ mod combat_tests {
             tick: Tick(31),
             position: Vec2Fixed::from_tiles(23, 24),
             hp: 24,
+            incarnation: 3,
         });
         let encoded = output_to_pb(&event).encode_to_vec();
         assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
@@ -1608,6 +1724,7 @@ mod combat_tests {
             mp: 24,
             max_mp: 25,
             level: 26,
+            xp: u64::MAX,
         });
         let encoded = output_to_pb(&event).encode_to_vec();
         assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
