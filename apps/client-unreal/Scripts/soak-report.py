@@ -14,6 +14,9 @@ import xml.etree.ElementTree as ET
 def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit: int, metrics_at: int | None = None) -> int:
     errors = []
     metrics_at = metrics_at or end
+    runner_errors = out / 'runner-errors.txt'
+    if runner_errors.exists():
+        errors.extend(runner_errors.read_text().splitlines())
     suites = ET.Element('testsuites')
     roles = []
     for index in range(1, clients + 1):
@@ -75,7 +78,8 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
     ET.ElementTree(suites).write(out / 'soak.xml', encoding='utf-8', xml_declaration=True)
     result = {'passed': not errors, 'clients': clients, 'requested_seconds': seconds,
               'start_unix': start, 'end_unix': end, 'metrics_end_unix': metrics_at, 'tick_p99_ms': p99 * 1000 if p99 is not None else None,
-              'grafana': dashboard, 'roles': roles, 'errors': errors}
+              'grafana': dashboard, 'roles': roles, 'errors': errors,
+              'zone_seed': {'zone': 1, 'epoch': 1} if (out / 'soak.nfr').exists() else None}
     (out / 'report.json').write_text(json.dumps(result, indent=2) + '\n')
     lines = [f"Soak: {'PASS' if not errors else 'FAIL'}; {clients} clients, {seconds}s requested", dashboard]
     lines += [f"{r['client']}: {r['iterations']} iterations, {r['seconds']:.1f}s" for r in roles]

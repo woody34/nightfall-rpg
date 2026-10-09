@@ -84,6 +84,8 @@ class SoakTests(unittest.TestCase):
                     self.assertEqual(reporting.report(out, 1, 120, 10, 150, 0), expected)
             with patch('urllib.request.urlopen', side_effect=lambda *a, **kw: io.BytesIO(json.dumps({'data': {'result': [{'value': [150, '0.012']}]}}).encode())):
                 self.assertEqual(reporting.report(out, 1, 130, 10, 150, 0), 1)
+                (out / 'runner-errors.txt').write_text('API shutdown forced; final metrics unavailable')
+                self.assertEqual(reporting.report(out, 1, 120, 10, 150, 0), 1)
 
 
 if __name__ == '__main__':

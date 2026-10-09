@@ -41,17 +41,24 @@ COMPOSE=(docker compose -p "$COMPOSE_PROJECT" -f "$OUT/compose.json")
 API_PID=""
 stop_api() {
   [[ -n "$API_PID" ]] || return 0
+  local stop_code=0 waited_code=0
   kill -TERM "$API_PID" 2>/dev/null || true
   for ((grace=0; grace<15; grace++)); do
     kill -0 "$API_PID" 2>/dev/null || break
     sleep 1
   done
-  kill -KILL "$API_PID" 2>/dev/null || true
-  wait "$API_PID" 2>/dev/null || true
+  if kill -0 "$API_PID" 2>/dev/null; then
+    kill -KILL "$API_PID" 2>/dev/null || true
+    stop_code=137
+  fi
+  wait "$API_PID" 2>/dev/null || waited_code=$?
+  ((stop_code != 0)) || stop_code=$waited_code
   API_PID=""
+  printf '%s\n' "$stop_code" >"$OUT/api-exit-code.txt"
+  return "$stop_code"
 }
 cleanup() {
-  stop_api
+  stop_api || true
   "${COMPOSE[@]}" logs --no-color >"$OUT/compose.log" 2>&1 || true
   timeout --kill-after=10 60 "${COMPOSE[@]}" down -v >"$OUT/cleanup.log" 2>&1 || true
 }
@@ -59,9 +66,11 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 "${COMPOSE[@]}" up -d --wait >"$OUT/compose-start.log" 2>&1
 if [[ -z "${SOAK_API_BIN:-}" ]]; then
-  (cd "$SIM_REPO" && cargo build --quiet -p nightfall-api --bin nightfall-api) >"$OUT/api-build.log" 2>&1
+  (cd "$SIM_REPO" && cargo build --quiet -p nightfall-api --bins) >"$OUT/api-build.log" 2>&1
   SOAK_API_BIN="$(cd "$SIM_REPO" && cargo metadata --format-version 1 --no-deps | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')/debug/nightfall-api"
 fi
+SOAK_REPLAY_BIN="${SOAK_REPLAY_BIN:-$(dirname "$SOAK_API_BIN")/nightfall-replay}"
+[[ -x "$SOAK_REPLAY_BIN" ]] || sim_die "nightfall-replay missing beside API; build --bins or set SOAK_REPLAY_BIN"
 DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/nightfall" \
 NATS_URL="nats://localhost:$((4222 + OFFSET))" \
 HTTP_ADDR="127.0.0.1:$HTTP_PORT" GRPC_ADDR="127.0.0.1:$GRPC_PORT" \
@@ -89,7 +98,15 @@ timeout --kill-after=20 "$((DURATION + 600))" "$UE_ROOT/Engine/Build/BatchFiles/
   >"$OUT/gauntlet.log" 2>&1 || CODE=$?
 END=$(date +%s)
 # Graceful API shutdown flushes the final cumulative histogram without adding idle ticks.
-stop_api
+stop_api || printf '%s\n' 'API shutdown failed or exceeded its grace period; final metrics may be incomplete' >>"$OUT/runner-errors.txt"
+# A fresh Postgres/NATS namespace deterministically starts zone 1 at epoch 1. Exporting
+# that exact epoch both records the seed and requires the graceful-shutdown watermark.
+if ! "$SOAK_REPLAY_BIN" export --zone 1 --epoch 1 --nats "nats://localhost:$((4222 + OFFSET))" \
+  --out "$OUT/soak.nfr" >"$OUT/replay-export.log" 2>&1; then
+  printf '%s\n' 'Could not export complete zone 1 epoch 1 recording' >>"$OUT/runner-errors.txt"
+elif ! "$SOAK_REPLAY_BIN" check --file "$OUT/soak.nfr" >"$OUT/replay-check.log" 2>&1; then
+  printf '%s\n' 'Soak recording did not replay byte-identically' >>"$OUT/runner-errors.txt"
+fi
 # The API exports OTLP metrics every 10s; allow export plus the Prometheus scrape.
 sleep "${SOAK_TELEMETRY_FLUSH_SECONDS:-25}"
 export SOAK_GRAFANA_URL="${SOAK_GRAFANA_URL:-http://localhost:$((3300 + OFFSET))}"

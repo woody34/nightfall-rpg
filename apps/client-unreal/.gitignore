@@ -25,6 +25,7 @@ Vendor/
 !Build/
 Build/*
 !Build/Scripts/
+Build/Scripts/*
 !Build/Scripts/*.cs
 !Build/Scripts/*.csproj
 
