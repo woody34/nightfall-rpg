@@ -1,0 +1,46 @@
+# covers: 1 E2.4, 1 E3.2, 1 E5.2, 1 E5.3, 1a 3.4
+# 1-die-respawn: stand among the aggressive keltirs without fighting back until dead (dead
+# overlay), respawn in town: HP = floor(maxHP * 65 %), MP 0 (tables/formulas.toml
+# [formulas.town_respawn], read by the predicates), at the safe point (zones/test_zone.toml
+# [safe_point] (126, 126)), no target, attack idle, respawn protection on. Protection keeps the
+# keltirs off us; our own accepted Attack ends it and they swing again.
+#
+# Timeouts (3x): walks at 5 tiles/s; keltirs aggro on their next think (1 s) and swing every
+# ~2 s (attack_speed 253: 500000 / 253 ms); a fresh character (126 HP) dies to three of them in
+# ~15 s (measured), to one in ~45 s.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.ClickMove 40 40
+nf.WaitFor own_at 40 40 1 35       # 56.6 tiles: 11.3 s, 3x
+nf.ClickMove 80 85
+nf.WaitFor own_at 80 85 1 35       # 60.2 tiles: 12.0 s, 3x
+nf.ClickMove 97 100
+nf.WaitFor own_at 97 100 1 15      # 3 tiles from the keltir_a home: inside their aggro range (6 tiles)
+nf.WaitFor attacked_by >= 1 10     # think 1 s + swing 2 s, 3x
+nf.WaitFor own_dead 60             # dead overlay
+nf.Expect own_hp == 0
+nf.Expect attack_state == idle
+nf.Respawn
+nf.WaitFor own_hp > 0 3            # EntityRespawned + StatsChanged on the next tick
+nf.Expect own_hp_is_respawn_hp
+nf.Expect own_mp_is_respawn_mp
+nf.Expect own_mp == 0
+nf.Expect own_at 126 126 0.5       # the town safe point
+nf.Expect target == none
+nf.Expect attack_state == idle
+nf.Expect protection_active
+# Protected: walk back into aggro range and stand there for four thinks.
+nf.ClickMove 99 99
+nf.WaitFor own_at 99 99 1 25       # 38.2 tiles: 7.6 s, 3x
+nf.Sleep 4                         # four 1 s thinks with every keltir in range
+nf.Expect attacked_by == 0
+nf.Expect protection_active
+# Attacking ends protection: the keltirs swing at us again.
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack
+nf.WaitFor attack_state == active 3
+nf.WaitFor attacked_by >= 1 10     # think 1 s + swing 2 s, 3x
+nf.Within 150                      # a pass takes ~60 s

@@ -3,6 +3,7 @@
 #include "IWebSocket.h"
 #include "Nightfall.h"
 #include "Auth/AuthSubsystem.h"
+#include "Bot/BotFixtureData.h"
 #include "Bot/BotLogSentinel.h"
 #include "Bot/BotPredicates.h"
 #include "Bot/BotScenarioRunner.h"
@@ -676,6 +677,171 @@ bool FBotRunnerInertTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("inert without -BotScenario"), Runner->IsActive());
 	TestNull(TEXT("test-only nf.DropSocket is not registered without -BotScenario (R5)"), IConsoleManager::Get().FindConsoleObject(TEXT("nf.DropSocket")));
 	TestNotNull(TEXT("nf.Target is available interactively"), IConsoleManager::Get().FindConsoleObject(TEXT("nf.Target")));
+	return true;
+}
+
+// --- Phase 1a E3: fixture tables and the combat-scenario predicates ----------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBotFixtureDataTest, "Nightfall.Bot.FixtureData", BotTestFlags)
+
+bool FBotFixtureDataTest::RunTest(const FString& Parameters)
+{
+	const FBotFixtureData D = FBotFixtureData::Parse(
+		TEXT("to_level = [\n    { level = 1, xp = 0 },\n    { level = 2, xp = 68 },\n    { level = 3, xp = 363 },\n]\n"),
+		TEXT("death_xp_loss = [\n    { level = 1, percent = \"10.0\", fraction_q = 100000 },\n    { level = 2, percent = \"9.875\", fraction_q = 98750 },\n]\n"),
+		TEXT("[formulas.other]\nrestore_hp_q = 1\n[formulas.town_respawn]\nrestore_hp_q = 650000 # 65 %\nrestore_mp_q = 0\nspawn_protection_seconds = 600\n"),
+		TEXT("[safe_point]\npos = [126, 126]\n\n[[spawn_slots]]\nid = \"keltir_a\"\ntemplate = \"keltir\"\nhome = [100, 100]\n\n[[spawn_slots]]\nid = \"keltir_b\"\ntemplate = \"keltir\"\nhome = [104, 102]\n"));
+	TestTrue(FString::Printf(TEXT("parses (%s)"), *D.Error), D.IsValid());
+	TestEqual(TEXT("level at 67 XP"), D.LevelForXp(67), 1u);
+	TestEqual(TEXT("level at 68 XP"), D.LevelForXp(68), 2u);
+	TestEqual(TEXT("death loss at level 1: round(68 * 10 %)"), D.DeathXpLoss(1).Get(0), 7ull);
+	TestEqual(TEXT("death loss at level 2: round(295 * 9.875 %) = 29"), D.DeathXpLoss(2).Get(0), 29ull);
+	TestFalse(TEXT("no row for level 3's span"), D.DeathXpLoss(3).IsSet());
+	TestEqual(TEXT("respawn HP floor(126 * 65 %)"), D.RespawnHp(126), 81u);
+	TestEqual(TEXT("respawn HP is at least 1"), D.RespawnHp(1), 1u);
+	TestEqual(TEXT("respawn MP"), D.RespawnMp(38), 0u);
+	TestEqual(TEXT("protection seconds from the town_respawn section only"), D.SpawnProtectionSeconds, 600u);
+	TestTrue(TEXT("safe point"), D.SafePoint.IsSet() && D.SafePoint->Equals(FVector2D(126, 126)));
+	TestEqual(TEXT("two slots"), D.SpawnSlots.Num(), 2);
+	TestTrue(TEXT("nearest home"), FMath::IsNearlyEqual(D.NearestHomeDistance(FVector2D(104, 103), TEXT("keltir")).Get(-1), 1.0));
+	TestFalse(TEXT("no home for another template"), D.NearestHomeDistance(FVector2D(0, 0), TEXT("wolf")).IsSet());
+	TestFalse(TEXT("an empty file is an error"), FBotFixtureData::Parse(TEXT(""), TEXT(""), TEXT(""), TEXT("")).IsValid());
+	const FBotFixtureData Underscores = FBotFixtureData::Parse(TEXT("{ level = 1, xp = 0 }\n{ level = 2, xp = 1_000 }\n"), TEXT("{ level = 1, fraction_q = 100_000 }\n"),
+		TEXT("[formulas.town_respawn]\nrestore_hp_q = 650_000\n"), TEXT("[safe_point]\npos = [1, 1]\n[[spawn_slots]]\ntemplate = \"k\"\nhome = [0, 0]\n"));
+	TestTrue(FString::Printf(TEXT("TOML digit separators (%s)"), *Underscores.Error), Underscores.IsValid() && Underscores.RespawnHpQ == 650000 && Underscores.XpForLevel.FindRef(2) == 1000);
+	const FBotFixtureData Garbage = FBotFixtureData::Parse(TEXT("{ level = 1, xp = 0 }\n"), TEXT("{ level = 1, fraction_q = 1 }\n"),
+		TEXT("[formulas.town_respawn]\nrestore_hp_q = 0.65\n"), TEXT("[safe_point]\npos = [1, 1]\n[[spawn_slots]]\ntemplate = \"k\"\nhome = [0, 0]\n"));
+	TestTrue(FString::Printf(TEXT("a non-integer value is an error (%s)"), *Garbage.Error), !Garbage.IsValid() && Garbage.Error.Contains(TEXT("restore_hp_q")));
+	// The real tables (packages/data) load from the project directory.
+	TestTrue(FString::Printf(TEXT("packages/data loads (%s)"), *FBotFixtureData::Get().Error), FBotFixtureData::Get().IsValid());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBotCombatPredicatesTest, "Nightfall.Bot.Predicates.CombatScenarios", BotTestFlags)
+
+bool FBotCombatPredicatesTest::RunTest(const FString& Parameters)
+{
+	FWorldRig Rig;
+	auto Is = [&](const TCHAR* Text, bool bExpected)
+	{
+		const FBotPredicateValue V = Rig.Eval(Text);
+		TestEqual(FString::Printf(TEXT("%s is %s (observed %s)"), Text, bExpected ? TEXT("true") : TEXT("false"), *V.Observed), V.bTrue, bExpected);
+	};
+	auto Stats = [&](uint32 Hp, uint32 Mp, uint32 Level, uint64 Xp)
+	{
+		FWorldEvent E; E.StatsChanged = FStatsChanged{ OwnId, Hp, 126, Mp, 38, Level, Xp }; Rig.Event(E);
+	};
+	auto Stop = [&](const TCHAR* Id, FNetVec2 Pos, int64 TimeMs)
+	{
+		FWorldEvent E; E.Move = FEntityMove{ Id, Pos, FNetVec2(), 0.f, TimeMs, 1 }; Rig.Event(E);
+	};
+	const FBotFixtureData& D = FBotFixtureData::Get();
+	const FVector2D Home = D.SpawnSlots.Num() > 0 ? D.SpawnSlots[0].Home : FVector2D::ZeroVector;
+	const int64 NowMs = FDateTime::UtcNow().ToUnixTimestamp() * 1000 + 1000;
+
+	Rig.Connect();
+	Is(TEXT("reconnects == 0"), true);
+	Rig.Spawn(OwnId, TEXT("Hero"), 1, 0, 126, 126, 1, false, { 90.f, 100.f });
+	Stats(126, 38, 1, 0);
+	Is(TEXT("own_mp == 38"), true);
+	Is(TEXT("own_level_matches_xp"), true);
+	Is(TEXT("hud_target_visible"), false);
+
+	// A wolf that enters view wounded (a late AOI entry), stopped one tile from the slot home.
+	{
+		FEntitySpawn S; S.EntityId = Wolf; S.Name = TEXT("Keltir"); S.Kind = 2; S.SessionGeneration = 1;
+		S.Position = { static_cast<float>(Home.X) + 1.f, static_cast<float>(Home.Y) }; S.bCombatant = true;
+		S.TemplateId = TEXT("keltir"); S.LifeIncarnation = 1; S.bAttackable = true; S.Hp = 30; S.MaxHp = 44; S.Level = 1;
+		FWorldEvent E; E.Spawn = S; Rig.Event(E);
+	}
+	Is(TEXT("spawns_mid_fight == 1"), true);
+	Is(TEXT("late_spawn_hp_ok == 0"), true);
+	Is(TEXT("late_spawn_projection_ok == 1"), true);   // the projection took the spawn's HP and life
+	Rig.Combat->SelectTarget(Wolf);
+	Rig.Ack(1);
+	Rig.Target(Wolf);
+	Is(TEXT("acks == 1"), true);
+	Is(TEXT("hud_target_visible"), true);
+	Is(TEXT("target_wounded"), true);
+	Is(TEXT("target_hp_full"), false);
+	Is(TEXT("target_distance > 10.9"), true);
+	Is(TEXT("target_distance < 11.1"), true);
+	Stop(Wolf, { static_cast<float>(Home.X) + 1.f, static_cast<float>(Home.Y) }, NowMs);
+	Is(TEXT("npc_home_distance == 1"), true);
+	{
+		FWorldEvent E; E.Move = FEntityMove{ Wolf, { static_cast<float>(Home.X), static_cast<float>(Home.Y) }, { 0.f, 1.f }, 4.f, NowMs + 100, 2 }; Rig.Event(E);
+	}
+	Is(TEXT("npc_home_distance >= 0"), false);   // walking: unknown
+
+	// Hits: our hit continues from the spawn's HP; the wolf's swing at us engages us.
+	Rig.Hit(OwnId, Wolf, 10, 6, 24, 1);
+	Is(TEXT("late_spawn_hp_ok == 1"), true);
+	Is(TEXT("late_spawn_hp_bad == 0"), true);
+	Is(TEXT("target_hits == 1"), true);
+	Is(TEXT("target_hit_from_full"), false);
+	Rig.Hit(Wolf, OwnId, 11, 5, 121, 0);
+	Is(TEXT("attacked_by == 1"), true);
+	Is(TEXT("npcs_fighting == 1"), true);
+	Is(TEXT("target_engaged_me"), true);
+	Is(TEXT("attack_results == 2"), true);
+	Is(TEXT("damage_numbers_match_results"), true);
+	TestNotNull(TEXT("nf.Mark is a console command"), IConsoleManager::Get().FindConsoleObject(TEXT("nf.Mark")));
+	Rig.Observations.MarkHits();   // what nf.Mark does to the runner's observations
+	Is(TEXT("target_hits_since_mark == 0"), true);
+	Is(TEXT("target_hit_from_full"), false);   // no hit since the mark
+	Rig.Hit(OwnId, Wolf, 12, 6, 38, 1);   // the server healed it at home without telling us
+	Is(TEXT("target_hits_since_mark == 1"), true);
+	Is(TEXT("target_hit_from_full"), true);
+	{
+		FEntitySpawn S; S.EntityId = Boar; S.Name = TEXT("Boar"); S.Kind = 2; S.SessionGeneration = 1; S.bCombatant = true;
+		S.LifeIncarnation = 1; S.bAttackable = true; S.Hp = 70; S.MaxHp = 80; S.Level = 1;
+		FWorldEvent E; E.Spawn = S; Rig.Event(E);
+	}
+	Rig.Hit(OwnId, Boar, 13, 5, 70, 1);   // does not continue from 70
+	Is(TEXT("late_spawn_hp_bad == 1"), true);
+
+	// Level from the XP table; death loss from the penalty row of the level died on.
+	Stats(121, 38, 2, 84);
+	Is(TEXT("own_level_matches_xp"), true);
+	Stats(121, 38, 1, 84);
+	Is(TEXT("own_level_matches_xp"), false);
+	Stats(121, 38, 2, 84);
+	Is(TEXT("death_xp_loss_matches_table"), false);   // no death yet
+	Stats(0, 38, 2, 84);                              // the death's first StatsChanged: old total
+	Stats(0, 38, 1, 84 - D.DeathXpLoss(2).Get(0));    // then the loss
+	Is(TEXT("death_xp_loss == 29"), true);
+	Is(TEXT("death_xp_loss_matches_table"), true);
+	Is(TEXT("own_level_matches_xp"), true);
+
+	// Respawn: vitals from the formulas table, protection until an Attack is accepted.
+	Is(TEXT("protection_active"), false);
+	{
+		FWorldEvent E; E.EntityRespawned = FEntityRespawned{ OwnId, 30, FNetVec2{ 126.f, 126.f }, D.RespawnHp(126), 0 }; Rig.Event(E);
+	}
+	Stats(D.RespawnHp(126), 0, 1, 55);
+	Is(TEXT("own_hp_is_respawn_hp"), true);
+	Is(TEXT("own_mp_is_respawn_mp"), true);
+	Is(TEXT("protection_active"), true);
+	Is(TEXT("attacked_by == 0"), true);   // a new life
+	Rig.Combat->AttackSelection();
+	Is(TEXT("protection_active"), true);  // pending: not accepted yet
+	Rig.Ack(Rig.Net->GetLastSentSeq());
+	Is(TEXT("protection_active"), false);
+
+	// Drop and reconnect: XP unknown until StatsChanged, then the pre-drop total.
+	Rig.Net->DropSocketForTesting();
+	Is(TEXT("xp_known"), false);
+	Is(TEXT("xp_unknown_after_reconnect"), true);
+	Is(TEXT("xp_restored"), false);
+	Rig.Connect();
+	Is(TEXT("reconnects == 1"), true);
+	Is(TEXT("xp_known_before_stats == 0"), true);
+	Stats(81, 0, 1, 55);
+	Is(TEXT("xp_restored"), true);
+	Rig.Xp(28, 83);
+	Is(TEXT("xp_restored"), true);   // pre-drop total plus the gain since
+
+	Is(TEXT("players_in_view == 0"), true);   // the boar and the wolf are NPCs
 	return true;
 }
 
