@@ -61,6 +61,8 @@ pub struct FaultyLog {
     /// Appends for this tick and later never return (a process stuck mid-tick).
     pub hang_from_tick: AtomicU64,
     pub attempts: AtomicU64,
+    /// Nonempty session audit appends never acknowledge (shutdown timeout injection).
+    pub hang_audit: AtomicBool,
 }
 
 impl FaultyLog {
@@ -72,6 +74,7 @@ impl FaultyLog {
             acks: Semaphore::new(0),
             hang_from_tick: AtomicU64::new(u64::MAX),
             attempts: AtomicU64::new(0),
+            hang_audit: AtomicBool::new(false),
         }
     }
 }
@@ -125,6 +128,9 @@ impl EventLog for FaultyLog {
     }
 
     async fn append_session_in(&self, records: &[SessionInRecord]) -> anyhow::Result<u64> {
+        if !records.is_empty() && self.hang_audit.load(Ordering::SeqCst) {
+            std::future::pending::<()>().await;
+        }
         if self.down.load(Ordering::SeqCst) {
             anyhow::bail!("broker unavailable (injected)");
         }
@@ -132,6 +138,9 @@ impl EventLog for FaultyLog {
     }
 
     async fn append_session_out(&self, records: &[SessionOutRecord]) -> anyhow::Result<u64> {
+        if !records.is_empty() && self.hang_audit.load(Ordering::SeqCst) {
+            std::future::pending::<()>().await;
+        }
         if self.down.load(Ordering::SeqCst) {
             anyhow::bail!("broker unavailable (injected)");
         }
