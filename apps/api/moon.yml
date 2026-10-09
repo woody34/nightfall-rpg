@@ -37,8 +37,8 @@ tasks:
     options:
       cache: false
   replay-check:
-    command: 'cargo run --quiet --bin nightfall-replay -- --source file --file fixtures/sessions/two-players-v4.nfr'
-    description: 'Replay the checked-in two-player recording; fails on any output divergence.'
+    command: 'bash fixtures/sessions/replay-check.sh'
+    description: 'Replay movement and fight recordings; fails on any byte or state divergence.'
     inputs:
       - '@group(sources)'
       - '@group(standards)'
