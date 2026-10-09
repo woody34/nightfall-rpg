@@ -60,8 +60,14 @@ class PolicyTests(unittest.TestCase):
                         '<testsuite tests="1"><testcase><failure/></testcase></testsuite>', '<broken'):
             report.write_text(content)
             self.assertEqual(ci.junit_failures(self.path, ["failure"]), ["failure"])
-        report.write_text('<testsuite tests="1" failures="0"/>')
+        report.write_text('<testsuite tests="1" failures="0"><testcase name="step"/></testsuite>')
         self.assertEqual(ci.junit_failures(self.path, ["failure"]), [])
+        report.write_text('<testsuite tests="0" failures="0"/>')
+        self.assertEqual(ci.junit_failures(self.path, ["failure"]), ["failure"])
+        report.write_text('<testsuite tests="1"><testcase name="pipeline"><failure/></testcase></testsuite>')
+        self.assertFalse(ci.has_scenario_failure(self.path, "failure"))
+        report.write_text('<testsuite tests="1"><testcase name="nf.Expect"><failure/></testcase></testsuite>')
+        self.assertTrue(ci.has_scenario_failure(self.path, "failure"))
 
     def test_story_coverage_checks_completed_visible_rows(self):
         plans, scenarios = self.path / "plans", self.path / "scenarios"

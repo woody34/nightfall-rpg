@@ -95,6 +95,9 @@ def junit_failures(folder, names):
             suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
             if not suites:
                 raise ValueError("no testsuite")
+            tests = sum(int(s.get("tests", "0")) for s in suites)
+            if tests <= 0 or len(root.findall(".//testcase")) != tests:
+                raise ValueError("empty or inconsistent JUnit report")
             if any(int(s.get("failures", 0)) or int(s.get("errors", 0)) for s in suites):
                 failures.append(name)
             elif root.findall(".//failure") or root.findall(".//error"):
@@ -102,6 +105,16 @@ def junit_failures(folder, names):
         except (OSError, ValueError, ET.ParseError):
             failures.append(name)
     return failures
+
+
+def has_scenario_failure(folder, name):
+    """Synthetic wrapper/pipeline failures alone never qualify for quarantine."""
+    try:
+        root = ET.parse(folder / name / f"{name}.xml").getroot()
+        return any(case.get("name") != "pipeline" and (case.findall("failure") or case.findall("error"))
+                   for case in root.findall(".//testcase"))
+    except (OSError, ET.ParseError):
+        return False
 
 
 def main():
@@ -167,7 +180,9 @@ def main():
         log_text = (dest / "orchestration.log").read_text()
         infrastructure_failure = code not in (0, 1) or any(
             text in log_text for text in ("replay check failed", "trace generation failed", "no session recording", "FAIL replay"))
-        quarantined = failed and not infrastructure_failure and bool(bad_reports) and all(n in exempt for n in bad_reports)
+        infrastructure_failure |= bool(re.search(r"\btimeout after|\bbot exit (?!1\b)\d+", log_text))
+        quarantined = failed and not infrastructure_failure and bool(bad_reports) and all(
+            n in exempt and has_scenario_failure(dest, n) for n in bad_reports)
         # Any unexplained nonzero exit stays blocking, even if all reports look green.
         status = "QUARANTINED" if quarantined else "FAIL" if failed else "PASS"
         elapsed = round(time.monotonic() - start, 3)
