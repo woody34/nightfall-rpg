@@ -274,7 +274,7 @@ All metrics, runtimes, and validation results below represent **locally measured
 - **Audited and diagnostic build status at 2e85d3f**: Final audited and diagnostic API and client were built at commit `2e85d3f`:
   - Cargo release profile API build (`nightfall-api v0.1.0`): **52.31 s** (optimized).
   - Unreal editor and staged standalone client via RunUAT BuildCookRun: **85.43 s** (stage command 2.02 s; build succeeded).
-  - Earlier, pre-diagnostics regression passed 47/47 Nightfall automation tests on a live stack and 338 Rust library tests plus 2 replay binary tests. Final integrated-source regression is tracked separately below.
+  - Final root editor/game rebuilds passed in 14.13s/29.19s. Nightfall automation passed **54/54** with `-RequireLiveApi` and zero live skips. Rust passed **341 library tests**, the integration/binary suites, and strict Clippy.
   - The full 8-client × 1200-second (20-minute) soak on final integrated source remains pending the serial full-suite execution.
 
 ### 8.2 Environment isolation and infrastructure configurations
