@@ -55,6 +55,7 @@ jobs:
       - name: Build Linux game target and API tools
         run: |
           moon run client-unreal:build
+          moon run client-unreal:build-editor
           cargo build -p nightfall-api --bins
       - name: Scenario suite, fresh stack per single/group
         id: scenarios
@@ -69,9 +70,11 @@ jobs:
       - name: Traceability and coverage summary
         if: always() && steps.scenarios.outcome != 'skipped'
         run: |
-          bash apps/client-unreal/Scripts/sim-traceability.sh | tee /tmp/nightfall-traceability.txt
+          trace_code=0
+          bash apps/client-unreal/Scripts/sim-traceability.sh > /tmp/nightfall-traceability.txt || trace_code=$?
           cat /tmp/nightfall-traceability.txt >> "$GITHUB_STEP_SUMMARY"
           python3 apps/client-unreal/Scripts/sim-ci-summary.py apps/client-unreal/Saved/SimCI >> "$GITHUB_STEP_SUMMARY"
+          exit "$trace_code"
       - name: Upload JUnit, logs, recordings, traces and failure videos
         if: always()
         uses: actions/upload-artifact@v4

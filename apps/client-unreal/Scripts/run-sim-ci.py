@@ -5,6 +5,7 @@ from datetime import date
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import time
@@ -12,6 +13,22 @@ import xml.etree.ElementTree as ET
 
 PROJECT = Path(__file__).resolve().parents[1]
 REPO = PROJECT.parents[1]
+
+
+def run_clients(command, log, seconds):
+    """Bound the entire client/API process group, including background children."""
+    process = subprocess.Popen(command, cwd=PROJECT, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    try:
+        return process.wait(timeout=seconds)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+        log.write("orchestration timeout; entire process group terminated\n")
+        return 124
 
 
 def quarantine(path, names, today=None):
@@ -113,10 +130,13 @@ def main():
                 if args.fresh_stack:
                     subprocess.run(["docker", "compose", "down", "--volumes", "--remove-orphans"], cwd=REPO,
                                    stdout=log, stderr=subprocess.STDOUT, check=True, timeout=120)
-                code = subprocess.run(command, cwd=PROJECT, stdout=log, stderr=subprocess.STDOUT,
-                                      timeout=args.timeout + 600).returncode
+                code = run_clients(command, log, args.timeout + 600)
             except (OSError, subprocess.SubprocessError) as error:
                 log.write(f"orchestration failed: {error}\n")
+        if args.fresh_stack:
+            with (dest / "compose.log").open("w") as log:
+                subprocess.run(["docker", "compose", "logs", "--no-color"], cwd=REPO,
+                               stdout=log, stderr=subprocess.STDOUT, timeout=60, check=False)
         bad_reports = junit_failures(dest, names)
         failed = code != 0 or bool(bad_reports)
         # Replay, trace and infrastructure failures remain blocking even for a quarantined bot.

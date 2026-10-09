@@ -7,6 +7,7 @@
 #   SIM_REPLAY_CMD    command run as `$SIM_REPLAY_CMD <file.nfr>` (default: nightfall-replay --source file --file)
 #   SIM_API_URL       API base for the health check (default http://localhost:3000)
 #   SIM_TIMEOUT       seconds per scenario / per group (default 600)
+#   SIM_BOT_ARGS_JSON additional launch args as a JSON array (e.g. ["-NfGrpc=localhost:50052"])
 
 SIM_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SIM_PROJECT_DIR="$(cd "$SIM_HERE/.." && pwd)"
@@ -131,6 +132,17 @@ sim_bot_cmd() {
   SIM_BOT_CMD+=("$bin")
   [[ -n "${SIM_BOT_BIN:-}" ]] || SIM_BOT_CMD+=("$SIM_PROJECT_DIR/Nightfall.uproject")
   SIM_BOT_CMD+=(-game -nullrhi -nosound -unattended "-BotScenario=$scenario" "$@")
+  if [[ -n "${SIM_BOT_ARGS_JSON:-}" ]]; then
+    local args_file
+    args_file="$(mktemp)"
+    if ! python3 -c 'import json,os,sys; args=json.loads(os.environ["SIM_BOT_ARGS_JSON"]); assert isinstance(args,list) and all(isinstance(a,str) and "\0" not in a for a in args); sys.stdout.buffer.write(b"".join(a.encode()+b"\0" for a in args))' >"$args_file"; then
+      rm -f "$args_file"; sim_die "SIM_BOT_ARGS_JSON must be an array of strings"
+    fi
+    local -a extra_args=()
+    mapfile -d '' -t extra_args <"$args_file"
+    rm -f "$args_file"
+    SIM_BOT_CMD+=("${extra_args[@]}")
+  fi
 }
 
 # The engine resolves Engine/Content relative to the working directory (see run-tests.sh).

@@ -11,7 +11,7 @@ dest="$(cd "$dest" && pwd)"
 for command in xvfb-run ffmpeg python3; do
   command -v "$command" >/dev/null || sim_die "video requires $command"
 done
-icd="${SIM_VIDEO_ICD:-/usr/share/vulkan/icd.d/lvp_icd.x86_64.json}"
+icd="${SIM_VIDEO_ICD:-/usr/share/vulkan/icd.d/lvp_icd.json}"
 [[ -f "$icd" ]] || sim_die "Mesa lavapipe ICD not found: $icd"
 sim_resolve_env
 sim_ensure_build

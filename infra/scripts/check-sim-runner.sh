@@ -4,6 +4,9 @@ set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 . "$repo/apps/client-unreal/Scripts/sim-lib.sh"
 sim_resolve_env
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  printf 'UE_ROOT=%s\nLINUX_MULTIARCH_ROOT=%s\n' "$UE_ROOT" "$LINUX_MULTIARCH_ROOT" >> "$GITHUB_ENV"
+fi
 failed=0
 require() { if ! "$@"; then echo "runner: missing prerequisite: $*" >&2; failed=1; fi; }
 for command in docker curl python3 timeout git cargo moon; do require command -v "$command"; done

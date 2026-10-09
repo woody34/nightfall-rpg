@@ -8,6 +8,7 @@
 #   --artifacts    where Saved/Sim output and recordings go (default Saved/SimArtifacts/<timestamp>)
 #   --no-replay    skip the server replay check of each recording
 #   --timeout      per-scenario wall clock limit, default 600
+#   --video        render one diagnostic retry only after a headless failure (optional prerequisites)
 #
 # Per scenario the bot is run as
 #   Nightfall -game -nullrhi -nosound -unattended -BotScenario=<path>
@@ -68,6 +69,9 @@ for scenario in "${SCENARIOS[@]}"; do
   if ((code == 124 || code == 137)); then status=FAIL; note="timeout after ${SIM_TIMEOUT}s"
   elif ((code != 0)); then status=FAIL; note="bot exit $code"; fi
   [[ -f "$dest/$name.xml" ]] || { status=FAIL; note="${note:+$note; }no JUnit report"; }
+  if ! python3 "$HERE/sim-junit.py" check "$dest/$name.xml"; then
+    status=FAIL; note="${note:+$note; }JUnit failure or unreadable report"
+  fi
 
   replay="skipped"
   if ((REPLAY)); then
@@ -92,6 +96,7 @@ for scenario in "${SCENARIOS[@]}"; do
   done
   if [[ "$status" != PASS ]]; then
     FAILED=$((FAILED + 1))
+    python3 "$HERE/sim-junit.py" failure "$dest/$name.xml" "$name" "$note"
     if ((VIDEO)); then
       # Retry reports/logs live separately. Video problems remain diagnostic and cannot change
       # the verdict or hide the original failed report already copied to dest.
