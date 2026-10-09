@@ -34,7 +34,7 @@ Source/Nightfall/
                              CreateCharacter, ListMyCharacters, IssuePlayTicket); bearer on all but Ping
   Net/SnapshotBuffer.{h,cpp} Per-entity position ring with time-delayed interpolation
   Net/NetClientSubsystem.*   GameInstance subsystem: WebSocket (ticket in the upgrade header), reconnect with a
-                             fresh ticket per attempt, seq/ack, clock offset
+                             fresh ticket per attempt, seq/ack, clock offset, idle keep-alive
   Auth/AuthSubsystem.*       UAuthSubsystem: OIDC device flow + PKCE, token refresh, sealed refresh token
   Auth/AuthCrypto.*          SHA-256, base64url, PKCE, AES-256-CBC sealing for the stored refresh token
   Game/LoginFlowSubsystem.*  Login -> characters -> play ticket -> Connect -> travel; reconnect ticket provider
@@ -406,6 +406,11 @@ The game never sees a password and needs no embedded browser.
 7. Reconnects (0.5 s doubling to 10 s) ask the flow's ticket provider for a **new** ticket with a new
    key every attempt (plan §8 #9). Unauthenticated / permission / not-found errors stop reconnecting;
    without a provider the client does not retry a consumed ticket.
+8. Keep-alive: the server closes a session with no inbound frame for 60 s (4408). While connected,
+   every 20 s with nothing sent since the last check the client sends a `ClientMessage` with a fresh
+   `seq` and no intent (world.proto); the server's `IntentRejected{INVALID}` for it is swallowed.
+   UE's `IWebSocket` cannot send ping frames, and libwebsockets' `PingPongInterval` is reset by
+   inbound traffic, so it would stay quiet while the server streams events (e.g. while attacked).
 
 Tokens: `RefreshIfNeeded()` refreshes when less than 60 s remain; the subsystem also schedules a
 refresh 59 s before expiry. Keycloak rotates refresh tokens. An `invalid_grant` logs out (memory
@@ -543,6 +548,7 @@ set `NIGHTFALL_DEV_TOKEN` to use another token. Without Keycloak, run the API wi
 | `Nightfall.Auth.DevToken` | no | Bypass: logged in without HTTP, bearer set, never persisted or refreshed |
 | `Nightfall.Net.NetClient.TicketInUpgradeHeader` | no | Upgrade request: URL as given, `Authorization: Bearer <ticket>`, ticket nowhere in the URL; no provider -> no retry |
 | `Nightfall.Net.NetClient.ReconnectUsesFreshTicket` | no | Backoff 0.5/1/2/4 s, reset on connect; provider asked per attempt; no ticket presented twice; provider failure retries; `Disconnect` cancels |
+| `Nightfall.Net.NetClient.KeepAliveWhenIdle` | no | Idle 20 s -> one no-intent `ClientMessage` with a fresh seq, its rejection swallowed; any send postpones it; close, reconnect and `Disconnect` cancel it; one timer per connection |
 | `Nightfall.Content.Wiring` | no | Generated assets wired as in "Content"; default map; ini values (issuer) parsed intact |
 | `Nightfall.Net.ProtoCodec.Encode` | no | `ClientMessage` bytes match hand-assembled protobuf |
 | `Nightfall.Net.ProtoCodec.Decode` | no | `Ack`, `IntentRejected`, `EntitySpawn`, empty and truncated frames |

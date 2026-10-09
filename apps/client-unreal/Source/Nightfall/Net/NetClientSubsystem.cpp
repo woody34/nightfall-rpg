@@ -68,6 +68,7 @@ void UNetClientSubsystem::CloseSocket()
 		Socket.Reset();
 	}
 	bConnected = false;
+	CancelKeepAlive();
 }
 
 void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
@@ -84,6 +85,8 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 		KnownEntities.Reset();
 		Tombstones.Reset();   // the server re-sends every spawn in our area of interest
 		TickTimeOriginMs.Reset();   // a new session may be a new zone epoch; the next EntityMove re-learns it
+		KeepAliveSeqs.Reset();
+		ArmKeepAlive();
 		UE_LOG(LogNightfall, Log, TEXT("ws connected"));
 		OnConnected.Broadcast();
 	});
@@ -92,6 +95,7 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 		// A rejected ticket (HTTP 401/409 at the upgrade) also lands here.
 		UE_LOG(LogNightfall, Warning, TEXT("ws connection error: %s"), *Error);
 		bConnected = false;
+		CancelKeepAlive();
 		ScheduleReconnect();
 	});
 	Socket->OnClosed().AddUObject(this, &UNetClientSubsystem::HandleClosed);
@@ -103,6 +107,7 @@ void UNetClientSubsystem::HandleClosed(int32 StatusCode, const FString& Reason, 
 {
 	UE_LOG(LogNightfall, Log, TEXT("ws closed (%d, clean=%d): %s"), StatusCode, bWasClean, *Reason);
 	bConnected = false;
+	CancelKeepAlive();
 	OnDisconnected.Broadcast(Reason);
 	ScheduleReconnect();
 }
@@ -174,7 +179,13 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		UE_LOG(LogNightfall, Verbose, TEXT("ws: ack seq %u (applies on tick %llu)"), Msg.Ack->Seq, Msg.Ack->Tick);
 		OnIntentAck.Broadcast(*Msg.Ack);
 	}
-	if (Msg.Rejected.IsSet())
+	if (Msg.Rejected.IsSet() && KeepAliveSeqs.Remove(Msg.Rejected->Seq) > 0)
+	{
+		// The expected answer to a keep-alive: not an intent anybody is waiting on.
+		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Rejected->Seq);
+		UE_LOG(LogNightfall, VeryVerbose, TEXT("ws: keep-alive seq %u answered"), Msg.Rejected->Seq);
+	}
+	else if (Msg.Rejected.IsSet())
 	{
 		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Rejected->Seq);
 		UE_LOG(LogNightfall, Warning, TEXT("ws: intent %u rejected (reason %u): %s"),
@@ -306,6 +317,34 @@ void UNetClientSubsystem::Send(const FClientMessage& Msg)
 	TArray<uint8> Bytes;
 	NightfallProto::Encode(Msg, Bytes);
 	Socket->Send(Bytes.GetData(), Bytes.Num(), /*bIsBinary=*/true);
+	bSentSinceKeepAliveArmed = true;
+}
+
+void UNetClientSubsystem::ArmKeepAlive()
+{
+	bSentSinceKeepAliveArmed = false;
+	Scheduler(KeepAliveSeconds, [Weak = TWeakObjectPtr<UNetClientSubsystem>(this), Gen = ++KeepAliveGeneration]()
+	{
+		if (Weak.IsValid() && Weak->KeepAliveGeneration == Gen)
+		{
+			Weak->OnKeepAliveTimer();
+		}
+	});
+}
+
+void UNetClientSubsystem::OnKeepAliveTimer()
+{
+	if (!bConnected) return;
+	if (!bSentSinceKeepAliveArmed)
+	{
+		// No intent set: the server answers IntentRejected{INVALID} and resets its idle timer.
+		FClientMessage Msg;
+		Msg.Seq = ++NextSeq;
+		KeepAliveSeqs.Add(Msg.Seq);
+		UE_LOG(LogNightfall, VeryVerbose, TEXT("ws: send keep-alive seq %u"), Msg.Seq);
+		Send(Msg);
+	}
+	ArmKeepAlive();
 }
 
 int64 UNetClientSubsystem::TickToServerTimeMs(uint64 Tick) const

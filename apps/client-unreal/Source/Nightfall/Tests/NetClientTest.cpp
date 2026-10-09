@@ -12,17 +12,18 @@ namespace
 {
 	constexpr EAutomationTestFlags NetTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
 
-	/** Records Connect() and lets the test fire the socket's events. */
+	/** Records Connect() and Send() and lets the test fire the socket's events. */
 	class FFakeWebSocket final : public IWebSocket
 	{
 	public:
 		int32 ConnectCalls = 0;
+		TArray<TArray<uint8>> Sent;
 
 		virtual void Connect() override { ++ConnectCalls; }
 		virtual void Close(int32 Code, const FString& Reason) override {}
 		virtual bool IsConnected() override { return false; }
 		virtual void Send(const FString& Data) override {}
-		virtual void Send(const void* Data, SIZE_T Size, bool bIsBinary) override {}
+		virtual void Send(const void* Data, SIZE_T Size, bool bIsBinary) override { Sent.Emplace(static_cast<const uint8*>(Data), static_cast<int32>(Size)); }
 		virtual void SetTextMessageMemoryLimit(uint64 TextMessageMemoryLimit) override {}
 		virtual FWebSocketConnectedEvent& OnConnected() override { return Connected; }
 		virtual FWebSocketConnectionErrorEvent& OnConnectionError() override { return ConnectionError; }
@@ -68,6 +69,16 @@ namespace
 	};
 
 	const TCHAR* const WsUrl = TEXT("ws://localhost:3000/ws");
+
+	/** The bytes of a ClientMessage carrying only `seq`: what a keep-alive must be. */
+	TArray<uint8> KeepAliveBytes(uint32 Seq)
+	{
+		FClientMessage Msg;
+		Msg.Seq = Seq;
+		TArray<uint8> Bytes;
+		NightfallProto::Encode(Msg, Bytes);
+		return Bytes;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNetClientUpgradeHeaderTest, "Nightfall.Net.NetClient.TicketInUpgradeHeader", NetTestFlags)
@@ -153,6 +164,7 @@ bool FNetClientReconnectTicketTest::RunTest(const FString& Parameters)
 	Recorder.Sockets.Last()->Connected.Broadcast();
 	TestTrue(TEXT("connected"), Net->IsConnected());
 	Recorder.Sockets.Last()->Closed.Broadcast(1001, TEXT("going away"), true);
+	TestEqual(TEXT("the connection's keep-alive check (cancelled)"), Recorder.RunNextTimer(), UNetClientSubsystem::KeepAliveSeconds);
 	TestEqual(TEXT("backoff reset"), Recorder.RunNextTimer(), 0.5f);
 
 	TSet<FString> Seen;
@@ -170,6 +182,82 @@ bool FNetClientReconnectTicketTest::RunTest(const FString& Parameters)
 	Net->Disconnect();
 	Recorder.RunNextTimer();
 	TestEqual(TEXT("no reconnect after Disconnect"), Recorder.Requests.Num(), Before);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNetClientKeepAliveTest, "Nightfall.Net.NetClient.KeepAliveWhenIdle", NetTestFlags)
+
+bool FNetClientKeepAliveTest::RunTest(const FString& Parameters)
+{
+	// The server closes a session with no inbound frame for 60 s (4408). An idle client sends a
+	// no-intent ClientMessage after 20-40 s of silence; any intent sent in between postpones it.
+	FScopedTestGameInstance Instance;
+	UNetClientSubsystem* Net = Instance.Get<UNetClientSubsystem>();
+	FSocketRecorder Recorder;
+	Recorder.Install(Net);
+	Net->SetTicketProvider([](UNetClientSubsystem::FTicketCallback OnTicket)
+	{
+		FPlayTicket Ticket;
+		Ticket.WsUrl = WsUrl;
+		Ticket.Ticket = TEXT("fresh");
+		OnTicket(true, Ticket);
+	});
+
+	Net->Connect(WsUrl, TEXT("first"));
+	TestEqual(TEXT("nothing armed before the socket is open"), Recorder.Timers.Num(), 0);
+	TSharedRef<FFakeWebSocket> Socket = Recorder.Sockets.Last();
+	Socket->Connected.Broadcast();
+	if (!TestEqual(TEXT("one keep-alive timer armed on connect"), Recorder.Timers.Num(), 1)) return false;
+	TestEqual(TEXT("checks every 20 s"), Recorder.Timers[0].Key, UNetClientSubsystem::KeepAliveSeconds);
+	TestTrue(TEXT("well inside the server's 60 s"), 2.f * UNetClientSubsystem::KeepAliveSeconds < 60.f);
+
+	// Idle: the first check sends one keep-alive and re-arms.
+	Recorder.RunNextTimer();
+	if (!TestEqual(TEXT("idle: one keep-alive sent"), Socket->Sent.Num(), 1)) return false;
+	const uint32 KeepAliveSeq = Net->GetLastSentSeq();
+	TestTrue(TEXT("keep-alive takes a fresh seq"), KeepAliveSeq > 0);
+	TestTrue(TEXT("keep-alive is a ClientMessage with no intent"), Socket->Sent[0] == KeepAliveBytes(KeepAliveSeq));
+	TestEqual(TEXT("re-armed"), Recorder.Timers.Num(), 1);
+
+	// The server's IntentRejected{INVALID} for it reaches no gameplay listener.
+	int32 Rejections = 0;
+	Net->OnIntentRejected.AddLambda([&](const FIntentRejected&) { ++Rejections; });
+	FServerMessage Answer;
+	Answer.Rejected = FIntentRejected{ KeepAliveSeq, 6, TEXT("intent is required") };
+	Net->DispatchServerMessage(Answer);
+	TestEqual(TEXT("keep-alive rejection swallowed"), Rejections, 0);
+	Net->DispatchServerMessage(Answer);
+	TestEqual(TEXT("a second rejection with that seq is not a keep-alive's"), Rejections, 1);
+
+	// Outbound traffic since the last check postpones the keep-alive by one interval.
+	const uint32 MoveSeq = Net->SendMoveTo(FNetVec2{ 3.f, 4.f });
+	TestEqual(TEXT("move sent"), Socket->Sent.Num(), 2);
+	Recorder.RunNextTimer();
+	TestEqual(TEXT("busy: no keep-alive"), Socket->Sent.Num(), 2);
+	TestEqual(TEXT("busy: still armed"), Recorder.Timers.Num(), 1);
+	Recorder.RunNextTimer();
+	TestEqual(TEXT("idle again: keep-alive"), Socket->Sent.Num(), 3);
+	TestTrue(TEXT("seq keeps increasing"), Net->GetLastSentSeq() > MoveSeq);
+	TestTrue(TEXT("second keep-alive bytes"), Socket->Sent.Last() == KeepAliveBytes(Net->GetLastSentSeq()));
+
+	// A server close cancels it; the reconnect's socket gets its own, single timer.
+	Socket->Closed.Broadcast(4408, TEXT("idle timeout"), true);
+	TestEqual(TEXT("keep-alive + reconnect timers"), Recorder.Timers.Num(), 2);
+	Recorder.RunNextTimer();   // the cancelled keep-alive check
+	TestEqual(TEXT("cancelled check sends nothing"), Socket->Sent.Num(), 3);
+	TestEqual(TEXT("cancelled check does not re-arm"), Recorder.Timers.Num(), 1);
+	TestEqual(TEXT("reconnect backoff"), Recorder.RunNextTimer(), 0.5f);
+	TSharedRef<FFakeWebSocket> Second = Recorder.Sockets.Last();
+	TestTrue(TEXT("new socket"), Second != Socket);
+	TestEqual(TEXT("not armed until open"), Recorder.Timers.Num(), 0);
+	Second->Connected.Broadcast();
+	TestEqual(TEXT("armed for the new socket"), Recorder.Timers.Num(), 1);
+
+	// Disconnect cancels it.
+	Net->Disconnect();
+	Recorder.RunNextTimer();
+	TestEqual(TEXT("nothing sent after Disconnect"), Second->Sent.Num(), 0);
+	TestEqual(TEXT("no re-arm after Disconnect"), Recorder.Timers.Num(), 0);
 	return true;
 }
 

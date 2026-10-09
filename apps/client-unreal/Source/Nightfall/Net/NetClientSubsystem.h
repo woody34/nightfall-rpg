@@ -85,6 +85,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Nightfall|Net")
 	bool IsConnected() const { return bConnected; }
 
+	/**
+	 * The server closes a session that sends nothing for 60 s (4408). While connected, a check runs
+	 * every KeepAliveSeconds; if nothing was sent since the previous check it sends a keep-alive: a
+	 * ClientMessage with a fresh seq and no intent, which world.proto answers with
+	 * IntentRejected{INVALID} and nothing else. So an idle client sends one every 20-40 s; its
+	 * rejection is swallowed here. (UE's IWebSocket cannot send a ping frame, and libwebsockets'
+	 * own ping interval is reset by inbound traffic, so it stays quiet while being attacked.)
+	 */
+	static constexpr float KeepAliveSeconds = 20.f;
+
 	/** Sends a MoveTo intent. Returns the seq the server will ack. */
 	uint32 SendMoveTo(const FNetVec2& Destination);
 
@@ -125,7 +135,7 @@ public:
 	const TMap<FString, FEntitySpawn>& GetKnownEntities() const { return KnownEntities; }
 
 	// Test seams. Defaults: FWebSocketsModule and FTSTicker.
-	/** The seq of the newest intent sent (0 = none yet); lets tests see whether a click sent anything. */
+	/** The seq of the newest intent or keep-alive sent (0 = none yet); lets tests see whether a click sent anything. */
 	uint32 GetLastSentSeq() const { return NextSeq; }
 	void SetSocketFactoryForTesting(FSocketFactory Factory) { SocketFactory = MoveTemp(Factory); }
 	void SetSchedulerForTesting(FScheduler InScheduler) { Scheduler = MoveTemp(InScheduler); }
@@ -157,6 +167,9 @@ private:
 	void ScheduleReconnect();
 	void Reconnect();
 	void Send(const FClientMessage& Msg);
+	void ArmKeepAlive();
+	void CancelKeepAlive() { ++KeepAliveGeneration; }
+	void OnKeepAliveTimer();
 
 	TSharedPtr<IWebSocket> Socket;
 	FTicketProvider TicketProvider;
@@ -168,6 +181,10 @@ private:
 	/** Bumped by Connect and Disconnect; pending reconnects and ticket replies compare it. */
 	uint32 ConnectGeneration = 0;
 	int32 ReconnectAttempt = 0;
+	/** Bumped by ArmKeepAlive and CancelKeepAlive: only the newest keep-alive timer acts. */
+	uint32 KeepAliveGeneration = 0;
+	bool bSentSinceKeepAliveArmed = false;
+	TSet<uint32> KeepAliveSeqs;       // keep-alives whose IntentRejected has not arrived yet
 	uint32 NextSeq = 0;
 	uint32 LastAckedSeq = 0;
 	int64 ServerClockOffsetMs = 0;

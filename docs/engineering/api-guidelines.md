@@ -141,7 +141,7 @@ records and what replay compares (plan §8 #6). Every intent gets exactly one `A
 | Frame size | 4096 bytes | `IntentRejected{INVALID, seq 0}` before decoding; session stays open. Frames over 64 KiB break the connection. |
 | Rate | 30 frames/s per session, burst 30 (token bucket) | `IntentRejected{RATE_LIMITED}` |
 | `seq` | strictly increasing per session | close 4400 |
-| Idle | 60 s without any inbound frame (pings count) | close 4408 |
+| Idle | 60 s without any inbound frame (pings count; clients without pings send a no-intent `ClientMessage`, answered `INVALID`) | close 4408 |
 | Zone queue | 1024 inputs per zone | `IntentRejected{OVERLOADED}`; session stays open |
 | Per-tick budget | 8 intents per session per tick | deferred in order to later ticks (a later `Ack.tick`) |
 | Outbound queue | 256 frames per session; 100 ms grace for the writer to drain | If still full after grace: frame dropped, `ws_dropped_frames_total` +1, close 4429 |

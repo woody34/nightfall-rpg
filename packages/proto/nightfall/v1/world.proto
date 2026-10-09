@@ -13,7 +13,10 @@ import "nightfall/v1/game.proto";
 //   * max frame size:           4096 bytes; larger frames are rejected before decoding.
 //   * rate limit:               30 frames per second per session (token bucket); excess
 //                               intents are answered with IntentRejected{RATE_LIMITED}.
-//   * idle timeout:             60 s without any inbound frame closes the socket.
+//   * idle timeout:             60 s without any inbound frame closes the socket. Clients
+//                               that cannot send WebSocket pings keep an idle session open
+//                               with a ClientMessage carrying a fresh seq and no intent; it
+//                               is answered with IntentRejected{INVALID} and changes nothing.
 //   * per-tick command budget:  8 commands per session per tick; the excess is deferred to
 //                               the next tick in order (and is therefore Acked with a later
 //                               `tick`).
