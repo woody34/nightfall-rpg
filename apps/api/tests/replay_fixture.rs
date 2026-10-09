@@ -949,3 +949,29 @@ async fn fight_copy_without_completion_watermark_is_refused() {
     assert!(stderr.contains("cannot decode replay-log record"), "{stderr}");
     std::fs::remove_file(file).unwrap();
 }
+
+#[test]
+fn legacy_fixtures_keep_json_digests_and_record_bytes_after_decode() {
+    use nightfall_api::application::replay_log::AppliedTickRecord;
+    use nightfall_api::domain::zone::StateDigestVersion;
+    for name in ["two-players-v4.nfr", "two-players-fight-v2.nfr"] {
+        let recording = Recording::read(&fixture_path().with_file_name(name)).unwrap();
+        assert_eq!(recording.snapshot.meta.digest_version, StateDigestVersion::JsonV1);
+        let restored = ZoneState::from_snapshot(recording.snapshot).unwrap();
+        assert_eq!(restored.snapshot().meta.digest_version, StateDigestVersion::JsonV1);
+        for record in recording.records {
+            assert_eq!(record.digest_version, StateDigestVersion::JsonV1);
+            let encoded = record.encode();
+            assert_eq!(AppliedTickRecord::decode(&encoded).unwrap().encode(), encoded);
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_record_digest_version_must_match_the_snapshot() {
+    use nightfall_api::domain::zone::StateDigestVersion;
+    let mut recording = fixture();
+    recording.records[0].digest_version = StateDigestVersion::BinaryV2;
+    let divergence = diverged(replay(recording).await);
+    assert!(matches!(divergence.mismatch, Mismatch::StateDigest));
+}

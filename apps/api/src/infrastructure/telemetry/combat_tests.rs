@@ -466,6 +466,7 @@ fn admitted_intention_changes_count_by_target_intention_only() {
         ],
         outputs: std::collections::BTreeMap::new(),
         state_digest: [0; 32],
+        digest_version: crate::domain::zone::StateDigestVersion::BinaryV2,
     });
     for (label, n) in [
         ("idle", 0.0),

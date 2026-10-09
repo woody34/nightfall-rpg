@@ -71,6 +71,7 @@ fn empty_record(zone: u32, epoch: u64, tick: u64) -> AppliedTickRecord {
         output_form: OutputForm::Encoded,
         events: bytes::Bytes::new(),
         state_digest: bytes::Bytes::from_static(&[0; 32]),
+        digest_version: nightfall_api::domain::zone::StateDigestVersion::BinaryV2,
     }
 }
 

@@ -3,6 +3,9 @@
 //! AI, chase, advance movement, land due swings, start the next ones, then diff every player's
 //! area of interest into its ordered output stream.
 
+#[path = "state_digest.rs"]
+mod digest;
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -32,11 +35,22 @@ use super::stat_sheet::StatSheet;
 pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 
 /// Version of the [`ZoneSnapshot`] layout. Bump on any change to the snapshot or to the
-/// meaning of a field; `from_snapshot` accepts 4 and 5. 2: combat state, hate
+/// meaning of a field; `from_snapshot` accepts 4, 5 and 6. 2: combat state, hate
 /// ledgers and the stat rules (Phase 1 E2.2). 3: NPC AI blocks, spawn slots and the respawn
 /// scheduler (Phase 1 E3.2–E3.4). 4: safe point and the player's `alive` load flag (E2.4).
 /// 5: application checkpoint lanes, excluded from the simulation digest.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 5;
+/// 6: explicit state digest version; older snapshots default to JSON v1.
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 6;
+
+/// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum StateDigestVersion {
+    /// Original canonical JSON; the default for snapshots written before schema 6.
+    #[default]
+    JsonV1,
+    /// Explicit little-endian binary layout in `state_digest.rs`.
+    BinaryV2,
+}
 
 /// Identity of a zone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -147,6 +161,9 @@ impl ZoneBounds {
 pub struct SnapshotMeta {
     /// [`SNAPSHOT_SCHEMA_VERSION`] at the time of writing.
     pub schema_version: u32,
+    /// State digest algorithm for this epoch; absent in snapshot schemas 4 and 5.
+    #[serde(default)]
+    pub digest_version: StateDigestVersion,
     /// Server build that wrote it. Crate version until CI stamps a commit id.
     pub build_id: String,
     /// Hash of the zone configuration (bounds, spawn tables) the epoch ran with.
@@ -165,6 +182,7 @@ impl Default for SnapshotMeta {
     fn default() -> Self {
         Self {
             schema_version: SNAPSHOT_SCHEMA_VERSION,
+            digest_version: StateDigestVersion::BinaryV2,
             build_id: env!("CARGO_PKG_VERSION").to_owned(),
             config_hash: String::new(),
             rules_hash: String::new(),
@@ -344,7 +362,7 @@ pub struct ZoneState {
     /// Per player: the entities its session has been told about, sorted. At every tick
     /// boundary this equals the player's AOI, so it is derived on restore rather than
     /// snapshotted.
-    known: BTreeMap<EntityId, Vec<EntityId>>,
+    known: BTreeMap<EntityId, (CellCoord, Arc<[EntityId]>)>,
     /// The stat rules combat reads (injected at bootstrap, restored from snapshots).
     rules: Option<Arc<StatRules>>,
     /// Per NPC: who it hates (E2.5).
@@ -432,7 +450,7 @@ impl ZoneState {
 
     /// Rebuilds a zone from a snapshot, validating it.
     pub fn from_snapshot(snapshot: ZoneSnapshot) -> Result<Self, SnapshotError> {
-        if ![4, SNAPSHOT_SCHEMA_VERSION].contains(&snapshot.meta.schema_version) {
+        if ![4, 5, SNAPSHOT_SCHEMA_VERSION].contains(&snapshot.meta.schema_version) {
             return Err(SnapshotError::Schema(snapshot.meta.schema_version));
         }
         if snapshot.rng.key != snapshot.seed.key() {
@@ -458,6 +476,9 @@ impl ZoneState {
             return Err(SnapshotError::SafePointOutOfBounds);
         }
         state.meta = snapshot.meta;
+        if state.meta.schema_version < 6 {
+            state.meta.digest_version = StateDigestVersion::JsonV1;
+        }
         state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
         state.checkpoints = snapshot.checkpoints;
         state.safe_point = snapshot.safe_point;
@@ -495,10 +516,15 @@ impl ZoneState {
             .filter(|e| e.kind == EntityKind::Player)
             .map(|e| (e.id, e.pos))
             .collect();
+        let mut cells = BTreeMap::new();
         for (id, pos) in players {
-            let mut ids: Vec<EntityId> = state.aoi.in_aoi(pos).collect();
-            ids.sort_unstable();
-            state.known.insert(id, ids);
+            let cell = CellCoord::of(pos);
+            let ids = cells.entry(cell).or_insert_with(|| {
+                let mut ids: Vec<EntityId> = state.aoi.in_aoi(pos).collect();
+                ids.sort_unstable();
+                Arc::<[EntityId]>::from(ids)
+            });
+            state.known.insert(id, (cell, Arc::clone(ids)));
         }
         Ok(state)
     }
@@ -713,14 +739,22 @@ impl ZoneState {
             events,
             outputs,
             state_digest: self.state_digest(),
+            digest_version: self.meta.digest_version,
         })
     }
 
-    /// SHA-256 of the canonical JSON of everything that changes between ticks (the immutable
+    /// Versioned SHA-256 of everything that changes between ticks (the immutable
     /// rules, bounds and seed are fixed by the snapshot): next tick and ordinal, generator
     /// position, entities, hate and the respawn scheduler, all in id order.
     #[must_use]
     pub fn state_digest(&self) -> [u8; 32] {
+        match self.meta.digest_version {
+            StateDigestVersion::JsonV1 => self.json_state_digest(),
+            StateDigestVersion::BinaryV2 => self.binary_state_digest(),
+        }
+    }
+
+    fn json_state_digest(&self) -> [u8; 32] {
         #[derive(Serialize)]
         struct View<'a> {
             tick: Tick,
@@ -1134,9 +1168,9 @@ impl ZoneState {
     /// end-of-tick state of known entities that moved; each group in entity-id order. Players
     /// are visited in id order. Nothing here depends on anything but state and inputs.
     ///
-    /// Players in the same cell share one AOI, so the sorted AOI and its move list are built
-    /// once per occupied cell and reused; a player whose AOI did not change (the common case)
-    /// just copies the cell's move list.
+    /// Players share visible ids and facts per current cell, and AOI deltas per
+    /// (previous cell, current cell). Joins and replacement sessions share the empty
+    /// previous view. Owner-only facts merge with public facts in original event order.
     fn observe(
         &mut self,
         tick: Tick,
@@ -1152,7 +1186,8 @@ impl ZoneState {
         moved.dedup();
         let entities = &self.entities;
         self.known.retain(|id, _| entities.contains_key(id));
-        let mut views: BTreeMap<CellCoord, CellView> = BTreeMap::new();
+        let mut facts = CellFacts::by_cell(entities, events);
+        let mut views: BTreeMap<CellCoord, CellView<'_>> = BTreeMap::new();
         let mut outputs = BTreeMap::new();
         for player in entities.values().filter(|e| e.kind == EntityKind::Player) {
             let source = CommandSource::Session {
@@ -1162,25 +1197,29 @@ impl ZoneState {
             // Keyed by the full source, so a fenced (older) session's responses never reach
             // the current one.
             let mut out = responses.remove(&source).unwrap_or_default();
-            let view = views
-                .entry(CellCoord::of(player.pos))
-                .or_insert_with(|| CellView::build(&self.aoi, entities, player.pos, &moved, tick));
-            let before = self.known.entry(player.id).or_default();
-            if *before == view.ids {
-                out.extend(view.moves.iter().map(|(_, m)| m.clone()));
-            } else {
-                diff_into(&mut out, tick, before, view, entities);
-                before.clone_from(&view.ids);
-            }
-            // Facts after AOI output, so a spawn always precedes a fact referring to a newly
-            // visible entity; facts about entities outside the AOI are recorded, not sent.
-            out.extend(
-                events
-                    .iter()
-                    .filter(|event| fact_visible(event, player.id, &view.ids))
-                    .cloned()
-                    .map(ObserverOutput::Event),
-            );
+            let cell = CellCoord::of(player.pos);
+            let view = views.entry(cell).or_insert_with(|| {
+                CellView::build(
+                    &self.aoi,
+                    entities,
+                    player.pos,
+                    &moved,
+                    tick,
+                    facts.remove(&cell).unwrap_or_default(),
+                )
+            });
+            let previous = self.known.get(&player.id);
+            let facts = view
+                .facts
+                .public
+                .len()
+                .saturating_add(view.facts.owned.get(&player.id).map_or(0, Vec::len));
+            let delta = view.delta(previous, tick, entities);
+            out.reserve(delta.len().saturating_add(facts));
+            out.extend(delta.iter().cloned());
+            self.known.insert(player.id, (cell, Arc::clone(&view.ids)));
+            // A spawn precedes every fact referring to a newly visible entity.
+            view.facts_into(player.id, &mut out);
             if !out.is_empty() {
                 outputs.insert(player.id, out);
             }
@@ -1194,6 +1233,7 @@ impl ZoneState {
 /// known). Cross-entity combat facts: only when both sides are known. Hate and AI intentions
 /// are internal.
 /// Spawns, moves and despawns are the AOI diff's, never facts.
+#[cfg(test)]
 fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bool {
     let sees = |id: &EntityId| *id == observer || known.binary_search(id).is_ok();
     match event {
@@ -1251,19 +1291,103 @@ fn responses(
     out
 }
 
-/// One cell's AOI at the end of a tick: who is visible (sorted) and the moves among them.
-struct CellView {
-    ids: Vec<EntityId>,
-    moves: Vec<(EntityId, ObserverOutput)>,
+/// Facts routed once to occupied observer cells. Entries keep the original event index
+/// so private and shared facts can be merged without changing causal order.
+#[derive(Default)]
+struct CellFacts<'a> {
+    public: Vec<(usize, &'a ZoneEvent)>,
+    owned: BTreeMap<EntityId, Vec<(usize, &'a ZoneEvent)>>,
 }
 
-impl CellView {
+impl<'a> CellFacts<'a> {
+    fn by_cell(
+        entities: &BTreeMap<EntityId, Entity>,
+        events: &'a [ZoneEvent],
+    ) -> BTreeMap<CellCoord, Self> {
+        let mut cells: BTreeMap<_, Self> = entities
+            .values()
+            .filter(|e| e.kind == EntityKind::Player)
+            .map(|e| (CellCoord::of(e.pos), Self::default()))
+            .collect();
+        for (index, event) in events.iter().enumerate() {
+            let (entity, other, private) = match event {
+                ZoneEvent::TargetChanged { entity, target, .. } => (*entity, *target, true),
+                ZoneEvent::StatsChanged { entity, .. }
+                | ZoneEvent::XpGained { entity, .. }
+                | ZoneEvent::LevelUp { entity, .. } => (*entity, None, true),
+                ZoneEvent::AttackResult {
+                    attacker, target, ..
+                }
+                | ZoneEvent::AttackStarted {
+                    attacker, target, ..
+                }
+                | ZoneEvent::AttackCancelled {
+                    attacker, target, ..
+                } => (*attacker, Some(*target), false),
+                ZoneEvent::EntityDied { entity, .. }
+                | ZoneEvent::EntityRespawned { entity, .. } => (*entity, None, false),
+                ZoneEvent::HateChanged { .. }
+                | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::Progression(_)
+                | ZoneEvent::EntitySpawn { .. }
+                | ZoneEvent::EntityMove { .. }
+                | ZoneEvent::EntityDespawn { .. } => continue,
+            };
+            let Some(first) = entities.get(&entity) else {
+                continue;
+            };
+            let origin = CellCoord::of(first.pos);
+            let other_cell = match other {
+                Some(id) => {
+                    let Some(e) = entities.get(&id) else { continue };
+                    Some(CellCoord::of(e.pos))
+                },
+                None => None,
+            };
+            let sees_other = |cell: CellCoord| {
+                other_cell.is_none_or(|other| {
+                    cell.x.abs_diff(other.x) <= 1 && cell.y.abs_diff(other.y) <= 1
+                })
+            };
+            if private {
+                if first.kind == EntityKind::Player && sees_other(origin) {
+                    if let Some(facts) = cells.get_mut(&origin) {
+                        facts.owned.entry(entity).or_default().push((index, event));
+                    }
+                }
+            } else {
+                // AOI is symmetric: only these nine observer cells can see the entity.
+                for cell in origin
+                    .neighbourhood()
+                    .into_iter()
+                    .filter(|c| sees_other(*c))
+                {
+                    if let Some(facts) = cells.get_mut(&cell) {
+                        facts.public.push((index, event));
+                    }
+                }
+            }
+        }
+        cells
+    }
+}
+
+/// One cell's AOI at the end of a tick: who is visible (sorted) and the moves among them.
+struct CellView<'a> {
+    ids: Arc<[EntityId]>,
+    moves: Vec<(EntityId, ObserverOutput)>,
+    deltas: BTreeMap<Option<CellCoord>, Vec<ObserverOutput>>,
+    facts: CellFacts<'a>,
+}
+
+impl<'a> CellView<'a> {
     fn build(
         aoi: &AoiIndex,
         entities: &BTreeMap<EntityId, Entity>,
         pos: Vec2Fixed,
         moved: &[EntityId],
         tick: Tick,
+        facts: CellFacts<'a>,
     ) -> Self {
         let mut ids: Vec<EntityId> = aoi.in_aoi(pos).collect();
         ids.sort_unstable();
@@ -1283,9 +1407,50 @@ impl CellView {
             })
             .collect();
         Self {
-            ids,
+            ids: Arc::<[EntityId]>::from(ids),
             moves: move_list,
+            deltas: BTreeMap::new(),
+            facts,
         }
+    }
+
+    fn delta(
+        &mut self,
+        previous: Option<&(CellCoord, Arc<[EntityId]>)>,
+        tick: Tick,
+        entities: &BTreeMap<EntityId, Entity>,
+    ) -> &[ObserverOutput] {
+        let key = previous.map(|(cell, _)| *cell);
+        // At a boundary, all observers from a cell share the identical known list.
+        // Missing entries mean a new or replaced session, whose previous AOI is empty.
+        if !self.deltas.contains_key(&key) {
+            let before = previous.map_or(&[][..], |(_, ids)| ids.as_ref());
+            let mut delta = Vec::new();
+            if before == self.ids.as_ref() {
+                delta.extend(self.moves.iter().map(|(_, output)| output.clone()));
+            } else {
+                diff_into(&mut delta, tick, before, self, entities);
+            }
+            self.deltas.insert(key, delta);
+        }
+        self.deltas.get(&key).map_or(&[], Vec::as_slice)
+    }
+
+    fn facts_into(&self, player: EntityId, out: &mut Vec<ObserverOutput>) {
+        let mut owned = self
+            .facts
+            .owned
+            .get(&player)
+            .into_iter()
+            .flatten()
+            .peekable();
+        for (index, event) in &self.facts.public {
+            while let Some((_, event)) = owned.next_if(|(i, _)| i < index) {
+                out.push(ObserverOutput::Event((*event).clone()));
+            }
+            out.push(ObserverOutput::Event((*event).clone()));
+        }
+        out.extend(owned.map(|(_, event)| ObserverOutput::Event((*event).clone())));
     }
 }
 
@@ -1295,7 +1460,7 @@ fn diff_into(
     out: &mut Vec<ObserverOutput>,
     tick: Tick,
     before: &[EntityId],
-    now: &CellView,
+    now: &CellView<'_>,
     entities: &BTreeMap<EntityId, Entity>,
 ) {
     let has = |list: &[EntityId], id: &EntityId| list.binary_search(id).is_ok();

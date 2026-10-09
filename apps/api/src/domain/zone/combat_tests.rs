@@ -2,6 +2,7 @@
 //! rules and the Keltir template. Impacts are checked against an independent re-derivation
 //! from the snapshotted generator state, so the draw order is pinned, not just stable.
 
+use std::fmt::Write as _;
 use std::sync::{Arc, OnceLock};
 
 use rand_chacha::rand_core::{Rng, SeedableRng};
@@ -412,7 +413,7 @@ fn snapshots_of_another_schema_or_with_inconsistent_combat_are_refused() {
     run(&mut z, vec![target(1, 1, npc), attack(1, 2)]);
     idle(&mut z, 3);
     let snap = z.snapshot();
-    assert_eq!(snap.meta.schema_version, 5);
+    assert_eq!(snap.meta.schema_version, SNAPSHOT_SCHEMA_VERSION);
     let mut compatible = snap.clone();
     compatible.meta.schema_version = 4;
     assert!(ZoneState::from_snapshot(compatible).is_ok());
@@ -931,4 +932,46 @@ fn rejected_attacks_add_no_hate() {
     assert_eq!(before.rng, z.snapshot().rng);
     assert!(matches!(combat(&z, npc).role, CombatRole::Npc { .. }));
     let _ = CommandSource::System;
+}
+
+#[test]
+fn both_state_digest_versions_are_stable_and_cover_a_one_byte_change() {
+    fn fighting() -> ZoneState {
+        let (mut state, npc) = duel();
+        run(&mut state, vec![target(1, 1, npc), attack(1, 2)]);
+        idle(&mut state, 3);
+        state
+    }
+    let mut hashes = Vec::new();
+    for version in [StateDigestVersion::JsonV1, StateDigestVersion::BinaryV2] {
+        let mut first = fighting();
+        first.meta.digest_version = version;
+        let mut second = fighting();
+        second.meta.digest_version = version;
+        let digest = first.state_digest();
+        assert_eq!(digest, second.state_digest());
+        let restored = ZoneState::from_snapshot(first.snapshot()).unwrap();
+        assert_eq!(digest, restored.state_digest());
+        // Same UTF-8 byte length: exactly one state byte changes from 'p' to 'q'.
+        second
+            .entities
+            .get_mut(&id(1))
+            .unwrap()
+            .name
+            .replace_range(..1, "q");
+        assert_ne!(digest, second.state_digest());
+        let mut hex = String::new();
+        for byte in digest {
+            write!(&mut hex, "{byte:02x}").unwrap();
+        }
+        hashes.push(hex);
+    }
+    // Persistent golden values catch layout drift across builds, not just within a run.
+    assert_eq!(
+        hashes,
+        [
+            "91b5e0f00588a857dd901f47055ac9a86fb54056fd497a4f588e8b0d9295c0dd",
+            "9b7177f28a484404ada10ee0366c20e818b998cc35a6c53702679923f4a37842"
+        ]
+    );
 }

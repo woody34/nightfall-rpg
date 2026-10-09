@@ -588,6 +588,9 @@ pub struct AppliedTick {
     /// SHA-256 of the canonical end-of-tick state (entities, hate, RNG, counters), so drift
     /// in state nobody observes still fails replay (plan §3.2).
     pub state_digest: [u8; 32],
+    /// Encoding used by `state_digest` (legacy deserialised ticks use JSON v1).
+    #[serde(default)]
+    pub digest_version: super::StateDigestVersion,
 }
 
 impl AppliedTick {

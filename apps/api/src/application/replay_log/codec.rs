@@ -10,7 +10,7 @@
 //!   OutputForm output_form = 8;
 //!   bytes events = 9;        // Outputs of every zone event (ENCODED) or its SHA-256 (SHA256)
 //!   bytes state_digest = 10; // SHA-256 of the canonical end-of-tick state
-//!   uint32 schema = 11;      // RECORD_SCHEMA_VERSION; other values are refused
+//!   uint32 schema = 11;      // 3: JSON v1 digest; 4: binary v2 digest
 //! }
 //! enum OutputForm { ENCODED = 0; SHA256 = 1; }  // SHA256: outputs too large for one message
 //! message Session { bytes entity = 1; uint64 generation = 2; }   // absent = System source
@@ -82,8 +82,8 @@ use super::record::{
 use crate::domain::zone::{
     AppliedCommand, CombatView, CommandSource, DeathFact, Disposition, EntityId, EntityKind,
     FinalStats, Fixed, Intention, NpcCombat, ObserverOutput, Ordinal, PlayerLoad, ProgressionDelta,
-    RejectReason, Scaled, SessionGeneration, Speed, Swing, SwingCancel, Tick, Vec2Fixed,
-    ZoneCommand, ZoneEvent, ZoneId,
+    RejectReason, Scaled, SessionGeneration, Speed, StateDigestVersion, Swing, SwingCancel, Tick,
+    Vec2Fixed, ZoneCommand, ZoneEvent, ZoneId,
 };
 
 #[derive(Clone, PartialEq, Message)]
@@ -572,15 +572,18 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
         output_form: output_form_to_pb(r.output_form),
         events: r.events.clone(),
         state_digest: r.state_digest.clone(),
-        schema: RECORD_SCHEMA_VERSION,
+        schema: match r.digest_version {
+            StateDigestVersion::JsonV1 => 3,
+            StateDigestVersion::BinaryV2 => RECORD_SCHEMA_VERSION,
+        },
     }
 }
 
 /// Version of the applied-tick record layout. 2 (Phase 1 E2.2): zone events, state digest,
 /// combat commands and facts. 3 (E2.4/E2.6): progression facts, the
-/// `alive` load flag, XP on `StatsChanged`. Decoding refuses other versions (1 had no field,
-/// so reads 0).
-pub const RECORD_SCHEMA_VERSION: u32 = 3;
+/// `alive` load flag, XP on `StatsChanged`. 4: binary v2 state digest. Schema 3 remains
+/// readable and writable for JSON v1 replay; earlier versions are refused (1 reads 0).
+pub const RECORD_SCHEMA_VERSION: u32 = 4;
 
 pub(super) fn encode_events(events: &[ZoneEvent]) -> Vec<u8> {
     PbOutputs {
@@ -1272,9 +1275,9 @@ fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOu
 
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
     let pb = PbRecord::decode(bytes).map_err(err)?;
-    if pb.schema != RECORD_SCHEMA_VERSION {
+    if ![3, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
         return Err(CodecError(format!(
-            "record schema {} is not supported (this build reads {RECORD_SCHEMA_VERSION})",
+            "record schema {} is not supported (this build reads 3 and {RECORD_SCHEMA_VERSION})",
             pb.schema
         )));
     }
@@ -1309,6 +1312,11 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
         output_form,
         events: pb.events,
         state_digest: pb.state_digest,
+        digest_version: if pb.schema == 3 {
+            StateDigestVersion::JsonV1
+        } else {
+            StateDigestVersion::BinaryV2
+        },
     })
 }
 

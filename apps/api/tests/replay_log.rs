@@ -316,27 +316,34 @@ fn bounded_keeps_a_record_that_fits_and_digests_one_that_does_not() {
 
 #[test]
 fn a_record_with_encoded_outputs_has_a_fixed_wire_format() {
-    // Field 8 (output_form) and an empty field 9 (events) are omitted at their defaults; the
-    // state digest (10) and the record schema (11, RECORD_SCHEMA_VERSION 3) always follow.
-    let tail = |out: &mut Vec<u8>| {
-        out.extend_from_slice(&[0x52, 0x20]);
-        out.extend_from_slice(&[0; 32]);
-        out.extend_from_slice(&[0x58, 0x03]);
-    };
-    let mut record = empty_record(1, 2);
-    let mut expected = vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02];
-    tail(&mut expected);
-    assert_eq!(record.encode(), expected);
-    record.outputs.push(PlayerOutput {
-        entity: EntityId::from_uuid(Uuid::from_u128(1)),
-        bytes: Bytes::from_static(&[0xAA]),
-    });
-    let mut expected = vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02, 0x3a, 0x15, 0x0a, 0x10];
-    expected.extend_from_slice(Uuid::from_u128(1).as_bytes());
-    expected.extend_from_slice(&[0x12, 0x01, 0xAA]);
-    tail(&mut expected);
-    assert_eq!(record.encode(), expected);
-    assert_eq!(AppliedTickRecord::decode(&expected).unwrap(), record);
+    use nightfall_api::domain::zone::StateDigestVersion;
+    for (version, schema) in [
+        (StateDigestVersion::JsonV1, 3),
+        (StateDigestVersion::BinaryV2, 4),
+    ] {
+        // Default output_form and empty events are omitted. Only schema changes between
+        // digest versions; old records must retain their exact schema-3 encoding.
+        let tail = |out: &mut Vec<u8>| {
+            out.extend_from_slice(&[0x52, 0x20]);
+            out.extend_from_slice(&[0; 32]);
+            out.extend_from_slice(&[0x58, schema]);
+        };
+        let mut record = empty_record(1, 2);
+        record.digest_version = version;
+        let mut expected = vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02];
+        tail(&mut expected);
+        assert_eq!(record.encode(), expected);
+        record.outputs.push(PlayerOutput {
+            entity: EntityId::from_uuid(Uuid::from_u128(1)),
+            bytes: Bytes::from_static(&[0xAA]),
+        });
+        let mut expected = vec![0x08, 0x07, 0x10, 0x01, 0x18, 0x02, 0x3a, 0x15, 0x0a, 0x10];
+        expected.extend_from_slice(Uuid::from_u128(1).as_bytes());
+        expected.extend_from_slice(&[0x12, 0x01, 0xAA]);
+        tail(&mut expected);
+        assert_eq!(record.encode(), expected);
+        assert_eq!(AppliedTickRecord::decode(&expected).unwrap(), record);
+    }
 }
 
 #[test]
@@ -618,6 +625,7 @@ fn empty_record(epoch: u64, tick: u64) -> AppliedTickRecord {
         output_form: OutputForm::Encoded,
         events: bytes::Bytes::new(),
         state_digest: bytes::Bytes::from_static(&[0; 32]),
+        digest_version: nightfall_api::domain::zone::StateDigestVersion::BinaryV2,
     }
 }
 
@@ -914,6 +922,7 @@ fn record() -> impl Strategy<Value = (AppliedTickRecord, Vec<Vec<ObserverOutput>
                 output_form: OutputForm::Encoded,
                 events: bytes::Bytes::new(),
                 state_digest: bytes::Bytes::from_static(&[7; 32]),
+                digest_version: nightfall_api::domain::zone::StateDigestVersion::BinaryV2,
             };
             (record, outs.into_iter().map(|(_, items)| items).collect())
         })
