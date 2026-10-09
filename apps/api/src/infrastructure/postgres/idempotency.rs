@@ -37,7 +37,7 @@ pub(super) enum Claim {
 pub(super) async fn claim(
     tx: &DatabaseTransaction,
     account: AccountId,
-    operation: &'static str,
+    operation: &str,
     key: &IdempotencyKey,
     fingerprint: &str,
     response: serde_json::Value,

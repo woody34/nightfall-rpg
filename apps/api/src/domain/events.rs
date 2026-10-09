@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[non_exhaustive]
+#[allow(clippy::enum_variant_names)]
 pub enum DomainEvent {
     /// A character was created.
     CharacterCreated {
@@ -18,6 +19,20 @@ pub enum DomainEvent {
         /// Race chosen.
         race: Race,
     },
+    /// A character reached a new level (one event per level gained).
+    CharacterLeveled {
+        /// The character.
+        character_id: CharacterId,
+        /// The level reached.
+        level: u32,
+    },
+    /// A character died.
+    CharacterDied {
+        /// The character.
+        character_id: CharacterId,
+        /// What dealt the killing blow, as an opaque id (monster template or character id).
+        killer: String,
+    },
 }
 
 impl DomainEvent {
@@ -26,6 +41,8 @@ impl DomainEvent {
     pub const fn subject(&self) -> &'static str {
         match self {
             DomainEvent::CharacterCreated { .. } => "nightfall.character.created",
+            DomainEvent::CharacterLeveled { .. } => "nightfall.character.leveled",
+            DomainEvent::CharacterDied { .. } => "nightfall.character.died",
         }
     }
 }
@@ -59,5 +76,22 @@ mod tests {
             race: Race::Human,
         };
         assert_eq!(ev.subject(), "nightfall.character.created");
+        let id = CharacterId::new();
+        assert_eq!(
+            DomainEvent::CharacterLeveled {
+                character_id: id,
+                level: 2
+            }
+            .subject(),
+            "nightfall.character.leveled"
+        );
+        let died = DomainEvent::CharacterDied {
+            character_id: id,
+            killer: "npc:1".into(),
+        };
+        assert_eq!(died.subject(), "nightfall.character.died");
+        let json = serde_json::to_value(&died).unwrap();
+        assert_eq!(json["type"], "character_died");
+        assert_eq!(serde_json::from_value::<DomainEvent>(json).unwrap(), died);
     }
 }

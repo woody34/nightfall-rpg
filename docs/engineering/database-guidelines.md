@@ -64,6 +64,18 @@ idempotency_keys(account_id uuid, operation text, key uuid, fingerprint text,
 - A response may hold a secret only if the secret is short-lived and single-use (the 60 s play
   ticket). Anything longer-lived is stored hashed and the operation is not replayable.
 
+## 2b. Progression checkpoints
+
+`CharacterRepository::checkpoint` is the only writer of `characters` progression columns (level,
+xp, hp, mp, alive, position) after creation. One transaction: claim the idempotency key
+(operation `save_checkpoint`; response `{"revision": n}`) before anything else, so a retry replays
+even though the revision has moved on; then `UPDATE ... WHERE id = $1 AND revision = $revision_seen`
+with `revision = revision + 1` - zero rows means `Stale` and the whole transaction (key included)
+rolls back, so a stale writer never consumes a key. Domain events are inserted into `outbox` last,
+in the same transaction. The key fingerprint covers the whole body including the events; same key
+with a different body is `KeyReused`. Check violations (`23514`) surface as typed
+`CheckpointError::Constraint(name)`. `hp`/`mp` NULL means full, because the stat engine owns maxima.
+
 ## 3. Queries
 
 - No `SELECT *`. Name the columns; the row mapper depends on them.
