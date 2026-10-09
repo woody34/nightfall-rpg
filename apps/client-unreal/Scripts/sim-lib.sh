@@ -6,6 +6,8 @@
 #   SIM_SAVED_DIR     where the bot writes its outputs (default <project>/Saved/Sim)
 #   SIM_REPLAY_CMD    command run as `$SIM_REPLAY_CMD <file.nfr>` (default: nightfall-replay --source file --file)
 #   SIM_API_URL       API base for the health check (default http://localhost:3000)
+#   SIM_REQUIRE_OWNED_API=1 reject attach/occupied endpoints; verify the launched API owns its listener
+#   SIM_REQUIRE_FRESH_ARTIFACTS=1 snapshot outputs before launch; collect only changed files within wall bounds
 #   SIM_TIMEOUT       seconds per scenario / per group (default 600)
 #   SIM_BOT_ARGS_JSON additional launch args as a JSON array (e.g. ["-NfGrpc=localhost:50052"])
 
@@ -62,14 +64,82 @@ sim_ensure_build() {
 
 sim_api_healthy() { curl -sf -m 2 -o /dev/null "$SIM_API_URL/health"; }
 
+# Linux CI ownership check: health alone cannot establish which process answered. Include cargo's
+# descendants, and fail closed on unreadable /proc data or a non-loopback endpoint. Default user
+# startup/attach behavior does not need this probe.
+sim_api_endpoint_probe() {
+  python3 - "$SIM_API_URL" "$1" "${SIM_STARTED_API_PID:-}" <<'PY'
+import ipaddress
+from pathlib import Path
+import socket
+import sys
+from urllib.parse import urlsplit
+
+try:
+    url = urlsplit(sys.argv[1])
+    if url.scheme != 'http' or url.username or url.password or url.path not in ('', '/'):
+        raise ValueError('owned API requires a local HTTP base URL')
+    if url.hostname != 'localhost' and not ipaddress.ip_address(url.hostname).is_loopback:
+        raise ValueError('owned API requires a loopback endpoint')
+    addresses = socket.getaddrinfo(url.hostname, url.port or 80, type=socket.SOCK_STREAM)
+    if not addresses or not all(ipaddress.ip_address(a[4][0]).is_loopback for a in addresses):
+        raise ValueError('owned API requires a loopback endpoint')
+    port = url.port or 80
+    listeners = set()
+    for table in ('tcp', 'tcp6'):
+        for line in Path('/proc/net/' + table).read_text().splitlines()[1:]:
+            fields = line.split()
+            if fields[3] == '0A' and int(fields[1].split(':')[1], 16) == port:
+                listeners.add(fields[9])
+    if sys.argv[2] == 'free':
+        if listeners:
+            raise ValueError('API endpoint port is occupied; refusing to attach')
+    else:
+        root = int(sys.argv[3])
+        parents = {}
+        for process in Path('/proc').glob('[0-9]*'):
+            try:
+                stat = (process / 'stat').read_text().rsplit(')', 1)[1].split()
+                parents[int(process.name)] = int(stat[1])
+            except (FileNotFoundError, ProcessLookupError):
+                continue
+        owned = {root}
+        while True:
+            children = {pid for pid, parent in parents.items() if parent in owned}
+            if children <= owned:
+                break
+            owned |= children
+        sockets = set()
+        for pid in owned:
+            try:
+                for fd in Path(f'/proc/{pid}/fd').iterdir():
+                    try:
+                        target = str(fd.readlink())
+                        if target.startswith('socket:['):
+                            sockets.add(target[8:-1])
+                    except FileNotFoundError:
+                        continue
+            except FileNotFoundError:
+                continue
+        if root not in parents or not listeners or not listeners <= sockets:
+            raise ValueError('healthy API listener is not owned by the launched process')
+except (OSError, ValueError, TypeError) as error:
+    print(f'sim: {error}', file=sys.stderr)
+    sys.exit(1)
+PY
+}
+
 # $1 = attach | start. attach requires a healthy API; start brings up compose and the API.
 sim_api_prepare() {
   case "$1" in
     attach)
+      [[ "${SIM_REQUIRE_OWNED_API:-0}" != 1 ]] || sim_die "owned API mode requires --api start"
       sim_api_healthy || sim_die "no API answering $SIM_API_URL/health (use --api start, or run \`moon run api:dev\`)"
       ;;
     start)
-      if sim_api_healthy; then sim_log "API already healthy at $SIM_API_URL; attaching"; return 0; fi
+      if [[ "${SIM_REQUIRE_OWNED_API:-0}" == 1 ]]; then
+        sim_api_endpoint_probe free || sim_die "cannot start an owned API at $SIM_API_URL"
+      elif sim_api_healthy; then sim_log "API already healthy at $SIM_API_URL; attaching"; return 0; fi
       sim_log "starting compose stack and the API (AUTH_DEV_TOKENS=1)"
       (cd "$SIM_REPO" && docker compose up -d --wait >&2) || sim_die "docker compose up failed"
       (
@@ -81,8 +151,14 @@ sim_api_prepare() {
       trap sim_api_cleanup EXIT
       local i
       for ((i = 0; i < ${SIM_API_WAIT:-180}; i++)); do
-        sim_api_healthy && return 0
         kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "API exited during startup (see ${SIM_API_LOG:-its log})"
+        if sim_api_healthy; then
+          if [[ "${SIM_REQUIRE_OWNED_API:-0}" == 1 ]]; then
+            sim_api_endpoint_probe owned || sim_die "API ownership verification failed"
+            kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "owned API exited during startup"
+          fi
+          return 0
+        fi
         sleep 1
       done
       sim_die "API did not become healthy within ${SIM_API_WAIT:-180}s"
@@ -153,10 +229,49 @@ sim_collect() {
   local marker="$1" dest="$2"
   mkdir -p "$dest"
   [[ -d "$SIM_SAVED_DIR" ]] || return 0
+  if [[ "${SIM_REQUIRE_FRESH_ARTIFACTS:-0}" == 1 ]]; then
+    python3 - "$marker" "$SIM_SAVED_DIR" "$dest" <<'PY'
+import json
+from pathlib import Path
+import shutil
+import sys
+import time
+
+marker, saved, dest = map(Path, sys.argv[1:])
+before = json.loads(marker.read_text())
+start, end = marker.stat().st_mtime_ns, time.time_ns()
+for file in saved.rglob('*'):
+    if not file.is_file() or file.is_symlink():
+        continue
+    stat = file.stat()
+    identity = [stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size, stat.st_ino]
+    if start < stat.st_mtime_ns <= end and before.get(str(file.resolve())) != identity:
+        shutil.copy2(file, dest / file.name)
+PY
+    return $?
+  fi
   find "$SIM_SAVED_DIR" -type f -newer "$marker" -exec cp -p {} "$dest"/ \;
 }
 
-sim_new_marker() { local m; m="$(mktemp)"; touch "$m"; sleep 0.05; echo "$m"; }
+sim_new_marker() {
+  local m; m="$(mktemp)"
+  if [[ "${SIM_REQUIRE_FRESH_ARTIFACTS:-0}" == 1 ]]; then
+    python3 - "$SIM_SAVED_DIR" "$m" <<'PY' || { rm -f "$m"; return 1; }
+import json
+from pathlib import Path
+import sys
+
+saved, marker = map(Path, sys.argv[1:])
+before = {}
+for file in saved.rglob('*'):
+    if file.is_file() and not file.is_symlink():
+        stat = file.stat()
+        before[str(file.resolve())] = [stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size, stat.st_ino]
+marker.write_text(json.dumps(before))
+PY
+  fi
+  touch "$m"; sleep 0.05; echo "$m"
+}
 
 # nightfall-replay binary (built once per script run). SIM_REPLAY_BIN overrides.
 sim_replay_bin() {

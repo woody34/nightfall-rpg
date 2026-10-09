@@ -111,9 +111,68 @@ def has_scenario_failure(folder, name):
     """Synthetic wrapper/pipeline failures alone never qualify for quarantine."""
     try:
         root = ET.parse(folder / name / f"{name}.xml").getroot()
+        suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
+        tests = sum(int(s.get("tests", "0")) for s in suites)
+        if tests <= 0 or len(root.findall(".//testcase")) != tests:
+            return False
+        if any(int(s.get(key, "0")) < 0 for s in suites for key in ("tests", "failures", "errors")):
+            return False
         return any(case.get("name") != "pipeline" and (case.findall("failure") or case.findall("error"))
                    for case in root.findall(".//testcase"))
-    except (OSError, ET.ParseError):
+    except (OSError, ValueError, ET.ParseError):
+        return False
+
+
+BOT_FAILURE_KINDS = frozenset({"bot_assertion", "bot_expectation", "bot_scenario"})
+
+
+def quarantine_verdict(folder, names, code, bad_reports, exempt):
+    """Fail closed unless the wrapper finalized an explicit bot-only verdict.
+
+    The caller receives SIM_PIPELINE_VERDICT=<unit>/pipeline-verdict.json. Schema v1:
+    completed=true, exit_code, infrastructure_failures=[], and scenarios=[{scenario,
+    failure_kinds:[...]}]. Completion must be written AFTER group merge and all other gates.
+    Missing/unknown fields or kinds cannot authorize quarantine. Diagnostic retries are excluded.
+    """
+    try:
+        verdict = json.loads((folder / "pipeline-verdict.json").read_text())
+        if (type(verdict.get("schema_version")) is not int or verdict["schema_version"] != 1
+                or verdict.get("completed") is not True
+                or type(verdict.get("exit_code")) is not int or verdict["exit_code"] != code
+                or verdict.get("infrastructure_failures") != [] or code != 1):
+            return False
+        rows = verdict["scenarios"]
+        if not isinstance(rows, list) or len(rows) != len(names):
+            return False
+        failures = {}
+        for row in rows:
+            name, kinds = row["scenario"], row["failure_kinds"]
+            if name not in names or name in failures or not isinstance(kinds, list):
+                return False
+            if any(not isinstance(kind, str) or kind not in BOT_FAILURE_KINDS for kind in kinds):
+                return False
+            failures[name] = bool(kinds)
+        failing = {name for name, failed in failures.items() if failed}
+        return bool(failing) and failing == set(bad_reports) and all(
+            name in exempt and has_scenario_failure(folder, name) for name in failing)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return False
+
+
+def group_report_matches(folder, names):
+    """Missing/partial group merge is infrastructure failure even with valid role reports."""
+    try:
+        group = ET.parse(folder / "group.xml").getroot()
+        if group.tag != "testsuites":
+            return False
+        for key in ("tests", "failures", "errors"):
+            if int(group.get(key, "-1")) != sum(int(s.get(key, "0")) for s in group.iter("testsuite")):
+                return False
+        actual = sorted(ET.tostring(case) for case in group.findall(".//testcase"))
+        expected = sorted(ET.tostring(case) for name in names
+                          for case in ET.parse(folder / name / f"{name}.xml").getroot().findall(".//testcase"))
+        return bool(expected) and actual == expected
+    except (OSError, ValueError, ET.ParseError):
         return False
 
 
@@ -142,14 +201,27 @@ def main():
     if args.fresh_stack and not os.environ.get("COMPOSE_PROJECT_NAME", "").startswith("nightfall-sim-"):
         parser.error("--fresh-stack requires an isolated COMPOSE_PROJECT_NAME=nightfall-sim-...")
     artifacts = args.artifacts.resolve()
-    artifacts.mkdir(parents=True, exist_ok=True)
+    # Retain the published path layout, but never reuse evidence from an earlier invocation.
+    # Do not delete artifacts: callers must select a new destination for each CI attempt.
+    unit_names = [batch[0].stem[:-2] if len(batch) > 1 else batch[0].stem for batch in batches]
+    if len(set(unit_names)) != len(unit_names):
+        parser.error("scenario/group artifact directory names collide")
+    try:
+        artifacts.mkdir(parents=True, exist_ok=True)
+        if any(artifacts.iterdir()):
+            parser.error("--artifacts must be empty; select a new destination to retain previous evidence")
+        # Exclusive claim also prevents two invocations from sharing an initially empty root.
+        with (artifacts / "run.json").open("x") as owner:
+            json.dump({"schema_version": 1, "pid": os.getpid(), "started_ns": time.time_ns()}, owner)
+    except OSError as error:
+        parser.error(str(error))
     report = []
     aggregate = ET.Element("testsuite", name="sim orchestration")
     for batch, fixture_name in zip(batches, fixtures):
         names = [p.stem for p in batch]
         name = names[0][:-2] if len(batch) > 1 else names[0]
         dest = artifacts / name
-        dest.mkdir(parents=True, exist_ok=True)
+        dest.mkdir()
         start = time.monotonic()
         script = "run-sim-multi.sh" if len(batch) > 1 else "run-sim.sh"
         command = ["bash", str(PROJECT / "Scripts" / script), "--api", "start" if args.fresh_stack else "attach",
@@ -159,9 +231,14 @@ def main():
         command += list(map(str, batch))
         code = 2
         env = dict(os.environ)
+        env["SIM_PIPELINE_VERDICT"] = str(dest / "pipeline-verdict.json")
+        env["SIM_REQUIRE_FRESH_ARTIFACTS"] = "1"
+        if args.fresh_stack:
+            env["SIM_REQUIRE_OWNED_API"] = "1"
         env.pop("ZONE_SIM_FIXTURE", None)
         if fixture_name != "default":
             env["ZONE_SIM_FIXTURE"] = fixture_name
+        orchestration_errors = []
         with (dest / "orchestration.log").open("w") as log:
             try:
                 if args.fresh_stack:
@@ -170,24 +247,28 @@ def main():
                 code = run_clients(command, log, args.timeout + 600, env=env)
             except (OSError, subprocess.SubprocessError) as error:
                 log.write(f"orchestration failed: {error}\n")
+                orchestration_errors.append(str(error))
         if args.fresh_stack:
             with (dest / "compose.log").open("w") as log:
-                subprocess.run(["docker", "compose", "logs", "--no-color"], cwd=REPO,
-                               stdout=log, stderr=subprocess.STDOUT, timeout=60, check=False)
+                try:
+                    subprocess.run(["docker", "compose", "logs", "--no-color"], cwd=REPO,
+                                   stdout=log, stderr=subprocess.STDOUT, timeout=60, check=True)
+                except (OSError, subprocess.SubprocessError) as error:
+                    log.write(f"compose log collection failed: {error}\n")
+                    orchestration_errors.append(str(error))
         bad_reports = junit_failures(dest, names)
-        failed = code != 0 or bool(bad_reports)
-        # Replay, trace and infrastructure failures remain blocking even for a quarantined bot.
+        if len(names) > 1 and not group_report_matches(dest, names):
+            orchestration_errors.append("missing, invalid or incomplete group JUnit merge")
+        failed = code != 0 or bool(bad_reports) or bool(orchestration_errors)
         log_text = (dest / "orchestration.log").read_text()
-        infrastructure_failure = code not in (0, 1) or any(
-            text in log_text for text in ("replay check failed", "trace generation failed", "no session recording", "FAIL replay"))
-        infrastructure_failure |= bool(re.search(r"\btimeout after|\bbot exit (?!1\b)\d+", log_text))
-        quarantined = failed and not infrastructure_failure and bool(bad_reports) and all(
-            n in exempt and has_scenario_failure(dest, n) for n in bad_reports)
+        quarantined = failed and not orchestration_errors and quarantine_verdict(
+            dest, names, code, bad_reports, exempt)
         # Any unexplained nonzero exit stays blocking, even if all reports look green.
         status = "QUARANTINED" if quarantined else "FAIL" if failed else "PASS"
         elapsed = round(time.monotonic() - start, 3)
         report.append({"unit": name, "scenarios": names, "status": status, "exit_code": code,
                        "seconds": elapsed, "failed_reports": bad_reports,
+                       "infrastructure_errors": orchestration_errors,
                        "quarantine": {n: exempt[n] for n in names if n in exempt}})
         case = ET.SubElement(aggregate, "testcase", name=name, time=str(elapsed))
         if status == "FAIL":
