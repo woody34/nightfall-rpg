@@ -25,6 +25,15 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StopAttackRequest* in, ::nightfall:
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::RespawnRequest* in, FGrpcNightfallV1RespawnRequest* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1RespawnRequest* in, ::nightfall::v1::RespawnRequest* out);
 
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::CastSkillRequest* in, FGrpcNightfallV1CastSkillRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1CastSkillRequest* in, ::nightfall::v1::CastSkillRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::CancelCastRequest* in, FGrpcNightfallV1CancelCastRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1CancelCastRequest* in, ::nightfall::v1::CancelCastRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::AcceptResurrectRequest* in, FGrpcNightfallV1AcceptResurrectRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AcceptResurrectRequest* in, ::nightfall::v1::AcceptResurrectRequest* out);
+
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ServerMessage* in, FGrpcNightfallV1ServerMessage* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ServerMessage* in, ::nightfall::v1::ServerMessage* out);
 
@@ -75,4 +84,52 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1TargetChanged* in, ::nightfall::v1:
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassChanged* in, FGrpcNightfallV1ClassChanged* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassChanged* in, ::nightfall::v1::ClassChanged* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ActiveEffect* in, FGrpcNightfallV1ActiveEffect* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ActiveEffect* in, ::nightfall::v1::ActiveEffect* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCastStarted* in, FGrpcNightfallV1SkillCastStarted* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCastStarted* in, ::nightfall::v1::SkillCastStarted* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillTargetResult* in, FGrpcNightfallV1SkillTargetResult* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillTargetResult* in, ::nightfall::v1::SkillTargetResult* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCastResult* in, FGrpcNightfallV1SkillCastResult* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCastResult* in, ::nightfall::v1::SkillCastResult* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCastCancelled* in, FGrpcNightfallV1SkillCastCancelled* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCastCancelled* in, ::nightfall::v1::SkillCastCancelled* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::EffectApplied* in, FGrpcNightfallV1EffectApplied* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EffectApplied* in, ::nightfall::v1::EffectApplied* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::EffectRemoved* in, FGrpcNightfallV1EffectRemoved* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EffectRemoved* in, ::nightfall::v1::EffectRemoved* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillReuse* in, FGrpcNightfallV1SkillReuse* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillReuse* in, ::nightfall::v1::SkillReuse* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillLearned* in, FGrpcNightfallV1SkillLearned* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillLearned* in, ::nightfall::v1::SkillLearned* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::PvpStateChanged* in, FGrpcNightfallV1PvpStateChanged* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1PvpStateChanged* in, ::nightfall::v1::PvpStateChanged* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ResurrectOffer* in, FGrpcNightfallV1ResurrectOffer* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ResurrectOffer* in, ::nightfall::v1::ResurrectOffer* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SpGained* in, FGrpcNightfallV1SpGained* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SpGained* in, ::nightfall::v1::SpGained* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::LearnedSkillRank* in, FGrpcNightfallV1LearnedSkillRank* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1LearnedSkillRank* in, ::nightfall::v1::LearnedSkillRank* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillReuseState* in, FGrpcNightfallV1SkillReuseState* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillReuseState* in, ::nightfall::v1::SkillReuseState* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillStateSync* in, FGrpcNightfallV1SkillStateSync* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillStateSync* in, ::nightfall::v1::SkillStateSync* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::VitalsChanged* in, FGrpcNightfallV1VitalsChanged* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1VitalsChanged* in, ::nightfall::v1::VitalsChanged* out);
 

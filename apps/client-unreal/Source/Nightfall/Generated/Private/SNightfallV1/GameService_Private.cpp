@@ -57,3 +57,27 @@ void UGameServiceChangeClassLambdaWrapper::OnResponse(FGrpcContextHandle _Handle
 	InnerClient->OnChangeClassResponse.RemoveDynamic(this, &UGameServiceChangeClassLambdaWrapper::OnResponse);
 }
 
+void UGameServiceListLearnableSkillsLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListLearnableSkillsResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnListLearnableSkillsResponse.RemoveDynamic(this, &UGameServiceListLearnableSkillsLambdaWrapper::OnResponse);
+}
+
+void UGameServiceLearnSkillLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1LearnSkillResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnLearnSkillResponse.RemoveDynamic(this, &UGameServiceLearnSkillLambdaWrapper::OnResponse);
+}
+
+void UGameServiceGetSkillCatalogLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGetSkillCatalogResponse.RemoveDynamic(this, &UGameServiceGetSkillCatalogLambdaWrapper::OnResponse);
+}
+

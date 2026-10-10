@@ -249,3 +249,108 @@ void GrpcContext_GameService_ChangeClass::OnRpcEvent(bool Ok, const void* EventT
 		}
 	);
 }
+
+GrpcContext_GameService_ListLearnableSkills::GrpcContext_GameService_ListLearnableSkills(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_ListLearnableSkills::Call(const FGrpcNightfallV1ListLearnableSkillsRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::ListLearnableSkillsRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncListLearnableSkills(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_ListLearnableSkills::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::ListLearnableSkillsResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnListLearnableSkillsResponse.IsBound())) return;
+
+			FGrpcNightfallV1ListLearnableSkillsResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnListLearnableSkillsResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_LearnSkill::GrpcContext_GameService_LearnSkill(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_LearnSkill::Call(const FGrpcNightfallV1LearnSkillRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::LearnSkillRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncLearnSkill(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_LearnSkill::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::LearnSkillResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnLearnSkillResponse.IsBound())) return;
+
+			FGrpcNightfallV1LearnSkillResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnLearnSkillResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GetSkillCatalog::GrpcContext_GameService_GetSkillCatalog(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GetSkillCatalog::Call(const FGrpcNightfallV1GetSkillCatalogRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GetSkillCatalogRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGetSkillCatalog(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GetSkillCatalog::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GetSkillCatalogResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGetSkillCatalogResponse.IsBound())) return;
+
+			FGrpcNightfallV1GetSkillCatalogResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGetSkillCatalogResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}

@@ -47,6 +47,15 @@ public:
 	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ChangeClassResponse& Response)> FChangeClassResponseLambda;
 	void CallChangeClass(const FGrpcNightfallV1ChangeClassRequest& Request, FChangeClassResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
 
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListLearnableSkillsResponse& Response)> FListLearnableSkillsResponseLambda;
+	void CallListLearnableSkills(const FGrpcNightfallV1ListLearnableSkillsRequest& Request, FListLearnableSkillsResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1LearnSkillResponse& Response)> FLearnSkillResponseLambda;
+	void CallLearnSkill(const FGrpcNightfallV1LearnSkillRequest& Request, FLearnSkillResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse& Response)> FGetSkillCatalogResponseLambda;
+	void CallGetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogRequest& Request, FGetSkillCatalogResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
 public:
 	class Private;
 	Private* const d = nullptr;

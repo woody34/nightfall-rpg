@@ -11,6 +11,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceListMyCharactersRes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceListClassesResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListClassesResponse&, Response);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceTransferOptionsResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1TransferOptionsResponse&, Response);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceChangeClassResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ChangeClassResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceListLearnableSkillsResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListLearnableSkillsResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceLearnSkillResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1LearnSkillResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetSkillCatalogResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse&, Response);
 
 UCLASS(ClassGroup = TurboLink, BlueprintType)
 class TURBOLINKGRPC_API UGameServiceClient : public UGrpcClient
@@ -38,6 +41,15 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnGameServiceChangeClassResponse OnChangeClassResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceListLearnableSkillsResponse OnListLearnableSkillsResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceLearnSkillResponse OnLearnSkillResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGetSkillCatalogResponse OnGetSkillCatalogResponse;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = TurboLink)
@@ -81,6 +93,24 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
 	void ChangeClass(FGrpcContextHandle Handle, const FGrpcNightfallV1ChangeClassRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitListLearnableSkills();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void ListLearnableSkills(FGrpcContextHandle Handle, const FGrpcNightfallV1ListLearnableSkillsRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitLearnSkill();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void LearnSkill(FGrpcContextHandle Handle, const FGrpcNightfallV1LearnSkillRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGetSkillCatalog();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GetSkillCatalog(FGrpcContextHandle Handle, const FGrpcNightfallV1GetSkillCatalogRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
 
 public:
 	virtual void Shutdown() override;

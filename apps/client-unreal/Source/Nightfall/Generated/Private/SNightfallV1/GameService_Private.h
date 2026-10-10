@@ -119,3 +119,48 @@ public:
 	UGameService::FChangeClassResponseLambda ResponseLambda;
 };
 
+UCLASS()
+class UGameServiceListLearnableSkillsLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListLearnableSkillsResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FListLearnableSkillsResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceLearnSkillLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1LearnSkillResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FLearnSkillResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceGetSkillCatalogLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGetSkillCatalogResponseLambda ResponseLambda;
+};
+

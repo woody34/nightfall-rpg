@@ -678,3 +678,291 @@ void UCallGameServiceChangeClass::Shutdown()
 	MarkPendingKill();
 #endif
 }
+
+UCallGameServiceListLearnableSkills* UCallGameServiceListLearnableSkills::ListLearnableSkills(UObject* WorldContextObject, const FGrpcNightfallV1ListLearnableSkillsRequest& request, FGrpcMetaData metaData, float deadLineSeconds)
+{
+	UCallGameServiceListLearnableSkills* node = NewObject<UCallGameServiceListLearnableSkills>(WorldContextObject);
+	UTurboLinkGrpcManager* turboLinkManager = UTurboLinkGrpcUtilities::GetTurboLinkGrpcManager(WorldContextObject);
+
+	node->GameService = Cast<UGameService>(turboLinkManager->MakeService("GameService"));
+	if (node->GameService == nullptr)
+	{
+		return nullptr;
+	}
+	node->ServiceState = EGrpcServiceState::Idle;
+	node->Request = request;
+	node->MetaData = metaData;
+	node->DeadLineSeconds = deadLineSeconds;
+
+	node->GameService->OnServiceStateChanged.AddUniqueDynamic(node, &UCallGameServiceListLearnableSkills::OnServiceStateChanged);
+	return node;
+}
+
+void UCallGameServiceListLearnableSkills::Activate()
+{
+	GameService->Connect();
+}
+
+void UCallGameServiceListLearnableSkills::OnServiceStateChanged(EGrpcServiceState NewState)
+{
+	if (ServiceState == NewState) return;
+	ServiceState = NewState;
+
+	if (NewState == EGrpcServiceState::TransientFailure)
+	{
+		FGrpcResult result;
+		result.Code = EGrpcResultCode::ConnectionFailed;
+
+		FGrpcNightfallV1ListLearnableSkillsResponse response;
+		OnFail.Broadcast(result, response);
+
+		Shutdown();
+		return;
+	}
+
+	if (NewState == EGrpcServiceState::Ready)
+	{
+		GameServiceClient = GameService->MakeClient();
+		GameServiceClient->OnContextStateChange.AddUniqueDynamic(this, &UCallGameServiceListLearnableSkills::OnContextStateChange);
+		GameServiceClient->OnListLearnableSkillsResponse.AddUniqueDynamic(this, &UCallGameServiceListLearnableSkills::OnResponse);
+
+		Context = GameServiceClient->InitListLearnableSkills();
+		GameServiceClient->ListLearnableSkills(Context, Request, MetaData, DeadLineSeconds);
+	}
+}
+
+void UCallGameServiceListLearnableSkills::OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State)
+{
+	if (State == EGrpcContextState::Done)
+	{
+		Shutdown();
+	}
+}
+
+void UCallGameServiceListLearnableSkills::OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListLearnableSkillsResponse& Response)
+{
+	if (GrpcResult.Code == EGrpcResultCode::Ok)
+	{
+		OnListLearnableSkillsResponse.Broadcast(GrpcResult, Response);
+	}
+	else
+	{
+		OnFail.Broadcast(GrpcResult, Response);
+	}
+}
+
+void UCallGameServiceListLearnableSkills::Shutdown()
+{
+	GameService->OnServiceStateChanged.RemoveDynamic(this, &UCallGameServiceListLearnableSkills::OnServiceStateChanged);
+	if (GameServiceClient != nullptr)
+	{
+		GameService->RemoveClient(GameServiceClient);
+		GameServiceClient->Shutdown();
+		GameServiceClient = nullptr;
+	}
+
+	if (GameService != nullptr)
+	{
+		UTurboLinkGrpcUtilities::GetTurboLinkGrpcManager(this)->ReleaseService(GameService);
+		GameService = nullptr;
+	}
+
+	SetReadyToDestroy();
+#if ENGINE_MAJOR_VERSION>=5
+	MarkAsGarbage();
+#else
+	MarkPendingKill();
+#endif
+}
+
+UCallGameServiceLearnSkill* UCallGameServiceLearnSkill::LearnSkill(UObject* WorldContextObject, const FGrpcNightfallV1LearnSkillRequest& request, FGrpcMetaData metaData, float deadLineSeconds)
+{
+	UCallGameServiceLearnSkill* node = NewObject<UCallGameServiceLearnSkill>(WorldContextObject);
+	UTurboLinkGrpcManager* turboLinkManager = UTurboLinkGrpcUtilities::GetTurboLinkGrpcManager(WorldContextObject);
+
+	node->GameService = Cast<UGameService>(turboLinkManager->MakeService("GameService"));
+	if (node->GameService == nullptr)
+	{
+		return nullptr;
+	}
+	node->ServiceState = EGrpcServiceState::Idle;
+	node->Request = request;
+	node->MetaData = metaData;
+	node->DeadLineSeconds = deadLineSeconds;
+
+	node->GameService->OnServiceStateChanged.AddUniqueDynamic(node, &UCallGameServiceLearnSkill::OnServiceStateChanged);
+	return node;
+}
+
+void UCallGameServiceLearnSkill::Activate()
+{
+	GameService->Connect();
+}
+
+void UCallGameServiceLearnSkill::OnServiceStateChanged(EGrpcServiceState NewState)
+{
+	if (ServiceState == NewState) return;
+	ServiceState = NewState;
+
+	if (NewState == EGrpcServiceState::TransientFailure)
+	{
+		FGrpcResult result;
+		result.Code = EGrpcResultCode::ConnectionFailed;
+
+		FGrpcNightfallV1LearnSkillResponse response;
+		OnFail.Broadcast(result, response);
+
+		Shutdown();
+		return;
+	}
+
+	if (NewState == EGrpcServiceState::Ready)
+	{
+		GameServiceClient = GameService->MakeClient();
+		GameServiceClient->OnContextStateChange.AddUniqueDynamic(this, &UCallGameServiceLearnSkill::OnContextStateChange);
+		GameServiceClient->OnLearnSkillResponse.AddUniqueDynamic(this, &UCallGameServiceLearnSkill::OnResponse);
+
+		Context = GameServiceClient->InitLearnSkill();
+		GameServiceClient->LearnSkill(Context, Request, MetaData, DeadLineSeconds);
+	}
+}
+
+void UCallGameServiceLearnSkill::OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State)
+{
+	if (State == EGrpcContextState::Done)
+	{
+		Shutdown();
+	}
+}
+
+void UCallGameServiceLearnSkill::OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1LearnSkillResponse& Response)
+{
+	if (GrpcResult.Code == EGrpcResultCode::Ok)
+	{
+		OnLearnSkillResponse.Broadcast(GrpcResult, Response);
+	}
+	else
+	{
+		OnFail.Broadcast(GrpcResult, Response);
+	}
+}
+
+void UCallGameServiceLearnSkill::Shutdown()
+{
+	GameService->OnServiceStateChanged.RemoveDynamic(this, &UCallGameServiceLearnSkill::OnServiceStateChanged);
+	if (GameServiceClient != nullptr)
+	{
+		GameService->RemoveClient(GameServiceClient);
+		GameServiceClient->Shutdown();
+		GameServiceClient = nullptr;
+	}
+
+	if (GameService != nullptr)
+	{
+		UTurboLinkGrpcUtilities::GetTurboLinkGrpcManager(this)->ReleaseService(GameService);
+		GameService = nullptr;
+	}
+
+	SetReadyToDestroy();
+#if ENGINE_MAJOR_VERSION>=5
+	MarkAsGarbage();
+#else
+	MarkPendingKill();
+#endif
+}
+
+UCallGameServiceGetSkillCatalog* UCallGameServiceGetSkillCatalog::GetSkillCatalog(UObject* WorldContextObject, const FGrpcNightfallV1GetSkillCatalogRequest& request, FGrpcMetaData metaData, float deadLineSeconds)
+{
+	UCallGameServiceGetSkillCatalog* node = NewObject<UCallGameServiceGetSkillCatalog>(WorldContextObject);
+	UTurboLinkGrpcManager* turboLinkManager = UTurboLinkGrpcUtilities::GetTurboLinkGrpcManager(WorldContextObject);
+
+	node->GameService = Cast<UGameService>(turboLinkManager->MakeService("GameService"));
+	if (node->GameService == nullptr)
+	{
+		return nullptr;
+	}
+	node->ServiceState = EGrpcServiceState::Idle;
+	node->Request = request;
+	node->MetaData = metaData;
+	node->DeadLineSeconds = deadLineSeconds;
+
+	node->GameService->OnServiceStateChanged.AddUniqueDynamic(node, &UCallGameServiceGetSkillCatalog::OnServiceStateChanged);
+	return node;
+}
+
+void UCallGameServiceGetSkillCatalog::Activate()
+{
+	GameService->Connect();
+}
+
+void UCallGameServiceGetSkillCatalog::OnServiceStateChanged(EGrpcServiceState NewState)
+{
+	if (ServiceState == NewState) return;
+	ServiceState = NewState;
+
+	if (NewState == EGrpcServiceState::TransientFailure)
+	{
+		FGrpcResult result;
+		result.Code = EGrpcResultCode::ConnectionFailed;
+
+		FGrpcNightfallV1GetSkillCatalogResponse response;
+		OnFail.Broadcast(result, response);
+
+		Shutdown();
+		return;
+	}
+
+	if (NewState == EGrpcServiceState::Ready)
+	{
+		GameServiceClient = GameService->MakeClient();
+		GameServiceClient->OnContextStateChange.AddUniqueDynamic(this, &UCallGameServiceGetSkillCatalog::OnContextStateChange);
+		GameServiceClient->OnGetSkillCatalogResponse.AddUniqueDynamic(this, &UCallGameServiceGetSkillCatalog::OnResponse);
+
+		Context = GameServiceClient->InitGetSkillCatalog();
+		GameServiceClient->GetSkillCatalog(Context, Request, MetaData, DeadLineSeconds);
+	}
+}
+
+void UCallGameServiceGetSkillCatalog::OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State)
+{
+	if (State == EGrpcContextState::Done)
+	{
+		Shutdown();
+	}
+}
+
+void UCallGameServiceGetSkillCatalog::OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse& Response)
+{
+	if (GrpcResult.Code == EGrpcResultCode::Ok)
+	{
+		OnGetSkillCatalogResponse.Broadcast(GrpcResult, Response);
+	}
+	else
+	{
+		OnFail.Broadcast(GrpcResult, Response);
+	}
+}
+
+void UCallGameServiceGetSkillCatalog::Shutdown()
+{
+	GameService->OnServiceStateChanged.RemoveDynamic(this, &UCallGameServiceGetSkillCatalog::OnServiceStateChanged);
+	if (GameServiceClient != nullptr)
+	{
+		GameService->RemoveClient(GameServiceClient);
+		GameServiceClient->Shutdown();
+		GameServiceClient = nullptr;
+	}
+
+	if (GameService != nullptr)
+	{
+		UTurboLinkGrpcUtilities::GetTurboLinkGrpcManager(this)->ReleaseService(GameService);
+		GameService = nullptr;
+	}
+
+	SetReadyToDestroy();
+#if ENGINE_MAJOR_VERSION>=5
+	MarkAsGarbage();
+#else
+	MarkPendingKill();
+#endif
+}

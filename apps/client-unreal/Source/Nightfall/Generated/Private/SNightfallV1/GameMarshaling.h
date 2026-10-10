@@ -76,6 +76,33 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ChangeClassRequest* in, ::nightfall
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ChangeClassResponse* in, FGrpcNightfallV1ChangeClassResponse* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ChangeClassResponse* in, ::nightfall::v1::ChangeClassResponse* out);
 
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ListLearnableSkillsRequest* in, FGrpcNightfallV1ListLearnableSkillsRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ListLearnableSkillsRequest* in, ::nightfall::v1::ListLearnableSkillsRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::LearnableSkill* in, FGrpcNightfallV1LearnableSkill* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1LearnableSkill* in, ::nightfall::v1::LearnableSkill* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ListLearnableSkillsResponse* in, FGrpcNightfallV1ListLearnableSkillsResponse* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ListLearnableSkillsResponse* in, ::nightfall::v1::ListLearnableSkillsResponse* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::LearnSkillRequest* in, FGrpcNightfallV1LearnSkillRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1LearnSkillRequest* in, ::nightfall::v1::LearnSkillRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::LearnSkillResponse* in, FGrpcNightfallV1LearnSkillResponse* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1LearnSkillResponse* in, ::nightfall::v1::LearnSkillResponse* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::GetSkillCatalogRequest* in, FGrpcNightfallV1GetSkillCatalogRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1GetSkillCatalogRequest* in, ::nightfall::v1::GetSkillCatalogRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCatalogEntry* in, FGrpcNightfallV1SkillCatalogEntry* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCatalogEntry* in, ::nightfall::v1::SkillCatalogEntry* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::GetSkillCatalogResponse* in, FGrpcNightfallV1GetSkillCatalogResponse* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1GetSkillCatalogResponse* in, ::nightfall::v1::GetSkillCatalogResponse* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::EffectiveStats* in, FGrpcNightfallV1EffectiveStats* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EffectiveStats* in, ::nightfall::v1::EffectiveStats* out);
+
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::PingResponse> GameService_Ping_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::Character> GameService_GetCharacter_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::Character> GameService_CreateCharacter_ReaderWriter;
@@ -83,3 +110,6 @@ typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListMyCharactersRespons
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListClassesResponse> GameService_ListClasses_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::TransferOptionsResponse> GameService_TransferOptions_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ChangeClassResponse> GameService_ChangeClass_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListLearnableSkillsResponse> GameService_ListLearnableSkills_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::LearnSkillResponse> GameService_LearnSkill_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetSkillCatalogResponse> GameService_GetSkillCatalog_ReaderWriter;
