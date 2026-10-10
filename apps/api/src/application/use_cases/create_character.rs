@@ -91,17 +91,27 @@ impl CreateCharacter {
         character.stats = class.base_stats;
         character.appearance = input.appearance;
         character.class_state = ClassState::new(class_id);
-        character.class_state.merge_learned_skills(
-            auto_get_metadata(&self.classes, class_id, 1).map_err(anyhow::Error::from)?,
-        );
         character
             .class_state
-            .merge_learned_skills(race.passive_skill_keys.iter().map(|key| {
-                crate::domain::subclass::LearnedSkill {
-                    key: key.clone(),
-                    level: 1,
-                }
-            }));
+            .merge_learned_skills_checked(
+                &self.classes,
+                input.race,
+                auto_get_metadata(&self.classes, class_id, 1).map_err(anyhow::Error::from)?,
+            )
+            .map_err(anyhow::Error::from)?;
+        character
+            .class_state
+            .merge_learned_skills_checked(
+                &self.classes,
+                input.race,
+                race.passive_skill_keys
+                    .iter()
+                    .map(|key| crate::domain::subclass::LearnedSkill {
+                        key: key.clone(),
+                        level: 1,
+                    }),
+            )
+            .map_err(anyhow::Error::from)?;
         // The current production fixture starts at origin for every race (Phase 0b contract).
         // Reference village points are metadata for future world content.
         character.position = crate::domain::Position::default();

@@ -220,6 +220,7 @@ impl ClassState {
         {
             return Err(ClassStateError::Lineage);
         }
+        self.validate_learned_metadata(registry, identity.race)?;
         let mut parent = self.base_class_id;
         for (ordinal, receipt) in self.successful_transfer_receipts.iter().enumerate() {
             let target = registry
@@ -255,6 +256,63 @@ impl ClassState {
             return Err(ClassStateError::ReceiptHistory);
         }
         Ok(())
+    }
+
+    fn validate_learned_metadata(
+        &self,
+        registry: &super::class::ClassRegistry,
+        race: Race,
+    ) -> Result<(), ClassStateError> {
+        let mut allowed = std::collections::BTreeSet::new();
+        for row in registry
+            .skill_tree(self.current_class_id)
+            .map_err(|_| ClassStateError::Lineage)?
+        {
+            if row.auto_get && row.required_level <= 85 {
+                let known = registry
+                    .known_skill(row.skill_id)
+                    .ok_or(ClassStateError::LearnedSkills)?;
+                if known.key != row.key || row.skill_level > known.max_level {
+                    return Err(ClassStateError::LearnedSkills);
+                }
+                allowed.insert((row.key.as_str(), row.skill_level));
+            }
+        }
+        for key in &registry
+            .race(race)
+            .ok_or(ClassStateError::Identity)?
+            .passive_skill_keys
+        {
+            allowed.insert((key.as_str(), 1));
+        }
+        if self
+            .learned_skills
+            .iter()
+            .any(|skill| !allowed.contains(&(skill.key.as_str(), skill.level)))
+        {
+            return Err(ClassStateError::LearnedSkills);
+        }
+        Ok(())
+    }
+
+    /// Validates incoming free-learning metadata before atomically merging it. Attainable
+    /// inherited levels remain valid after deleveling; foreign lineages and racial keys fail.
+    pub fn merge_learned_skills_checked(
+        &mut self,
+        registry: &super::class::ClassRegistry,
+        race: Race,
+        skills: impl IntoIterator<Item = LearnedSkill>,
+    ) -> Result<Vec<String>, ClassStateError> {
+        let incoming: Vec<_> = skills.into_iter().collect();
+        let mut probe = self.clone();
+        probe.learned_skills = incoming.clone();
+        probe.validate_learned_metadata(registry, race)?;
+        let mut candidate = self.clone();
+        let granted = candidate.merge_learned_skills(incoming);
+        candidate.validate()?;
+        candidate.validate_learned_metadata(registry, race)?;
+        *self = candidate;
+        Ok(granted)
     }
 
     /// Merges validated metadata by stable key, retaining highest levels and returning only
@@ -511,6 +569,65 @@ mod tests {
         assert_eq!(state.sp, 500);
         state.validate().unwrap();
     }
+    #[test]
+    fn learned_metadata_rejects_forgery_but_retains_attainable_deleveled_skills() {
+        let registry = crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap()
+        .registry;
+        let result = receipt(1, 1).result;
+        let mut state = ClassState::new(ClassId(0));
+        let allowed = auto_get_metadata(&registry, ClassId(0), 85).unwrap();
+        state
+            .merge_learned_skills_checked(&registry, Race::Human, allowed.clone())
+            .unwrap();
+        state
+            .validate_for(&registry, &result.identity, result.character_id)
+            .unwrap();
+        let foreign = auto_get_metadata(&registry, ClassId(10), 85)
+            .unwrap()
+            .into_iter()
+            .find(|s| !allowed.iter().any(|a| a == s))
+            .unwrap();
+        let wrong_race = registry.race(Race::Elf).unwrap().passive_skill_keys[0].clone();
+        let known = &registry.known_skills()[0];
+        for skill in [
+            LearnedSkill {
+                key: "garbage".into(),
+                level: 1,
+            },
+            LearnedSkill {
+                key: "l2.skill.999999".into(),
+                level: 1,
+            },
+            LearnedSkill {
+                key: known.key.clone(),
+                level: known.max_level + 1,
+            },
+            LearnedSkill {
+                key: wrong_race,
+                level: 1,
+            },
+            foreign,
+        ] {
+            let previous = state.clone();
+            assert_eq!(
+                state.merge_learned_skills_checked(&registry, Race::Human, [skill.clone()]),
+                Err(ClassStateError::LearnedSkills)
+            );
+            assert_eq!(state, previous);
+            let mut forged = previous;
+            forged.merge_learned_skills([skill]);
+            let decoded: ClassState =
+                serde_json::from_value(serde_json::to_value(forged).unwrap()).unwrap();
+            assert_eq!(
+                decoded.validate_for(&registry, &result.identity, result.character_id),
+                Err(ClassStateError::LearnedSkills)
+            );
+        }
+    }
+
     #[test]
     fn entire_local_ledger_is_validated_during_deserialization() {
         for mask in 0..=255 {
