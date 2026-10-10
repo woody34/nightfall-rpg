@@ -174,13 +174,20 @@ pub struct GateError(pub String);
 ///
 /// The actor awaits `admit` with the finished record before broadcasting it or drafting the
 /// next tick. `Ok` releases it; `Err` holds it: nothing is broadcast, the zone does not move on,
-/// and the same record is offered again on the next beat. `DurableTickGate`
+/// and the same record is offered again on the next beat, unless `terminal_failure` fences
+/// the actor permanently. `DurableTickGate`
 /// (`application::replay_log`) implements this as the acknowledged `JetStream` append of the
 /// tick's record, so the log is always ahead of anything observable. A durable gate may also
 /// wait (retrying) inside `admit`; the actor simply stalls. The tick budget is 100 ms.
 pub trait TickGate: Send + Sync + 'static {
     /// Whether admission proves an acknowledged replay-log append.
     fn durable(&self) -> bool {
+        false
+    }
+
+    /// A permanent record invariant failed. The actor must stop without publishing the
+    /// speculative state or a recovery snapshot; retrying the same record cannot help.
+    fn terminal_failure(&self) -> bool {
         false
     }
 
@@ -612,7 +619,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         }
         if let Err(e) = self.gate.admit(&record).await {
             self.gate_holds = self.gate_holds.saturating_add(1);
-            tracing::warn!(tick = tick.0, error = %e, "tick held by gate");
+            if self.gate.terminal_failure() {
+                tracing::error!(tick = tick.0, error = %e, "terminal record failure fences zone before output release");
+                self.failed = true;
+                self.fail_replies();
+            } else {
+                tracing::warn!(tick = tick.0, error = %e, "tick held by gate");
+            }
             self.unrecorded = Some(record);
             self.publish_stats(tick, started, 0);
             return TickOutcome::Held(tick);
