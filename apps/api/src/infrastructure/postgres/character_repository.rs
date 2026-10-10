@@ -162,6 +162,7 @@ fn character_active_model(c: &Character) -> anyhow::Result<characters::ActiveMod
         milestone_claimed_mask: set(i16::from(c.class_state.milestone_claimed_mask)),
         alive: ActiveValue::NotSet,
         revision: ActiveValue::NotSet,
+        ..Default::default()
     })
 }
 

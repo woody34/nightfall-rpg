@@ -97,6 +97,46 @@ fn default_additions_preserve_legacy_bytes() -> Result<(), prost::DecodeError> {
     let stats = pb::StatsChanged::decode(legacy_stats.as_slice())?;
     assert!(!stats.baseline);
     assert_eq!(stats.encode_to_vec(), legacy_stats);
+    let legacy_selection = [10, 1, b'p', 18, 1, b't'];
+    let selection = pb::TargetChanged::decode(legacy_selection.as_slice())?;
+    assert_eq!(selection.tick, 0);
+    assert_eq!(selection.encode_to_vec(), legacy_selection);
+    Ok(())
+}
+
+#[test]
+fn selection_tick_distinguishes_hydration_stale_delta_and_later_selection(
+) -> Result<(), prost::DecodeError> {
+    // A consumer oracle for the shared baseline protocol, exercised AFTER wire decoding.
+    // Client owner must apply these vectors to the actual client projection on integration.
+    let identity_baseline = 100;
+    let mut selected = String::new();
+    for (tick, baseline, target, accepted) in [
+        (100, true, "hydrated", true),
+        (99, false, "stale", false),
+        (100, false, "same-tick-stale", false),
+        (101, false, "later", true),
+    ] {
+        let selection = pb::TargetChanged {
+            entity: "owner".into(),
+            target: target.into(),
+            tick,
+            baseline,
+            baseline_tick: if baseline { identity_baseline } else { 0 },
+            ..Default::default()
+        };
+        let selection = pb::TargetChanged::decode(selection.encode_to_vec().as_slice())?;
+        let accepts = if selection.baseline {
+            selection.tick == identity_baseline && selection.baseline_tick == identity_baseline
+        } else {
+            selection.tick > identity_baseline
+        };
+        assert_eq!(accepts, accepted);
+        if accepts {
+            selected = selection.target;
+        }
+        assert_eq!(selected, if tick == 101 { "later" } else { "hydrated" });
+    }
     Ok(())
 }
 

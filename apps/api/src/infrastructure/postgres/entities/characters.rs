@@ -47,12 +47,30 @@ pub struct Model {
     pub token_tier_1_count: i32,
     pub token_tier_2_count: i32,
     pub milestone_claimed_mask: i16,
+    pub phase3_timer_policy_version: Option<i32>,
+    pub karma: i64,
+    pub pk_count: i64,
+    pub pvp_count: i64,
+    pub flag_remaining_ticks: i64,
+    pub death_penalty_level: i16,
+    pub recoverable_death_xp_loss: i64,
+    pub death_incarnation: Option<i64>,
+    pub pre_death_xp: Option<i64>,
+    pub hp_fraction_q: i64,
+    pub mp_fraction_q: i64,
+    pub cp_fraction_q: i64,
+    #[sea_orm(column_type = "JsonBinary")]
+    pub modifier_install_order: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(has_many = "super::character_class_slots::Entity")]
     CharacterClassSlots,
+    #[sea_orm(has_many = "super::character_effects::Entity")]
+    CharacterEffects,
+    #[sea_orm(has_many = "super::character_skill_reuse::Entity")]
+    CharacterSkillReuse,
     #[sea_orm(has_many = "super::character_transfer_receipts::Entity")]
     CharacterTransferReceipts,
     #[sea_orm(has_many = "super::play_tickets::Entity")]
@@ -62,6 +80,18 @@ pub enum Relation {
 impl Related<super::character_class_slots::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::CharacterClassSlots.def()
+    }
+}
+
+impl Related<super::character_effects::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CharacterEffects.def()
+    }
+}
+
+impl Related<super::character_skill_reuse::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CharacterSkillReuse.def()
     }
 }
 
