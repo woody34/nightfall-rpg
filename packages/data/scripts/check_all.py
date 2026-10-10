@@ -23,6 +23,7 @@ def main() -> int:
         ("gen_skills.py", sources[:2]),
         ("skill_oracle.py", []),
         ("skill_oracle.py", ["--class-phase3"]),
+        ("starter_weapon_oracle.py", []),
         ("oracle.py", []),
     ]
     failures = []

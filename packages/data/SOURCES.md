@@ -526,3 +526,67 @@ missing levels/regen, source revision/dirty-input rejection, asymmetric rings
 (to catch accidental correction of the source's duplicated RFINGER), orphan
 and stale-file detection, NPC prefix preservation, getter conversions, requested
 oracle coverage, exact expectations and fractional carry.
+
+## Phase 3 equipped starter weapon and remaining caps
+
+`gen_class_phase3.py` also produces `tables-phase3/starter_weapon.toml` and
+`tables-phase3/constants.toml`. These are separate V5 inputs: include their complete
+contents in the Phase3Rules hash, never the legacy StatRules hash. The separate
+folder deliberately avoids `oracle.py`'s historical `tables/*.toml` scan;
+`tables/starter_weapon.toml`, all prior fixtures and their input hashes stay exact.
+The generator admits the pinned weapon XML as a clean source input, validates TOML
+before writing, and `--check` detects drift and orphan files in both Phase 3 folders.
+Use the same `gen_class_phase3.py --datapack ... --game ... [--check]` command above.
+
+The pinned datapack `src/main/resources/data/stats/items/02300-02399.xml:844-867`
+identifies Squire's Sword **2369**. Its type **SWORD** (`:847`) supports the equipped
+`using kind` condition; bodypart **rhand** (`:848`), random damage **10** (`:849`)
+and attack range **40 L2 units** (`:850`) are preserved. `[[functions]]` carries
+all four source SET Funcs in XML order: **pAtk 6** (`:862`), **mAtk 5** (`:863`),
+**critRate 8** (`:864`), **pAtkSpd 379** (`:865`). Each entry contains operation,
+resolved priority, XML ordinal, exact decimal string, Q value and file:line provenance.
+There are no extra weapon stat Funcs in that `for` block (`:861-866`).
+
+Weapon SET does **not add to the class M.Atk base**. The pinned game
+`engines/DocumentBase.java:230-247` supplies missing order as -1;
+`model/stats/functions/FuncTemplate.java:48-54` resolves it to the enum default;
+`enums/StatFunction.java:30` declares SET priority **0**. Then
+`model/stats/functions/FuncSet.java:36-40` returns the weapon value, replacing the
+getter's template initial value (`model/actor/stat/CharStat.java:237-246`).
+`model/stats/Calculator.java:110-127,183-188` folds in ascending priority, with
+insertion order for equal priorities. `FuncMAtkMod.java:37-46` runs at priority
+**1** and multiplies that replaced value by INT bonus squared and level modifier
+squared. `model/actor/L2Character.java:5007-5008` defines the level modifier.
+The new profile's `[ordering]` records the full pinned repository/revision/file/line
+provenance for these semantics.
+
+The separate `[constants]` entries preserve **MaxMCritRate 200**, **MaxRunSpeed
+250**, **RunSpeedBoost 0**, from the pinned game
+`src/main/resources/config/character.properties:260,252,31` respectively. Each
+entry carries integer value, original literal, file, line and symbol; the top-level
+source carries the pinned repository and revision. Existing `tables/formulas.toml`
+and its legacy hash remain unchanged.
+
+`starter_weapon_oracle.py` generates
+`fixtures/skill-oracle-starter-weapon-phase3.json`: **24 FuncMAtkMod vectors**,
+covering the same six reference classes at levels **1/20/40/85** as the unarmed
+class-profile fixture. Each vector records template initial value, order-0 weapon
+replacement, priority-1 result, unarmed result and an incorrect-addition comparator.
+The six class XML `staticData/baseMAtk` values are **6**, with each profile/vector
+citing its source file; the equipped base is **5** (`stats/items/02300-02399.xml:863`).
+Expectations use independent Fraction arithmetic: `5 * INT_bonus^2 * levelMod^2`,
+then floor once to Q; whole-number floor is display evidence only. This is exact
+rational evidence and the existing Q adaptation, not a Java binary64 equivalence
+claim. Input SHA-256s include the new weapon table, six profiles, stat-bonus table
+and oracle script; a separate canonical vector-set SHA-256 covers the expectations.
+
+```sh
+python3 -B packages/data/scripts/starter_weapon_oracle.py
+python3 -B packages/data/scripts/starter_weapon_oracle.py --check
+```
+
+`check_all.py` now runs this independent oracle check as well as the existing
+checks. `test_starter_weapon_phase3.py` audits all weapon functions against XML,
+SET defaults/semantics against Java, cap literals against exact config lines,
+missing/unsupported/invalid weapon functions, full requested coverage,
+replacement-versus-addition arithmetic and historical table/manifest preservation.
