@@ -41,6 +41,7 @@ removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"DUALFIST\" /></cond>", "<cond msgId=\"324\"><not><player Charges=\"#focusEnergyCharge\" /></not></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", effectPoint = "150", hitCancelTime = "500", hitTime = "900", hpConsume = "20", icon = "icon.skill0050", magicLvl = ["24", "32", "40", "52", "60", "66", "72", "79"], mpConsume2 = "5", operateType = "A1", rideState = "NONE", targetType = "SELF" }
+condition_tables = { "#focusEnergyCharge" = ["1", "2", "3", "4", "5", "6", "7", "8"] }
 
 [[conditions]]
 kind = "using_kind"

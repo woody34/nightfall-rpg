@@ -31,7 +31,7 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
-blockers = ["stat:vengeanceMdam"]
+blockers = ["cond:using_kind:SHIELD", "stat:vengeanceMdam"]
 stay_after_death = false
 stay_on_subclass_change = true
 irreplaceable_buff = false
@@ -44,8 +44,9 @@ abnormal = { type = "REFLECT_MAGIC_DD", level = [1, 1, 1, 1], time_s = [8, 8, 8,
 source_sets = { abnormalLvl = "1", abnormalTime = "8", abnormalType = "REFLECT_MAGIC_DD", affectScope = "SINGLE", effectPoint = "204", hitCancelTime = "500", hitTime = "500", icon = "icon.skill0916", magicLvl = ["60", "64", "68", "72"], mpConsume2 = ["28", "29", "29", "29"], operateType = "A2", reuseDelay = "45000", rideState = "NONE", targetType = "SELF" }
 
 [[conditions]]
-kind = "using_kind"
-weapon_kinds = ["SHIELD"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "SHIELD" }
 
 [[effects]]
 section = "effects"

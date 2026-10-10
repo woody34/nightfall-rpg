@@ -471,6 +471,17 @@ def gen_formulas(game: Repo, max_level: int) -> str:
         out += "literal = [\n" + "".join(f"    {toml_str(ln)},\n" for ln in lines) + "]\n"
         out += "".join(f"{k} = {v}\n" for k, v in consts)
 
+    # C5 runtime clamps, read from the pinned configuration with exact line provenance.
+    out += "\n[constants]\n"
+    for key in ("MinAbnormalStateSuccessRate", "MaxAbnormalStateSuccessRate",
+                "MaxMAtkSpeed", "MaxPAtkSpeed", "MaxEvasion"):
+        value = property_value(game, key)
+        literal = next(ln.strip() for ln in game.text(CONFIG).splitlines()
+                       if re.fullmatch(rf"{re.escape(key)}\s*=\s*{re.escape(value)}", ln.strip()))
+        line = next(i for i, ln in enumerate(game.text(CONFIG).splitlines(), 1) if ln.strip() == literal)
+        out += (f"{key} = {{ value = {int(value)}, file = {toml_str(CONFIG)}, "
+                f"line = {line}, symbol = {toml_str(key)}, literal = {toml_str(literal)} }}\n")
+
     # Per-level additions, generated from the literal accuracy/evasion branches above.
     acc_add, eva_add = [], []
     for level in range(1, max_level + 1):
