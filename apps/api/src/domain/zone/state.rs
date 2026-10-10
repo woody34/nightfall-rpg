@@ -351,6 +351,9 @@ pub enum SnapshotError {
 /// A draft that does not continue this zone: replay has diverged or the log has a gap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum TickError {
+    /// A new-policy command cannot enter a historical epoch, even through direct callers.
+    #[error("Phase 3 command in a legacy epoch")]
+    Phase3CommandInLegacy,
     /// The Phase 3 boundary exists, but gameplay installation is not complete.
     #[error("Phase 3 gameplay is not installed")]
     Phase3NotReady,
@@ -816,6 +819,9 @@ impl ZoneState {
         if self.phase3_enabled() {
             self.run_tick_v5(&draft)
         } else {
+            if draft.commands.iter().any(|c| c.command.requires_phase3()) {
+                return Err(TickError::Phase3CommandInLegacy);
+            }
             self.run_tick_legacy(draft)
         }
     }
@@ -941,14 +947,20 @@ impl ZoneState {
     /// Checks that `source` may issue `cmd`. Sessions may only steer or remove their own
     /// entity, and only while their generation is current; everything else is system-only.
     fn authorize(&self, source: CommandSource, cmd: &ZoneCommand) -> Result<(), RejectReason> {
-        if matches!(cmd, ZoneCommand::ChangeClass { .. }) && source == CommandSource::System {
+        if (matches!(cmd, ZoneCommand::ChangeClass { .. }) || cmd.requires_phase3())
+            && source == CommandSource::System
+        {
             return Err(RejectReason::NotPermitted);
         }
         let CommandSource::Session { entity, generation } = source else {
             return Ok(());
         };
         match cmd {
-            ZoneCommand::ChangeClass { entity: target, .. }
+            ZoneCommand::CastSkill { entity: target, .. }
+            | ZoneCommand::CancelCast { entity: target, .. }
+            | ZoneCommand::AcceptResurrect { entity: target, .. }
+            | ZoneCommand::LearnSkill { entity: target, .. }
+            | ZoneCommand::ChangeClass { entity: target, .. }
             | ZoneCommand::MoveTo { entity: target, .. }
             | ZoneCommand::StopMove { entity: target }
             | ZoneCommand::SetTarget { entity: target, .. }
@@ -964,7 +976,11 @@ impl ZoneState {
                     Some(_) | None => Ok(()),
                 }
             },
-            ZoneCommand::ChangeClass { .. }
+            ZoneCommand::CastSkill { .. }
+            | ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::LearnSkill { .. }
+            | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::MoveTo { .. }
             | ZoneCommand::StopMove { .. }
             | ZoneCommand::SetTarget { .. }
@@ -985,6 +1001,12 @@ impl ZoneState {
         self.authorize(c.source, &c.command)?;
         self.refuse_dead_actor(c.source, &c.command)?;
         match &c.command {
+            // Only the V5 dispatcher may execute these; legacy run_tick rejects the entire
+            // draft before mutation. Keep this dispatcher exhaustive while rollout is fenced.
+            ZoneCommand::CastSkill { .. }
+            | ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::LearnSkill { .. } => Err(RejectReason::NotYetImplemented),
             ZoneCommand::ChangeClass {
                 entity,
                 account,
@@ -1119,7 +1141,9 @@ impl ZoneState {
             return Ok(());
         }
         match cmd {
-            ZoneCommand::MoveTo { entity, .. }
+            ZoneCommand::CastSkill { entity, .. }
+            | ZoneCommand::LearnSkill { entity, .. }
+            | ZoneCommand::MoveTo { entity, .. }
             | ZoneCommand::StopMove { entity }
             | ZoneCommand::SetTarget { entity, .. }
             | ZoneCommand::Attack { entity }
@@ -1130,7 +1154,9 @@ impl ZoneState {
                     Ok(())
                 }
             },
-            ZoneCommand::ChangeClass { .. }
+            ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::Respawn { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::SpawnPlayer { .. }

@@ -85,6 +85,10 @@ pub use sizing::{
     AdmissionSizingError, CommandAdmissionSize,
 };
 
+#[path = "codec_phase3.rs"]
+mod phase3;
+use phase3::{PbAcceptResurrect, PbCancelCast, PbCastSkill, PbLearnSkill};
+
 use bytes::Bytes;
 use prost::Message;
 use uuid::Uuid;
@@ -151,13 +155,21 @@ struct PbCommand {
     seq: Option<u32>,
     #[prost(
         oneof = "PbCommandKind",
-        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15"
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19"
     )]
     kind: Option<PbCommandKind>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbCommandKind {
+    #[prost(message, tag = "16")]
+    CastSkill(PbCastSkill),
+    #[prost(message, tag = "17")]
+    CancelCast(PbCancelCast),
+    #[prost(message, tag = "18")]
+    AcceptResurrect(PbAcceptResurrect),
+    #[prost(message, tag = "19")]
+    LearnSkill(PbLearnSkill),
     #[prost(bytes, tag = "15")]
     ChangeClass(Vec<u8>),
     #[prost(message, tag = "4")]
@@ -687,6 +699,41 @@ struct PbSetTarget {
 
 fn command_to_pb(c: &AppliedCommand) -> PbCommand {
     let kind = match &c.command {
+        ZoneCommand::CastSkill {
+            entity,
+            skill_id,
+            target,
+        } => PbCommandKind::CastSkill(PbCastSkill {
+            entity: entity_bytes(*entity),
+            skill_id: skill_id.0,
+            target: target.map(entity_bytes),
+        }),
+        ZoneCommand::CancelCast { entity, cast_id } => PbCommandKind::CancelCast(PbCancelCast {
+            entity: entity_bytes(*entity),
+            cast_id: cast_id.map(|id| id.0),
+        }),
+        ZoneCommand::AcceptResurrect {
+            entity,
+            offer_id,
+            accept,
+        } => PbCommandKind::AcceptResurrect(PbAcceptResurrect {
+            entity: entity_bytes(*entity),
+            offer_id: offer_id.0,
+            accept: *accept,
+        }),
+        ZoneCommand::LearnSkill {
+            entity,
+            account,
+            request_key,
+            skill_id,
+            skill_level,
+        } => PbCommandKind::LearnSkill(PbLearnSkill {
+            entity: entity_bytes(*entity),
+            account: account.as_uuid().as_bytes().to_vec(),
+            request_key: request_key.as_bytes().to_vec(),
+            skill_id: skill_id.0,
+            skill_level: *skill_level,
+        }),
         ZoneCommand::ChangeClass { .. } => PbCommandKind::ChangeClass(canonical_json(&c.command)),
         ZoneCommand::SpawnPlayer {
             entity,
@@ -1455,6 +1502,10 @@ fn source_from(s: Option<PbSession>) -> Result<CommandSource, CodecError> {
 fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
     let command = match c.kind {
         None => return Err(CodecError("command without a kind".to_owned())),
+        Some(PbCommandKind::CastSkill(value)) => value.into_command()?,
+        Some(PbCommandKind::CancelCast(value)) => value.into_command()?,
+        Some(PbCommandKind::AcceptResurrect(value)) => value.into_command()?,
+        Some(PbCommandKind::LearnSkill(value)) => value.into_command()?,
         Some(PbCommandKind::ChangeClass(bytes)) => {
             let command: ZoneCommand = serde_json::from_slice(&bytes).map_err(err)?;
             if !matches!(command, ZoneCommand::ChangeClass { .. }) {

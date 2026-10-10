@@ -86,6 +86,44 @@ impl ZoneInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ZoneCommand {
+    /// Stage a skill start; learned rank and selected target are resolved by the zone.
+    CastSkill {
+        /// Authenticated session-owned caster.
+        entity: EntityId,
+        /// Skill identity, never client-supplied power or rank.
+        skill_id: super::skill::SkillId,
+        /// Explicit target; absent captures selection at this command ordinal.
+        target: Option<EntityId>,
+    },
+    /// Cancel a live or staged cast without refunding paid costs or reuse.
+    CancelCast {
+        /// Session-owned caster.
+        entity: EntityId,
+        /// Optional identity guard; a stale cancellation cannot stop a newer cast.
+        cast_id: Option<super::CastId>,
+    },
+    /// Accept or decline the current offer for this death incarnation.
+    AcceptResurrect {
+        /// Session-owned dead player.
+        entity: EntityId,
+        /// Exact offer identity.
+        offer_id: super::OfferId,
+        /// False declines; true stages acceptance for the new-intent phase.
+        accept: bool,
+    },
+    /// Authenticated exact-rank purchase. Receipt/reply handles stay outside simulation.
+    LearnSkill {
+        /// Session-owned player.
+        entity: EntityId,
+        /// Verified account, checked against immutable player identity.
+        account: crate::domain::AccountId,
+        /// Account/operation-scoped idempotency key.
+        request_key: uuid::Uuid,
+        /// Requested skill identity.
+        skill_id: super::skill::SkillId,
+        /// Exact purchased rank, never inferred as the next rank on a retry.
+        skill_level: u32,
+    },
     /// Authenticated class transition. Transport reply handles never enter this command.
     ChangeClass {
         /// Character entity, also present in the session source.
@@ -185,12 +223,28 @@ pub enum ZoneCommand {
 }
 
 impl ZoneCommand {
+    /// Commands whose meaning exists only in a snapshot9 / record7 epoch.
+    #[must_use]
+    pub const fn requires_phase3(&self) -> bool {
+        matches!(
+            self,
+            Self::CastSkill { .. }
+                | Self::CancelCast { .. }
+                | Self::AcceptResurrect { .. }
+                | Self::LearnSkill { .. }
+        )
+    }
+
     /// The entity the command is about. `None` for `SpawnNpc`, whose id is not known until the
     /// zone applies it.
     #[must_use]
     pub const fn entity(&self) -> Option<EntityId> {
         match self {
-            Self::ChangeClass { entity, .. }
+            Self::CastSkill { entity, .. }
+            | Self::CancelCast { entity, .. }
+            | Self::AcceptResurrect { entity, .. }
+            | Self::LearnSkill { entity, .. }
+            | Self::ChangeClass { entity, .. }
             | Self::SpawnPlayer { entity, .. }
             | Self::Despawn { entity }
             | Self::ReplaceSession { entity, .. }

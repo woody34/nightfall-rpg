@@ -988,3 +988,41 @@ fn snapshots_without_a_digest_version_keep_json_across_restores() {
         assert_eq!(state.state_digest(), state.json_state_digest());
     }
 }
+
+#[test]
+fn phase3_inputs_cannot_partially_mutate_any_legacy_draft() {
+    use crate::domain::zone::{skill::SkillId, CastId, OfferId};
+    let entity = id(1);
+    for command in [
+        ZoneCommand::CastSkill {
+            entity,
+            skill_id: SkillId(3),
+            target: None,
+        },
+        ZoneCommand::CancelCast {
+            entity,
+            cast_id: Some(CastId(1)),
+        },
+        ZoneCommand::AcceptResurrect {
+            entity,
+            offer_id: OfferId(1),
+            accept: true,
+        },
+        ZoneCommand::LearnSkill {
+            entity,
+            account: crate::domain::AccountId::from_uuid(Uuid::from_u128(1)),
+            request_key: Uuid::from_u128(2),
+            skill_id: SkillId(3),
+            skill_level: 1,
+        },
+    ] {
+        let mut zone = zone();
+        let before = zone.snapshot();
+        let draft = zone.draft(vec![
+            spawn_player(1, 20, 20),
+            ZoneInput::session(entity, GEN1, 1, command),
+        ]);
+        assert_eq!(zone.run_tick(draft), Err(TickError::Phase3CommandInLegacy));
+        assert_eq!(zone.snapshot(), before);
+    }
+}

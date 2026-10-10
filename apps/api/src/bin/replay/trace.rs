@@ -220,11 +220,17 @@ fn command_details(record: &AppliedTickRecord) -> String {
                 }
                 format!("{command:#?} (private admission load hidden)")
             },
+            ZoneCommand::LearnSkill { entity, skill_id, skill_level, .. } => format!(
+                "LearnSkill actor command: {entity} → skill {} rank {skill_level} (private receipt identity hidden)", skill_id.0
+            ),
             ZoneCommand::ChangeClass { entity, target, .. } => format!(
                 "ChangeClass actor command: {entity} → class {} (gRPC mutation; not a WebSocket intent)",
                 target.0
             ),
-            ZoneCommand::SpawnNpc { .. }
+            ZoneCommand::CastSkill { .. }
+            | ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::ReplaceSession { .. }
             | ZoneCommand::MoveTo { .. }
