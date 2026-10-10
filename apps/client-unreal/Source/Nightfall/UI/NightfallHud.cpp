@@ -4,6 +4,7 @@
 #include "NightfallPlayerController.h"
 #include "Game/LoginFlowSubsystem.h"
 #include "World/RemoteEntityActor.h"
+#include "World/ClassMasterActor.h"
 #include "World/WorldProxySubsystem.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Blueprint/WidgetTree.h"
@@ -265,8 +266,9 @@ void UNightfallHud::UpdateFloatingBars()
 	{
 		const ARemoteEntityActor* Actor = Pair.Value;
 		const FCombatEntity* E = Combat->FindEntity(Pair.Key);
+		const bool bMaster = Cast<AClassMasterActor>(Actor) != nullptr;
 		FVector2D Screen;
-		if (!Actor || !E || !E->bCombatant || E->bDead || E->MaxHp == 0
+		if (!Actor || (!bMaster && (!E || !E->bCombatant || E->bDead || E->MaxHp == 0))
 			|| !ProjectToCanvas(Actor->GetActorLocation() + FVector(0.f, 0.f, BarHeightCm), Screen))
 		{
 			continue;
@@ -279,20 +281,25 @@ void UNightfallHud::UpdateFloatingBars()
 			FFloatingBar New;
 			New.Box = WidgetTree->ConstructWidget<UVerticalBox>();
 			New.Box->SetVisibility(ESlateVisibility::HitTestInvisible);
-			New.Name = MakeText(New.Box, TEXT(""), 11);
-			New.Bar = MakeBar(New.Box, E->Spawn.Kind == 1 ? MpColor : NpcHpColor, 70.f, 8.f);
+			New.Name = MakeText(New.Box, TEXT(""), bMaster ? 16 : 11);
+			New.Name->SetJustification(ETextJustify::Center);
+			New.Bar = MakeBar(New.Box, E && E->Spawn.Kind == 1 ? MpColor : NpcHpColor, 70.f, 8.f);
 			if (UCanvasPanelSlot* Slot = FloatLayer->AddChildToCanvas(New.Box))
 			{
 				Slot->SetAlignment(FVector2D(0.5f, 1.f));
-				Slot->SetSize(FVector2D(80.f, 28.f));
+				Slot->SetSize(FVector2D(bMaster ? 160.f : 80.f, 28.f));
 			}
 			BarBoxes.Add(K, New.Box);
 			Bar = &Bars.Add(K, New);
 		}
 		Bar->Name->SetText(FText::FromString(Actor->GetNameplate()));
-		Bar->Name->SetColorAndOpacity(FSlateColor(Actor->HasTransferCue() ? FLinearColor(1.f, 0.8f, 0.2f) : FLinearColor::White));
-		Bar->Bar->SetPercent(E->MaxHp == 0 ? 0.f : FMath::Clamp(static_cast<float>(E->Hp) / static_cast<float>(E->MaxHp), 0.f, 1.f));
-		Bar->Bar->SetFillColorAndOpacity(E->Spawn.Kind == 1 ? FLinearColor(0.2f, 0.7f, 0.25f) : NpcHpColor);
+		Bar->Name->SetColorAndOpacity(FSlateColor(bMaster || Actor->HasTransferCue() ? FLinearColor(1.f, 0.8f, 0.2f) : FLinearColor::White));
+		Bar->Bar->SetVisibility(bMaster ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+		if (!bMaster)
+		{
+			Bar->Bar->SetPercent(E->MaxHp == 0 ? 0.f : FMath::Clamp(static_cast<float>(E->Hp) / static_cast<float>(E->MaxHp), 0.f, 1.f));
+			Bar->Bar->SetFillColorAndOpacity(E->Spawn.Kind == 1 ? FLinearColor(0.2f, 0.7f, 0.25f) : NpcHpColor);
+		}
 		if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Bar->Box->Slot)) Slot->SetPosition(Screen);
 	}
 	for (auto It = Bars.CreateIterator(); It; ++It)

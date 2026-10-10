@@ -10,6 +10,7 @@
 #include "World/RemoteEntityActor.h"
 #include "UI/NightfallClassDialog.h"
 #include "UnrealClient.h"
+#include "Nightfall.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -122,6 +123,20 @@ namespace
 		return GI ? GI->GetSubsystem<UClassStateSubsystem>() : nullptr;
 	}
 	FAutoConsoleCommandWithWorld OpenDialogCommand(TEXT("nf.OpenClassDialog"), TEXT("Open the actual class master dialog for rendered developer smoke"), FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W) { if (auto* PC = W ? Cast<ANightfallPlayerController>(W->GetFirstPlayerController()) : nullptr) PC->OpenClassDialog(); }));
+	FAutoConsoleCommandWithWorld InventoryCommand(TEXT("nf.ProxyInventory"), TEXT("List authoritative visible entity IDs and their actual native proxy classes"), FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W)
+	{
+		const auto* GI = W ? W->GetGameInstance() : nullptr;
+		const auto* Net = GI ? GI->GetSubsystem<UNetClientSubsystem>() : nullptr;
+		const auto* Proxies = W ? W->GetSubsystem<UWorldProxySubsystem>() : nullptr;
+		if (!Net || !Proxies) return;
+		for (const auto& Pair : Net->GetKnownEntities())
+		{
+			const auto* Proxy = Proxies->GetProxies().Find(Pair.Key);
+			const FString ActorClass = Proxy && *Proxy ? (*Proxy)->GetClass()->GetName() : (Net->IsOwnEntity(Pair.Key) ? TEXT("controlled pawn") : TEXT("none"));
+			const auto& Spawn = Pair.Value;
+			UE_LOG(LogNightfall, Display, TEXT("proxy inventory entity=%s name=%s template=%s kind=%u actor=%s tile=(%.2f,%.2f) combatant=%d attackable=%d"), *Pair.Key, *Spawn.Name, *Spawn.TemplateId, Spawn.Kind, *ActorClass, Spawn.Position.X, Spawn.Position.Y, Spawn.bCombatant, Spawn.bAttackable);
+		}
+	}));
 	FAutoConsoleCommandWithWorldAndArgs PreviewCommand(TEXT("nf.PreviewClass"), TEXT("nf.PreviewClass <id>: select metadata/confirmation in the open real dialog"), FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A, UWorld* W)
 	{
 		auto* PC = W ? Cast<ANightfallPlayerController>(W->GetFirstPlayerController()) : nullptr;

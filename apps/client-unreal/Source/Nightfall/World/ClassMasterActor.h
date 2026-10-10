@@ -12,6 +12,4 @@ class NIGHTFALL_API AClassMasterActor : public ARemoteEntityActor
 public:
 	AClassMasterActor();
 	void Configure(const FString& Name, const FVector2D& Tile);
-private:
-	UPROPERTY() TObjectPtr<class UTextRenderComponent> Label;
 };
