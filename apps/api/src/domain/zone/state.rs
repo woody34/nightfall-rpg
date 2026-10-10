@@ -404,6 +404,7 @@ impl ZoneSnapshot {
                 && self.classes.as_deref().zip(self.phase3.as_ref()).is_some_and(|(classes, phase3)| phase3.rules.validate_catalogue(classes).is_ok())
                 // The M1 boundary cannot restore unvalidated gameplay sidecars.
                 && self.entities.is_empty() && self.spawn_slots.is_empty()
+                && self.phase3.as_ref().is_some_and(|p| p.entities.is_empty())
             },
             (4..=9, _, _) => false,
             (version, _, _) => return Err(SnapshotError::Schema(version)),

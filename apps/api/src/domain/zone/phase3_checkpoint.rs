@@ -66,7 +66,13 @@ pub struct Phase3Checkpoint {
 }
 
 /// Reconstructed modifier identity; sequence keys preserve ordering across source kinds.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum RestoredModifierSource {
     /// Exact learned passive rank.
     Passive(SkillRef),

@@ -8,7 +8,7 @@ use std::path::Path;
 include!("skill_data_embedded.rs");
 #[path = "skill_data_rules.rs"]
 mod rules;
-pub use rules::{load_phase3_rules, Phase3DataSource};
+pub use rules::{load_phase3_rules, Phase3DataSource, ProfileDataSource};
 
 /// Source text in canonical relative-file order.
 #[derive(Debug, Clone, Default)]

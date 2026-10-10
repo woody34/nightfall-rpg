@@ -4,6 +4,9 @@
 use super::{load_skills, SkillDataError, SkillSource};
 use crate::domain::zone::{skill::SkillId, Phase3Rules};
 use std::path::Path;
+#[path = "skill_data_profiles.rs"]
+mod profiles;
+pub use profiles::ProfileDataSource;
 
 /// The immutable Phase 3 source bundle. Replay restores its validated domain form instead
 /// of re-reading these paths or consulting the process's current data installation.
@@ -17,12 +20,15 @@ pub struct Phase3DataSource {
     pub regen: String,
     /// Formula provenance including additive C5 constants.
     pub formulas: String,
+    /// Separate class/NPC magic and base regeneration profiles.
+    pub profiles: ProfileDataSource,
 }
 
 impl Phase3DataSource {
     /// Pinned repository data embedded in the executable, matching the class-data loader.
     pub fn embedded() -> Self {
         Self {
+            profiles: ProfileDataSource::embedded(),
             skills: SkillSource::embedded(),
             pvp: include_str!("../../../../packages/data/tables/pvp.toml").into(),
             regen: include_str!("../../../../packages/data/tables/regen.toml").into(),
@@ -32,6 +38,7 @@ impl Phase3DataSource {
     /// Load one explicit data root. No default filesystem path is consulted.
     pub fn from_dir(root: &Path) -> std::io::Result<Self> {
         Ok(Self {
+            profiles: ProfileDataSource::from_dir(root)?,
             skills: SkillSource::from_dir(root)?,
             pvp: std::fs::read_to_string(root.join("tables/pvp.toml"))?,
             regen: std::fs::read_to_string(root.join("tables/regen.toml"))?,
@@ -59,7 +66,14 @@ pub fn load_phase3_rules(
         .map_err(|error| SkillDataError(vec![format!("tables/regen.toml: {error}")]))?;
     let formulas: FormulaExtension = toml::from_str(&source.formulas)
         .map_err(|error| SkillDataError(vec![format!("tables/formulas.toml: {error}")]))?;
-    Phase3Rules::try_new(skills, pvp, regen, formulas.constants).map_err(SkillDataError)
+    Phase3Rules::try_new(
+        skills,
+        pvp,
+        regen,
+        formulas.constants,
+        profiles::load_profiles(&source.profiles)?,
+    )
+    .map_err(SkillDataError)
 }
 
 #[cfg(test)]

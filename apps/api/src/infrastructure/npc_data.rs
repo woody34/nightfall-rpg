@@ -20,6 +20,26 @@ pub const KELTIR_TOML: &str = include_str!("../../../../packages/data/npcs/kelti
 /// Embedded templates as `(file stem, source)`.
 pub const EMBEDDED_TEMPLATES: [(&str, &str); 1] = [("keltir", KELTIR_TOML)];
 
+/// Keep the generator's additive V5-only suffix out of historical zone configuration
+/// hashes. The complete suffix must decode as ONLY the typed Phase3 table; a comment
+/// marker alone can never hide legacy fields from hashing. Other sources hash verbatim.
+pub(super) fn legacy_hash_source(source: &str) -> &str {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Extension {
+        phase3: crate::domain::zone::skill_profiles::NpcSkillTemplate,
+    }
+    match source.split_once("\n# BEGIN GENERATED PHASE3 TEMPLATE (gen_class_phase3.py)\n") {
+        Some((legacy, suffix))
+            if toml::from_str::<Extension>(suffix)
+                .is_ok_and(|extension| extension.phase3.validate().is_ok()) =>
+        {
+            legacy
+        },
+        _ => source,
+    }
+}
+
 /// An integer or a decimal string exactly representable as Q units (1e-6).
 #[derive(Debug, Clone, Copy)]
 struct QDecimal(i64);
@@ -75,6 +95,8 @@ struct TemplateFile {
     // Phase 3 loads this reward into its separately versioned rules/profile block.
     #[serde(default)]
     sp_reward: u64,
+    #[serde(default)]
+    phase3: Option<crate::domain::zone::skill_profiles::NpcSkillTemplate>,
     aggressive: bool,
     aggro_range: u32,
     #[serde(default)]
@@ -158,6 +180,11 @@ pub fn parse_template(stem: &str, src: &str, errors: &mut Vec<String>) -> Option
     }
     if i64::try_from(f.sp_reward).is_err() {
         err("sp_reward exceeds signed database range");
+    }
+    if let Some(profile) = &f.phase3 {
+        if let Err(error) = profile.validate() {
+            err(&error);
+        }
     }
     if f.p_atk.0 < 0 || f.p_def.0 < 0 {
         err("p_atk and p_def must not be negative");

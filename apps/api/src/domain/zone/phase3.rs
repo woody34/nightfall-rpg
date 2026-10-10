@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Immutable Phase 3 policy, separately hashed from historical stat/class registries.
 /// Construction validates every registry capability and policy table; snapshot decoding
@@ -16,6 +17,7 @@ pub struct Phase3Rules {
     pvp: super::skill_rules::PvpRules,
     regen: super::skill_rules::RegenRules,
     constants: super::skill_rules::Phase3Constants,
+    profiles: super::skill_profiles::SkillProfiles,
     hash: [u8; 32],
 }
 
@@ -27,11 +29,17 @@ impl Phase3Rules {
         pvp: super::skill_rules::PvpRules,
         regen: super::skill_rules::RegenRules,
         constants: super::skill_rules::Phase3Constants,
+        profiles: super::skill_profiles::SkillProfiles,
     ) -> Result<Self, Vec<String>> {
-        let errors: Vec<_> = [pvp.validate(), regen.validate(), constants.validate()]
-            .into_iter()
-            .filter_map(Result::err)
-            .collect();
+        let errors: Vec<_> = [
+            pvp.validate(),
+            regen.validate(),
+            constants.validate(),
+            profiles.validate(),
+        ]
+        .into_iter()
+        .filter_map(Result::err)
+        .collect();
         if !errors.is_empty() {
             return Err(errors);
         }
@@ -45,6 +53,7 @@ impl Phase3Rules {
             &regen,
             666_u32,
             &constants,
+            &profiles,
             50_u64,
             100_u64,
             600_u64,
@@ -59,6 +68,7 @@ impl Phase3Rules {
             pvp,
             regen,
             constants,
+            profiles,
             hash: hash.finalize().into(),
         })
     }
@@ -69,6 +79,7 @@ impl Phase3Rules {
         &self,
         classes: &crate::domain::class::ClassRegistry,
     ) -> Result<(), String> {
+        self.profiles.validate_catalogue(classes)?;
         for known in classes.known_skills() {
             let skill = self
                 .skills
@@ -109,6 +120,10 @@ impl Phase3Rules {
     pub const fn constants(&self) -> &super::skill_rules::Phase3Constants {
         &self.constants
     }
+    /// Source class and NPC magic/regeneration inputs.
+    pub const fn profiles(&self) -> &super::skill_profiles::SkillProfiles {
+        &self.profiles
+    }
     /// Source regeneration periods and multipliers.
     pub const fn regen(&self) -> &super::skill_rules::RegenRules {
         &self.regen
@@ -125,12 +140,18 @@ impl<'de> Deserialize<'de> for Phase3Rules {
             pvp: super::skill_rules::PvpRules,
             regen: super::skill_rules::RegenRules,
             constants: super::skill_rules::Phase3Constants,
+            profiles: super::skill_profiles::SkillProfiles,
             hash: [u8; 32],
         }
         let snapshot = Snapshot::deserialize(deserializer)?;
-        let rules =
-            Self::try_new(snapshot.skills, snapshot.pvp, snapshot.regen, snapshot.constants)
-                .map_err(|errors| serde::de::Error::custom(errors.join("; ")))?;
+        let rules = Self::try_new(
+            snapshot.skills,
+            snapshot.pvp,
+            snapshot.regen,
+            snapshot.constants,
+            snapshot.profiles,
+        )
+        .map_err(|errors| serde::de::Error::custom(errors.join("; ")))?;
         if snapshot.timer_policy_version != rules.timer_policy_version
             || snapshot.hash != rules.hash
         {
@@ -145,7 +166,7 @@ impl<'de> Deserialize<'de> for Phase3Rules {
 #[serde(deny_unknown_fields)]
 pub struct Phase3Snapshot {
     /// Complete immutable rules for this epoch, never fetched by replay.
-    pub rules: Phase3Rules,
+    pub rules: std::sync::Arc<Phase3Rules>,
     /// Verified immutable rules fingerprint.
     pub rules_hash: [u8; 32],
     /// Next spawn allocation order, independent of UUID/RNG order.
@@ -158,6 +179,8 @@ pub struct Phase3Snapshot {
     pub next_offer_id: u64,
     /// Shared passive/effect modifier installation sequence.
     pub next_install_sequence: u64,
+    /// Complete canonical combatant sidecars, ordered by entity identity.
+    pub entities: BTreeMap<super::EntityId, super::Phase3Entity>,
 }
 
 impl Phase3Snapshot {
@@ -165,12 +188,13 @@ impl Phase3Snapshot {
     pub fn new(rules: Phase3Rules) -> Self {
         Self {
             rules_hash: rules.hash(),
-            rules,
+            rules: std::sync::Arc::new(rules),
             next_entity_ordinal: 1,
             next_cast_id: 1,
             next_effect_id: 1,
             next_offer_id: 1,
             next_install_sequence: 1,
+            entities: BTreeMap::new(),
         }
     }
 
@@ -186,6 +210,63 @@ impl Phase3Snapshot {
             ]
             .iter()
             .all(|n| *n > 0)
+            && self.validate_allocations().is_ok()
+    }
+
+    /// Prove global uniqueness and that allocation never reuses any live identity. Entity
+    /// life/source validation is performed separately against the corresponding combatant.
+    pub fn validate_allocations(&self) -> Result<(), super::effects::EffectError> {
+        use super::effects::EffectError;
+        let mut ordinals = BTreeSet::new();
+        let mut casts = BTreeSet::new();
+        let mut effects = BTreeSet::new();
+        let mut offers = BTreeSet::new();
+        let mut installs = BTreeSet::new();
+        let insert = |value, next, seen: &mut BTreeSet<u64>| {
+            if value == 0 || value >= next || !seen.insert(value) {
+                Err(EffectError::Invalid("duplicate/out-of-counter live allocation"))
+            } else {
+                Ok(())
+            }
+        };
+        for entity in self.entities.values() {
+            insert(entity.ordinal.0, self.next_entity_ordinal, &mut ordinals)?;
+            if let super::CastState::Casting(cast) = &entity.cast {
+                insert(cast.id.0, self.next_cast_id, &mut casts)?;
+            }
+            for effect in entity.effects.entries().keys() {
+                insert(effect.0, self.next_effect_id, &mut effects)?;
+            }
+            if let Some(offer) = entity
+                .player
+                .as_ref()
+                .and_then(|p| p.resurrect_offer.as_ref())
+            {
+                insert(offer.id.0, self.next_offer_id, &mut offers)?;
+            }
+            for sequence in entity.modifier_install_order.keys() {
+                insert(*sequence, self.next_install_sequence, &mut installs)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Validate every sidecar against independently restored combat facts. The caller must
+    /// supply exactly all combatants, and subsequently rebuild/compare effective sheets.
+    pub fn validate_live(
+        &self,
+        combatants: &BTreeMap<super::EntityId, super::Phase3EntityContext<'_>>,
+    ) -> Result<(), super::effects::EffectError> {
+        if !self.validate() || combatants.len() != self.entities.len() {
+            return Err(super::effects::EffectError::Invalid("Phase3 sidecar cardinality/policy"));
+        }
+        for (id, context) in combatants {
+            self.entities
+                .get(id)
+                .ok_or(super::effects::EffectError::Invalid("missing combatant sidecar"))?
+                .validate_live(&self.rules, *context)?;
+        }
+        Ok(())
     }
 }
 

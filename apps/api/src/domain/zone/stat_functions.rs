@@ -300,6 +300,7 @@ pub fn standard_functions(
     level_mod: super::Scaled,
     level: u32,
     player: bool,
+    weapon_equipped: bool,
 ) -> Result<Vec<StatFunction>, StatError> {
     if !(1..=85).contains(&level) {
         return Err(StatError::LevelOutOfRange(level));
@@ -351,6 +352,12 @@ pub fn standard_functions(
     ];
     if player {
         operations.push(("maxCp", FunctionOp::Product(constitution)));
+    }
+    // FuncMAtkCritical.java:42-46: NPCs and equipped players get the first x10;
+    // CharStat.getMCriticalHit truncates and applies its separate x10 afterwards.
+    if !player || weapon_equipped {
+        operations
+            .push(("mCritRate", FunctionOp::Product(wit.checked_mul(ExactRatio::whole(10))?)));
     }
     Ok(operations
         .into_iter()
