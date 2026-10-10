@@ -33,6 +33,7 @@ mod entity;
 mod fixed;
 mod npc_template;
 mod phase2;
+mod phase3;
 mod progression;
 mod scaled;
 mod stat_rules;
@@ -65,6 +66,7 @@ pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot};
 pub use phase2::{
     profession_stats, transfer_resource, ClassStatsView, PlayerIdentityView, PlayerProgression,
 };
+pub use phase3::{Phase3Rules, Phase3Snapshot};
 pub use progression::{add_xp, death_xp_loss, level_for_xp, xp_after_death, xp_cap};
 pub use scaled::{ceil_div, floor_div, isqrt, Scaled, StatError, Q};
 pub use stat_rules::{
@@ -88,8 +90,9 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 24] = [
+    const SOURCES: [(&str, &str); 25] = [
         ("mod.rs", include_str!("mod.rs")),
+        ("phase3.rs", include_str!("phase3.rs")),
         ("phase2.rs", include_str!("phase2.rs")),
         ("state_class.rs", include_str!("state_class.rs")),
         ("ai.rs", include_str!("ai.rs")),

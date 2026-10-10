@@ -1018,10 +1018,29 @@ fn legacy_fixtures_keep_json_digests_and_record_bytes_after_decode() {
 #[tokio::test]
 async fn a_record_digest_version_must_match_the_snapshot() {
     use nightfall_api::domain::zone::StateDigestVersion;
+    struct MustNotRun(ZoneState);
+    impl TickRunner for MustNotRun {
+        fn replay_tick(&mut self, _: AppliedTickDraft) -> Result<AppliedTick, TickError> {
+            panic!("mixed snapshot/record policy must be rejected before executing commands");
+        }
+        fn boundary_snapshot(&self) -> ZoneSnapshot {
+            self.0.snapshot()
+        }
+    }
     let mut recording = fixture();
     recording.records[0].digest_version = StateDigestVersion::BinaryV2;
-    let divergence = diverged(replay(recording).await);
-    assert!(matches!(divergence.mismatch, Mismatch::StateDigest));
+    let result = replay_with(
+        recording,
+        |snapshot| MustNotRun(ZoneState::from_snapshot(snapshot).unwrap()),
+        VerifyOptions::default(),
+    )
+    .await;
+    assert!(matches!(
+        result,
+        Err(VerifyError::Snapshot(
+            nightfall_api::domain::zone::SnapshotError::CombatMismatch
+        ))
+    ));
 }
 
 #[tokio::test]
