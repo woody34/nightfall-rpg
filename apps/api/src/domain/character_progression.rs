@@ -255,3 +255,34 @@ pub const fn base_class_profile(id: ClassId) -> Option<&'static str> {
         _ => None,
     }
 }
+
+/// Validated inherited free learning metadata up to a level; skill effects remain Phase 3.
+pub fn auto_get_metadata(
+    registry: &super::class::ClassRegistry,
+    id: ClassId,
+    level: u32,
+) -> Result<Vec<LearnedSkill>, super::class::RegistryError> {
+    use super::class::RegistryError;
+    if !(1..=85).contains(&level) {
+        return Err(RegistryError::LevelOutOfRange(level));
+    }
+    if registry.get(id).is_none() {
+        return Err(RegistryError::UnknownClass(id));
+    }
+    let mut skills = std::collections::BTreeMap::<String, u32>::new();
+    for class_id in std::iter::once(id).chain(registry.ancestors(id)) {
+        let class = registry
+            .get(class_id)
+            .ok_or(RegistryError::UnknownClass(class_id))?;
+        for skill in &class.skill_tree {
+            if skill.auto_get && skill.required_level <= level {
+                let known = skills.entry(skill.key.clone()).or_default();
+                *known = (*known).max(skill.skill_level);
+            }
+        }
+    }
+    Ok(skills
+        .into_iter()
+        .map(|(key, level)| LearnedSkill { key, level })
+        .collect())
+}
