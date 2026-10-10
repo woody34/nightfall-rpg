@@ -16,6 +16,7 @@
 
 pub mod capture;
 pub mod pg;
+pub mod token;
 pub mod ws;
 
 use std::sync::Arc;
@@ -114,6 +115,16 @@ impl TestApp {
         customize: impl FnOnce(&mut Dependencies),
         state: nightfall_api::domain::zone::ZoneState,
     ) -> Self {
+        let zone =
+            nightfall_api::application::zone_actor::ZoneActor::spawn(state, IntervalTicks::new());
+        Self::spawn_with_handle(customize, zone).await
+    }
+
+    /// Uses an already bootstrapped durable zone, preserving its checkpoint lane.
+    pub async fn spawn_with_handle(
+        customize: impl FnOnce(&mut Dependencies),
+        zone: ZoneHandle,
+    ) -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
         let accounts = Arc::new(InMemoryAccountRepository::default());
         let sessions = Arc::new(InMemorySessionRepository::default());
@@ -129,9 +140,7 @@ impl TestApp {
         deps.tokens = Arc::new(TestTokenVerifier) as Arc<dyn TokenVerifier>;
         deps.audit = audit.clone();
         customize(&mut deps);
-        let zones = ZoneRegistry::from_handle(
-            nightfall_api::application::zone_actor::ZoneActor::spawn(state, IntervalTicks::new()),
-        );
+        let zones = ZoneRegistry::from_handle(zone);
         let zone = zones.fixture().clone();
         let sessions_shutdown = CancellationToken::new();
         let realtime = start_realtime(&deps, zones, sessions_shutdown.clone());
