@@ -44,6 +44,21 @@ class TraceabilityTests(unittest.TestCase):
         output, failed = trace.check(self.plans, self.scenarios, self.manifest)
         return "\n".join(output), failed
 
+    def test_numbered_epic_headings_title_tags_and_completion(self):
+        for phase, number in (("1a", 4), ("2", 3), ("3", 12)):
+            (self.plans / f"phase-{phase}-test.md").write_text(
+                f"## {number}. Epics, stories, models and Done When\n"
+                "| ✅ 1.1 Visible [client-visible] [required] | work |\n"
+                "| ✅ 1.2 Server | prose [client-visible] and ✅ |\n"
+                "| 1.3 Pending [client-visible] | ✅ in Done When |\n"
+                "## 99. Outcome\n| ✅ 1.4 Fake [client-visible] | work |\n")
+            (self.scenarios / f"{phase}-visible.nfs").write_text(f"# covers: {phase} E1.1, {phase} E1.3\n")
+        output, failed = self.check([self.entry()])
+        self.assertFalse(failed, output)
+        self.assertIn("5 completed client-visible stories: 4 covered, 1 exception, 0 missing", output)
+        for phase in ("1a", "2", "3"):
+            self.assertIn(f"PHASE {phase}: 1 completed client-visible: 1 covered, 0 exception, 0 missing; 1 not-complete", output)
+
     def test_reasoned_exception_does_not_count_as_covered_or_remove_plan_tag(self):
         before = (self.plans / "phase-0b-test.md").read_text()
         output, failed = self.check([self.entry()])

@@ -63,6 +63,9 @@ fi
   if [[ "${{FAIL_PROBE:-0}}" == 1 ]]; then echo occupied >&2; exit 1; fi
   exit 0
 fi
+if [[ "${{1:-}}" == *"/phase2-fixture.py" ]]; then
+  exec "{sys.executable}" "{SCRIPTS}/test/fake-fixture-runner.py" "$@"
+fi
 exec "{sys.executable}" "$@"
 ''')
         self.fake('curl', 'exit 0\n')
