@@ -44,7 +44,11 @@ The rule, from Kigawas: routers thin, use cases thick, models slim. A handler th
 
 Adapters are chosen at the composition root and injected as `Arc<dyn Port>` via
 `Dependencies`. Tests build `Dependencies` with in-memory adapters; `main` builds it from
-`DATABASE_URL` and `NATS_URL`, falling back to in-memory with a warning when either is unset.
+`DATABASE_URL` and `NATS_URL`. When PostgreSQL is configured, a non-empty `NATS_URL` is
+strictly required: startup fails before epoch recovery, baseline initialization, actor creation,
+or admission if `NATS_URL` is absent, empty, or whitespace-only (there is no volatile log fallback
+when persistence is configured). An entirely ephemeral in-memory composition (both unset) remains
+supported for development with an explicit lost-on-exit warning, without in-memory replay durability claims.
 
 ## 2. The event-bus core
 

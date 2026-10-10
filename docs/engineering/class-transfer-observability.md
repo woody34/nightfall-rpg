@@ -43,12 +43,12 @@ show **No data**. Rates also need enough scrape samples; an empty series is not 
 zero. Checkpoint lag/failure and paused-zone instruments are initialized at startup, so they
 can report zero before a transfer occurs. No query replaces missing series with synthetic zero.
 
-The typed `token_tier_1_count`/`token_tier_2_count` ledger proves consumption. Policy is accepted
-for once-per-character transfer tokens at 20/40 including eligible existing backfill (2026-10-10);
-runtime foundation `1175b73` exists and critical followup `692e989` (integrated at `ae0583d`)
-is now independently approved (coordinator receipt in shared token `critical-fix-review.md`);
-actual native and exporter validation remain pending. These panels do not establish overall Phase 2
-completion or native PASS.
+The typed `token_tier_1_count`/`token_tier_2_count` ledger proves consumption. Policy for
+once-per-character transfer tokens at 20/40 including eligible existing backfill is implemented
+in runtime foundation `1175b73` / `01b9f57`, reviewed production `692e989` with critical fix `ae0583d`
+documented in [critical-fix-review.md](file:///home/matt-woodruff/.config/Claude/side-session-notes/phase2-codex-2026-10-09/token-bridge-2026-10-10/critical-fix-review.md)
+(P1/P2 resolved), and test evidence review `a43e2f6`. Panels 26/27 expand the dashboard to seven Phase 2 panels total
+(reviewed `a09d677`, imported `bf062e1`). Native full-suite, live automation, soak gates, and post-merge root Game and Editor builds with smoke suites are verified (root main merged and pushed `cf9225d`, Game exit 0 in 28.43 s, Editor exit 0 in 19.03 s, 9/9 root smoke pass across Class and TemplateTarget). Local Phase 2 is complete once this final docs commit lands; external runner registration and the two-week reliability programme remain separate operational follow-ups.
 
 The actual OpenTelemetry instrument is `nightfall_class_transfer_token_grants` (`u64_counter` in
 [metrics.rs](../../apps/api/src/infrastructure/telemetry/metrics.rs)), exported to Prometheus as
@@ -62,9 +62,19 @@ increment the counter via `metrics.token_granted` in
 [combat.rs](../../apps/api/src/infrastructure/telemetry/combat.rs). Mark-only/noop passes, replay
 verifier checks, duplicate/reconnect without new grants, receipt retry, and
 `CheckpointOutcome::Replayed` do not count. A lost commit ACK may yield durable exactly-once
-outbox records in Postgres while recording zero observational metric if the zone retries or
-replays; this counter is observational telemetry, NOT durable ledger accounting. Generic
+outbox records in Postgres while recording zero observational metric on `CheckpointOutcome::Replayed`;
+this counter is observational telemetry, NOT durable ledger accounting. Generic
 `TickTelemetry` explicitly ignores `ZoneEvent::TokensReconciled`.
+
+All four final saved grant scrapes match expected counter samples:
+- `2-token-milestone20`: `tier="1"`, `source="level_up"`, count 1
+- `2-token-milestone40`: `tier="2"`, `source="level_up"`, count 1
+- `2-token-jump19-40`: `tier="1"` count 1, `tier="2"` count 1, `source="level_up"`
+- `2-token-backfill`: `tier="1"` count 1, `tier="2"` count 1, `source="admission"` after repeated reconnect/consumption.
+
+Public saved sample excerpts are preserved at `native-evidence/full-suite-01/{unit}/{unit}/fixture/prometheus.token-grants.txt`. Independent bounded admission audit report is preserved at `token-bridge-2026-10-10/native-grant-metrics-final-backfill/report.json`. This counter is an observational metric, not durable accounting; no live Grafana query execution or rate calculation is claimed.
+
+Initial diagnostic failures remain separated from the accepted final suite. In the initial lifecycle diagnostic run, milestone 20/40 assertions and byte-exact replay passed, but aggregate strict lifecycle coverage failed because stale reporter history compared incarnation 2 from a prior admission with the legitimate incarnation 1 of a new admission. Reviewed reporter fix `48c39f3` (integrated `a64423f`) resolved reporting only without modifying gameplay, consumer, or wire contracts: it clears only the global player despawn baseline while retaining NPC slot history, same-tick event order, AOI/session replacement semantics, and strict rejection of malformed backwards player steps (12 focused checks approved). Fresh single milestone 20 retry-02 passed (`e568fd2` + replay `48c39f3` wrapper PASS 27s, exit 0, exact 295/295 ticks, 45 outputs, 9,402 bytes, 0 digest-only, cleanup true). First private `StatsChanged`, claimed-zero post-consumption real re-cross, and frozen receipt assertions passed all final native flows. Required-live UE automation (65 tests), the full ordinary scenario suite (34 files / 29 units), Game package staging (48.35 s), packaged combat soak (8 clients × 1,200 s, p99 14.764 ms, all wrapper/API/cleanup exits 0), and post-merge root Game and Editor builds with Class (8/8) and TemplateTarget (1/1) smoke suites are fully verified (`receipt.json`). Local Phase 2 is complete upon landing this final reviewed documentation commit; external CI runner registration and the two-week reliability programme remain separate operational follow-ups.
 
 Run `python3 scripts/validate_class_observability.py` from any directory for the focused JSON,
 catalogue, diagram and link checks. Query-name validation uses the exporter contract; it is
