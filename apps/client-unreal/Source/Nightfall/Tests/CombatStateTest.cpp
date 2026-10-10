@@ -2,6 +2,7 @@
 #include "TestGameInstance.h"
 #include "IWebSocket.h"
 #include "Combat/CombatStateSubsystem.h"
+#include "Bot/BotPredicates.h"
 #include "Game/NightfallCharacter.h"
 #include "NightfallPlayerController.h"
 #include "Net/NetClientSubsystem.h"
@@ -816,6 +817,70 @@ bool FCombatCapturedSpawnReplayTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("stale spawn never reaches post-projection callbacks"), ProjectedSpawns, 2);
 	TestEqual(TEXT("stale spawn emits no projection change"), Changes, ChangesBefore);
 	TestEqual(TEXT("stale spawn emits no damage number"), Numbers, 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeadAoiDamageCueTest, "Nightfall.Combat.State.DeadAoiSpawnLethalCue", CombatTestFlags)
+
+bool FCombatDeadAoiDamageCueTest::RunTest(const FString& Parameters)
+{
+	FCombatRig Rig;
+	Rig.StandardScene();
+	Rig.Spawn(Boar, TEXT("Boar"), 2, 1, 1, 100, 100, 2, true);
+	Rig.Target(OwnId, Boar);
+	FBotObservations Observations;
+	Observations.Bind(Rig.Instance.GameInstance);
+	TArray<FDamageNumber> Numbers;
+	Rig.Combat->OnDamageNumber.AddLambda([&](const FDamageNumber& Number) { Numbers.Add(Number); });
+	auto Receive = [&](const TArray<uint8>& Bytes)
+	{
+		Rig.Socket->RawMessage.Broadcast(Bytes.GetData(), static_cast<SIZE_T>(Bytes.Num()), 0);
+	};
+	// Real 8-client soak ordering at tick 5538: crossing an AOI boundary admits the
+	// end-of-tick dead snapshot, followed by that tick's lethal result from a neighbour.
+	const char* Target = "a2369561-15d6-4e1e-9b29-9dd579c610e8";
+	const char* Attacker = "01a1231d-1a9a-7236-98a4-b30296755d50";
+	const FString TargetId = UTF8_TO_TCHAR(Target);
+	FPb DeadSpawn;
+	DeadSpawn.S(1, Target).S(2, "Keltir").U(4, 2).U(6, 1).S(7, "keltir")
+		.U(8, 14).U(9, 1).U(11, 0).U(12, 44).U(13, 1);
+	Receive(EventFrame(1, DeadSpawn));
+	const FCombatEntity* Corpse = Rig.Combat->FindEntity(TargetId);
+	if (!TestNotNull(TEXT("dead AOI snapshot decoded through the socket"), Corpse)) { Observations.Unbind(); return false; }
+	TestTrue(TEXT("snapshot already dead"), Corpse->bDead);
+	TestEqual(TEXT("snapshot HP already zero"), Corpse->Hp, 0u);
+	const TArray<uint8> Lethal = HitFrame(Attacker, Target, 5538, 17, 0, 14);
+	Receive(Lethal);
+	TestEqual(TEXT("lethal cue emitted although snapshot already contains its HP"), Numbers.Num(), 1);
+	TestEqual(TEXT("bot still counts every distinct received result"), Observations.AttackResultKeys.Num(), 1);
+	TestEqual(TEXT("unchanged damage-number assertion agrees"), Observations.DamageNumbers, Observations.AttackResultKeys.Num());
+	if (!Numbers.IsEmpty())
+	{
+		TestEqual(TEXT("cue preserves recorded damage"), Numbers[0].Damage, 17u);
+		TestEqual(TEXT("cue preserves recorded tick"), Numbers[0].Tick, uint64(5538));
+	}
+	Receive(Lethal);
+	TestEqual(TEXT("duplicate frame emits no second cue"), Numbers.Num(), 1);
+	Rig.Died(*TargetId, 5538, 14);
+	// The opposite ordering (death fact before a distinct same-tick terminal result)
+	// also preserves the authoritative corpse while displaying that result once.
+	Receive(HitFrame("0b6e2f6e-0000-4000-8000-0000000000b1", Target, 5538, 1, 0, 14));
+	TestEqual(TEXT("same-tick death fact does not hide a distinct terminal cue"), Numbers.Num(), 2);
+	Receive(HitFrame(Attacker, Target, 5537, 17, 0, 14));
+	Receive(HitFrame(Attacker, Target, 5539, 17, 0, 13));
+	Receive(HitFrame(Attacker, Target, 5539, 17, 0, 14));
+	Receive(HitFrame("0b6e2f6e-0000-4000-8000-0000000000a1", Target, 5538, 17, 1, 14));
+	TestEqual(TEXT("older tick/life, later post-death and nonterminal results stay suppressed"), Numbers.Num(), 2);
+	Corpse = Rig.Combat->FindEntity(TargetId);
+	TestTrue(TEXT("damage cue never resurrects corpse"), Corpse && Corpse->bDead && !Corpse->bAttackable);
+	if (Corpse)
+	{
+		TestEqual(TEXT("corpse HP remains zero"), Corpse->Hp, 0u);
+		TestEqual(TEXT("corpse life remains authoritative"), Corpse->Incarnation, 14u);
+		TestEqual(TEXT("stale facts cannot advance its tick"), Corpse->LastFactTick, uint64(5538));
+	}
+	TestEqual(TEXT("unrelated target selection is preserved"), Rig.Combat->GetTargetId(), FString(Boar));
+	Observations.Unbind();
 	return true;
 }
 

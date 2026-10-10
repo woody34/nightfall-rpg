@@ -205,7 +205,16 @@ void UCombatStateSubsystem::ApplyAttackResult(const FAttackResult& R)
 		// A swing that landed on an earlier life, or older than what we already applied, is stale.
 		if (Target->Incarnation != 0 && R.TargetIncarnation != 0 && R.TargetIncarnation < Target->Incarnation) return;
 		if (R.Tick < Target->LastFactTick) return;
-		if (Target->bDead && !(R.TargetIncarnation > Target->Incarnation)) return;
+		if (Target->bDead && !(R.TargetIncarnation > Target->Incarnation))
+		{
+			// AOI entry carries the end-of-tick snapshot before that tick's facts. A
+			// newly visible corpse can therefore precede its legitimate lethal result.
+			// Show that cue once without reviving it; an established death only admits
+			// terminal facts at its own tick, never a later post-death result.
+			const bool bTerminalCue = R.TargetIncarnation == Target->Incarnation && R.TargetHpAfter == 0
+				&& (Target->LastFactTick == 0 || R.Tick == Target->LastFactTick);
+			if (!bTerminalCue) return;
+		}
 	}
 	if (!RememberEvent(FString::Printf(TEXT("%llu|%s|%s"), R.Tick, *Key(R.Attacker), *Key(R.Target)))) return;   // replayed event
 
