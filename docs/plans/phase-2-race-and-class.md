@@ -35,7 +35,7 @@ Exact Scaled Q=1_000_000/current-class rows; nonquadratic curves forbid quadrati
 
 Human +5% XP floor/cap; Elf +3 **run only**/+3% evasion; DarkElf +5% crit damage/single-rounding/no extra RNG. Independent vectors define rounding. SP/regen/stun/weight/spoil/craft/environmental effects unavailable. Revise native Human XP expectations with independent racial oracle, retain all19 Phase1a cases; never disable live traits.
 
-Real skill scope: **39 trees = 9 base +18 first +12 second slice IDs `2,5,8,9,12,16,17,27,33,46,52,55`**, approximately **6,970 entries** spanning source levels 1..85. Report the validated actual count; other second/third trees are outside this slice. Missing trees are incomplete. Retain numeric skill_id, stable key, l2_ref, skill level, getLevel, SP, autoGet, learnedByNpc, required items; include expertise **239** and class mastery/proficiency refs. Validate references/prerequisites/duplicates/inheritance/order. Data/API finalize additive fields/projection; source comments do not override approved scope.
+Real skill scope: **39 trees = 9 base +18 first +12 second slice IDs `2,5,8,9,12,16,17,27,33,46,52,55`**, **6,927 entries**, **3,521 proficiency rows** and **378 known skill references** spanning source levels 1..85. Report the validated actual count; other second/third trees are outside this slice. Missing required slice trees are incomplete; the remaining 50 direct trees are explicitly deferred, with available ancestor metadata inherited. Retain numeric skill_id, stable key, l2_ref, skill level, getLevel, SP, autoGet, learnedByNpc, required items; include expertise **239** and class mastery/proficiency refs. Validate references/prerequisites/duplicates/inheritance/order. Data/API finalize additive fields/projection; source comments do not override approved scope.
 
 Create/transfer/level resolves inherited autoGet<=level into shared ClassState.learned_skills/LearnedSkill: max per key, deterministic/idempotent, **no SP charge**. Persist normalized learning/slot history/checkpoint/replay/reconnect; delevel retains it. Racial keys validated; granted_skill_keys only actual new/upgraded metadata. Effects/manual purchase Phase3 except racial modifiers; nonempty trees valid without effects. Unsupported transfer requirements fail atomically.
 
@@ -47,7 +47,7 @@ Optional base_class_id presence: absent -> race fighter (Human0/Elf18/DarkElf31/
 
 Single creation transaction: account-row lock (or transaction advisory lock for a harness without account rows), lookup/claim idempotency before slot count, enforce seven, create/outbox atomically. No aggregate FOR UPDATE. Successful retry replays at seven; >7 old accounts retained but no additional creation. From six slots, distinct concurrent keys yield seven exactly; identical key/body yields one character/event. Name collision ALREADY_EXISTS; eighth RESOURCE_EXHAUSTED; key conflict FAILED_PRECONDITION.
 
-API 000007 owns base/current class, appearance/SP/integer CP/typed counts/mask and normalized slots/certifications/receipt refs. Learned-skill SQL is being added: use final API schema. DB signed bounds match u32/u64. Unknown **or wrong-race** profile aborts; preserve XP/level/HP/MP/alive/position. No migration grants/backfill.
+API 000007 owns base/current class, appearance/SP/integer CP/typed counts/mask and normalized slots/certifications/receipt refs. Normalized learned-skill SQL is included in the final API schema. DB signed bounds match u32/u64. Unknown **or wrong-race** profile aborts; preserve XP/level/HP/MP/alive/position. No migration grants/backfill.
 
 ### 2.3 Transfer and critical persistence
 
@@ -71,7 +71,7 @@ Checkpoint **Option<ClassState>**: Some full ledger; None **omits new fingerprin
 |---|---|
 | game Character | 7..14 class/root/slot/history/sex/appearance. |
 | game CreateCharacterRequest | optional base5; sex6; appearance7..9. |
-| game catalogue | ClassInfo source movement14/15/16; metadata projection extensions require additive owner-approved tags. |
+| game catalogue | ClassInfo source movement14/15/16; skill_tree12/proficiencies13; source metadata extensions and skill_tree_populated17 preserve existing tags. |
 | world EntitySpawn | race15/class16/sex17/appearance18..20/state_tick21; public identity, no CP. |
 | world StatsChanged | **uint32 CP8/maxCP9**, class10/SP11/tokens12/13/tick14; owner-private. |
 | world ClassChanged | WorldEvent13: entity1/class2/tick3/generation4. |
@@ -80,7 +80,7 @@ Retain snapshots **4/5/6**, add **7**; records **3/4**, add **5**; add **BinaryV
 
 V3 hashes all identity/class/SP/CP/token/mask/learning/receipt/full frozen-result/order via new separator/ordered integers; excludes pointers/oneshot/checkpoint I/O. Snapshot registry/rules/Master/hash; no current disk on replay. Validate restore; share/hash registry once.
 
-Measure actual snapshots/records (89x85 growth/~6,970 metadata/player-scale receipts) against JetStream payload limit. Coordinate separately versioned compression/adapter/root service validation; never drop metadata/receipts or treat record bounding as snapshot fix. No unvalidated NATS change.
+Measure actual snapshots/records (89x85 growth/6,927 learning entries/player-scale receipts) against JetStream payload limit. Coordinate separately versioned compression/adapter/root service validation; never drop metadata/receipts or treat record bounding as snapshot fix. No unvalidated NATS change.
 
 Spawn-before-reference/current identity for late AOI/replacement/reconnect/causal owner stats; client tick/generation fences and delayed RPC cannot duplicate cues. Domain u64 must stay exact despite wire u32 saturation debt.
 
@@ -98,7 +98,7 @@ Models: **D = agy gemini-3.8-flash-high**, **C = Codex gpt-6.1-sol / high**, **Z
 |---|---|---|
 | 1.1 Source catalogue | Generate 5 races/89 classes/exact 85-row growth with pinned provenance; reproduce goldens, preserve Phase 1 data and production `(0,0)`. | D |
 | 1.2 Loader/registry | Validate stats/tree/refs/inheritance/hash; malformed/cyclic/race/tier/growth fail startup; reordered inputs keep hash. | D |
-| 1.3 Learning metadata [client-visible] | Deliver 39 trees/~6,970 rows and expertise/mastery refs; report count; inherited create/level/transfer merge persists maximum levels, charges no SP and returns actual grant keys. | D |
+| 1.3 Learning metadata [client-visible] | Deliver 39 trees/6,927 learning rows and expertise/mastery refs; report count; inherited create/level/transfer merge persists maximum levels, charges no SP and returns actual grant keys. | D |
 | 1.4 Subclass rules | Reuse `eligible`/reservation types; test level/tier, quest-or-noble, forbidden/cross-race/main/held/equivalent and slot/certification limits; runtime off. | D |
 | 1.5 Racial stats/CP [client-visible] | Current-class growth/movement/collision and three racial effects; independent vectors prove reserved zero CP/percentages without absorption. | Z |
 | 1.6 Simulation scenario(s) [client-visible] | `2-racial-traits.nfs` covers 1.5 and observable 1.3 metadata; client stats match independent oracle, effects availability is truthful. | C |
@@ -205,7 +205,7 @@ Waves gate dependencies: foundations -> independent creation/schema, zone and UE
 - Legacy drift: golden bytes/fingerprints and None checkpoint preserve migrated ledger.
 - Token exploits/pending policy: required supply/backfill choice and conditional durable once-ever bits.
 - Art/effect overstatement: truthful index-zero Manny/sex metadata and unavailable skills; user choices pending.
-- External gates: CI runner **unregistered**, **two-week reliability gate pending**. Existing Phase1a eight-client 20-minute soak evidence completed; Phase2 needs new actual local regression measurements.
+- External gates: CI runner **unregistered**, **two-week reliability gate pending** separately from local Phase2 acceptance; no fresh 14-day wait is required to integrate reviewed features. Existing Phase1a eight-client 20-minute soak evidence completed; Phase2 needs new actual local regression measurements.
 
 ## 7. Out of scope
 
