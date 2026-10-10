@@ -32,6 +32,239 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def strip_rust_comments(source: str) -> str:
+    """Strips Rust line (//) and block (/* */, including nested) comments
+    while preserving quoted string literals.
+    """
+    out = []
+    i = 0
+    n = len(source)
+    comment_depth = 0
+    in_string = False
+    escape = False
+
+    while i < n:
+        if in_string:
+            ch = source[i]
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+        elif comment_depth > 0:
+            if source[i : i + 2] == "/*":
+                comment_depth += 1
+                i += 2
+            elif source[i : i + 2] == "*/":
+                comment_depth -= 1
+                i += 2
+                if comment_depth == 0:
+                    out.append(" ")
+            else:
+                if source[i] == "\n":
+                    out.append("\n")
+                i += 1
+        else:
+            if source[i] == '"':
+                in_string = True
+                out.append('"')
+                i += 1
+            elif source[i : i + 2] == "//":
+                i += 2
+                while i < n and source[i] != "\n":
+                    i += 1
+            elif source[i : i + 2] == "/*":
+                comment_depth = 1
+                i += 2
+            else:
+                out.append(source[i])
+                i += 1
+    return "".join(out)
+
+
+def normalize_promql(expr: str) -> str:
+    """Normalizes whitespace in a PromQL query while preserving delimiters.
+    Collapses whitespace and strips around parentheses, brackets, and commas.
+    """
+    cleaned = re.sub(r"\s+", " ", expr.strip())
+    return re.sub(r"\s*([(),\[\]])\s*", r"\1", cleaned)
+
+
+def normalize_rust_whitespace(source: str) -> str:
+    """Remove formatting whitespace while preserving literal label contents."""
+    return re.sub(
+        r'"(?:[^"\\]|\\.)*"|\s+',
+        lambda match: match.group(0) if match.group(0).startswith('"') else "",
+        source,
+    )
+
+
+def check_balanced_delimiters(expr: str) -> bool:
+    """Verifies that parentheses and brackets are properly matched and balanced."""
+    stack = []
+    pairs = {")": "(", "]": "[", "}": "{"}
+    for ch in expr:
+        if ch in pairs.values():
+            stack.append(ch)
+        elif ch in pairs:
+            if not stack or stack[-1] != pairs[ch]:
+                return False
+            stack.pop()
+    return len(stack) == 0
+
+
+CANONICAL_TOKEN_GRANTED_NO_WS = (
+    'fntoken_granted(&self,tier:u8,source:crate::domain::character_progression::TokenSource){'
+    'usecrate::domain::character_progression::TokenSource;'
+    'lettier=matchtier{1=>"1",2=>"2",_=>return,};'
+    'letsource=matchsource{TokenSource::Admission=>"admission",TokenSource::LevelUp=>"level_up",};'
+    'self.class_transfer_token_grants_total.add(1,&[KeyValue::new("tier",tier),KeyValue::new("source",source)]);}'
+)
+
+
+def validate_grant_source_binding() -> list[str]:
+    """Binds Prometheus exporter metric and dashboard query labels to the active
+    OpenTelemetry counter literal in metrics.rs and domain tier/source mapping in combat.rs.
+
+    Note: This is a fixed static source contract, fail-closed against drift, not a general
+    Rust or PromQL parser or live query execution. Any change to the source telemetry contract
+    requires an intentional validator update.
+    """
+    errors = []
+    derived_prom_metric = ""
+    metrics_rs = ROOT / "apps/api/src/infrastructure/telemetry/metrics.rs"
+    exporter_rs = ROOT / "apps/api/src/infrastructure/telemetry/mod.rs"
+    combat_rs = ROOT / "apps/api/src/infrastructure/telemetry/combat.rs"
+
+    if not metrics_rs.is_file():
+        errors.append(f"metrics.rs not found: {metrics_rs}")
+    else:
+        raw_metrics = metrics_rs.read_text(encoding="utf-8")
+        stripped_metrics = strip_rust_comments(raw_metrics)
+
+        # 1. Bind exact counter field declaration in Metrics struct:
+        #    pub(super) class_transfer_token_grants_total: Counter<u64>,
+        if not re.search(
+            r"\bclass_transfer_token_grants_total\s*:\s*Counter\s*<\s*u64\s*>",
+            stripped_metrics,
+        ):
+            errors.append(
+                f"Active field declaration 'class_transfer_token_grants_total: Counter<u64>' not found in {metrics_rs}"
+            )
+
+        # 2. Bind active u64_counter constructor call in Metrics::new:
+        #    class_transfer_token_grants_total: meter.u64_counter("...").with_description("...").build(),
+        counter_match = re.search(
+            r"\bclass_transfer_token_grants_total\s*:\s*meter\s*\.\s*u64_counter\s*\(\s*\"([^\"]+)\"\s*\)(.*?)\.build\s*\(\s*\)",
+            stripped_metrics,
+            re.DOTALL,
+        )
+        if not counter_match:
+            errors.append(
+                f"Active u64_counter initialization for 'class_transfer_token_grants_total' not found in {metrics_rs}"
+            )
+        else:
+            otel_metric_literal = counter_match.group(1)
+            builder_chain = counter_match.group(2)
+
+            if otel_metric_literal != "nightfall_class_transfer_token_grants":
+                errors.append(
+                    f"Expected OTel counter literal 'nightfall_class_transfer_token_grants', got '{otel_metric_literal}'"
+                )
+
+            # Ensure no .with_unit or naming overrides (allow existing .with_description only)
+            if ".with_unit" in builder_chain:
+                errors.append(
+                    "Counter must not define .with_unit(...) because unit overrides alter the Prometheus exported metric name"
+                )
+
+            stripped_chain = re.sub(
+                r'\.with_description\s*\(\s*"(?:[^"\\]|\\.)*"\s*,?\s*\)',
+                "",
+                builder_chain,
+                flags=re.DOTALL,
+            )
+            if stripped_chain.strip():
+                errors.append(
+                    f"Counter builder contains unauthorized naming overrides or chaining: {stripped_chain.strip()}"
+                )
+
+        # 3. Bind default Prometheus exporter configuration with no prefix/suffix overrides:
+        #    opentelemetry_prometheus::exporter().with_registry(registry.clone()).build()
+        # The application exporter lives in mod.rs; metrics.rs has a separate
+        # exporter used by source tests which cannot bind production naming.
+        exporter_text = (
+            strip_rust_comments(exporter_rs.read_text(encoding="utf-8"))
+            if exporter_rs.is_file()
+            else ""
+        )
+        exporter_match = re.search(
+            r"opentelemetry_prometheus\s*::\s*exporter\s*\(\s*\)(.*?)\.build\s*\(\s*\)",
+            exporter_text,
+            re.DOTALL,
+        )
+        if not exporter_match:
+            errors.append(f"Application Prometheus exporter builder not found in {exporter_rs}")
+        else:
+            exporter_chain_no_ws = re.sub(r"\s+", "", exporter_match.group(1))
+            if exporter_chain_no_ws != ".with_registry(registry.clone())":
+                errors.append(
+                    f"Prometheus exporter must use default naming config (.with_registry(registry.clone()) only with no prefix/suffix overrides), got: {exporter_match.group(1).strip()}"
+                )
+
+        if not errors and counter_match:
+            derived_prom_metric = f"{otel_metric_literal}_total"
+
+    if not combat_rs.is_file():
+        errors.append(f"combat.rs not found: {combat_rs}")
+    else:
+        raw_combat = combat_rs.read_text(encoding="utf-8")
+        stripped_combat = strip_rust_comments(raw_combat)
+
+        # 4. Bind complete canonical token_granted function body ignoring whitespace/comments
+        func_start = stripped_combat.find("fn token_granted")
+        if func_start == -1:
+            errors.append(f"Active 'fn token_granted' not found in {combat_rs}")
+        else:
+            open_brace = stripped_combat.find("{", func_start)
+            if open_brace == -1:
+                errors.append(f"Malformed 'fn token_granted' signature in {combat_rs}")
+            else:
+                depth = 0
+                func_end = -1
+                for idx in range(open_brace, len(stripped_combat)):
+                    if stripped_combat[idx] == "{":
+                        depth += 1
+                    elif stripped_combat[idx] == "}":
+                        depth -= 1
+                        if depth == 0:
+                            func_end = idx + 1
+                            break
+                if func_end == -1:
+                    errors.append(f"Unterminated braces in 'fn token_granted' in {combat_rs}")
+                else:
+                    extracted_func = stripped_combat[func_start:func_end]
+                    func_no_ws = normalize_rust_whitespace(extracted_func)
+                    if func_no_ws != CANONICAL_TOKEN_GRANTED_NO_WS:
+                        if '3=>"3"' in func_no_ws or '3=>' in func_no_ws:
+                            errors.append("token_granted expands tier mapping beyond tiers 1 and 2")
+                        if 'TokenSource::Admission=>"admission"' not in func_no_ws or \
+                           'TokenSource::LevelUp=>"level_up"' not in func_no_ws:
+                            errors.append("token_granted token source mapping does not match admission/level_up")
+                        label_calls = len(re.findall(r'KeyValue::new\(', extracted_func))
+                        if label_calls != 2:
+                            errors.append(f"token_granted must observe exactly 2 KeyValue labels, found {label_calls}")
+                        errors.append(
+                            f"token_granted implementation does not match canonical static source contract: {extracted_func.strip()}"
+                        )
+
+    validate_grant_source_binding.derived_prom_metric = derived_prom_metric or "nightfall_class_transfer_token_grants_total"
+    return errors
+
+
 def validate_dashboard() -> list[str]:
     errors = []
     dashboard_path = ROOT / "infra/grafana/dashboards/nightfall-api.json"
@@ -43,9 +276,20 @@ def validate_dashboard() -> list[str]:
     except Exception as exc:
         return [f"Invalid JSON in dashboard: {exc}"]
 
+    # Run source binding check and derive Prometheus exporter metric name
+    binding_errors = validate_grant_source_binding()
+    errors.extend(binding_errors)
+    derived_prom_metric = getattr(
+        validate_grant_source_binding,
+        "derived_prom_metric",
+        "nightfall_class_transfer_token_grants_total",
+    )
+
     panels = data.get("panels", [])
     if not panels:
         errors.append("No panels found in dashboard")
+
+    validate_dashboard.panel_count = len(panels)
 
     # Check panel IDs
     seen_ids = set()
@@ -58,8 +302,8 @@ def validate_dashboard() -> list[str]:
         else:
             seen_ids.add(pid)
 
-    # Panels 1..20 must be preserved
-    for i in range(1, 21):
+    # Panels 1..27 must be preserved
+    for i in range(1, 28):
         if i not in seen_ids:
             errors.append(f"Expected panel id {i} was removed from dashboard")
 
@@ -104,22 +348,36 @@ def validate_dashboard() -> list[str]:
         "nightfall_class_transfers_total",
         "nightfall_class_transfer_seconds_count",
         "nightfall_class_transfer_seconds_bucket",
+        derived_prom_metric,
     }
-    dashboard_text = " ".join(t.get("expr", "") for p in panels for t in p.get("targets", []))
+    dashboard_text = " ".join(
+        t["expr"]
+        for p in panels
+        if isinstance(p.get("targets"), list)
+        for t in p["targets"]
+        if isinstance(t, dict) and isinstance(t.get("expr"), str)
+    )
     for m in expected_metrics:
         if m not in dashboard_text:
             errors.append(f"Expected source metric {m} missing from dashboard queries")
 
     # Check panels after 20 for bounded labels and conventions
     class_panels = [p for p in panels if p.get("id", 0) > 20]
-    if len(class_panels) < 3:
-        errors.append(f"Expected at least 3 class transfer panels after id 20, found {len(class_panels)}")
+    if len(class_panels) < 7:
+        errors.append(f"Expected at least 7 class transfer panels after id 20, found {len(class_panels)}")
 
     for p in class_panels:
         ds = p.get("datasource", {})
         if ds.get("type") != "prometheus" or ds.get("uid") != "prometheus":
             errors.append(f"Panel {p.get('id')} does not follow datasource convention: {ds}")
-        for target in p.get("targets", []):
+        targets = p.get("targets", [])
+        if not isinstance(targets, list):
+            errors.append(f"Panel {p.get('id')} targets must be a JSON array")
+            continue
+        for target in targets:
+            if not isinstance(target, dict) or not isinstance(target.get("expr"), str):
+                errors.append(f"Panel {p.get('id')} target must contain a string query")
+                continue
             expr = target.get("expr", "")
             if re.search(r"\bvector\s*\(\s*0(?:\.0)?\s*\)", expr):
                 errors.append(f"Panel {p.get('id')} manufactures missing data as zero")
@@ -133,6 +391,82 @@ def validate_dashboard() -> list[str]:
             for forbidden in ("account_id", "character_id", "name", "idempotency_key", "secret", "token"):
                 if f"by ({forbidden}" in expr or f", {forbidden}" in expr or f"{forbidden}=" in expr:
                     errors.append(f"Panel {p.get('id')} query contains unbounded/sensitive label '{forbidden}': {expr}")
+
+    # Specific checks for grant panels (26 and 27)
+    grant_panels = [p for p in panels if p.get("id") in (26, 27)]
+    if len(grant_panels) != 2:
+        errors.append(f"Expected exactly 2 grant panels (ids 26 and 27), found {len(grant_panels)}")
+
+    for p in grant_panels:
+        pid = p.get("id")
+        desc = p.get("description", "").lower()
+        if "applied" not in desc:
+            errors.append(f"Grant panel {pid} description must document applied-only boundary")
+        if "replayed" not in desc:
+            errors.append(f"Grant panel {pid} description must document exclusion of replayed checkpoints")
+        if "outbox" not in desc and "accounting" not in desc:
+            errors.append(f"Grant panel {pid} description must document durable outbox accounting distinction")
+
+        targets = p.get("targets")
+        if not isinstance(targets, list) or len(targets) != 1:
+            errors.append(
+                f"Grant panel {pid} must have nonempty single target (existing grant panels each exactly 1 target A), found: {len(targets) if isinstance(targets, list) else targets}"
+            )
+            continue
+
+        target = targets[0]
+        if not isinstance(target, dict):
+            errors.append(f"Grant panel {pid} target must be a JSON object, got: {type(target).__name__}")
+            continue
+
+        ref_id = target.get("refId")
+        if ref_id != "A":
+            errors.append(f"Grant panel {pid} target refId must be 'A', got: {ref_id!r}")
+
+        expr = target.get("expr")
+        if not isinstance(expr, str) or not expr.strip():
+            errors.append(f"Grant panel {pid} target query expression cannot be empty")
+            continue
+
+        if not check_balanced_delimiters(expr):
+            errors.append(f"Grant panel {pid} query has unmatched parentheses/brackets: {expr}")
+            continue
+
+        norm_expr = normalize_promql(expr)
+
+        # Expected complete supported query forms permitting whitespace normalization only:
+        # Panel 26: sum by(tier,source)(rate(METRIC[$__rate_interval]))
+        # Panel 27: sum by(tier,source)(METRIC)
+        expected_p26 = {
+            f"sum by(tier,source)(rate({derived_prom_metric}[$__rate_interval]))",
+            f"sum by(source,tier)(rate({derived_prom_metric}[$__rate_interval]))",
+        }
+        expected_p27 = {
+            f"sum by(tier,source)({derived_prom_metric})",
+            f"sum by(source,tier)({derived_prom_metric})",
+        }
+
+        if pid == 26:
+            if norm_expr not in expected_p26:
+                errors.append(
+                    f"Grant panel 26 query does not match required rate query form 'sum by (tier, source) (rate({derived_prom_metric}[$__rate_interval]))': {expr}"
+                )
+        elif pid == 27:
+            if norm_expr not in expected_p27:
+                errors.append(
+                    f"Grant panel 27 query does not match required cumulative query form 'sum by (tier, source) ({derived_prom_metric})': {expr}"
+                )
+
+    p26 = next((p for p in panels if p.get("id") == 26), None)
+    if p26:
+        gp = p26.get("gridPos", {})
+        if gp.get("x") != 0 or gp.get("y") != 104 or gp.get("w") != 12 or gp.get("h") != 8:
+            errors.append(f"Panel 26 gridPos expected {{x: 0, y: 104, w: 12, h: 8}}, got {gp}")
+    p27 = next((p for p in panels if p.get("id") == 27), None)
+    if p27:
+        gp = p27.get("gridPos", {})
+        if gp.get("x") != 12 or gp.get("y") != 104 or gp.get("w") != 12 or gp.get("h") != 8:
+            errors.append(f"Panel 27 gridPos expected {{x: 12, y: 104, w: 12, h: 8}}, got {gp}")
 
     return errors
 
@@ -320,6 +654,17 @@ def validate_readme_and_docs() -> list[str]:
             "No data",
             "shared all-zone",
             "token_tier",
+            "seven Phase 2 panels",
+            "nightfall_class_transfer_token_grants",
+            "nightfall_class_transfer_token_grants_total",
+            "1175b73",
+            "692e989",
+            "ae0583d",
+            "critical-fix-review.md",
+            "CheckpointOutcome::Applied",
+            "CheckpointOutcome::Replayed",
+            "admission",
+            "level_up",
         ):
             if topic not in doc_text:
                 errors.append(f"class-transfer-observability.md missing documented section/keyword: '{topic}'")
@@ -371,7 +716,8 @@ def main() -> int:
     dashboard_errors = validate_dashboard()
     all_errors.extend(dashboard_errors)
     if not dashboard_errors:
-        print("  OK: Dashboard contract valid (25 panels, non-overlapping grid, exact metrics).")
+        panel_count = getattr(validate_dashboard, "panel_count", 27)
+        print(f"  OK: Dashboard contract valid ({panel_count} panels, non-overlapping grid, exact metrics).")
 
     print("Validating Class Progression Tree diagram contract...")
     tree_errors = validate_class_tree()

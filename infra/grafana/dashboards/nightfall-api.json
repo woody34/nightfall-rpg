@@ -1286,6 +1286,100 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Observed token grants / s",
+      "description": "Observed class transfer token grants per second by tier and source (nightfall_class_transfer_token_grants_total). Applied-only observational metric recorded after CheckpointOutcome::Applied; excludes mark-only/noop passes, replay verifier checks, duplicate/reconnect no-grant, receipt retry, and CheckpointOutcome::Replayed. May undercount if commit ACK is lost despite durable exactly-once outbox accounting.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 104,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (tier, source) (rate(nightfall_class_transfer_token_grants_total[$__rate_interval]))",
+          "legendFormat": "Tier{{tier}} {{source}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Cumulative observed token grants",
+      "description": "Cumulative observed class transfer token grants by tier and source (nightfall_class_transfer_token_grants_total). Applied-only observational metric recorded after CheckpointOutcome::Applied; excludes mark-only/noop passes, replay verifier checks, duplicate/reconnect no-grant, receipt retry, and CheckpointOutcome::Replayed. May undercount if commit ACK is lost despite durable exactly-once outbox accounting.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 104,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (tier, source) (nightfall_class_transfer_token_grants_total)",
+          "legendFormat": "Tier{{tier}} {{source}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ],
   "links": [
