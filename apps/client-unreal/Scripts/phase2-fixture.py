@@ -52,7 +52,10 @@ def safe_bot_args(args):
     if not isinstance(args, list) or any(not isinstance(a, str) or '\0' in a for a in args):
         raise ValueError('SIM_BOT_ARGS_JSON must be an array of strings')
     for arg in args:
-        if re.match(r'^-+(devtoken(?:file)?|nfgrpc|nfapi|nfws)(?:=|$)', arg, re.I):
+        # FParse::Value searches the command line for these keys without requiring
+        # a dash. Scan the whole argument, including bare, quoted and combined forms.
+        if (re.search(r'devtoken(?:file)?\s*(?:=|$)|grpcendpoint\s*=', arg, re.I)
+                or re.match(r'^-*(nfgrpc|nfapi|nfws)(?:=|$)', arg, re.I)):
             raise ValueError('Phase2 owns account tokens and client endpoints; conflicting bot argument')
 
 
@@ -159,6 +162,35 @@ def compose_config(db, password, ports):
         'volumes': {'pgdata': {}, 'natsdata': {}}}
 
 
+def private_text(path, value):
+    with open(path, 'x', opener=lambda name, flags: os.open(name, flags, 0o600)) as file:
+        file.write(value)
+    path.chmod(0o600)
+
+
+def role_token_files(folder, roles, owner):
+    directory = folder / 'tokens'
+    directory.mkdir(mode=0o700)
+    for role in roles.values():
+        path = directory / ('owner.token' if role['account_id'] == owner else 'observer.token')
+        private_text(path, f"test:{role['account_id']}\n")
+        role['token_file'] = str(path)
+
+
+def bot_args(folder, scenario):
+    value = state(folder)
+    role = value['roles'][scenario.stem]
+    safe_bot_args(json.loads(os.environ.get('SIM_BOT_ARGS_JSON', '[]')))
+    token_file = Path(role['token_file'])
+    if (token_file.is_symlink() or not token_file.is_file()
+            or token_file.resolve().parent != folder / 'tokens'
+            or token_file.stat().st_mode & 0o777 != 0o600
+            or token_file.read_text().strip() != f"test:{role['account_id']}"):
+        raise ValueError('fixture role requires its private owned token file')
+    return [f'-DevTokenFile={token_file}',
+            f"-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=127.0.0.1:{value['ports']['grpc']}"]
+
+
 def private_json(path, value):
     with open(path, 'x', opener=lambda name, flags: os.open(name, flags, 0o600)) as file:
         json.dump(value, file, indent=2)
@@ -183,13 +215,7 @@ def logged(command, folder, name, env, seconds=180):
                        check=True, timeout=seconds)
 
 
-def provision(folder, batch):
-    selected = fixture(batch)
-    if selected not in PHASE2:
-        raise ValueError('provision requires a Phase2 fixture')
-    safe_bot_args(json.loads(os.environ.get('SIM_BOT_ARGS_JSON', '[]')))
-    folder.mkdir(mode=0o700, parents=True, exist_ok=False)
-    api, migrate = candidate_binaries(folder)
+def published_seeder():
     seeder = Path(os.environ.get('SIM_PHASE2_SEEDER', REPO / 'infra/scripts/seed-phase2-transfer-fixture.py')).resolve()
     # Verify the published pack interface before creating any infrastructure. Old pair-only
     # seeders must fail here, rather than provisioning the wrong solo/missing-token ledger.
@@ -197,6 +223,17 @@ def provision(folder, batch):
                               text=True, capture_output=True, check=True, timeout=10)
     if '--fixture' not in contract.stdout or any(pack not in contract.stdout for pack in PHASE2):
         raise ValueError('published seeder lacks the Phase2 fixture pack contract')
+    return seeder
+
+
+def provision(folder, batch):
+    selected = fixture(batch)
+    if selected not in PHASE2:
+        raise ValueError('provision requires a Phase2 fixture')
+    safe_bot_args(json.loads(os.environ.get('SIM_BOT_ARGS_JSON', '[]')))
+    folder.mkdir(mode=0o700, parents=True, exist_ok=False)
+    api, migrate = candidate_binaries(folder)
+    seeder = published_seeder()
     identity = uuid.uuid4().hex
     db, project = 'nf_phase2_fixture_' + identity, 'nightfall-sim-phase2-' + identity
     owner, observer = str(uuid.uuid4()), str(uuid.uuid4())
@@ -214,6 +251,7 @@ def provision(folder, batch):
             'RULES_DIR': str(REPO / 'packages/data')}
         roles = {path.stem: {'account_id': observer if selected == 'phase2-transfer-observer' and path.stem.endswith('-b') else owner,
                             'character_id': OBSERVER if selected == 'phase2-transfer-observer' and path.stem.endswith('-b') else OWNER} for path in batch}
+        role_token_files(folder, roles, owner)
         manifest = {'schema_version': 1, 'fixture': selected, 'project': project, 'database': db,
                     'ports': dict(postgres=pg, nats=nats, http=http, grpc=grpc), 'roles': roles,
                     'api_binary': api, 'migrate_binary': migrate, 'seeder': str(seeder),
@@ -311,10 +349,8 @@ def main():
             print(value['env']['NATS_URL'])
             print(f"http://127.0.0.1:{value['ports']['grpc']}")
         else:
-            role = value['roles'][args.scenarios[0].stem]
-            safe_bot_args(json.loads(os.environ.get('SIM_BOT_ARGS_JSON', '[]')))
-            bot_args = [f"-DevToken=test:{role['account_id']}", f"-NfGrpc=127.0.0.1:{value['ports']['grpc']}"]
-            sys.stdout.buffer.write(b''.join(arg.encode() + b'\0' for arg in bot_args))
+            arguments = bot_args(folder, args.scenarios[0])
+            sys.stdout.buffer.write(b''.join(arg.encode() + b'\0' for arg in arguments))
 
 
 if __name__ == '__main__':

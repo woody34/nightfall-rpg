@@ -29,14 +29,18 @@ and calls the published seeder with the exact pack and account UUIDs before
 starting the API. The seeder manifest is validated before startup. Every unit
 gets a new `nf_phase2_fixture_*` database. A mixed single-wrapper sequence tears
 down each Phase2 unit after recording export and gates, then provisions the
-next unit afresh. Account tokens are appended through the bot argument array
-per role, without setting a global account or token.
+next unit afresh. Each role receives a mode-0600 token file in the private fixture directory.
+The bot argument array carries `-DevTokenFile=<path>` and the supported
+`-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=<owned host:port>` override.
+No complete developer token appears in bot arguments or command-line logs.
 
 The helper uses a minimal generated Compose file and an empty explicit env file.
 It never resolves development Compose configuration or sources root `.env`.
 Inherited database, NATS, zone, auth and Compose settings are excluded from the
 fixture API/migrator/seeder environment. Supplying a custom `SIM_API_URL` or
-conflicting `DevToken`, `DevTokenFile` or `NfGrpc` bot arguments is refused.
+conflicting `DevToken`, `DevTokenFile` or `GrpcEndpoint` assignments anywhere
+in extra bot arguments (including bare and mixed-case forms) is refused.
+The obsolete `NfGrpc` override is also refused.
 Both API listeners must be free and then owned by the launched process. A port
 race fails the unit; it cannot attach to an existing API.
 

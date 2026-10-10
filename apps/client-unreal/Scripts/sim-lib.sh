@@ -14,7 +14,7 @@
 #   SIM_REQUIRE_OWNED_API=1 reject attach/occupied endpoints; verify the launched API owns its listener
 #   SIM_REQUIRE_FRESH_ARTIFACTS=1 snapshot outputs before launch; collect only changed files within wall bounds
 #   SIM_TIMEOUT       seconds per scenario / per group (default 600)
-#   SIM_BOT_ARGS_JSON additional launch args as a JSON array (e.g. ["-NfGrpc=localhost:50052"])
+#   SIM_BOT_ARGS_JSON additional launch args as a JSON array (e.g. ["-ResX=1280"])
 
 SIM_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SIM_PROJECT_DIR="$(cd "$SIM_HERE/.." && pwd)"

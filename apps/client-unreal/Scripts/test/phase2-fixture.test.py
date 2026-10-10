@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -118,6 +119,110 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
     def lines(self):
         return self.events.read_text().splitlines() if self.events.exists() else []
 
+
+    def committed_client(self, path):
+        result = subprocess.run(['git', 'show', f'7bb8e61:{path}'], cwd=fixture.REPO,
+                                text=True, capture_output=True, check=True, timeout=10)
+        return result.stdout
+
+    def test_argument_composition_matches_committed_client_contract(self):
+        # Derive the consumed config section/property and FParse token keys from the
+        # committed client, rather than trusting the stand-in bot to know its interface.
+        settings = self.committed_client('apps/client-unreal/Source/Nightfall/Net/NetSettings.h')
+        session = self.committed_client('apps/client-unreal/Source/Nightfall/Net/SessionClientSubsystem.cpp')
+        auth = self.committed_client('apps/client-unreal/Source/Nightfall/Auth/AuthSubsystem.cpp')
+        runner = self.committed_client('apps/client-unreal/Source/Nightfall/Bot/BotScenarioRunner.cpp')
+        config = re.search(r'UCLASS\(Config = (\w+)', settings)[1]
+        section = re.search(r'section (\[/Script/[^]]+\])', settings)[1]
+        endpoint = re.search(r'Endpoint = Settings->(\w+);', session)[1]
+        token_keys = re.findall(r'FParse::Value\(FCommandLine::Get\(\), TEXT\("(DevToken(?:File)?=)"\)', auth)
+        self.assertEqual(token_keys, ['DevToken=', 'DevTokenFile='])
+        for key in token_keys: self.assertIn(f'TEXT("{key}")', runner)
+        self.assertIn('FFileHelper::LoadFileToString(Token, *Path)', auth)
+        self.assertIn('return Token.TrimStartAndEnd();', auth)
+        self.assertNotIn('NfGrpc', session)
+        a = self.scenario('contract-a', 'phase2-transfer-observer')
+        b = self.scenario('contract-b', 'phase2-transfer-observer')
+        # Exercise space-containing artifact/token paths through the real Bash array.
+        spaced = self.root / 'private artifacts'
+        self.root = spaced
+        spaced.mkdir()
+        result, artifacts = self.run_wrapper([a, b], multi=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        folder = artifacts / a.stem / 'fixture'
+        manifest = json.loads((folder / 'manifest.json').read_text())
+        all_args = []
+        for scenario in (a, b):
+            command = ['bash', '-c', '. "$1"; sim_bot_cmd "$2"; printf "%s\\0" "${SIM_BOT_CMD[@]}"',
+                       'contract', str(SCRIPTS / 'sim-lib.sh'), str(scenario)]
+            result = subprocess.run(command, env=self.env | {'SIM_FIXTURE_DIR': str(folder)},
+                                    capture_output=True, check=True, timeout=10)
+            args = [value.decode() for value in result.stdout.split(b'\0') if value]
+            expected_endpoint = f'-ini:{config}:{section}:{endpoint}=127.0.0.1:{manifest["ports"]["grpc"]}'
+            self.assertEqual([arg for arg in args if endpoint + '=' in arg], [expected_endpoint])
+            file_key = token_keys[1]
+            token_args = [arg for arg in args if file_key in arg]
+            self.assertEqual(len(token_args), 1)
+            path = Path(token_args[0].split(file_key, 1)[1])
+            self.assertEqual(path.parent, folder / 'tokens')
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(path.parent.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(path.read_text().strip(), 'test:' + manifest['roles'][scenario.stem]['account_id'])
+            self.assertFalse(any(token_keys[0] in arg or 'test:' in arg or 'NfGrpc=' in arg for arg in args))
+            all_args.append(token_args[0])
+        self.assertNotEqual(*all_args)
+        # Existing extra arguments cannot override any client-parsed assignment form.
+        for assignment in ('DevToken=test:foreign', '-dEvToKeN=test:foreign',
+                           'DevTokenFile=/foreign', '--DEVtokenFILE="/foreign token"',
+                           '"DevToken=test:foreign"', '-Other=DevToken=test:foreign',
+                           f'-ini:{config}:{section}:{endpoint}=localhost:50051',
+                           f'ini:{config.lower()}:{section.lower()}:{endpoint.upper()}=localhost:50051',
+                           f'-ini:{config}:{section}:Other=1,{endpoint}=localhost:50051',
+                           f'-ini:{config}:{section}:{endpoint} = localhost:50051'):
+            with self.subTest(assignment=assignment), self.assertRaises(ValueError):
+                fixture.safe_bot_args([assignment])
+        fixture.safe_bot_args(['-ResX=1280', '-Log', '-ini:Game:[OtherSettings]:Other=7'])
+
+    def test_actual_default_seeder_help_and_dry_run_contract(self):
+        seeder = fixture.REPO / 'infra/scripts/seed-phase2-transfer-fixture.py'
+        with patch.dict(os.environ, fixture.clean_env(), clear=True):
+            self.assertEqual(fixture.published_seeder(), seeder)
+        help_result = subprocess.run([sys.executable, str(seeder), '--help'],
+                                     text=True, capture_output=True, check=True, timeout=10)
+        self.assertIn('--fixture', help_result.stdout)
+        for pack in fixture.PHASE2: self.assertIn(pack, help_result.stdout)
+        owner, observer = 'd80db169-7139-49e0-9754-79644873eaca', 'ac53d2b2-5b5b-4617-9744-8a7b2faab3bf'
+        env = fixture.clean_env() | {'AUTH_DEV_TOKENS': '1', 'NIGHTFALL_PHASE2_FIXTURE': '1',
+                                    'DATABASE_URL': 'postgres://test:test@127.0.0.1:26433/nf_phase2_fixture_contract'}
+        # These are real seeder --dry-run processes; they never connect to a database.
+        for pack in sorted(fixture.PHASE2):
+            command = [sys.executable, str(seeder), '--fixture', pack, '--owner-account', owner, '--dry-run']
+            if pack == 'phase2-transfer-observer': command += ['--observer-account', observer]
+            result = subprocess.run(command, env=env, text=True, capture_output=True, check=True, timeout=10)
+            manifest = json.loads(result.stdout.splitlines()[-1])
+            missing = pack == 'phase2-transfer-missing-token'
+            self.assertEqual(manifest['fixture'], pack)
+            self.assertTrue(manifest['dry_run'])
+            self.assertEqual(manifest['owner'], {
+                'account_id': owner, 'character_id': fixture.OWNER, 'level': 20 if missing else 40,
+                'class_id': 0, 'sex': 'female', 'tokens': [0, 0] if missing else [1, 1],
+                'milestone_claimed_mask': 1 if missing else 3})
+            self.assertEqual(manifest['position'], [126, 126])
+            self.assertEqual('observer' in manifest, pack == 'phase2-transfer-observer')
+            if 'observer' in manifest: self.assertEqual(manifest['observer']['account_id'], observer)
+            # Feed the actual published manifest into the harness's pre-start validation,
+            # changing only dry_run to model successful execution, without copying SQL.
+            manifest['dry_run'] = False
+            folder = self.root / pack
+            folder.mkdir()
+            (folder / 'seed.log').write_text(json.dumps(manifest) + '\n')
+            fixture.validate_seed(folder, pack, owner, observer)
+        refused = subprocess.run([sys.executable, str(seeder), '--fixture', 'phase2-transfer-observer',
+                                  '--owner-account', owner, '--dry-run'], env=env,
+                                 text=True, capture_output=True, timeout=10)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn('requires --observer-account', refused.stderr)
+
     def test_headers_allowlist_roles_creation_units_and_legacy_catalogue(self):
         for pack in ('phase2-transfer', 'phase2-transfer-missing-token'):
             self.assertEqual(ci.fixture([self.scenario(pack, pack)]), pack)
@@ -174,7 +279,10 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
             for volume in config['volumes'].values(): self.assertEqual(volume, {})
             role = manifest['roles'][scenario.stem]
             self.assertEqual(role['character_id'], fixture.OWNER)
-            self.assertTrue(any('-DevToken=test:' + role['account_id'] in line for line in self.lines() if line.startswith('bot ')))
+            self.assertTrue(any('-DevTokenFile=' + role['token_file'] in line
+                                for line in self.lines() if line.startswith('bot ')))
+            self.assertEqual(Path(role['token_file']).stat().st_mode & 0o777, 0o600)
+            self.assertEqual(Path(role['token_file']).read_text().strip(), 'test:' + role['account_id'])
             lines = self.lines()
             start = next(i for i, line in enumerate(lines) if manifest['project'] in line and ' up ' in line)
             unit = lines[start:]
@@ -214,8 +322,15 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
         self.assertEqual(seed['observer_account'], roles[b.stem]['account_id'])
         for name in roles:
             bot = next(line for line in self.lines() if line.startswith('bot ') and f'{name}.nfs' in line)
-            self.assertIn('-DevToken=test:' + roles[name]['account_id'], bot)
-            self.assertEqual(bot.count('-DevToken='), 1)
+            self.assertIn('-DevTokenFile=' + roles[name]['token_file'], bot)
+            self.assertEqual(bot.count('-DevTokenFile='), 1)
+            self.assertNotIn('test:' + roles[name]['account_id'], bot)
+            self.assertNotIn('-DevToken=', bot)
+            self.assertNotIn('-NfGrpc=', bot)
+            self.assertIn('-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=127.0.0.1:', bot)
+            token = Path(roles[name]['token_file'])
+            self.assertEqual(token.read_text().strip(), 'test:' + roles[name]['account_id'])
+            self.assertEqual(token.stat().st_mode & 0o777, 0o600)
 
     def test_mixed_sequence_resets_phase2_and_does_not_contaminate_normal_bot(self):
         batch = [self.scenario('transfer', 'phase2-transfer'), self.scenario('ordinary'),
@@ -228,6 +343,8 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
         lines = self.lines()
         ordinary = next(i for i, line in enumerate(lines) if line.startswith('bot ') and 'ordinary.nfs' in line)
         self.assertNotIn('-DevToken=', lines[ordinary])
+        self.assertNotIn('-DevTokenFile=', lines[ordinary])
+        self.assertNotIn('GrpcEndpoint=', lines[ordinary])
         self.assertTrue(any(' down ' in line for line in lines[:ordinary]))
         self.assertTrue(any(' up ' in line for line in lines[ordinary + 1:]))
 
@@ -236,6 +353,9 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
         for kwargs in ({'mode': 'attach'}, {'SIM_API_URL': 'http://127.0.0.1:31000'},
                        {'SIM_BOT_ARGS_JSON': '["-DevToken=test:foreign"]'},
                        {'SIM_BOT_ARGS_JSON': '["-NfGrpc=localhost:50051"]'},
+                       {'SIM_BOT_ARGS_JSON': '["dEvToKeN=test:foreign"]'},
+                       {'SIM_BOT_ARGS_JSON': '["DeVtOkEnFiLe=/foreign"]'},
+                       {'SIM_BOT_ARGS_JSON': '["-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=localhost:50051"]'},
                        {'SIM_MIGRATE_BIN': '/missing'}):
             result, _ = self.run_wrapper([scenario], **kwargs)
             self.assertEqual(result.returncode, 2, result.stderr)
