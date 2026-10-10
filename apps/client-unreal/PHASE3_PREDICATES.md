@@ -27,3 +27,10 @@ All observations are scoped to the current transport, entity incarnation and ide
 | `resurrection_refunds op n` | Distinct accepted offer IDs followed by owner revival and a received XP increase from the dead StatsChanged sample. This is observed positive refund count, not an assertion of hidden checkpoint persistence. |
 
 The core Phase 3 commands and predicates implemented before round 2 are documented in the client progress handoff. Additional exact-cost and oracle predicates are recorded here as they land. Live scenario execution and independent server precision evidence remain separate verification gates.
+
+| Cost predicate | Authoritative input and evidence required |
+|---|---|
+| `own_mp_cost_matches <skill_id>` | Newest completed owner SkillCastStarted/Result at a received exact rank, GetSkillCatalog arrays `mp_consume_start/end[rank-1]`, and owner StatsChanged MP samples immediately before/at each stage. Separately received MP gains between stages do not count as consumption. Explicit catalogue MP1=0 may omit an unchanged start resource sample. Missing/short arrays, rank, terminal or required samples are UNKNOWN. This compares received net stage deltas; coalesced unrelated changes and actor consumption modifiers require independent precision evidence. |
+| `cancelled_cast_costs_retained` | Owner SkillCastStarted/Cancelled exact rank plus catalogue MP1, received start StatsChanged delta and SkillReuse at start whose deadline remains beyond cancellation. MP returns to a higher value cannot satisfy the received retention comparison. Requires the catalogue to have been loaded; no missing-cost zero assumption. |
+
+C6 catalogue tags8–12 and generated arrays are integrated from API95d2738; the metadata is validated base data before actor modifiers. None of these checks executes a gameplay formula or mutates resources.

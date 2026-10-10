@@ -23,9 +23,11 @@ public:
  TOptional<bool> Check(const FString& Name) const;
  TOptional<uint64> Number(const FString& Name) const;
  TOptional<uint32> OfferState() const;
+ TOptional<bool> MpCostMatches(uint32 Skill) const;
+ TOptional<bool> CancelledCostsRetained() const;
  const TOptional<FStatsChanged>& OwnerStats() const { return Stats; }
 private:
- struct FCastEvidence { FSkillCastStarted Start; uint32 Terminals=0; uint32 Reason=0; FString Terminal; };
+ struct FCastEvidence { FSkillCastStarted Start; uint32 Terminals=0; uint32 Reason=0; FString Terminal; uint64 TerminalTick=0; };
  struct FImpact { FString Attacker,Target; uint32 Inc=0; uint64 Tick=0; uint64 StartTick=0; FPvpStateChanged AttackerBefore,TargetBefore; uint32 HpBefore=0,HpAfter=0,Cp=0; };
  struct FResourceDamage { uint64 Tick=0; uint32 Cp=0; uint32 Hp=0; uint32 HpAfter=0; };
  void ClearTransport();
@@ -39,6 +41,9 @@ private:
  TArray<TFunction<void()>> Unbinders;
  FPresentationFence Fence;
  TOptional<FStatsChanged> Stats;
+ TArray<FStatsChanged> ResourceSamples;
+ TMap<uint32,FSkillReuse> Reuse;
+ TOptional<FSkillReuse> LastReuseAtCancel;
  TOptional<FSkillStateSync> Sync;
  TOptional<FResurrectOffer> Offer;
  TOptional<FEntityDied> Death;
@@ -65,5 +70,6 @@ private:
  uint64 OwnCp=0,PlayerCp=0;
  uint32 References=0,PublicPairs=0,RevivalPairs=0,PvpPairs=0,CpPairs=0,EffectSamples=0;
  bool bReferencesOk=true,bVitalsOk=true,bPvpOk=true,bCpOk=true,bEffectsOk=true,bDispositionOk=true;
+ bool bSamplesComplete=true;
  bool bOwnerStatsBaseline=false,bOwnerSyncBaseline=false,bObserverBaseline=false;
 };

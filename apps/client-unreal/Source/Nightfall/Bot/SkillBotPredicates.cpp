@@ -56,6 +56,9 @@ bool SkillBotPredicates::ParseUnsigned(const FString& Text, uint64& Out)
 void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 {
 	using namespace SkillBotDetail;
+ R.Register({TEXT("cancelled_cast_costs_retained"),TEXT("cancelled_cast_costs_retained"),TEXT("Received cancelled cast retains start MP and SkillReuse deadline"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+ {if(!A.IsEmpty()){Error=TEXT("takes no arguments");return nullptr;}return [](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->CancelledCostsRetained():TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("retained")):FString(TEXT("refunded or mismatched"))):FString(TEXT("unknown: cancelled cast, catalogue, resource or reuse evidence missing"))};};}});
+
  for (const FString& Name : {FString(TEXT("cast_dispositions_once")),FString(TEXT("spawn_before_skill_references")),FString(TEXT("owner_skill_baseline_coherent")),FString(TEXT("observer_skill_baseline_coherent")),FString(TEXT("public_vitals_coherent")),FString(TEXT("public_revival_vitals_coherent")),FString(TEXT("pvp_private_stats_coherent")),FString(TEXT("cp_absorption_matches_received")),FString(TEXT("effect_identity_coherent")),FString(TEXT("death_penalty_matches_before_disconnect")),FString(TEXT("resurrect_offer_matches_death")),FString(TEXT("own_flag_deadline_matches_received")),FString(TEXT("npc_target_is_owner")),FString(TEXT("own_flag_expired_at_last_impact")),FString(TEXT("target_flag_expired_at_last_impact")),FString(TEXT("victim_flag_not_refreshed")),FString(TEXT("peace_rejection_has_no_start"))})
   R.Register({Name,Name,TEXT("Witnessed authoritative event history; missing evidence fails closed"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
   {
@@ -111,7 +114,8 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 			uint32 Skill; if(A.Num()!=1 || !Id(A[0],Skill)){Error=TEXT("needs a positive uint32 skill id");return nullptr;}
 			return [Name,Skill](const FBotContext& C)->FBotPredicateValue
 			{
-				if(Name==TEXT("own_mp_cost_matches")) return {false,TEXT("unknown: catalogue/SkillStateSync contract has no per-rank MP costs")};
+				if(Name==TEXT("own_mp_cost_matches"))
+    {const auto* Audit=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=Audit?Audit->MpCostMatches(Skill):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("received MP stage deltas match exact-rank catalogue")):FString(TEXT("received MP delta mismatch"))):FString(TEXT("unknown: exact-rank catalogue or cast/resource samples missing"))};}
 				if(Name==TEXT("skill_ready")){ const auto* S=State(C); const auto V=S ? S->ReuseRemaining(Skill) : TOptional<uint64>(); return {V.IsSet() && *V==0,V.IsSet()?FString::Printf(TEXT("remaining %llu ticks"),*V):FString(TEXT("unknown"))}; }
 				const auto* S=Effects(C); const auto* N=C.Net(); const bool Known=S && N && S->IsKnown(N->GetOwnEntityId()); const auto Rows=S && N ? S->Active(N->GetOwnEntityId()) : TArray<FEffectApplied>(); bool Active=false;
 				for(const auto& E:Rows) if(E.SkillId==Skill && (Name==TEXT("debuff_active") ? E.Pool==3 : E.Pool==1 || E.Pool==2)) Active=true;

@@ -3,6 +3,7 @@
 #include "NightfallWire.h"
 #include "Combat/CombatStateSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "Skills/SkillStateSubsystem.h"
 
 void USkillAuditSubsystem::Initialize(FSubsystemCollectionBase& C)
 {
@@ -15,6 +16,7 @@ void USkillAuditSubsystem::Initialize(FSubsystemCollectionBase& C)
  AUDIT_EVENT(OnEntityRespawned,FEntityRespawned,EntityRespawned)
  AUDIT_EVENT(OnStatsChanged,FStatsChanged,StatsChanged)
  AUDIT_EVENT(OnSkillStateSync,FSkillStateSync,SkillStateSync)
+ AUDIT_EVENT(OnSkillReuse,FSkillReuse,SkillReuse)
  AUDIT_EVENT(OnPvpStateChanged,FPvpStateChanged,PvpStateChanged)
  AUDIT_EVENT(OnVitalsChanged,FVitalsChanged,VitalsChanged)
  AUDIT_EVENT(OnSkillCastStarted,FSkillCastStarted,SkillCastStarted)
@@ -42,7 +44,7 @@ void USkillAuditSubsystem::Deinitialize()
 void USkillAuditSubsystem::Reset(){ClearTransport();PriorPenalty.Reset();PriorOwner.Reset();}
 void USkillAuditSubsystem::ClearTransport()
 {
- Fence.Reset();Stats.Reset();Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Swings.Reset();Vitals.Reset();ExpectedVitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
+ Fence.Reset();Stats.Reset();ResourceSamples.Reset();Reuse.Reset();LastReuseAtCancel.Reset();bSamplesComplete=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Swings.Reset();Vitals.Reset();ExpectedVitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
  OwnCp=PlayerCp=0;References=PublicPairs=RevivalPairs=PvpPairs=CpPairs=EffectSamples=0;
  bReferencesOk=bVitalsOk=bPvpOk=bCpOk=bEffectsOk=bDispositionOk=true;
  bOwnerStatsBaseline=bOwnerSyncBaseline=bObserverBaseline=false;
@@ -84,6 +86,7 @@ void USkillAuditSubsystem::StatsInput(const FStatsChanged& S)
  }
  PendingCp.RemoveAll([&](const auto& D){return D.Tick<=S.Tick;});
  if(Offer.IsSet() && Offer->State==4 && S.Incarnation>Offer->TargetIncarnation && Stats.IsSet() && Stats->Hp==0 && S.Hp>0 && S.Xp>Stats->Xp)RefundedOffers.Add(Offer->OfferId);
+ if(ResourceSamples.Num()<1024)ResourceSamples.Add(S);else bSamplesComplete=false;
  Stats=S;bOwnerStatsBaseline |= S.bBaseline;
  FPvpStateChanged P;P.Entity=S.Entity;P.Incarnation=S.Incarnation;P.Tick=S.Tick;P.bBaseline=S.bBaseline;P.BaselineTick=S.BaselineTick;P.FlagUntilTick=S.FlagUntilTick;P.Karma=S.Karma;P.PkCount=S.PkCount;P.PvpCount=S.PvpCount;PvpCopy(P,true);
 }
@@ -130,6 +133,11 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   Sync=S;bOwnerSyncBaseline |= S.bBaseline;
   FPvpStateChanged P;P.Entity=S.Entity;P.Incarnation=S.Incarnation;P.Tick=S.Tick;P.bBaseline=S.bBaseline;P.BaselineTick=S.BaselineTick;P.Karma=S.Karma;P.PkCount=S.PkCount;P.PvpCount=S.PvpCount;P.FlagUntilTick=S.FlagUntilTick;PvpCopy(P,true);return;
  }
+ if(E.SkillReuse.IsSet())
+ {
+  const auto& R=*E.SkillReuse;if(Net && Net->IsOwnEntity(R.Entity) && Fence.Accept(R.Entity,R.Incarnation,R.Tick))
+  {const auto* Old=Reuse.Find(R.SkillId);if(!Old || R.Tick>Old->Tick)Reuse.Add(R.SkillId,R);}return;
+ }
  if(E.PvpStateChanged.IsSet()){PvpCopy(*E.PvpStateChanged,false);return;}
  if(E.VitalsChanged.IsSet())
  {
@@ -143,7 +151,7 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  {
   const auto& S=*E.SkillCastStarted;if(!Fence.Accept(S.Caster,S.CasterIncarnation,S.Tick,S.bBaseline,S.BaselineTick))return;
   Reference(S.Target,S.TargetIncarnation);const FString K=CastKey(S.Caster,S.CasterIncarnation,S.CastId);
-  if(!Casts.Contains(K)){Casts.Add(K,{S,0,0,FString()});if(!S.bBaseline && Net && Net->IsOwnEntity(S.Caster))++OwnStartCount;}if(S.bBaseline && Net && !Net->IsOwnEntity(S.Caster))bObserverBaseline=true;return;
+  if(!Casts.Contains(K)){Casts.Add(K,{S,0,0,FString(),0});if(!S.bBaseline && Net && Net->IsOwnEntity(S.Caster))++OwnStartCount;}if(S.bBaseline && Net && !Net->IsOwnEntity(S.Caster))bObserverBaseline=true;return;
  }
  if(E.SkillCastResult.IsSet() || E.SkillCastCancelled.IsSet())
  {
@@ -153,7 +161,8 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   if(!Fence.Accept(Caster,Inc,Tick))return;
   auto* C=Casts.Find(CastKey(Caster,Inc,Id));if(!C){bDispositionOk=false;return;}FString Fingerprint=FString::Printf(TEXT("%d|%llu|%u"),Result,Tick,Result?0:E.SkillCastCancelled->Reason);
   if(Result)for(const auto& T:E.SkillCastResult->Targets)Fingerprint+=FString::Printf(TEXT("|%s|%u|%llu|%u|%u|%u|%u|%u|%u|%u"),*T.Target,T.TargetIncarnation,T.Tick,T.ResolutionKind,T.Outcome,T.Rolled,T.CpAbsorbed,T.HpRemoved,T.Heal,T.TargetHpAfter);
-  if(C->Terminals){bDispositionOk &= C->Terminal==Fingerprint;return;}C->Terminal=Fingerprint;++C->Terminals;C->Reason=Result?0:E.SkillCastCancelled->Reason;
+  if(C->Terminals){bDispositionOk &= C->Terminal==Fingerprint;return;}C->Terminal=Fingerprint;++C->Terminals;C->Reason=Result?0:E.SkillCastCancelled->Reason;C->TerminalTick=Tick;
+  if(!Result && Net && Net->IsOwnEntity(Caster)){const auto* ReuseAtCancel=Reuse.Find(C->Start.SkillId);LastReuseAtCancel=ReuseAtCancel?TOptional<FSkillReuse>(*ReuseAtCancel):TOptional<FSkillReuse>();}
   if(Result)for(const auto& T:E.SkillCastResult->Targets)
   {
    Reference(T.Target,T.TargetIncarnation);
@@ -262,4 +271,55 @@ TOptional<bool> USkillAuditSubsystem::Check(const FString& Name) const
   if(!PeaceRejectSeq.IsSet())return {};return !AcceptedSeqs.Contains(*PeaceRejectSeq) && OwnStartCount==SentStartCounts.FindRef(*PeaceRejectSeq);
  }
  return {};
+}
+
+namespace SkillCostAudit
+{
+ const FGrpcNightfallV1SkillCatalogEntry* CostRow(const UNetClientSubsystem* Net,uint32 Skill,uint32 Rank)
+ {
+  if(!Net || !Rank)return nullptr;
+  const auto* S=Net->GetGameInstance()->GetSubsystem<USkillStateSubsystem>();const auto* Row=S?S->FindSkill(Skill):nullptr;
+  return Row && Rank<=Row->MaxLevel.Value && Row->MpConsumeStart.Num()==int64(Row->MaxLevel.Value) && Row->MpConsumeEnd.Num()==int64(Row->MaxLevel.Value)?Row:nullptr;
+ }
+ const FStatsChanged* Before(const TArray<FStatsChanged>& Samples,uint32 Inc,uint64 Tick)
+ {
+  const FStatsChanged* Out=nullptr;for(const auto& S:Samples)if(S.Incarnation==Inc && S.Tick<Tick && (!Out || S.Tick>Out->Tick))Out=&S;return Out;
+ }
+ const FStatsChanged* At(const TArray<FStatsChanged>& Samples,uint32 Inc,uint64 Tick)
+ {
+  for(const auto& S:Samples)if(S.Incarnation==Inc && S.Tick==Tick)return &S;return nullptr;
+ }
+ bool Delta(const FStatsChanged& Before,const FStatsChanged& After,uint32 Cost){return Before.Mp>=After.Mp && uint64(Before.Mp)-After.Mp==Cost;}
+}
+TOptional<bool> USkillAuditSubsystem::MpCostMatches(uint32 Skill) const
+{
+ using namespace SkillCostAudit;if(!Net || !bSamplesComplete)return {};
+ const FCastEvidence* C=nullptr;
+ for(const auto& Pair:Casts)if(!Pair.Value.Start.bBaseline && Net->IsOwnEntity(Pair.Value.Start.Caster) && Pair.Value.Start.SkillId==Skill && Pair.Value.Terminals && Pair.Value.Reason==0 && (!C || Pair.Value.Start.Tick>C->Start.Tick))C=&Pair.Value;
+ if(!C)return {};const auto* Row=CostRow(Net,Skill,C->Start.SkillLevel);if(!Row)return {};
+ const uint32 Mp1=Row->MpConsumeStart[C->Start.SkillLevel-1].Value,Mp2=Row->MpConsumeEnd[C->Start.SkillLevel-1].Value;
+ const auto* BeforeStart=Before(ResourceSamples,C->Start.CasterIncarnation,C->Start.Tick);
+ const auto* Start=At(ResourceSamples,C->Start.CasterIncarnation,C->Start.Tick);
+ const auto* BeforeEnd=Before(ResourceSamples,C->Start.CasterIncarnation,C->TerminalTick);
+ const auto* End=At(ResourceSamples,C->Start.CasterIncarnation,C->TerminalTick);
+ if(!BeforeStart || !BeforeEnd || !End || (!Start && Mp1))return {};
+ // Zero MP1 may leave no dirty StatsChanged at start. Explicit catalogue zero is required.
+ if(Start && !Delta(*BeforeStart,*Start,Mp1))return false;
+ // Stage deltas permit separately received positive MP changes between start and completion.
+ return Delta(*BeforeEnd,*End,Mp2);
+}
+TOptional<bool> USkillAuditSubsystem::CancelledCostsRetained() const
+{
+ using namespace SkillCostAudit;if(!Net || !bSamplesComplete)return {};
+ const FCastEvidence* C=nullptr;
+ for(const auto& Pair:Casts)if(!Pair.Value.Start.bBaseline && Net->IsOwnEntity(Pair.Value.Start.Caster) && Pair.Value.Terminals && Pair.Value.Reason!=0 && (!C || Pair.Value.Start.Tick>C->Start.Tick))C=&Pair.Value;
+ if(!C || !LastReuseAtCancel.IsSet())return {};const auto* Row=CostRow(Net,C->Start.SkillId,C->Start.SkillLevel);if(!Row)return {};
+ const uint32 Mp1=Row->MpConsumeStart[C->Start.SkillLevel-1].Value;
+ const auto* BeforeStart=Before(ResourceSamples,C->Start.CasterIncarnation,C->Start.Tick);const auto* Start=At(ResourceSamples,C->Start.CasterIncarnation,C->Start.Tick);
+ if(!BeforeStart || (!Start && Mp1))return {};
+ const auto* Current=Stats.IsSet() && Stats->Incarnation==C->Start.CasterIncarnation?&*Stats:nullptr;if(!Current)return {};
+ if(Start && !Delta(*BeforeStart,*Start,Mp1))return false;
+ const auto& R=*LastReuseAtCancel;
+ // This tests retained received costs, not a locally reconstructed reuse duration.
+ return R.SkillId==C->Start.SkillId && R.Incarnation==C->Start.CasterIncarnation && R.Tick==C->Start.Tick && R.ReadyTick>C->TerminalTick && R.ReadyTick>Fence.Tick && Current->Mp==(Start?Start->Mp:BeforeStart->Mp);
 }
