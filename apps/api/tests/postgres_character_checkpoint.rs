@@ -187,7 +187,10 @@ async fn failure_after_row_update_leaves_no_partial_state() {
         .checkpoint(&checkpoint(&c, 0, KEY_A), &[leveled(&c, 3)])
         .await
         .unwrap_err();
-    assert!(matches!(err, CheckpointError::Other(_)), "{err:?}");
+    assert!(
+        matches!(&err, CheckpointError::Constraint(name) if name == "outbox_reject_all"),
+        "{err:?}"
+    );
 
     assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), before);
     assert_eq!(repo.get(c.id).await.unwrap().unwrap().level, 1);
