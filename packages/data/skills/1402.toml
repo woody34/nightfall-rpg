@@ -2,47 +2,46 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01400-01499.xml", skill_id = 1402 }
-
 id = 1402
 key = "l2.skill.1402"
 l2_ref = "Major Group Heal"
 max_level = 5
 operate_type = "A1"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = 1000
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 7000
 cool_time_ms = 0
 reuse_ms = 3000
 hit_cancel_ms = 200
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [38, 40, 43, 46, 48]
 mp_consume_end = [151, 159, 171, 182, 191]
 hp_consume = [0, 0, 0, 0, 0]
 magic_level = [58, 62, 66, 70, 74]
 effect_point = [421, 457, 490, 520, 546]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["item_consume", "scope:PARTY"]
-
-[attribute]
-type = "NONE"
-power = 0
+blockers = ["item_consume", "scope:PARTY", "scope_filter:FRIEND"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["421", "457", "490", "520", "546"], hitCancelTime = "200", hitTime = "7000", icon = "icon.skill1402", isMagic = "1", itemConsumeCount = "4", itemConsumeId = "3031", magicLvl = ["58", "62", "66", "70", "74"], mpConsume1 = ["38", "40", "43", "46", "48"], mpConsume2 = ["151", "159", "171", "182", "191"], operateType = "A1", reuseDelay = "3000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[item_consume]]
 item_id = 3031

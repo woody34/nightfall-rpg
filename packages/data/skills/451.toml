@@ -2,70 +2,65 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00400-00499.xml", skill_id = 451 }
-
 id = 451
 key = "l2.skill.451"
 l2_ref = "Sonic Move"
 max_level = 2
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 1000
 cool_time_ms = 0
 reuse_ms = 30000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0]
 mp_consume_end = [29, 32]
 hp_consume = [0, 0]
 magic_level = [62, 68]
 effect_point = [582, 624]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["cond:player:Charges"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><and><using kind=\"DUAL\" /><player Charges=\"#chargeConsume\" /></and></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "SPEED_UP_SPECIAL", level = [1, 1], time_s = [15, 15], is_debuff = false }
+source_sets = { abnormalLvl = "1", abnormalTime = "15", abnormalType = "SPEED_UP_SPECIAL", affectScope = "SINGLE", chargeConsume = ["2", "3"], effectPoint = ["582", "624"], hitCancelTime = "500", hitTime = "1000", icon = "icon.skill0451", magicLvl = ["62", "68"], mpConsume2 = ["29", "32"], operateType = "A2", reuseDelay = "30000", rideState = "NONE", targetType = "SELF" }
 
-conditions = [
-  {
-    kind = "and",
-    conditions = [
-    { kind = "using_kind", weapon_kinds = ["DUAL"] },
-    { kind = "unsupported", tag = "player", attrs = {"Charges": "#chargeConsume"} }
-    ]
-  }
-]
+[[conditions]]
+kind = "and"
 
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><and><using kind=\"DUAL\" /><player Charges=\"#chargeConsume\" /></and></cond>",
-]
+[[conditions.conditions]]
+kind = "using_kind"
+weapon_kinds = ["DUAL"]
 
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "SPEED_UP_SPECIAL"
-level = [1, 1]
-time_s = [15, 15]
-is_debuff = false
+[[conditions.conditions]]
+kind = "unsupported"
+tag = "player"
+attrs = { Charges = "#chargeConsume" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "runSpd", value = ["40", "66"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "runSpd"
+value = ["40", "66"]

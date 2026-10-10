@@ -2,53 +2,86 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00200-00299.xml", skill_id = 258 }
-
 id = 258
 key = "l2.skill.258"
 l2_ref = "Light Armor Mastery"
 max_level = 33
 operate_type = "P"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "unset"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 0
 cool_time_ms = 0
 reuse_ms = 0
 hit_cancel_ms = 0
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [38, 39, 40, 42, 43, 44, 46, 47, 48, 50, 51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
 effect_point = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+source_sets = { icon = "icon.skill0258", magicLvl = ["38", "39", "40", "42", "43", "44", "46", "47", "48", "50", "51", "52", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], operateType = "P", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "pDef", value = ["11.1", "11.8", "12.5", "14", "14.8", "15.6", "17.3", "18.1", "19", "20.8", "21.7", "22.6", "24.5", "25.5", "26.4", "27.4", "28.4", "29.5", "30.5", "31.6", "32.6", "33.7", "34.8", "35.9", "37", "38.1", "39.2", "40.3", "41.4", "42.6", "43.7", "44.8", "46"] },
-  { op = "mul", stat = "mAtkSpd", value = ["1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88"] },
-  { op = "mul", stat = "pAtkSpd", value = ["1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25"] },
-  { op = "mul", stat = "regMp", value = ["1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "pDef"
+value = ["11.1", "11.8", "12.5", "14", "14.8", "15.6", "17.3", "18.1", "19", "20.8", "21.7", "22.6", "24.5", "25.5", "26.4", "27.4", "28.4", "29.5", "30.5", "31.6", "32.6", "33.7", "34.8", "35.9", "37", "38.1", "39.2", "40.3", "41.4", "42.6", "43.7", "44.8", "46"]
+raw_conditions = ["<using kind=\"LIGHT\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["LIGHT"]
+
+[[effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88", "1.88"]
+raw_conditions = ["<using kind=\"LIGHT\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["LIGHT"]
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25", "1.25"]
+raw_conditions = ["<using kind=\"LIGHT\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["LIGHT"]
+
+[[effects.stat_children]]
+op = "mul"
+stat = "regMp"
+value = ["1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2", "1.2"]
+raw_conditions = ["<using kind=\"LIGHT\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["LIGHT"]

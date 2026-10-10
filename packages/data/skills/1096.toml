@@ -2,59 +2,55 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01000-01099.xml", skill_id = 1096 }
-
 id = 1096
 key = "l2.skill.1096"
 l2_ref = "Seal of Chaos"
 max_level = 16
 operate_type = "A2"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "POINT_BLANK"
 affect_range = 200
-affect_limit = { offset = 10, width = 10 }
 affect_object = "NOT_FRIEND"
-
-cast_range = 0
-effect_range = 0
+affect_limit = { offset = 10, width = 10 }
+cast_range = -1
+effect_range = -1
 hit_time_ms = 1500
 cool_time_ms = 0
 reuse_ms = 2000
 hit_cancel_ms = 500
-
+activate_rate = 60
+level_bonus_rate = 1
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [4, 5, 11, 12, 13, 14, 16, 16, 17, 18, 18, 19, 19, 20, 20, 21]
 mp_consume_end = [16, 18, 42, 47, 52, 56, 61, 64, 66, 69, 71, 74, 76, 78, 80, 82]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [30, 35, 40, 44, 48, 52, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74]
 effect_point = [-285, -331, -379, -418, -457, -495, -532, -549, -566, -582, -597, -611, -624, -635, -646, -655]
-
-activate_rate = 60
 basic_property = "MEN"
-level_bonus_rate = 1
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "HIT_DOWN"
-level = [2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-time_s = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
-is_debuff = true
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "HIT_DOWN", level = [2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], time_s = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30], is_debuff = true }
+source_sets = { abnormalLvl = ["2", "2", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3"], abnormalTime = "30", abnormalType = "HIT_DOWN", activateRate = "60", affectLimit = "10-10", affectObject = "NOT_FRIEND", affectRange = "200", affectScope = "POINT_BLANK", basicProperty = "MEN", effectPoint = ["-285", "-331", "-379", "-418", "-457", "-495", "-532", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], hitCancelTime = "500", hitTime = "1500", icon = "icon.skill1096", isDebuff = "true", isMagic = "1", lvlBonusRate = "1", magicLvl = ["30", "35", "40", "44", "48", "52", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["4", "5", "11", "12", "13", "14", "16", "16", "17", "18", "18", "19", "19", "20", "20", "21"], mpConsume2 = ["16", "18", "42", "47", "52", "56", "61", "64", "66", "69", "71", "74", "76", "78", "80", "82"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Debuff"
-params = {}
-stat_children = [
-  { op = "sub", stat = "accCombat", value = ["9", "9", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "sub"
+stat = "accCombat"
+value = ["9", "9", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12", "12"]

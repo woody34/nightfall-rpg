@@ -2,59 +2,50 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00400-00499.xml", skill_id = 409 }
-
 id = 409
 key = "l2.skill.409"
 l2_ref = "Critical Blow"
 max_level = 10
 operate_type = "A3"
 is_magic = 0
-
 target_type = "ENEMY"
 affect_scope = "SINGLE"
-
 cast_range = 40
 effect_range = 400
 hit_time_ms = 1300
 cool_time_ms = 700
 reuse_ms = 30000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [52, 56, 58, 60, 62, 64, 66, 68, 70, 72]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [55, 58, 60, 62, 64, 66, 68, 70, 72, 74]
 effect_point = [-266, -279, -288, -296, -304, -311, -317, -323, -328, -333]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = true
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:FatalBlow", "effect:Lethal", "section:selfEffects", "stat:blowRate"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"DAGGER,DUALDAGGER\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "MIGHT_MORTAL", level = [1, 1, 1, 2, 2, 3, 3, 4, 4, 5], time_s = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "1", "1", "2", "2", "3", "3", "4", "4", "5"], abnormalTime = "15", abnormalType = "MIGHT_MORTAL", affectScope = "SINGLE", castRange = "40", coolTime = "700", effectPoint = ["-266", "-279", "-288", "-296", "-304", "-311", "-317", "-323", "-328", "-333"], effectRange = "400", hitCancelTime = "500", hitTime = "1300", icon = "icon.skill0409", magicLvl = ["55", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume2 = ["52", "56", "58", "60", "62", "64", "66", "68", "70", "72"], nextActionAttack = "true", operateType = "A3", overHit = "true", reuseDelay = "30000", rideState = "NONE", targetType = "ENEMY" }
 
-conditions = [
-  { kind = "using_kind", weapon_kinds = ["DAGGER", "DUALDAGGER"] }
-]
-
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><using kind=\"DAGGER,DUALDAGGER\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "MIGHT_MORTAL"
-level = [1, 1, 1, 2, 2, 3, 3, 4, 4, 5]
-time_s = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15]
-is_debuff = false
+[[conditions]]
+kind = "using_kind"
+weapon_kinds = ["DAGGER", "DUALDAGGER"]
 
 [[effects]]
 section = "effects"
@@ -71,7 +62,9 @@ stat_children = []
 [[effects]]
 section = "selfEffects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "blowRate", value = ["1.1", "1.1", "1.1", "1.15", "1.15", "1.2", "1.2", "1.25", "1.25", "1.3"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "blowRate"
+value = ["1.1", "1.1", "1.1", "1.15", "1.15", "1.2", "1.2", "1.25", "1.25", "1.3"]

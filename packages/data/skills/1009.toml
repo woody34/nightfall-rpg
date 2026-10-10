@@ -2,58 +2,54 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01000-01099.xml", skill_id = 1009 }
-
 id = 1009
 key = "l2.skill.1009"
 l2_ref = "Chant of Shielding"
 max_level = 3
 operate_type = "A2"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = 1000
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 2500
 cool_time_ms = 0
 reuse_ms = 5000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [16, 21, 28]
 mp_consume_end = [61, 84, 111]
 hp_consume = [0, 0, 0]
 magic_level = [20, 30, 40]
 effect_point = [204, 285, 379]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["scope:PARTY"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "PD_UP"
-level = [1, 2, 3]
-time_s = [1200, 1200, 1200]
-is_debuff = false
+blockers = ["scope:PARTY", "scope_filter:FRIEND"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "PD_UP", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "PD_UP", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["204", "285", "379"], hitCancelTime = "500", hitTime = "2500", icon = "icon.skill1009", isMagic = "1", magicLvl = ["20", "30", "40"], mpConsume1 = ["16", "21", "28"], mpConsume2 = ["61", "84", "111"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pDef", value = ["1.08", "1.12", "1.15"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pDef"
+value = ["1.08", "1.12", "1.15"]

@@ -2,51 +2,45 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01300-01399.xml", skill_id = 1389 }
-
 id = 1389
 key = "l2.skill.1389"
 l2_ref = "Greater Shield"
 max_level = 3
 operate_type = "A2"
 is_magic = 1
-
 target_type = "TARGET"
 affect_scope = "SINGLE"
-
 cast_range = 400
 effect_range = 900
 hit_time_ms = 4000
 cool_time_ms = 0
 reuse_ms = 2000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [11, 13, 14]
 mp_consume_end = [43, 49, 55]
 hp_consume = [0, 0, 0]
 magic_level = [58, 66, 74]
 effect_point = [549, 611, 655]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["item_consume"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "PA_PD_UP"
-level = [1, 2, 3]
-time_s = [1200, 1200, 1200]
-is_debuff = false
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "PA_PD_UP", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "PA_PD_UP", affectScope = "SINGLE", castRange = "400", effectPoint = ["549", "611", "655"], effectRange = "900", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1389", isMagic = "1", itemConsumeCount = ["1", "2", "3"], itemConsumeId = "3031", magicLvl = ["58", "66", "74"], mpConsume1 = ["11", "13", "14"], mpConsume2 = ["43", "49", "55"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }
 
 [[item_consume]]
 item_id = 3031
@@ -55,7 +49,9 @@ count = [1, 2, 3]
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pDef", value = ["1.05", "1.1", "1.15"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pDef"
+value = ["1.05", "1.1", "1.15"]

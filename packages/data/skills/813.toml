@@ -2,75 +2,76 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00800-00899.xml", skill_id = 813 }
-
 id = 813
 key = "l2.skill.813"
 l2_ref = "Vanguard"
 max_level = 1
 operate_type = "A2"
 is_magic = 2
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 5000
 cool_time_ms = 0
 reuse_ms = 30000
 hit_cancel_ms = 0
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = true
 mp_consume_start = [0]
 mp_consume_end = [31]
 hp_consume = [0]
 magic_level = [-1]
 effect_point = [1]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["cond:player:canTransform", "effect:Transformation", "stat:sDef"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = true
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond><player canTransform=\"true\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "TRANSFORM", level = [1], time_s = [21600], is_debuff = false }
+source_sets = { abnormalLvl = "1", abnormalTime = "21600", abnormalType = "TRANSFORM", affectScope = "SINGLE", effectPoint = "1", hitTime = "5000", icon = "icon.skill0810", irreplaceableBuff = "true", isMagic = "2", magicLvl = "-1", mpConsume2 = "31", operateType = "A2", reuseDelay = "30000", reuseDelayLock = "true", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
-conditions = [
-  { kind = "unsupported", tag = "player", attrs = {"canTransform": "true"} }
-]
-
-raw_conditions = [
-  "<cond><player canTransform=\"true\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "TRANSFORM"
-level = [1]
-time_s = [21600]
-is_debuff = false
+[[conditions]]
+kind = "unsupported"
+tag = "player"
+attrs = { canTransform = "true" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pAtkSpd", value = ["1.08"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.08"]
+raw_conditions = ["<using kind=\"DUAL\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["DUAL"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "sDef", value = ["0.5"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "sDef"
+value = ["0.5"]
 
 [[effects]]
 section = "effects"

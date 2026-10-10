@@ -344,20 +344,20 @@ Files read:
   - `stats/chars/pcKarmaIncrease.xml`: 85 per-level karma loss multipliers.
 - Game (`src/main/java/com/l2jserver/gameserver/`):
   - `model/stats/Formulas.java`:
-    - `calcSkillPhysDam`: Physical skill damage and critical hits (`lines 462-520`).
-    - `calcMagicDam`: Magical skill damage and magic critical hits (`lines 522-630`).
-    - `calcMagicSuccess`: Success rate for magic attacks (`lines 135-155`).
-    - `calcEffectSuccess`: Success rate for debuffs and abnormal effects with traits and mAtkMod (`lines 157-235`).
-    - `calcAtkBreak`: Damage interruption rate for physical/magic casting (`lines 1150-1175`).
-    - `calcAttributeBonus`: Elemental attribute power vs defence multiplier (`lines 700-750`).
+    - `calcSkillPhysDam`: Physical skill damage and critical hits (`lines 746-809`).
+    - `calcMagicDam`: Magical skill damage and magic critical hits (`lines 815-898`).
+    - `calcMagicSuccess`: Success rate for magic attacks (`lines 1286-1314`).
+    - `calcEffectSuccess`: Success rate for debuffs and abnormal effects with traits and mAtkMod (`lines 1158-1232`).
+    - `calcAtkBreak`: Damage interruption rate for physical/magic casting (`lines 992-1025`).
+    - `calcAttributeBonus`: Elemental attribute power vs defence multiplier (`lines 1440-1560`).
     - `calcHpRegen`, `calcMpRegen`, `calcCpRegen`: Resource regeneration rates and multipliers (`lines 263-460`).
+    - `HP_REGENERATE_PERIOD = 3000`: 3000 ms (30 ticks at 100 ms/tick), `line 109`.
+    - `calculateSkillResurrectRestorePercent`: Pinned resurrection XP restoration formula (`lines 1372-1386`).
     - `calculateKarmaGain`, `calculateKarmaLost`: Karma gain upon player kill and karma loss upon XP gain (`lines 1814-1848`).
   - `model/actor/L2Character.java`:
-    - `HP_REGENERATE_PERIOD = 3000`: 3000 ms (30 ticks at 100 ms/tick).
     - `doRevive()`: Base revival vitals (`lines 2098-2124`).
   - `model/actor/instance/L2PcInstance.java`:
-    - `calculateSkillResurrectRestorePercent`: Pinned resurrection XP restoration formula (`lines 7951-7975`).
-    - `doRevive(double revivePower)`: Player revival vitals and XP restoration (`lines 7984-8010`).
+    - `doRevive(double revivePower)`: Player revival calls doRevive() then restoreExp (`lines 7984-7986`); XP refund Math.round at `4700-4702`.
 
 ### Generated skill definitions and catalogue
 
@@ -366,8 +366,8 @@ Files read:
   - Skill 5076 (`Death Penalty`, passive).
   - 9 transitive referenced skills discovered through effect parameters (`997, 5603, 5604, 5676, 5677, 5678, 6090, 6687, 6920`).
   - Skill 286 (`Provoke`, sample-only reference, marked `sample_only = true`).
-  - Classification: **220 executable**, **169 deferred** overall (**211 executable**, **167 deferred** among the 378 catalogue skills).
-  - Executability evaluated per Tier B capability rules (zone-design-v2 §1.1). `TargetMe` is explicitly deferred with `effect:TargetMe`.
+  - Classification: **208 executable**, **181 deferred** overall (**199 executable**, **179 deferred** among the 378 catalogue skills).
+  - Executability evaluated per Tier B capability rules (zone-design-v3 §1.1). `TargetMe` is explicitly deferred with `effect:TargetMe`.
 - `packages/data/skill_catalog.toml`: Regenerated with computed `runtime_status` (`"executable"` or `"deferred"`) matching each skill's blocker analysis.
 
 ### Tables and NPC updates
@@ -384,3 +384,14 @@ Files read:
   - Stat dependencies: CON for HP/CP, MEN for MP.
   - Base regen curve source: class templates (`packages/data/classes/*.toml`).
 
+
+### DATA review 1 corrections and verification
+
+- All 389 definitions parse with `tomllib`, including deferred definitions. Serialization uses recursive arrays of tables for conditions and stat children and checks structural round-trip equality. All source sets and every referenced rank table are retained; unresolved, short, or malformed tables are errors.
+- Stat conditions are source apply conditions (`DocumentBase.java:246–247`), including bare `<using>`, `<player>` and boolean nodes. Unsupported leaves defer all affected skills; 94/148/171/225/290/291/293/294/1297 are deferred and 217 retains its SWORD/BLUNT condition. Full XML conditions and their unsupported attribute strings are retained at each site.
+- Parameter names/values, operations and scope filters are admitted explicitly. Supported stat operations are mul/add/sub; div/set/share defer. Scope filters ALL/default and NOT_FRIEND are admitted, with other filters including FRIEND deferred until implemented (`AffectObjectStaticImpl.java:32–38,58–63,84–99`).
+- Pinned defaults: missing magicLvl=0, ranges=-1, abnormalLvl=0 (`Skill.java:212–214,273`); abnormal clamp 10/90 (`character.properties:277–278`, `Skill.java:276–277`); cast-speed cap 1999 (`character.properties:268`, `CharStat.java:252`). Locked reuse is imported (`Skill.java:204`, `L2Character.java:1514–1524`). C5 resolves the earlier architecture/v3 default contradictions.
+- The independent oracle contains 24 formula sets / 1,203 vectors. Corrected continuous 500/550 ms staging launches immediately and impacts 400 ms later (`L2Character.java:1625–1643,4577–4581`). Zero/sub-ms and <=100-ms cases use the original task skillTime truncation, with minimum one Nightfall completion tick.
+- TickHp uses binary32 division before widening (`AbstractEffect.java:148–149`), then binary64 power/products (`TickHp.java:62–71`). Source fractional results are separate from D-R12 whole-damage/Q-restoration adaptations. Fixtures include CP absorption after HP-1 clamping (`TickHp.java:75–76`, `PcStatus.java:185–194`), dynamic PER reads, multi-pulse Q carry and full-clamp clearing; regen minimum standing traces yield cumulative 1/2/3 and Q remainder 100000/200000/300000.
+- Rational karma truncation is not universally Java-equivalent. Level 2, XP 6208133913, multiplier 2.069377971 yields rational 100000000 vs binary64 99,999,999. The oracle models literal/long conversion and each division's IEEE rounding separately (`Formulas.java:1814–1820`), with the pinned RateKarmaLost=1 input (`config/rates.properties:56`).
+- Additional source observations: skill 60 specifies `nextActionAttack="fake_death"` (`stats/skills/00000-00099.xml:1929`); the game reads a boolean (`Skill.java:279`, `StatsSet.java:112–121`), so the normalized value is false and the raw string is retained. `AbstractEffect.java:70–72` retains attachCond but comments out applyCond assignment, although `DocumentBase.java:270` parses it. DATA still preserves effect conditions and defers unsupported leaves per the binding capability rule; this observation does not silently change the execution contract.

@@ -2,58 +2,54 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01300-01399.xml", skill_id = 1310 }
-
 id = 1310
 key = "l2.skill.1310"
 l2_ref = "Chant of Vampire"
 max_level = 4
 operate_type = "A2"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = 1000
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 2500
 cool_time_ms = 0
 reuse_ms = 5000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [31, 43, 49, 55]
 mp_consume_end = [123, 170, 195, 217]
 hp_consume = [0, 0, 0, 0]
 magic_level = [44, 58, 66, 74]
 effect_point = [418, 549, 611, 655]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["scope:PARTY", "stat:absorbDam"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "VAMPIRIC_ATTACK"
-level = [1, 2, 3, 4]
-time_s = [1200, 1200, 1200, 1200]
-is_debuff = false
+blockers = ["scope:PARTY", "scope_filter:FRIEND", "stat:absorbDam"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "VAMPIRIC_ATTACK", level = [1, 2, 3, 4], time_s = [1200, 1200, 1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3", "4"], abnormalTime = "1200", abnormalType = "VAMPIRIC_ATTACK", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["418", "549", "611", "655"], hitCancelTime = "500", hitTime = "2500", icon = "icon.skill1310", isMagic = "1", magicLvl = ["44", "58", "66", "74"], mpConsume1 = ["31", "43", "49", "55"], mpConsume2 = ["123", "170", "195", "217"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "absorbDam", value = ["6", "7", "8", "9"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "absorbDam"
+value = ["6", "7", "8", "9"]

@@ -2,66 +2,64 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00900-00999.xml", skill_id = 982 }
-
 id = 982
 key = "l2.skill.982"
 l2_ref = "Combat Aura"
 max_level = 3
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = [300, 400, 500]
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 1500
 cool_time_ms = 0
 reuse_ms = 2000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0]
 mp_consume_end = [38, 48, 52]
 hp_consume = [0, 0, 0]
 magic_level = [52, 64, 70]
 effect_point = [1, 1, 1]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
-blockers = ["scope:PARTY"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "KNIGHT_AURA"
-level = [1, 2, 3]
-time_s = [1200, 1200, 1200]
-is_debuff = false
-
-[[effects]]
-section = "effects"
-name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pAtkSpd", value = ["1.03", "1.04", "1.05"] },
-]
+blockers = ["scope:PARTY", "scope_filter:FRIEND"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "KNIGHT_AURA", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "KNIGHT_AURA", affectObject = "FRIEND", affectRange = ["300", "400", "500"], affectScope = "PARTY", effectPoint = "1", hitCancelTime = "500", hitTime = "1500", icon = "icon.skill0982", magicLvl = ["52", "64", "70"], mpConsume2 = ["38", "48", "52"], operateType = "A2", reuseDelay = "2000", rideState = "NONE", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pAtk", value = ["1.03", "1.04", "1.05"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.03", "1.04", "1.05"]
+
+[[effects]]
+section = "effects"
+name = "Buff"
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pAtk"
+value = ["1.03", "1.04", "1.05"]

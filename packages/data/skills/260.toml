@@ -2,60 +2,50 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00200-00299.xml", skill_id = 260 }
-
 id = 260
 key = "l2.skill.260"
 l2_ref = "Hammer Crush"
 max_level = 37
 operate_type = "A2"
 is_magic = 0
-
 target_type = "ENEMY"
 affect_scope = "SINGLE"
-
 cast_range = 40
 effect_range = 400
 hit_time_ms = 1080
 cool_time_ms = 720
 reuse_ms = 3000
 hit_cancel_ms = 0
-
+activate_rate = 50
+level_bonus_rate = 1
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [35, 36, 37, 37, 38, 39, 40, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
 effect_point = [-183, -188, -193, -198, -203, -208, -213, -218, -223, -228, -233, -237, -242, -247, -252, -257, -261, -266, -271, -275, -279, -284, -288, -292, -296, -300, -304, -307, -311, -314, -317, -320, -323, -326, -328, -331, -333]
-
-activate_rate = 50
 basic_property = "CON"
-level_bonus_rate = 1
 trait = "SHOCK"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = true
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"BLUNT\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "STUN", level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], time_s = [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9], is_debuff = true, visual = "STUN" }
+source_sets = { abnormalLvl = "1", abnormalTime = "9", abnormalType = "STUN", abnormalVisualEffect = "STUN", activateRate = "50", affectScope = "SINGLE", basicProperty = "CON", castRange = "40", coolTime = "720", effectPoint = ["-183", "-188", "-193", "-198", "-203", "-208", "-213", "-218", "-223", "-228", "-233", "-237", "-242", "-247", "-252", "-257", "-261", "-266", "-271", "-275", "-279", "-284", "-288", "-292", "-296", "-300", "-304", "-307", "-311", "-314", "-317", "-320", "-323", "-326", "-328", "-331", "-333"], effectRange = "400", hitTime = "1080", icon = "icon.skill0260", isDebuff = "true", lvlBonusRate = "1", magicLvl = ["38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume2 = ["35", "36", "37", "37", "38", "39", "40", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72"], nextActionAttack = "true", operateType = "A2", overHit = "true", reuseDelay = "3000", rideState = "NONE", targetType = "ENEMY", trait = "SHOCK" }
 
-conditions = [
-  { kind = "using_kind", weapon_kinds = ["BLUNT"] }
-]
-
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><using kind=\"BLUNT\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "STUN"
-level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-time_s = [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
-is_debuff = true
-visual = "STUN"
+[[conditions]]
+kind = "using_kind"
+weapon_kinds = ["BLUNT"]
 
 [[effects]]
 section = "effects"
@@ -66,5 +56,5 @@ stat_children = []
 [[effects]]
 section = "effects"
 name = "Stun"
-params = {}
+params = {  }
 stat_children = []

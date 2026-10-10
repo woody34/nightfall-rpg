@@ -2,59 +2,58 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00300-00399.xml", skill_id = 324 }
-
 id = 324
 key = "l2.skill.324"
 l2_ref = "Quiver of Arrow: S Grade"
 max_level = 1
 operate_type = "A1"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 3000
 cool_time_ms = 0
 reuse_ms = 600000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [398]
 mp_consume_end = [0]
 hp_consume = [0]
 magic_level = [72]
 effect_point = [0]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["cond:player:invSize", "cond:player:weight", "effect:RestorationRandom", "item_consume"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"129\"><and><player invSize=\"10\" /><player weight=\"80\" /></and></cond>"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", capsuled_items_skill = ["1345,900,30;1345,1800,50;1345,3600,20"], hitCancelTime = "500", hitTime = "3000", icon = "icon.skill0324", isMagic = "1", itemConsumeCount = "1", itemConsumeId = "1462", magicLvl = "72", mpConsume1 = "398", operateType = "A1", reuseDelay = "600000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
-conditions = [
-  {
-    kind = "and",
-    conditions = [
-    { kind = "unsupported", tag = "player", attrs = {"invSize": "10"} },
-    { kind = "unsupported", tag = "player", attrs = {"weight": "80"} }
-    ]
-  }
-]
+[[conditions]]
+kind = "and"
 
-raw_conditions = [
-  "<cond msgId=\"129\"><and><player invSize=\"10\" /><player weight=\"80\" /></and></cond>",
-]
+[[conditions.conditions]]
+kind = "unsupported"
+tag = "player"
+attrs = { invSize = "10" }
 
-[attribute]
-type = "NONE"
-power = 0
+[[conditions.conditions]]
+kind = "unsupported"
+tag = "player"
+attrs = { weight = "80" }
 
 [[item_consume]]
 item_id = 1462
@@ -63,5 +62,5 @@ count = 1
 [[effects]]
 section = "effects"
 name = "RestorationRandom"
-params = {}
+params = {  }
 stat_children = []

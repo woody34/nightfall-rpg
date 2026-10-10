@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+from decimal import Decimal, InvalidOperation
 import glob
 import json
 import re
@@ -116,7 +117,7 @@ def get_referenced_skills(skill_elem: ET.Element, tables: dict[str, list[str]]) 
     for e in skill_elem.iter("param"):
         for k, v in e.attrib.items():
             if "skillid" in k.lower():
-                val_list = tables.get(v, [v])
+                val_list = expand(v, tables, int(skill_elem.get("levels", "1")))
                 for item in val_list:
                     try:
                         iv = int(item)
@@ -129,11 +130,11 @@ def get_referenced_skills(skill_elem: ET.Element, tables: dict[str, list[str]]) 
 
 def is_cond_allowed(elem: ET.Element) -> bool:
     if elem.tag in ("and", "or", "not"):
-        return all(is_cond_allowed(child) for child in elem)
+        return not elem.attrib and all(is_cond_allowed(child) for child in elem)
     if elem.tag == "using":
         return set(elem.attrib.keys()) == {"kind"}
     if elem.tag == "player":
-        if set(elem.attrib.keys()) == {"canResurrect"}:
+        if set(elem.attrib.keys()) == {"canResurrect"} and elem.attrib["canResurrect"] in {"true", "false"}:
             return True
     return False
 
@@ -143,48 +144,147 @@ def cond_sig(e: ET.Element) -> str:
     return f"{e.tag}:{attrs}" if attrs else e.tag
 
 
+def condition_elements(elem: ET.Element) -> list[ET.Element]:
+    if elem.tag == "skill":
+        return elem.findall("cond")
+    if elem.tag.endswith("ffects"):
+        return [ch for ch in elem if ch.tag != "effect"]
+    if elem.tag == "effect":
+        return [ch for ch in elem if ch.tag not in ALL_STAT_OPS | {"param"}]
+    return list(elem)  # stat children contain bare conditions as well as <cond>
+
+
+def condition_nodes(elem: ET.Element) -> list[ET.Element]:
+    return [node for c in condition_elements(elem) for node in (list(c) if c.tag == "cond" else [c])]
+
+
 def get_cond_blockers(cond_elem: ET.Element) -> set[str]:
     blockers: set[str] = set()
 
     def walk(e: ET.Element) -> None:
-        if e.tag in ("and", "or", "not"):
+        if e.tag in ("and", "or", "not", "cond"):
+            if e.tag != "cond" and e.attrib:
+                blockers.add(f"cond:{cond_sig(e)}")
             for c in e:
                 walk(c)
-        else:
-            if not is_cond_allowed(e):
-                blockers.add(f"cond:{cond_sig(e)}")
+        elif not is_cond_allowed(e):
+            blockers.add(f"cond:{cond_sig(e)}")
 
-    for c in cond_elem:
-        walk(c)
+    walk(cond_elem)
     return blockers
 
 
 def parse_cond_node(elem: ET.Element) -> dict:
-    if elem.tag == "using" and "kind" in elem.attrib:
+    if elem.tag == "using" and is_cond_allowed(elem):
         kinds = [k.strip() for k in elem.attrib["kind"].split(",")]
         return {"kind": "using_kind", "weapon_kinds": kinds}
-    elif elem.tag == "player" and elem.attrib.get("canResurrect") == "true":
-        return {"kind": "player_can_resurrect"}
+    elif elem.tag == "player" and is_cond_allowed(elem):
+        return {"kind": "player_can_resurrect", "value": elem.attrib["canResurrect"] == "true"}
     elif elem.tag in ("and", "or", "not"):
-        return {"kind": elem.tag, "conditions": [parse_cond_node(c) for c in elem]}
+        node = {"kind": elem.tag, "conditions": [parse_cond_node(c) for c in elem]}
+        if elem.attrib:
+            node["attrs"] = dict(elem.attrib)
+        return node
     else:
         return {"kind": "unsupported", "tag": elem.tag, "attrs": dict(elem.attrib)}
 
 
-def format_cond_toml(cond: dict, indent: str = "  ") -> str:
-    kind = cond["kind"]
-    if kind == "using_kind":
-        wk = json.dumps(cond["weapon_kinds"])
-        return f"{indent}{{ kind = \"using_kind\", weapon_kinds = {wk} }}"
-    elif kind == "player_can_resurrect":
-        return f"{indent}{{ kind = \"player_can_resurrect\" }}"
-    elif kind in ("and", "or", "not"):
-        inner = ",\n".join(format_cond_toml(c, indent + "  ") for c in cond["conditions"])
-        return f"{indent}{{\n{indent}  kind = \"{kind}\",\n{indent}  conditions = [\n{inner}\n{indent}  ]\n{indent}}}"
-    else:
-        tag_val = cond["tag"]
-        attrs_str = json.dumps(cond.get("attrs", {}))
-        return f"{indent}{{ kind = \"unsupported\", tag = \"{tag_val}\", attrs = {attrs_str} }}"
+def toml_value(value) -> str:
+    """Encode inline values; nested condition/stat lists use array-of-table headers."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        return "[" + ", ".join(toml_value(v) for v in value) + "]"
+    if isinstance(value, dict):
+        return "{ " + ", ".join(f"{toml_key(k)} = {toml_value(v)}" for k, v in value.items()) + " }"
+    raise SourceError(f"unsupported TOML value: {value!r}")
+
+
+def toml_key(key: str) -> str:
+    return key if re.fullmatch(r"[A-Za-z0-9_-]+", key) else json.dumps(key)
+
+
+def emit_fields(lines: list[str], obj: dict, path: str = "") -> None:
+    # Write local scalars before nested arrays so TOML table scope cannot leak.
+    arrays = []
+    for key, val in obj.items():
+        if isinstance(val, list) and val and isinstance(val[0], dict):
+            arrays.append((key, val))
+        else:
+            lines.append(f"{toml_key(key)} = {toml_value(val)}")
+    for key, vals in arrays:
+        child_path = f"{path}.{toml_key(key)}" if path else toml_key(key)
+        for val in vals:
+            lines.extend(["", f"[[{child_path}]]"])
+            emit_fields(lines, val, child_path)
+
+
+def expand(value: str, tables: dict[str, list[str]], levels: int) -> list[str]:
+    if not value.startswith("#"):
+        return [value] * levels
+    if value not in tables:
+        raise SourceError(f"unresolved table reference {value}")
+    vals = tables[value]
+    if len(vals) != levels:
+        raise SourceError(f"table {value} has {len(vals)} rows, expected {levels}")
+    if any(v.startswith("#") for v in vals):
+        raise SourceError(f"unresolved table reference inside {value}")
+    return vals.copy()
+
+
+def effect_params(eff: ET.Element) -> dict[str, str]:
+    params = {k: v for p in eff.findall("param") for k, v in p.attrib.items()}
+    params.update({k: v for k, v in eff.attrib.items() if k != "name"})
+    return params
+
+
+# Capability manifest, based on the pinned handler constructors (see README).
+ALLOWED_STAT_OPS = {"mul", "add", "sub"}
+ALL_STAT_OPS = ALLOWED_STAT_OPS | {"div", "set", "share"}
+ALLOWED_AFFECT_OBJECTS = {"ALL", "NOT_FRIEND"}
+TRAITS = set("NONE SWORD BLUNT DAGGER POLE FIST BOW ETC UNK_8 POISON HOLD BLEED SLEEP SHOCK DERANGEMENT BUG_WEAKNESS ANIMAL_WEAKNESS PLANT_WEAKNESS BEAST_WEAKNESS DRAGON_WEAKNESS PARALYZE DUAL DUALFIST BOSS GIANT_WEAKNESS CONSTRUCT_WEAKNESS DEATH VALAKAS ANESTHESIA CRITICAL_POISON ROOT_PHYSICALLY ROOT_MAGICALLY RAPIER CROSSBOW ANCIENTSWORD TURN_STONE GUST PHYSICAL_BLOCKADE TARGET PHYSICAL_WEAKNESS MAGICAL_WEAKNESS DUALDAGGER DEMONIC_WEAKNESS DIVINE_WEAKNESS ELEMENTAL_WEAKNESS FAIRY_WEAKNESS HUMAN_WEAKNESS HUMANOID_WEAKNESS UNDEAD_WEAKNESS".split())
+EFFECT_PARAMS = {
+    "PhysicalAttack": {"power": "number", "criticalChance": "int", "ignoreShieldDefence": "bool"},
+    "MagicalAttack": {"power": "number"},
+    "MagicalAttackRange": {"power": "number", "shieldDefensePercent": "number"},
+    "TickHp": {"power": "number", "ticks": "positive_int", "mode": {"DIFF", "PER"}},
+    "TickMp": {"power": "number", "ticks": "positive_int", "mode": {"DIFF", "PER"}},
+    "Heal": {"power": "number"}, "HpPerMax": {"power": "int"},
+    "MaxHp": {"power": "number", "type": {"DIFF", "PER"}, "heal": "bool"},
+    "MaxMp": {"power": "number", "type": {"DIFF", "PER"}, "heal": "bool"},
+    "Mp": {"amount": "number", "mode": {"DIFF", "PER"}},
+    "Cp": {"amount": "number", "mode": {"DIFF", "PER"}},
+    "Resurrection": {"power": "int"}, "AddHate": {"power": "number"},
+    "DispelByCategory": {"slot": {"ALL", "BUFF", "DEBUFF"}, "rate": "int", "max": "int"},
+    # Runtime implements only these abnormal slots used by the imported slice.
+    "DispelBySlot": {"dispel": "dispel"},
+    "DefenceTrait": dict.fromkeys(TRAITS, "number"),
+    "AttackTrait": dict.fromkeys(TRAITS, "number"),
+}
+DISPEL_SLOTS = {"BLEEDING", "POISON", "PARALYZE", "ROOT_PHYSICALLY", "TURN_STONE"}
+
+
+def param_allowed(value: str, rule) -> bool:
+    if isinstance(rule, set):
+        return value in rule
+    if rule == "bool":
+        return value in {"true", "false"}
+    if rule in {"int", "positive_int"}:
+        return bool(re.fullmatch(r"[+-]?\d+", value)) and (rule != "positive_int" or int(value) > 0)
+    if rule == "number":
+        try:
+            return bool(re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", value)) and Decimal(value).is_finite()
+        except InvalidOperation:
+            return False
+    if rule == "dispel":
+        return all(parts[0] in DISPEL_SLOTS and (len(parts) == 1 or
+                   (len(parts) == 2 and param_allowed(parts[1], "int")))
+                   for entry in value.split(";") for parts in [entry.split(",")])
+    return False
 
 
 def load_all_datapack_skills(dp: Datapack) -> dict[int, tuple[str, ET.Element]]:
@@ -234,7 +334,7 @@ def compute_all_blockers(
         for elem in s.findall("set"):
             name = elem.attrib.get("name", "")
             val = elem.attrib.get("val", "")
-            sets[name] = tables.get(val, val)
+            sets[name] = expand(val, tables, int(s.attrib.get("levels", 1))) if val.startswith("#") else val
 
         op_type = sets.get("operateType", "unset")
         for op in set(op_type if isinstance(op_type, list) else [op_type]):
@@ -261,25 +361,50 @@ def compute_all_blockers(
             blockers.add("item_consume")
 
         for cond in s.findall("cond"):
-            for b in get_cond_blockers(cond):
-                blockers.add(b)
+            blockers.update(get_cond_blockers(cond))
+
+        affect_object = sets.get("affectObject")
+        if affect_object is not None:
+            for value in affect_object if isinstance(affect_object, list) else [affect_object]:
+                if value not in ALLOWED_AFFECT_OBJECTS:
+                    blockers.add(f"scope_filter:{value}")
 
         for child in s:
             if child.tag.endswith("ffects") and not child.tag.startswith("enchant"):
                 if child.tag != "effects":
                     blockers.add(f"section:{child.tag}")
+                for cond in condition_nodes(child):
+                    blockers.update(get_cond_blockers(cond))
                 for eff in child.findall("effect"):
+                    for cond in condition_nodes(eff):
+                        blockers.update(get_cond_blockers(cond))
                     name = eff.attrib.get("name", "")
                     if name in ("TargetMe", "TickHpFatal"):
                         blockers.add(f"effect:{name}")
                     elif name not in TIER_B_EFFECTS:
                         blockers.add(f"effect:{name}")
 
+                    levels = int(s.attrib.get("levels", 1))
+                    if name in TIER_B_EFFECTS:
+                        params = effect_params(eff)
+                        rules = EFFECT_PARAMS.get(name, {})
+                        for key, val in params.items():
+                            values = expand(val, tables, levels)
+                            if key not in rules or not all(param_allowed(v, rules[key]) for v in values):
+                                blockers.add(f"param:{name}.{key}")
+                        if name in {"TickHp", "TickMp"} and "ticks" not in params:
+                            blockers.add(f"param:{name}.ticks")
                     for stat_elem in eff:
-                        if stat_elem.tag in ("add", "sub", "mul", "div", "set", "share"):
+                        if stat_elem.tag in ALL_STAT_OPS:
+                            for cond in condition_nodes(stat_elem):
+                                blockers.update(get_cond_blockers(cond))
+                            if stat_elem.tag not in ALLOWED_STAT_OPS:
+                                blockers.add(f"op:{stat_elem.tag}")
                             stat_name = stat_elem.attrib.get("stat", "")
                             if stat_name not in ALLOWED_STATS:
                                 blockers.add(f"stat:{stat_name}")
+                            if not all(param_allowed(v, "number") for v in expand(stat_elem.get("val", ""), tables, levels)):
+                                blockers.add(f"stat_value:{stat_name}")
 
         initial_blockers[sid] = blockers
 
@@ -309,288 +434,116 @@ def generate_skill_toml(
 ) -> str:
     levels = int(s.attrib.get("levels", 1))
     tables = parse_tables(s)
+    raw_sets = {e.attrib["name"]: e.attrib["val"] for e in s.findall("set")}
 
-    raw_sets: dict[str, str] = {}
-    for elem in s.findall("set"):
-        name = elem.attrib.get("name", "")
-        val = elem.attrib.get("val", "")
-        raw_sets[name] = val
+    def resolved(value: str, convert=str, force_array=False):
+        vals = expand(value, tables, levels)
+        converted = [convert(v) for v in vals]
+        return converted if force_array or value.startswith("#") else converted[0]
 
-    def get_set_str(key: str, default: str = "") -> str:
-        return raw_sets.get(key, default)
+    def field(key: str, default, convert=str, force_array=False):
+        return resolved(raw_sets.get(key, str(default)), convert, force_array)
 
-    def get_set_int(key: str, default: int = 0) -> int:
-        val = raw_sets.get(key)
-        if val is None:
-            return default
-        try:
-            return int(val)
-        except ValueError:
-            return default
+    def conditions(elem: ET.Element) -> dict:
+        conds = condition_elements(elem)
+        result = {}
+        if conds:
+            result["raw_conditions"] = [re.sub(r">\s+<", "><", ET.tostring(c, encoding="unicode").strip()) for c in conds]
+            result["conditions"] = [parse_cond_node(ch) for ch in condition_nodes(elem)]
+        return result
 
-    def get_table_or_scalar(val_str: str | None, max_levels: int, default: str = "0") -> list[str]:
-        if not val_str:
-            return [default] * max_levels
-        if val_str.startswith("#") and val_str in tables:
-            vals = tables[val_str]
-            if len(vals) == max_levels:
-                return vals
-            elif len(vals) > max_levels:
-                return vals[:max_levels]
-            else:
-                return vals + [vals[-1]] * (max_levels - len(vals))
-        return [val_str] * max_levels
-
-    def get_int_array(key: str, default: int = 0) -> list[int]:
-        val_str = raw_sets.get(key)
-        str_arr = get_table_or_scalar(val_str, levels, str(default))
-        res = []
-        for v in str_arr:
-            try:
-                res.append(int(float(v)))
-            except ValueError:
-                res.append(default)
-        return res
-
-    lines = []
-    lines.append("# GENERATED by packages/data/scripts/gen_skills.py from the pinned L2J High Five source")
-    lines.append("# (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.\n")
-
-    if is_sample_only:
-        lines.append("# NOTE: Out-of-scope sample only. Not referenced in the 39 populated trees; do not ship in runtime registry.\n")
-
-    prov = (
-        f'provenance = {{ repository = "{DATAPACK_REPOSITORY}", '
-        f'revision = "{DATAPACK_REVISION}", '
-        f'file = "{rel_file}", '
-        f'skill_id = {sid} }}\n'
-    )
-    lines.append(prov)
-
-    lines.append(f"id = {sid}")
-    lines.append(f'key = "l2.skill.{sid}"')
-    s_name = s.attrib.get("name", "")
-    lines.append(f'l2_ref = "{s_name}"')
-    lines.append(f"max_level = {levels}")
-    op_type = get_set_str("operateType", "unset")
-    lines.append(f'operate_type = "{op_type}"')
-    lines.append(f"is_magic = {get_set_int('isMagic', 0)}\n")
-
-    # Target & Scope
-    tgt = raw_sets.get("targetType", "unset")
-    if tgt.startswith("#") and tgt in tables:
-        lines.append(f"target_type = {json.dumps(tables[tgt][:levels])}")
-    else:
-        lines.append(f'target_type = "{tgt}"')
-
-    scope = raw_sets.get("affectScope", "unset")
-    if scope.startswith("#") and scope in tables:
-        lines.append(f"affect_scope = {json.dumps(tables[scope][:levels])}")
-    else:
-        lines.append(f'affect_scope = "{scope}"')
-
-    if "affectRange" in raw_sets:
-        ar = raw_sets["affectRange"]
-        if ar.startswith("#") and ar in tables:
-            lines.append(f"affect_range = [{', '.join(tables[ar][:levels])}]")
-        else:
-            lines.append(f"affect_range = {ar}")
-
+    boolean = lambda v: v.lower() == "true"  # StatsSet/Boolean.parseBoolean semantics
+    data = {
+        "provenance": {"repository": DATAPACK_REPOSITORY, "revision": DATAPACK_REVISION,
+                       "file": rel_file, "skill_id": sid},
+        "id": sid, "key": f"l2.skill.{sid}", "l2_ref": s.attrib.get("name", ""),
+        "max_level": levels, "operate_type": field("operateType", "unset"),
+        "is_magic": field("isMagic", 0, int),
+        "target_type": field("targetType", "unset"),
+        "affect_scope": field("affectScope", "unset"),
+    }
+    for key, dest in [("affectRange", "affect_range"), ("affectObject", "affect_object")]:
+        if key in raw_sets:
+            data[dest] = field(key, "", int if key == "affectRange" else str)
     if "affectLimit" in raw_sets:
-        al = raw_sets["affectLimit"]
-        if "-" in al:
-            parts = al.split("-")
-            offset = int(parts[0])
-            width = int(parts[1]) if len(parts) > 1 else 0
-        else:
-            offset = int(al)
-            width = 0
-        lines.append(f"affect_limit = {{ offset = {offset}, width = {width} }}")
-    if "affectObject" in raw_sets:
-        ao = raw_sets["affectObject"]
-        lines.append(f'affect_object = "{ao}"')
-    lines.append("")
-
-    lines.append(f"cast_range = {get_set_int('castRange', 0)}")
-    lines.append(f"effect_range = {get_set_int('effectRange', 0)}")
-    lines.append(f"hit_time_ms = {get_set_int('hitTime', 0)}")
-    lines.append(f"cool_time_ms = {get_set_int('coolTime', 0)}")
-    lines.append(f"reuse_ms = {get_set_int('reuseDelay', 0)}")
-    lines.append(f"hit_cancel_ms = {get_set_int('hitCancelTime', 0)}\n")
-
-    # Per level arrays
-    mp1 = get_int_array("mpConsume1", 0)
-    mp2_key = "mpConsume2" if "mpConsume2" in raw_sets else "mpConsume"
-    mp2 = get_int_array(mp2_key, 0)
-    hp = get_int_array("hpConsume", 0)
-    magic_lvl = get_int_array("magicLvl", 1)
-    effect_pt = get_int_array("effectPoint", 0)
-
-    lines.append(f"mp_consume_start = {json.dumps(mp1)}")
-    lines.append(f"mp_consume_end = {json.dumps(mp2)}")
-    lines.append(f"hp_consume = {json.dumps(hp)}")
-    lines.append(f"magic_level = {json.dumps(magic_lvl)}")
-    lines.append(f"effect_point = {json.dumps(effect_pt)}\n")
-
-    lines.append(f"activate_rate = {get_set_int('activateRate', -1)}")
-    bp = get_set_str("basicProperty", "NONE")
-    lines.append(f'basic_property = "{bp}"')
-    lines.append(f"level_bonus_rate = {get_set_int('lvlBonusRate', 0)}")
-    trait_str = get_set_str("trait", "NONE")
-    lines.append(f'trait = "{trait_str}"')
-    lines.append(f"min_chance = {get_set_int('minChance', 1)}")
-    lines.append(f"max_chance = {get_set_int('maxChance', 99)}\n")
-
-    next_atk = str(raw_sets.get("nextActionAttack", "false")).lower() == "true"
-    lines.append(f"next_action_attack = {'true' if next_atk else 'false'}")
-
-    has_ench = any(k.startswith("enchantGroup") for k in s.attrib)
-    lines.append(f"has_enchant_routes = {'true' if has_ench else 'false'}")
-
+        def limit(v):
+            parts = v.split("-")
+            return {"offset": int(parts[0]), "width": int(parts[1]) if len(parts) > 1 else 0}
+        data["affect_limit"] = field("affectLimit", "0", limit)
+    for key, dest, default in [
+        ("castRange", "cast_range", -1), ("effectRange", "effect_range", -1),
+        ("hitTime", "hit_time_ms", 0), ("coolTime", "cool_time_ms", 0),
+        ("reuseDelay", "reuse_ms", 0), ("hitCancelTime", "hit_cancel_ms", 0),
+        ("activateRate", "activate_rate", -1), ("lvlBonusRate", "level_bonus_rate", 0),
+        ("minChance", "min_chance", 10), ("maxChance", "max_chance", 90),
+    ]:
+        data[dest] = field(key, default, int)
+    data["reuse_delay_lock"] = field("reuseDelayLock", "false", boolean)
+    for key, dest in [("mpConsume1", "mp_consume_start"),
+                      ("mpConsume2" if "mpConsume2" in raw_sets else "mpConsume", "mp_consume_end"),
+                      ("hpConsume", "hp_consume"), ("magicLvl", "magic_level"), ("effectPoint", "effect_point")]:
+        data[dest] = field(key, 0, int, True)
+    data.update({"basic_property": field("basicProperty", "NONE"), "trait": field("trait", "NONE"),
+                 "next_action_attack": field("nextActionAttack", "false", boolean),
+                 "has_enchant_routes": any(k.startswith("enchantGroup") for k in s.attrib),
+                 "runtime_status": "deferred" if blockers else "executable", "blockers": sorted(blockers)})
+    # Skill.java:231-232,300 and 479-487. Damage/action flags are derived
+    # from abnormalType, not XML bool attributes. Keep source rank semantics.
+    for source_key, output_key, default in [
+        ("stayAfterDeath", "stay_after_death", "false"),
+        ("stayOnSubclassChange", "stay_on_subclass_change", "true"),
+        ("irreplaceableBuff", "irreplaceable_buff", "false"),
+        ("abnormalInstant", "abnormal_instant", "false"),
+    ]:
+        data[output_key] = field(source_key, default, boolean)
+    data["removed_on_damage"] = field("abnormalType", "NONE", lambda v: v in {"SLEEP", "FORCE_MEDITATION", "HIDE"})
+    data["removed_on_action_except_move"] = field("abnormalType", "NONE", lambda v: v in {"INVINCIBILITY", "HIDE"})
     if is_sample_only:
-        lines.append("sample_only = true")
-
-    runtime_status = "deferred" if blockers else "executable"
-    lines.append(f'runtime_status = "{runtime_status}"')
-    sorted_blockers = sorted(blockers)
-    lines.append(f"blockers = {json.dumps(sorted_blockers)}\n")
-
-    # Conditions
-    cond_nodes = []
-    for cond_elem in s.findall("cond"):
-        for child in cond_elem:
-            cond_nodes.append(parse_cond_node(child))
-    if cond_nodes:
-        lines.append("conditions = [")
-        c_lines = [format_cond_toml(cn) for cn in cond_nodes]
-        lines.append(",\n".join(c_lines))
-        lines.append("]\n")
-
-    raw_cond_elems = s.findall("cond")
-    if raw_cond_elems:
-        lines.append("raw_conditions = [")
-        for ce in raw_cond_elems:
-            xml_str = ET.tostring(ce, encoding="unicode").strip()
-            cleaned_xml = re.sub(r">\s+<", "><", xml_str)
-            cleaned_xml = " ".join(cleaned_xml.split("\n"))
-            cleaned_xml = re.sub(r"\s+", " ", cleaned_xml).strip()
-            cleaned_xml = re.sub(r">\s+<", "><", cleaned_xml)
-            lines.append(f"  {json.dumps(cleaned_xml)},")
-        lines.append("]\n")
-
-    # Attribute
-    attr_type = get_set_str("attributeType", "NONE")
-    attr_power = get_set_int("attributePower", 0)
-    lines.append("[attribute]")
-    lines.append(f'type = "{attr_type}"')
-    lines.append(f"power = {attr_power}\n")
-
-    # Abnormal
-    ab_type = raw_sets.get("abnormalType")
-    ab_time = raw_sets.get("abnormalTime")
-    ab_lvl = raw_sets.get("abnormalLvl")
-    ab_visual = raw_sets.get("abnormalVisualEffect")
-    is_debuff = str(raw_sets.get("isDebuff", "false")).lower() == "true"
-
-    if ab_type or ab_time or is_debuff or ab_visual:
-        lines.append("[abnormal]")
-        ab_t_val = ab_type or "NONE"
-        lines.append(f'type = "{ab_t_val}"')
-        lvl_arr = get_int_array("abnormalLvl", 1)
-        time_arr = get_int_array("abnormalTime", 0)
-        lines.append(f"level = {json.dumps(lvl_arr)}")
-        lines.append(f"time_s = {json.dumps(time_arr)}")
-        lines.append(f"is_debuff = {'true' if is_debuff else 'false'}")
-        if ab_visual:
-            lines.append(f'visual = "{ab_visual}"')
-        lines.append("")
-
-    # Item consume
-    ic_id = raw_sets.get("itemConsumeId")
-    ic_cnt = raw_sets.get("itemConsumeCount")
-    if ic_id and ic_cnt:
-        lines.append("[[item_consume]]")
-        if ic_id.startswith("#"):
-            lines.append(f"item_id = {json.dumps(get_int_array('itemConsumeId', 0))}")
-        else:
-            lines.append(f"item_id = {int(ic_id)}")
-        if ic_cnt.startswith("#"):
-            lines.append(f"count = {json.dumps(get_int_array('itemConsumeCount', 0))}\n")
-        else:
-            lines.append(f"count = {int(ic_cnt)}\n")
-
-    # Effects
+        data["sample_only"] = True
+    data.update(conditions(s))
+    data["attribute"] = {"type": field("attributeType", "NONE"), "power": field("attributePower", 0, int)}
+    if any(k in raw_sets for k in ("abnormalType", "abnormalTime", "abnormalVisualEffect")) or raw_sets.get("isDebuff") == "true":
+        data["abnormal"] = {"type": field("abnormalType", "NONE"), "level": field("abnormalLvl", 0, int, True),
+                            "time_s": field("abnormalTime", 0, int, True), "is_debuff": field("isDebuff", "false", boolean)}
+        if "abnormalVisualEffect" in raw_sets:
+            data["abnormal"]["visual"] = field("abnormalVisualEffect", "")
+    if "itemConsumeId" in raw_sets and "itemConsumeCount" in raw_sets:
+        data["item_consume"] = [{"item_id": field("itemConsumeId", 0, int), "count": field("itemConsumeCount", 0, int)}]
+    # Keep all source sets as exact strings (and expand every table, including
+    # fields outside the executable slice). No unresolved #reference can escape.
+    data["source_sets"] = {k: resolved(v) for k, v in sorted(raw_sets.items())}
+    effects = []
     for sec in s:
         if sec.tag.endswith("ffects") and not sec.tag.startswith("enchant"):
             for eff in sec.findall("effect"):
-                eff_name = eff.attrib.get("name", "")
-                eff_params = {}
-                for p in eff.findall("param"):
-                    for pk, pv in p.attrib.items():
-                        eff_params[pk] = pv
-                for k, v in eff.attrib.items():
-                    if k != "name":
-                        eff_params[k] = v
-
-                # Periodic effects: ensure mode is recorded (defaulting to DIFF per TickHp/TickMp source if not in XML)
-                if eff_name in ("TickHp", "TickMp") and "mode" not in eff_params:
-                    eff_params["mode"] = "DIFF"
-
-                p_dict = {}
-                for pk in sorted(eff_params.keys()):
-                    pv = eff_params[pk]
-                    if pv.startswith("#") and pv in tables:
-                        p_dict[pk] = tables[pv][:levels]
-                    else:
-                        p_dict[pk] = pv
-
-                # Stat children
+                params = effect_params(eff)
+                if eff.get("name") in {"TickHp", "TickMp"}:
+                    params.setdefault("mode", "DIFF")
+                entry = {"section": sec.tag, "name": eff.get("name", ""),
+                         "params": {k: resolved(v) for k, v in sorted(params.items())}}
+                entry.update(conditions(eff))
+                section_conds = conditions(sec)
+                entry.update({"section_" + k: v for k, v in section_conds.items()})
                 stats = []
                 for ch in eff:
-                    if ch.tag in ("add", "sub", "mul", "div", "set", "share"):
-                        op = ch.tag
-                        stat_name = ch.attrib.get("stat", "")
-                        val_str = ch.attrib.get("val", "")
-                        v_arr = get_table_or_scalar(val_str, levels, val_str)
-                        stat_obj: dict[str, str | list[str] | int] = {
-                            "op": op,
-                            "stat": stat_name,
-                            "value": v_arr,
-                        }
+                    if ch.tag in ALL_STAT_OPS:
+                        stat = {"op": ch.tag, "stat": ch.get("stat", ""), "value": resolved(ch.get("val", ""), force_array=True)}
                         if "order" in ch.attrib:
-                            stat_obj["order"] = int(ch.attrib["order"])
-                        stats.append(stat_obj)
-
-                lines.append("[[effects]]")
-                lines.append(f'section = "{sec.tag}"')
-                lines.append(f'name = "{eff_name}"')
-                if not p_dict:
-                    lines.append("params = {}")
-                else:
-                    p_lines = []
-                    for pk, pv in sorted(p_dict.items()):
-                        if isinstance(pv, list):
-                            p_lines.append(f"{pk} = {json.dumps(pv)}")
-                        else:
-                            p_lines.append(f'{pk} = "{pv}"')
-                    lines.append(f"params = {{ {', '.join(p_lines)} }}")
-                if not stats:
-                    lines.append("stat_children = []")
-                else:
-                    lines.append("stat_children = [")
-                    for st in stats:
-                        op_v = st["op"]
-                        stat_v = st["stat"]
-                        val_v = json.dumps(st["value"])
-                        st_parts = [f'op = "{op_v}"', f'stat = "{stat_v}"', f"value = {val_v}"]
-                        if "order" in st:
-                            ord_v = st["order"]
-                            st_parts.append(f"order = {ord_v}")
-                        lines.append(f"  {{ {', '.join(st_parts)} }},")
-                    lines.append("]")
-                lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
+                            stat["order"] = resolved(ch.attrib["order"], int)
+                        stat.update(conditions(ch))
+                        stats.append(stat)
+                entry["stat_children"] = stats
+                effects.append(entry)
+    data["effects"] = effects
+    lines = [SKILL_HEADER.rstrip(), ""]
+    if is_sample_only:
+        lines.append("# Out-of-scope sample only; do not ship in runtime registry.")
+    emit_fields(lines, data)
+    content = "\n".join(lines).rstrip() + "\n"
+    # Syntax AND structure validated before writing, including --check.
+    if tomllib.loads(content) != data:
+        raise SourceError(f"skill {sid}: TOML serialization changed the parsed structure")
+    return content
 
 
 def generate_catalog_toml(
@@ -711,4 +664,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SourceError as err:
+        print(f"gen_skills: {err}", file=sys.stderr)
+        sys.exit(2)

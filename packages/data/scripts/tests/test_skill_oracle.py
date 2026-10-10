@@ -158,9 +158,11 @@ class FormulaVerificationTests(unittest.TestCase):
         self.assertEqual(v_1hp["rounded_result"]["final_hp"], 1)
         self.assertEqual(v_1hp["rounded_result"]["amount"], 0)
 
-        # EffectTickRatio multiplier check: ticks=5 * 666 / 1000 = 3.33 -> power=100 HoT gives 333
+        # Binary32 ticks=5 multiplier is below 3.33: HoT100 gives332 plus Q remainder
         v_hot = next(v for v in vecs if v["inputs"]["power"] == "100" and v["inputs"]["ticks"] == 5 and v["inputs"]["current_hp"] == 500)
-        self.assertEqual(v_hot["rounded_result"]["amount"], 333)
+        self.assertEqual(v_hot["rounded_result"]["amount"], 332)
+        self.assertEqual(v_hot["rounded_result"]["final_hp"], 832)
+        self.assertEqual(v_hot["rounded_result"]["restoration_remainder_q"], 999992)
         self.assertEqual(v_hot["intermediate"]["interval_ms"], 3330)
 
     def test_cast_staging_times(self):

@@ -2,52 +2,45 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01100-01199.xml", skill_id = 1100 }
-
 id = 1100
 key = "l2.skill.1100"
 l2_ref = "Chill Flame"
 max_level = 2
 operate_type = "A2"
 is_magic = 1
-
 target_type = "ENEMY_ONLY"
 affect_scope = "SINGLE"
-
 cast_range = 600
 effect_range = 1100
 hit_time_ms = 4000
 cool_time_ms = 0
 reuse_ms = 2000
 hit_cancel_ms = 0
-
+activate_rate = 70
+level_bonus_rate = 1
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [3, 5]
 mp_consume_end = [12, 18]
 hp_consume = [0, 0]
 magic_level = [7, 14]
 effect_point = [-121, -162]
-
-activate_rate = 70
 basic_property = "MEN"
-level_bonus_rate = 1
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "FIRE"
-power = 20
-
-[abnormal]
-type = "DOT_ATTR"
-level = [1, 2]
-time_s = [15, 15]
-is_debuff = true
-visual = "DOT_BLEEDING"
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "FIRE", power = 20 }
+abnormal = { type = "DOT_ATTR", level = [1, 2], time_s = [15, 15], is_debuff = true, visual = "DOT_BLEEDING" }
+source_sets = { abnormalLvl = ["1", "2"], abnormalTime = "15", abnormalType = "DOT_ATTR", abnormalVisualEffect = "DOT_BLEEDING", activateRate = "70", affectScope = "SINGLE", attributePower = "20", attributeType = "FIRE", basicProperty = "MEN", castRange = "600", effectPoint = ["-121", "-162"], effectRange = "1100", hitTime = "4000", icon = "icon.skill1100", isDebuff = "true", isMagic = "1", lvlBonusRate = "1", magicLvl = ["7", "14"], mpConsume1 = ["3", "5"], mpConsume2 = ["12", "18"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY_ONLY" }
 
 [[effects]]
 section = "effects"

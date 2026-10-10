@@ -2,60 +2,57 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00000-00099.xml", skill_id = 50 }
-
 id = 50
 key = "l2.skill.50"
 l2_ref = "Focused Force"
 max_level = 8
 operate_type = "A1"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 900
 cool_time_ms = 0
 reuse_ms = 0
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [5, 5, 5, 5, 5, 5, 5, 5]
 hp_consume = [20, 20, 20, 20, 20, 20, 20, 20]
 magic_level = [24, 32, 40, 52, 60, 66, 72, 79]
 effect_point = [150, 150, 150, 150, 150, 150, 150, 150]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["cond:player:Charges", "effect:FocusEnergy"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"DUALFIST\" /></cond>", "<cond msgId=\"324\"><not><player Charges=\"#focusEnergyCharge\" /></not></cond>"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", effectPoint = "150", hitCancelTime = "500", hitTime = "900", hpConsume = "20", icon = "icon.skill0050", magicLvl = ["24", "32", "40", "52", "60", "66", "72", "79"], mpConsume2 = "5", operateType = "A1", rideState = "NONE", targetType = "SELF" }
 
-conditions = [
-  { kind = "using_kind", weapon_kinds = ["DUALFIST"] },
-  {
-    kind = "not",
-    conditions = [
-    { kind = "unsupported", tag = "player", attrs = {"Charges": "#focusEnergyCharge"} }
-    ]
-  }
-]
+[[conditions]]
+kind = "using_kind"
+weapon_kinds = ["DUALFIST"]
 
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><using kind=\"DUALFIST\" /></cond>",
-  "<cond msgId=\"324\"><not><player Charges=\"#focusEnergyCharge\" /></not></cond>",
-]
+[[conditions]]
+kind = "not"
 
-[attribute]
-type = "NONE"
-power = 0
+[[conditions.conditions]]
+kind = "unsupported"
+tag = "player"
+attrs = { Charges = "#focusEnergyCharge" }
 
 [[effects]]
 section = "effects"

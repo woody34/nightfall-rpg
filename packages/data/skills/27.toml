@@ -2,45 +2,44 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00000-00099.xml", skill_id = 27 }
-
 id = 27
 key = "l2.skill.27"
 l2_ref = "Unlock"
 max_level = 14
 operate_type = "A1"
 is_magic = 0
-
 target_type = "DOOR_TREASURE"
 affect_scope = "SINGLE"
-
 cast_range = 40
 effect_range = 400
 hit_time_ms = 2500
 cool_time_ms = 0
 reuse_ms = 30000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [19, 22, 25, 28, 31, 35, 39, 43, 47, 51, 55, 59, 63, 67]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72]
 effect_point = [-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["effect:OpenChest", "effect:OpenDoor", "item_consume", "target:DOOR_TREASURE"]
-
-[attribute]
-type = "NONE"
-power = 0
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", castRange = "40", effectPoint = ["-1", "-2", "-3", "-4", "-5", "-6", "-7", "-8", "-9", "-10", "-11", "-12", "-13", "-14"], effectRange = "400", hitCancelTime = "500", hitTime = "2500", icon = "icon.skill0027", itemConsumeCount = ["2", "2", "3", "3", "4", "5", "6", "7", "8", "10", "11", "13", "15", "17"], itemConsumeId = "1661", magicLvl = ["20", "24", "28", "32", "36", "40", "44", "48", "52", "56", "60", "64", "68", "72"], mpConsume2 = ["19", "22", "25", "28", "31", "35", "39", "43", "47", "51", "55", "59", "63", "67"], operateType = "A1", reuseDelay = "30000", rideState = "NONE", targetType = "DOOR_TREASURE" }
 
 [[item_consume]]
 item_id = 1661
@@ -55,5 +54,5 @@ stat_children = []
 [[effects]]
 section = "effects"
 name = "OpenChest"
-params = {}
+params = {  }
 stat_children = []

@@ -2,47 +2,46 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01000-01099.xml", skill_id = 1027 }
-
 id = 1027
 key = "l2.skill.1027"
 l2_ref = "Group Heal"
 max_level = 15
 operate_type = "A1"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = 1000
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 7000
 cool_time_ms = 0
 reuse_ms = 6000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 18, 19, 20, 21]
 mp_consume_end = [26, 30, 34, 38, 42, 47, 52, 55, 57, 66, 69, 70, 76, 79, 82]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [10, 12, 14, 16, 18, 20, 23, 24, 25, 28, 29, 30, 33, 34, 35]
 effect_point = [66, 76, 86, 97, 108, 121, 141, 148, 156, 179, 188, 196, 222, 231, 241]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
-blockers = ["scope:PARTY"]
-
-[attribute]
-type = "NONE"
-power = 0
+blockers = ["scope:PARTY", "scope_filter:FRIEND"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["66", "76", "86", "97", "108", "121", "141", "148", "156", "179", "188", "196", "222", "231", "241"], hitCancelTime = "500", hitTime = "7000", icon = "icon.skill1027", isMagic = "1", magicLvl = ["10", "12", "14", "16", "18", "20", "23", "24", "25", "28", "29", "30", "33", "34", "35"], mpConsume1 = ["7", "8", "9", "10", "11", "12", "13", "14", "15", "17", "18", "18", "19", "20", "21"], mpConsume2 = ["26", "30", "34", "38", "42", "47", "52", "55", "57", "66", "69", "70", "76", "79", "82"], operateType = "A1", reuseDelay = "6000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[effects]]
 section = "effects"

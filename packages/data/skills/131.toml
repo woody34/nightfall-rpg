@@ -2,57 +2,57 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00100-00199.xml", skill_id = 131 }
-
 id = 131
 key = "l2.skill.131"
 l2_ref = "Hawk Eye"
 max_level = 3
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 1500
 cool_time_ms = 0
 reuse_ms = 3000
 hit_cancel_ms = 0
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0]
 mp_consume_end = [18, 22, 27]
 hp_consume = [0, 0, 0]
 magic_level = [40, 49, 58]
 effect_point = [379, 467, 549]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "AB_HAWK_EYE"
-level = [1, 2, 3]
-time_s = [300, 300, 300]
-is_debuff = false
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "AB_HAWK_EYE", level = [1, 2, 3], time_s = [300, 300, 300], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "300", abnormalType = "AB_HAWK_EYE", affectScope = "SINGLE", effectPoint = ["379", "467", "549"], hitTime = "1500", icon = "icon.skill0131", magicLvl = ["40", "49", "58"], mpConsume2 = ["18", "22", "27"], operateType = "A2", reuseDelay = "3000", rideState = "NONE", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "accCombat", value = ["6", "8", "10"] },
-  { op = "mul", stat = "pDef", value = ["0.9", "0.9", "0.9"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "accCombat"
+value = ["6", "8", "10"]
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pDef"
+value = ["0.9", "0.9", "0.9"]
