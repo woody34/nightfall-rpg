@@ -284,9 +284,13 @@ fn changed(message: &pb::ServerMessage, player: &common::ws::Player, target: u32
 #[tokio::test]
 async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_both_frozen_results()
 {
-    let app =
-        TestApp::spawn_with_zone(|_| {}, common::fixture_zone().with_classes(phase2_registry()))
-            .await;
+    let app = TestApp::spawn_with_zone(
+        |_| {},
+        common::fixture_zone()
+            .with_classes(phase2_registry())
+            .unwrap(),
+    )
+    .await;
     let owner = seed_transfer_player(&app, "TransferHero", 40, Position { x: 126.0, y: 126.0 }, 1);
     let observer = common::ws::seed_player(&app, "Observer", 126.0, 126.0);
     let mut owner_ws = common::ws::join(&app, &owner).await;
@@ -421,9 +425,13 @@ async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_bo
 
 #[tokio::test]
 async fn live_ineligible_options_and_transfers_leave_tokens_and_receipts_unchanged() {
-    let app =
-        TestApp::spawn_with_zone(|_| {}, common::fixture_zone().with_classes(phase2_registry()))
-            .await;
+    let app = TestApp::spawn_with_zone(
+        |_| {},
+        common::fixture_zone()
+            .with_classes(phase2_registry())
+            .unwrap(),
+    )
+    .await;
     for (name, level, position, tokens) in [
         ("LowLevel", 1, Position { x: 126.0, y: 126.0 }, 1),
         ("NoTokens", 40, Position { x: 126.0, y: 126.0 }, 0),
@@ -464,4 +472,73 @@ async fn live_ineligible_options_and_transfers_leave_tokens_and_receipts_unchang
         .staged_events()
         .iter()
         .all(|e| !matches!(e, nightfall_api::domain::DomainEvent::CharacterClassChanged { .. })));
+}
+
+struct FailingRuntime(tonic::Code);
+impl FailingRuntime {
+    fn error(&self) -> nightfall_api::application::AppError {
+        use nightfall_api::application::AppError;
+        match self.0 {
+            Code::FailedPrecondition => AppError::FailedPrecondition("requirements changed".into()),
+            Code::ResourceExhausted => AppError::ResourceExhausted("command queue full".into()),
+            Code::Unavailable => AppError::Unavailable("zone recovering".into()),
+            _ => AppError::Infrastructure(anyhow::anyhow!("private database diagnostic")),
+        }
+    }
+}
+#[async_trait::async_trait]
+impl nightfall_api::application::ports::ClassTransferRuntime for FailingRuntime {
+    async fn transfer_options(
+        &self,
+        _: AccountId,
+        _: nightfall_api::domain::CharacterId,
+    ) -> Result<
+        nightfall_api::application::ports::TransferOptionsState,
+        nightfall_api::application::AppError,
+    > {
+        Err(self.error())
+    }
+    async fn change_class(
+        &self,
+        _: AccountId,
+        _: nightfall_api::domain::CharacterId,
+        _: ClassId,
+        _: IdempotencyKey,
+    ) -> Result<FrozenTransferResult, nightfall_api::application::AppError> {
+        Err(self.error())
+    }
+}
+
+#[tokio::test]
+async fn runtime_failures_map_through_real_grpc_without_claiming_success_or_exposing_diagnostics() {
+    for code in [
+        Code::FailedPrecondition,
+        Code::ResourceExhausted,
+        Code::Unavailable,
+        Code::Internal,
+    ] {
+        let mut app = TestApp::spawn_with(|deps| {
+            deps.class_transfers = Some(std::sync::Arc::new(FailingRuntime(code)))
+        })
+        .await;
+        let c = fixture();
+        app.characters.insert_for_test(c.clone());
+        let request = change(c.id.to_string(), Uuid::now_v7(), 1);
+        for _ in 0..2 {
+            let error = app.grpc.change_class(request.clone()).await.unwrap_err();
+            assert_eq!(error.code(), code);
+            assert!(!error.message().contains("private database diagnostic"));
+        }
+        let error = app
+            .grpc
+            .transfer_options(pb::TransferOptionsRequest {
+                character_id: c.id.to_string(),
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), code);
+        assert!(!error.message().contains("private database diagnostic"));
+        assert_eq!(app.characters.get(c.id).await.unwrap().unwrap(), c);
+        assert!(app.characters.staged_events().is_empty());
+    }
 }

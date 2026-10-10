@@ -375,3 +375,45 @@ async fn conflicting_receipt_key_across_characters_rolls_back_second_checkpoint(
     assert_eq!(count(&pool, "character_transfer_receipts").await, 1);
     assert_eq!(count(&pool, "outbox").await, 3);
 }
+
+#[tokio::test]
+async fn forged_persisted_learning_metadata_fails_closed_at_read_and_admission() {
+    let Some(pool) = migrated_pool().await else {
+        return;
+    };
+    let repo = PgCharacterRepository::new(pool.clone());
+    let c = character("Hero");
+    repo.create_idempotent(&IdempotencyKey::new(), "create", &c)
+        .await
+        .unwrap();
+    let registry = nightfall_api::infrastructure::class_data::load_classes(
+        &nightfall_api::infrastructure::class_data::ClassSource::embedded(),
+    )
+    .unwrap()
+    .registry;
+    let allowed =
+        nightfall_api::domain::character_progression::auto_get_metadata(&registry, ClassId(0), 85)
+            .unwrap();
+    let foreign =
+        nightfall_api::domain::character_progression::auto_get_metadata(&registry, ClassId(10), 85)
+            .unwrap()
+            .into_iter()
+            .find(|s| !allowed.iter().any(|a| a == s))
+            .unwrap();
+    for (key, level) in [
+        ("l2.skill.999999".to_owned(), 1),
+        ("l2.skill.3".to_owned(), 10),
+        ("racial.forest_step".to_owned(), 1),
+        (foreign.key, foreign.level),
+    ] {
+        sqlx::query("INSERT INTO character_learned_skills (character_id, slot, skill_key, skill_level) VALUES ($1, 0, $2, $3)").bind(c.id.as_uuid()).bind(&key).bind(i32::try_from(level).unwrap()).execute(&pool).await.unwrap();
+        assert!(repo.get(c.id).await.is_err(), "{key} level {level}");
+        assert!(repo.load_for_admission(c.id).await.is_err(), "{key} level {level}");
+        sqlx::query("DELETE FROM character_learned_skills WHERE character_id=$1")
+            .bind(c.id.as_uuid())
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+    assert_eq!(repo.get(c.id).await.unwrap().unwrap(), c);
+}
