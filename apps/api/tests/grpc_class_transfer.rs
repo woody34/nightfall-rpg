@@ -12,6 +12,7 @@ use nightfall_api::domain::character_progression::{
     FrozenTransferResult, SuccessfulTransferReceipt,
 };
 use nightfall_api::domain::class::ClassId;
+use nightfall_api::domain::subclass::LearnedSkill;
 use nightfall_api::domain::{AccountId, Character, CharacterName, Position, Race};
 use nightfall_api::interface::grpc::pb;
 use tonic::Code;
@@ -262,6 +263,10 @@ fn seed_transfer_player(
     character.position = position;
     character.class_state.token_tier_1_count = tokens;
     character.class_state.token_tier_2_count = tokens;
+    character.class_state.learned_skills = vec![LearnedSkill {
+        key: "racial.adaptable".into(),
+        level: 1,
+    }];
     let player = common::ws::Player {
         account,
         character: character.id,
@@ -281,6 +286,26 @@ fn changed(message: &pb::ServerMessage, player: &common::ws::Player, target: u32
         if matches!(&event.event, Some(pb::world_event::Event::ClassChanged(change)) if change.entity == player.entity_id() && change.class_id == target))
 }
 
+fn assert_level_40_catchup_ranks(character: &Character) {
+    // Independent pinned XML oracle for Human Fighter/Warrior/Gladiator at level 40.
+    // Warrior and Gladiator have no own autoGet rows; these four ranks are inherited.
+    assert_eq!(
+        character
+            .class_state
+            .learned_skills
+            .iter()
+            .map(|skill| (skill.key.as_str(), skill.level))
+            .collect::<Vec<_>>(),
+        vec![
+            ("l2.skill.1320", 4),
+            ("l2.skill.1322", 1),
+            ("l2.skill.194", 1),
+            ("l2.skill.239", 2),
+            ("racial.adaptable", 1),
+        ]
+    );
+}
+
 #[tokio::test]
 #[allow(clippy::too_many_lines)] // One connected two-tier flow proves historical retry across the later mutation.
 async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_both_frozen_results()
@@ -293,6 +318,15 @@ async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_bo
     )
     .await;
     let owner = seed_transfer_player(&app, "TransferHero", 40, Position { x: 126.0, y: 126.0 }, 1);
+    let sparse = app.characters.get(owner.character).await.unwrap().unwrap();
+    assert_eq!(sparse.class_state.current_class_id, ClassId(0));
+    assert_eq!(
+        sparse.class_state.learned_skills,
+        vec![LearnedSkill {
+            key: "racial.adaptable".into(),
+            level: 1,
+        }]
+    );
     let observer = common::ws::seed_player(&app, "Observer", 126.0, 126.0);
     let mut owner_ws = common::ws::join(&app, &owner).await;
     owner_ws.until(|m| spawned(m, &owner)).await;
@@ -341,15 +375,19 @@ async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_bo
     assert_eq!(retry.unwrap().into_inner(), first);
     assert_eq!(first.character.as_ref().unwrap().class_id, 1);
     assert_eq!((first.token_tier_1_count, first.token_tier_2_count), (0, 1));
-    assert!(!first.granted_skill_keys.is_empty());
+    assert_eq!(
+        first.granted_skill_keys,
+        vec![
+            "l2.skill.1320",
+            "l2.skill.1322",
+            "l2.skill.194",
+            "l2.skill.239"
+        ]
+    );
     let stored = app.characters.get(owner.character).await.unwrap().unwrap();
     assert_eq!(stored.class_state.current_class_id, ClassId(1));
     assert_eq!(stored.class_state.successful_transfer_receipts.len(), 1);
-    assert!(first.granted_skill_keys.iter().all(|key| stored
-        .class_state
-        .learned_skills
-        .iter()
-        .any(|skill| &skill.key == key)));
+    assert_level_40_catchup_ranks(&stored);
     observer_ws.until(|m| changed(m, &owner, 1)).await;
     owner_ws.until(|m| changed(m, &owner, 1)).await;
     assert_eq!(
@@ -383,6 +421,9 @@ async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_bo
         .into_inner();
     assert_eq!(second.character.as_ref().unwrap().class_id, 2);
     assert_eq!((second.token_tier_1_count, second.token_tier_2_count), (0, 0));
+    assert!(second.granted_skill_keys.is_empty());
+    observer_ws.until(|m| changed(m, &owner, 2)).await;
+    owner_ws.until(|m| changed(m, &owner, 2)).await;
     assert_eq!(
         client
             .get_character(pb::GetCharacterRequest {
@@ -399,7 +440,22 @@ async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_bo
     assert!(!third_options.options[0].eligible);
     assert!(!third_options.options[0].unmet.is_empty());
     let stored = app.characters.get(owner.character).await.unwrap().unwrap();
+    assert_eq!(stored.class_state.current_class_id, ClassId(2));
+    assert_level_40_catchup_ranks(&stored);
     assert_eq!(stored.class_state.successful_transfer_receipts.len(), 2);
+    // A replacement session must retain authoritative ranks, which Character wire omits.
+    let mut replacement = common::ws::join(&app, &owner).await;
+    assert_eq!(owner_ws.closed(common::ws::WAIT).await, Some(4409));
+    let resent = replacement.until(|m| spawned(m, &owner)).await;
+    let own_spawn = resent
+        .iter()
+        .filter_map(common::ws::spawn_of)
+        .find(|spawn| spawn.entity_id == owner.entity_id())
+        .unwrap();
+    assert_eq!((own_spawn.class_id, own_spawn.session_generation), (2, 2));
+    let reconnected = app.characters.get(owner.character).await.unwrap().unwrap();
+    assert_eq!(reconnected.class_state, stored.class_state);
+    assert_level_40_catchup_ranks(&reconnected);
     assert_eq!(client.change_class(request).await.unwrap().into_inner(), first);
     assert_eq!(
         client
@@ -409,6 +465,10 @@ async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_bo
             .into_inner(),
         second
     );
+    let after_retries = app.characters.get(owner.character).await.unwrap().unwrap();
+    assert_eq!(after_retries.class_state, reconnected.class_state);
+    assert_eq!(after_retries.class_state.current_class_id, ClassId(2));
+    assert_level_40_catchup_ranks(&after_retries);
     assert_eq!(
         app.characters
             .staged_events()
@@ -420,7 +480,7 @@ async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_bo
             .count(),
         2
     );
-    owner_ws.close().await;
+    replacement.close().await;
     observer_ws.close().await;
 }
 

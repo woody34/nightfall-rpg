@@ -21,7 +21,7 @@ use nightfall_api::domain::character_progression::{
 use nightfall_api::domain::class::ClassId;
 use nightfall_api::domain::subclass::{LearnedSkill, Sex};
 use nightfall_api::domain::{
-    AccountId, Character, CharacterName, DomainEvent, EventMetadata, Position, Race,
+    AccountId, Character, CharacterId, CharacterName, DomainEvent, EventMetadata, Position, Race,
 };
 use nightfall_api::infrastructure::postgres::PgCharacterRepository;
 use sqlx::{Executor, PgPool};
@@ -107,6 +107,48 @@ async fn count(pool: &PgPool, table: &str) -> i64 {
         .unwrap()
 }
 
+async fn assert_level_40_catchup_ranks(
+    repo: &PgCharacterRepository,
+    pool: &PgPool,
+    id: CharacterId,
+) {
+    // Literal ranks from the independent pinned XML oracle, not auto_get_metadata.
+    let expected = vec![
+        ("l2.skill.1320", 4),
+        ("l2.skill.1322", 1),
+        ("l2.skill.194", 1),
+        ("l2.skill.239", 2),
+        ("racial.adaptable", 1),
+    ];
+    let character = repo.get(id).await.unwrap().unwrap();
+    let admission = repo.load_for_admission(id).await.unwrap().unwrap();
+    for skills in [
+        &character.class_state.learned_skills,
+        &admission.class_state.learned_skills,
+    ] {
+        assert_eq!(
+            skills
+                .iter()
+                .map(|skill| (skill.key.as_str(), skill.level))
+                .collect::<Vec<_>>(),
+            expected
+        );
+    }
+    let rows: Vec<(String, i32)> = sqlx::query_as(
+        "SELECT skill_key,skill_level FROM character_learned_skills WHERE character_id=$1 AND slot=0 ORDER BY skill_key",
+    )
+    .bind(id.as_uuid())
+    .fetch_all(pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        rows.iter()
+            .map(|(key, rank)| (key.as_str(), u32::try_from(*rank).unwrap()))
+            .collect::<Vec<_>>(),
+        expected
+    );
+}
+
 #[tokio::test]
 async fn mystic_creation_round_trips_identity_and_normalized_main_slot() {
     let Some(pool) = migrated_pool().await else {
@@ -189,17 +231,60 @@ async fn distinct_concurrent_create_keys_never_exceed_seven_slots_and_retry_repl
 }
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)] // One two-tier persisted history proves frozen retry cannot mutate the later ledger.
 async fn transfer_checkpoint_atomically_round_trips_ledger_receipt_skills_and_outbox() {
     let Some(pool) = migrated_pool().await else {
         return;
     };
     let repo = PgCharacterRepository::new(pool.clone());
-    let c = character("Hero");
+    let mut c = character("Hero");
+    c.level = 40;
+    c.xp = 500;
+    c.class_state.token_tier_1_count = 1;
+    c.class_state.token_tier_2_count = 1;
+    c.class_state.learned_skills = vec![LearnedSkill {
+        key: "racial.adaptable".into(),
+        level: 1,
+    }];
     repo.create_idempotent(&IdempotencyKey::new(), "create", &c)
         .await
         .unwrap();
     let key = IdempotencyKey::new();
-    let cp = checkpoint(&c, key);
+    assert_eq!(repo.get(c.id).await.unwrap().unwrap(), c);
+    let mut first_result = frozen(&c, 1);
+    first_result.level = 40;
+    first_result.xp = 500;
+    first_result.granted_skill_keys = vec![
+        "l2.skill.1320".into(),
+        "l2.skill.1322".into(),
+        "l2.skill.194".into(),
+        "l2.skill.239".into(),
+    ];
+    let mut cp = checkpoint(&c, key);
+    cp.level = 40;
+    cp.xp = 500;
+    let ledger = cp.class_state.as_mut().unwrap();
+    ledger.token_tier_1_count = 0;
+    ledger.successful_transfer_receipts[0].result = first_result.clone();
+    // Sparse fixture catch-up from the independent XML oracle; no production learning helper.
+    ledger.merge_learned_skills([
+        LearnedSkill {
+            key: "l2.skill.1320".into(),
+            level: 4,
+        },
+        LearnedSkill {
+            key: "l2.skill.1322".into(),
+            level: 1,
+        },
+        LearnedSkill {
+            key: "l2.skill.194".into(),
+            level: 1,
+        },
+        LearnedSkill {
+            key: "l2.skill.239".into(),
+            level: 2,
+        },
+    ]);
     let fact = event(&c, key);
     assert_eq!(
         repo.checkpoint(&cp, std::slice::from_ref(&fact))
@@ -217,13 +302,14 @@ async fn transfer_checkpoint_atomically_round_trips_ledger_receipt_skills_and_ou
     assert_eq!(loaded.class_state, cp.class_state.clone().unwrap());
     assert_eq!(
         (loaded.level, loaded.xp, loaded.hp, loaded.mp, loaded.revision),
-        (20, 100, Some(100), Some(40), 1)
+        (40, 500, Some(100), Some(40), 1)
     );
+    assert_level_40_catchup_ranks(&repo, &pool, c.id).await;
     assert_eq!(
         repo.mutation_receipt_lookup(c.account_id, &key, &transfer_fingerprint(c.id, ClassId(1)))
             .await
             .unwrap(),
-        MutationReceiptLookup::Known(frozen(&c, 1))
+        MutationReceiptLookup::Known(first_result.clone())
     );
     assert_eq!(
         repo.mutation_receipt_lookup(c.account_id, &key, &transfer_fingerprint(c.id, ClassId(4)))
@@ -241,28 +327,89 @@ async fn transfer_checkpoint_atomically_round_trips_ledger_receipt_skills_and_ou
         .unwrap(),
         MutationReceiptLookup::Unknown
     );
-    let later = CharacterCheckpoint {
+    let second_key = IdempotencyKey::new();
+    let mut second_result = first_result.clone();
+    second_result.current_class_id = ClassId(2);
+    second_result.token_tier_2_count = 0;
+    second_result.granted_skill_keys.clear();
+    let mut second = CharacterCheckpoint {
         revision_seen: 1,
+        idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
+        ..cp.clone()
+    };
+    let ledger = second.class_state.as_mut().unwrap();
+    ledger.current_class_id = ClassId(2);
+    ledger.token_tier_2_count = 0;
+    ledger
+        .record_success(SuccessfulTransferReceipt {
+            key: second_key.as_uuid(),
+            target_class_id: ClassId(2),
+            result: second_result.clone(),
+        })
+        .unwrap();
+    let second_fact = DomainEvent::CharacterClassChanged {
+        metadata: EventMetadata {
+            event_id: Uuid::now_v7(),
+            sequence: (2, 0),
+        },
+        character_id: c.id,
+        old_class_id: ClassId(1),
+        new_class_id: ClassId(2),
+        tick: 8,
+        request_key: second_key.as_uuid(),
+    };
+    assert_eq!(
+        repo.checkpoint(&second, &[second_fact]).await.unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    assert_level_40_catchup_ranks(&repo, &pool, c.id).await;
+    let before_retry = repo.get(c.id).await.unwrap().unwrap();
+    assert_eq!(before_retry.class_state.current_class_id, ClassId(2));
+    assert_eq!(before_retry.class_state, second.class_state.clone().unwrap());
+    // A new repository instance re-admits from normalized DB state, not an in-memory ledger.
+    let reconnected = PgCharacterRepository::new(pool.clone());
+    let readmitted = reconnected.load_for_admission(c.id).await.unwrap().unwrap();
+    assert_eq!(readmitted.class_state, before_retry.class_state);
+    assert_level_40_catchup_ranks(&reconnected, &pool, c.id).await;
+    for (request_key, target, result) in [(key, 1, &first_result), (second_key, 2, &second_result)]
+    {
+        assert_eq!(
+            reconnected
+                .mutation_receipt_lookup(
+                    c.account_id,
+                    &request_key,
+                    &transfer_fingerprint(c.id, ClassId(target))
+                )
+                .await
+                .unwrap(),
+            MutationReceiptLookup::Known(result.clone())
+        );
+    }
+    assert_eq!(reconnected.get(c.id).await.unwrap().unwrap(), before_retry);
+    assert_level_40_catchup_ranks(&reconnected, &pool, c.id).await;
+    let later = CharacterCheckpoint {
+        revision_seen: 2,
         level: 40,
         xp: 500,
         hp: 80,
         position: Position { x: 1.0, y: 2.0 },
         class_state: None,
         idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
-        ..cp.clone()
+        ..second.clone()
     };
     repo.checkpoint(&later, &[]).await.unwrap();
     assert_eq!(
         repo.mutation_receipt_lookup(c.account_id, &key, &transfer_fingerprint(c.id, ClassId(1)))
             .await
             .unwrap(),
-        MutationReceiptLookup::Known(frozen(&c, 1))
+        MutationReceiptLookup::Known(first_result)
     );
     let after = repo.load_for_admission(c.id).await.unwrap().unwrap();
-    assert_eq!(after.class_state, cp.class_state.unwrap());
-    assert_eq!(count(&pool, "character_transfer_receipts").await, 1);
-    assert_eq!(count(&pool, "character_learned_skills").await, 1);
-    assert_eq!(count(&pool, "outbox").await, 2);
+    assert_eq!(after.class_state, second.class_state.unwrap());
+    assert_level_40_catchup_ranks(&repo, &pool, c.id).await;
+    assert_eq!(count(&pool, "character_transfer_receipts").await, 2);
+    assert_eq!(count(&pool, "character_learned_skills").await, 5);
+    assert_eq!(count(&pool, "outbox").await, 3);
     let slot: (i32, i32, i64, i64) = sqlx::query_as(
         "SELECT class_id,level,exp,sp FROM character_class_slots WHERE character_id=$1 AND slot=0",
     )
@@ -270,7 +417,7 @@ async fn transfer_checkpoint_atomically_round_trips_ledger_receipt_skills_and_ou
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(slot, (1, 40, 500, 50));
+    assert_eq!(slot, (2, 40, 500, 50));
 }
 
 #[tokio::test]
