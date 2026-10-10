@@ -111,7 +111,7 @@ Models: **D = agy gemini-3.8-flash-high**, **C = Codex gpt-6.1-sol / high**, **Z
 | 2.2 Schema/name validation [client-visible] | Race/root/sex/appearance/blocklist; name 2/3/16/17 boundaries, charset/case and UI errors asserted. | D |
 | 2.3 Atomic creation [client-visible] | Serialize accounts, preserve legacy retries, seven slots/outbox; Postgres distinct-key six-to-seven and identical-key one-write/event plus read-after-write pass. | C |
 | 2.4 Migration/backfill [client-visible] | Final API 000007/normalized learning/generated entities; unknown/wrong-race abort, old XP/level/vitals/position unchanged and migrated client identity correct. | C |
-| 2.5 Simulation scenario(s) [client-visible] | `2-create-each-race-class-a.nfs`, `2-create-each-race-class-b.nfs`, `2-create-each-race-class-c.nfs` cover 2.1..2.4 across accounts: 5 races/9 roots, stats/metadata/errors/seven slots. | C |
+| 2.5 Simulation scenario(s) [client-visible] | `2-create-each-race-class-01.nfs`, `2-create-each-race-class-02.nfs`, `2-create-each-race-class-03.nfs` cover 2.1..2.4 across accounts: 5 races/9 roots, stats/metadata/errors/seven slots. | C |
 
 ### E3 — Zone transfer and durability
 
@@ -171,7 +171,9 @@ Owners run domain/socket/DB checks; this revision checks only the plan.
 
 Preserve **19 Phase1a cases**; revise Human native XP via independent racial oracle. Legacy mode only for recordings, never live trait masking. Run appropriate proto/build/entity/fmt/clippy/tests; no fake CI/native results.
 
-**Nine fixed files:** creation `2-create-each-race-class-a.nfs`, `2-create-each-race-class-b.nfs`, `2-create-each-race-class-c.nfs`; `2-racial-traits.nfs`; `2-class-transfer.nfs`, `2-class-transfer-rejected.nfs`, `2-class-transfer-observer-a.nfs`, `2-class-transfer-observer-b.nfs`, `2-class-transfer-reconnect.nfs`. Observer pair runs together; eight run units is optional organization, not measured evidence.
+**Nine required scenario files:** creation `2-create-each-race-class-01.nfs`, `2-create-each-race-class-02.nfs`, `2-create-each-race-class-03.nfs`; `2-racial-traits.nfs`; `2-class-transfer.nfs`, `2-class-transfer-rejected.nfs`, `2-class-transfer-observer-a.nfs`, `2-class-transfer-observer-b.nfs`, `2-class-transfer-reconnect.nfs`. Only observer `-a/-b` files pair; creation `-01/-02/-03` are independent CI units. Additional invalid-creation and missing-token scenarios strengthen the negative cases.
+
+Normal run-sim/run-sim-multi/CI discovery recognizes explicit `# fixture: phase2-transfer`, `phase2-transfer-observer` and `phase2-transfer-missing-token` headers. The harness provisions an isolated fresh database, migrates and seeds before API startup, assigns distinct role accounts, exports evidence and cleans up only its owned stack. Attached APIs cannot accept a mutation fixture. Legacy scenario behavior stays unchanged.
 
 Coordinator serializes native/Compose runs. Fixture requires AUTH_DEV_TOKENS=1, recognized explicit pack/owned isolated DB marker; refuse wrong DB/unexpected receipts/revision/admitted player. API creates UUID manifest; bound final-schema SQL seeds authoritative XP/class/vitals/tokens/mask and **126,126 before tickets/admission**. No root.env/live edits/production spawn changes; no credentials logged.
 
