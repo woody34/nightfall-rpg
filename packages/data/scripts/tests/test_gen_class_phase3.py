@@ -155,14 +155,11 @@ class TemplateOracleTests(unittest.TestCase):
         digest = hashlib.sha256(json.dumps(self.golden['formulas'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
         self.assertEqual(digest, self.golden['vector_set_sha256'])
 
-    def test_existing_skill_oracle_vectors_are_unchanged(self):
-        frozen = json.loads((DATA / 'fixtures/skill-oracle.json').read_text())
-        calculated = generate()[0]
-        # Historic input hashes are frozen with their original artifact. Only
-        # the new fixture hashes today's script and appended NPC section.
-        frozen.pop('inputs_sha256')
-        calculated.pop('inputs_sha256')
-        self.assertEqual(calculated, frozen)
+    def test_existing_skill_oracle_matches_including_manifest(self):
+        calculated, text = generate()
+        fixture = (DATA / 'fixtures/skill-oracle.json').read_text()
+        self.assertEqual(calculated, json.loads(fixture))
+        self.assertEqual(text, fixture)
 
     def test_every_requested_class_level_and_posture_is_present(self):
         expected = {(c, l) for c in self.golden['coverage']['class_keys'] for l in (1, 20, 40, 85)}
