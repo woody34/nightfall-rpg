@@ -44,5 +44,10 @@ public class Nightfall : ModuleRules
 
 		// Warnings are errors, matching the Rust side's -D warnings policy.
 		bWarningsAsErrors = true;
+
+		// Each .cpp is its own translation unit. Tests and console commands share anonymous-namespace
+		// names (Flags, FRecordingSocket, CreateCommand...), which collide once UBT's adaptive unity
+		// build merges committed files; it only hid this while those files were in the git working set.
+		bUseUnity = false;
 	}
 }
