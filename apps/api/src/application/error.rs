@@ -32,6 +32,15 @@ pub enum AppError {
     /// The idempotency key was reused with a different request body.
     #[error("idempotency key reused with a different request")]
     IdempotencyConflict,
+    /// A live operation's requirements are not met.
+    #[error("failed precondition: {0}")]
+    FailedPrecondition(String),
+    /// A bounded resource has no capacity.
+    #[error("resource exhausted: {0}")]
+    ResourceExhausted(String),
+    /// A runtime is temporarily unable to serve the request.
+    #[error("unavailable: {0}")]
+    Unavailable(String),
     /// A port failed for a reason the caller cannot fix.
     #[error(transparent)]
     Infrastructure(#[from] anyhow::Error),

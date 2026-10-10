@@ -1,6 +1,9 @@
 //! Ports: the traits the application layer needs the outside world to implement.
 
+use crate::domain::character_progression::{CharacterIdentity, ClassState, FrozenTransferResult};
+use crate::domain::class::ClassId;
 use crate::domain::ids::uuid_id;
+use crate::domain::CharacterName;
 use crate::domain::{
     AccountId, Character, CharacterId, DomainEvent, PlayTicket, Position, SessionGeneration,
     SessionId, TicketHash,
@@ -74,6 +77,30 @@ pub trait CharacterRepository: Send + Sync {
         character: &Character,
     ) -> Result<CreateOutcome, RepositoryError>;
 
+    /// Forever-retained successful transfer lookup, scoped to the authenticated account.
+    /// The default reads the bounded character ledgers; adapters may use an indexed receipt.
+    async fn mutation_receipt_lookup(
+        &self,
+        caller: AccountId,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<MutationReceiptLookup> {
+        for character in self.list_by_account(caller).await? {
+            if let Some(receipt) = character.class_state.receipt(key.as_uuid()) {
+                return Ok(
+                    if transfer_fingerprint(receipt.result.character_id, receipt.target_class_id)
+                        == fingerprint
+                    {
+                        MutationReceiptLookup::Known(receipt.result.clone())
+                    } else {
+                        MutationReceiptLookup::Conflict
+                    },
+                );
+            }
+        }
+        Ok(MutationReceiptLookup::Unknown)
+    }
+
     /// The committed progression state, read when a character is admitted to a zone.
     /// `Ok(None)` when the character does not exist.
     async fn load_for_admission(
@@ -115,6 +142,12 @@ pub struct ProgressionState {
     pub alive: bool,
     /// Class profile id (`packages/data/classes/<id>.toml`).
     pub class_profile: String,
+    /// Immutable identity read atomically with resources and revision.
+    pub identity: CharacterIdentity,
+    /// Immutable display name for frozen responses.
+    pub name: CharacterName,
+    /// Active main class ledger, including successful transfer receipts.
+    pub class_state: ClassState,
     /// Bumped by every applied checkpoint; the fence for the next one.
     pub revision: u64,
 }
@@ -140,6 +173,8 @@ pub struct CharacterCheckpoint {
     pub position: Position,
     /// `(operation, key)` of the idempotency record; operation matches `^[a-z][a-z_]*$`.
     pub idempotency: (String, IdempotencyKey),
+    /// None is legacy recovery: preserve ledger and original checkpoint fingerprint bytes.
+    pub class_state: Option<ClassState>,
 }
 
 impl CharacterCheckpoint {
@@ -148,7 +183,7 @@ impl CharacterCheckpoint {
     #[must_use]
     pub fn fingerprint(&self, events: &[DomainEvent]) -> String {
         use sha2::{Digest, Sha256};
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "character_id": self.character_id.as_uuid(),
             "revision_seen": self.revision_seen,
             "level": self.level,
@@ -159,6 +194,9 @@ impl CharacterCheckpoint {
             "position": [self.position.x, self.position.y],
             "events": events,
         });
+        if let Some(class_state) = &self.class_state {
+            body["class_state"] = serde_json::json!(class_state);
+        }
         Sha256::digest(body.to_string().as_bytes())
             .iter()
             .fold(String::new(), |mut s, b| {
@@ -180,6 +218,14 @@ impl CharacterCheckpoint {
             Some("characters_hp_nonneg")
         } else if i32::try_from(self.mp).is_err() {
             Some("characters_mp_nonneg")
+        } else if self.class_state.as_ref().is_some_and(|s| {
+            s.validate().is_err()
+                || i64::try_from(s.sp).is_err()
+                || i32::try_from(s.cp).is_err()
+                || i32::try_from(s.token_tier_1_count).is_err()
+                || i32::try_from(s.token_tier_2_count).is_err()
+        }) {
+            Some("characters_class_state_valid")
         } else {
             None
         }
@@ -220,9 +266,68 @@ pub enum RepositoryError {
     /// Unique constraint on the normalized name.
     #[error("character name already taken")]
     NameTaken,
+    /// Seven character slots already occupied. Existing keys replay before this check.
+    #[error("all seven character slots are occupied")]
+    SlotsFull,
     /// Anything else.
     #[error(transparent)]
     Other(#[from] anyhow::Error),
+}
+
+/// A successful transfer's immutable receipt lookup.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MutationReceiptLookup {
+    /// No successful request used the key.
+    Unknown,
+    /// Key used for a different character or target.
+    Conflict,
+    /// Exact original response; returned before requiring a live session.
+    Known(FrozenTransferResult),
+}
+
+/// Semantic transfer body; account scoping is provided by the repository.
+#[must_use]
+pub fn transfer_fingerprint(character: CharacterId, target: ClassId) -> String {
+    format!("v1|{character}|{}", target.0)
+}
+
+/// One live eligibility option, including user-visible unmet requirements.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct TransferEligibility {
+    pub class_id: ClassId,
+    pub eligible: bool,
+    pub unmet: Vec<String>,
+}
+
+/// Live read produced by the actor, never by independently reading mutable DB progression.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct TransferOptionsState {
+    pub options: Vec<TransferEligibility>,
+    pub current_class_id: ClassId,
+    pub token_tier_1_count: u32,
+    pub token_tier_2_count: u32,
+}
+
+/// Authenticated transfer routing. The implementation captures generation with the session
+/// lifecycle lock, releases it before waiting, and replies only after durable checkpoint.
+#[async_trait]
+pub trait ClassTransferRuntime: Send + Sync {
+    /// Read actor-owned eligibility for the caller's live character.
+    async fn transfer_options(
+        &self,
+        caller: AccountId,
+        character: CharacterId,
+    ) -> Result<TransferOptionsState, super::AppError>;
+    /// Applies the deterministic command and waits outside its command/log for durability.
+    async fn change_class(
+        &self,
+        caller: AccountId,
+        character: CharacterId,
+        target: ClassId,
+        key: IdempotencyKey,
+    ) -> Result<FrozenTransferResult, super::AppError>;
 }
 
 /// Verifies bearer tokens issued by the identity provider (plan Revision 1, item 15).

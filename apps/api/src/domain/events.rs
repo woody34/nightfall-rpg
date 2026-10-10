@@ -1,6 +1,7 @@
 //! Domain events: facts about something that happened. Published on the event bus after the
 //! transaction that produced them commits (docs/engineering/architecture.md §3).
 
+use super::class::ClassId;
 use super::{AccountId, CharacterId, Race};
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +28,21 @@ pub enum DomainEvent {
         character_id: CharacterId,
         /// The level reached.
         level: u32,
+    },
+    /// A successful, durably checkpointed class transfer.
+    CharacterClassChanged {
+        /// Stable event identity and aggregate sequence.
+        metadata: EventMetadata,
+        /// The character.
+        character_id: CharacterId,
+        /// Profession before transfer.
+        old_class_id: ClassId,
+        /// Profession after transfer.
+        new_class_id: ClassId,
+        /// Deterministic transfer tick.
+        tick: u64,
+        /// Client mutation UUID.
+        request_key: uuid::Uuid,
     },
     /// A character died.
     CharacterDied {
@@ -63,6 +79,7 @@ impl DomainEvent {
             DomainEvent::CharacterCreated { .. } => "nightfall.character.created",
             DomainEvent::CharacterLeveled { .. } => "nightfall.character.leveled",
             DomainEvent::CharacterDied { .. } => "nightfall.character.died",
+            DomainEvent::CharacterClassChanged { .. } => "nightfall.character.class_changed",
         }
     }
 }

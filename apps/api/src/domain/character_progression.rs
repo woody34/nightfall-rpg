@@ -195,3 +195,20 @@ where
     validate_receipts(&receipts).map_err(serde::de::Error::custom)?;
     Ok(receipts)
 }
+
+/// Legacy Phase 1 combat profile for a lineage's base profession; unknown ids fail closed.
+#[must_use]
+pub const fn base_class_profile(id: ClassId) -> Option<&'static str> {
+    match id.0 {
+        0 => Some("human_fighter"),
+        10 => Some("human_mystic"),
+        18 => Some("elven_fighter"),
+        25 => Some("elven_mystic"),
+        31 => Some("dark_fighter"),
+        38 => Some("dark_mystic"),
+        44 => Some("orc_fighter"),
+        49 => Some("orc_mystic"),
+        53 => Some("dwarven_fighter"),
+        _ => None,
+    }
+}
