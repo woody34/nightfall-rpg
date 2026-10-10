@@ -27,7 +27,7 @@ service GameService {
   // returns the character created the first time and performs no second side effect.
   // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad key, name, or unspecified race),
   // ALREADY_EXISTS (name taken by a different request), FAILED_PRECONDITION (key reused with
-  // a different body).
+  // a different body), RESOURCE_EXHAUSTED (seven character slots occupied).
   rpc CreateCharacter(CreateCharacterRequest) returns (Character);
 
   // Lists the characters owned by the account identified by the verified bearer token, in
@@ -36,6 +36,20 @@ service GameService {
   // Idempotency: read-only, naturally idempotent, no key.
   // Errors: UNAUTHENTICATED (missing or invalid bearer token).
   rpc ListMyCharacters(ListMyCharactersRequest) returns (ListMyCharactersResponse);
+
+  // Authenticated, naturally idempotent catalogue read. Errors: UNAUTHENTICATED.
+  rpc ListClasses(ListClassesRequest) returns (ListClassesResponse);
+
+  // Naturally idempotent read of live transfer eligibility for an owned character.
+  // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+  // FAILED_PRECONDITION (no live session), UNAVAILABLE (zone unavailable).
+  rpc TransferOptions(TransferOptionsRequest) returns (TransferOptionsResponse);
+
+  // Applies a transfer through the live zone actor. A successful key replays the frozen
+  // original response, including after disconnect. Failed requests do not consume keys.
+  // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+  // FAILED_PRECONDITION (unmet requirements or key reused), UNAVAILABLE.
+  rpc ChangeClass(ChangeClassRequest) returns (ChangeClassResponse);
 }
 
 message ListMyCharactersRequest {}
@@ -65,6 +79,13 @@ message CreateCharacterRequest {
   string account_id = 2 [deprecated = true];
   string name = 3;
   Race race = 4;
+  // Absent selects the race's fighter path; explicit zero is Human Fighter.
+  optional uint32 base_class_id = 5;
+  // UNSPECIFIED preserves the legacy male default.
+  Sex sex = 6;
+  uint32 hair_style = 7;
+  uint32 hair_color = 8;
+  uint32 face = 9;
 }
 
 enum Race {
@@ -92,9 +113,143 @@ message Character {
   uint32 level = 4;
   BaseStats stats = 5;
   Position position = 6;
+  uint32 class_id = 7;
+  uint32 base_class_id = 8;
+  uint32 active_class_slot = 9;
+  repeated ClassProgress classes = 10;
+  Sex sex = 11;
+  uint32 hair_style = 12;
+  uint32 hair_color = 13;
+  uint32 face = 14;
 }
 
 message Position {
   float x = 1;
   float y = 2;
+}
+
+// Character appearance selection. Zero is accepted only as the legacy male default.
+enum Sex {
+  SEX_UNSPECIFIED = 0;
+  SEX_MALE = 1;
+  SEX_FEMALE = 2;
+}
+
+enum Archetype {
+  ARCHETYPE_UNSPECIFIED = 0;
+  ARCHETYPE_FIGHTER = 1;
+  ARCHETYPE_MYSTIC = 2;
+}
+
+message ClassProgress {
+  uint32 slot = 1;
+  uint32 class_id = 2;
+  uint32 level = 3;
+  uint64 exp = 4;
+  uint64 sp = 5;
+}
+
+// Phase 3 fills these typed hooks; Phase 2 sends empty skill trees.
+message SkillLearnInfo {
+  string key = 1;
+  uint32 skill_level = 2;
+  uint32 required_level = 3;
+  uint64 sp_cost = 4;
+  bool auto_get = 5;
+  repeated SkillItemRequirement required_items = 6;
+}
+
+message SkillItemRequirement {
+  string item = 1;
+  uint32 count = 2;
+}
+
+// Phase 4 fills equipment mastery hooks.
+message ProficiencyInfo {
+  string key = 1;
+  uint32 min_level = 2;
+}
+
+message ClassInfo {
+  uint32 class_id = 1;
+  string key = 2;
+  string display_name = 3;
+  Race race = 4;
+  uint32 tier = 5;
+  uint32 parent_class_id = 6; // 65535 means no parent
+  uint32 min_level = 7;
+  Archetype archetype = 8;
+  BaseStats base_stats = 9;
+  bool subclass_allowed = 10;
+  repeated uint32 subclass_equivalents = 11;
+  repeated SkillLearnInfo skill_tree = 12;
+  repeated ProficiencyInfo proficiencies = 13;
+}
+
+message PassiveInfo {
+  string key = 1;
+  string display_name = 2;
+  string description = 3;
+  bool implemented = 4;
+}
+
+message RaceInfo {
+  Race race = 1;
+  string display_name = 2;
+  bool mystic_path = 3;
+  uint32 walk_speed = 4;
+  uint32 run_speed = 5;
+  repeated uint32 base_class_ids = 6;
+  repeated string passive_skill_keys = 7;
+  uint32 hair_style_count = 8; // Phase 2: one choice, index zero
+  uint32 hair_color_count = 9;
+  uint32 face_count = 10;
+  repeated PassiveInfo passives = 11;
+}
+
+message ClassMasterInfo {
+  string name = 1;
+  Position position = 2;
+  float interaction_radius = 3; // tiles
+}
+
+message ListClassesRequest {}
+
+message ListClassesResponse {
+  string data_version = 1;
+  repeated RaceInfo races = 2;
+  repeated ClassInfo classes = 3;
+  uint32 playable_level_cap = 4; // 85
+  uint32 max_transfer_tier = 5; // 2; third-tier classes are metadata only
+  ClassMasterInfo class_master = 6;
+}
+
+message TransferOptionsRequest {
+  string character_id = 1;
+}
+
+message TransferOption {
+  uint32 class_id = 1;
+  bool eligible = 2;
+  repeated string unmet = 3;
+}
+
+message TransferOptionsResponse {
+  repeated TransferOption options = 1;
+  uint32 current_class_id = 2;
+  uint32 token_tier_1_count = 3;
+  uint32 token_tier_2_count = 4;
+}
+
+message ChangeClassRequest {
+  string character_id = 1;
+  uint32 target_class_id = 2;
+  string idempotency_key = 3; // required client UUID
+}
+
+message ChangeClassResponse {
+  Character character = 1;
+  repeated string granted_skill_keys = 2;
+  uint32 token_tier_1_count = 3;
+  uint32 token_tier_2_count = 4;
 }

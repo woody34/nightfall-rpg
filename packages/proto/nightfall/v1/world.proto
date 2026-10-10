@@ -134,6 +134,7 @@ message WorldEvent {
     TargetChanged target_changed = 10; // authoritative combat fact
     AttackStarted attack_started = 11; // a swing started; lands at impact_tick
     AttackCancelled attack_cancelled = 12; // a pending swing ended without impact
+    ClassChanged class_changed = 13;
   }
 }
 
@@ -164,6 +165,13 @@ message EntitySpawn {
   uint32 max_hp = 12;
   uint32 level = 13;
   AttackStarted pending_swing = 14;     // set while a swing is in flight
+  Race race = 15;
+  uint32 class_id = 16;
+  Sex sex = 17;
+  uint32 hair_style = 18;
+  uint32 hair_color = 19;
+  uint32 face = 20;
+  uint64 state_tick = 21;
 }
 
 message EntityMove {
@@ -254,6 +262,13 @@ message StatsChanged {
   uint32 max_mp = 5; // maximum whole MP
   uint32 level = 6; // current level, including decreases after death
   uint64 xp = 7; // cumulative whole XP, including death loss (owner-only)
+  uint32 cp = 8;
+  uint32 max_cp = 9;
+  uint32 class_id = 10;
+  uint64 sp = 11;
+  uint32 token_tier_1_count = 12;
+  uint32 token_tier_2_count = 13;
+  uint64 tick = 14;
 }
 
 // Authoritative xp gained fact; responses precede facts, spawns precede references.
@@ -273,4 +288,12 @@ message LevelUp {
 message TargetChanged {
   string entity = 1; // selecting actor UUID; owner-only
   string target = 2; // selected target UUID; empty means cleared
+}
+
+// Authoritative class change visible to the character's area of interest.
+message ClassChanged {
+  string entity = 1;
+  uint32 class_id = 2;
+  uint64 tick = 3;
+  uint32 session_generation = 4;
 }
