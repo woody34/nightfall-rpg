@@ -17,10 +17,16 @@ nf.WaitFor in_world 15
 nf.WaitFor own_sp >= 0 3
 nf.WaitFor entity_in_view 01970000-0000-7000-8000-000000000030 30
 nf.WaitFor entity_effect_active 01970000-0000-7000-8000-000000000030 1068 30
-nf.WaitFor observed_cast_results >= 1 30
+# Bind to the witnessed 1177 Started's caster incarnation + cast_id. A's earlier
+# Might1068 Result must never satisfy this wait, even if the global count is >0.
+nf.WaitFor cast_result_for 01970000-0000-7000-8000-000000000030 1177 30
+nf.Expect cast_terminal_once_for 01970000-0000-7000-8000-000000000030 1177
 nf.Expect observer_skill_baseline_coherent
 nf.Expect spawn_before_skill_references
 nf.Expect private_stats_leaks == 0
 nf.Expect public_vitals_coherent
+# Authoritative peer completion handshake; no IPC or sleeps.
+nf.Cast 1068 self
+nf.WaitFor buff_active 1068 12
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
-nf.Within 153
+nf.Within 165

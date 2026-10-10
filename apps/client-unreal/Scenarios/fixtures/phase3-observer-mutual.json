@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "provenance": "Authored wire projection fixture, not a native server recording or gameplay attestation",
+  "case_id": "observer-mutual-reference",
+  "observer": "01970000-0000-7000-8000-000000000032",
+  "messages": [
+    {
+      "event": "EntitySpawn",
+      "fields": {
+        "hp": 100,
+        "max_hp": 100,
+        "life_incarnation": 2,
+        "entity_id": "01970000-0000-7000-8000-000000000030",
+        "combatant": true,
+        "dead": false,
+        "kind": "ENTITY_KIND_PLAYER",
+        "state_tick": 1050,
+        "session_generation": 1
+      }
+    },
+    {
+      "event": "EntitySpawn",
+      "fields": {
+        "hp": 100,
+        "max_hp": 100,
+        "life_incarnation": 7,
+        "entity_id": "01970000-0000-7000-8000-000000000031",
+        "combatant": true,
+        "dead": false,
+        "kind": "ENTITY_KIND_PLAYER",
+        "state_tick": 1050,
+        "session_generation": 1
+      }
+    },
+    {
+      "event": "SkillCastStarted",
+      "fields": {
+        "caster": "01970000-0000-7000-8000-000000000030",
+        "caster_incarnation": 2,
+        "target": "01970000-0000-7000-8000-000000000031",
+        "target_incarnation": 7,
+        "skill_id": 1177,
+        "skill_level": 2,
+        "cast_id": 7001,
+        "tick": 1050,
+        "start_tick": 1040,
+        "launch_tick": 1076,
+        "complete_tick": 1080,
+        "baseline": true,
+        "baseline_tick": 1050
+      }
+    },
+    {
+      "event": "SkillCastStarted",
+      "fields": {
+        "caster": "01970000-0000-7000-8000-000000000031",
+        "caster_incarnation": 7,
+        "target": "01970000-0000-7000-8000-000000000030",
+        "target_incarnation": 2,
+        "skill_id": 1177,
+        "skill_level": 2,
+        "cast_id": 7002,
+        "tick": 1050,
+        "start_tick": 1040,
+        "launch_tick": 1076,
+        "complete_tick": 1080,
+        "baseline": true,
+        "baseline_tick": 1050
+      }
+    },
+    {
+      "event": "SkillCastResult",
+      "fields": {
+        "caster": "01970000-0000-7000-8000-000000000030",
+        "caster_incarnation": 2,
+        "cast_id": 6999,
+        "tick": 1051,
+        "skill_id": 1068,
+        "skill_level": 1,
+        "targets": []
+      }
+    },
+    {
+      "event": "SkillCastResult",
+      "fields": {
+        "caster": "01970000-0000-7000-8000-000000000030",
+        "caster_incarnation": 2,
+        "cast_id": 7001,
+        "tick": 1080,
+        "skill_id": 1177,
+        "skill_level": 2,
+        "targets": []
+      }
+    },
+    {
+      "event": "SkillCastResult",
+      "fields": {
+        "caster": "01970000-0000-7000-8000-000000000031",
+        "caster_incarnation": 7,
+        "cast_id": 7002,
+        "tick": 1080,
+        "skill_id": 1177,
+        "skill_level": 2,
+        "targets": []
+      }
+    }
+  ],
+  "assertions": [
+    "all_identities_before_any_hydration",
+    "mutual_targets_known_same_incarnation",
+    "baseline_original_cast_ids_deadlines",
+    "baseline_no_animation_or_live_start_counts",
+    "might_result_not_wind_terminal",
+    "exactly_one_terminal_per_wind_cast"
+  ],
+  "negative_mutations": [
+    "hydrate_before_second_identity",
+    "stale_target_incarnation",
+    "result_wrong_cast_id",
+    "result_wrong_skill_id",
+    "ordinary_start_instead_of_baseline",
+    "baseline_tick_equal_or_after_complete"
+  ]
+}

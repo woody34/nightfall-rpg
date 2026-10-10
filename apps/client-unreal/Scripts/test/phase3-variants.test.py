@@ -10,6 +10,7 @@ import unittest
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 REPO = SCRIPTS.parents[2]
+SCENARIOS = SCRIPTS.parent / 'Scenarios'
 
 
 def load(name, path):
@@ -28,7 +29,7 @@ ci = load('variant_ci', SCRIPTS / 'run-sim-ci.py')
 class VariantContracts(unittest.TestCase):
     def test_each_runtime_case_has_specific_assertions_fixture_and_complete_roles(self):
         data = variants.read_contract()
-        self.assertEqual(len(data['runtime_cases']), 17)
+        self.assertEqual(len(data['runtime_cases']), 19)
         paths = list((SCRIPTS.parent / 'Scenarios/variants').glob('3-*.nfs'))
         for batch in ci.units(paths):
             ci.fixture(batch)
@@ -48,6 +49,8 @@ class VariantContracts(unittest.TestCase):
             if field == 'sp':
                 self.assertIn(str(value) + ",'female'", sql)
         self.assertIn('rglob("*.nfs")', (SCRIPTS / 'run-sim-ci.py').read_text())
+        with self.assertRaises(ValueError):
+            ci.units([SCENARIOS / '3-cast-skill.nfs', SCENARIOS / 'variants/3-cast-skill.nfs'])
 
     def test_header_only_or_wrong_fixture_or_missing_assertions_cannot_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -72,6 +75,10 @@ class VariantContracts(unittest.TestCase):
             self.assertTrue(c['deterministic_roll_fixture']['require_full_ordered_draw_trace'])
         self.assertEqual(cases['debuff-land']['deterministic_roll_fixture']['value'], 0)
         self.assertEqual(cases['debuff-resist']['deterministic_roll_fixture']['value'], 99)
+        self.assertEqual(cases['death-penalty-roll-success']['deterministic_roll_fixture']['value'], 0)
+        self.assertEqual(cases['death-penalty-roll-failure']['deterministic_roll_fixture']['value'], 99)
+        self.assertEqual(cases['death-penalty-roll-success']['deterministic_roll_fixture']['source_draw']['value'], 1)
+        self.assertEqual(cases['death-penalty-roll-failure']['deterministic_roll_fixture']['source_draw']['value'], 100)
         for name in ('cast-status-guards', 'cast-real-weapon', 'cast-completion-resources',
                      'learn-engagement-guards', 'sp-competing-keltir', 'buff-higher-lower-overflow',
                      'physical-skill', 'dot-nonlethal-break', 'reconnect-reuse-50-51',

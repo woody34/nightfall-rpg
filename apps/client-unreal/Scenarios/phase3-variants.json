@@ -217,6 +217,35 @@
         "nf.Expect sp_gained_events == 1",
         "nf.Expect sp_gained_events == 0"
       ]
+    },
+    {
+      "id": "cast-observer-late-a",
+      "canonical": "3-cast-observer-a.nfs",
+      "scenarios": [
+        "variants/3-cast-observer-late-a.nfs"
+      ],
+      "fixture": "phase3-observer-late",
+      "assertions": [
+        "nf.WaitFor cast_result_for own 1177 12",
+        "nf.Expect cast_terminal_once_for own 1177",
+        "nf.Expect public_vitals_coherent"
+      ]
+    },
+    {
+      "id": "cast-observer-late-b",
+      "canonical": "3-cast-observer-b.nfs",
+      "scenarios": [
+        "variants/3-cast-observer-late-b.nfs"
+      ],
+      "fixture": "phase3-observer-late",
+      "assertions": [
+        "nf.WaitFor observed_cast_baseline_for 01970000-0000-7000-8000-000000000030 1177 12",
+        "nf.WaitFor cast_result_for 01970000-0000-7000-8000-000000000030 1177 12",
+        "nf.Expect cast_terminal_once_for 01970000-0000-7000-8000-000000000030 1177",
+        "nf.Expect spawn_before_skill_references",
+        "nf.Expect observer_skill_baseline_coherent",
+        "nf.Expect private_stats_leaks == 0"
+      ]
     }
   ],
   "precision_cases": [
@@ -466,10 +495,11 @@
       "deterministic_roll_fixture": {
         "injection": "test-only actor RNG draw site (never a live WS command or DB mutation)",
         "site": "calcEffectSuccess",
-        "range_exclusive": 100,
         "value": 0,
         "require_full_ordered_draw_trace": true,
-        "source": "architecture-decisions.md \u00a78 F1; pinned Formulas.java:1158 and A15"
+        "source": "pinned Formulas.java:1158-1230 (Rnd.get(100))",
+        "minimum": 0,
+        "maximum": 99
       }
     },
     {
@@ -488,10 +518,11 @@
       "deterministic_roll_fixture": {
         "injection": "test-only actor RNG draw site (never a live WS command or DB mutation)",
         "site": "calcEffectSuccess",
-        "range_exclusive": 100,
         "value": 99,
         "require_full_ordered_draw_trace": true,
-        "source": "architecture-decisions.md \u00a78 F1; pinned Formulas.java:1158 and A15"
+        "source": "pinned Formulas.java:1158-1230 (Rnd.get(100))",
+        "minimum": 0,
+        "maximum": 99
       }
     },
     {
@@ -638,10 +669,16 @@
       "deterministic_roll_fixture": {
         "injection": "test-only actor RNG draw site (never a live WS command or DB mutation)",
         "site": "death_penalty",
-        "range_exclusive": 100,
         "value": 0,
         "require_full_ordered_draw_trace": true,
-        "source": "architecture-decisions.md \u00a78 F1; pinned Formulas.java:1158 and A15"
+        "source": "Binding design v3 \u00a73: roll_below(100)<20, eligible only and below cap; pinned L2PcInstance.java:9363 uses Rnd.get(1,100)<=chance. Source values1/100 correspond to normalized actor values0/99.",
+        "minimum": 0,
+        "maximum": 99,
+        "source_draw": {
+          "minimum": 1,
+          "maximum": 100,
+          "value": 1
+        }
       }
     },
     {
@@ -660,10 +697,16 @@
       "deterministic_roll_fixture": {
         "injection": "test-only actor RNG draw site (never a live WS command or DB mutation)",
         "site": "death_penalty",
-        "range_exclusive": 100,
         "value": 99,
         "require_full_ordered_draw_trace": true,
-        "source": "architecture-decisions.md \u00a78 F1; pinned Formulas.java:1158 and A15"
+        "source": "Binding design v3 \u00a73: roll_below(100)<20, eligible only and below cap; pinned L2PcInstance.java:9363 uses Rnd.get(1,100)<=chance. Source values1/100 correspond to normalized actor values0/99.",
+        "minimum": 0,
+        "maximum": 99,
+        "source_draw": {
+          "minimum": 1,
+          "maximum": 100,
+          "value": 100
+        }
       }
     },
     {
@@ -673,7 +716,8 @@
       "layer": "actor-adapter",
       "setup": "neutral-player death and peace endpoints independently",
       "assertions": [
-        "no_penalty_roll_or_increment",
+        "no_penalty_increment",
+        "binding_design_eligible_only_rng",
         "source_xp_rule",
         "no_private_leak"
       ],
@@ -685,10 +729,11 @@
       "canonical": "3-death-penalty.nfs",
       "owner": "C-API/PVP",
       "layer": "actor-adapter",
-      "setup": "eligible NPC death; old penalty5, success and failure rolls",
+      "setup": "eligible NPC death; old penalty5; scripted RNG stream proves no draw at cap (binding design v3 \u00a73/\u00a76 RNG ledger)",
       "assertions": [
         "penalty_stays5",
         "modifiers_not_double_installed",
+        "no_rng_draw_at_cap",
         "reconnect_exact"
       ],
       "requested_test": "phase3_death_penalty_cap_actor",
@@ -838,6 +883,55 @@
         "exact_monster_multiplier"
       ],
       "requested_test": "phase3_karma_no_decay_paths",
+      "evidence": null
+    },
+    {
+      "id": "observer-mid-cast-entry",
+      "canonical": "3-cast-observer-b.nfs",
+      "owner": "Z/C-API/CLIENT",
+      "layer": "actor-adapter",
+      "setup": "observer crosses cell1->2 at a scripted actor tick strictly during caster1177",
+      "assertions": [
+        "baseline_witnessed_mid_cast",
+        "same_original_id_incarnation_deadlines",
+        "ordinary_result_matches_hydrated_id",
+        "no_animation_or_double_start"
+      ],
+      "requested_test": "phase3_observer_mid_cast_entry",
+      "evidence": null
+    },
+    {
+      "id": "observer-mutual-reference",
+      "canonical": "3-cast-observer-b.nfs",
+      "owner": "Z/C-API/CLIENT",
+      "layer": "actor-adapter",
+      "setup": "two mutually casting newcomers enter a third observer AOI in one tick",
+      "assertions": [
+        "all_identities_before_any_hydration",
+        "mutual_targets_known_same_incarnation",
+        "baseline_original_cast_ids_deadlines",
+        "baseline_no_animation_or_live_start_counts",
+        "might_result_not_wind_terminal",
+        "exactly_one_terminal_per_wind_cast"
+      ],
+      "requested_test": "phase3_observer_mutual_reference",
+      "evidence": null,
+      "input_fixture": "fixtures/phase3-observer-mutual.json",
+      "input_fixture_sha256": "ebc83f071de6d4045002f9c95b8f47cf09a0805d210a887df7edab4a9854f5ab"
+    },
+    {
+      "id": "observer-mutual-swing-hidden-source",
+      "canonical": "3-cast-observer-b.nfs",
+      "owner": "Z/C-API/CLIENT",
+      "layer": "actor-adapter",
+      "setup": "newcomers with pending_swing/effects plus absent/off-AOI source",
+      "assertions": [
+        "all_identities_before_attackstarted_baseline",
+        "hidden_source_pair_omitted",
+        "subject_effect_preserved",
+        "no_dangling_nested_reference"
+      ],
+      "requested_test": "phase3_observer_mutual_swing_hidden_source",
       "evidence": null
     }
   ]

@@ -82,13 +82,13 @@ independent, hash-pinned artifact; the harness does not calculate gameplay resul
 | `nf.DropSocket` | Registered | Drops transport; no gameplay mutation. Reconnect requires fresh admission baselines. |
 | `nf.WaitFor / nf.Expect / nf.Within` | Registered | Scenario parser directives; WaitFor/Expect read the registered predicate, Within sets only the runner deadline. |
 | `connected` | `connected`: registered | Login/auth response access token; authenticated local transport state, not a zone event. |
-| `in_world`<br>`reconnects` | `in_world`: registered<br>`reconnects`: registered | WebSocket transport generation and owner EntitySpawn.entity/incarnation; no synthetic gameplay facts. |
-| `own_at`<br>`entity_at` | `own_at`: registered<br>`entity_at`: REQUIRED HANDOFF | EntitySpawn.position and EntityMove.entity/position/tick/incarnation; newest received sample, never client pawn position. |
+| `in_world`<br>`reconnects` | `in_world`: registered<br>`reconnects`: registered | WebSocket transport generation and owner EntitySpawn.entity_id/life_incarnation; no synthetic gameplay facts. |
+| `own_at`<br>`entity_at` | `own_at`: registered<br>`entity_at`: REQUIRED HANDOFF | EntitySpawn.entity_id/position/life_incarnation and EntityMove.entity_id/position/tick scoped to the admitted identity; newest received sample, never client pawn position. |
 | `entity_in_view` | `entity_in_view`: REQUIRED HANDOFF | EntitySpawn/EntityDespawn admitted known-entity identity cache. |
 | `own_hp`<br>`own_dead`<br>`entity_alive`<br>`entity_dead` | `own_hp`: registered<br>`own_dead`: registered<br>`entity_alive`: REQUIRED HANDOFF<br>`entity_dead`: REQUIRED HANDOFF | EntitySpawn.hp, EntityDied.entity/incarnation, EntityRespawned, AttackResult.target_hp_after and VitalsChanged.hp; alive requires a known matching incarnation. |
 | `own_mp`<br>`own_cp`<br>`initial_mp`<br>`initial_cp`<br>`initial_hp` | `own_mp`: registered<br>`own_cp`: registered<br>`initial_mp`: REQUIRED HANDOFF<br>`initial_cp`: REQUIRED HANDOFF<br>`initial_hp`: REQUIRED HANDOFF | Owner StatsChanged.mp/cp and EntitySpawn.hp; initial_* freezes the first owner admission sample, never an uninitialized zero. |
 | `target` | `target`: registered | Owner TargetChanged.target; server-confirmed selection. |
-| `attack_state` | `attack_state`: registered | IntentAck/IntentRejected.seq correlated to Attack, AttackStarted.attacker/tick and AttackStopped; pending is local intent state. |
+| `attack_state` | `attack_state`: registered | IntentAck/IntentRejected.seq correlated to Attack, AttackStarted.attacker/tick, AttackResult and AttackCancelled.reason; pending is local intent state. |
 | `rejected` | `rejected`: registered | IntentRejected.seq/reason; spelling is the existing client registry name (replaces last_reject). |
 | `private_stats_leaks` | `private_stats_leaks`: registered | StatsChanged.entity received for a non-owner; existing ClassStateSubsystem leak counter (replaces observer_private_stats). |
 | `own_sp`<br>`learned_rank` | `own_sp`: registered<br>`learned_rank`: registered | SkillStateSync.sp/learned, SkillLearned.skill_id/skill_level/sp_remaining and owner StatsChanged.sp. |
@@ -99,7 +99,7 @@ independent, hash-pinned artifact; the harness does not calculate gameplay resul
 | `learn_rpc_error` | `learn_rpc_error`: registered | Completed LearnSkill unary canonical gRPC status; pending does not equal success. |
 | `learn_receipt_matches_first` | `learn_receipt_matches_first`: registered | Two successful LearnSkillResponse messages for the same request UUID/fingerprint, all frozen response fields equal. |
 | `skill_ready`<br>`skill_reuse_remaining` | `skill_ready`: registered<br>`skill_reuse_remaining`: registered | Owner SkillReuse.skill_id/ready_tick and SkillStateSync.reuse[].ready_tick vs newest received authoritative tick. No predicted reuse formula. |
-| `cast_state`<br>`entity_casting` | `cast_state`: registered<br>`entity_casting`: REQUIRED HANDOFF | SkillCastStarted.caster/skill_id/cast_id/caster_incarnation/complete_at_tick, SkillCastResult and SkillCastCancelled of the same identity. Baseline hydration upserts without event counts. |
+| `cast_state`<br>`entity_casting` | `cast_state`: registered<br>`entity_casting`: REQUIRED HANDOFF | SkillCastStarted.caster/skill_id/cast_id/caster_incarnation/complete_tick, SkillCastResult and SkillCastCancelled of the same identity. Baseline hydration upserts without event counts. |
 | `cast_starts`<br>`cast_results`<br>`cast_cancellations`<br>`observed_cast_results` | `cast_starts`: registered<br>`cast_results`: registered<br>`cast_cancellations`: registered<br>`observed_cast_results`: registered | Distinct nonbaseline SkillCastStarted/SkillCastResult/SkillCastCancelled; owner versus observer audience. Generic counters are insufficient for skill-specific observer termination. |
 | `cast_cancel_reason`<br>`observed_cast_cancel_reason`<br>`cast_dispositions_once` | `cast_cancel_reason`: REQUIRED HANDOFF<br>`observed_cast_cancel_reason`: REQUIRED HANDOFF<br>`cast_dispositions_once`: REQUIRED HANDOFF | SkillCastStarted.cast_id + SkillCastResult.cast_id or SkillCastCancelled.cast_id/reason, with caster/incarnation and IntentAck/IntentRejected.seq. Exactly one terminal event per accepted cast; no late intent rejection. |
 | `cancelled_cast_costs_retained`<br>`own_mp_cost_matches` | `cancelled_cast_costs_retained`: REQUIRED HANDOFF<br>`own_mp_cost_matches`: UNKNOWN: missing cost/vector input | Owner StatsChanged.mp before/start/completion, SkillReuse.ready_tick and matching cast identity. own_mp_cost_matches needs independently pinned per-rank MP1/MP2 expected values; GetSkillCatalogResponse currently carries NO costs. Registered but always UNKNOWN. |
@@ -125,6 +125,16 @@ independent, hash-pinned artifact; the harness does not calculate gameplay resul
 | `own_level` | Registered | Owner StatsChanged.level and EntitySpawn.level; received level only. |
 | `target_distance` | Registered | TargetChanged selection plus newest EntitySpawn/EntityMove positions for owner and selected target; scheduling/range evidence, no skill formula. |
 | `resurrect_offer_state` | REQUIRED HANDOFF | Owner ResurrectOffer.offer_id/target_incarnation/state/tick for the newest witnessed offer, preserving DECLINED/EXPIRED terminal history; absent/pending cannot satisfy it. |
+
+| `cast_result_for <own|uuid> <skill_id>` | REQUIRED HANDOFF | Latch a witnessed SkillCastStarted.caster/caster_incarnation/skill_id/**cast_id**, including an explicit baseline; require SkillCastResult matching all four. A Might result or different cast cannot satisfy Wind Strike. UNKNOWN until both start and matching result exist. |
+| `cast_terminal_once_for <own|uuid> <skill_id>` | REQUIRED HANDOFF | Same latched cast identity as cast_result_for; count exactly one matching SkillCastResult or SkillCastCancelled, require the designated result actually witnessed. Hydration is never a new start. |
+| `observed_cast_baseline_for <uuid> <skill_id>` | REQUIRED HANDOFF | SkillCastStarted.baseline=true, original start_tick < baseline_tick < complete_tick, same caster/incarnation/skill/cast_id on first AOI hydration; preserve identity for subsequent terminal correlation. An ordinary Started or completed baseline cannot pass. |
+| `entity_not_in_view <uuid>` | REQUIRED HANDOFF | Previously witnessed EntitySpawn.entity_id then EntityDespawn.entity_id removal from the admitted identity cache; before a valid transport baseline UNKNOWN, never success from absent initialization. |
+
+| `cast_damage_results` (casting soak) | Registered | Owner SkillCastResult.targets[].resolution_kind PHYSICAL/MAGICAL with witnessed cast identity; nonbaseline result history, no calculation of damage. |
+| `proxies` (casting soak) | Registered | Net admitted EntitySpawn.entity_id/EntityDespawn.entity_id cache, excluding owner. |
+| `xp_known`, `own_xp` (casting soak) | Registered | Owner StatsChanged.xp / XpGained.total and scope reset after admission; missing owner sample UNKNOWN. |
+| `kill_xp_matches_fixture`, `own_level_matches_xp` (casting soak) | Registered legacy fixture predicates | Received XpGained/StatsChanged.xp/level and selected NPC EntitySpawn.template_id plus the existing BotFixtureData shipped XP/experience rule contract. No new Phase3 formula or Python/Bash gameplay calculation. |
 
 Run `python3 Scripts/sim-parser-check.py Scenarios/3-*.nfs` as the strict source
 compatibility gate. It reads BotPredicates/ClassBotPredicates/SkillBotPredicates
@@ -153,8 +163,10 @@ reconnect; an always-zero implementation cannot pass. Seed SQL writes declared
 penalty/PvP inputs rather than silently substituting zero.
 
 Deterministic land/resist and penalty-success/failure fixture definitions are in
-`precision_cases[].deterministic_roll_fixture`: test-only draw-site injection0/99,
-exclusive bound100, requiring the **complete ordered RNG trace**, including earlier
+`precision_cases[].deterministic_roll_fixture`: test-only actor draw-site injection0/99 with inclusive bounds0..99. For death
+penalty this follows binding design v3 §3 roll_below(100)<20; the fixture also
+records corresponding pinned source Rnd.get(1,100) values1/100
+(L2PcInstance.java:9363). Ineligible/capped deaths consume no draw per binding design, requiring the **complete ordered RNG trace**, including earlier
 success/reflection/duration draws. They are **actor fixture handoffs**, not supported
 live-server seed controls: no chosen wall-clock login or small cast sample proves
 an outcome. Engine owners must consume these fixtures and publish the named test
@@ -284,3 +296,25 @@ the final SoakScenarioSeconds budget parameter. Commands/counts/inactive effects
 brief, but the added impact/initial-resource/causal predicates and oracle/death/
 retention/AI assertions remain handoffs. Integrate and reconcile the final client
 M3 commit before running scenarios; unsupported names must continue to fail parsing.
+
+Observer correlation correction: canonical A/B both wait for `cast_result_for`
+Wind Strike1177, then `cast_terminal_once_for` on the same received identity.
+A remains admitted until B's post-result Might1068 self-buff is received. The
+trainer peer is explicitly seeded with Might rank1; no unlearned handshake.
+`variants/3-cast-observer-late-a/b.nfs` use `phase3-observer-late`: A110/100,
+B65/100->63/100->65/100 across the32-tile AOI cell boundary. They must witness
+original pending-cast hydration strictly during the cast or fail; ordinary Start
+cannot stand in for mid-cast entry. Runtime frame scheduling can miss this window;
+`phase3_observer_mid_cast_entry` must additionally prove exact actor-tick ordering.
+
+`Scenarios/fixtures/phase3-observer-mutual.json` is an **authored wire fixture**,
+not an engine-produced recording. It defines two mutually referencing newcomers,
+all identity spawns before either baseline cast, different incarnations/IDs,
+original deadlines, a misleading Might result and the two designated Wind Strike
+terminal results. Its SHA is bound into the named `observer-mutual-reference`
+precision case. Engine/adapter/client owners must consume it and execute the
+negative mutations (interleaved hydration, stale incarnation/wrong cast or skill,
+ordinary start, completed baseline). The companion mutual-swing/hidden-source
+precision case covers pending-swing hydration and absent-source pairs. These three
+precision cases are evidence:null; the source fixes do not claim native observer
+or full finding3 acceptance until the required client predicates and traces land.

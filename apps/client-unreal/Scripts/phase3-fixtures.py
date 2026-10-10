@@ -17,11 +17,12 @@ VARIANT_PACKS = {
     'phase3-trainer-low-mp': 'phase3-trainer',
     'phase3-penalty-cap': 'phase3-trainer',
     'phase3-sp-near-cap': 'phase3-trainer',
+    'phase3-observer-late': 'phase3-trainer',
 }
 PHASE3 = frozenset(('phase3-trainer', 'phase3-pvp', 'phase3-resurrect', 'phase3-regen', *VARIANT_PACKS))
 OWNER = '01970000-0000-7000-8000-000000000030'
 OBSERVER = '01970000-0000-7000-8000-000000000031'
-PAIRED = frozenset(('phase3-pvp', 'phase3-resurrect'))
+PAIRED = frozenset(('phase3-pvp', 'phase3-resurrect', 'phase3-observer-late'))
 
 
 def declared_units(directory):
@@ -94,9 +95,16 @@ def profiles(pack, repo, paired=False):
     elif variant == 'phase3-sp-near-cap':
         # Design v3 §5.1/R13: signed-bigint cap. This is a boundary input.
         owner.update(sp=9223372036854775806, position=[110, 100])
+    elif variant == 'phase3-observer-late':
+        owner['position'] = [110, 100]
     result = {'owner': owner}
     if paired:
         result['observer'] = role(OBSERVER, 'human_mystic', 14, 0, [112, 100], {1177: 1}, hp=100, cp=10)
+        if pack == 'phase3-trainer':
+            # Peer completion handshake is an ordinary received Might effect.
+            result['observer']['learned_ranks']['1068'] = 1
+        if variant == 'phase3-observer-late':
+            result['observer']['position'] = [65, 100]
     return result
 
 

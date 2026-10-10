@@ -25,12 +25,16 @@ nf.WaitFor target != none 3
 nf.Cast 1177
 nf.WaitFor cast_state == casting 12
 nf.WaitFor skill_reuse_remaining 1177 > 0 3
-nf.WaitFor cast_results >= 1 12
+nf.WaitFor cast_result_for own 1177 12
 nf.WaitFor cast_state == idle 3
 nf.Expect own_mp_cost_matches 1177
 nf.Expect skill_damage_matches_oracle 1177
 nf.WaitFor skill_ready 1177 12
 nf.Expect owner_skill_baseline_coherent
 nf.Expect public_vitals_coherent
+nf.Expect cast_terminal_once_for own 1177
+# Keep the caster admitted until B has received the designated Wind Strike result.
+# B casts Might on itself only after its correlated terminal assertions pass.
+nf.WaitFor entity_effect_active 01970000-0000-7000-8000-000000000031 1068 30
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
-nf.Within 180
+nf.Within 210
