@@ -1094,6 +1094,343 @@ fn coverage_json(file: &Path) -> serde_json::Value {
     json
 }
 
+fn strict_coverage(json: &serde_json::Value) -> std::process::Output {
+    let file = tmp("strict-coverage.json");
+    std::fs::write(&file, serde_json::to_vec(json).unwrap()).unwrap();
+    let output = Command::new("python3")
+        .args([
+            "-c",
+            "import runpy, sys; runpy.run_path(sys.argv[1])['read_transitions'](sys.argv[2])",
+        ])
+        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("../client-unreal/Scripts/sim-gates.py"))
+        .arg(&file)
+        .output()
+        .unwrap();
+    std::fs::remove_file(file).unwrap();
+    output
+}
+
+fn record_tick(rec: &mut Recording, zone: &mut ZoneState, inputs: Vec<ZoneInput>) -> AppliedTick {
+    let applied = zone.run_tick(zone.draft(inputs)).unwrap();
+    rec.records
+        .push(nightfall_api::application::replay_log::AppliedTickRecord::from_applied(
+            rec.snapshot.seed.zone,
+            &applied,
+        ));
+    rec.watermark.records = rec.records.len() as u64;
+    rec.watermark.last_tick = Some(applied.tick);
+    applied
+}
+
+/// Keep the fixture's first real death, then respawn/despawn/rejoin in one tick and die again.
+fn player_rejoin_recording() -> (Recording, ZoneState, ZoneCommand, EntityId) {
+    let mut rec = fight();
+    let respawn = rec
+        .records
+        .iter()
+        .position(|r| {
+            r.commands
+                .iter()
+                .any(|c| matches!(c.command, ZoneCommand::Respawn { .. }))
+        })
+        .unwrap();
+    let player = rec.records[respawn]
+        .commands
+        .iter()
+        .find_map(|c| {
+            if let ZoneCommand::Respawn { entity } = c.command {
+                Some(entity)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let mut admission = rec
+        .records
+        .iter()
+        .flat_map(|r| &r.commands)
+        .find(|c| matches!(c.command, ZoneCommand::SpawnPlayer { entity, .. } if entity == player))
+        .unwrap()
+        .command
+        .clone();
+    rec.records.truncate(respawn);
+    let mut zone = ZoneState::from_snapshot(rec.snapshot.clone()).unwrap();
+    for r in &rec.records {
+        zone.run_tick(AppliedTickDraft {
+            epoch: r.epoch,
+            tick: r.tick,
+            commands: r.commands.clone(),
+        })
+        .unwrap();
+    }
+    let npc = zone
+        .entities()
+        .find(|e| e.ai.is_some() && !e.targeting.dead)
+        .unwrap();
+    let (npc_id, npc_pos) = (npc.id, npc.ai.as_ref().unwrap().home);
+    if let ZoneCommand::SpawnPlayer {
+        pos,
+        generation,
+        load,
+        ..
+    } = &mut admission
+    {
+        *pos = npc_pos;
+        *generation = SessionGeneration(2);
+        load.as_mut().unwrap().hp = Some(1);
+    }
+    let applied = record_tick(
+        &mut rec,
+        &mut zone,
+        vec![
+            ZoneInput::system(ZoneCommand::Respawn { entity: player }),
+            ZoneInput::system(ZoneCommand::Despawn { entity: player }),
+            ZoneInput::system(admission.clone()),
+        ],
+    );
+    assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+    let respawn = applied.events.iter().position(|e| matches!(e, ZoneEvent::EntityRespawned { entity, incarnation: 2, .. } if *entity == player)).unwrap();
+    let despawn = applied
+        .events
+        .iter()
+        .position(|e| matches!(e, ZoneEvent::EntityDespawn { entity, .. } if *entity == player))
+        .unwrap();
+    let spawn = applied
+        .events
+        .iter()
+        .position(|e| matches!(e, ZoneEvent::EntitySpawn { entity, .. } if *entity == player))
+        .unwrap();
+    assert!(respawn < despawn && despawn < spawn);
+    assert!(applied.events.iter().any(|e| matches!(e, ZoneEvent::EntitySpawn { entity, combat: Some(c), .. } if *entity == player && c.incarnation == 1)));
+    let mut died = applied.events.iter().any(
+        |e| matches!(e, ZoneEvent::EntityDied { entity, incarnation: 1, .. } if *entity == player),
+    );
+    for _ in 0..300 {
+        if died {
+            break;
+        }
+        let applied = record_tick(
+            &mut rec,
+            &mut zone,
+            vec![ZoneInput::system(ZoneCommand::AddAggro {
+                npc: npc_id,
+                target: player,
+            })],
+        );
+        died = applied.events.iter().any(|e| matches!(e, ZoneEvent::EntityDied { entity, incarnation: 1, .. } if *entity == player));
+    }
+    assert!(died, "the readmitted player must actually die in combat");
+    let applied = record_tick(
+        &mut rec,
+        &mut zone,
+        vec![ZoneInput::system(ZoneCommand::Respawn { entity: player })],
+    );
+    assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+    (rec, zone, admission, player)
+}
+
+#[tokio::test]
+async fn coverage_preserves_both_respawns_across_same_tick_player_readmission() {
+    let (rec, _, _, _) = player_rejoin_recording();
+    replay(rec.clone()).await.unwrap();
+    let file = tmp("player-readmission.nfr");
+    rec.write(&file).unwrap();
+    let json = coverage_json(&file);
+    assert_eq!(json["deaths"], serde_json::json!({"npc": 1, "player": 2}));
+    assert_eq!(json["respawns"], json["deaths"]);
+    assert_eq!(json["life_incarnations"], serde_json::json!({"npc:1->2": 1, "player:1->2": 2}));
+    let accepted = strict_coverage(&json);
+    assert!(accepted.status.success(), "{}", String::from_utf8_lossy(&accepted.stderr));
+    let mut digests = rec;
+    digests.records = digests
+        .records
+        .iter()
+        .map(nightfall_api::application::replay_log::AppliedTickRecord::with_output_digests)
+        .collect();
+    digests.write(&file).unwrap();
+    assert_eq!(coverage_json(&file), json);
+    std::fs::remove_file(file).unwrap();
+}
+
+fn player_observations_recording() -> (Recording, EntityId, serde_json::Value) {
+    use nightfall_api::application::replay_log::decode_outputs;
+    let (mut rec, mut zone, admission, player) = player_rejoin_recording();
+    let before = tmp("before-refresh.nfr");
+    rec.write(&before).unwrap();
+    let expected = coverage_json(&before);
+    std::fs::remove_file(before).unwrap();
+    let applied = record_tick(
+        &mut rec,
+        &mut zone,
+        vec![
+            ZoneInput::system(admission),
+            ZoneInput::system(ZoneCommand::ReplaceSession {
+                entity: player,
+                generation: SessionGeneration(2),
+            }),
+            ZoneInput::session(
+                player,
+                SessionGeneration(1),
+                1,
+                ZoneCommand::Despawn { entity: player },
+            ),
+            ZoneInput::system(ZoneCommand::ReplaceSession {
+                entity: player,
+                generation: SessionGeneration(3),
+            }),
+        ],
+    );
+    assert_eq!(
+        applied
+            .dispositions
+            .iter()
+            .map(|d| d.reason)
+            .collect::<Vec<_>>(),
+        [
+            RejectReason::AlreadyExists,
+            RejectReason::StaleSession,
+            RejectReason::StaleSession
+        ]
+    );
+    assert!(!applied
+        .events
+        .iter()
+        .any(|e| matches!(e, ZoneEvent::EntitySpawn { .. } | ZoneEvent::EntityDespawn { .. })));
+    assert!(rec.records.last().unwrap().outputs.iter().flat_map(|o| decode_outputs(&o.bytes).unwrap()).any(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, combat: Some(c), .. }) if entity == player && c.incarnation == 2)));
+    // AOI leave/reentry observed by another player must likewise not touch zone life history.
+    let mut observer = spawn(42, 126, 126);
+    if let ZoneCommand::SpawnPlayer { pos, speed, .. } = &mut observer.command {
+        *pos = zone.entity(player).unwrap().pos;
+        *speed = Speed::from_milli_tiles_per_tick(63_000);
+    }
+    record_tick(&mut rec, &mut zone, vec![observer]);
+    let observer = EntityId::from_uuid(Uuid::from_u128(42));
+    let here = zone.entity(player).unwrap().pos;
+    let away = Vec2Fixed::new(here.x.saturating_sub(Fixed::from_tiles(63)), here.y);
+    for dest in [away, here] {
+        let applied = record_tick(
+            &mut rec,
+            &mut zone,
+            vec![ZoneInput::system(ZoneCommand::MoveTo {
+                entity: observer,
+                dest,
+            })],
+        );
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert!(zone.entity(observer).unwrap().dest.is_none());
+    }
+    let observations: Vec<_> = rec
+        .records
+        .iter()
+        .flat_map(|r| &r.outputs)
+        .filter(|o| o.entity == observer)
+        .flat_map(|o| decode_outputs(&o.bytes).unwrap())
+        .collect();
+    assert!(observations.iter().any(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntityDespawn { entity, .. }) if *entity == player)));
+    assert_eq!(observations.iter().filter(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, .. }) if *entity == player)).count(), 2);
+    (rec, player, expected)
+}
+
+#[test]
+fn coverage_keeps_life_history_after_refused_lifecycle_commands_and_aoi_refresh() {
+    let (rec, _, expected) = player_observations_recording();
+    let file = tmp("aoi-refresh.nfr");
+    rec.write(&file).unwrap();
+    let json = coverage_json(&file);
+    assert_eq!(json["life_incarnations"], expected["life_incarnations"]);
+    assert_eq!(json["respawns"], expected["respawns"]);
+    std::fs::remove_file(file).unwrap();
+}
+
+#[test]
+fn coverage_exposes_in_lifetime_backward_facts_to_the_strict_consumer() {
+    use nightfall_api::application::replay_log::encode_events;
+    let (rec, player, _) = player_observations_recording();
+    let respawn = rec
+        .records
+        .iter()
+        .flat_map(events)
+        .find(|e| matches!(e, ZoneEvent::EntityRespawned { entity, .. } if *entity == player))
+        .unwrap();
+    let spawn = rec
+        .records
+        .iter()
+        .flat_map(events)
+        .find(|e| matches!(e, ZoneEvent::EntitySpawn { entity, .. } if *entity == player))
+        .unwrap();
+    for mut malformed in [respawn, spawn] {
+        let last_tick = rec.records.last().unwrap().tick;
+        if let ZoneEvent::EntityRespawned {
+            incarnation, tick, ..
+        } = &mut malformed
+        {
+            *incarnation = 1;
+            *tick = last_tick;
+        }
+        if let ZoneEvent::EntitySpawn { combat, tick, .. } = &mut malformed {
+            combat.as_mut().unwrap().incarnation = 1;
+            *tick = last_tick;
+        }
+        let mut corrupt = rec.clone();
+        let last = corrupt.records.last_mut().unwrap();
+        let mut facts = events(last);
+        facts.push(malformed);
+        last.events = encode_events(&facts);
+        let file = tmp("backward-life.nfr");
+        corrupt.write(&file).unwrap();
+        assert_eq!(tool(&["check", "--file", file.to_str().unwrap()]).0, 1);
+        let json = coverage_json(&file);
+        assert_eq!(json["life_incarnations"]["player:2->1"], 1);
+        let rejected = strict_coverage(&json);
+        assert!(!rejected.status.success());
+        assert!(
+            String::from_utf8_lossy(&rejected.stderr).contains("invalid life-incarnation change")
+        );
+        std::fs::remove_file(file).unwrap();
+    }
+}
+
+#[test]
+fn coverage_counts_npc_respawn_from_a_snapshot_with_the_corpse_already_decayed() {
+    let mut rec = fight();
+    let respawn = rec
+        .records
+        .iter()
+        .position(|r| {
+            events(r)
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::EntityRespawned { incarnation: 2, .. }))
+        })
+        .unwrap();
+    let mut zone = ZoneState::from_snapshot(rec.snapshot.clone()).unwrap();
+    for r in &rec.records[..respawn] {
+        zone.run_tick(AppliedTickDraft {
+            epoch: r.epoch,
+            tick: r.tick,
+            commands: r.commands.clone(),
+        })
+        .unwrap();
+    }
+    rec.snapshot = zone.snapshot();
+    let decayed = rec
+        .snapshot
+        .spawn_members
+        .iter()
+        .find(|m| m.incarnation == 1 && m.respawn_at.is_some())
+        .unwrap()
+        .entity
+        .unwrap();
+    assert!(!rec.snapshot.entities.iter().any(|e| e.id == decayed));
+    rec.records.drain(..respawn);
+    rec.watermark.records = rec.records.len() as u64;
+    let file = tmp("decayed-npc-coverage.nfr");
+    rec.write(&file).unwrap();
+    let json = coverage_json(&file);
+    assert_eq!(json["life_incarnations"]["npc:1->2"], 1);
+    assert_eq!(json["respawns"]["npc"], 1);
+    std::fs::remove_file(file).unwrap();
+}
+
 fn assert_pairs(json: &serde_json::Value, states: &[&str], expected: &[(&str, &str, u64)]) {
     let rows = json.as_array().unwrap();
     assert_eq!(rows.len(), states.len() * states.len());
