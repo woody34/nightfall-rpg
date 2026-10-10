@@ -1,6 +1,6 @@
 # Phase 1a Plan: Headless Simulation Testing
 
-**Status:** IMPLEMENTED 2026-10-09; local full-suite verification passed, final 20-minute soak in progress. CI acceptance pending (E4.1 registration, E4.5 two-week reliability, E6.3 CI-derived results). **Planning model:** Opus; implementation model and effort per story.
+**Status:** IMPLEMENTED 2026-10-09; local full-suite verification passed; final 20-minute soak failed functional acceptance pending client projection fix and rerun. CI acceptance pending (E4.1 registration, E4.5 two-week reliability, E6.3 CI-derived results). **Planning model:** Opus; implementation model and effort per story.
 
 ## 1. Goal
 
@@ -277,7 +277,7 @@ All metrics, runtimes, and validation results below represent **locally measured
   - Cargo release profile API build (`nightfall-api v0.1.0`): **52.31 s** (optimized).
   - Unreal editor and staged standalone client via RunUAT BuildCookRun: **85.43 s** (stage command 2.02 s; build succeeded).
   - Final root editor/game rebuilds passed in 14.13 s / 29.19 s. Nightfall automation passed **54/54** with `-RequireLiveApi` and zero live skips (`LiveSkip`). Rust passed **341 library tests**, the integration and binary suites, and strict Clippy.
-- **Audited soak status**: The full 8-client × 1200-second (20-minute) audited and diagnostic soak against the full Docker Compose stack is currently running (launched at 23:52 UTC) and pending real results; no success or performance metrics are claimed ahead of completion.
+- **Audited soak status**: The requested 8-client × 1200-second (20-minute) audited and diagnostic soak at final source `2e85d3f` (`Saved/Soak/release-8x1200-final`) failed functional acceptance (overall exit 1) pending client projection fix and rerun. Gauntlet ended after 574 seconds (9m34s) when `client02` iteration 14 failed `nf.Expect damage_numbers_match_results` at line 28 (got 7 numbers / 8 distinct AttackResults; 13 completed iterations for `client02`). Complete cumulative tick p99 (10.562295 ms < 20 ms), 5,757 observed/recorded ticks, byte-identical replay (118 players, 43,638 outputs, 9,734,800 bytes, 0 digest-only in 120.1 ms), and clean API/Compose teardown (both exit 0) succeeded separately, but overall functional acceptance failed.
 
 ### 8.2 Environment isolation and infrastructure configurations
 
@@ -329,7 +329,7 @@ The corrected reporter requires every cumulative tick observation to match the c
 
 Both recordings matched byte-identically with no digest-only records. The two-client recording contained 7 players, 2,574 outputs and 161,652 bytes and replayed in 5.9ms; the eight-client recording contained 30 players, 11,456 outputs and 2,797,183 bytes and replayed in 31.5ms. These are measured intermediate smoke results, not final integrated-source acceptance.
 
-Final audited/diagnostic API and client were built at `2e85d3f` (API release in 52.31s, staged client BuildCookRun in 85.43s). The full 8-client × 1200-second (20-minute) audited and diagnostic soak against the full Docker Compose stack is currently running (active since 23:52 UTC) and pending real results; no success or performance metrics are claimed ahead of completion. Live combat duration includes durability and checkpoint work; the older OpenGate release microbenchmark measures a different workload and does not substitute for this gate.
+Final audited and diagnostic API and staged client were built at `2e85d3f` (API release in 52.31s, staged client BuildCookRun in 85.43s). The requested 8-client × 1200-second audited and diagnostic soak against the full Docker Compose stack (`Saved/Soak/release-8x1200-final`) failed functional acceptance (overall exit 1) pending a client projection fix and rerun. Gauntlet ended after 574 seconds (9m34s) when `client02` iteration 14 failed `nf.Expect damage_numbers_match_results` at line 28 (got 7 numbers / 8 distinct AttackResults; 13 completed iterations for `client02`). Exact replay proves that at tick 5538, a fresh AOI spawn arrived with an NPC already dead (HP 0, incarnation 14) immediately followed by a valid same-tick lethal neighbor `AttackResult` (damage 17, HP 0, incarnation 14); the client `CombatState` dead guard suppressed the cue. A native fix and regression test remain pending, and the assertion remains in place. Separately, underlying performance and replay pipeline evidence succeeded: complete cumulative combat tick p99 was 10.562295 ms (strictly below the 20 ms budget), 5,757 histogram ticks matched 5,757 recorded ticks, session recording replayed byte-identically across 118 players, 43,638 outputs, and 9,734,800 bytes with 0 digest-only records in 120.1 ms, and API exit and Compose cleanup both returned 0. The functional failure leaves final 20-minute soak acceptance pending. Live combat duration includes durability and checkpoint work; the older OpenGate release microbenchmark measures a different workload and does not substitute for this gate.
 
 ### 8.5 Diagnostics and coverage tracking status
 
