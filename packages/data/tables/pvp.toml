@@ -1,0 +1,123 @@
+# PvP and Karma constants from the pinned L2J High Five source (packages/data/SOURCES.md).
+# Formulas.java lines 1814-1860 and pcKarmaIncrease.xml lines 3-87.
+# Item drop rules on chaotic death are NOT included (Phase 3 owns no item loss on death).
+
+source_game = { repository = "https://bitbucket.org/l2jserver/l2j-server-game", revision = "abfde0490ac52a2106e884b7242c0276c44cdf76", file = "src/main/java/com/l2jserver/gameserver/model/stats/Formulas.java" }
+source_datapack = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/chars/pcKarmaIncrease.xml" }
+
+[flags]
+# Standard PvP flag duration: 1200 ticks (120 seconds at 100 ms/tick)
+pvp_flag_ticks = 1200
+# Low PvP flag duration when hitting an already flagged target: 600 ticks (60 seconds at 100 ms/tick)
+pvp_flag_low_ticks = 600
+
+[karma_gain]
+# Default karma gain for pkCount >= 180 (Formulas.java line 1831)
+base_gain = 43200
+# Formulas.java lines 1841-1845
+low_pk_count_threshold = 99
+low_pk_count_multiplier = "0.5"
+low_pk_count_scale = 720
+mid_pk_count_threshold = 180
+mid_pk_count_multiplier = "0.125"
+mid_pk_count_base = "37.75"
+mid_pk_count_scale = 720
+# Formulas.java lines 1833-1839 (isSummon = true)
+summon_multiplier = "0.375"
+summon_scale = 240
+summon_offset = 150
+summon_max = 10800
+
+[karma_lost]
+# Formulas.java lines 1814-1821: (int) ((Math.abs(exp) / karmaLooseMul) / 30)
+divisor = 30
+rate_karma_lost = 1
+
+# pcKarmaIncrease.xml 85 rows as exact decimal strings (level 1..=85)
+multipliers = [
+    "0.772184315",
+    "2.069377971",
+    "2.315085083",
+    "2.467800843",
+    "2.514219611",
+    "2.510075822",
+    "2.532083418",
+    "2.473028945",
+    "2.377178509",
+    "2.285526643",
+    "2.654635163",
+    "2.963434737",
+    "3.266100461",
+    "3.561112664",
+    "3.847320291",
+    "4.123878064",
+    "4.390194136",
+    "4.645886341",
+    "4.890745518",
+    "5.124704707",
+    "6.97914069",
+    "7.270620642",
+    "7.548951721",
+    "7.81438302",
+    "8.067235867",
+    "8.307889422",
+    "8.536768399",
+    "8.754332624",
+    "8.961068152",
+    "9.157479758",
+    "11.41901707",
+    "11.64989746",
+    "11.87007991",
+    "12.08015809",
+    "12.28072687",
+    "12.47237891",
+    "12.65570177",
+    "12.83127553",
+    "12.99967093",
+    "13.16144786",
+    "15.6563607",
+    "15.84513182",
+    "16.02782135",
+    "16.20501182",
+    "16.37727218",
+    "16.54515749",
+    "16.70920885",
+    "16.86995336",
+    "17.02790439",
+    "17.18356182",
+    "19.85792061",
+    "20.04235517",
+    "20.22556446",
+    "20.40806338",
+    "20.59035551",
+    "20.77293378",
+    "20.95628115",
+    "21.1408714",
+    "21.3271699",
+    "21.51563446",
+    "24.3895427",
+    "24.61486587",
+    "24.84389213",
+    "25.07711247",
+    "25.31501442",
+    "25.55808296",
+    "25.80680152",
+    "26.06165297",
+    "26.32312062",
+    "26.59168923",
+    "29.73700169",
+    "30.05608089",
+    "30.38439021",
+    "30.72248074",
+    "31.07091037",
+    "31.43024494",
+    "31.80105928",
+    "32.18393847",
+    "32.57947894",
+    "32.98828968",
+    "33.41099339",
+    "33.84822779",
+    "34.30064673",
+    "34.76892155",
+    "35.25374225",
+]
