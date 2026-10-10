@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -28,7 +29,8 @@ ci = module('run-sim-ci.py')
 
 class FixtureTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
+        tempdir = os.environ.get('TMPDIR') or ('/var/tmp' if Path('/var/tmp').is_dir() else None)
+        self.tmp = tempfile.TemporaryDirectory(dir=tempdir)
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         self.bin = self.root / 'bin'
@@ -43,6 +45,8 @@ class FixtureTests(unittest.TestCase):
                         NATS_URL='nats://localhost:4222', COMPOSE_PROJECT_NAME='user-dev',
                         ZONE_SIM_FIXTURE='ambient-fixture', ZONE_FILE='/user/zone',
                         AUTH_DEV_TOKENS='0', NIGHTFALL_PHASE2_FIXTURE='0')
+        if tempdir:
+            self.env['TMPDIR'] = tempdir
         self.env.pop('SIM_BOT_ARGS_JSON', None)
         self.env.pop('SIM_REQUIRE_OWNED_API', None)
         self.env.pop('SIM_API_URL', None)
@@ -83,13 +87,42 @@ assert bool(a.observer_account)==(a.fixture=='phase2-transfer-observer')
 with Path({str(self.events)!r}).open('a') as f: f.write('seed '+json.dumps(vars(a))+'\\n')
 if Path({str(self.root / 'fail-seed')!r}).exists(): raise SystemExit(1)
 subprocess.run(['psql','-X','--set=ON_ERROR_STOP=1','--quiet'], input='stub seed input', text=True, env=dict(os.environ, PGDATABASE=os.environ['DATABASE_URL']),check=True)
-missing=a.fixture=='phase2-transfer-missing-token'
-seed={{'fixture_enabled':True,'fixture':a.fixture,'dry_run':False,
- 'owner':{{'account_id':a.owner_account,'character_id':{fixture.OWNER!r},'level':20 if missing else 40,
-          'class_id':0,'sex':'female','tokens':[0,0] if missing else [1,1],'milestone_claimed_mask':1 if missing else 3}},
- 'position':[126,126],'transfers':[] if missing else [1,2]}}
-if a.observer_account: seed['observer']={{'account_id':a.observer_account,'character_id':{fixture.OBSERVER!r},'level':1,'class_id':0,'sex':'male'}}
-if Path({str(self.root / 'bad-seed-manifest')!r}).exists(): seed['owner']['level']=1
+if a.fixture == 'phase2-token-backfill':
+    seed = {{'fixture_enabled': True, 'fixture': a.fixture, 'dry_run': False,
+            'owner': {{'account_id': a.owner_account, 'character_id': {fixture.OWNER!r}, 'level': 40,
+                      'class_id': 0, 'sex': 'female', 'tokens': [0, 0], 'milestone_claimed_mask': 0,
+                      'race': 'human', 'xp': 15422929, 'hp': None, 'mp': None, 'cp': 0, 'sp': 0,
+                      'position': [126, 126]}},
+            'position': [126, 126], 'transfers': []}}
+elif a.fixture.startswith('phase2-token-'):
+    is_40 = a.fixture == 'phase2-token-level40'
+    is_jump = a.fixture == 'phase2-token-jump19-40'
+    lvl = 39 if is_40 else 19
+    toks = [1, 0] if is_40 else [0, 0]
+    mask = 1 if is_40 else 0
+    xp = 15422928 if is_40 else 835861
+    dest = 40 if (is_40 or is_jump) else 20
+    raw, award = (62751, 65888) if is_40 else ((13892446, 14587068) if is_jump else (10235, 10746))
+    thresh = 15422929 if dest == 40 else 835862
+    seed_thresh = 15422929 if is_40 else 835862
+    seed = {{'fixture_enabled': True, 'fixture': a.fixture, 'dry_run': False,
+            'owner': {{'account_id': a.owner_account, 'character_id': {fixture.OWNER!r}, 'level': lvl,
+                      'class_id': 0, 'sex': 'female', 'tokens': toks, 'milestone_claimed_mask': mask,
+                      'race': 'human', 'xp': xp, 'hp': None, 'mp': None, 'cp': 0, 'sp': 0,
+                      'position': [126, 126]}},
+            'position': [126, 126], 'transfers': [],
+            'crossing': {{'level': dest, 'threshold_xp': thresh, 'seed_threshold_xp': seed_thresh,
+                         'xp_margin': 1, 'npc_raw_xp': raw, 'kill_xp': award,
+                         'expected_level': dest, 'expected_xp': xp + award}}}}
+else:
+    missing = a.fixture == 'phase2-transfer-missing-token'
+    seed = {{'fixture_enabled': True, 'fixture': a.fixture, 'dry_run': False,
+            'owner': {{'account_id': a.owner_account, 'character_id': {fixture.OWNER!r}, 'level': 20 if missing else 40,
+                      'class_id': 0, 'sex': 'female', 'tokens': [0, 0] if missing else [1, 1],
+                      'milestone_claimed_mask': 1 if missing else 3}},
+            'position': [126, 126], 'transfers': [] if missing else [1, 2]}}
+    if a.observer_account: seed['observer'] = {{'account_id': a.observer_account, 'character_id': {fixture.OBSERVER!r}, 'level': 1, 'class_id': 0, 'sex': 'male'}}
+if Path({str(self.root / 'bad-seed-manifest')!r}).exists(): seed['owner']['level'] = 1
 print(json.dumps(seed))
 ''')
         bot = self.fake('bot', f'''echo "bot $*" >> "{self.events}"
@@ -198,13 +231,42 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
             if pack == 'phase2-transfer-observer': command += ['--observer-account', observer]
             result = subprocess.run(command, env=env, text=True, capture_output=True, check=True, timeout=10)
             manifest = json.loads(result.stdout.splitlines()[-1])
-            missing = pack == 'phase2-transfer-missing-token'
-            self.assertEqual(manifest['fixture'], pack)
-            self.assertTrue(manifest['dry_run'])
-            self.assertEqual(manifest['owner'], {
-                'account_id': owner, 'character_id': fixture.OWNER, 'level': 20 if missing else 40,
-                'class_id': 0, 'sex': 'female', 'tokens': [0, 0] if missing else [1, 1],
-                'milestone_claimed_mask': 1 if missing else 3})
+            if pack == 'phase2-token-backfill':
+                self.assertEqual(manifest['owner'], {
+                    'account_id': owner, 'character_id': fixture.OWNER, 'level': 40,
+                    'class_id': 0, 'sex': 'female', 'tokens': [0, 0],
+                    'milestone_claimed_mask': 0, 'race': 'human', 'xp': 15422929,
+                    'hp': None, 'mp': None, 'cp': 0, 'sp': 0, 'position': [126, 126]})
+                self.assertEqual(manifest['transfers'], [])
+                self.assertNotIn('crossing', manifest)
+            elif pack.startswith('phase2-token-'):
+                is_40 = pack == 'phase2-token-level40'
+                is_jump = pack == 'phase2-token-jump19-40'
+                lvl = 39 if is_40 else 19
+                toks = [1, 0] if is_40 else [0, 0]
+                mask = 1 if is_40 else 0
+                xp = 15422928 if is_40 else 835861
+                dest = 40 if (is_40 or is_jump) else 20
+                raw, award = (62751, 65888) if is_40 else ((13892446, 14587068) if is_jump else (10235, 10746))
+                thresh = 15422929 if dest == 40 else 835862
+                seed_thresh = 15422929 if is_40 else 835862
+                self.assertEqual(manifest['owner'], {
+                    'account_id': owner, 'character_id': fixture.OWNER, 'level': lvl,
+                    'class_id': 0, 'sex': 'female', 'tokens': toks,
+                    'milestone_claimed_mask': mask, 'race': 'human', 'xp': xp,
+                    'hp': None, 'mp': None, 'cp': 0, 'sp': 0, 'position': [126, 126]})
+                self.assertEqual(manifest['transfers'], [])
+                self.assertEqual(manifest['crossing'], {
+                    'level': dest, 'threshold_xp': thresh, 'seed_threshold_xp': seed_thresh,
+                    'xp_margin': 1, 'npc_raw_xp': raw, 'kill_xp': award,
+                    'expected_level': dest, 'expected_xp': xp + award})
+            else:
+                missing = pack == 'phase2-transfer-missing-token'
+                self.assertEqual(manifest['owner'], {
+                    'account_id': owner, 'character_id': fixture.OWNER, 'level': 20 if missing else 40,
+                    'class_id': 0, 'sex': 'female', 'tokens': [0, 0] if missing else [1, 1],
+                    'milestone_claimed_mask': 1 if missing else 3})
+                self.assertEqual(manifest['transfers'], [] if missing else [1, 2])
             self.assertEqual(manifest['position'], [126, 126])
             self.assertEqual('observer' in manifest, pack == 'phase2-transfer-observer')
             if 'observer' in manifest: self.assertEqual(manifest['observer']['account_id'], observer)
@@ -222,7 +284,8 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
         self.assertIn('requires --observer-account', refused.stderr)
 
     def test_headers_allowlist_roles_creation_units_and_legacy_catalogue(self):
-        for pack in ('phase2-transfer', 'phase2-transfer-missing-token'):
+        for pack in ('phase2-transfer', 'phase2-transfer-missing-token',
+                     'phase2-token-level20', 'phase2-token-level40', 'phase2-token-jump19-40', 'phase2-token-backfill'):
             self.assertEqual(ci.fixture([self.scenario(pack, pack)]), pack)
         a = self.scenario('pair-a', 'phase2-transfer-observer')
         b = self.scenario('pair-b', 'phase2-transfer-observer')
@@ -533,6 +596,43 @@ if [[ "$1" == metadata ]]; then echo '{{"target_directory":"{self.root}/target"}
         self.assertIn('start', seen[0][0])
         self.assertEqual(seen[0][1]['SIM_REQUIRE_OWNED_API'], '1')
         self.assertNotIn('ZONE_SIM_FIXTURE', seen[0][1])
+
+    def test_new_token_profiles_wiring_overlay_and_isolation(self):
+        for pack in ('phase2-token-level20', 'phase2-token-level40', 'phase2-token-jump19-40', 'phase2-token-backfill'):
+            scenario = self.scenario(pack, pack)
+            result, artifacts = self.run_wrapper([scenario])
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            folder = artifacts / scenario.stem / 'fixture'
+            manifest = json.loads((folder / 'manifest.json').read_text())
+            state = json.loads((folder / 'state.json').read_text())
+            env = state['env']
+            self.assertEqual(manifest['fixture'], pack)
+            self.assertEqual(manifest['roles'][scenario.stem]['character_id'], fixture.OWNER)
+            self.assertTrue((folder / 'oracle-manifest.json').is_file())
+            oracle_mani = json.loads((folder / 'oracle-manifest.json').read_text())
+            self.assertEqual(oracle_mani['fixture'], pack)
+            self.assertIn('provenance', oracle_mani)
+            if pack == 'phase2-token-backfill':
+                self.assertFalse(manifest['data_sources']['is_overlay'])
+                self.assertNotIn('oracle_template', manifest['sha256'])
+                self.assertEqual(env['RULES_DIR'], str(fixture.REPO / 'packages/data'))
+                self.assertEqual(env['ZONE_FILE'], str(fixture.REPO / 'packages/data/zones/test_zone.toml'))
+            else:
+                self.assertTrue(manifest['data_sources']['is_overlay'])
+                self.assertIn('oracle_template', manifest['sha256'])
+                self.assertIn('sentinel_template', manifest['sha256'])
+                self.assertEqual(env['RULES_DIR'], str(folder / 'data'))
+                self.assertEqual(env['ZONE_FILE'], str(folder / 'data/zones/test_zone.toml'))
+                zone = tomllib.loads(Path(env['ZONE_FILE']).read_text())
+                self.assertEqual(zone['bounds'], {'min': [0, 0], 'max': [256, 256]})
+                self.assertEqual(zone['safe_point'], {'pos': [126, 126]})
+                self.assertEqual(zone['npcs'], [{'name': 'Class Master', 'attackable': False, 'pos': [126, 128], 'speed': 0}])
+                oracle_tpl = tomllib.loads((folder / 'data/npcs/token_oracle.toml').read_text())
+                self.assertEqual(oracle_tpl['max_hp'], 1)
+                self.assertGreater(oracle_tpl['move_speed'], 0)
+                sentinel_tpl = tomllib.loads((folder / 'data/npcs/token_sentinel.toml').read_text())
+                self.assertEqual(sentinel_tpl['max_hp'], 1000000)
+                self.assertGreater(sentinel_tpl['move_speed'], 0)
 
 
 if __name__ == '__main__':

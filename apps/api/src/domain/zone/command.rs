@@ -537,6 +537,17 @@ pub enum ZoneEvent {
         /// Who.
         entity: EntityId,
     },
+    /// Internal durable ledger adjustment; never projected to observers.
+    TokensReconciled {
+        /// Tick of the adjustment.
+        tick: Tick,
+        /// Owning character.
+        entity: EntityId,
+        /// New claimed bits and actual zero-to-one additions.
+        adjustment: crate::domain::character_progression::TokenReconciliation,
+        /// Admission backfill or upward milestone crossing.
+        source: crate::domain::character_progression::TokenSource,
+    },
 }
 
 impl ZoneEvent {
@@ -544,7 +555,8 @@ impl ZoneEvent {
     #[must_use]
     pub const fn tick(&self) -> Tick {
         match self {
-            Self::ClassChanged { tick, .. }
+            Self::TokensReconciled { tick, .. }
+            | Self::ClassChanged { tick, .. }
             | Self::ClassTransfer { tick, .. }
             | Self::EntitySpawn { tick, .. }
             | Self::EntityMove { tick, .. }
@@ -568,7 +580,8 @@ impl ZoneEvent {
     #[must_use]
     pub const fn entity(&self) -> EntityId {
         match self {
-            Self::ClassChanged { entity, .. }
+            Self::TokensReconciled { entity, .. }
+            | Self::ClassChanged { entity, .. }
             | Self::ClassTransfer { entity, .. }
             | Self::EntitySpawn { entity, .. }
             | Self::EntityMove { entity, .. }

@@ -1,0 +1,236 @@
+# covers: 2 E4.1, 2 E4.2, 2 E4.3, 2 E4.4, 2 E5.5
+# fixture: phase2-token-level40
+# Pinned oracle: Human 39 (tokens 1/0) -> kill oracle (65888 XP) -> 40 (15488816 XP), grant tier2 token (1/1).
+# Durable claim survives reconnect. Attack sentinel -> death (-87851 XP) -> 39 (15400965 XP),
+# tokens preserved. Respawn XP unchanged. Second kill (+65888 XP) -> 40 (15466853 XP), no double grant.
+# Master transfers 0->1->2 consume both tokens once, granted skills 0 each. Idempotent retry before and after reconnect.
+# Spent-token re-crossing: second death (-87851 XP) -> 39 (15379002 XP), respawn, third kill (+65888 XP) -> 40 (15444890 XP)
+# proves claimed zero never refills on real crossing; class 2 and options 0/0 retained.
+# Final reconnect 4 confirms initial tokens 0/0 and consumed state persist across crossing and admission.
+nf.Login
+nf.WaitFor connected 15
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.Expect catalogue_learning_metadata
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor initial_tier1_tokens == 1 5
+nf.WaitFor initial_tier2_tokens == 0 5
+nf.Expect initial_tier1_tokens == 1
+nf.Expect initial_tier2_tokens == 0
+# Initial baseline
+nf.WaitFor own_level == 39 3
+nf.WaitFor own_xp == 15422928 3
+nf.WaitFor own_tier1_tokens == 1 3
+nf.WaitFor own_tier2_tokens == 0 3
+nf.Expect world_class == 0
+nf.Expect at_class_master
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 1
+nf.Expect options_tier2_tokens == 0
+nf.Expect transfer_option 1 eligible
+# Kill real oracle: milestone crossing grants tier2 token
+nf.WaitFor template_target_available token_oracle 15
+nf.Target template:token_oracle
+nf.Attack
+nf.WaitFor own_level == 40 5
+nf.WaitFor own_xp == 15488816 5
+nf.WaitFor own_tier1_tokens == 1 5
+nf.WaitFor own_tier2_tokens == 1 5
+nf.StopAttack
+nf.ClickMove 126 126
+nf.WaitFor own_at 126 126 0.5 15
+nf.Expect at_class_master
+nf.Sleep 2
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 1
+nf.Expect options_tier2_tokens == 1
+nf.Expect transfer_option 1 eligible
+# Reconnect before consumption proves durable claim
+nf.DropSocket
+nf.WaitFor reconnects >= 1 15
+nf.WaitFor own_spawns >= 2 15
+nf.WaitFor in_world 15
+nf.WaitFor initial_tier1_tokens == 1 5
+nf.WaitFor initial_tier2_tokens == 1 5
+nf.Expect initial_tier1_tokens == 1
+nf.Expect initial_tier2_tokens == 1
+nf.WaitFor own_level == 40 5
+nf.WaitFor own_xp == 15488816 5
+nf.WaitFor own_tier1_tokens == 1 5
+nf.WaitFor own_tier2_tokens == 1 5
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 1
+nf.Expect options_tier2_tokens == 1
+nf.Expect transfer_option 1 eligible
+# Attack sentinel: real retaliation causes lethal delevel with exact death loss
+nf.WaitFor template_target_available token_sentinel 15
+nf.Target template:token_sentinel
+nf.Attack
+nf.WaitFor own_dead 10
+nf.WaitFor death_xp_loss == 87851 5
+nf.WaitFor own_level == 39 5
+nf.WaitFor own_xp == 15400965 5
+nf.Expect own_tier1_tokens == 1
+nf.Expect own_tier2_tokens == 1
+# Normal respawn in safe point (126,126): XP unchanged
+nf.Respawn
+nf.WaitFor own_hp > 0 5
+nf.Expect own_at 126 126 0.5
+nf.Expect own_level == 39
+nf.Expect own_xp == 15400965
+nf.Expect own_tier1_tokens == 1
+nf.Expect own_tier2_tokens == 1
+# Second oracle kill: relevel to 40, balance stays 1/1 (no double grant)
+nf.WaitFor template_target_available token_oracle 15
+nf.Target template:token_oracle
+nf.Attack
+nf.WaitFor own_level == 40 5
+nf.WaitFor own_xp == 15466853 5
+nf.WaitFor own_tier1_tokens == 1 3
+nf.WaitFor own_tier2_tokens == 1 3
+nf.StopAttack
+nf.ClickMove 126 126
+nf.WaitFor own_at 126 126 0.5 15
+nf.Expect at_class_master
+nf.Sleep 2
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 1
+nf.Expect options_tier2_tokens == 1
+nf.Expect transfer_option 1 eligible
+# Transfer 0 -> 1 consumes tier1 token
+nf.ClickMove 126 126
+nf.WaitFor own_at 126 126 0.5 5
+nf.Expect at_class_master
+nf.ChangeClass 1 01970000-0000-7000-8000-000000000041
+nf.WaitFor class_rpc_error == none 15
+nf.WaitFor world_class == 1 3
+nf.Expect transfer_granted_skill_keys == 0
+nf.Expect transfer_count == 1
+nf.WaitFor own_tier1_tokens == 0 5
+nf.WaitFor own_tier2_tokens == 1 3
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 0
+nf.Expect options_tier2_tokens == 1
+nf.Expect transfer_option 2 eligible
+# Transfer 1 -> 2 consumes tier2 token
+nf.ChangeClass 2 01970000-0000-7000-8000-000000000042
+nf.WaitFor class_rpc_error == none 15
+nf.WaitFor world_class == 2 3
+nf.Expect transfer_granted_skill_keys == 0
+nf.Expect transfer_count == 2
+nf.WaitFor own_tier1_tokens == 0 3
+nf.WaitFor own_tier2_tokens == 0 5
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 0
+nf.Expect options_tier2_tokens == 0
+# Retry consumed transfer before reconnect with same idempotency key
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_class == 2
+nf.Expect character_matches_world
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.MarkClassState
+nf.ChangeClass 2 01970000-0000-7000-8000-000000000042
+nf.WaitFor class_rpc_error == none 15
+nf.Expect transfer_receipt_class == 2
+nf.Expect world_class == 2
+nf.Expect class_state_matches_mark
+nf.Expect own_tier2_tokens == 0
+# Reconnect and retry historical consumed key: immutable receipt, no refill
+nf.DropSocket
+nf.WaitFor reconnects >= 2 15
+nf.WaitFor own_spawns >= 3 15
+nf.WaitFor in_world 15
+nf.WaitFor initial_tier1_tokens == 0 5
+nf.WaitFor initial_tier2_tokens == 0 5
+nf.Expect initial_tier1_tokens == 0
+nf.Expect initial_tier2_tokens == 0
+nf.WaitFor world_class == 2 3
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_matches_world
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 0
+nf.Expect options_tier2_tokens == 0
+nf.MarkClassState
+nf.ChangeClass 2 01970000-0000-7000-8000-000000000042
+nf.WaitFor class_rpc_error == none 15
+nf.Expect transfer_receipt_class == 2
+nf.Expect world_class == 2
+nf.Expect class_state_matches_mark
+nf.Expect own_tier2_tokens == 0
+# Second death after final token consumption: delevel with both claimed bits set
+nf.WaitFor template_target_available token_sentinel 15
+nf.Target template:token_sentinel
+nf.Attack
+nf.WaitFor own_dead 10
+nf.WaitFor death_xp_loss == 87851 5
+nf.WaitFor own_level == 39 5
+nf.WaitFor own_xp == 15379002 5
+nf.Expect world_class == 2
+nf.Expect own_tier1_tokens == 0
+nf.Expect own_tier2_tokens == 0
+# Normal respawn in safe point (126,126): XP and class 2 retained
+nf.Respawn
+nf.WaitFor own_hp > 0 5
+nf.Expect own_at 126 126 0.5
+nf.Expect own_level == 39
+nf.Expect own_xp == 15379002
+nf.Expect world_class == 2
+nf.Expect own_tier1_tokens == 0
+nf.Expect own_tier2_tokens == 0
+# Third oracle kill: relevel to 40 after consumption, claimed zero never refills on real crossing
+nf.WaitFor template_target_available token_oracle 15
+nf.Target template:token_oracle
+nf.Attack
+nf.WaitFor own_level == 40 5
+nf.WaitFor own_xp == 15444890 5
+nf.WaitFor own_tier1_tokens == 0 3
+nf.WaitFor own_tier2_tokens == 0 3
+nf.Expect world_class == 2
+nf.StopAttack
+nf.ClickMove 126 126
+nf.WaitFor own_at 126 126 0.5 15
+nf.Expect at_class_master
+nf.Sleep 2
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 0
+nf.Expect options_tier2_tokens == 0
+# Reconnect 4 proves consumed claimed zero persists across crossing and subsequent admission without refill
+nf.DropSocket
+nf.WaitFor reconnects >= 3 15
+nf.WaitFor own_spawns >= 4 15
+nf.WaitFor in_world 15
+nf.WaitFor initial_tier1_tokens == 0 5
+nf.WaitFor initial_tier2_tokens == 0 5
+nf.Expect initial_tier1_tokens == 0
+nf.Expect initial_tier2_tokens == 0
+nf.WaitFor own_level == 40 5
+nf.WaitFor own_xp == 15444890 5
+nf.WaitFor world_class == 2 3
+nf.Expect own_level == 40
+nf.Expect own_xp == 15444890
+nf.Expect world_class == 2
+nf.WaitFor own_tier1_tokens == 0 3
+nf.WaitFor own_tier2_tokens == 0 3
+nf.Expect own_tier1_tokens == 0
+nf.Expect own_tier2_tokens == 0
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 0
+nf.Expect options_tier2_tokens == 0
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_class == 2
+nf.Expect character_matches_world
+nf.Within 160

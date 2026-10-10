@@ -263,6 +263,9 @@ fn seed_transfer_player(
     character.position = position;
     character.class_state.token_tier_1_count = tokens;
     character.class_state.token_tier_2_count = tokens;
+    // These consumption/rejection fixtures already claimed both milestones.
+    // Empty balances represent spent tokens, which the once-ever policy retains.
+    character.class_state.milestone_claimed_mask = 3;
     character.class_state.learned_skills = vec![LearnedSkill {
         key: "racial.adaptable".into(),
         level: 1,

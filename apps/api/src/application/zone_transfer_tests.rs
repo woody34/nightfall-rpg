@@ -37,6 +37,7 @@ struct Repo {
     inner: Arc<InMemoryCharacterRepository>,
     hold: AtomicBool,
     lost_reply: AtomicBool,
+    transient_once: AtomicBool,
     reject_constraint: AtomicBool,
     entered: Notify,
     release: Notify,
@@ -48,6 +49,7 @@ impl Repo {
             inner: Arc::new(InMemoryCharacterRepository::default()),
             hold: AtomicBool::new(false),
             lost_reply: AtomicBool::new(false),
+            transient_once: AtomicBool::new(false),
             reject_constraint: AtomicBool::new(false),
             entered: Notify::new(),
             release: Notify::new(),
@@ -90,6 +92,9 @@ impl CharacterRepository for Repo {
         if self.reject_constraint.load(Ordering::Acquire) {
             return Err(CheckpointError::Constraint("outbox_reject_transfers".into()));
         }
+        if self.transient_once.swap(false, Ordering::AcqRel) {
+            return Err(anyhow::anyhow!("transient failure before commit").into());
+        }
         let result = self.inner.checkpoint(cp, events).await?;
         if self.lost_reply.swap(false, Ordering::AcqRel) {
             return Err(anyhow::anyhow!("committed response lost").into());
@@ -128,6 +133,7 @@ impl Harness {
         character.position = Position { x: 126.0, y: 126.0 };
         character.class_state.token_tier_1_count = 1;
         character.class_state.token_tier_2_count = 1;
+        character.class_state.milestone_claimed_mask = 3;
         let repo = Arc::new(Repo::new());
         repo.inner.insert_for_test(character.clone());
         let state = ZoneState::new(
@@ -548,6 +554,10 @@ async fn full_registry_tick_and_digest_measurement() {
 
 #[derive(Default)]
 struct Index {
+    fail_insert: AtomicBool,
+    hold_insert: AtomicBool,
+    insert_entered: Notify,
+    insert_release: Notify,
     inner: crate::infrastructure::eventlog::InMemoryZoneSnapshotStore,
     checkpointed: std::sync::atomic::AtomicUsize,
     closed: std::sync::atomic::AtomicUsize,
@@ -570,6 +580,11 @@ impl ZoneSnapshotStore for Index {
         self.inner.close(zone, epoch).await
     }
     async fn insert(&self, row: &ZoneSnapshotRow) -> anyhow::Result<()> {
+        self.insert_entered.notify_one();
+        while self.hold_insert.load(Ordering::Acquire) {
+            self.insert_release.notified().await;
+        }
+        anyhow::ensure!(!self.fail_insert.load(Ordering::Acquire), "baseline insert failed");
         self.inner.insert(row).await
     }
     async fn set_first_seq(&self, zone: ZoneId, epoch: u64, seq: Seq) -> anyhow::Result<()> {
@@ -689,3 +704,6 @@ async fn recovery_permanent_failure_and_missing_log_leave_epoch_unresolved_then_
         "rescue retries immutable checkpoint, receipt and outbox"
     );
 }
+
+#[path = "zone_actor_token_tests.rs"]
+mod token_tests;

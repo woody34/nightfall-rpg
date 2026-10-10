@@ -8,6 +8,10 @@ nf.ClassCatalogue
 nf.WaitFor class_rpc_error == none 15
 nf.EnterWorld
 nf.WaitFor in_world 15
+nf.WaitFor initial_tier1_tokens == 0 5
+nf.WaitFor initial_tier2_tokens == 0 5
+nf.Expect initial_tier1_tokens == 0
+nf.Expect initial_tier2_tokens == 0
 nf.Expect own_level == 20
 nf.Expect at_class_master
 nf.TransferOptions
@@ -20,6 +24,11 @@ nf.Expect transfer_count == 0
 nf.Expect world_class == 0
 nf.DropSocket
 nf.WaitFor own_spawns >= 2 15
+nf.WaitFor in_world 15
+nf.WaitFor initial_tier1_tokens == 0 5
+nf.WaitFor initial_tier2_tokens == 0 5
+nf.Expect initial_tier1_tokens == 0
+nf.Expect initial_tier2_tokens == 0
 nf.TransferOptions
 nf.WaitFor class_rpc_error == none 15
 nf.Expect options_tier1_tokens == 0

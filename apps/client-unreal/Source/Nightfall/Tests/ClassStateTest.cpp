@@ -123,6 +123,268 @@ bool FClassProjectionTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FClassTokenProjectionTest, "Nightfall.Class.State.TokenProjection", Flags)
+bool FClassTokenProjectionTest::RunTest(const FString& Parameters)
+{
+	FScopedTestGameInstance I;
+	auto* Net = I.Get<UNetClientSubsystem>();
+	auto* Combat = I.Get<UCombatStateSubsystem>();
+	auto* State = I.Get<UClassStateSubsystem>();
+	Net->SetOwnEntityId(TEXT("own"));
+
+	FBotPredicateRegistry Registry;
+	Registry.RegisterBuiltins();
+	FBotContext Context{ I.GameInstance, nullptr };
+
+	FString Error;
+	auto T1Eq0 = Registry.Parse({ TEXT("own_tier1_tokens"), TEXT("=="), TEXT("0") }, Error);
+	TestTrue(TEXT("own_tier1_tokens == 0 parsed successfully"), T1Eq0.IsSet());
+	auto T1Eq1 = Registry.Parse({ TEXT("own_tier1_tokens"), TEXT("=="), TEXT("1") }, Error);
+	TestTrue(TEXT("own_tier1_tokens == 1 parsed successfully"), T1Eq1.IsSet());
+	auto T1Neq0 = Registry.Parse({ TEXT("own_tier1_tokens"), TEXT("!="), TEXT("0") }, Error);
+	TestTrue(TEXT("own_tier1_tokens != 0 parsed successfully"), T1Neq0.IsSet());
+	auto T1Gt0 = Registry.Parse({ TEXT("own_tier1_tokens"), TEXT(">"), TEXT("0") }, Error);
+	TestTrue(TEXT("own_tier1_tokens > 0 parsed successfully"), T1Gt0.IsSet());
+
+	auto T2Eq0 = Registry.Parse({ TEXT("own_tier2_tokens"), TEXT("=="), TEXT("0") }, Error);
+	TestTrue(TEXT("own_tier2_tokens == 0 parsed successfully"), T2Eq0.IsSet());
+	auto T2Eq1 = Registry.Parse({ TEXT("own_tier2_tokens"), TEXT("=="), TEXT("1") }, Error);
+	TestTrue(TEXT("own_tier2_tokens == 1 parsed successfully"), T2Eq1.IsSet());
+	auto T2Eq2 = Registry.Parse({ TEXT("own_tier2_tokens"), TEXT("=="), TEXT("2") }, Error);
+	TestTrue(TEXT("own_tier2_tokens == 2 parsed successfully"), T2Eq2.IsSet());
+	auto T2Neq0 = Registry.Parse({ TEXT("own_tier2_tokens"), TEXT("!="), TEXT("0") }, Error);
+	TestTrue(TEXT("own_tier2_tokens != 0 parsed successfully"), T2Neq0.IsSet());
+	auto T2Gt0 = Registry.Parse({ TEXT("own_tier2_tokens"), TEXT(">"), TEXT("0") }, Error);
+	TestTrue(TEXT("own_tier2_tokens > 0 parsed successfully"), T2Gt0.IsSet());
+
+	if (!T1Eq0.IsSet() || !T1Eq1.IsSet() || !T1Neq0.IsSet() || !T1Gt0.IsSet() ||
+		!T2Eq0.IsSet() || !T2Eq1.IsSet() || !T2Eq2.IsSet() || !T2Neq0.IsSet() || !T2Gt0.IsSet())
+	{
+		return false;
+	}
+
+	// 1. Unknown before stats: entity spawn arrives, but private StatsChanged not yet received
+	FEntitySpawn Spawn;
+	Spawn.EntityId = TEXT("own");
+	Spawn.Kind = 1;
+	Spawn.SessionGeneration = 1;
+	Spawn.StateTick = 5;
+	Combat->ApplySpawn(Spawn);
+
+	TestFalse(TEXT("owner private stats unknown before stats"), Combat->GetOwn().bCpKnown);
+	TestFalse(TEXT("own_tier1_tokens == 0 is false when unknown"), T1Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed unknown before stats"), T1Eq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier1_tokens != 0 is also false when unknown"), T1Neq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens != 0 observed unknown before stats"), T1Neq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier1_tokens > 0 is false when unknown"), T1Gt0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens > 0 observed unknown before stats"), T1Gt0(Context).Observed, FString(TEXT("unknown")));
+
+	TestFalse(TEXT("own_tier2_tokens == 0 is false when unknown"), T2Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed unknown before stats"), T2Eq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier2_tokens != 0 is also false when unknown"), T2Neq0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens != 0 observed unknown before stats"), T2Neq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier2_tokens > 0 is false when unknown"), T2Gt0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens > 0 observed unknown before stats"), T2Gt0(Context).Observed, FString(TEXT("unknown")));
+
+	// 2. Explicit known zero: authoritative StatsChanged arrives with 0 tokens for both tiers
+	FStatsChanged Stats;
+	Stats.Entity = TEXT("own");
+	Stats.Tick = 10;
+	Stats.Hp = 100;
+	Stats.MaxHp = 100;
+	Stats.Cp = 20;
+	Stats.MaxCp = 20;
+	Stats.TokenTier1Count = 0;
+	Stats.TokenTier2Count = 0;
+	Combat->ApplyStats(Stats);
+
+	TestTrue(TEXT("bCpKnown is true after authoritative stats"), Combat->GetOwn().bCpKnown);
+	TestEqual(TEXT("subsystem tier1 count is 0"), Combat->GetOwn().TokenTier1Count, 0u);
+	TestEqual(TEXT("subsystem tier2 count is 0"), Combat->GetOwn().TokenTier2Count, 0u);
+	TestTrue(TEXT("own_tier1_tokens == 0 holds for explicit zero"), T1Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed 0"), T1Eq0(Context).Observed, FString(TEXT("0")));
+	TestFalse(TEXT("own_tier1_tokens > 0 is false for zero"), T1Gt0(Context).bTrue);
+	TestFalse(TEXT("own_tier1_tokens != 0 is false for known zero"), T1Neq0(Context).bTrue);
+	TestTrue(TEXT("own_tier2_tokens == 0 holds for explicit zero"), T2Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed 0"), T2Eq0(Context).Observed, FString(TEXT("0")));
+	TestFalse(TEXT("own_tier2_tokens > 0 is false for zero"), T2Gt0(Context).bTrue);
+	TestFalse(TEXT("own_tier2_tokens != 0 is false for known zero"), T2Neq0(Context).bTrue);
+
+	// 3. Independent tier updates: tier 1 updates while tier 2 remains unchanged
+	Stats.Tick = 15;
+	Stats.TokenTier1Count = 1;
+	Stats.TokenTier2Count = 0;
+	Combat->ApplyStats(Stats);
+
+	TestEqual(TEXT("subsystem tier1 count updated to 1"), Combat->GetOwn().TokenTier1Count, 1u);
+	TestEqual(TEXT("subsystem tier2 count remains 0"), Combat->GetOwn().TokenTier2Count, 0u);
+	TestTrue(TEXT("own_tier1_tokens == 1 holds"), T1Eq1(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed 1"), T1Eq1(Context).Observed, FString(TEXT("1")));
+	TestTrue(TEXT("own_tier1_tokens > 0 holds"), T1Gt0(Context).bTrue);
+	TestFalse(TEXT("own_tier1_tokens == 0 is now false"), T1Eq0(Context).bTrue);
+	TestTrue(TEXT("own_tier2_tokens == 0 remains true independently"), T2Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed 0"), T2Eq0(Context).Observed, FString(TEXT("0")));
+
+	// Tier 2 updates independently to 2 while tier 1 remains 1
+	Stats.Tick = 20;
+	Stats.TokenTier1Count = 1;
+	Stats.TokenTier2Count = 2;
+	Combat->ApplyStats(Stats);
+
+	TestEqual(TEXT("subsystem tier1 count remains 1"), Combat->GetOwn().TokenTier1Count, 1u);
+	TestEqual(TEXT("subsystem tier2 count updated to 2"), Combat->GetOwn().TokenTier2Count, 2u);
+	TestTrue(TEXT("own_tier1_tokens == 1 still holds"), T1Eq1(Context).bTrue);
+	TestTrue(TEXT("own_tier2_tokens == 2 holds"), T2Eq2(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed 2"), T2Eq2(Context).Observed, FString(TEXT("2")));
+	TestTrue(TEXT("own_tier2_tokens > 0 holds"), T2Gt0(Context).bTrue);
+	TestFalse(TEXT("own_tier2_tokens == 0 is now false"), T2Eq0(Context).bTrue);
+
+	// Tier 1 consumed (1 -> 0) while tier 2 remains 2
+	Stats.Tick = 25;
+	Stats.TokenTier1Count = 0;
+	Stats.TokenTier2Count = 2;
+	Combat->ApplyStats(Stats);
+
+	TestEqual(TEXT("subsystem tier1 count consumed to 0"), Combat->GetOwn().TokenTier1Count, 0u);
+	TestEqual(TEXT("subsystem tier2 count remains 2"), Combat->GetOwn().TokenTier2Count, 2u);
+	TestTrue(TEXT("own_tier1_tokens == 0 holds again"), T1Eq0(Context).bTrue);
+	TestTrue(TEXT("own_tier2_tokens == 2 continues to hold"), T2Eq2(Context).bTrue);
+
+	// Verify no formula or receipt: class transfer options or RPC receipts do not alter authoritative tokens
+	FGrpcNightfallV1TransferOptionsResponse Options;
+	Options.TokenTier1Count = 99;
+	Options.TokenTier2Count = 99;
+	State->ApplyOptions(Options);
+	TestEqual(TEXT("options RPC response does not mutate authoritative tier1 count"), Combat->GetOwn().TokenTier1Count, 0u);
+	TestEqual(TEXT("options RPC response does not mutate authoritative tier2 count"), Combat->GetOwn().TokenTier2Count, 2u);
+	TestTrue(TEXT("own_tier1_tokens still 0 despite options"), T1Eq0(Context).bTrue);
+	TestTrue(TEXT("own_tier2_tokens still 2 despite options"), T2Eq2(Context).bTrue);
+
+	// 4. Ignored stale stats: earlier tick stats must be rejected
+	FStatsChanged StaleStats;
+	StaleStats.Entity = TEXT("own");
+	StaleStats.Tick = 24; // older than current tick 25
+	StaleStats.TokenTier1Count = 5;
+	StaleStats.TokenTier2Count = 5;
+	Combat->ApplyStats(StaleStats);
+
+	TestEqual(TEXT("stale stats ignored: tier1 remains 0"), Combat->GetOwn().TokenTier1Count, 0u);
+	TestEqual(TEXT("stale stats ignored: tier2 remains 2"), Combat->GetOwn().TokenTier2Count, 2u);
+	TestTrue(TEXT("own_tier1_tokens == 0 holds after stale stats"), T1Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed 0 after stale stats"), T1Eq0(Context).Observed, FString(TEXT("0")));
+	TestTrue(TEXT("own_tier2_tokens == 2 holds after stale stats"), T2Eq2(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed 2 after stale stats"), T2Eq2(Context).Observed, FString(TEXT("2")));
+
+	// 5. Ignored other entity stats: stats for another entity must not leak into own token projection
+	FStatsChanged OtherStats;
+	OtherStats.Entity = TEXT("other");
+	OtherStats.Tick = 30;
+	OtherStats.TokenTier1Count = 8;
+	OtherStats.TokenTier2Count = 9;
+	Combat->ApplyStats(OtherStats);
+
+	TestEqual(TEXT("other entity stats ignored: tier1 remains 0"), Combat->GetOwn().TokenTier1Count, 0u);
+	TestEqual(TEXT("other entity stats ignored: tier2 remains 2"), Combat->GetOwn().TokenTier2Count, 2u);
+	TestTrue(TEXT("own_tier1_tokens == 0 holds after other entity stats"), T1Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed 0 after other entity stats"), T1Eq0(Context).Observed, FString(TEXT("0")));
+	TestTrue(TEXT("own_tier2_tokens == 2 holds after other entity stats"), T2Eq2(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed 2 after other entity stats"), T2Eq2(Context).Observed, FString(TEXT("2")));
+
+	// 6. Reset/disconnect unknown: network disconnect resets combat projection to unknown
+	Net->OnDisconnected.Broadcast(TEXT("connection lost"));
+
+	TestFalse(TEXT("bCpKnown reset to false on disconnect"), Combat->GetOwn().bCpKnown);
+	TestFalse(TEXT("own_tier1_tokens == 0 is false after disconnect"), T1Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed unknown after disconnect"), T1Eq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier1_tokens != 0 is false after disconnect"), T1Neq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens != 0 observed unknown after disconnect"), T1Neq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier2_tokens == 2 is false after disconnect"), T2Eq2(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed unknown after disconnect"), T2Eq2(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier2_tokens != 0 is false after disconnect"), T2Neq0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens != 0 observed unknown after disconnect"), T2Neq0(Context).Observed, FString(TEXT("unknown")));
+
+	// Direct Combat->Reset() also clears private stats
+	Combat->ApplyStats(Stats);
+	TestTrue(TEXT("stats re-applied before direct reset"), Combat->GetOwn().bCpKnown);
+	Combat->Reset();
+	TestFalse(TEXT("bCpKnown reset after direct Reset"), Combat->GetOwn().bCpKnown);
+	TestFalse(TEXT("own_tier1_tokens is unknown after direct Reset"), T1Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed unknown after direct Reset"), T1Eq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier2_tokens is unknown after direct Reset"), T2Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed unknown after direct Reset"), T2Eq0(Context).Observed, FString(TEXT("unknown")));
+
+	// 7. Fresh reconnect restoration: seed known token stats immediately before OnConnected to verify connected reset binding
+	FStatsChanged PreConnectStats;
+	PreConnectStats.Entity = TEXT("own");
+	PreConnectStats.Tick = 25;
+	PreConnectStats.Hp = 100;
+	PreConnectStats.MaxHp = 100;
+	PreConnectStats.Cp = 20;
+	PreConnectStats.MaxCp = 20;
+	PreConnectStats.TokenTier1Count = 1;
+	PreConnectStats.TokenTier2Count = 2;
+	Combat->ApplyStats(PreConnectStats);
+
+	TestTrue(TEXT("known stats populated immediately before OnConnected"), Combat->GetOwn().bCpKnown);
+	TestEqual(TEXT("tier1 count populated before OnConnected"), Combat->GetOwn().TokenTier1Count, 1u);
+	TestEqual(TEXT("tier2 count populated before OnConnected"), Combat->GetOwn().TokenTier2Count, 2u);
+	TestTrue(TEXT("own_tier1_tokens == 1 before reconnect"), T1Eq1(Context).bTrue);
+	TestTrue(TEXT("own_tier2_tokens == 2 before reconnect"), T2Eq2(Context).bTrue);
+
+	// OnConnected must reset combat projection and clear stats fence
+	Net->OnConnected.Broadcast();
+
+	TestFalse(TEXT("bCpKnown reset to false on reconnect broadcast"), Combat->GetOwn().bCpKnown);
+	TestFalse(TEXT("own_tier1_tokens == 1 is false after reconnect before stats"), T1Eq1(Context).bTrue);
+	TestFalse(TEXT("own_tier1_tokens == 0 is false after reconnect before stats"), T1Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed unknown after reconnect before stats"), T1Eq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier1_tokens != 0 is false after reconnect before stats"), T1Neq0(Context).bTrue);
+	TestFalse(TEXT("own_tier2_tokens == 2 is false after reconnect before stats"), T2Eq2(Context).bTrue);
+	TestFalse(TEXT("own_tier2_tokens == 0 is false after reconnect before stats"), T2Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed unknown after reconnect before stats"), T2Eq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier2_tokens != 0 is false after reconnect before stats"), T2Neq0(Context).bTrue);
+
+	FEntitySpawn ReconnectSpawn;
+	ReconnectSpawn.EntityId = TEXT("own");
+	ReconnectSpawn.SessionGeneration = 2;
+	ReconnectSpawn.StateTick = 1;
+	Combat->ApplySpawn(ReconnectSpawn);
+
+	TestFalse(TEXT("tokens still unknown after reconnect spawn before fresh stats"), Combat->GetOwn().bCpKnown);
+	TestFalse(TEXT("own_tier1_tokens is false after reconnect spawn before stats"), T1Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed unknown after reconnect spawn before stats"), T1Eq0(Context).Observed, FString(TEXT("unknown")));
+	TestFalse(TEXT("own_tier2_tokens is false after reconnect spawn before stats"), T2Eq0(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed unknown after reconnect spawn before stats"), T2Eq0(Context).Observed, FString(TEXT("unknown")));
+
+	// Fresh session stats with tick 2 (< previous session tick 25) proves stats-fence was reset
+	FStatsChanged FreshStats;
+	FreshStats.Entity = TEXT("own");
+	FreshStats.Tick = 2;
+	FreshStats.Hp = 100;
+	FreshStats.MaxHp = 100;
+	FreshStats.Cp = 20;
+	FreshStats.MaxCp = 20;
+	FreshStats.TokenTier1Count = 1;
+	FreshStats.TokenTier2Count = 1;
+	Combat->ApplyStats(FreshStats);
+
+	TestTrue(TEXT("bCpKnown restored on fresh stats with lower tick"), Combat->GetOwn().bCpKnown);
+	TestEqual(TEXT("fresh tier1 restored to 1"), Combat->GetOwn().TokenTier1Count, 1u);
+	TestEqual(TEXT("fresh tier2 restored to 1"), Combat->GetOwn().TokenTier2Count, 1u);
+	TestTrue(TEXT("own_tier1_tokens == 1 holds after reconnect restoration"), T1Eq1(Context).bTrue);
+	TestEqual(TEXT("own_tier1_tokens observed 1 after reconnect"), T1Eq1(Context).Observed, FString(TEXT("1")));
+	TestTrue(TEXT("own_tier2_tokens == 1 holds after reconnect restoration"), T2Eq1(Context).bTrue);
+	TestEqual(TEXT("own_tier2_tokens observed 1 after reconnect"), T2Eq1(Context).Observed, FString(TEXT("1")));
+	TestFalse(TEXT("own_tier1_tokens == 0 is now false"), T1Eq0(Context).bTrue);
+	TestFalse(TEXT("own_tier2_tokens == 0 is now false"), T2Eq0(Context).bTrue);
+	TestTrue(TEXT("own_tier1_tokens != 0 is now true"), T1Neq0(Context).bTrue);
+	TestTrue(TEXT("own_tier2_tokens != 0 is now true"), T2Neq0(Context).bTrue);
+	TestTrue(TEXT("own_tier1_tokens > 0 is now true"), T1Gt0(Context).bTrue);
+	TestTrue(TEXT("own_tier2_tokens > 0 is now true"), T2Gt0(Context).bTrue);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FClassCatalogueUiTest, "Nightfall.Class.UI.CatalogueAndLayouts", Flags)
 bool FClassCatalogueUiTest::RunTest(const FString& Parameters)
 {

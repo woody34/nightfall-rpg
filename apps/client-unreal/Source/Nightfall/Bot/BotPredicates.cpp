@@ -87,12 +87,43 @@ void FBotObservations::Unbind()
 	}
 	BoundNet.Reset();
 	BoundCombat.Reset();
+	InitialTokenScopeEntity.Reset();
+	InitialTokenScopeGeneration.Reset();
+	InitialTier1Tokens.Reset();
+	InitialTier2Tokens.Reset();
+}
+
+bool FBotObservations::IsInitialTokenScopeValid(const UNetClientSubsystem* Net) const
+{
+	if (!Net || !Net->IsConnected()) return false;
+	const FString CurrentEntity = Net->GetOwnEntityId();
+	if (CurrentEntity.IsEmpty()) return false;
+	return InitialTokenScopeGeneration.IsSet()
+		&& InitialTokenScopeGeneration.GetValue() == Net->GetTransportGeneration()
+		&& InitialTokenScopeEntity.IsSet()
+		&& InitialTokenScopeEntity.GetValue() == CurrentEntity;
+}
+
+TOptional<uint32> FBotObservations::GetInitialTier1Tokens(const UNetClientSubsystem* Net) const
+{
+	if (!IsInitialTokenScopeValid(Net)) return TOptional<uint32>();
+	return InitialTier1Tokens;
+}
+
+TOptional<uint32> FBotObservations::GetInitialTier2Tokens(const UNetClientSubsystem* Net) const
+{
+	if (!IsInitialTokenScopeValid(Net)) return TOptional<uint32>();
+	return InitialTier2Tokens;
 }
 
 void FBotObservations::Reset()
 {
 	ClassStateMark.Reset();
 	OwnClassWireEvents = 0;
+	InitialTokenScopeEntity.Reset();
+	InitialTokenScopeGeneration.Reset();
+	InitialTier1Tokens.Reset();
+	InitialTier2Tokens.Reset();
 	Acks = 0;
 	OwnSpawns = 0;
 	FirstOwnEntityId.Reset();
@@ -241,7 +272,42 @@ void FBotObservations::BindPhase1(UNetClientSubsystem* Net)
 	const FDelegateHandle Stats = Net->OnStatsChanged.AddLambda([this, Weak](const FStatsChanged& S)
 	{
 		const UNetClientSubsystem* N = Weak.Get();
-		if (!N || !N->IsOwnEntity(S.Entity)) return;
+		if (!N || !N->IsConnected() || !N->IsOwnEntity(S.Entity) || N->GetOwnEntityId().IsEmpty()) return;
+
+		const UCombatStateSubsystem* Combat = BoundCombat.Get();
+		if (Combat && Combat->GetOwn().LastStatsTick > 0 && S.Tick < Combat->GetOwn().LastStatsTick)
+		{
+			// Reject stale same-scope stats that were rejected by projection
+			return;
+		}
+
+		const uint64 CurrentGeneration = N->GetTransportGeneration();
+		const FString CurrentEntity = N->GetOwnEntityId();
+
+		const bool bScopeMatches = InitialTokenScopeGeneration.IsSet()
+			&& InitialTokenScopeGeneration.GetValue() == CurrentGeneration
+			&& InitialTokenScopeEntity.IsSet()
+			&& InitialTokenScopeEntity.GetValue() == CurrentEntity;
+
+		if (!bScopeMatches)
+		{
+			InitialTokenScopeGeneration = CurrentGeneration;
+			InitialTokenScopeEntity = CurrentEntity;
+			InitialTier1Tokens = S.TokenTier1Count;
+			InitialTier2Tokens = S.TokenTier2Count;
+		}
+		else
+		{
+			if (!InitialTier1Tokens.IsSet())
+			{
+				InitialTier1Tokens = S.TokenTier1Count;
+			}
+			if (!InitialTier2Tokens.IsSet())
+			{
+				InitialTier2Tokens = S.TokenTier2Count;
+			}
+		}
+
 		if (S.Hp == 0)
 		{
 			// Dead: the first HP-0 StatsChanged may still carry the old total (the loss follows in
@@ -304,6 +370,13 @@ void FBotObservations::ObservePhase1(const UCombatStateSubsystem* Combat)
 		NpcsAttackingOwn.Reset();   // the server despawns a dropped player: the reconnect is a new life on the wire
 	}
 	bWasConnected = bConnected;
+	if (Net && !IsInitialTokenScopeValid(Net))
+	{
+		InitialTokenScopeEntity.Reset();
+		InitialTokenScopeGeneration.Reset();
+		InitialTier1Tokens.Reset();
+		InitialTier2Tokens.Reset();
+	}
 	if (bAwaitingStats)
 	{
 		if (Combat->GetOwn().bXpKnown) ++XpKnownBeforeStats;
@@ -423,6 +496,33 @@ namespace BotPredicates
 		const UCombatStateSubsystem* Combat = Context.Combat();
 		if (Combat && !Combat->GetTargetId().IsEmpty()) return Combat->GetTargetId();
 		return Context.Observations ? Context.Observations->LastTargetId : FString();
+	}
+
+	FString ResolveTemplateTarget(const FBotContext& Context, const FString& TemplateId)
+	{
+		const FString CleanTemplateId = TemplateId.TrimStartAndEnd();
+		if (CleanTemplateId.IsEmpty()) return FString();
+
+		UNetClientSubsystem* Net = Context.Net();
+		UCombatStateSubsystem* Combat = Context.Combat();
+		if (!Net || !Combat) return FString();
+
+		FString ResolvedId;
+		int32 MatchCount = 0;
+
+		for (const TPair<FString, FEntitySpawn>& Known : Net->GetKnownEntities())
+		{
+			if (Known.Value.Kind != 2 || Net->IsOwnEntity(Known.Key)) continue;
+			if (Known.Value.TemplateId != CleanTemplateId) continue;
+			const FCombatEntity* CE = Combat->FindEntity(Known.Key);
+			if (!CE || CE->bDead || CE->Hp == 0 || !Combat->IsAttackable(Known.Key)) continue;
+
+			ResolvedId = Known.Value.EntityId.IsEmpty() ? Known.Key : Known.Value.EntityId;
+			++MatchCount;
+		}
+
+		if (MatchCount != 1) return FString();
+		return ResolvedId;
 	}
 
 	bool ParseNumber(const FString& Text, double& Out)
@@ -746,6 +846,22 @@ void FBotPredicateRegistry::RegisterBuiltins()
 			if (Value.Equals(TEXT("none"), ESearchCase::IgnoreCase)) return Id.IsEmpty();
 			return !Id.IsEmpty() && (Id.Equals(Value, ESearchCase::IgnoreCase) || (E && E->Spawn.Name.Equals(Value, ESearchCase::IgnoreCase)));
 		});
+	Register({ TEXT("template_target_available"), TEXT("template_target_available <id>"),
+		TEXT("A unique living admitted NPC of the given server template id is in view and attackable"),
+		[](const TArray<FString>& Args, FString& OutError) -> FBotPredicateFn
+		{
+			if (Args.Num() != 1 || Args[0].TrimStartAndEnd().IsEmpty())
+			{
+				OutError = TEXT("expects one template id");
+				return nullptr;
+			}
+			const FString TemplateId = Args[0].TrimStartAndEnd();
+			return [TemplateId](const FBotContext& C) -> FBotPredicateValue
+			{
+				const FString ResolvedId = BotPredicates::ResolveTemplateTarget(C, TemplateId);
+				return { !ResolvedId.IsEmpty(), ResolvedId.IsEmpty() ? FString(TEXT("none")) : ResolvedId };
+			};
+		} });
 	RegisterNumber(TEXT("target_hp"), TEXT("HP of the selection; after it clears, of the last selection (0 once it died, also after its corpse despawned)"),
 		[](const FBotContext& C) -> TOptional<double>
 		{

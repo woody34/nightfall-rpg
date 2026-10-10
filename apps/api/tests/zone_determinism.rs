@@ -147,6 +147,7 @@ fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::EntityRespawned { .. }
                 | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::ClassTransfer { .. }
+                | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::XpGained { .. }
                 | ZoneEvent::LevelUp { .. }

@@ -132,6 +132,20 @@ void ClassBotPredicates::Register(FBotPredicateRegistry& R)
 	R.RegisterFlag(TEXT("at_class_master"), TEXT("Authoritative movement samples place the player within the catalogue master radius"), [](const FBotContext& C) { const auto* S = State(C); return S && S->IsAtMaster(); });
 	R.RegisterNumber(TEXT("own_cp"), TEXT("Owner CP from StatsChanged"), [](const FBotContext& C) -> TOptional<double> { const auto* Combat = C.Combat(); return Combat && Combat->GetOwn().bCpKnown ? TOptional<double>(Combat->GetOwn().Cp) : TOptional<double>(); });
 	R.RegisterNumber(TEXT("own_max_cp"), TEXT("Owner maxCP from StatsChanged"), [](const FBotContext& C) -> TOptional<double> { const auto* Combat = C.Combat(); return Combat && Combat->GetOwn().bCpKnown ? TOptional<double>(Combat->GetOwn().MaxCp) : TOptional<double>(); });
+	R.RegisterNumber(TEXT("own_tier1_tokens"), TEXT("Owner Tier 1 tokens from StatsChanged"), [](const FBotContext& C) -> TOptional<double> { const auto* Combat = C.Combat(); return Combat && Combat->GetOwn().bCpKnown ? TOptional<double>(Combat->GetOwn().TokenTier1Count) : TOptional<double>(); });
+	R.RegisterNumber(TEXT("own_tier2_tokens"), TEXT("Owner Tier 2 tokens from StatsChanged"), [](const FBotContext& C) -> TOptional<double> { const auto* Combat = C.Combat(); return Combat && Combat->GetOwn().bCpKnown ? TOptional<double>(Combat->GetOwn().TokenTier2Count) : TOptional<double>(); });
+	R.RegisterNumber(TEXT("initial_tier1_tokens"), TEXT("First-owner Tier 1 tokens observed on first admission StatsChanged in current transport scope"), [](const FBotContext& C) -> TOptional<double>
+	{
+		if (!C.Observations) return TOptional<double>();
+		const TOptional<uint32> Tokens = C.Observations->GetInitialTier1Tokens(C.Net());
+		return Tokens.IsSet() ? TOptional<double>(Tokens.GetValue()) : TOptional<double>();
+	});
+	R.RegisterNumber(TEXT("initial_tier2_tokens"), TEXT("First-owner Tier 2 tokens observed on first admission StatsChanged in current transport scope"), [](const FBotContext& C) -> TOptional<double>
+	{
+		if (!C.Observations) return TOptional<double>();
+		const TOptional<uint32> Tokens = C.Observations->GetInitialTier2Tokens(C.Net());
+		return Tokens.IsSet() ? TOptional<double>(Tokens.GetValue()) : TOptional<double>();
+	});
 	R.Register({ TEXT("transfer_option"), TEXT("transfer_option <class id> <eligible|blocked>"), TEXT("Exact candidate eligibility returned by the server"), [](const TArray<FString>& A, FString& E) -> FBotPredicateFn
 	{
 		if (A.Num() != 2 || !A[0].IsNumeric() || (A[1] != TEXT("eligible") && A[1] != TEXT("blocked"))) { E = TEXT("needs class id and eligible|blocked"); return nullptr; }

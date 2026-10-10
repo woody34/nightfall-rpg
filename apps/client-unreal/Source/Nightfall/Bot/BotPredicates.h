@@ -64,6 +64,18 @@ struct NIGHTFALL_API FBotObservations
 	TArray<uint64> ClassStateMark;          // nf.MarkClassState: current authoritative class/resources before a receipt retry
 	int32 OwnClassWireEvents = 0;           // every owner ClassChanged wire envelope, before dedupe/generation filtering
 
+	// First-owner token tier observations captured from the first typed Net OnStatsChanged
+	// for the own entity in the current transport scope. Unknown when scope changes;
+	// cleared on scenario Reset().
+	TOptional<FString> InitialTokenScopeEntity;
+	TOptional<uint64> InitialTokenScopeGeneration;
+	TOptional<uint32> InitialTier1Tokens;
+	TOptional<uint32> InitialTier2Tokens;
+
+	bool IsInitialTokenScopeValid(const UNetClientSubsystem* Net) const;
+	TOptional<uint32> GetInitialTier1Tokens(const UNetClientSubsystem* Net) const;
+	TOptional<uint32> GetInitialTier2Tokens(const UNetClientSubsystem* Net) const;
+
 	/** nf.Mark: the current landed-hit count per target becomes the baseline. */
 	void MarkHits()
 	{
@@ -186,4 +198,7 @@ namespace BotPredicates
 
 	/** The selection, or after it cleared the last one (the id target_hp reads); empty when none yet. */
 	NIGHTFALL_API FString CurrentOrLastTarget(const FBotContext& Context);
+
+	/** Resolves a unique living admitted NPC by exact server TemplateId; empty if missing, empty, ambiguous, or none attackable. */
+	NIGHTFALL_API FString ResolveTemplateTarget(const FBotContext& Context, const FString& TemplateId);
 }

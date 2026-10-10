@@ -1,6 +1,6 @@
 # Phase 2 race and class: verification outcome
 
-Status: implementation, ordinary native acceptance, current packaged combat soak, and root main merge / post-merge Game and Editor builds verified on 2026-10-09. The token supply/backfill decision remains open. Whole Phase 2 completion and full normal progression are not claimed.
+Status: implementation, ordinary native acceptance, current packaged combat soak, and root main merge / post-merge Game and Editor builds verified on 2026-10-09. User accepted once-per-character transfer tokens at 20/40 including eligible existing backfill (2026-10-10): policy accepted, E4 implementation and validation pending (no production grants or backfill at baseline `88b9063`). Whole Phase 2 completion and full normal progression are not claimed.
 See the [executable plan](phase-2-race-and-class.md), [reference design](../planning/02-race-and-class.md),
 and [class transfer observability](../engineering/class-transfer-observability.md).
 
@@ -24,7 +24,13 @@ Transfers consume an existing typed token, preserve resource percentages with fl
 retain at least one HP for living characters. CP starts at zero, remains owner-private, and does
 not absorb damage. Durability order is **log acknowledgement → atomic class/token/receipt/outbox checkpoint →
 RPC success and world output**. At most two successful receipts per character retain the original full
-response, including offline retries.
+response, including offline retries. Under the accepted 2026-10-10 policy (E4 implementation pending),
+claim bits are authoritative forever (claimed zero never refills; death/delevel never clears bits). In tier
+order, an unclaimed tier with existing positive balance or completed lineage/validated receipt marks claimed
+without adding a token; otherwise level >= 20/40 grants 1 and marks claimed. Every claim-bit change, including mark-only reconciliation, is critical: log acknowledgement -> atomic checkpoint -> visibility/output. First post-upgrade admission
+reconciles eligible existing characters via deterministic recorded Join and a critical checkpoint before
+visibility (no bulk offline SQL backfill). True live upward crossings use the same helper in tier order.
+Historical snapshot 7 / record 5 / BinaryV3 epochs stay policy-disabled with no-grant replay. Recover if needed and durably close the old epoch before establishing a fresh policy-enabled baseline, then permit live admission. Architecture plans snapshot8/record6/BinaryV4; implementation and compatibility validation remain pending.
 
 ## Verified evidence
 
@@ -32,7 +38,7 @@ response, including offline retries.
 |---|---|
 | Data and eligibility | 13 Rust catalogue tests and 3 Python provenance tests passed. Independent audits matched every growth, learning, and proficiency tuple; admission review passed at `4adde1e`. Subclass eligibility and reserved types passed; runtime switching and certification effects absent. |
 | Server functional checks | 38 suites reported **642 passed, 0 failed, 3 ignored**, using real isolated PostgreSQL on 26432 and NATS on 25422. The external Keycloak case conditionally returned early without its service; that count did not establish Keycloak. A separate real-provider run is recorded below. |
-| Creation and migration | Nine base paths, explicit class 0 versus omission, appearance/sex/name validation, 7-slot concurrency, and retries passed. Migration fixtures for nine legacy profiles preserved level/XP/vitals/position/revision and rejected invalid profiles. No token backfill. |
+| Creation and migration | Nine base paths, explicit class 0 versus omission, appearance/sex/name validation, 7-slot concurrency, and retries passed. Migration fixtures for nine legacy profiles preserved level/XP/vitals/position/revision and rejected invalid profiles (historical Oct 9 receipt; migration 000007 performed no token backfill, which remains historical evidence rather than new-policy verification). |
 | Transfer and progression | All 18 first and 31 second branches passed; 31 third branches refused at 85. Resource/CP arithmetic, racial XP/run/evasion/crit vectors, learned metadata, immutable retries, privacy, fencing, and recovery passed. Runtime review `8edffd1` passed. |
 | Replay and size | Snapshot 7 / record 5 / BinaryV3 retain snapshot 4/5/6 and record 3/4. 467-tick v4 recording retained exact replay bytes/digests. Codec review `a8ac679` and outer NFR review `5b6861b` passed. Snapshot measured **2,060,904 raw → 152,362 compressed bytes** (< 1 MiB − 1 KiB budget). Protobuf catalogue: **455,324 / 4,194,304 bytes**. |
 | Real Keycloak authentication | At server `7ceb323`, device-flow test passed **1 / 0 / 0** in **4.06 s** with explicit `KEYCLOAK_URL` against pinned Keycloak **26.8.0** on **28080**. Provider and port cleaned up (`/tmp/nightfall-phase2/api-keycloak-metadata.json`). |
@@ -81,9 +87,11 @@ neither claimed nor required.
 
 ## Open acceptance and limits
 
-- **Token supply/backfill requires the user's decision.** Ledger consumption is verified; production
-  grants and backfill are absent. Pre-admission fixture balances prove consumption only. Milestones
-  remain conditional on that choice.
+- **Token policy accepted; E4 implementation and validation pending.** The 2026-10-10 policy above
+  requires real native crossing, delevel/re-cross, and admission backfill evidence, separately from
+  consumption-only seeded fixtures. Grant instrumentation and dashboard validation also remain pending.
+  Migration 000007 and the Oct 9 suite/soak/root receipts are historical evidence, not verification of
+  the new token implementation. Baseline `88b9063` has no production grant mechanism or grant metric.
 - **External CI runner and reliability programme.** The Linux self-hosted runner remains unregistered.
   The existing two-week reliability programme is pending as a separate operational follow-up and does
   not impose a new 14-day delay on reviewed feature integration.

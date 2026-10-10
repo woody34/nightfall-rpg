@@ -19,13 +19,30 @@ from uuid import UUID
 
 OWNER = "01970000-0000-7000-8000-000000000020"
 OBSERVER = "01970000-0000-7000-8000-000000000040"
+PROFILES = {
+    "phase2-transfer": (40, (1, 1), 3, None),
+    "phase2-transfer-observer": (40, (1, 1), 3, None),
+    "phase2-transfer-missing-token": (20, (0, 0), 1, None),
+    "phase2-token-level20": (19, (0, 0), 0, 20),
+    "phase2-token-level40": (39, (1, 0), 1, 40),
+    "phase2-token-backfill": (40, (0, 0), 0, None),
+    "phase2-token-jump19-40": (19, (0, 0), 0, 20),
+}
+
+# Independent pinned source XP/death oracle agreed with the native fixture owner.
+# Rewards belong to the client-owned temporary NPC overlay, never production data.
+CROSSING_ORACLES = {
+    "phase2-token-level20": (10235, 10746, 20),
+    "phase2-token-level40": (62751, 65888, 40),
+    "phase2-token-jump19-40": (13892446, 14587068, 40),
+}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--owner-account", required=True, type=UUID)
     parser.add_argument("--observer-account", type=UUID)
-    parser.add_argument("--fixture", choices=("phase2-transfer", "phase2-transfer-observer", "phase2-transfer-missing-token"), default="phase2-transfer-observer")
+    parser.add_argument("--fixture", choices=tuple(PROFILES), default="phase2-transfer-observer")
     parser.add_argument("--dry-run", action="store_true", help="validate guards and print SQL without connecting")
     args = parser.parse_args()
     if os.environ.get("AUTH_DEV_TOKENS") != "1" or os.environ.get("NIGHTFALL_PHASE2_FIXTURE") != "1":
@@ -43,11 +60,14 @@ def main():
         parser.error("fixture refused: explicit non-5432 port and nf_phase2_fixture_* database required; no URL options")
     root = Path(__file__).resolve().parents[2]
     xp_rows = tomllib.loads((root / "packages/data/tables/experience.toml").read_text())["to_level"]
-    missing_token = args.fixture == "phase2-transfer-missing-token"
-    level, token, mask = (20, 0, 1) if missing_token else (40, 1, 3)
-    xp = next(row["xp"] for row in xp_rows if row["level"] == level)
+    level, tokens, mask, crossing = PROFILES[args.fixture]
+    # The shipped progression table is the seed XP authority. Earned tokens are
+    # supplied only by the runtime after a real kill of the owned overlay NPC.
+    xp_level = crossing if crossing is not None else level
+    threshold = next(row["xp"] for row in xp_rows if row["level"] == xp_level)
+    xp = threshold - 1 if crossing is not None else threshold
     accounts = f"('{args.owner_account}')"
-    rows = f"('{OWNER}','{args.owner_account}','ClassOwner','classowner','human',{level},40,30,43,21,11,25,126,126,{xp},NULL,NULL,'human_fighter',true,0,0,0,{token},{token},'female',{mask})"
+    rows = f"('{OWNER}','{args.owner_account}','ClassOwner','classowner','human',{level},40,30,43,21,11,25,126,126,{xp},NULL,NULL,'human_fighter',true,0,0,0,{tokens[0]},{tokens[1]},'female',{mask})"
     if with_observer:
         accounts += f", ('{args.observer_account}')"
         rows += f", ('{OBSERVER}','{args.observer_account}','ClassObserver','classobserver','human',1,40,30,43,21,11,25,126,126,0,NULL,NULL,'human_fighter',true,0,0,0,0,0,'male',0)"
@@ -81,8 +101,20 @@ COMMIT;
         subprocess.run(["psql", "-X", "--set=ON_ERROR_STOP=1", "--quiet"], input=sql, text=True, env=env, check=True)
     manifest = {"fixture_enabled": True, "fixture": args.fixture, "dry_run": args.dry_run,
         "owner": {"account_id": str(args.owner_account), "character_id": OWNER, "level": level,
-                  "class_id": 0, "sex": "female", "tokens": [token, token], "milestone_claimed_mask": mask},
-        "position": [126, 126], "transfers": [] if missing_token else [1, 2]}
+                  "class_id": 0, "sex": "female", "tokens": list(tokens), "milestone_claimed_mask": mask},
+        "position": [126, 126], "transfers": [1, 2] if args.fixture in ("phase2-transfer", "phase2-transfer-observer") else []}
+    if args.fixture.startswith("phase2-token-"):
+        # New profiles publish the exact persisted seed, including NULL resources
+        # (full derived maxima on admission). Legacy profile manifests stay stable.
+        manifest["owner"].update(race="human", xp=xp, hp=None, mp=None, cp=0, sp=0,
+                                 position=[126, 126])
+        if crossing is not None:
+            raw_xp, kill_xp, destination = CROSSING_ORACLES[args.fixture]
+            manifest["crossing"] = {"level": destination, "threshold_xp": next(
+                row["xp"] for row in xp_rows if row["level"] == destination),
+                "seed_threshold_xp": threshold, "xp_margin": 1,
+                "npc_raw_xp": raw_xp, "kill_xp": kill_xp,
+                "expected_level": destination, "expected_xp": xp + kill_xp}
     if with_observer:
         manifest["observer"] = {"account_id": str(args.observer_account), "character_id": OBSERVER,
                                 "level": 1, "class_id": 0, "sex": "male"}

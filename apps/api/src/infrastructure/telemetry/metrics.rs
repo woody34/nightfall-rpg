@@ -93,6 +93,7 @@ pub struct Metrics {
     pub eventlog_digested_records_total: Counter<u64>,
     /// Zones paused because their replay log has been unavailable longer than allowed.
     pub zones_paused: UpDownCounter<i64>,
+    pub(super) class_transfer_token_grants_total: Counter<u64>,
     pub(super) class_transfers_total: Counter<u64>,
     class_transfer_seconds: Histogram<f64>,
     pub(super) combat_attacks_total: Counter<u64>,
@@ -160,6 +161,12 @@ impl Metrics {
             zones_paused: meter
                 .i64_up_down_counter("nightfall_zones_paused")
                 .with_description("Zones paused because their replay log is unavailable")
+                .build(),
+            class_transfer_token_grants_total: meter
+                .u64_counter("nightfall_class_transfer_token_grants")
+                .with_description(
+                    "New tokens confirmed by applied checkpoint; replay acknowledgements excluded",
+                )
                 .build(),
             class_transfers_total: meter
                 .u64_counter("nightfall_class_transfers")

@@ -42,7 +42,8 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         ZoneEvent::EntityRespawned { .. } => Some(("respawn", "↥")),
         ZoneEvent::NpcIntentionChanged { .. } => Some(("intention", "◇")),
         ZoneEvent::TargetChanged { .. } => Some(("target", "◎")),
-        ZoneEvent::ClassTransfer { .. }
+        ZoneEvent::TokensReconciled { .. }
+        | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::AttackStarted { .. }
         | ZoneEvent::AttackCancelled { .. }
         | ZoneEvent::HateChanged { .. }
@@ -110,6 +111,7 @@ impl Projection {
                 self.break_path(entity);
             },
             ZoneEvent::ClassChanged { .. }
+            | ZoneEvent::TokensReconciled { .. }
             | ZoneEvent::ClassTransfer { .. }
             | ZoneEvent::AttackResult { .. }
             | ZoneEvent::EntityDied { .. }
@@ -162,6 +164,15 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
         } => format!(
             "ClassChanged: {entity} → class {} · tick {} · generation {}",
             class_id.0, tick.0, generation.0
+        ),
+        ZoneEvent::TokensReconciled {
+            entity,
+            adjustment,
+            source,
+            ..
+        } => format!(
+            "Tokens reconciled: {entity} · {source:?} · claimed {} · granted {}",
+            adjustment.claimed_mask, adjustment.granted_mask
         ),
         ZoneEvent::ClassTransfer {
             entity,

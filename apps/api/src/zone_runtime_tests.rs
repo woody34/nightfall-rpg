@@ -330,3 +330,24 @@ fn only_clan_call_satisfies_the_social_scenario_wire_oracle_across_seeds() {
         }
     }
 }
+
+#[tokio::test]
+async fn persistent_database_without_nats_is_refused_before_adapter_or_epoch_work() {
+    // A disconnected DB is intentional: the configuration guard must run before any DB
+    // lookup, baseline insert, log construction, actor spawn or admission can occur.
+    for nats in [None, Some(""), Some("   ")] {
+        let error = start(
+            &ZoneRuntimeConfig::default(),
+            nats,
+            Some(DatabaseConnection::default()),
+            &crate::Dependencies::in_memory(),
+        )
+        .await
+        .err()
+        .unwrap();
+        assert_eq!(
+            error.to_string(),
+            "persistent character runtime requires NATS_URL for durable replay before startup"
+        );
+    }
+}

@@ -240,11 +240,13 @@ fn commands(
     r: &AppliedTickRecord,
 ) {
     for command in &r.commands {
-        if let ZoneCommand::SpawnPlayer { entity, .. } = command.command {
-            kinds.insert(entity, EntityKind::Player);
-            attacks.entry(entity).or_insert("idle");
-        }
         let rejected = r.dispositions.iter().any(|d| d.ordinal == command.ordinal);
+        if !rejected {
+            if let ZoneCommand::SpawnPlayer { entity, .. } = command.command {
+                kinds.insert(entity, EntityKind::Player);
+                attacks.entry(entity).or_insert("idle");
+            }
+        }
         if let ZoneCommand::SetTarget { entity, target } = command.command {
             if !rejected && targets.insert(entity, target).flatten() != target {
                 if let Some(from) = attacks.get_mut(&entity) {
@@ -364,7 +366,16 @@ fn facts(
                     note_life(report, lives, entity, incarnation, *k);
                 }
             },
-            ZoneEvent::AttackResult { .. }
+            ZoneEvent::EntityDespawn { entity, .. } => {
+                // These are zone-wide facts, not observer AOI diffs. Player admission starts
+                // a fresh incarnation counter; NPC slot members retain theirs across decay.
+                // Consume the boundary in event order so earlier same-tick respawns count.
+                if kinds.get(&entity) == Some(&EntityKind::Player) {
+                    lives.remove(&entity);
+                }
+            },
+            ZoneEvent::TokensReconciled { .. }
+            | ZoneEvent::AttackResult { .. }
             | ZoneEvent::AttackStarted { .. }
             | ZoneEvent::AttackCancelled { .. }
             | ZoneEvent::HateChanged { .. }
@@ -372,8 +383,7 @@ fn facts(
             | ZoneEvent::LevelUp { .. }
             | ZoneEvent::TargetChanged { .. }
             | ZoneEvent::EntityMove { .. }
-            | ZoneEvent::Progression(_)
-            | ZoneEvent::EntityDespawn { .. } => {},
+            | ZoneEvent::Progression(_) => {},
         }
     }
 }
@@ -385,6 +395,59 @@ mod tests {
     use nightfall_api::domain::zone::{
         AppliedCommand, CommandSource, Disposition, Ordinal, RejectReason,
     };
+
+    #[test]
+    fn rejected_player_spawn_cannot_reclassify_an_npc_or_clear_its_life_on_decay() {
+        let rec = Recording::from_bytes(include_bytes!(
+            "../../../fixtures/sessions/two-players-fight-v2.nfr"
+        ))
+        .unwrap();
+        let spawn = rec.records.iter().flat_map(|r| decode_events(&r.events).unwrap()).find(|e| matches!(e, ZoneEvent::EntitySpawn { kind: EntityKind::Npc, combat: Some(c), .. } if c.incarnation == 2)).unwrap();
+        let entity = spawn.entity();
+        let mut record = rec.records[0].clone();
+        record.commands = vec![AppliedCommand {
+            ordinal: Ordinal(0),
+            source: CommandSource::System,
+            seq: None,
+            command: ZoneCommand::SpawnPlayer {
+                entity,
+                name: "refused".into(),
+                pos: nightfall_api::domain::zone::Vec2Fixed::default(),
+                speed: nightfall_api::domain::zone::Speed::DEFAULT,
+                generation: nightfall_api::domain::zone::SessionGeneration(1),
+                load: None,
+            },
+        }];
+        record.dispositions = vec![Disposition {
+            ordinal: Ordinal(0),
+            source: CommandSource::System,
+            seq: None,
+            tick_seen: record.tick,
+            reason: RejectReason::AlreadyExists,
+        }];
+        let mut report = Coverage::new();
+        let mut kinds = BTreeMap::from([(entity, EntityKind::Npc)]);
+        let mut lives = BTreeMap::from([(entity, 1)]);
+        commands(&mut report, &mut BTreeMap::new(), &mut kinds, &mut BTreeMap::new(), &record);
+        assert_eq!(kinds[&entity], EntityKind::Npc);
+        let respawn = rec.records.iter().flat_map(|r| decode_events(&r.events).unwrap()).find(|e| matches!(e, ZoneEvent::EntityRespawned { entity: id, incarnation: 2, .. } if *id == entity)).unwrap();
+        facts(
+            &mut report,
+            &mut lives,
+            &mut kinds,
+            vec![
+                ZoneEvent::EntityDespawn {
+                    tick: record.tick,
+                    entity,
+                },
+                spawn,
+                respawn,
+            ],
+        );
+        assert_eq!(lives[&entity], 2);
+        assert_eq!(report.life_incarnations, BTreeMap::from([("npc:1->2".into(), 1)]));
+        assert_eq!(report.respawns["npc"], 1);
+    }
 
     #[test]
     fn class_actor_commands_count_separately_from_public_facts_and_owner_stats() {

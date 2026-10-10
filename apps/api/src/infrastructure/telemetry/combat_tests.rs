@@ -544,3 +544,25 @@ fn class_success_counts_internal_fact_once_and_latency_labels_have_no_identity()
     assert!(!rendered.contains("PrivateHero"));
     assert!(!rendered.contains(&character.id.to_string()));
 }
+
+#[test]
+fn token_commit_metric_has_only_bounded_tier_and_source_labels() {
+    use crate::application::checkpoint::CheckpointMetrics;
+    use crate::domain::character_progression::TokenSource;
+    let metrics = Metrics::detached();
+    metrics.token_granted(1, TokenSource::Admission);
+    metrics.token_granted(2, TokenSource::LevelUp);
+    metrics.token_granted(3, TokenSource::Admission);
+    let text = metrics.render().unwrap();
+    let samples: Vec<_> = text
+        .lines()
+        .filter(|line| line.starts_with("nightfall_class_transfer_token_grants_total{"))
+        .collect();
+    assert_eq!(samples.len(), 2, "{text}");
+    assert!(samples.iter().any(|line| line.contains("tier=\"1\"")
+        && line.contains("source=\"admission\"")
+        && line.ends_with(" 1")));
+    assert!(samples.iter().any(|line| line.contains("tier=\"2\"")
+        && line.contains("source=\"level_up\"")
+        && line.ends_with(" 1")));
+}

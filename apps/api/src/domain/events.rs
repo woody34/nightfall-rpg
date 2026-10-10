@@ -59,6 +59,17 @@ pub enum DomainEvent {
         /// What dealt the killing blow, as an opaque id (monster template or character id).
         killer: String,
     },
+    /// Real token supply, committed atomically with its balance and once-ever claim.
+    CharacterTokenGranted {
+        /// Stable event identity and aggregate order.
+        metadata: EventMetadata,
+        /// Owning character.
+        character_id: CharacterId,
+        /// Tier one or two; exactly one token is added.
+        tier: u8,
+        /// Admission or a true upward crossing.
+        source: super::character_progression::TokenSource,
+    },
 }
 
 /// Deterministic progression event identity. Sequence orders checkpoints, then facts within
@@ -76,6 +87,7 @@ impl DomainEvent {
     #[must_use]
     pub const fn subject(&self) -> &'static str {
         match self {
+            DomainEvent::CharacterTokenGranted { .. } => "nightfall.character.token_granted",
             DomainEvent::CharacterCreated { .. } => "nightfall.character.created",
             DomainEvent::CharacterLeveled { .. } => "nightfall.character.leveled",
             DomainEvent::CharacterDied { .. } => "nightfall.character.died",

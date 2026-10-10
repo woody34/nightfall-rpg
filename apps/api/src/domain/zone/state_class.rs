@@ -78,8 +78,72 @@ impl ZoneState {
     pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Result<Self, SnapshotError> {
         self.meta.classes_rules_hash = Some(registry_hash(&classes)?);
         self.classes = Some(classes);
-        self.meta.digest_version = StateDigestVersion::BinaryV3;
+        self.meta.schema_version = 8;
+        self.meta.digest_version = StateDigestVersion::BinaryV4;
         Ok(self)
+    }
+
+    /// Enables approved once-ever token supply only on an empty new epoch.
+    /// Recovery must replay its old policy before bootstrap creates this boundary.
+    pub fn with_token_policy(mut self) -> Result<Self, SnapshotError> {
+        if self.classes.is_none() || self.next_tick != Tick(0) || !self.entities.is_empty() {
+            return Err(SnapshotError::CombatMismatch);
+        }
+        self.meta.schema_version = 8;
+        self.meta.digest_version = StateDigestVersion::BinaryV4;
+        Ok(self)
+    }
+
+    pub(super) fn reconcile_player_tokens(
+        &mut self,
+        tick: Tick,
+        entity: EntityId,
+        crossing_from: Option<u32>,
+        events: &mut Vec<ZoneEvent>,
+    ) {
+        if self.meta.digest_version != StateDigestVersion::BinaryV4 {
+            return;
+        }
+        let Some(registry) = self.classes.as_deref() else {
+            return;
+        };
+        let Some(combat) = self
+            .entities
+            .get_mut(&entity)
+            .and_then(|e| e.combat.as_mut())
+        else {
+            return;
+        };
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut combat.role
+        else {
+            return;
+        };
+        // The entire ledger was validated at admission/restore and every mutation preserves
+        // it. Validation here fails closed by retaining an unchanged ledger.
+        let Ok(adjustment) = p.class_state.reconcile_tokens(
+            registry,
+            &p.identity,
+            CharacterId::from_uuid(entity.as_uuid()),
+            combat.sheet.level(),
+            crossing_from,
+        ) else {
+            return;
+        };
+        if adjustment.claimed_mask != 0 {
+            events.push(ZoneEvent::TokensReconciled {
+                tick,
+                entity,
+                adjustment,
+                source: if crossing_from.is_some() {
+                    crate::domain::character_progression::TokenSource::LevelUp
+                } else {
+                    crate::domain::character_progression::TokenSource::Admission
+                },
+            });
+        }
     }
 
     pub(super) fn loaded_player(
@@ -525,6 +589,7 @@ mod tests {
         let mut class_state = ClassState::new(base);
         class_state.token_tier_1_count = 1;
         class_state.token_tier_2_count = 1;
+        class_state.milestone_claimed_mask = 3;
         let progression = PlayerProgression {
             identity: CharacterIdentity {
                 account_id: account,
@@ -718,7 +783,7 @@ mod tests {
             replay = ZoneState::from_snapshot(replay.snapshot()).unwrap();
             assert_eq!(s.state_digest(), replay.state_digest());
         }
-        assert_eq!(s.snapshot().meta.digest_version, StateDigestVersion::BinaryV3);
+        assert_eq!(s.snapshot().meta.digest_version, StateDigestVersion::BinaryV4);
     }
     #[test]
     fn restored_identity_and_receipts_cannot_cross_characters() {
@@ -870,6 +935,7 @@ mod tests {
             };
             p.class_state.token_tier_1_count = 0;
             p.class_state.token_tier_2_count = 0;
+            p.class_state.milestone_claimed_mask = 0;
             assert!(empty
                 .transfer_unmet(e, class.id)
                 .contains(&RejectReason::TransferRequirement));
@@ -979,9 +1045,13 @@ mod tests {
     }
 
     #[test]
-    fn human_keltir_reward_is_29_and_real_crossings_learn_metadata_without_token_grants() {
-        for level in [19, 39] {
+    fn human_keltir_real_crossings_supply_only_in_new_policy_and_learn_metadata() {
+        for (level, enabled) in [(19, false), (39, false), (19, true), (39, true)] {
             let (mut s, e, a) = fixture(level);
+            if !enabled {
+                s.meta.digest_version = StateDigestVersion::BinaryV3;
+                s.meta.schema_version = 7;
+            }
             let next_xp = s.rules.as_ref().unwrap().xp_to_level(level + 1).unwrap();
             let CombatRole::Player {
                 xp,
@@ -1001,6 +1071,7 @@ mod tests {
             *xp = next_xp - 29;
             p.class_state.token_tier_1_count = 0;
             p.class_state.token_tier_2_count = 0;
+            p.class_state.milestone_claimed_mask = 0;
             let zone = crate::infrastructure::zone_data::parse_zone(
                 crate::infrastructure::zone_data::TEST_ZONE_TOML,
             )
@@ -1060,9 +1131,30 @@ mod tests {
             assert_eq!(c.sheet.level(), level + 1);
             let p = s.class_player(e, a, SessionGeneration(1)).unwrap();
             assert!(!p.class_state.learned_skills.is_empty());
-            assert_eq!(p.class_state.token_tier_1_count, 0);
-            assert_eq!(p.class_state.token_tier_2_count, 0);
-            assert_eq!(p.class_state.milestone_claimed_mask, 0);
+            assert_eq!(p.class_state.token_tier_1_count, u32::from(enabled && level == 19));
+            assert_eq!(p.class_state.token_tier_2_count, u32::from(enabled && level == 39));
+            assert_eq!(
+                p.class_state.milestone_claimed_mask,
+                if enabled {
+                    if level == 19 {
+                        1
+                    } else {
+                        2
+                    }
+                } else {
+                    0
+                }
+            );
+            let before = p.class_state.clone();
+            for _ in 0..20 {
+                s.run_tick(s.draft(vec![])).unwrap();
+            }
+            assert_eq!(
+                s.class_player(e, a, SessionGeneration(1))
+                    .unwrap()
+                    .class_state,
+                before
+            );
         }
     }
     #[test]
@@ -1169,5 +1261,375 @@ mod tests {
         );
         assert!(reconnected.outputs[&owner].iter().any(|out| matches!(out,
             ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, identity: Some(public), .. }) if *entity == owner && public.class_id == ClassId(1))));
+    }
+    #[test]
+    fn token_admission_and_replay_preserve_vitals_and_legacy_bytes() {
+        use crate::application::replay_log::{decode_snapshot, encode_snapshot, AppliedTickRecord};
+        let (legacy, e, a) = fixture(40);
+        let p = legacy.class_player(e, a, SessionGeneration(1)).unwrap();
+        let mut ledger = p.class_state.clone();
+        ledger.token_tier_1_count = 0;
+        ledger.token_tier_2_count = 0;
+        ledger.milestone_claimed_mask = 0;
+        for (enabled, balance) in [(false, 0), (true, 0), (true, 7)] {
+            ledger.token_tier_1_count = balance;
+            ledger.token_tier_2_count = balance;
+            let mut state = ZoneState::new(legacy.seed(), legacy.bounds(), 0)
+                .with_rules(legacy.rules.clone().unwrap())
+                .with_classes(legacy.classes.clone().unwrap())
+                .unwrap();
+            if !enabled {
+                state.meta.digest_version = StateDigestVersion::BinaryV3;
+                state.meta.schema_version = 7;
+            }
+            let initial = state.snapshot();
+            let encoded = encode_snapshot(&initial).unwrap();
+            assert_eq!(encode_snapshot(&decode_snapshot(&encoded).unwrap()).unwrap(), encoded);
+            let mut replay = ZoneState::from_snapshot(decode_snapshot(&encoded).unwrap()).unwrap();
+            let load = PlayerLoad {
+                progression: Some(Box::new(PlayerProgression {
+                    identity: p.identity.clone(),
+                    class_state: ledger.clone(),
+                    max_cp: 0,
+                })),
+                checkpoint_revision: Some(0),
+                level: 40,
+                xp: state.rules.as_ref().unwrap().xp_to_level(40).unwrap(),
+                hp: Some(17),
+                mp: Some(9),
+                ..PlayerLoad::fresh("human_fighter")
+            };
+            let draft = state.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+                entity: e,
+                name: "Tester".into(),
+                pos: Vec2Fixed::from_tiles(126, 126),
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                load: Some(Box::new(load)),
+            })]);
+            let applied = state.run_tick(draft.clone()).unwrap();
+            let repeated = replay.run_tick(draft).unwrap();
+            let record = AppliedTickRecord::from_applied(state.seed().zone, &applied);
+            assert!(record
+                .reproduced_by(&AppliedTickRecord::from_applied(state.seed().zone, &repeated)));
+            assert_eq!(
+                record.encode(),
+                AppliedTickRecord::decode(&record.encode())
+                    .unwrap()
+                    .encode()
+            );
+            let combat = state.entities[&e].combat.as_ref().unwrap();
+            assert_eq!((combat.hp, combat.mp, combat.sheet.level()), (17, 9, 40));
+            let p = state.class_player(e, a, SessionGeneration(1)).unwrap();
+            assert_eq!(p.class_state.milestone_claimed_mask, if enabled { 3 } else { 0 });
+            assert_eq!(p.class_state.token_tier_1_count, balance.max(u32::from(enabled)));
+            assert_eq!(p.class_state.token_tier_2_count, balance.max(u32::from(enabled)));
+            let adjustments: Vec<_> = applied
+                .events
+                .iter()
+                .filter_map(|event| {
+                    if let ZoneEvent::TokensReconciled { adjustment, .. } = event {
+                        Some((adjustment.claimed_mask, adjustment.granted_mask))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            assert_eq!(
+                adjustments,
+                if enabled {
+                    vec![(3, if balance == 0 { 3 } else { 0 })]
+                } else {
+                    vec![]
+                }
+            );
+            assert!(applied
+                .outputs
+                .values()
+                .flatten()
+                .all(|o| !matches!(o, ObserverOutput::Event(ZoneEvent::TokensReconciled { .. }))));
+            let reconnected = apply(
+                &mut state,
+                ZoneInput::system(ZoneCommand::ReplaceSession {
+                    entity: e,
+                    generation: SessionGeneration(2),
+                }),
+            );
+            assert!(!reconnected
+                .events
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::TokensReconciled { .. })));
+        }
+    }
+    fn kill_token_npc(s: &mut ZoneState, e: EntityId, reward: u64) -> AppliedTick {
+        let zone = crate::infrastructure::zone_data::parse_zone(
+            crate::infrastructure::zone_data::TEST_ZONE_TOML,
+        )
+        .unwrap();
+        let mut npc =
+            NpcCombat::from_template(s.rules.as_ref().unwrap(), &zone.npc_templates[0]).unwrap();
+        npc.stats.max_hp = 1;
+        npc.xp_reward = reward;
+        let spawn = apply(
+            s,
+            ZoneInput::system(ZoneCommand::SpawnNpc {
+                name: "Tokenvictim".into(),
+                pos: s.entities[&e].pos,
+                speed: Speed::DEFAULT,
+                combat: Some(Box::new(npc)),
+            }),
+        );
+        let npc = spawn
+            .events
+            .iter()
+            .find_map(|event| {
+                if let ZoneEvent::EntitySpawn {
+                    entity,
+                    kind: EntityKind::Npc,
+                    ..
+                } = event
+                {
+                    Some(*entity)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        apply(
+            s,
+            ZoneInput::session(
+                e,
+                SessionGeneration(1),
+                100,
+                ZoneCommand::SetTarget {
+                    entity: e,
+                    target: Some(npc),
+                },
+            ),
+        );
+        let mut tick = apply(
+            s,
+            ZoneInput::session(e, SessionGeneration(1), 101, ZoneCommand::Attack { entity: e }),
+        );
+        for _ in 0..100 {
+            if tick
+                .events
+                .iter()
+                .any(|event| matches!(event, ZoneEvent::XpGained {entity,..} if *entity==e))
+            {
+                return tick;
+            }
+            tick = s.run_tick(s.draft(vec![])).unwrap();
+        }
+        panic!("seeded lethal impact never landed");
+    }
+
+    #[test]
+    fn combat_milestones_survive_actual_death_respawn_and_relevel_without_refill() {
+        // Independent source oracle: token-native-xp-learning-oracle.json, pinned L2J source.
+        for (level, initial, reward, after_kill, after_death, after_second, bit) in [
+            (19, 835_861, 10_235, 846_607, 832_278, 843_024, 1),
+            (39, 15_422_928, 62_751, 15_488_816, 15_400_965, 15_466_853, 2),
+        ] {
+            let (mut s, e, a) = fixture(level);
+            if let CombatRole::Player {
+                xp,
+                progression: Some(p),
+                ..
+            } = &mut s
+                .entities
+                .get_mut(&e)
+                .unwrap()
+                .combat
+                .as_mut()
+                .unwrap()
+                .role
+            {
+                *xp = initial;
+                p.class_state.token_tier_1_count = 0;
+                p.class_state.token_tier_2_count = 0;
+                p.class_state.milestone_claimed_mask = u8::from(level == 39);
+            }
+            let first = kill_token_npc(&mut s, e, reward);
+            assert!(first.events.iter().any(|event| matches!(event,
+                ZoneEvent::TokensReconciled {adjustment,..} if adjustment.granted_mask==bit)));
+            let xp_of = |s: &ZoneState| match s.entities[&e].combat.as_ref().unwrap().role {
+                CombatRole::Player { xp, .. } => xp,
+                CombatRole::Npc { .. } => panic!("player"),
+            };
+            assert_eq!(xp_of(&s), after_kill);
+            // Consume through the actual transfer command (at the Master, out of combat).
+            apply(
+                &mut s,
+                ZoneInput::session(
+                    e,
+                    SessionGeneration(1),
+                    102,
+                    ZoneCommand::StopAttack { entity: e },
+                ),
+            );
+            for _ in 0..20 {
+                s.run_tick(s.draft(vec![])).unwrap();
+            }
+            if level == 19 {
+                assert!(apply(&mut s, command(e, a, 44, 1)).dispositions.is_empty());
+            } else {
+                // Tier two pending on base profession: spending in a later transfer cannot refill it.
+                if let CombatRole::Player {
+                    progression: Some(p),
+                    ..
+                } = &mut s
+                    .entities
+                    .get_mut(&e)
+                    .unwrap()
+                    .combat
+                    .as_mut()
+                    .unwrap()
+                    .role
+                {
+                    p.class_state.token_tier_2_count = 0;
+                }
+            }
+            let receipts = serde_json::to_vec(
+                &s.class_player(e, a, SessionGeneration(1))
+                    .unwrap()
+                    .class_state
+                    .successful_transfer_receipts,
+            )
+            .unwrap();
+            let mut deaths = Vec::new();
+            s.kill(s.next_tick(), e, None, &mut deaths);
+            assert_eq!(xp_of(&s), after_death);
+            assert_eq!(s.entities[&e].combat.as_ref().unwrap().sheet.level(), level);
+            let respawn = apply(
+                &mut s,
+                ZoneInput::session(
+                    e,
+                    SessionGeneration(1),
+                    103,
+                    ZoneCommand::Respawn { entity: e },
+                ),
+            );
+            assert!(respawn.dispositions.is_empty());
+            assert_eq!(xp_of(&s), after_death);
+            let second = kill_token_npc(&mut s, e, reward);
+            assert_eq!(xp_of(&s), after_second);
+            assert!(!second
+                .events
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::TokensReconciled { .. })));
+            let p = s.class_player(e, a, SessionGeneration(1)).unwrap();
+            assert_eq!(
+                (p.class_state.token_tier_1_count, p.class_state.token_tier_2_count),
+                (0, 0)
+            );
+            assert_eq!(p.class_state.milestone_claimed_mask, if level == 19 { 1 } else { 3 });
+            assert_eq!(
+                serde_json::to_vec(&p.class_state.successful_transfer_receipts).unwrap(),
+                receipts
+            );
+        }
+    }
+
+    #[test]
+    fn one_combat_kill_crosses_both_milestones_and_repeated_kills_at_cap_do_not_refill() {
+        let (mut s, e, a) = fixture(19);
+        if let CombatRole::Player {
+            xp,
+            progression: Some(p),
+            ..
+        } = &mut s
+            .entities
+            .get_mut(&e)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        {
+            *xp = 835_861;
+            p.class_state.token_tier_1_count = 0;
+            p.class_state.token_tier_2_count = 0;
+            p.class_state.milestone_claimed_mask = 0;
+        }
+        let jump = kill_token_npc(&mut s, e, 13_892_446);
+        assert_eq!(jump.progression().next().unwrap().xp, 15_422_929);
+        assert_eq!(jump.progression().next().unwrap().levels_gained, (20..=40).collect::<Vec<_>>());
+        assert!(jump.events.iter().any(|event| matches!(event,ZoneEvent::TokensReconciled{adjustment,..} if adjustment.granted_mask==3)));
+        let cap = kill_token_npc(&mut s, e, u64::MAX);
+        assert_eq!(cap.progression().next().unwrap().level, 85);
+        assert!(!cap
+            .events
+            .iter()
+            .any(|event| matches!(event, ZoneEvent::TokensReconciled { .. })));
+        for _ in 0..2 {
+            let repeated = kill_token_npc(&mut s, e, u64::MAX);
+            assert!(!repeated
+                .events
+                .iter()
+                .any(|event| matches!(event, ZoneEvent::TokensReconciled { .. })));
+        }
+        let p = s.class_player(e, a, SessionGeneration(1)).unwrap();
+        assert_eq!(
+            (
+                p.class_state.milestone_claimed_mask,
+                p.class_state.token_tier_1_count,
+                p.class_state.token_tier_2_count
+            ),
+            (3, 1, 1)
+        );
+    }
+    #[test]
+    fn snapshot_schema_digest_and_catalogue_pairs_are_validated_at_every_boundary() {
+        let (state, _, _) = fixture(40);
+        let valid = state.snapshot();
+        for schema in 4..=8 {
+            for digest in [
+                StateDigestVersion::JsonV1,
+                StateDigestVersion::BinaryV2,
+                StateDigestVersion::BinaryV3,
+                StateDigestVersion::BinaryV4,
+            ] {
+                let mut candidate = valid.clone();
+                candidate.meta.schema_version = schema;
+                candidate.meta.digest_version = digest;
+                let accepted = matches!(
+                    (schema, digest),
+                    (7, StateDigestVersion::BinaryV3) | (8, StateDigestVersion::BinaryV4)
+                );
+                assert_eq!(ZoneState::from_snapshot(candidate.clone()).is_ok(), accepted);
+                assert_eq!(encode_snapshot(&candidate).is_ok(), accepted);
+                let raw = serde_json::to_vec(&candidate).unwrap();
+                assert_eq!(decode_snapshot(&raw).is_ok(), accepted);
+                if accepted {
+                    let bytes = encode_snapshot(&candidate).unwrap();
+                    assert_eq!(encode_snapshot(&decode_snapshot(&bytes).unwrap()).unwrap(), bytes);
+                    let mut wrong_envelope = bytes;
+                    wrong_envelope[6] = if schema == 7 { b'8' } else { b'7' };
+                    assert!(decode_snapshot(&wrong_envelope).is_err());
+                }
+            }
+        }
+        let legacy = ZoneState::new(state.seed(), state.bounds(), 0).snapshot();
+        for schema in 4..=8 {
+            for digest in [
+                StateDigestVersion::JsonV1,
+                StateDigestVersion::BinaryV2,
+                StateDigestVersion::BinaryV3,
+                StateDigestVersion::BinaryV4,
+            ] {
+                let mut candidate = legacy.clone();
+                candidate.meta.schema_version = schema;
+                candidate.meta.digest_version = digest;
+                let accepted = matches!(digest, StateDigestVersion::JsonV1)
+                    || schema >= 6 && digest == StateDigestVersion::BinaryV2;
+                assert_eq!(ZoneState::from_snapshot(candidate.clone()).is_ok(), accepted);
+                assert_eq!(encode_snapshot(&candidate).is_ok(), accepted);
+                assert_eq!(
+                    decode_snapshot(&serde_json::to_vec(&candidate).unwrap()).is_ok(),
+                    accepted
+                );
+            }
+        }
     }
 }

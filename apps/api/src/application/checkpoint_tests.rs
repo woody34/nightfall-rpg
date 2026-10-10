@@ -301,7 +301,9 @@ fn multiple_levels_and_death_keep_stable_ids_order_and_penalty() {
         .map(|e| match e {
             DomainEvent::CharacterLeveled { metadata, .. }
             | DomainEvent::CharacterDied { metadata, .. } => metadata,
-            DomainEvent::CharacterCreated { .. } | DomainEvent::CharacterClassChanged { .. } => {
+            DomainEvent::CharacterCreated { .. }
+            | DomainEvent::CharacterClassChanged { .. }
+            | DomainEvent::CharacterTokenGranted { .. } => {
                 unreachable!()
             },
         })

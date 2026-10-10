@@ -209,6 +209,10 @@ impl DurableTickGate {
 }
 
 impl TickGate for DurableTickGate {
+    fn durable(&self) -> bool {
+        true
+    }
+
     fn admit(&self, tick: &AppliedTick) -> impl Future<Output = Result<(), GateError>> + Send {
         self.append(tick)
     }

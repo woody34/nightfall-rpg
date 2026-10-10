@@ -160,7 +160,8 @@ impl TickTelemetry for CombatConsumer {
                         ],
                     );
                 },
-                ZoneEvent::ClassChanged { .. }
+                ZoneEvent::TokensReconciled { .. }
+                | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::AttackStarted { .. }
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
@@ -184,6 +185,21 @@ impl TickTelemetry for CombatConsumer {
 mod tests;
 
 impl crate::application::checkpoint::CheckpointMetrics for Metrics {
+    fn token_granted(&self, tier: u8, source: crate::domain::character_progression::TokenSource) {
+        use crate::domain::character_progression::TokenSource;
+        let tier = match tier {
+            1 => "1",
+            2 => "2",
+            _ => return,
+        };
+        let source = match source {
+            TokenSource::Admission => "admission",
+            TokenSource::LevelUp => "level_up",
+        };
+        self.class_transfer_token_grants_total
+            .add(1, &[KeyValue::new("tier", tier), KeyValue::new("source", source)]);
+    }
+
     fn failed(&self) {
         self.record_checkpoint_failure();
     }

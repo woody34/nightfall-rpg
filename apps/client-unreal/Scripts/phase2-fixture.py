@@ -11,12 +11,17 @@ import subprocess
 import sys
 import uuid
 from urllib.parse import unquote, urlsplit
+import importlib.util
+
+_tf_spec = importlib.util.spec_from_file_location('token_fixtures', Path(__file__).resolve().parent / 'token-fixtures.py')
+token_fixtures = importlib.util.module_from_spec(_tf_spec)
+_tf_spec.loader.exec_module(token_fixtures)
 
 REPO = Path(__file__).resolve().parents[3]
-PHASE2 = frozenset(('phase2-transfer', 'phase2-transfer-observer', 'phase2-transfer-missing-token'))
+PHASE2 = token_fixtures.PHASE2
 SUPPORTED = PHASE2 | {'default', 'phase1a-social-aggro', 'phase1a-late-entry'}
-OWNER = '01970000-0000-7000-8000-000000000020'
-OBSERVER = '01970000-0000-7000-8000-000000000040'
+OWNER = token_fixtures.OWNER
+OBSERVER = token_fixtures.OBSERVER
 
 
 def fixture(batch):
@@ -242,20 +247,41 @@ def provision(folder, batch):
     try:
         ports = [sock.getsockname()[1] for sock in reserved]
         pg, nats, http, grpc = ports
+        if selected in token_fixtures.TOKEN_CROSSING:
+            overlay_data = folder / 'data'
+            token_fixtures.create_overlay(overlay_data, selected, REPO)
+            zone_file = overlay_data / 'zones/test_zone.toml'
+            rules_dir = overlay_data
+        else:
+            zone_file = REPO / 'packages/data/zones/test_zone.toml'
+            rules_dir = REPO / 'packages/data'
         env = clean_env() | {
             'DATABASE_URL': f'postgres://nightfall:{password}@127.0.0.1:{pg}/{db}',
             'NATS_URL': f'nats://127.0.0.1:{nats}', 'HTTP_ADDR': f'127.0.0.1:{http}',
             'GRPC_ADDR': f'127.0.0.1:{grpc}', 'WS_PUBLIC_URL': f'ws://127.0.0.1:{http}/ws',
             'AUTH_DEV_TOKENS': '1', 'NIGHTFALL_PHASE2_FIXTURE': '1',
-            'ZONE_FILE': str(REPO / 'packages/data/zones/test_zone.toml'),
-            'RULES_DIR': str(REPO / 'packages/data')}
+            'ZONE_FILE': str(zone_file),
+            'RULES_DIR': str(rules_dir)}
         roles = {path.stem: {'account_id': observer if selected == 'phase2-transfer-observer' and path.stem.endswith('-b') else owner,
                             'character_id': OBSERVER if selected == 'phase2-transfer-observer' and path.stem.endswith('-b') else OWNER} for path in batch}
         role_token_files(folder, roles, owner)
         manifest = {'schema_version': 1, 'fixture': selected, 'project': project, 'database': db,
                     'ports': dict(postgres=pg, nats=nats, http=http, grpc=grpc), 'roles': roles,
                     'api_binary': api, 'migrate_binary': migrate, 'seeder': str(seeder),
-                    'sha256': {'api': digest(api), 'migrate': digest(migrate), 'seeder': digest(seeder)}}
+                    'data_sources': {'rules_dir': str(rules_dir), 'zone_file': str(zone_file),
+                                     'is_overlay': selected in token_fixtures.TOKEN_CROSSING},
+                    'sha256': {'api': digest(api), 'migrate': digest(migrate), 'seeder': digest(seeder),
+                               'zone': digest(zone_file)}}
+        if selected in token_fixtures.TOKEN_CROSSING:
+            manifest['sha256']['oracle_template'] = digest(overlay_data / 'npcs/token_oracle.toml')
+            manifest['sha256']['sentinel_template'] = digest(overlay_data / 'npcs/token_sentinel.toml')
+            oracle_manifest = token_fixtures.build_oracle_manifest(selected, rules_dir, zone_file, REPO)
+            manifest['oracle'] = oracle_manifest
+            (folder / 'oracle-manifest.json').write_text(json.dumps(oracle_manifest, indent=2) + '\n')
+        elif selected == 'phase2-token-backfill':
+            oracle_manifest = token_fixtures.build_oracle_manifest(selected, rules_dir, zone_file, REPO)
+            manifest['oracle'] = oracle_manifest
+            (folder / 'oracle-manifest.json').write_text(json.dumps(oracle_manifest, indent=2) + '\n')
         private_json(folder / 'state.json', manifest | {'env': env})
         private_json(folder / 'compose.json', compose_config(db, password, ports))
         (folder / 'empty.env').touch(mode=0o600)
@@ -281,21 +307,7 @@ def validate_seed(folder, selected, owner, observer):
     if not records:
         raise ValueError('seeder did not publish its fixture manifest')
     seed = records[-1]
-    missing = selected == 'phase2-transfer-missing-token'
-    expected_owner = {'account_id': owner, 'character_id': OWNER, 'level': 20 if missing else 40,
-                      'class_id': 0, 'sex': 'female', 'tokens': [0, 0] if missing else [1, 1],
-                      'milestone_claimed_mask': 1 if missing else 3}
-    if (seed.get('fixture_enabled') is not True or seed.get('dry_run') is not False
-            or seed.get('fixture') != selected or seed.get('owner') != expected_owner
-            or seed.get('position') != [126, 126]
-            or seed.get('transfers') != ([] if missing else [1, 2])):
-        raise ValueError('seeder manifest does not match the requested fixture pack')
-    if selected == 'phase2-transfer-observer':
-        if seed.get('observer') != {'account_id': observer, 'character_id': OBSERVER,
-                                    'level': 1, 'class_id': 0, 'sex': 'male'}:
-            raise ValueError('seeder manifest does not match observer role')
-    elif 'observer' in seed:
-        raise ValueError('solo fixture unexpectedly provisioned an observer')
+    token_fixtures.validate_seed_manifest(seed, selected, owner, observer)
     (folder / 'seed-manifest.json').write_text(json.dumps(seed, indent=2) + '\n')
 
 
