@@ -156,3 +156,45 @@ void UGameService::CallChangeClass(const FGrpcNightfallV1ChangeClassRequest& Req
 	InnerClient->OnChangeClassResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceChangeClassLambdaWrapper::OnResponse);
 	InnerClient->ChangeClass(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
 }
+
+void UGameService::CallListLearnableSkills(const FGrpcNightfallV1ListLearnableSkillsRequest& Request, FListLearnableSkillsResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceListLearnableSkillsLambdaWrapper* lambdaWrapper = NewObject<UGameServiceListLearnableSkillsLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitListLearnableSkills();
+	InnerClient->OnListLearnableSkillsResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceListLearnableSkillsLambdaWrapper::OnResponse);
+	InnerClient->ListLearnableSkills(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallLearnSkill(const FGrpcNightfallV1LearnSkillRequest& Request, FLearnSkillResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceLearnSkillLambdaWrapper* lambdaWrapper = NewObject<UGameServiceLearnSkillLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitLearnSkill();
+	InnerClient->OnLearnSkillResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceLearnSkillLambdaWrapper::OnResponse);
+	InnerClient->LearnSkill(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogRequest& Request, FGetSkillCatalogResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGetSkillCatalogLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGetSkillCatalogLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGetSkillCatalog();
+	InnerClient->OnGetSkillCatalogResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetSkillCatalogLambdaWrapper::OnResponse);
+	InnerClient->GetSkillCatalog(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}

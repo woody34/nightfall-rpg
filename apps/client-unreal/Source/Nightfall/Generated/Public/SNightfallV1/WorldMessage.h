@@ -21,6 +21,18 @@ enum class EGrpcNightfallV1RejectReason : uint8
     REJECT_REASON_OUT_OF_RANGE=10,
     REJECT_REASON_PROTECTED=11,
     REJECT_REASON_NOT_YET_IMPLEMENTED=12,
+    REJECT_REASON_SKILL_UNKNOWN=13,
+    REJECT_REASON_SKILL_NOT_LEARNED=14,
+    REJECT_REASON_SKILL_COOLDOWN=15,
+    REJECT_REASON_INSUFFICIENT_MP=16,
+    REJECT_REASON_INSUFFICIENT_HP=17,
+    REJECT_REASON_ALREADY_CASTING=18,
+    REJECT_REASON_INCAPACITATED=19,
+    REJECT_REASON_SILENCED=20,
+    REJECT_REASON_INVALID_TARGET_TYPE=21,
+    REJECT_REASON_PEACE_ZONE=22,
+    REJECT_REASON_WEAPON_CONDITION=23,
+    REJECT_REASON_NO_RESURRECT_OFFER=24,
 };
 
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.EntityKind", ScriptName="EGrpcNightfallV1EntityKind"))
@@ -52,6 +64,76 @@ enum class EGrpcNightfallV1SwingCancelReason : uint8
     SWING_CANCEL_REASON_ATTACKER_DIED=6,
 };
 
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.SkillResolutionKind", ScriptName="EGrpcNightfallV1SkillResolutionKind"))
+enum class EGrpcNightfallV1SkillResolutionKind : uint8
+{
+    SKILL_RESOLUTION_KIND_UNSPECIFIED=0,
+    SKILL_RESOLUTION_KIND_PHYSICAL=1,
+    SKILL_RESOLUTION_KIND_MAGICAL=2,
+    SKILL_RESOLUTION_KIND_EFFECT=3,
+    SKILL_RESOLUTION_KIND_HEAL=4,
+    SKILL_RESOLUTION_KIND_RESURRECTION=5,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.SkillOutcome", ScriptName="EGrpcNightfallV1SkillOutcome"))
+enum class EGrpcNightfallV1SkillOutcome : uint8
+{
+    SKILL_OUTCOME_UNSPECIFIED=0,
+    SKILL_OUTCOME_MISS=1,
+    SKILL_OUTCOME_HIT=2,
+    SKILL_OUTCOME_CRIT=3,
+    SKILL_OUTCOME_RESIST=4,
+    SKILL_OUTCOME_HALF=5,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.CastCancelReason", ScriptName="EGrpcNightfallV1CastCancelReason"))
+enum class EGrpcNightfallV1CastCancelReason : uint8
+{
+    CAST_CANCEL_REASON_UNSPECIFIED=0,
+    CAST_CANCEL_REASON_STOPPED=1,
+    CAST_CANCEL_REASON_MOVED=2,
+    CAST_CANCEL_REASON_DAMAGE=3,
+    CAST_CANCEL_REASON_INCAPACITATED=4,
+    CAST_CANCEL_REASON_TARGET_LOST=5,
+    CAST_CANCEL_REASON_OUT_OF_RANGE=6,
+    CAST_CANCEL_REASON_RESOURCES=7,
+    CAST_CANCEL_REASON_CASTER_DIED=8,
+    CAST_CANCEL_REASON_PEACE_ZONE=9,
+    CAST_CANCEL_REASON_TRANSFER=10,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.EffectPool", ScriptName="EGrpcNightfallV1EffectPool"))
+enum class EGrpcNightfallV1EffectPool : uint8
+{
+    EFFECT_POOL_UNSPECIFIED=0,
+    EFFECT_POOL_BUFF=1,
+    EFFECT_POOL_SONG_DANCE=2,
+    EFFECT_POOL_DEBUFF=3,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.EffectRemoveReason", ScriptName="EGrpcNightfallV1EffectRemoveReason"))
+enum class EGrpcNightfallV1EffectRemoveReason : uint8
+{
+    EFFECT_REMOVE_REASON_UNSPECIFIED=0,
+    EFFECT_REMOVE_REASON_EXPIRED=1,
+    EFFECT_REMOVE_REASON_REPLACED=2,
+    EFFECT_REMOVE_REASON_OVERFLOW=3,
+    EFFECT_REMOVE_REASON_DISPELLED=4,
+    EFFECT_REMOVE_REASON_DAMAGE=5,
+    EFFECT_REMOVE_REASON_DEATH=6,
+    EFFECT_REMOVE_REASON_TRANSFER=7,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ResurrectOfferState", ScriptName="EGrpcNightfallV1ResurrectOfferState"))
+enum class EGrpcNightfallV1ResurrectOfferState : uint8
+{
+    RESURRECT_OFFER_STATE_UNSPECIFIED=0,
+    RESURRECT_OFFER_STATE_OFFERED=1,
+    RESURRECT_OFFER_STATE_DECLINED=2,
+    RESURRECT_OFFER_STATE_EXPIRED=3,
+    RESURRECT_OFFER_STATE_ACCEPTED=4,
+};
+
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ClientMessage.Intent", ScriptName="EGrpcNightfallV1ClientMessageIntent"))
 enum class EGrpcNightfallV1ClientMessageIntent : uint8
 {
@@ -61,6 +143,23 @@ enum class EGrpcNightfallV1ClientMessageIntent : uint8
     Attack=3,
     StopAttack=4,
     Respawn=5,
+    CastSkill=6,
+    CancelCast=7,
+    AcceptResurrect=8,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.CastSkillRequest._target", ScriptName="EGrpcNightfallV1CastSkillRequest_target"))
+enum class EGrpcNightfallV1CastSkillRequest_target : uint8
+{
+    Target=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.CancelCastRequest._cast_id", ScriptName="EGrpcNightfallV1CancelCastRequest_cast_id"))
+enum class EGrpcNightfallV1CancelCastRequest_cast_id : uint8
+{
+    CastId=0,
+    NotSet=255,
 };
 
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ServerMessage.Payload", ScriptName="EGrpcNightfallV1ServerMessagePayload"))
@@ -87,6 +186,95 @@ enum class EGrpcNightfallV1WorldEventEvent : uint8
     AttackStarted=10,
     AttackCancelled=11,
     ClassChanged=12,
+    SkillCastStarted=13,
+    SkillCastResult=14,
+    SkillCastCancelled=15,
+    EffectApplied=16,
+    EffectRemoved=17,
+    SkillReuse=18,
+    SkillLearned=19,
+    PvpStateChanged=20,
+    ResurrectOffer=21,
+    SpGained=22,
+    SkillStateSync=23,
+    VitalsChanged=24,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.AttackStarted._attacker_incarnation", ScriptName="EGrpcNightfallV1AttackStarted_attacker_incarnation"))
+enum class EGrpcNightfallV1AttackStarted_attacker_incarnation : uint8
+{
+    AttackerIncarnation=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.TargetChanged._target_incarnation", ScriptName="EGrpcNightfallV1TargetChanged_target_incarnation"))
+enum class EGrpcNightfallV1TargetChanged_target_incarnation : uint8
+{
+    TargetIncarnation=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ActiveEffect._caster", ScriptName="EGrpcNightfallV1ActiveEffect_caster"))
+enum class EGrpcNightfallV1ActiveEffect_caster : uint8
+{
+    Caster=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ActiveEffect._caster_incarnation", ScriptName="EGrpcNightfallV1ActiveEffect_caster_incarnation"))
+enum class EGrpcNightfallV1ActiveEffect_caster_incarnation : uint8
+{
+    CasterIncarnation=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastStarted._target", ScriptName="EGrpcNightfallV1SkillCastStarted_target"))
+enum class EGrpcNightfallV1SkillCastStarted_target : uint8
+{
+    Target=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastStarted._target_incarnation", ScriptName="EGrpcNightfallV1SkillCastStarted_target_incarnation"))
+enum class EGrpcNightfallV1SkillCastStarted_target_incarnation : uint8
+{
+    TargetIncarnation=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastResult._effect_id", ScriptName="EGrpcNightfallV1SkillCastResult_effect_id"))
+enum class EGrpcNightfallV1SkillCastResult_effect_id : uint8
+{
+    EffectId=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.EffectApplied._caster", ScriptName="EGrpcNightfallV1EffectApplied_caster"))
+enum class EGrpcNightfallV1EffectApplied_caster : uint8
+{
+    Caster=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.EffectApplied._caster_incarnation", ScriptName="EGrpcNightfallV1EffectApplied_caster_incarnation"))
+enum class EGrpcNightfallV1EffectApplied_caster_incarnation : uint8
+{
+    CasterIncarnation=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ResurrectOffer._caster", ScriptName="EGrpcNightfallV1ResurrectOffer_caster"))
+enum class EGrpcNightfallV1ResurrectOffer_caster : uint8
+{
+    Caster=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ResurrectOffer._caster_incarnation", ScriptName="EGrpcNightfallV1ResurrectOffer_caster_incarnation"))
+enum class EGrpcNightfallV1ResurrectOffer_caster_incarnation : uint8
+{
+    CasterIncarnation=0,
+    NotSet=255,
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClientMessage.Intent",
@@ -110,6 +298,12 @@ struct FGrpcNightfallV1ClientMessageIntent : public FGrpcMessage
     TSharedPtr<FGrpcNightfallV1StopAttackRequest> StopAttack;
 
     TSharedPtr<FGrpcNightfallV1RespawnRequest> Respawn;
+
+    TSharedPtr<FGrpcNightfallV1CastSkillRequest> CastSkill;
+
+    TSharedPtr<FGrpcNightfallV1CancelCastRequest> CancelCast;
+
+    TSharedPtr<FGrpcNightfallV1AcceptResurrectRequest> AcceptResurrect;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClientMessage"))
@@ -171,6 +365,70 @@ struct FGrpcNightfallV1RespawnRequest : public FGrpcMessage
 {
     GENERATED_BODY()
     DECLARE_JSON_FUNCTIONS()
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.CastSkillRequest._target",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1CastSkillRequest_targetHelperLibrary.Make_target",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1CastSkillRequest_targetHelperLibrary.Break_target"))
+struct FGrpcNightfallV1CastSkillRequest_target : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1CastSkillRequest_target _targetCase = EGrpcNightfallV1CastSkillRequest_target::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Target = "";
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.CastSkillRequest"))
+struct FGrpcNightfallV1CastSkillRequest : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1CastSkillRequest_target _target;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.CancelCastRequest._cast_id",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1CancelCastRequest_cast_idHelperLibrary.Make_cast_id",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1CancelCastRequest_cast_idHelperLibrary.Break_cast_id"))
+struct FGrpcNightfallV1CancelCastRequest_cast_id : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1CancelCastRequest_cast_id _cast_idCase = EGrpcNightfallV1CancelCastRequest_cast_id::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 CastId = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.CancelCastRequest"))
+struct FGrpcNightfallV1CancelCastRequest : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1CancelCastRequest_cast_id _cast_id;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.AcceptResurrectRequest"))
+struct FGrpcNightfallV1AcceptResurrectRequest : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 OfferId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Accept = false;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ServerMessage.Payload",
@@ -264,6 +522,30 @@ struct FGrpcNightfallV1WorldEventEvent : public FGrpcMessage
     TSharedPtr<FGrpcNightfallV1AttackCancelled> AttackCancelled;
 
     TSharedPtr<FGrpcNightfallV1ClassChanged> ClassChanged;
+
+    TSharedPtr<FGrpcNightfallV1SkillCastStarted> SkillCastStarted;
+
+    TSharedPtr<FGrpcNightfallV1SkillCastResult> SkillCastResult;
+
+    TSharedPtr<FGrpcNightfallV1SkillCastCancelled> SkillCastCancelled;
+
+    TSharedPtr<FGrpcNightfallV1EffectApplied> EffectApplied;
+
+    TSharedPtr<FGrpcNightfallV1EffectRemoved> EffectRemoved;
+
+    TSharedPtr<FGrpcNightfallV1SkillReuse> SkillReuse;
+
+    TSharedPtr<FGrpcNightfallV1SkillLearned> SkillLearned;
+
+    TSharedPtr<FGrpcNightfallV1PvpStateChanged> PvpStateChanged;
+
+    TSharedPtr<FGrpcNightfallV1ResurrectOffer> ResurrectOffer;
+
+    TSharedPtr<FGrpcNightfallV1SpGained> SpGained;
+
+    TSharedPtr<FGrpcNightfallV1SkillStateSync> SkillStateSync;
+
+    TSharedPtr<FGrpcNightfallV1VitalsChanged> VitalsChanged;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.WorldEvent"))
@@ -345,6 +627,25 @@ struct FGrpcNightfallV1EntitySpawn : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt64 StateTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 FlagUntilTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Karma = 0;
+
+    TArray<TSharedPtr<FGrpcNightfallV1ActiveEffect>> ActiveEffects;
+
+    TSharedPtr<FGrpcNightfallV1SkillCastStarted> PendingCast;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PkCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PvpCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 StatusFlags = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EntityMove"))
@@ -408,6 +709,9 @@ struct FGrpcNightfallV1AttackResult : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 TargetIncarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CpDamage = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EntityDied"))
@@ -427,6 +731,20 @@ struct FGrpcNightfallV1EntityDied : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 Incarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.AttackStarted._attacker_incarnation",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1AttackStarted_attacker_incarnationHelperLibrary.Make_attacker_incarnation",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1AttackStarted_attacker_incarnationHelperLibrary.Break_attacker_incarnation"))
+struct FGrpcNightfallV1AttackStarted_attacker_incarnation : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1AttackStarted_attacker_incarnation _attacker_incarnationCase = EGrpcNightfallV1AttackStarted_attacker_incarnation::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 AttackerIncarnation = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.AttackStarted"))
@@ -452,6 +770,15 @@ struct FGrpcNightfallV1AttackStarted : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 TargetIncarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1AttackStarted_attacker_incarnation _attacker_incarnation;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.AttackCancelled"))
@@ -542,6 +869,33 @@ struct FGrpcNightfallV1StatsChanged : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Karma = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PkCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PvpCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 FlagUntilTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 DeathPenaltyLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1EffectiveStats EffectiveStats;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Incarnation = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.XpGained"))
@@ -573,6 +927,20 @@ struct FGrpcNightfallV1LevelUp : public FGrpcMessage
     FUInt32 Level = 0;
 };
 
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.TargetChanged._target_incarnation",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1TargetChanged_target_incarnationHelperLibrary.Make_target_incarnation",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1TargetChanged_target_incarnationHelperLibrary.Break_target_incarnation"))
+struct FGrpcNightfallV1TargetChanged_target_incarnation : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1TargetChanged_target_incarnation _target_incarnationCase = EGrpcNightfallV1TargetChanged_target_incarnation::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetIncarnation = 0;
+};
+
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.TargetChanged"))
 struct FGrpcNightfallV1TargetChanged : public FGrpcMessage
 {
@@ -584,6 +952,18 @@ struct FGrpcNightfallV1TargetChanged : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FString Target = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1TargetChanged_target_incarnation _target_incarnation;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClassChanged"))
@@ -605,6 +985,625 @@ struct FGrpcNightfallV1ClassChanged : public FGrpcMessage
     FUInt32 SessionGeneration = 0;
 };
 
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ActiveEffect._caster",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1ActiveEffect_casterHelperLibrary.Make_caster",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1ActiveEffect_casterHelperLibrary.Break_caster"))
+struct FGrpcNightfallV1ActiveEffect_caster : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1ActiveEffect_caster _casterCase = EGrpcNightfallV1ActiveEffect_caster::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Caster = "";
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ActiveEffect._caster_incarnation",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1ActiveEffect_caster_incarnationHelperLibrary.Make_caster_incarnation",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1ActiveEffect_caster_incarnationHelperLibrary.Break_caster_incarnation"))
+struct FGrpcNightfallV1ActiveEffect_caster_incarnation : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1ActiveEffect_caster_incarnation _caster_incarnationCase = EGrpcNightfallV1ActiveEffect_caster_incarnation::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CasterIncarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ActiveEffect"))
+struct FGrpcNightfallV1ActiveEffect : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 RemainingTicks = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool IsDebuff = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ActiveEffect_caster _caster;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 EffectId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ActiveEffect_caster_incarnation _caster_incarnation;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetIncarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastStarted._target",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1SkillCastStarted_targetHelperLibrary.Make_target",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1SkillCastStarted_targetHelperLibrary.Break_target"))
+struct FGrpcNightfallV1SkillCastStarted_target : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1SkillCastStarted_target _targetCase = EGrpcNightfallV1SkillCastStarted_target::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Target = "";
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastStarted._target_incarnation",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1SkillCastStarted_target_incarnationHelperLibrary.Make_target_incarnation",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1SkillCastStarted_target_incarnationHelperLibrary.Break_target_incarnation"))
+struct FGrpcNightfallV1SkillCastStarted_target_incarnation : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1SkillCastStarted_target_incarnation _target_incarnationCase = EGrpcNightfallV1SkillCastStarted_target_incarnation::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetIncarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastStarted"))
+struct FGrpcNightfallV1SkillCastStarted : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Caster = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1SkillCastStarted_target _target;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 CastId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 CompleteTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CasterIncarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1SkillCastStarted_target_incarnation _target_incarnation;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 LaunchTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 StartTick = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillTargetResult"))
+struct FGrpcNightfallV1SkillTargetResult : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Target = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetIncarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1SkillResolutionKind ResolutionKind = static_cast<EGrpcNightfallV1SkillResolutionKind>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Rolled = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CpAbsorbed = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HpRemoved = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Heal = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1SkillOutcome Outcome = static_cast<EGrpcNightfallV1SkillOutcome>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetHpAfter = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt64> AppliedEffectIds;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastResult._effect_id",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1SkillCastResult_effect_idHelperLibrary.Make_effect_id",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1SkillCastResult_effect_idHelperLibrary.Break_effect_id"))
+struct FGrpcNightfallV1SkillCastResult_effect_id : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1SkillCastResult_effect_id _effect_idCase = EGrpcNightfallV1SkillCastResult_effect_id::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 EffectId = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastResult"))
+struct FGrpcNightfallV1SkillCastResult : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Caster = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CasterIncarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 CastId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1SkillTargetResult> Targets;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1SkillCastResult_effect_id _effect_id;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillCastCancelled"))
+struct FGrpcNightfallV1SkillCastCancelled : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Caster = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 CastId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1CastCancelReason Reason = static_cast<EGrpcNightfallV1CastCancelReason>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CasterIncarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EffectApplied._caster",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1EffectApplied_casterHelperLibrary.Make_caster",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1EffectApplied_casterHelperLibrary.Break_caster"))
+struct FGrpcNightfallV1EffectApplied_caster : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1EffectApplied_caster _casterCase = EGrpcNightfallV1EffectApplied_caster::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Caster = "";
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EffectApplied._caster_incarnation",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1EffectApplied_caster_incarnationHelperLibrary.Make_caster_incarnation",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1EffectApplied_caster_incarnationHelperLibrary.Break_caster_incarnation"))
+struct FGrpcNightfallV1EffectApplied_caster_incarnation : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1EffectApplied_caster_incarnation _caster_incarnationCase = EGrpcNightfallV1EffectApplied_caster_incarnation::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CasterIncarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EffectApplied"))
+struct FGrpcNightfallV1EffectApplied : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Target = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetIncarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1EffectApplied_caster _caster;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1EffectApplied_caster_incarnation _caster_incarnation;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 EffectId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1EffectPool Pool = static_cast<EGrpcNightfallV1EffectPool>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 EndTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString AbnormalType = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 AbnormalLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 StatusFlags = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 AppliedTick = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EffectRemoved"))
+struct FGrpcNightfallV1EffectRemoved : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Target = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetIncarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 EffectId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1EffectRemoveReason Reason = static_cast<EGrpcNightfallV1EffectRemoveReason>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillReuse"))
+struct FGrpcNightfallV1SkillReuse : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Entity = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 ReadyTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Incarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillLearned"))
+struct FGrpcNightfallV1SkillLearned : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Entity = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 SpCost = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 SpRemaining = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString IdempotencyKey = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Incarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.PvpStateChanged"))
+struct FGrpcNightfallV1PvpStateChanged : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Entity = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 FlagUntilTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Karma = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PkCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PvpCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Incarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ResurrectOffer._caster",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1ResurrectOffer_casterHelperLibrary.Make_caster",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1ResurrectOffer_casterHelperLibrary.Break_caster"))
+struct FGrpcNightfallV1ResurrectOffer_caster : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1ResurrectOffer_caster _casterCase = EGrpcNightfallV1ResurrectOffer_caster::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Caster = "";
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ResurrectOffer._caster_incarnation",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1ResurrectOffer_caster_incarnationHelperLibrary.Make_caster_incarnation",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1ResurrectOffer_caster_incarnationHelperLibrary.Break_caster_incarnation"))
+struct FGrpcNightfallV1ResurrectOffer_caster_incarnation : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1ResurrectOffer_caster_incarnation _caster_incarnationCase = EGrpcNightfallV1ResurrectOffer_caster_incarnation::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CasterIncarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ResurrectOffer"))
+struct FGrpcNightfallV1ResurrectOffer : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Target = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetIncarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 OfferId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ResurrectOffer_caster _caster;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ResurrectOffer_caster_incarnation _caster_incarnation;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    int64 RestorePercentQ = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 RecoverableXp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 ExpiryTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1ResurrectOfferState State = static_cast<EGrpcNightfallV1ResurrectOfferState>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SpGained"))
+struct FGrpcNightfallV1SpGained : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Entity = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Amount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Total = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Incarnation = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.LearnedSkillRank"))
+struct FGrpcNightfallV1LearnedSkillRank : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillLevel = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillReuseState"))
+struct FGrpcNightfallV1SkillReuseState : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 ReadyTick = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillStateSync"))
+struct FGrpcNightfallV1SkillStateSync : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Entity = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1LearnedSkillRank> Learned;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1SkillReuseState> Reuse;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Sp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Karma = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PkCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PvpCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 FlagUntilTick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 DeathPenaltyLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Incarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.VitalsChanged"))
+struct FGrpcNightfallV1VitalsChanged : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Entity = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Hp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 MaxHp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Incarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
+};
+
 UCLASS()
 class UGrpcNightfallV1ClientMessageIntentHelperLibrary : public UBlueprintFunctionLibrary
 {
@@ -613,13 +1612,47 @@ public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
     static FGrpcNightfallV1ClientMessageIntent MakeIntent(EGrpcNightfallV1ClientMessageIntent IntentCase,
         FGrpcNightfallV1MoveToRequest MoveTo, FGrpcNightfallV1StopMoveRequest StopMove, FGrpcNightfallV1SetTargetRequest SetTarget,
-        FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn
+        FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn,
+        FGrpcNightfallV1CastSkillRequest CastSkill, FGrpcNightfallV1CancelCastRequest CancelCast, FGrpcNightfallV1AcceptResurrectRequest AcceptResurrect
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
     static void BreakIntent(const FGrpcNightfallV1ClientMessageIntent& Intent, EGrpcNightfallV1ClientMessageIntent& IntentCase,
         FGrpcNightfallV1MoveToRequest& MoveTo, FGrpcNightfallV1StopMoveRequest& StopMove, FGrpcNightfallV1SetTargetRequest& SetTarget,
-        FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn
+        FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn,
+        FGrpcNightfallV1CastSkillRequest& CastSkill, FGrpcNightfallV1CancelCastRequest& CancelCast, FGrpcNightfallV1AcceptResurrectRequest& AcceptResurrect
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1CastSkillRequest_targetHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1CastSkillRequest_target Make_target(EGrpcNightfallV1CastSkillRequest_target _targetCase,
+        FString Target
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_target(const FGrpcNightfallV1CastSkillRequest_target& _target, EGrpcNightfallV1CastSkillRequest_target& _targetCase,
+        FString& Target
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1CancelCastRequest_cast_idHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1CancelCastRequest_cast_id Make_cast_id(EGrpcNightfallV1CancelCastRequest_cast_id _cast_idCase,
+        FUInt64 CastId
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_cast_id(const FGrpcNightfallV1CancelCastRequest_cast_id& _cast_id, EGrpcNightfallV1CancelCastRequest_cast_id& _cast_idCase,
+        FUInt64& CastId
     );
 };
 
@@ -650,7 +1683,11 @@ public:
         FGrpcNightfallV1AttackResult AttackResult, FGrpcNightfallV1EntityDied EntityDied, FGrpcNightfallV1EntityRespawned EntityRespawned,
         FGrpcNightfallV1StatsChanged StatsChanged, FGrpcNightfallV1XpGained XpGained, FGrpcNightfallV1LevelUp LevelUp,
         FGrpcNightfallV1TargetChanged TargetChanged, FGrpcNightfallV1AttackStarted AttackStarted, FGrpcNightfallV1AttackCancelled AttackCancelled,
-        FGrpcNightfallV1ClassChanged ClassChanged
+        FGrpcNightfallV1ClassChanged ClassChanged, FGrpcNightfallV1SkillCastStarted SkillCastStarted, FGrpcNightfallV1SkillCastResult SkillCastResult,
+        FGrpcNightfallV1SkillCastCancelled SkillCastCancelled, FGrpcNightfallV1EffectApplied EffectApplied, FGrpcNightfallV1EffectRemoved EffectRemoved,
+        FGrpcNightfallV1SkillReuse SkillReuse, FGrpcNightfallV1SkillLearned SkillLearned, FGrpcNightfallV1PvpStateChanged PvpStateChanged,
+        FGrpcNightfallV1ResurrectOffer ResurrectOffer, FGrpcNightfallV1SpGained SpGained, FGrpcNightfallV1SkillStateSync SkillStateSync,
+        FGrpcNightfallV1VitalsChanged VitalsChanged
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
@@ -659,7 +1696,11 @@ public:
         FGrpcNightfallV1AttackResult& AttackResult, FGrpcNightfallV1EntityDied& EntityDied, FGrpcNightfallV1EntityRespawned& EntityRespawned,
         FGrpcNightfallV1StatsChanged& StatsChanged, FGrpcNightfallV1XpGained& XpGained, FGrpcNightfallV1LevelUp& LevelUp,
         FGrpcNightfallV1TargetChanged& TargetChanged, FGrpcNightfallV1AttackStarted& AttackStarted, FGrpcNightfallV1AttackCancelled& AttackCancelled,
-        FGrpcNightfallV1ClassChanged& ClassChanged
+        FGrpcNightfallV1ClassChanged& ClassChanged, FGrpcNightfallV1SkillCastStarted& SkillCastStarted, FGrpcNightfallV1SkillCastResult& SkillCastResult,
+        FGrpcNightfallV1SkillCastCancelled& SkillCastCancelled, FGrpcNightfallV1EffectApplied& EffectApplied, FGrpcNightfallV1EffectRemoved& EffectRemoved,
+        FGrpcNightfallV1SkillReuse& SkillReuse, FGrpcNightfallV1SkillLearned& SkillLearned, FGrpcNightfallV1PvpStateChanged& PvpStateChanged,
+        FGrpcNightfallV1ResurrectOffer& ResurrectOffer, FGrpcNightfallV1SpGained& SpGained, FGrpcNightfallV1SkillStateSync& SkillStateSync,
+        FGrpcNightfallV1VitalsChanged& VitalsChanged
     );
 };
 
@@ -676,7 +1717,10 @@ public:
         bool Attackable, FUInt32 Hp, FUInt32 MaxHp,
         FUInt32 Level, FGrpcNightfallV1AttackStarted PendingSwing, EGrpcNightfallV1Race Race,
         FUInt32 ClassId, EGrpcNightfallV1Sex Sex, FUInt32 HairStyle,
-        FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick
+        FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick,
+        FUInt64 FlagUntilTick, FUInt32 Karma, TArray<FGrpcNightfallV1ActiveEffect> ActiveEffects,
+        FGrpcNightfallV1SkillCastStarted PendingCast, FUInt32 PkCount, FUInt32 PvpCount,
+        FUInt64 StatusFlags
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
@@ -687,6 +1731,185 @@ public:
         bool& Attackable, FUInt32& Hp, FUInt32& MaxHp,
         FUInt32& Level, FGrpcNightfallV1AttackStarted& PendingSwing, EGrpcNightfallV1Race& Race,
         FUInt32& ClassId, EGrpcNightfallV1Sex& Sex, FUInt32& HairStyle,
-        FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick
+        FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick,
+        FUInt64& FlagUntilTick, FUInt32& Karma, TArray<FGrpcNightfallV1ActiveEffect>& ActiveEffects,
+        FGrpcNightfallV1SkillCastStarted& PendingCast, FUInt32& PkCount, FUInt32& PvpCount,
+        FUInt64& StatusFlags
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1AttackStarted_attacker_incarnationHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1AttackStarted_attacker_incarnation Make_attacker_incarnation(EGrpcNightfallV1AttackStarted_attacker_incarnation _attacker_incarnationCase,
+        FUInt32 AttackerIncarnation
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_attacker_incarnation(const FGrpcNightfallV1AttackStarted_attacker_incarnation& _attacker_incarnation, EGrpcNightfallV1AttackStarted_attacker_incarnation& _attacker_incarnationCase,
+        FUInt32& AttackerIncarnation
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1TargetChanged_target_incarnationHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1TargetChanged_target_incarnation Make_target_incarnation(EGrpcNightfallV1TargetChanged_target_incarnation _target_incarnationCase,
+        FUInt32 TargetIncarnation
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_target_incarnation(const FGrpcNightfallV1TargetChanged_target_incarnation& _target_incarnation, EGrpcNightfallV1TargetChanged_target_incarnation& _target_incarnationCase,
+        FUInt32& TargetIncarnation
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1ActiveEffect_casterHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1ActiveEffect_caster Make_caster(EGrpcNightfallV1ActiveEffect_caster _casterCase,
+        FString Caster
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_caster(const FGrpcNightfallV1ActiveEffect_caster& _caster, EGrpcNightfallV1ActiveEffect_caster& _casterCase,
+        FString& Caster
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1ActiveEffect_caster_incarnationHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1ActiveEffect_caster_incarnation Make_caster_incarnation(EGrpcNightfallV1ActiveEffect_caster_incarnation _caster_incarnationCase,
+        FUInt32 CasterIncarnation
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_caster_incarnation(const FGrpcNightfallV1ActiveEffect_caster_incarnation& _caster_incarnation, EGrpcNightfallV1ActiveEffect_caster_incarnation& _caster_incarnationCase,
+        FUInt32& CasterIncarnation
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1SkillCastStarted_targetHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1SkillCastStarted_target Make_target(EGrpcNightfallV1SkillCastStarted_target _targetCase,
+        FString Target
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_target(const FGrpcNightfallV1SkillCastStarted_target& _target, EGrpcNightfallV1SkillCastStarted_target& _targetCase,
+        FString& Target
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1SkillCastStarted_target_incarnationHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1SkillCastStarted_target_incarnation Make_target_incarnation(EGrpcNightfallV1SkillCastStarted_target_incarnation _target_incarnationCase,
+        FUInt32 TargetIncarnation
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_target_incarnation(const FGrpcNightfallV1SkillCastStarted_target_incarnation& _target_incarnation, EGrpcNightfallV1SkillCastStarted_target_incarnation& _target_incarnationCase,
+        FUInt32& TargetIncarnation
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1SkillCastResult_effect_idHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1SkillCastResult_effect_id Make_effect_id(EGrpcNightfallV1SkillCastResult_effect_id _effect_idCase,
+        FUInt64 EffectId
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_effect_id(const FGrpcNightfallV1SkillCastResult_effect_id& _effect_id, EGrpcNightfallV1SkillCastResult_effect_id& _effect_idCase,
+        FUInt64& EffectId
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1EffectApplied_casterHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1EffectApplied_caster Make_caster(EGrpcNightfallV1EffectApplied_caster _casterCase,
+        FString Caster
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_caster(const FGrpcNightfallV1EffectApplied_caster& _caster, EGrpcNightfallV1EffectApplied_caster& _casterCase,
+        FString& Caster
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1EffectApplied_caster_incarnationHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1EffectApplied_caster_incarnation Make_caster_incarnation(EGrpcNightfallV1EffectApplied_caster_incarnation _caster_incarnationCase,
+        FUInt32 CasterIncarnation
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_caster_incarnation(const FGrpcNightfallV1EffectApplied_caster_incarnation& _caster_incarnation, EGrpcNightfallV1EffectApplied_caster_incarnation& _caster_incarnationCase,
+        FUInt32& CasterIncarnation
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1ResurrectOffer_casterHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1ResurrectOffer_caster Make_caster(EGrpcNightfallV1ResurrectOffer_caster _casterCase,
+        FString Caster
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_caster(const FGrpcNightfallV1ResurrectOffer_caster& _caster, EGrpcNightfallV1ResurrectOffer_caster& _casterCase,
+        FString& Caster
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1ResurrectOffer_caster_incarnationHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1ResurrectOffer_caster_incarnation Make_caster_incarnation(EGrpcNightfallV1ResurrectOffer_caster_incarnation _caster_incarnationCase,
+        FUInt32 CasterIncarnation
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_caster_incarnation(const FGrpcNightfallV1ResurrectOffer_caster_incarnation& _caster_incarnation, EGrpcNightfallV1ResurrectOffer_caster_incarnation& _caster_incarnationCase,
+        FUInt32& CasterIncarnation
     );
 };

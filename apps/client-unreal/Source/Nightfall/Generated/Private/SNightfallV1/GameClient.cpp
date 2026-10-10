@@ -229,6 +229,102 @@ void UGameServiceClient::ChangeClass(FGrpcContextHandle Handle, const FGrpcNight
 	}
 }
 
+FGrpcContextHandle UGameServiceClient::InitListLearnableSkills()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_ListLearnableSkills>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::ListLearnableSkills(FGrpcContextHandle Handle, const FGrpcNightfallV1ListLearnableSkillsRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextListLearnableSkills = StaticCastSharedPtr<GrpcContext_GameService_ListLearnableSkills>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextListLearnableSkills->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextListLearnableSkills->RpcContext->set_deadline(deadLine);
+		}
+		contextListLearnableSkills->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitLearnSkill()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_LearnSkill>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::LearnSkill(FGrpcContextHandle Handle, const FGrpcNightfallV1LearnSkillRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextLearnSkill = StaticCastSharedPtr<GrpcContext_GameService_LearnSkill>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextLearnSkill->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextLearnSkill->RpcContext->set_deadline(deadLine);
+		}
+		contextLearnSkill->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitGetSkillCatalog()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GetSkillCatalog>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GetSkillCatalog(FGrpcContextHandle Handle, const FGrpcNightfallV1GetSkillCatalogRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGetSkillCatalog = StaticCastSharedPtr<GrpcContext_GameService_GetSkillCatalog>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGetSkillCatalog->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGetSkillCatalog->RpcContext->set_deadline(deadLine);
+		}
+		contextGetSkillCatalog->Call(Request);
+	}
+}
+
 void UGameServiceClient::TryCancel(FGrpcContextHandle Handle)
 {
 	auto context = UGrpcClient::GetContext(Handle);
@@ -247,6 +343,9 @@ void UGameServiceClient::Shutdown()
 	OnListClassesResponse.Clear();
 	OnTransferOptionsResponse.Clear();
 	OnChangeClassResponse.Clear();
+	OnListLearnableSkillsResponse.Clear();
+	OnLearnSkillResponse.Clear();
+	OnGetSkillCatalogResponse.Clear();
 	Super::Shutdown();
 }
 

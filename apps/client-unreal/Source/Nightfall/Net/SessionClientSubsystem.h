@@ -79,6 +79,9 @@ public:
 	using FCatalogueCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListClassesResponse&)>;
 	using FTransferOptionsCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1TransferOptionsResponse&)>;
 	using FChangeClassCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ChangeClassResponse&)>;
+	using FLearnableCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListLearnableSkillsResponse&)>;
+	using FLearnCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1LearnSkillResponse&)>;
+	using FSkillCatalogCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetSkillCatalogResponse&)>;
 	using FPlayTicketCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1IssuePlayTicketResponse&)>;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -86,6 +89,9 @@ public:
 
 	void Ping(FPingCallback Callback);
 	void ListClasses(FCatalogueCallback Callback);
+	void GetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogRequest& Request, FSkillCatalogCallback Callback);
+	void LearnSkill(const FGrpcNightfallV1LearnSkillRequest& Request, FLearnCallback Callback);
+	void ListLearnableSkills(const FGrpcNightfallV1ListLearnableSkillsRequest& Request, FLearnableCallback Callback);
 	void TransferOptions(const FString& CharacterId, FTransferOptionsCallback Callback);
 	void ChangeClass(const FGrpcNightfallV1ChangeClassRequest& Request, FChangeClassCallback Callback);
 	void GetCharacter(const FString& CharacterId, FCharacterCallback Callback);
@@ -150,6 +156,12 @@ private:
 	UFUNCTION() void HandleTransferOptions(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1TransferOptionsResponse& Response);
 	UFUNCTION() void HandleChangeClass(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ChangeClassResponse& Response);
 
+	UFUNCTION() void HandleListLearnableSkills(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListLearnableSkillsResponse& Response);
+
+	UFUNCTION() void HandleLearnSkill(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1LearnSkillResponse& Response);
+
+	UFUNCTION() void HandleGetSkillCatalog(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetSkillCatalogResponse& Response);
+
 	UPROPERTY()
 	TObjectPtr<UTurboLinkGrpcManager> Manager;
 
@@ -172,6 +184,9 @@ private:
 	TMap<uint32, FCatalogueCallback> PendingListClasses;
 	TMap<uint32, FTransferOptionsCallback> PendingTransferOptions;
 	TMap<uint32, FChangeClassCallback> PendingChangeClass;
+	TMap<uint32, FLearnableCallback> PendingListLearnableSkills;
+	TMap<uint32, FLearnCallback> PendingLearnSkill;
+	TMap<uint32, FSkillCatalogCallback> PendingGetSkillCatalog;
 	TMap<uint32, FPingCallback> PendingPing;
 	TMap<uint32, FCharacterCallback> PendingGetCharacter;
 	TMap<uint32, FCharacterCallback> PendingCreateCharacter;

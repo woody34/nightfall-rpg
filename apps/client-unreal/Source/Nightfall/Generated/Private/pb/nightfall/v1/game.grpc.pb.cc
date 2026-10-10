@@ -30,6 +30,9 @@ static const char* GameService_method_names[] = {
   "/nightfall.v1.GameService/ListClasses",
   "/nightfall.v1.GameService/TransferOptions",
   "/nightfall.v1.GameService/ChangeClass",
+  "/nightfall.v1.GameService/ListLearnableSkills",
+  "/nightfall.v1.GameService/LearnSkill",
+  "/nightfall.v1.GameService/GetSkillCatalog",
 };
 
 std::unique_ptr< GameService::Stub> GameService::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -46,6 +49,9 @@ GameService::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channe
   , rpcmethod_ListClasses_(GameService_method_names[4], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_TransferOptions_(GameService_method_names[5], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_ChangeClass_(GameService_method_names[6], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ListLearnableSkills_(GameService_method_names[7], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_LearnSkill_(GameService_method_names[8], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetSkillCatalog_(GameService_method_names[9], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status GameService::Stub::Ping(::grpc::ClientContext* context, const ::nightfall::v1::PingRequest& request, ::nightfall::v1::PingResponse* response) {
@@ -209,6 +215,75 @@ void GameService::Stub::async::ChangeClass(::grpc::ClientContext* context, const
   return result;
 }
 
+::grpc::Status GameService::Stub::ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::nightfall::v1::ListLearnableSkillsResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ListLearnableSkills_, context, request, response);
+}
+
+void GameService::Stub::async::ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListLearnableSkills_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListLearnableSkills_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListLearnableSkillsResponse>* GameService::Stub::PrepareAsyncListLearnableSkillsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::ListLearnableSkillsResponse, ::nightfall::v1::ListLearnableSkillsRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ListLearnableSkills_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListLearnableSkillsResponse>* GameService::Stub::AsyncListLearnableSkillsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncListLearnableSkillsRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::nightfall::v1::LearnSkillResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::LearnSkillRequest, ::nightfall::v1::LearnSkillResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_LearnSkill_, context, request, response);
+}
+
+void GameService::Stub::async::LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::LearnSkillRequest, ::nightfall::v1::LearnSkillResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_LearnSkill_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_LearnSkill_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>* GameService::Stub::PrepareAsyncLearnSkillRaw(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::LearnSkillResponse, ::nightfall::v1::LearnSkillRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_LearnSkill_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>* GameService::Stub::AsyncLearnSkillRaw(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncLearnSkillRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::nightfall::v1::GetSkillCatalogResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetSkillCatalog_, context, request, response);
+}
+
+void GameService::Stub::async::GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetSkillCatalog_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetSkillCatalog_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>* GameService::Stub::PrepareAsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GetSkillCatalogResponse, ::nightfall::v1::GetSkillCatalogRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetSkillCatalog_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>* GameService::Stub::AsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetSkillCatalogRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 GameService::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       GameService_method_names[0],
@@ -280,6 +355,36 @@ GameService::Service::Service() {
              ::nightfall::v1::ChangeClassResponse* resp) {
                return service->ChangeClass(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[7],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::ListLearnableSkillsRequest* req,
+             ::nightfall::v1::ListLearnableSkillsResponse* resp) {
+               return service->ListLearnableSkills(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[8],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::LearnSkillRequest, ::nightfall::v1::LearnSkillResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::LearnSkillRequest* req,
+             ::nightfall::v1::LearnSkillResponse* resp) {
+               return service->LearnSkill(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[9],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GetSkillCatalogRequest* req,
+             ::nightfall::v1::GetSkillCatalogResponse* resp) {
+               return service->GetSkillCatalog(ctx, req, resp);
+             }, this)));
 }
 
 GameService::Service::~Service() {
@@ -328,6 +433,27 @@ GameService::Service::~Service() {
 }
 
 ::grpc::Status GameService::Service::ChangeClass(::grpc::ServerContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::ListLearnableSkills(::grpc::ServerContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::LearnSkill(::grpc::ServerContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GetSkillCatalog(::grpc::ServerContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response) {
   (void) context;
   (void) request;
   (void) response;

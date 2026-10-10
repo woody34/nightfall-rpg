@@ -638,9 +638,240 @@ struct ChangeClassResponseDefaultTypeInternal {
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ChangeClassResponseDefaultTypeInternal _ChangeClassResponse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ListLearnableSkillsRequest::ListLearnableSkillsRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.character_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct ListLearnableSkillsRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ListLearnableSkillsRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ListLearnableSkillsRequestDefaultTypeInternal() {}
+  union {
+    ListLearnableSkillsRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ListLearnableSkillsRequestDefaultTypeInternal _ListLearnableSkillsRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR LearnableSkill::LearnableSkill(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.unmet_)*/{}
+  , /*decltype(_impl_.skill_)*/nullptr
+  , /*decltype(_impl_.learned_)*/ false
+
+  , /*decltype(_impl_.affordable_)*/ false
+
+  , /*decltype(_impl_.trainer_required_)*/ false
+
+  , /*decltype(_impl_.eligible_)*/ false
+} {}
+struct LearnableSkillDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR LearnableSkillDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~LearnableSkillDefaultTypeInternal() {}
+  union {
+    LearnableSkill _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 LearnableSkillDefaultTypeInternal _LearnableSkill_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ListLearnableSkillsResponse::ListLearnableSkillsResponse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.skills_)*/{}
+  , /*decltype(_impl_.sp_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.current_class_id_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct ListLearnableSkillsResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ListLearnableSkillsResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ListLearnableSkillsResponseDefaultTypeInternal() {}
+  union {
+    ListLearnableSkillsResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ListLearnableSkillsResponseDefaultTypeInternal _ListLearnableSkillsResponse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR LearnSkillRequest::LearnSkillRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.character_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.idempotency_key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct LearnSkillRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR LearnSkillRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~LearnSkillRequestDefaultTypeInternal() {}
+  union {
+    LearnSkillRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 LearnSkillRequestDefaultTypeInternal _LearnSkillRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR LearnSkillResponse::LearnSkillResponse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.character_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.effective_stats_)*/nullptr
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_.sp_spent_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.sp_remaining_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.hp_)*/ 0u
+
+  , /*decltype(_impl_.max_hp_)*/ 0u
+
+  , /*decltype(_impl_.mp_)*/ 0u
+
+  , /*decltype(_impl_.max_mp_)*/ 0u
+
+  , /*decltype(_impl_.cp_)*/ 0u
+
+  , /*decltype(_impl_.max_cp_)*/ 0u
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
+} {}
+struct LearnSkillResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR LearnSkillResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~LearnSkillResponseDefaultTypeInternal() {}
+  union {
+    LearnSkillResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 LearnSkillResponseDefaultTypeInternal _LearnSkillResponse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR GetSkillCatalogRequest::GetSkillCatalogRequest(
+    ::_pbi::ConstantInitialized) {}
+struct GetSkillCatalogRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR GetSkillCatalogRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~GetSkillCatalogRequestDefaultTypeInternal() {}
+  union {
+    GetSkillCatalogRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 GetSkillCatalogRequestDefaultTypeInternal _GetSkillCatalogRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillCatalogEntry::SkillCatalogEntry(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.deferred_reasons_)*/{}
+  , /*decltype(_impl_.key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.display_name_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.l2_ref_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.max_level_)*/ 0u
+
+  , /*decltype(_impl_.effect_implemented_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillCatalogEntryDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillCatalogEntryDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillCatalogEntryDefaultTypeInternal() {}
+  union {
+    SkillCatalogEntry _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillCatalogEntryDefaultTypeInternal _SkillCatalogEntry_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR GetSkillCatalogResponse::GetSkillCatalogResponse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.skills_)*/{}
+  , /*decltype(_impl_.data_version_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct GetSkillCatalogResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR GetSkillCatalogResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~GetSkillCatalogResponseDefaultTypeInternal() {}
+  union {
+    GetSkillCatalogResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 GetSkillCatalogResponseDefaultTypeInternal _GetSkillCatalogResponse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR EffectiveStats::EffectiveStats(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.p_atk_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.p_def_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.m_atk_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.m_def_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.attack_speed_)*/ 0u
+
+  , /*decltype(_impl_.cast_speed_)*/ 0u
+
+  , /*decltype(_impl_.speed_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.accuracy_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.evasion_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.crit_permille_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct EffectiveStatsDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR EffectiveStatsDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~EffectiveStatsDefaultTypeInternal() {}
+  union {
+    EffectiveStats _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 EffectiveStatsDefaultTypeInternal _EffectiveStats_default_instance_;
 }  // namespace v1
 }  // namespace nightfall
-static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fgame_2eproto[24];
+static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fgame_2eproto[33];
 static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fgame_2eproto[3];
 static constexpr const ::_pb::ServiceDescriptor**
     file_level_service_descriptors_nightfall_2fv1_2fgame_2eproto = nullptr;
@@ -1006,6 +1237,145 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_S
     ~0u,
     ~0u,
     ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListLearnableSkillsRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListLearnableSkillsRequest, _impl_.character_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnableSkill, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnableSkill, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnableSkill, _impl_.skill_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnableSkill, _impl_.learned_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnableSkill, _impl_.affordable_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnableSkill, _impl_.trainer_required_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnableSkill, _impl_.eligible_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnableSkill, _impl_.unmet_),
+    0,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListLearnableSkillsResponse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListLearnableSkillsResponse, _impl_.skills_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListLearnableSkillsResponse, _impl_.current_class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListLearnableSkillsResponse, _impl_.sp_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillRequest, _impl_.character_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillRequest, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillRequest, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillRequest, _impl_.idempotency_key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.sp_spent_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.sp_remaining_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.hp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.max_hp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.mp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.max_mp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.cp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.max_cp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.character_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.effective_stats_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnSkillResponse, _impl_.incarnation_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::GetSkillCatalogRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.display_name_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.max_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.effect_implemented_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.deferred_reasons_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.l2_ref_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::GetSkillCatalogResponse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::GetSkillCatalogResponse, _impl_.data_version_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::GetSkillCatalogResponse, _impl_.skills_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.p_atk_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.p_def_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.m_atk_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.m_def_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.attack_speed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.cast_speed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.speed_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.accuracy_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.evasion_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.crit_permille_),
 };
 
 static const ::_pbi::MigrationSchema
@@ -1034,6 +1404,15 @@ static const ::_pbi::MigrationSchema
         { 321, -1, -1, sizeof(::nightfall::v1::TransferOptionsResponse)},
         { 333, -1, -1, sizeof(::nightfall::v1::ChangeClassRequest)},
         { 344, 356, -1, sizeof(::nightfall::v1::ChangeClassResponse)},
+        { 360, -1, -1, sizeof(::nightfall::v1::ListLearnableSkillsRequest)},
+        { 369, 383, -1, sizeof(::nightfall::v1::LearnableSkill)},
+        { 389, -1, -1, sizeof(::nightfall::v1::ListLearnableSkillsResponse)},
+        { 400, -1, -1, sizeof(::nightfall::v1::LearnSkillRequest)},
+        { 412, 434, -1, sizeof(::nightfall::v1::LearnSkillResponse)},
+        { 448, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogRequest)},
+        { 456, -1, -1, sizeof(::nightfall::v1::SkillCatalogEntry)},
+        { 471, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogResponse)},
+        { 481, -1, -1, sizeof(::nightfall::v1::EffectiveStats)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -1061,6 +1440,15 @@ static const ::_pb::Message* const file_default_instances[] = {
     &::nightfall::v1::_TransferOptionsResponse_default_instance_._instance,
     &::nightfall::v1::_ChangeClassRequest_default_instance_._instance,
     &::nightfall::v1::_ChangeClassResponse_default_instance_._instance,
+    &::nightfall::v1::_ListLearnableSkillsRequest_default_instance_._instance,
+    &::nightfall::v1::_LearnableSkill_default_instance_._instance,
+    &::nightfall::v1::_ListLearnableSkillsResponse_default_instance_._instance,
+    &::nightfall::v1::_LearnSkillRequest_default_instance_._instance,
+    &::nightfall::v1::_LearnSkillResponse_default_instance_._instance,
+    &::nightfall::v1::_GetSkillCatalogRequest_default_instance_._instance,
+    &::nightfall::v1::_SkillCatalogEntry_default_instance_._instance,
+    &::nightfall::v1::_GetSkillCatalogResponse_default_instance_._instance,
+    &::nightfall::v1::_EffectiveStats_default_instance_._instance,
 };
 const char descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
     "\n\027nightfall/v1/game.proto\022\014nightfall.v1\""
@@ -1146,41 +1534,78 @@ const char descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto[] PROTOBUF_SE
     "ClassResponse\022*\n\tcharacter\030\001 \001(\0132\027.night"
     "fall.v1.Character\022\032\n\022granted_skill_keys\030"
     "\002 \003(\t\022\032\n\022token_tier_1_count\030\003 \001(\r\022\032\n\022tok"
-    "en_tier_2_count\030\004 \001(\r*k\n\004Race\022\024\n\020RACE_UN"
-    "SPECIFIED\020\000\022\016\n\nRACE_HUMAN\020\001\022\014\n\010RACE_ELF\020"
-    "\002\022\021\n\rRACE_DARK_ELF\020\003\022\014\n\010RACE_ORC\020\004\022\016\n\nRA"
-    "CE_DWARF\020\005*8\n\003Sex\022\023\n\017SEX_UNSPECIFIED\020\000\022\014"
-    "\n\010SEX_MALE\020\001\022\016\n\nSEX_FEMALE\020\002*S\n\tArchetyp"
-    "e\022\031\n\025ARCHETYPE_UNSPECIFIED\020\000\022\025\n\021ARCHETYP"
-    "E_FIGHTER\020\001\022\024\n\020ARCHETYPE_MYSTIC\020\0022\325\004\n\013Ga"
-    "meService\022=\n\004Ping\022\031.nightfall.v1.PingReq"
-    "uest\032\032.nightfall.v1.PingResponse\022J\n\014GetC"
-    "haracter\022!.nightfall.v1.GetCharacterRequ"
-    "est\032\027.nightfall.v1.Character\022P\n\017CreateCh"
-    "aracter\022$.nightfall.v1.CreateCharacterRe"
-    "quest\032\027.nightfall.v1.Character\022a\n\020ListMy"
-    "Characters\022%.nightfall.v1.ListMyCharacte"
-    "rsRequest\032&.nightfall.v1.ListMyCharacter"
-    "sResponse\022R\n\013ListClasses\022 .nightfall.v1."
-    "ListClassesRequest\032!.nightfall.v1.ListCl"
-    "assesResponse\022^\n\017TransferOptions\022$.night"
-    "fall.v1.TransferOptionsRequest\032%.nightfa"
-    "ll.v1.TransferOptionsResponse\022R\n\013ChangeC"
-    "lass\022 .nightfall.v1.ChangeClassRequest\032!"
-    ".nightfall.v1.ChangeClassResponseb\006proto"
-    "3"
+    "en_tier_2_count\030\004 \001(\r\"2\n\032ListLearnableSk"
+    "illsRequest\022\024\n\014character_id\030\001 \001(\t\"\235\001\n\016Le"
+    "arnableSkill\022+\n\005skill\030\001 \001(\0132\034.nightfall."
+    "v1.SkillLearnInfo\022\017\n\007learned\030\002 \001(\010\022\022\n\naf"
+    "fordable\030\003 \001(\010\022\030\n\020trainer_required\030\004 \001(\010"
+    "\022\020\n\010eligible\030\005 \001(\010\022\r\n\005unmet\030\006 \003(\t\"q\n\033Lis"
+    "tLearnableSkillsResponse\022,\n\006skills\030\001 \003(\013"
+    "2\034.nightfall.v1.LearnableSkill\022\030\n\020curren"
+    "t_class_id\030\002 \001(\r\022\n\n\002sp\030\003 \001(\004\"i\n\021LearnSki"
+    "llRequest\022\024\n\014character_id\030\001 \001(\t\022\020\n\010skill"
+    "_id\030\002 \001(\r\022\023\n\013skill_level\030\003 \001(\r\022\027\n\017idempo"
+    "tency_key\030\004 \001(\t\"\247\002\n\022LearnSkillResponse\022\020"
+    "\n\010skill_id\030\001 \001(\r\022\023\n\013skill_level\030\002 \001(\r\022\020\n"
+    "\010sp_spent\030\003 \001(\004\022\024\n\014sp_remaining\030\004 \001(\004\022\014\n"
+    "\004tick\030\005 \001(\004\022\n\n\002hp\030\006 \001(\r\022\016\n\006max_hp\030\007 \001(\r\022"
+    "\n\n\002mp\030\010 \001(\r\022\016\n\006max_mp\030\t \001(\r\022\n\n\002cp\030\n \001(\r\022"
+    "\016\n\006max_cp\030\013 \001(\r\022\024\n\014character_id\030\014 \001(\t\0225\n"
+    "\017effective_stats\030\r \001(\0132\034.nightfall.v1.Ef"
+    "fectiveStats\022\023\n\013incarnation\030\016 \001(\r\"\030\n\026Get"
+    "SkillCatalogRequest\"\241\001\n\021SkillCatalogEntr"
+    "y\022\020\n\010skill_id\030\001 \001(\r\022\013\n\003key\030\002 \001(\t\022\024\n\014disp"
+    "lay_name\030\003 \001(\t\022\021\n\tmax_level\030\004 \001(\r\022\032\n\022eff"
+    "ect_implemented\030\005 \001(\010\022\030\n\020deferred_reason"
+    "s\030\006 \003(\t\022\016\n\006l2_ref\030\007 \001(\t\"`\n\027GetSkillCatal"
+    "ogResponse\022\024\n\014data_version\030\001 \001(\t\022/\n\006skil"
+    "ls\030\002 \003(\0132\037.nightfall.v1.SkillCatalogEntr"
+    "y\"\315\001\n\016EffectiveStats\022\017\n\007p_atk_q\030\001 \001(\003\022\017\n"
+    "\007p_def_q\030\002 \001(\003\022\017\n\007m_atk_q\030\003 \001(\003\022\017\n\007m_def"
+    "_q\030\004 \001(\003\022\024\n\014attack_speed\030\005 \001(\r\022\022\n\ncast_s"
+    "peed\030\006 \001(\r\022\017\n\007speed_q\030\007 \001(\003\022\022\n\naccuracy_"
+    "q\030\010 \001(\003\022\021\n\tevasion_q\030\t \001(\003\022\025\n\rcrit_permi"
+    "lle\030\n \001(\r*k\n\004Race\022\024\n\020RACE_UNSPECIFIED\020\000\022"
+    "\016\n\nRACE_HUMAN\020\001\022\014\n\010RACE_ELF\020\002\022\021\n\rRACE_DA"
+    "RK_ELF\020\003\022\014\n\010RACE_ORC\020\004\022\016\n\nRACE_DWARF\020\005*8"
+    "\n\003Sex\022\023\n\017SEX_UNSPECIFIED\020\000\022\014\n\010SEX_MALE\020\001"
+    "\022\016\n\nSEX_FEMALE\020\002*S\n\tArchetype\022\031\n\025ARCHETY"
+    "PE_UNSPECIFIED\020\000\022\025\n\021ARCHETYPE_FIGHTER\020\001\022"
+    "\024\n\020ARCHETYPE_MYSTIC\020\0022\362\006\n\013GameService\022=\n"
+    "\004Ping\022\031.nightfall.v1.PingRequest\032\032.night"
+    "fall.v1.PingResponse\022J\n\014GetCharacter\022!.n"
+    "ightfall.v1.GetCharacterRequest\032\027.nightf"
+    "all.v1.Character\022P\n\017CreateCharacter\022$.ni"
+    "ghtfall.v1.CreateCharacterRequest\032\027.nigh"
+    "tfall.v1.Character\022a\n\020ListMyCharacters\022%"
+    ".nightfall.v1.ListMyCharactersRequest\032&."
+    "nightfall.v1.ListMyCharactersResponse\022R\n"
+    "\013ListClasses\022 .nightfall.v1.ListClassesR"
+    "equest\032!.nightfall.v1.ListClassesRespons"
+    "e\022^\n\017TransferOptions\022$.nightfall.v1.Tran"
+    "sferOptionsRequest\032%.nightfall.v1.Transf"
+    "erOptionsResponse\022R\n\013ChangeClass\022 .night"
+    "fall.v1.ChangeClassRequest\032!.nightfall.v"
+    "1.ChangeClassResponse\022j\n\023ListLearnableSk"
+    "ills\022(.nightfall.v1.ListLearnableSkillsR"
+    "equest\032).nightfall.v1.ListLearnableSkill"
+    "sResponse\022O\n\nLearnSkill\022\037.nightfall.v1.L"
+    "earnSkillRequest\032 .nightfall.v1.LearnSki"
+    "llResponse\022^\n\017GetSkillCatalog\022$.nightfal"
+    "l.v1.GetSkillCatalogRequest\032%.nightfall."
+    "v1.GetSkillCatalogResponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_nightfall_2fv1_2fgame_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fgame_2eproto = {
     false,
     false,
-    4201,
+    5714,
     descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto,
     "nightfall/v1/game.proto",
     &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
     nullptr,
     0,
-    24,
+    33,
     schemas,
     file_default_instances,
     TableStruct_nightfall_2fv1_2fgame_2eproto::offsets,
@@ -8820,6 +9245,2864 @@ void ChangeClassResponse::InternalSwap(ChangeClassResponse* other) {
       &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
       file_level_metadata_nightfall_2fv1_2fgame_2eproto[23]);
 }
+// ===================================================================
+
+class ListLearnableSkillsRequest::_Internal {
+ public:
+};
+
+ListLearnableSkillsRequest::ListLearnableSkillsRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ListLearnableSkillsRequest)
+}
+ListLearnableSkillsRequest::ListLearnableSkillsRequest(const ListLearnableSkillsRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ListLearnableSkillsRequest* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.character_id_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_character_id().empty()) {
+    _this->_impl_.character_id_.Set(from._internal_character_id(), _this->GetArenaForAllocation());
+  }
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ListLearnableSkillsRequest)
+}
+
+inline void ListLearnableSkillsRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.character_id_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ListLearnableSkillsRequest::~ListLearnableSkillsRequest() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ListLearnableSkillsRequest)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ListLearnableSkillsRequest::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.character_id_.Destroy();
+}
+
+void ListLearnableSkillsRequest::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ListLearnableSkillsRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ListLearnableSkillsRequest)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.character_id_.ClearToEmpty();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ListLearnableSkillsRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string character_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_character_id();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ListLearnableSkillsRequest.character_id"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ListLearnableSkillsRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ListLearnableSkillsRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string character_id = 1;
+  if (!this->_internal_character_id().empty()) {
+    const std::string& _s = this->_internal_character_id();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ListLearnableSkillsRequest.character_id");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ListLearnableSkillsRequest)
+  return target;
+}
+
+::size_t ListLearnableSkillsRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ListLearnableSkillsRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string character_id = 1;
+  if (!this->_internal_character_id().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_character_id());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ListLearnableSkillsRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ListLearnableSkillsRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ListLearnableSkillsRequest::GetClassData() const { return &_class_data_; }
+
+
+void ListLearnableSkillsRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ListLearnableSkillsRequest*>(&to_msg);
+  auto& from = static_cast<const ListLearnableSkillsRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ListLearnableSkillsRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_character_id().empty()) {
+    _this->_internal_set_character_id(from._internal_character_id());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ListLearnableSkillsRequest::CopyFrom(const ListLearnableSkillsRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ListLearnableSkillsRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ListLearnableSkillsRequest::IsInitialized() const {
+  return true;
+}
+
+void ListLearnableSkillsRequest::InternalSwap(ListLearnableSkillsRequest* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.character_id_, lhs_arena,
+                                       &other->_impl_.character_id_, rhs_arena);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ListLearnableSkillsRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[24]);
+}
+// ===================================================================
+
+class LearnableSkill::_Internal {
+ public:
+  using HasBits = decltype(std::declval<LearnableSkill>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(LearnableSkill, _impl_._has_bits_);
+  static const ::nightfall::v1::SkillLearnInfo& skill(const LearnableSkill* msg);
+  static void set_has_skill(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+const ::nightfall::v1::SkillLearnInfo&
+LearnableSkill::_Internal::skill(const LearnableSkill* msg) {
+  return *msg->_impl_.skill_;
+}
+LearnableSkill::LearnableSkill(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.LearnableSkill)
+}
+LearnableSkill::LearnableSkill(const LearnableSkill& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  LearnableSkill* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.unmet_){from._impl_.unmet_}
+    , decltype(_impl_.skill_){nullptr}
+    , decltype(_impl_.learned_) {}
+
+    , decltype(_impl_.affordable_) {}
+
+    , decltype(_impl_.trainer_required_) {}
+
+    , decltype(_impl_.eligible_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.skill_ = new ::nightfall::v1::SkillLearnInfo(*from._impl_.skill_);
+  }
+  ::memcpy(&_impl_.learned_, &from._impl_.learned_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.eligible_) -
+    reinterpret_cast<char*>(&_impl_.learned_)) + sizeof(_impl_.eligible_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.LearnableSkill)
+}
+
+inline void LearnableSkill::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.unmet_){arena}
+    , decltype(_impl_.skill_){nullptr}
+    , decltype(_impl_.learned_) { false }
+
+    , decltype(_impl_.affordable_) { false }
+
+    , decltype(_impl_.trainer_required_) { false }
+
+    , decltype(_impl_.eligible_) { false }
+
+  };
+}
+
+LearnableSkill::~LearnableSkill() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.LearnableSkill)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void LearnableSkill::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_unmet()->~RepeatedPtrField();
+  if (this != internal_default_instance()) delete _impl_.skill_;
+}
+
+void LearnableSkill::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void LearnableSkill::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.LearnableSkill)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_unmet()->Clear();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.skill_ != nullptr);
+    _impl_.skill_->Clear();
+  }
+  ::memset(&_impl_.learned_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.eligible_) -
+      reinterpret_cast<char*>(&_impl_.learned_)) + sizeof(_impl_.eligible_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* LearnableSkill::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // .nightfall.v1.SkillLearnInfo skill = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr = ctx->ParseMessage(_internal_mutable_skill(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool learned = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.learned_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool affordable = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.affordable_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool trainer_required = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.trainer_required_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool eligible = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.eligible_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated string unmet = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_unmet();
+            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(ptr);
+            CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.LearnableSkill.unmet"));
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<50>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* LearnableSkill::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.LearnableSkill)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .nightfall.v1.SkillLearnInfo skill = 1;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(1, _Internal::skill(this),
+        _Internal::skill(this).GetCachedSize(), target, stream);
+  }
+
+  // bool learned = 2;
+  if (this->_internal_learned() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        2, this->_internal_learned(), target);
+  }
+
+  // bool affordable = 3;
+  if (this->_internal_affordable() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        3, this->_internal_affordable(), target);
+  }
+
+  // bool trainer_required = 4;
+  if (this->_internal_trainer_required() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        4, this->_internal_trainer_required(), target);
+  }
+
+  // bool eligible = 5;
+  if (this->_internal_eligible() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        5, this->_internal_eligible(), target);
+  }
+
+  // repeated string unmet = 6;
+  for (int i = 0, n = this->_internal_unmet_size(); i < n; ++i) {
+    const auto& s = this->_internal_unmet(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        s.data(), static_cast<int>(s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.LearnableSkill.unmet");
+    target = stream->WriteString(6, s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.LearnableSkill)
+  return target;
+}
+
+::size_t LearnableSkill::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.LearnableSkill)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated string unmet = 6;
+  total_size += 1 * ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_internal_unmet().size());
+  for (int i = 0, n = _internal_unmet().size(); i < n; ++i) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        _internal_unmet().Get(i));
+  }
+
+  // .nightfall.v1.SkillLearnInfo skill = 1;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.skill_);
+  }
+
+  // bool learned = 2;
+  if (this->_internal_learned() != 0) {
+    total_size += 2;
+  }
+
+  // bool affordable = 3;
+  if (this->_internal_affordable() != 0) {
+    total_size += 2;
+  }
+
+  // bool trainer_required = 4;
+  if (this->_internal_trainer_required() != 0) {
+    total_size += 2;
+  }
+
+  // bool eligible = 5;
+  if (this->_internal_eligible() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData LearnableSkill::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    LearnableSkill::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*LearnableSkill::GetClassData() const { return &_class_data_; }
+
+
+void LearnableSkill::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<LearnableSkill*>(&to_msg);
+  auto& from = static_cast<const LearnableSkill&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.LearnableSkill)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_unmet()->MergeFrom(from._internal_unmet());
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_skill()->::nightfall::v1::SkillLearnInfo::MergeFrom(
+        from._internal_skill());
+  }
+  if (from._internal_learned() != 0) {
+    _this->_internal_set_learned(from._internal_learned());
+  }
+  if (from._internal_affordable() != 0) {
+    _this->_internal_set_affordable(from._internal_affordable());
+  }
+  if (from._internal_trainer_required() != 0) {
+    _this->_internal_set_trainer_required(from._internal_trainer_required());
+  }
+  if (from._internal_eligible() != 0) {
+    _this->_internal_set_eligible(from._internal_eligible());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void LearnableSkill::CopyFrom(const LearnableSkill& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.LearnableSkill)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool LearnableSkill::IsInitialized() const {
+  return true;
+}
+
+void LearnableSkill::InternalSwap(LearnableSkill* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_unmet()->InternalSwap(
+      other->_internal_mutable_unmet());
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(LearnableSkill, _impl_.eligible_)
+      + sizeof(LearnableSkill::_impl_.eligible_)
+      - PROTOBUF_FIELD_OFFSET(LearnableSkill, _impl_.skill_)>(
+          reinterpret_cast<char*>(&_impl_.skill_),
+          reinterpret_cast<char*>(&other->_impl_.skill_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata LearnableSkill::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[25]);
+}
+// ===================================================================
+
+class ListLearnableSkillsResponse::_Internal {
+ public:
+};
+
+ListLearnableSkillsResponse::ListLearnableSkillsResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ListLearnableSkillsResponse)
+}
+ListLearnableSkillsResponse::ListLearnableSkillsResponse(const ListLearnableSkillsResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ListLearnableSkillsResponse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.skills_){from._impl_.skills_}
+    , decltype(_impl_.sp_) {}
+
+    , decltype(_impl_.current_class_id_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  ::memcpy(&_impl_.sp_, &from._impl_.sp_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.current_class_id_) -
+    reinterpret_cast<char*>(&_impl_.sp_)) + sizeof(_impl_.current_class_id_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ListLearnableSkillsResponse)
+}
+
+inline void ListLearnableSkillsResponse::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.skills_){arena}
+    , decltype(_impl_.sp_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.current_class_id_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+ListLearnableSkillsResponse::~ListLearnableSkillsResponse() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ListLearnableSkillsResponse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ListLearnableSkillsResponse::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_skills()->~RepeatedPtrField();
+}
+
+void ListLearnableSkillsResponse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ListLearnableSkillsResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ListLearnableSkillsResponse)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_skills()->Clear();
+  ::memset(&_impl_.sp_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.current_class_id_) -
+      reinterpret_cast<char*>(&_impl_.sp_)) + sizeof(_impl_.current_class_id_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ListLearnableSkillsResponse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // repeated .nightfall.v1.LearnableSkill skills = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_skills(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 current_class_id = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.current_class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 sp = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.sp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ListLearnableSkillsResponse::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ListLearnableSkillsResponse)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.LearnableSkill skills = 1;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_skills_size()); i < n; i++) {
+    const auto& repfield = this->_internal_skills(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // uint32 current_class_id = 2;
+  if (this->_internal_current_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_current_class_id(), target);
+  }
+
+  // uint64 sp = 3;
+  if (this->_internal_sp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_sp(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ListLearnableSkillsResponse)
+  return target;
+}
+
+::size_t ListLearnableSkillsResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ListLearnableSkillsResponse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.LearnableSkill skills = 1;
+  total_size += 1UL * this->_internal_skills_size();
+  for (const auto& msg : this->_internal_skills()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // uint64 sp = 3;
+  if (this->_internal_sp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_sp());
+  }
+
+  // uint32 current_class_id = 2;
+  if (this->_internal_current_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_current_class_id());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ListLearnableSkillsResponse::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ListLearnableSkillsResponse::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ListLearnableSkillsResponse::GetClassData() const { return &_class_data_; }
+
+
+void ListLearnableSkillsResponse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ListLearnableSkillsResponse*>(&to_msg);
+  auto& from = static_cast<const ListLearnableSkillsResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ListLearnableSkillsResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_skills()->MergeFrom(from._internal_skills());
+  if (from._internal_sp() != 0) {
+    _this->_internal_set_sp(from._internal_sp());
+  }
+  if (from._internal_current_class_id() != 0) {
+    _this->_internal_set_current_class_id(from._internal_current_class_id());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ListLearnableSkillsResponse::CopyFrom(const ListLearnableSkillsResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ListLearnableSkillsResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ListLearnableSkillsResponse::IsInitialized() const {
+  return true;
+}
+
+void ListLearnableSkillsResponse::InternalSwap(ListLearnableSkillsResponse* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _internal_mutable_skills()->InternalSwap(other->_internal_mutable_skills());
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ListLearnableSkillsResponse, _impl_.current_class_id_)
+      + sizeof(ListLearnableSkillsResponse::_impl_.current_class_id_)
+      - PROTOBUF_FIELD_OFFSET(ListLearnableSkillsResponse, _impl_.sp_)>(
+          reinterpret_cast<char*>(&_impl_.sp_),
+          reinterpret_cast<char*>(&other->_impl_.sp_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ListLearnableSkillsResponse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[26]);
+}
+// ===================================================================
+
+class LearnSkillRequest::_Internal {
+ public:
+};
+
+LearnSkillRequest::LearnSkillRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.LearnSkillRequest)
+}
+LearnSkillRequest::LearnSkillRequest(const LearnSkillRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  LearnSkillRequest* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.character_id_) {}
+
+    , decltype(_impl_.idempotency_key_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.skill_level_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_character_id().empty()) {
+    _this->_impl_.character_id_.Set(from._internal_character_id(), _this->GetArenaForAllocation());
+  }
+  _impl_.idempotency_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.idempotency_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_idempotency_key().empty()) {
+    _this->_impl_.idempotency_key_.Set(from._internal_idempotency_key(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.skill_id_, &from._impl_.skill_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.skill_level_) -
+    reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.skill_level_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.LearnSkillRequest)
+}
+
+inline void LearnSkillRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.character_id_) {}
+
+    , decltype(_impl_.idempotency_key_) {}
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.idempotency_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.idempotency_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+LearnSkillRequest::~LearnSkillRequest() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.LearnSkillRequest)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void LearnSkillRequest::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.character_id_.Destroy();
+  _impl_.idempotency_key_.Destroy();
+}
+
+void LearnSkillRequest::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void LearnSkillRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.LearnSkillRequest)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.character_id_.ClearToEmpty();
+  _impl_.idempotency_key_.ClearToEmpty();
+  ::memset(&_impl_.skill_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.skill_level_) -
+      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.skill_level_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* LearnSkillRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string character_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_character_id();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.LearnSkillRequest.character_id"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_id = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string idempotency_key = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 34)) {
+          auto str = _internal_mutable_idempotency_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.LearnSkillRequest.idempotency_key"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* LearnSkillRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.LearnSkillRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string character_id = 1;
+  if (!this->_internal_character_id().empty()) {
+    const std::string& _s = this->_internal_character_id();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.LearnSkillRequest.character_id");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 skill_id = 2;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 3;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_skill_level(), target);
+  }
+
+  // string idempotency_key = 4;
+  if (!this->_internal_idempotency_key().empty()) {
+    const std::string& _s = this->_internal_idempotency_key();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.LearnSkillRequest.idempotency_key");
+    target = stream->WriteStringMaybeAliased(4, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.LearnSkillRequest)
+  return target;
+}
+
+::size_t LearnSkillRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.LearnSkillRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string character_id = 1;
+  if (!this->_internal_character_id().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_character_id());
+  }
+
+  // string idempotency_key = 4;
+  if (!this->_internal_idempotency_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_idempotency_key());
+  }
+
+  // uint32 skill_id = 2;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 skill_level = 3;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData LearnSkillRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    LearnSkillRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*LearnSkillRequest::GetClassData() const { return &_class_data_; }
+
+
+void LearnSkillRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<LearnSkillRequest*>(&to_msg);
+  auto& from = static_cast<const LearnSkillRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.LearnSkillRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_character_id().empty()) {
+    _this->_internal_set_character_id(from._internal_character_id());
+  }
+  if (!from._internal_idempotency_key().empty()) {
+    _this->_internal_set_idempotency_key(from._internal_idempotency_key());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void LearnSkillRequest::CopyFrom(const LearnSkillRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.LearnSkillRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool LearnSkillRequest::IsInitialized() const {
+  return true;
+}
+
+void LearnSkillRequest::InternalSwap(LearnSkillRequest* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.character_id_, lhs_arena,
+                                       &other->_impl_.character_id_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.idempotency_key_, lhs_arena,
+                                       &other->_impl_.idempotency_key_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(LearnSkillRequest, _impl_.skill_level_)
+      + sizeof(LearnSkillRequest::_impl_.skill_level_)
+      - PROTOBUF_FIELD_OFFSET(LearnSkillRequest, _impl_.skill_id_)>(
+          reinterpret_cast<char*>(&_impl_.skill_id_),
+          reinterpret_cast<char*>(&other->_impl_.skill_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata LearnSkillRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[27]);
+}
+// ===================================================================
+
+class LearnSkillResponse::_Internal {
+ public:
+  using HasBits = decltype(std::declval<LearnSkillResponse>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(LearnSkillResponse, _impl_._has_bits_);
+  static const ::nightfall::v1::EffectiveStats& effective_stats(const LearnSkillResponse* msg);
+  static void set_has_effective_stats(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+const ::nightfall::v1::EffectiveStats&
+LearnSkillResponse::_Internal::effective_stats(const LearnSkillResponse* msg) {
+  return *msg->_impl_.effective_stats_;
+}
+LearnSkillResponse::LearnSkillResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.LearnSkillResponse)
+}
+LearnSkillResponse::LearnSkillResponse(const LearnSkillResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  LearnSkillResponse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.character_id_) {}
+
+    , decltype(_impl_.effective_stats_){nullptr}
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.skill_level_) {}
+
+    , decltype(_impl_.sp_spent_) {}
+
+    , decltype(_impl_.sp_remaining_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.hp_) {}
+
+    , decltype(_impl_.max_hp_) {}
+
+    , decltype(_impl_.mp_) {}
+
+    , decltype(_impl_.max_mp_) {}
+
+    , decltype(_impl_.cp_) {}
+
+    , decltype(_impl_.max_cp_) {}
+
+    , decltype(_impl_.incarnation_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_character_id().empty()) {
+    _this->_impl_.character_id_.Set(from._internal_character_id(), _this->GetArenaForAllocation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.effective_stats_ = new ::nightfall::v1::EffectiveStats(*from._impl_.effective_stats_);
+  }
+  ::memcpy(&_impl_.skill_id_, &from._impl_.skill_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.incarnation_) -
+    reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.incarnation_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.LearnSkillResponse)
+}
+
+inline void LearnSkillResponse::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.character_id_) {}
+
+    , decltype(_impl_.effective_stats_){nullptr}
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , decltype(_impl_.sp_spent_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.sp_remaining_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.hp_) { 0u }
+
+    , decltype(_impl_.max_hp_) { 0u }
+
+    , decltype(_impl_.mp_) { 0u }
+
+    , decltype(_impl_.max_mp_) { 0u }
+
+    , decltype(_impl_.cp_) { 0u }
+
+    , decltype(_impl_.max_cp_) { 0u }
+
+    , decltype(_impl_.incarnation_) { 0u }
+
+  };
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+LearnSkillResponse::~LearnSkillResponse() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.LearnSkillResponse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void LearnSkillResponse::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.character_id_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.effective_stats_;
+}
+
+void LearnSkillResponse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void LearnSkillResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.LearnSkillResponse)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.character_id_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.effective_stats_ != nullptr);
+    _impl_.effective_stats_->Clear();
+  }
+  ::memset(&_impl_.skill_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.incarnation_) -
+      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.incarnation_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* LearnSkillResponse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 skill_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 sp_spent = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.sp_spent_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 sp_remaining = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.sp_remaining_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hp = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 max_hp = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.max_hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 mp = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.mp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 max_mp = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.max_mp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 cp = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.cp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 max_cp = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 88)) {
+          _impl_.max_cp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string character_id = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 98)) {
+          auto str = _internal_mutable_character_id();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.LearnSkillResponse.character_id"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EffectiveStats effective_stats = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 106)) {
+          ptr = ctx->ParseMessage(_internal_mutable_effective_stats(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 112)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* LearnSkillResponse::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.LearnSkillResponse)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 2;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_skill_level(), target);
+  }
+
+  // uint64 sp_spent = 3;
+  if (this->_internal_sp_spent() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_sp_spent(), target);
+  }
+
+  // uint64 sp_remaining = 4;
+  if (this->_internal_sp_remaining() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_sp_remaining(), target);
+  }
+
+  // uint64 tick = 5;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        5, this->_internal_tick(), target);
+  }
+
+  // uint32 hp = 6;
+  if (this->_internal_hp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_hp(), target);
+  }
+
+  // uint32 max_hp = 7;
+  if (this->_internal_max_hp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_max_hp(), target);
+  }
+
+  // uint32 mp = 8;
+  if (this->_internal_mp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_mp(), target);
+  }
+
+  // uint32 max_mp = 9;
+  if (this->_internal_max_mp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        9, this->_internal_max_mp(), target);
+  }
+
+  // uint32 cp = 10;
+  if (this->_internal_cp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        10, this->_internal_cp(), target);
+  }
+
+  // uint32 max_cp = 11;
+  if (this->_internal_max_cp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        11, this->_internal_max_cp(), target);
+  }
+
+  // string character_id = 12;
+  if (!this->_internal_character_id().empty()) {
+    const std::string& _s = this->_internal_character_id();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.LearnSkillResponse.character_id");
+    target = stream->WriteStringMaybeAliased(12, _s, target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .nightfall.v1.EffectiveStats effective_stats = 13;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(13, _Internal::effective_stats(this),
+        _Internal::effective_stats(this).GetCachedSize(), target, stream);
+  }
+
+  // uint32 incarnation = 14;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        14, this->_internal_incarnation(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.LearnSkillResponse)
+  return target;
+}
+
+::size_t LearnSkillResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.LearnSkillResponse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string character_id = 12;
+  if (!this->_internal_character_id().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_character_id());
+  }
+
+  // .nightfall.v1.EffectiveStats effective_stats = 13;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.effective_stats_);
+  }
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 skill_level = 2;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  // uint64 sp_spent = 3;
+  if (this->_internal_sp_spent() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_sp_spent());
+  }
+
+  // uint64 sp_remaining = 4;
+  if (this->_internal_sp_remaining() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_sp_remaining());
+  }
+
+  // uint64 tick = 5;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint32 hp = 6;
+  if (this->_internal_hp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hp());
+  }
+
+  // uint32 max_hp = 7;
+  if (this->_internal_max_hp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_max_hp());
+  }
+
+  // uint32 mp = 8;
+  if (this->_internal_mp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_mp());
+  }
+
+  // uint32 max_mp = 9;
+  if (this->_internal_max_mp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_max_mp());
+  }
+
+  // uint32 cp = 10;
+  if (this->_internal_cp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_cp());
+  }
+
+  // uint32 max_cp = 11;
+  if (this->_internal_max_cp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_max_cp());
+  }
+
+  // uint32 incarnation = 14;
+  if (this->_internal_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_incarnation());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData LearnSkillResponse::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    LearnSkillResponse::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*LearnSkillResponse::GetClassData() const { return &_class_data_; }
+
+
+void LearnSkillResponse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<LearnSkillResponse*>(&to_msg);
+  auto& from = static_cast<const LearnSkillResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.LearnSkillResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_character_id().empty()) {
+    _this->_internal_set_character_id(from._internal_character_id());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_effective_stats()->::nightfall::v1::EffectiveStats::MergeFrom(
+        from._internal_effective_stats());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  if (from._internal_sp_spent() != 0) {
+    _this->_internal_set_sp_spent(from._internal_sp_spent());
+  }
+  if (from._internal_sp_remaining() != 0) {
+    _this->_internal_set_sp_remaining(from._internal_sp_remaining());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_hp() != 0) {
+    _this->_internal_set_hp(from._internal_hp());
+  }
+  if (from._internal_max_hp() != 0) {
+    _this->_internal_set_max_hp(from._internal_max_hp());
+  }
+  if (from._internal_mp() != 0) {
+    _this->_internal_set_mp(from._internal_mp());
+  }
+  if (from._internal_max_mp() != 0) {
+    _this->_internal_set_max_mp(from._internal_max_mp());
+  }
+  if (from._internal_cp() != 0) {
+    _this->_internal_set_cp(from._internal_cp());
+  }
+  if (from._internal_max_cp() != 0) {
+    _this->_internal_set_max_cp(from._internal_max_cp());
+  }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void LearnSkillResponse::CopyFrom(const LearnSkillResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.LearnSkillResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool LearnSkillResponse::IsInitialized() const {
+  return true;
+}
+
+void LearnSkillResponse::InternalSwap(LearnSkillResponse* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.character_id_, lhs_arena,
+                                       &other->_impl_.character_id_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(LearnSkillResponse, _impl_.incarnation_)
+      + sizeof(LearnSkillResponse::_impl_.incarnation_)
+      - PROTOBUF_FIELD_OFFSET(LearnSkillResponse, _impl_.effective_stats_)>(
+          reinterpret_cast<char*>(&_impl_.effective_stats_),
+          reinterpret_cast<char*>(&other->_impl_.effective_stats_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata LearnSkillResponse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[28]);
+}
+// ===================================================================
+
+class GetSkillCatalogRequest::_Internal {
+ public:
+};
+
+GetSkillCatalogRequest::GetSkillCatalogRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase(arena) {
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.GetSkillCatalogRequest)
+}
+GetSkillCatalogRequest::GetSkillCatalogRequest(const GetSkillCatalogRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase() {
+  GetSkillCatalogRequest* const _this = this; (void)_this;
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.GetSkillCatalogRequest)
+}
+
+
+
+
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData GetSkillCatalogRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl,
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl,
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetSkillCatalogRequest::GetClassData() const { return &_class_data_; }
+
+
+
+
+
+
+
+::PROTOBUF_NAMESPACE_ID::Metadata GetSkillCatalogRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[29]);
+}
+// ===================================================================
+
+class SkillCatalogEntry::_Internal {
+ public:
+};
+
+SkillCatalogEntry::SkillCatalogEntry(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillCatalogEntry)
+}
+SkillCatalogEntry::SkillCatalogEntry(const SkillCatalogEntry& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillCatalogEntry* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.deferred_reasons_){from._impl_.deferred_reasons_}
+    , decltype(_impl_.key_) {}
+
+    , decltype(_impl_.display_name_) {}
+
+    , decltype(_impl_.l2_ref_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.max_level_) {}
+
+    , decltype(_impl_.effect_implemented_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_key().empty()) {
+    _this->_impl_.key_.Set(from._internal_key(), _this->GetArenaForAllocation());
+  }
+  _impl_.display_name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.display_name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_display_name().empty()) {
+    _this->_impl_.display_name_.Set(from._internal_display_name(), _this->GetArenaForAllocation());
+  }
+  _impl_.l2_ref_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.l2_ref_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_l2_ref().empty()) {
+    _this->_impl_.l2_ref_.Set(from._internal_l2_ref(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.skill_id_, &from._impl_.skill_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.effect_implemented_) -
+    reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.effect_implemented_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillCatalogEntry)
+}
+
+inline void SkillCatalogEntry::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.deferred_reasons_){arena}
+    , decltype(_impl_.key_) {}
+
+    , decltype(_impl_.display_name_) {}
+
+    , decltype(_impl_.l2_ref_) {}
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.max_level_) { 0u }
+
+    , decltype(_impl_.effect_implemented_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.display_name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.display_name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.l2_ref_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.l2_ref_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillCatalogEntry::~SkillCatalogEntry() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillCatalogEntry)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillCatalogEntry::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_deferred_reasons()->~RepeatedPtrField();
+  _impl_.key_.Destroy();
+  _impl_.display_name_.Destroy();
+  _impl_.l2_ref_.Destroy();
+}
+
+void SkillCatalogEntry::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillCatalogEntry::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillCatalogEntry)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_deferred_reasons()->Clear();
+  _impl_.key_.ClearToEmpty();
+  _impl_.display_name_.ClearToEmpty();
+  _impl_.l2_ref_.ClearToEmpty();
+  ::memset(&_impl_.skill_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.effect_implemented_) -
+      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.effect_implemented_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillCatalogEntry::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 skill_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string key = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCatalogEntry.key"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string display_name = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          auto str = _internal_mutable_display_name();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCatalogEntry.display_name"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 max_level = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.max_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool effect_implemented = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.effect_implemented_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated string deferred_reasons = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_deferred_reasons();
+            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(ptr);
+            CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCatalogEntry.deferred_reasons"));
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<50>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string l2_ref = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
+          auto str = _internal_mutable_l2_ref();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCatalogEntry.l2_ref"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillCatalogEntry::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillCatalogEntry)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_skill_id(), target);
+  }
+
+  // string key = 2;
+  if (!this->_internal_key().empty()) {
+    const std::string& _s = this->_internal_key();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCatalogEntry.key");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  // string display_name = 3;
+  if (!this->_internal_display_name().empty()) {
+    const std::string& _s = this->_internal_display_name();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCatalogEntry.display_name");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
+  }
+
+  // uint32 max_level = 4;
+  if (this->_internal_max_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_max_level(), target);
+  }
+
+  // bool effect_implemented = 5;
+  if (this->_internal_effect_implemented() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        5, this->_internal_effect_implemented(), target);
+  }
+
+  // repeated string deferred_reasons = 6;
+  for (int i = 0, n = this->_internal_deferred_reasons_size(); i < n; ++i) {
+    const auto& s = this->_internal_deferred_reasons(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        s.data(), static_cast<int>(s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCatalogEntry.deferred_reasons");
+    target = stream->WriteString(6, s, target);
+  }
+
+  // string l2_ref = 7;
+  if (!this->_internal_l2_ref().empty()) {
+    const std::string& _s = this->_internal_l2_ref();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCatalogEntry.l2_ref");
+    target = stream->WriteStringMaybeAliased(7, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillCatalogEntry)
+  return target;
+}
+
+::size_t SkillCatalogEntry::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillCatalogEntry)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated string deferred_reasons = 6;
+  total_size += 1 * ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_internal_deferred_reasons().size());
+  for (int i = 0, n = _internal_deferred_reasons().size(); i < n; ++i) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        _internal_deferred_reasons().Get(i));
+  }
+
+  // string key = 2;
+  if (!this->_internal_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_key());
+  }
+
+  // string display_name = 3;
+  if (!this->_internal_display_name().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_display_name());
+  }
+
+  // string l2_ref = 7;
+  if (!this->_internal_l2_ref().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_l2_ref());
+  }
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 max_level = 4;
+  if (this->_internal_max_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_max_level());
+  }
+
+  // bool effect_implemented = 5;
+  if (this->_internal_effect_implemented() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillCatalogEntry::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillCatalogEntry::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillCatalogEntry::GetClassData() const { return &_class_data_; }
+
+
+void SkillCatalogEntry::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillCatalogEntry*>(&to_msg);
+  auto& from = static_cast<const SkillCatalogEntry&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillCatalogEntry)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_deferred_reasons()->MergeFrom(from._internal_deferred_reasons());
+  if (!from._internal_key().empty()) {
+    _this->_internal_set_key(from._internal_key());
+  }
+  if (!from._internal_display_name().empty()) {
+    _this->_internal_set_display_name(from._internal_display_name());
+  }
+  if (!from._internal_l2_ref().empty()) {
+    _this->_internal_set_l2_ref(from._internal_l2_ref());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_max_level() != 0) {
+    _this->_internal_set_max_level(from._internal_max_level());
+  }
+  if (from._internal_effect_implemented() != 0) {
+    _this->_internal_set_effect_implemented(from._internal_effect_implemented());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillCatalogEntry::CopyFrom(const SkillCatalogEntry& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillCatalogEntry)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillCatalogEntry::IsInitialized() const {
+  return true;
+}
+
+void SkillCatalogEntry::InternalSwap(SkillCatalogEntry* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _internal_mutable_deferred_reasons()->InternalSwap(
+      other->_internal_mutable_deferred_reasons());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.key_, lhs_arena,
+                                       &other->_impl_.key_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.display_name_, lhs_arena,
+                                       &other->_impl_.display_name_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.l2_ref_, lhs_arena,
+                                       &other->_impl_.l2_ref_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillCatalogEntry, _impl_.effect_implemented_)
+      + sizeof(SkillCatalogEntry::_impl_.effect_implemented_)
+      - PROTOBUF_FIELD_OFFSET(SkillCatalogEntry, _impl_.skill_id_)>(
+          reinterpret_cast<char*>(&_impl_.skill_id_),
+          reinterpret_cast<char*>(&other->_impl_.skill_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillCatalogEntry::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[30]);
+}
+// ===================================================================
+
+class GetSkillCatalogResponse::_Internal {
+ public:
+};
+
+GetSkillCatalogResponse::GetSkillCatalogResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.GetSkillCatalogResponse)
+}
+GetSkillCatalogResponse::GetSkillCatalogResponse(const GetSkillCatalogResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  GetSkillCatalogResponse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.skills_){from._impl_.skills_}
+    , decltype(_impl_.data_version_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.data_version_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.data_version_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_data_version().empty()) {
+    _this->_impl_.data_version_.Set(from._internal_data_version(), _this->GetArenaForAllocation());
+  }
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.GetSkillCatalogResponse)
+}
+
+inline void GetSkillCatalogResponse::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.skills_){arena}
+    , decltype(_impl_.data_version_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.data_version_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.data_version_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+GetSkillCatalogResponse::~GetSkillCatalogResponse() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.GetSkillCatalogResponse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void GetSkillCatalogResponse::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_skills()->~RepeatedPtrField();
+  _impl_.data_version_.Destroy();
+}
+
+void GetSkillCatalogResponse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void GetSkillCatalogResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.GetSkillCatalogResponse)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_skills()->Clear();
+  _impl_.data_version_.ClearToEmpty();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* GetSkillCatalogResponse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string data_version = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_data_version();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.GetSkillCatalogResponse.data_version"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.SkillCatalogEntry skills = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_skills(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* GetSkillCatalogResponse::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.GetSkillCatalogResponse)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string data_version = 1;
+  if (!this->_internal_data_version().empty()) {
+    const std::string& _s = this->_internal_data_version();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.GetSkillCatalogResponse.data_version");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // repeated .nightfall.v1.SkillCatalogEntry skills = 2;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_skills_size()); i < n; i++) {
+    const auto& repfield = this->_internal_skills(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(2, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.GetSkillCatalogResponse)
+  return target;
+}
+
+::size_t GetSkillCatalogResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.GetSkillCatalogResponse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.SkillCatalogEntry skills = 2;
+  total_size += 1UL * this->_internal_skills_size();
+  for (const auto& msg : this->_internal_skills()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // string data_version = 1;
+  if (!this->_internal_data_version().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_data_version());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData GetSkillCatalogResponse::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    GetSkillCatalogResponse::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetSkillCatalogResponse::GetClassData() const { return &_class_data_; }
+
+
+void GetSkillCatalogResponse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<GetSkillCatalogResponse*>(&to_msg);
+  auto& from = static_cast<const GetSkillCatalogResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.GetSkillCatalogResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_skills()->MergeFrom(from._internal_skills());
+  if (!from._internal_data_version().empty()) {
+    _this->_internal_set_data_version(from._internal_data_version());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void GetSkillCatalogResponse::CopyFrom(const GetSkillCatalogResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.GetSkillCatalogResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool GetSkillCatalogResponse::IsInitialized() const {
+  return true;
+}
+
+void GetSkillCatalogResponse::InternalSwap(GetSkillCatalogResponse* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _internal_mutable_skills()->InternalSwap(other->_internal_mutable_skills());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.data_version_, lhs_arena,
+                                       &other->_impl_.data_version_, rhs_arena);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata GetSkillCatalogResponse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[31]);
+}
+// ===================================================================
+
+class EffectiveStats::_Internal {
+ public:
+};
+
+EffectiveStats::EffectiveStats(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.EffectiveStats)
+}
+EffectiveStats::EffectiveStats(const EffectiveStats& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _impl_(from._impl_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(
+      from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.EffectiveStats)
+}
+
+inline void EffectiveStats::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.p_atk_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.p_def_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.m_atk_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.m_def_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.attack_speed_) { 0u }
+
+    , decltype(_impl_.cast_speed_) { 0u }
+
+    , decltype(_impl_.speed_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.accuracy_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.evasion_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.crit_permille_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+EffectiveStats::~EffectiveStats() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.EffectiveStats)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void EffectiveStats::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void EffectiveStats::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void EffectiveStats::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.EffectiveStats)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  ::memset(&_impl_.p_atk_q_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.crit_permille_) -
+      reinterpret_cast<char*>(&_impl_.p_atk_q_)) + sizeof(_impl_.crit_permille_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* EffectiveStats::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // int64 p_atk_q = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.p_atk_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 p_def_q = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.p_def_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 m_atk_q = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.m_atk_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 m_def_q = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.m_def_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 attack_speed = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.attack_speed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 cast_speed = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.cast_speed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 speed_q = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.speed_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 accuracy_q = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.accuracy_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 evasion_q = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.evasion_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 crit_permille = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.crit_permille_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* EffectiveStats::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.EffectiveStats)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // int64 p_atk_q = 1;
+  if (this->_internal_p_atk_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        1, this->_internal_p_atk_q(), target);
+  }
+
+  // int64 p_def_q = 2;
+  if (this->_internal_p_def_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        2, this->_internal_p_def_q(), target);
+  }
+
+  // int64 m_atk_q = 3;
+  if (this->_internal_m_atk_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        3, this->_internal_m_atk_q(), target);
+  }
+
+  // int64 m_def_q = 4;
+  if (this->_internal_m_def_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        4, this->_internal_m_def_q(), target);
+  }
+
+  // uint32 attack_speed = 5;
+  if (this->_internal_attack_speed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_attack_speed(), target);
+  }
+
+  // uint32 cast_speed = 6;
+  if (this->_internal_cast_speed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_cast_speed(), target);
+  }
+
+  // int64 speed_q = 7;
+  if (this->_internal_speed_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        7, this->_internal_speed_q(), target);
+  }
+
+  // int64 accuracy_q = 8;
+  if (this->_internal_accuracy_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        8, this->_internal_accuracy_q(), target);
+  }
+
+  // int64 evasion_q = 9;
+  if (this->_internal_evasion_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        9, this->_internal_evasion_q(), target);
+  }
+
+  // uint32 crit_permille = 10;
+  if (this->_internal_crit_permille() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        10, this->_internal_crit_permille(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.EffectiveStats)
+  return target;
+}
+
+::size_t EffectiveStats::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.EffectiveStats)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // int64 p_atk_q = 1;
+  if (this->_internal_p_atk_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_p_atk_q());
+  }
+
+  // int64 p_def_q = 2;
+  if (this->_internal_p_def_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_p_def_q());
+  }
+
+  // int64 m_atk_q = 3;
+  if (this->_internal_m_atk_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_m_atk_q());
+  }
+
+  // int64 m_def_q = 4;
+  if (this->_internal_m_def_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_m_def_q());
+  }
+
+  // uint32 attack_speed = 5;
+  if (this->_internal_attack_speed() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_attack_speed());
+  }
+
+  // uint32 cast_speed = 6;
+  if (this->_internal_cast_speed() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_cast_speed());
+  }
+
+  // int64 speed_q = 7;
+  if (this->_internal_speed_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_speed_q());
+  }
+
+  // int64 accuracy_q = 8;
+  if (this->_internal_accuracy_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_accuracy_q());
+  }
+
+  // int64 evasion_q = 9;
+  if (this->_internal_evasion_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_evasion_q());
+  }
+
+  // uint32 crit_permille = 10;
+  if (this->_internal_crit_permille() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_crit_permille());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData EffectiveStats::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    EffectiveStats::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*EffectiveStats::GetClassData() const { return &_class_data_; }
+
+
+void EffectiveStats::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<EffectiveStats*>(&to_msg);
+  auto& from = static_cast<const EffectiveStats&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.EffectiveStats)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from._internal_p_atk_q() != 0) {
+    _this->_internal_set_p_atk_q(from._internal_p_atk_q());
+  }
+  if (from._internal_p_def_q() != 0) {
+    _this->_internal_set_p_def_q(from._internal_p_def_q());
+  }
+  if (from._internal_m_atk_q() != 0) {
+    _this->_internal_set_m_atk_q(from._internal_m_atk_q());
+  }
+  if (from._internal_m_def_q() != 0) {
+    _this->_internal_set_m_def_q(from._internal_m_def_q());
+  }
+  if (from._internal_attack_speed() != 0) {
+    _this->_internal_set_attack_speed(from._internal_attack_speed());
+  }
+  if (from._internal_cast_speed() != 0) {
+    _this->_internal_set_cast_speed(from._internal_cast_speed());
+  }
+  if (from._internal_speed_q() != 0) {
+    _this->_internal_set_speed_q(from._internal_speed_q());
+  }
+  if (from._internal_accuracy_q() != 0) {
+    _this->_internal_set_accuracy_q(from._internal_accuracy_q());
+  }
+  if (from._internal_evasion_q() != 0) {
+    _this->_internal_set_evasion_q(from._internal_evasion_q());
+  }
+  if (from._internal_crit_permille() != 0) {
+    _this->_internal_set_crit_permille(from._internal_crit_permille());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void EffectiveStats::CopyFrom(const EffectiveStats& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.EffectiveStats)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool EffectiveStats::IsInitialized() const {
+  return true;
+}
+
+void EffectiveStats::InternalSwap(EffectiveStats* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(EffectiveStats, _impl_.crit_permille_)
+      + sizeof(EffectiveStats::_impl_.crit_permille_)
+      - PROTOBUF_FIELD_OFFSET(EffectiveStats, _impl_.p_atk_q_)>(
+          reinterpret_cast<char*>(&_impl_.p_atk_q_),
+          reinterpret_cast<char*>(&other->_impl_.p_atk_q_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata EffectiveStats::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[32]);
+}
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace v1
 }  // namespace nightfall
@@ -8919,6 +12202,42 @@ Arena::CreateMaybeMessage< ::nightfall::v1::ChangeClassRequest >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::nightfall::v1::ChangeClassResponse*
 Arena::CreateMaybeMessage< ::nightfall::v1::ChangeClassResponse >(Arena* arena) {
   return Arena::CreateMessageInternal< ::nightfall::v1::ChangeClassResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ListLearnableSkillsRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::ListLearnableSkillsRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ListLearnableSkillsRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::LearnableSkill*
+Arena::CreateMaybeMessage< ::nightfall::v1::LearnableSkill >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::LearnableSkill >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ListLearnableSkillsResponse*
+Arena::CreateMaybeMessage< ::nightfall::v1::ListLearnableSkillsResponse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ListLearnableSkillsResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::LearnSkillRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::LearnSkillRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::LearnSkillRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::LearnSkillResponse*
+Arena::CreateMaybeMessage< ::nightfall::v1::LearnSkillResponse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::LearnSkillResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::GetSkillCatalogRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::GetSkillCatalogRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::GetSkillCatalogRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillCatalogEntry*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillCatalogEntry >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillCatalogEntry >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::GetSkillCatalogResponse*
+Arena::CreateMaybeMessage< ::nightfall::v1::GetSkillCatalogResponse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::GetSkillCatalogResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::EffectiveStats*
+Arena::CreateMaybeMessage< ::nightfall::v1::EffectiveStats >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::EffectiveStats >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 // @@protoc_insertion_point(global_scope)
