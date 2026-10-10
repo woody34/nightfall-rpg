@@ -174,10 +174,92 @@ mod tests {
         let def = parse_zone(TEST_ZONE_TOML).unwrap();
         assert_eq!(def.zone, ZoneId(1));
         assert_eq!(def.bounds.max(), Vec2Fixed::from_tiles(256, 256));
-        assert_eq!(def.npcs.len(), 2);
+        assert_eq!(def.npcs.len(), 3);
+        let master = def
+            .npcs
+            .iter()
+            .find(|npc| npc.name == "Class Master")
+            .unwrap();
+        assert_eq!(master.pos, Vec2Fixed::from_tiles(126, 128));
+        assert_eq!(master.speed, Speed::from_milli_tiles_per_tick(0));
         assert_eq!(def.npcs[0].name, "Gatekeeper");
         assert!(def.config_hash.starts_with("sha256:"));
         assert_eq!(def.config_hash.len(), "sha256:".len() + 64);
+    }
+
+    #[test]
+    fn class_master_has_stable_spawn_identity_and_cannot_be_attacked_or_award_xp() {
+        use crate::domain::zone::{
+            EntityId, ObserverOutput, PlayerLoad, RejectReason, SessionGeneration, ZoneCommand,
+            ZoneEvent, ZoneInput, ZoneSeed, ZoneState,
+        };
+        use crate::infrastructure::rules_data::{load_rules, RulesSource};
+        let def = parse_zone(TEST_ZONE_TOML).unwrap();
+        let seed = ZoneSeed {
+            zone: def.zone,
+            epoch: 1,
+        };
+        let mut state = ZoneState::new(seed, def.bounds, 0)
+            .with_rules(load_rules(&RulesSource::embedded()).unwrap().rules);
+        let player = EntityId::from_uuid(uuid::Uuid::from_u128(1));
+        let mut inputs = def
+            .npcs
+            .iter()
+            .map(|npc| {
+                ZoneInput::system(ZoneCommand::SpawnNpc {
+                    name: npc.name.clone(),
+                    pos: npc.pos,
+                    speed: npc.speed,
+                    combat: None,
+                })
+            })
+            .collect::<Vec<_>>();
+        inputs.push(ZoneInput::system(ZoneCommand::SpawnPlayer {
+            entity: player,
+            name: "Tester".into(),
+            pos: Vec2Fixed::from_tiles(126, 126),
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(1),
+            load: Some(Box::new(PlayerLoad::fresh("human_fighter"))),
+        }));
+        let mut repeat = state.clone();
+        let initial = state.run_tick(state.draft(inputs.clone())).unwrap();
+        let repeated = repeat.run_tick(repeat.draft(inputs)).unwrap();
+        assert_eq!(initial, repeated);
+        let master = state.entities().find(|e| e.name == "Class Master").unwrap();
+        assert_eq!(master.pos, Vec2Fixed::from_tiles(126, 128));
+        assert!(master.combat.is_none() && master.ai.is_none());
+        let master_id = master.id;
+        assert!(initial.outputs[&player].iter().any(|out| matches!(out,
+            ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, name, .. }) if *entity == master_id && name == "Class Master")));
+        let tick = state
+            .run_tick(state.draft(vec![
+                ZoneInput::session(
+                    player,
+                    SessionGeneration(1),
+                    1,
+                    ZoneCommand::SetTarget {
+                        entity: player,
+                        target: Some(master_id),
+                    },
+                ),
+                ZoneInput::session(
+                    player,
+                    SessionGeneration(1),
+                    2,
+                    ZoneCommand::Attack { entity: player },
+                ),
+            ]))
+            .unwrap();
+        assert!(tick
+            .dispositions
+            .iter()
+            .any(|d| d.reason == RejectReason::NonAttackableTarget));
+        assert!(!tick
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::XpGained { .. } | ZoneEvent::AttackStarted { .. })));
+        assert!(state.entities().any(|e| e.name == "Gatekeeper"));
     }
 
     #[test]

@@ -164,6 +164,9 @@ pub struct SnapshotMeta {
     /// Canonical catalogue provenance, independent of legacy stat rule provenance.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub classes_hash: String,
+    /// Hash of the resolved immutable catalogue, verified on restore and bound into `BinaryV3`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub classes_rules_hash: Option<[u8; 32]>,
     /// [`SNAPSHOT_SCHEMA_VERSION`] at the time of writing.
     pub schema_version: u32,
     /// State digest algorithm for this epoch; absent in snapshot schemas 4 and 5.
@@ -187,6 +190,7 @@ impl Default for SnapshotMeta {
     fn default() -> Self {
         Self {
             classes_hash: String::new(),
+            classes_rules_hash: None,
             schema_version: SNAPSHOT_SCHEMA_VERSION,
             digest_version: StateDigestVersion::BinaryV2,
             build_id: env!("CARGO_PKG_VERSION").to_owned(),
@@ -203,8 +207,13 @@ impl Default for SnapshotMeta {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ZoneSnapshot {
     /// Resolved Phase 2 data; absent means legacy simulation rules.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub classes: Option<crate::domain::class::ClassRegistry>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_registry",
+        deserialize_with = "deserialize_registry"
+    )]
+    pub classes: Option<Arc<crate::domain::class::ClassRegistry>>,
     /// Persistence lanes, filled by the actor at an admitted boundary. Schema 4 lacks them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub checkpoints: Vec<CheckpointSnapshot>,
@@ -497,8 +506,12 @@ impl ZoneState {
             state.meta.digest_version = StateDigestVersion::JsonV1;
         }
         state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
-        state.classes = snapshot.classes.map(Arc::new);
-        if state.classes.is_some() && state.meta.digest_version != StateDigestVersion::BinaryV3 {
+        state.classes = snapshot.classes;
+        if state.classes.is_some() != (state.meta.digest_version == StateDigestVersion::BinaryV3) {
+            return Err(SnapshotError::CombatMismatch);
+        }
+        let expected_hash = state.classes.as_deref().map(registry_hash).transpose()?;
+        if state.meta.classes_rules_hash != expected_hash {
             return Err(SnapshotError::CombatMismatch);
         }
         state.checkpoints = snapshot.checkpoints;
@@ -516,56 +529,7 @@ impl ZoneState {
             if e.combat.is_some() && state.rules.is_none() {
                 return Err(SnapshotError::CombatMismatch);
             }
-            if let Some(CombatState {
-                role: CombatRole::Player { progression, .. },
-                ..
-            }) = &e.combat
-            {
-                match (&state.classes, progression) {
-                    (None, None) => {},
-                    (Some(registry), Some(p)) => {
-                        p.class_state
-                            .validate_for(
-                                registry,
-                                &p.identity,
-                                crate::domain::CharacterId::from_uuid(e.id.as_uuid()),
-                            )
-                            .map_err(|_| SnapshotError::CombatMismatch)?;
-                        let c = e.combat.as_ref().ok_or(SnapshotError::CombatMismatch)?;
-                        let rules = state
-                            .rules
-                            .as_deref()
-                            .ok_or(SnapshotError::CombatMismatch)?;
-                        let (sheet, max_cp, speed, radius) = super::profession_stats(
-                            rules,
-                            registry,
-                            &p.identity,
-                            &p.class_state,
-                            c.sheet.level(),
-                        )
-                        .map_err(|_| SnapshotError::CombatMismatch)?;
-                        if sheet != c.sheet
-                            || p.max_cp != max_cp
-                            || p.class_state.cp > max_cp
-                            || c.hp > sheet.max_hp()
-                            || c.mp > sheet.max_mp()
-                            || e.speed != speed
-                            || c.collision_radius != radius
-                        {
-                            return Err(SnapshotError::CombatMismatch);
-                        }
-                        for r in &p.class_state.successful_transfer_receipts {
-                            if r.result.character_id.as_uuid() != e.id.as_uuid()
-                                || r.result.identity != p.identity
-                                || r.result.current_class_id != r.target_class_id
-                            {
-                                return Err(SnapshotError::CombatMismatch);
-                            }
-                        }
-                    },
-                    _ => return Err(SnapshotError::CombatMismatch),
-                }
-            }
+            state.validate_class_entity(&e)?;
             state.aoi.insert(e.id, e.pos);
             state.entities.insert(e.id, e);
         }
@@ -605,7 +569,7 @@ impl ZoneState {
     #[must_use]
     pub fn snapshot(&self) -> ZoneSnapshot {
         ZoneSnapshot {
-            classes: self.classes.as_deref().cloned(),
+            classes: self.classes.clone(),
             checkpoints: self.checkpoints.clone(),
             meta: self.meta.clone(),
             seed: self.seed,
@@ -919,6 +883,7 @@ impl ZoneState {
     }
 
     /// Applies one command. `Err` is a refusal and leaves the zone unchanged.
+    #[allow(clippy::too_many_lines)] // Exhaustive command dispatch keeps mutation order visible.
     fn apply(&mut self, tick: Tick, c: &AppliedCommand) -> Result<Vec<ZoneEvent>, RejectReason> {
         self.authorize(c.source, &c.command)?;
         self.refuse_dead_actor(c.source, &c.command)?;
@@ -1759,3 +1724,25 @@ mod combat_tests;
     clippy::unreachable
 )]
 mod death_tests;
+
+// Arc keeps admitted-boundary snapshots cheap; serialized content remains the full catalogue.
+#[allow(clippy::ref_option)] // serde serialize_with requires a reference to the field.
+fn serialize_registry<S: serde::Serializer>(
+    registry: &Option<Arc<crate::domain::class::ClassRegistry>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    registry.as_deref().serialize(serializer)
+}
+fn deserialize_registry<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Arc<crate::domain::class::ClassRegistry>>, D::Error> {
+    Option::<crate::domain::class::ClassRegistry>::deserialize(deserializer)
+        .map(|registry| registry.map(Arc::new))
+}
+fn registry_hash(
+    registry: &crate::domain::class::ClassRegistry,
+) -> Result<[u8; 32], SnapshotError> {
+    // Resolved integer rules and ordered collections; computed only at bootstrap/restore.
+    let bytes = serde_json::to_vec(registry).map_err(|e| SnapshotError::Rules(e.to_string()))?;
+    Ok(Sha256::digest(bytes).into())
+}

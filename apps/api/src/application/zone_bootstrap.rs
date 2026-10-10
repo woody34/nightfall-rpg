@@ -145,6 +145,7 @@ impl ZoneBootstrap {
     }
 
     /// Starts `def` in a new epoch, ticking on `ticks`.
+    #[allow(clippy::too_many_lines)] // Startup persists proof before enabling actor admission, in one ordered sequence.
     pub async fn start<T: TickSource>(
         &self,
         def: &ZoneDefinition,
@@ -199,7 +200,7 @@ impl ZoneBootstrap {
                     }
                 }
             }
-            state = state.with_classes(registry.clone());
+            state = state.with_classes(registry.clone())?;
         }
         let mut snapshot = state.snapshot();
         if let Some((_, hash)) = &self.classes {

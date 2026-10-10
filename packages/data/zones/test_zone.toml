@@ -22,6 +22,12 @@ attackable = false
 pos = [32, 32]
 speed = 500
 
+[[npcs]]
+name = "Class Master"
+attackable = false
+pos = [126, 128]
+speed = 0
+
 # Where a dead player returns (town respawn), whole tiles.
 [safe_point]
 pos = [126, 126]

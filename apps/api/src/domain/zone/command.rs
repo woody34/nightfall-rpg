@@ -92,7 +92,7 @@ pub enum ZoneCommand {
         entity: EntityId,
         /// Verified account; checked against immutable player identity.
         account: crate::domain::AccountId,
-        /// Client operation key, scoped to account and change_class.
+        /// Client operation key, scoped to account and `change_class`.
         request_key: uuid::Uuid,
         /// Exact next profession.
         target: crate::domain::class::ClassId,

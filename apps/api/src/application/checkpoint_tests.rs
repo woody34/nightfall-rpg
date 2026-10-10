@@ -90,7 +90,7 @@ impl Harness {
             .unwrap()
             .unwrap()
     }
-    async fn transition(&mut self, died: bool) -> AppliedTick {
+    async fn transition(&mut self, died: bool) -> anyhow::Result<AppliedTick> {
         let mut tick = self.state.run_tick(self.state.draft(vec![])).unwrap();
         let mut snapshot = self.state.snapshot();
         let e = snapshot
@@ -126,8 +126,8 @@ impl Harness {
         };
         // Projection consumes the full delta; the supplied boundary agrees on resources.
         tick.events.push(ZoneEvent::Progression(delta));
-        self.service.admitted(&tick, &snapshot).await.unwrap();
-        tick
+        self.service.admitted(&tick, &snapshot).await?;
+        Ok(tick)
     }
 }
 
@@ -172,14 +172,14 @@ async fn cadence_is_per_player_fifty_ticks_and_logout_flushes_resources_position
 #[tokio::test]
 async fn death_and_level_are_immediate_and_duplicate_batches_do_not_duplicate_events() {
     let mut h = Harness::new().await;
-    let tick = h.transition(false).await;
+    let tick = h.transition(false).await.unwrap();
     assert_eq!(h.stored().await.revision, 1);
     h.service
         .admitted(&tick, &h.state.snapshot())
         .await
         .unwrap();
     assert_eq!(h.repo.staged_events().len(), 1);
-    h.transition(true).await;
+    h.transition(true).await.unwrap();
     let p = h.stored().await;
     assert_eq!((p.revision, p.xp, p.hp, p.alive), (2, 41, Some(0), false));
     assert!(
@@ -194,7 +194,7 @@ async fn stale_revision_never_overwrites_newer_state_or_stages_events() {
     newer.xp = 999;
     newer.idempotency.1 = IdempotencyKey::from_uuid(Uuid::now_v7());
     h.repo.checkpoint(&newer, &[]).await.unwrap();
-    h.transition(true).await;
+    assert!(h.transition(true).await.is_err());
     assert_eq!(h.stored().await.xp, 999);
     assert!(h.repo.staged_events().is_empty());
     assert!(h.service.players[&h.id].fenced);
@@ -256,7 +256,7 @@ async fn failures_before_and_after_commit_retry_identical_body_once_and_count() 
         let metrics = Metrics::detached();
         h.service.repo = repo.clone();
         h.service.metrics = Arc::new(metrics.clone());
-        h.transition(false).await;
+        h.transition(false).await.unwrap();
         assert_eq!(repo.attempts.load(Ordering::SeqCst), 2);
         assert_eq!(h.stored().await.revision, 1);
         assert_eq!(h.repo.staged_events().len(), 1);

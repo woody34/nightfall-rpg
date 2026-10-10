@@ -1314,7 +1314,7 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
     let pb = PbRecord::decode(bytes).map_err(err)?;
     if ![3, 4, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
         return Err(CodecError(format!(
-            "record schema {} is not supported (this build reads 3 and {RECORD_SCHEMA_VERSION})",
+            "record schema {} is not supported (this build reads 3, 4 and {RECORD_SCHEMA_VERSION})",
             pb.schema
         )));
     }
@@ -1748,6 +1748,12 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     })
 }
 
+// These plain structs contain only bounded integer/string data and ordered vectors. JSON
+// serialization cannot fail; using one canonical encoding retains absent legacy fields.
+fn canonical_json<T: serde::Serialize>(value: &T) -> Vec<u8> {
+    serde_json::to_vec(value).unwrap_or_default()
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod combat_tests {
@@ -1758,7 +1764,7 @@ mod combat_tests {
             ..Default::default()
         };
         let error = super::decode_record(&prost::Message::encode_to_vec(&pb)).unwrap_err();
-        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3 and 4)");
+        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4 and 5)");
     }
 
     use super::*;
@@ -1899,10 +1905,4 @@ mod combat_tests {
             assert_eq!(reason_from_pb(reason_to_pb(reason)).unwrap(), reason);
         }
     }
-}
-
-// These plain structs contain only bounded integer/string data and ordered vectors. JSON
-// serialization cannot fail; using one canonical encoding retains absent legacy fields.
-fn canonical_json<T: serde::Serialize>(value: &T) -> Vec<u8> {
-    serde_json::to_vec(value).unwrap_or_default()
 }

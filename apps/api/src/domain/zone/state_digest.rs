@@ -15,6 +15,7 @@ impl ZoneState {
     pub(super) fn phase2_state_digest(&self) -> [u8; 32] {
         let mut w = Writer(Vec::new());
         w.0.extend_from_slice(b"nightfall.state.3\0");
+        w.option(self.meta.classes_rules_hash.as_ref(), |w, hash| w.0.extend_from_slice(hash));
         // The immutable legacy layout is incorporated as a fixed-width component.
         w.0.extend_from_slice(&self.binary_state_digest());
         w.len(self.entities.len());

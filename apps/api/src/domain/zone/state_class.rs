@@ -6,17 +6,80 @@ use crate::domain::zone::{profession_stats, transfer_resource, PlayerLoad, Playe
 use crate::domain::{AccountId, CharacterId, CharacterName};
 
 impl ZoneState {
+    pub(super) fn validate_class_entity(&self, e: &Entity) -> Result<(), SnapshotError> {
+        if let Some(CombatState {
+            role:
+                CombatRole::Player {
+                    class,
+                    xp,
+                    progression,
+                },
+            ..
+        }) = &e.combat
+        {
+            match (&self.classes, progression) {
+                (None, None) => {},
+                (Some(registry), Some(p)) => {
+                    p.class_state
+                        .validate_for(
+                            registry,
+                            &p.identity,
+                            crate::domain::CharacterId::from_uuid(e.id.as_uuid()),
+                        )
+                        .map_err(|_| SnapshotError::CombatMismatch)?;
+                    let c = e.combat.as_ref().ok_or(SnapshotError::CombatMismatch)?;
+                    let rules = self.rules.as_deref().ok_or(SnapshotError::CombatMismatch)?;
+                    let (sheet, max_cp, speed, radius) = profession_stats(
+                        rules,
+                        registry,
+                        &p.identity,
+                        &p.class_state,
+                        c.sheet.level(),
+                    )
+                    .map_err(|_| SnapshotError::CombatMismatch)?;
+                    if crate::domain::character_progression::base_class_profile(
+                        p.identity.base_class_id,
+                    ) != Some(class.as_str())
+                        || level_for_xp(rules, *xp) != c.sheet.level()
+                        || *xp > xp_cap(rules).map_err(|_| SnapshotError::CombatMismatch)?
+                        || crate::domain::CharacterName::new(e.name.clone()).is_err()
+                        || e.targeting.dead != (c.hp == 0)
+                        || sheet != c.sheet
+                        || p.max_cp != max_cp
+                        || p.class_state.cp > max_cp
+                        || c.hp > sheet.max_hp()
+                        || c.mp > sheet.max_mp()
+                        || e.speed != speed
+                        || c.collision_radius != radius
+                    {
+                        return Err(SnapshotError::CombatMismatch);
+                    }
+                    for r in &p.class_state.successful_transfer_receipts {
+                        if r.result.character_id.as_uuid() != e.id.as_uuid()
+                            || r.result.identity != p.identity
+                            || r.result.current_class_id != r.target_class_id
+                        {
+                            return Err(SnapshotError::CombatMismatch);
+                        }
+                    }
+                },
+                _ => return Err(SnapshotError::CombatMismatch),
+            }
+        }
+        Ok(())
+    }
+
     /// Whether this epoch uses Phase 2 class rules.
     pub fn has_classes(&self) -> bool {
         self.classes.is_some()
     }
 
     /// Enables Phase 2 only for new epochs; restored legacy snapshots never call this.
-    #[must_use]
-    pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Self {
+    pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Result<Self, SnapshotError> {
+        self.meta.classes_rules_hash = Some(registry_hash(&classes)?);
         self.classes = Some(classes);
         self.meta.digest_version = StateDigestVersion::BinaryV3;
-        self
+        Ok(self)
     }
 
     pub(super) fn loaded_player(
@@ -75,12 +138,12 @@ impl ZoneState {
         if e.generation != generation {
             return Err(RejectReason::StaleSession);
         }
-        let p = match e.combat.as_ref().map(|c| &c.role) {
-            Some(CombatRole::Player {
-                progression: Some(p),
-                ..
-            }) => p,
-            _ => return Err(RejectReason::InvalidLoad),
+        let Some(CombatRole::Player {
+            progression: Some(p),
+            ..
+        }) = e.combat.as_ref().map(|c| &c.role)
+        else {
+            return Err(RejectReason::InvalidLoad);
         };
         if p.identity.account_id != account {
             return Err(RejectReason::NotPermitted);
@@ -136,9 +199,10 @@ impl ZoneState {
         if engaged {
             unmet.push(RejectReason::InCombat);
         }
-        let dx = i128::from(e.pos.x.raw()) - 126_000;
-        let dy = i128::from(e.pos.y.raw()) - 128_000;
-        if dx * dx + dy * dy > 9_000_000 {
+        if !e
+            .pos
+            .within(Vec2Fixed::from_tiles(126, 128), Fixed::from_tiles(3))
+        {
             unmet.push(RejectReason::ClassMasterTooFar);
         }
         let token = if class.tier == 1 {
@@ -251,7 +315,10 @@ impl ZoneState {
             sheet.level(),
         )
         .map_err(|_| RejectReason::InvalidLoad)?;
-        let granted_skill_keys = p.class_state.merge_learned_skills(grants);
+        let granted_skill_keys = p
+            .class_state
+            .merge_learned_skills_checked(registry, p.identity.race, grants)
+            .map_err(|_| RejectReason::InvalidLoad)?;
         let result = FrozenTransferResult {
             character_id: CharacterId::from_uuid(entity.as_uuid()),
             identity: p.identity.clone(),
@@ -319,23 +386,32 @@ impl ZoneState {
     clippy::unwrap_used,
     clippy::indexing_slicing,
     clippy::panic,
-    clippy::arithmetic_side_effects
+    clippy::arithmetic_side_effects,
+    clippy::many_single_char_names // Compact state/entity/account vectors match the zone test conventions.
 )]
 mod tests {
     use super::*;
     use crate::application::replay_log::{decode_snapshot, encode_snapshot, AppliedTickRecord};
-    use crate::domain::zone::{resource_max, PlayerLoad, Speed, StatKind};
-    use crate::domain::{
-        character_progression::{CharacterAppearance, CharacterIdentity, ClassState},
-        Race,
+    use crate::domain::character_progression::{
+        CharacterAppearance, CharacterIdentity, ClassState,
     };
+    use crate::domain::zone::{physical_damage, resource_max, PlayerLoad, Speed, StatKind};
     use crate::infrastructure::{
         class_data::{load_classes, ClassSource},
         rules_data::{load_rules, RulesSource},
     };
     fn fixture(level: u32) -> (ZoneState, EntityId, AccountId) {
-        let rules = load_rules(&RulesSource::embedded()).unwrap().rules;
-        let registry = load_classes(&ClassSource::embedded()).unwrap().registry;
+        fixture_class(level, ClassId(0))
+    }
+    fn fixture_class(level: u32, base: ClassId) -> (ZoneState, EntityId, AccountId) {
+        static RULES: std::sync::OnceLock<Arc<StatRules>> = std::sync::OnceLock::new();
+        static CLASSES: std::sync::OnceLock<Arc<ClassRegistry>> = std::sync::OnceLock::new();
+        let rules = RULES
+            .get_or_init(|| load_rules(&RulesSource::embedded()).unwrap().rules)
+            .clone();
+        let registry = CLASSES
+            .get_or_init(|| load_classes(&ClassSource::embedded()).unwrap().registry)
+            .clone();
         let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
         let account = AccountId::from_uuid(uuid::Uuid::from_u128(2));
         let mut state = ZoneState::new(
@@ -347,15 +423,18 @@ mod tests {
             0,
         )
         .with_rules(rules.clone())
-        .with_classes(registry);
-        let mut class_state = ClassState::new(ClassId(0));
+        .with_classes(registry)
+        .unwrap();
+        let root = state.classes.as_ref().unwrap().get(base).unwrap();
+        let race = root.race;
+        let mut class_state = ClassState::new(base);
         class_state.token_tier_1_count = 1;
         class_state.token_tier_2_count = 1;
         let progression = PlayerProgression {
             identity: CharacterIdentity {
                 account_id: account,
-                race: Race::Human,
-                base_class_id: ClassId(0),
+                race,
+                base_class_id: base,
                 appearance: CharacterAppearance::default(),
             },
             class_state,
@@ -366,7 +445,9 @@ mod tests {
             level,
             xp: rules.xp_to_level(level).unwrap(),
             checkpoint_revision: Some(0),
-            ..PlayerLoad::fresh("human_fighter")
+            ..PlayerLoad::fresh(
+                crate::domain::character_progression::base_class_profile(base).unwrap(),
+            )
         };
         let t = state
             .run_tick(state.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
@@ -594,5 +675,299 @@ mod tests {
         )
         .unwrap();
         assert_eq!(p.class_state.learned_skills, expected);
+    }
+    #[test]
+    #[allow(clippy::print_stderr)] // Reports the measured artifact size for coordinator acceptance.
+    fn full_catalogue_snapshot_fits_compressed_budget_and_expansion_is_bounded() {
+        let (s, _, _) = fixture(40);
+        let snapshot = s.snapshot();
+        let raw = serde_json::to_vec(&snapshot).unwrap();
+        let encoded = encode_snapshot(&snapshot).unwrap();
+        eprintln!(
+            "PHASE2_SNAPSHOT raw={} encoded={} classes={} skill_rows={}",
+            raw.len(),
+            encoded.len(),
+            snapshot.classes.as_ref().unwrap().classes().len(),
+            snapshot
+                .classes
+                .as_ref()
+                .unwrap()
+                .classes()
+                .iter()
+                .map(|c| c.skill_tree.len())
+                .sum::<usize>()
+        );
+        assert!(encoded.len() < 1024 * 1024 - 1024);
+        assert_eq!(decode_snapshot(&encoded).unwrap(), snapshot);
+        let mut bomb = encoded.clone();
+        bomb[8..12].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(decode_snapshot(&bomb).is_err());
+        let mut truncated = encoded.clone();
+        truncated.pop();
+        assert!(decode_snapshot(&truncated).is_err());
+        let mut trailing = encoded.clone();
+        trailing.push(0);
+        assert!(decode_snapshot(&trailing).is_err());
+        let mut dishonest = encoded.clone();
+        dishonest[8..12].copy_from_slice(&1_u32.to_le_bytes());
+        assert!(decode_snapshot(&dishonest).is_err());
+    }
+    #[test]
+    fn every_playable_branch_enforces_threshold_parent_and_token_and_thirds_stay_metadata() {
+        let (catalog, _, _) = fixture(1);
+        let registry = catalog.classes.as_ref().unwrap();
+        let mut counts = [0; 4];
+        for class in registry.classes().iter().filter(|c| c.tier > 0) {
+            counts[usize::from(class.tier)] += 1;
+            let level = if class.tier == 3 { 85 } else { class.min_level };
+            let (mut s, e, a) = fixture_class(level, class.base_class_id);
+            let mut parents = registry.ancestors(class.id);
+            parents.reverse();
+            for parent in parents.into_iter().skip(1) {
+                assert!(apply(&mut s, command(e, a, u128::from(parent.0) + 1, parent.0))
+                    .dispositions
+                    .is_empty());
+            }
+            if class.tier == 3 {
+                assert_eq!(
+                    apply(&mut s, command(e, a, 900, class.id.0)).dispositions[0].reason,
+                    RejectReason::TransferIneligible
+                );
+                continue;
+            }
+            let mut below = s.clone();
+            let c = below.entities.get_mut(&e).unwrap().combat.as_mut().unwrap();
+            let CombatRole::Player {
+                progression: Some(p),
+                xp,
+                ..
+            } = &mut c.role
+            else {
+                panic!("player")
+            };
+            *xp = below.rules.as_ref().unwrap().xp_to_level(level).unwrap() - 1;
+            c.sheet = profession_stats(
+                below.rules.as_ref().unwrap(),
+                registry,
+                &p.identity,
+                &p.class_state,
+                level - 1,
+            )
+            .unwrap()
+            .0;
+            assert!(below
+                .transfer_unmet(e, class.id)
+                .contains(&RejectReason::TransferIneligible));
+            let mut empty = s.clone();
+            let CombatRole::Player {
+                progression: Some(p),
+                ..
+            } = &mut empty
+                .entities
+                .get_mut(&e)
+                .unwrap()
+                .combat
+                .as_mut()
+                .unwrap()
+                .role
+            else {
+                panic!("player")
+            };
+            p.class_state.token_tier_1_count = 0;
+            p.class_state.token_tier_2_count = 0;
+            assert!(empty
+                .transfer_unmet(e, class.id)
+                .contains(&RejectReason::TransferRequirement));
+            assert!(
+                apply(&mut s, command(e, a, 900, class.id.0))
+                    .dispositions
+                    .is_empty(),
+                "class {}",
+                class.id.0
+            );
+            assert_eq!(
+                s.class_player(e, a, SessionGeneration(1))
+                    .unwrap()
+                    .class_state
+                    .current_class_id,
+                class.id
+            );
+        }
+        assert_eq!(counts, [0, 18, 31, 31]);
+    }
+
+    #[test]
+    fn dormant_rule_changes_bind_digest_and_forged_restore_hash_is_rejected() {
+        let (s, _, _) = fixture(40);
+        let mut json = serde_json::to_value(s.classes.as_deref().unwrap()).unwrap();
+        let class = json["classes"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|c| c["id"] == 55)
+            .unwrap();
+        let learn = class["skill_tree"]
+            .as_array_mut()
+            .unwrap()
+            .first_mut()
+            .unwrap();
+        learn["auto_get"] = serde_json::Value::Bool(!learn["auto_get"].as_bool().unwrap());
+        let changed: ClassRegistry = serde_json::from_value(json).unwrap();
+        let mut forged = s.snapshot();
+        forged.classes = Some(Arc::new(changed.clone()));
+        assert!(ZoneState::from_snapshot(forged).is_err());
+        let changed = s.clone().with_classes(Arc::new(changed)).unwrap();
+        assert_ne!(s.meta.classes_rules_hash, changed.meta.classes_rules_hash);
+        assert_ne!(s.state_digest(), changed.state_digest());
+        assert_eq!(s.meta.classes_hash, changed.meta.classes_hash);
+        let snap = s.snapshot();
+        assert!(Arc::ptr_eq(s.classes.as_ref().unwrap(), snap.classes.as_ref().unwrap()));
+    }
+
+    #[test]
+    fn elf_source_run_and_evasion_and_dark_elf_critical_floor_have_independent_oracles() {
+        let (s, e, _) = fixture_class(40, ClassId(18));
+        assert_eq!(s.entities[&e].speed.milli_tiles_per_tick(), 400);
+        let rules = s.rules.as_ref().unwrap();
+        let legacy = StatSheet::for_player(
+            rules,
+            rules.class("elven_fighter").unwrap(),
+            40,
+            Some(rules.starter_weapon()),
+        )
+        .unwrap();
+        let expected =
+            ((legacy.evasion().raw() * 103 + 50_000_000) / 100_000_000).min(200) * 1_000_000;
+        assert_eq!(
+            s.entities[&e]
+                .combat
+                .as_ref()
+                .unwrap()
+                .sheet
+                .evasion()
+                .raw(),
+            expected
+        );
+        let (dark, de, _) = fixture_class(40, ClassId(31));
+        let sheet = dark.entities[&de].combat.as_ref().unwrap().sheet;
+        let target = legacy;
+        for spread in [-10, 0, 10] {
+            let expected =
+                (76_i128 * i128::from(sheet.p_atk().raw()) * 2 * (100 + i128::from(spread)) * 105
+                    / (i128::from(target.p_def().raw()) * 100 * 100))
+                    .max(1);
+            assert_eq!(
+                super::super::super::combat_math::physical_damage_with_critical_bonus(
+                    rules.constants(),
+                    &sheet,
+                    &target,
+                    true,
+                    spread,
+                    105
+                )
+                .unwrap(),
+                u32::try_from(expected).unwrap()
+            );
+            assert_eq!(
+                super::super::super::combat_math::physical_damage_with_critical_bonus(
+                    rules.constants(),
+                    &sheet,
+                    &target,
+                    false,
+                    spread,
+                    105
+                )
+                .unwrap(),
+                physical_damage(rules.constants(), &sheet, &target, false, spread).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn human_keltir_reward_is_29_and_real_crossings_learn_metadata_without_token_grants() {
+        for level in [19, 39] {
+            let (mut s, e, a) = fixture(level);
+            let next_xp = s.rules.as_ref().unwrap().xp_to_level(level + 1).unwrap();
+            let CombatRole::Player {
+                xp,
+                progression: Some(p),
+                ..
+            } = &mut s
+                .entities
+                .get_mut(&e)
+                .unwrap()
+                .combat
+                .as_mut()
+                .unwrap()
+                .role
+            else {
+                panic!("player")
+            };
+            *xp = next_xp - 29;
+            p.class_state.token_tier_1_count = 0;
+            p.class_state.token_tier_2_count = 0;
+            let zone = crate::infrastructure::zone_data::parse_zone(
+                crate::infrastructure::zone_data::TEST_ZONE_TOML,
+            )
+            .unwrap();
+            let mut npc =
+                NpcCombat::from_template(s.rules.as_ref().unwrap(), &zone.npc_templates[0])
+                    .unwrap();
+            assert_eq!(npc.xp_reward, 28);
+            npc.stats.max_hp = 1;
+            apply(
+                &mut s,
+                ZoneInput::system(ZoneCommand::SpawnNpc {
+                    name: "Keltir".into(),
+                    pos: Vec2Fixed::from_tiles(126, 127),
+                    speed: Speed::DEFAULT,
+                    combat: Some(Box::new(npc)),
+                }),
+            );
+            let npc = s
+                .entities
+                .values()
+                .find(|other| other.kind == EntityKind::Npc)
+                .unwrap()
+                .id;
+            apply(
+                &mut s,
+                ZoneInput::session(
+                    e,
+                    SessionGeneration(1),
+                    1,
+                    ZoneCommand::SetTarget {
+                        entity: e,
+                        target: Some(npc),
+                    },
+                ),
+            );
+            let mut tick = apply(
+                &mut s,
+                ZoneInput::session(e, SessionGeneration(1), 2, ZoneCommand::Attack { entity: e }),
+            );
+            let mut reward = None;
+            for _ in 0..100 {
+                if let Some(amount) = tick.events.iter().find_map(|event| {
+                    if let ZoneEvent::XpGained { amount, .. } = event {
+                        Some(*amount)
+                    } else {
+                        None
+                    }
+                }) {
+                    reward = Some(amount);
+                    break;
+                }
+                tick = s.run_tick(s.draft(vec![])).unwrap();
+            }
+            assert_eq!(reward, Some(29));
+            let c = s.entities[&e].combat.as_ref().unwrap();
+            assert_eq!(c.sheet.level(), level + 1);
+            let p = s.class_player(e, a, SessionGeneration(1)).unwrap();
+            assert!(!p.class_state.learned_skills.is_empty());
+            assert_eq!(p.class_state.token_tier_1_count, 0);
+            assert_eq!(p.class_state.token_tier_2_count, 0);
+            assert_eq!(p.class_state.milestone_claimed_mask, 0);
+        }
     }
 }

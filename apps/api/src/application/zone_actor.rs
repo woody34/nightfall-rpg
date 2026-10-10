@@ -631,30 +631,42 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     }
 
     /// Drafts and runs the next tick, consuming its inputs from `pending`.
+    #[allow(clippy::too_many_lines)] // Receipt preflight and lifecycle saves must stay before the single draft mutation.
     async fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
         let admitted = loop {
             let selected = self.select_admitted();
             let transfer = selected.iter().find_map(|i| {
-                self.pending.get(*i).and_then(|q| match q.input.command {
-                    crate::domain::zone::ZoneCommand::ChangeClass {
+                self.pending.get(*i).and_then(|q| {
+                    if let crate::domain::zone::ZoneCommand::ChangeClass {
                         entity,
                         account,
                         request_key,
                         target,
-                    } => Some((*i, entity, account, request_key, target)),
-                    _ => None,
+                    } = q.input.command
+                    {
+                        Some((*i, entity, account, request_key, target))
+                    } else {
+                        None
+                    }
                 })
             });
             let Some((index, entity, account, key, target)) = transfer else {
                 break selected;
             };
+            let live_admitted = self.pending.get(index).is_some_and(|queued| {
+                if let CommandSource::Session {
+                    entity: source,
+                    generation,
+                } = queued.input.source
+                {
+                    source == entity && self.state.class_player(entity, account, generation).is_ok()
+                } else {
+                    false
+                }
+            });
             let result = if let Some(service) = self.checkpoints.service() {
                 let service = service.lock().await;
-                if !service.transfer_ready(entity) {
-                    Some(Err(super::AppError::Unavailable(
-                        "checkpoint lane missing or fenced".into(),
-                    )))
-                } else {
+                if service.transfer_ready(entity) {
                     let key = super::IdempotencyKey::from_uuid(key);
                     let fingerprint = super::ports::transfer_fingerprint(
                         crate::domain::CharacterId::from_uuid(entity.as_uuid()),
@@ -673,7 +685,16 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                             "transfer receipt lookup failed".into(),
                         ))),
                     }
+                } else if live_admitted {
+                    tracing::error!(%entity, "admitted player checkpoint lane missing or fenced");
+                    return Err((self.state.next_tick(), TickError::PersistenceFence));
+                } else {
+                    Some(Err(super::AppError::Unavailable(
+                        "character admission checkpoint unavailable".into(),
+                    )))
                 }
+            } else if live_admitted {
+                return Err((self.state.next_tick(), TickError::PersistenceFence));
             } else {
                 Some(Err(super::AppError::Unavailable("checkpoint service unavailable".into())))
             };
@@ -808,6 +829,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     }
 
     fn fail_replies(&mut self) {
+        for queued in &mut self.pending {
+            if let Some(reply) = queued.reply.take() {
+                let _ = reply.send(Err(super::AppError::Unavailable(
+                    "checkpoint fenced; retry the same key after recovery".into(),
+                )));
+            }
+        }
         for (_, reply) in std::mem::take(&mut self.replies) {
             let _ = reply.send(Err(super::AppError::Unavailable(
                 "checkpoint fenced; retry the same key after recovery".into(),
@@ -901,6 +929,27 @@ pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::A
     match reason {
         RejectReason::TransferConflict => super::AppError::IdempotencyConflict,
         RejectReason::NotPermitted => super::AppError::PermissionDenied(reason.detail().to_owned()),
-        _ => super::AppError::FailedPrecondition(reason.detail().to_owned()),
+        RejectReason::TransferIneligible
+        | RejectReason::TransferRequirement
+        | RejectReason::InCombat
+        | RejectReason::ClassMasterTooFar
+        | RejectReason::DeadActor
+        | RejectReason::NonAttackableTarget
+        | RejectReason::TargetNotInAoi
+        | RejectReason::OutOfRange
+        | RejectReason::Protected
+        | RejectReason::NotYetImplemented
+        | RejectReason::UnknownEntity
+        | RejectReason::OutOfBounds
+        | RejectReason::TooFar
+        | RejectReason::AlreadyExists
+        | RejectReason::StaleSession
+        | RejectReason::NotAPlayer
+        | RejectReason::InvalidLoad
+        | RejectReason::NotDead => super::AppError::FailedPrecondition(reason.detail().to_owned()),
     }
 }
+
+#[cfg(test)]
+#[path = "zone_transfer_tests.rs"]
+mod transfer_tests;

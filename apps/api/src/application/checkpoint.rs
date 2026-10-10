@@ -278,6 +278,7 @@ impl CheckpointService {
     }
 
     /// Consumes one live, admitted batch and its end-of-tick state. Duplicate batches are no-ops.
+    #[allow(clippy::too_many_lines)] // One ordered projection/save barrier; never split into detached side effects.
     pub async fn admitted(
         &mut self,
         tick: &AppliedTick,

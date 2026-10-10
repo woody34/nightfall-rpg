@@ -122,7 +122,10 @@ pub fn transfer_resource(current: u32, old_max: u32, new_max: u32, minimum: u32)
     let value = if old_max == 0 {
         0
     } else {
-        u64::from(current).saturating_mul(u64::from(new_max)) / u64::from(old_max)
+        u64::from(current)
+            .saturating_mul(u64::from(new_max))
+            .checked_div(u64::from(old_max))
+            .unwrap_or(0)
     };
     u32::try_from(value)
         .unwrap_or(u32::MAX)

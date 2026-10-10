@@ -62,7 +62,7 @@ pub fn physical_damage(
 }
 
 /// Critical-only racial percentage, included before the damage's single final floor.
-pub fn physical_damage_with_critical_bonus(
+pub(super) fn physical_damage_with_critical_bonus(
     c: &FormulaConstants,
     attacker: &StatSheet,
     target: &StatSheet,

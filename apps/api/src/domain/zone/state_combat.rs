@@ -783,7 +783,9 @@ impl ZoneState {
                 new,
             )
             .ok()?;
-            p.class_state.merge_learned_skills(grants);
+            p.class_state
+                .merge_learned_skills_checked(self.classes.as_deref()?, p.identity.race, grants)
+                .ok()?;
             sheet
         } else {
             StatSheet::for_player(&rules, rules.class(class)?, new, Some(rules.starter_weapon()))
