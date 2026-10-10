@@ -149,11 +149,27 @@ impl AppliedTickRecord {
     /// still a divergence.
     #[must_use]
     pub fn reproduced_by(&self, rerun: &Self) -> bool {
+        // Inspect full reproduced outputs before digest-only comparison hides their fields.
+        if self.validate().is_err() || rerun.validate().is_err() {
+            return false;
+        }
         let rerun = match self.output_form {
             OutputForm::Encoded => rerun.encode(),
             OutputForm::Sha256 => rerun.with_output_digests().encode(),
         };
         rerun == self.encode()
+    }
+
+    /// Validates raw nested payloads against this record's immutable policy.
+    pub fn validate(&self) -> Result<(), CodecError> {
+        Self::decode(&self.encode()).map(|_| ())
+    }
+
+    /// Checked encoding for callers accepting externally assembled records.
+    pub fn try_encode(&self) -> Result<Vec<u8>, CodecError> {
+        let bytes = self.encode();
+        Self::decode(&bytes)?;
+        Ok(bytes)
     }
 
     /// Length of [`Self::encode`], without encoding.
@@ -202,6 +218,7 @@ pub fn decode_outputs(bytes: &[u8]) -> Result<Vec<ObserverOutput>, CodecError> {
 pub(crate) const MAX_SNAPSHOT_JSON: usize = 32 * 1024 * 1024;
 /// Conservative default broker budget, leaving 1 KiB for subject/headers.
 pub(crate) const MAX_SNAPSHOT_ENCODED: usize = 1024 * 1024 - 1024;
+const PHASE3_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP9\0";
 const TOKEN_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP8\0";
 const SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP7\0";
 
@@ -235,10 +252,12 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
     };
     serde_json::to_writer(&mut json, snapshot).map_err(|e| CodecError(e.to_string()))?;
     let json = json.bytes;
+    validate_snapshot_json(&json)?;
     if !matches!(
         snapshot.meta.digest_version,
         crate::domain::zone::StateDigestVersion::BinaryV3
             | crate::domain::zone::StateDigestVersion::BinaryV4
+            | crate::domain::zone::StateDigestVersion::BinaryV5
     ) {
         return Ok(json);
     }
@@ -258,7 +277,10 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
         .bytes;
     let mut out = Vec::with_capacity(body.len().saturating_add(12));
     out.extend_from_slice(
-        if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV4 {
+        if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV5 {
+            PHASE3_SNAPSHOT_MAGIC
+        } else if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV4
+        {
             TOKEN_SNAPSHOT_MAGIC
         } else {
             SNAPSHOT_MAGIC
@@ -276,10 +298,14 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
 /// Reads legacy JSON or a bounded Phase2 envelope. Rejects truncated streams, dishonest
 /// length headers, trailing compressed bytes and decompression beyond the declared bound.
 pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
-    if !bytes.starts_with(SNAPSHOT_MAGIC) && !bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
+    if !bytes.starts_with(SNAPSHOT_MAGIC)
+        && !bytes.starts_with(TOKEN_SNAPSHOT_MAGIC)
+        && !bytes.starts_with(PHASE3_SNAPSHOT_MAGIC)
+    {
         if bytes.len() > MAX_SNAPSHOT_JSON {
             return Err(CodecError("legacy snapshot exceeds 32 MiB".into()));
         }
+        validate_snapshot_json(bytes)?;
         let snapshot: ZoneSnapshot =
             serde_json::from_slice(bytes).map_err(|e| CodecError(e.to_string()))?;
         snapshot
@@ -313,12 +339,15 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     {
         return Err(CodecError("snapshot length or compressed stream mismatch".into()));
     }
+    validate_snapshot_json(&json)?;
     let snapshot: ZoneSnapshot =
         serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?;
     snapshot
         .validate_version()
         .map_err(|e| CodecError(e.to_string()))?;
-    let expected = if bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
+    let expected = if bytes.starts_with(PHASE3_SNAPSHOT_MAGIC) {
+        (9, crate::domain::zone::StateDigestVersion::BinaryV5)
+    } else if bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
         (8, crate::domain::zone::StateDigestVersion::BinaryV4)
     } else {
         (7, crate::domain::zone::StateDigestVersion::BinaryV3)
@@ -327,6 +356,20 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
         return Err(CodecError("snapshot envelope/schema mismatch".into()));
     }
     Ok(snapshot)
+}
+
+fn validate_snapshot_json(bytes: &[u8]) -> Result<(), CodecError> {
+    let value: serde_json::Value =
+        serde_json::from_slice(bytes).map_err(|e| CodecError(e.to_string()))?;
+    if value
+        .get("meta")
+        .and_then(|m| m.get("schema_version"))
+        .and_then(serde_json::Value::as_u64)
+        .is_some_and(|v| v <= 8)
+    {
+        super::codec_validation::legacy_json(&value)?;
+    }
+    Ok(())
 }
 
 /// Bytes that are not a valid record of the expected kind.

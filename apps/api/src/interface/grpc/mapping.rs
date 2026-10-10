@@ -255,6 +255,131 @@ fn passive_to_pb(key: &str) -> pb::PassiveInfo {
     }
 }
 
+/// Maps every frozen owner-only field without consulting mutable progression.
+pub(super) fn learn_result_to_pb(
+    out: &crate::application::ports::FrozenLearnResult,
+) -> pb::LearnSkillResponse {
+    pb::LearnSkillResponse {
+        character_id: out.character_id.to_string(),
+        skill_id: out.skill.id.0,
+        skill_level: out.skill.rank,
+        sp_spent: out.sp_spent,
+        sp_remaining: out.sp_remaining,
+        tick: out.tick.0,
+        hp: out.hp,
+        max_hp: out.max_hp,
+        mp: out.mp,
+        max_mp: out.max_mp,
+        cp: out.cp,
+        max_cp: out.max_cp,
+        incarnation: out.incarnation,
+        effective_stats: Some(pb::EffectiveStats {
+            p_atk_q: out.effective_stats.p_atk_q,
+            p_def_q: out.effective_stats.p_def_q,
+            m_atk_q: out.effective_stats.m_atk_q,
+            m_def_q: out.effective_stats.m_def_q,
+            attack_speed: out.effective_stats.attack_speed,
+            cast_speed: out.effective_stats.cast_speed,
+            speed_q: out.effective_stats.speed_q,
+            accuracy_q: out.effective_stats.accuracy_q,
+            evasion_q: out.effective_stats.evasion_q,
+            crit_permille: out.effective_stats.crit_permille,
+        }),
+    }
+}
+
+/// Preserves actor-owned eligibility, costs and prerequisite explanations.
+pub(super) fn learnable_skills_to_pb(
+    out: &crate::application::ports::LearnableSkillsState,
+) -> pb::ListLearnableSkillsResponse {
+    pb::ListLearnableSkillsResponse {
+        current_class_id: out.current_class_id.0,
+        sp: out.sp,
+        skills: out
+            .skills
+            .iter()
+            .map(|entry| {
+                let skill = &entry.skill;
+                pb::LearnableSkill {
+                    learned: entry.learned,
+                    affordable: entry.affordable,
+                    trainer_required: entry.trainer_required,
+                    eligible: entry.eligible,
+                    unmet: entry.unmet.clone(),
+                    skill: Some(pb::SkillLearnInfo {
+                        key: skill.key.clone(),
+                        skill_id: skill.skill_id,
+                        l2_ref: skill.l2_ref.clone(),
+                        learned_by_npc: skill.learned_by_npc,
+                        effect_implemented: entry.effect_implemented,
+                        skill_level: skill.skill_level,
+                        required_level: skill.required_level,
+                        sp_cost: skill.sp_cost,
+                        auto_get: skill.auto_get,
+                        required_items: skill
+                            .required_items
+                            .iter()
+                            .map(|item| pb::SkillItemRequirement {
+                                item: item.item.clone(),
+                                count: item.count,
+                            })
+                            .collect(),
+                    }),
+                }
+            })
+            .collect(),
+    }
+}
+
+/// Deferred blockers remain public metadata; private learned ranks/resources are absent.
+pub(super) fn skill_catalogue_to_pb(
+    out: &crate::application::ports::SkillCatalogue,
+) -> pb::GetSkillCatalogResponse {
+    pb::GetSkillCatalogResponse {
+        data_version: out.data_version.clone(),
+        skills: out
+            .skills
+            .iter()
+            .map(|skill| pb::SkillCatalogEntry {
+                skill_id: skill.skill_id.0,
+                key: skill.key.clone(),
+                display_name: skill.display_name.clone(),
+                max_level: skill.max_level,
+                effect_implemented: skill.effect_implemented,
+                deferred_reasons: skill.deferred_reasons.clone(),
+                l2_ref: skill.l2_ref.clone(),
+                mp_consume_start: skill.mp_consume_start.clone(),
+                mp_consume_end: skill.mp_consume_end.clone(),
+                hp_consume: skill.hp_consume.clone(),
+                reuse_ms: skill.reuse_ms.clone(),
+                hit_time_ms: skill.hit_time_ms.clone(),
+                operate_type: match skill.operate_type {
+                    crate::application::ports::SkillOperateType::ActiveInstant => {
+                        pb::SkillOperateType::ActiveInstant
+                    },
+                    crate::application::ports::SkillOperateType::ActiveInstantContinuous => {
+                        pb::SkillOperateType::ActiveInstantContinuous
+                    },
+                    crate::application::ports::SkillOperateType::ActiveContinuous => {
+                        pb::SkillOperateType::ActiveContinuous
+                    },
+                    crate::application::ports::SkillOperateType::Passive => {
+                        pb::SkillOperateType::Passive
+                    },
+                    crate::application::ports::SkillOperateType::Toggle => {
+                        pb::SkillOperateType::Toggle
+                    },
+                    crate::application::ports::SkillOperateType::Other => {
+                        pb::SkillOperateType::Other
+                    },
+                } as i32,
+                target_type: skill.target_type.clone(),
+                affect_scope: skill.affect_scope.clone(),
+            })
+            .collect(),
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {

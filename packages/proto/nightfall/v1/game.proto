@@ -66,7 +66,8 @@ service GameService {
   // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
   // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
   // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
-  // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+  // (zone unavailable), RESOURCE_EXHAUSTED (bounded actor queue/admission capacity),
+  // INTERNAL (persistence failure; no infrastructure detail disclosed).
   rpc LearnSkill(LearnSkillRequest) returns (LearnSkillResponse);
 
   // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
@@ -336,6 +337,18 @@ message LearnSkillResponse {
 
 message GetSkillCatalogRequest {}
 
+// Source operate classification; capability/eligibility must also permit casting.
+// A1/A2/A3/P/T map to the named values; other source types remain OTHER.
+enum SkillOperateType {
+  SKILL_OPERATE_TYPE_UNSPECIFIED = 0; // absent in older catalogue responses
+  SKILL_OPERATE_TYPE_ACTIVE_INSTANT = 1;
+  SKILL_OPERATE_TYPE_ACTIVE_INSTANT_CONTINUOUS = 2;
+  SKILL_OPERATE_TYPE_ACTIVE_CONTINUOUS = 3;
+  SKILL_OPERATE_TYPE_PASSIVE = 4;
+  SKILL_OPERATE_TYPE_TOGGLE = 5;
+  SKILL_OPERATE_TYPE_OTHER = 6;
+}
+
 message SkillCatalogEntry {
   uint32 skill_id = 1;
   string key = 2;
@@ -352,6 +365,11 @@ message SkillCatalogEntry {
   // Source reuse/cast animation milliseconds, before stat scaling and tick conversion.
   repeated uint32 reuse_ms = 11;
   repeated uint32 hit_time_ms = 12;
+  SkillOperateType operate_type = 13;
+  // Exact registry strings, expanded to max_level entries in rank order.
+  // Preserve unsupported values and literal "unset" scope; never infer castability.
+  repeated string target_type = 14;
+  repeated string affect_scope = 15;
 }
 
 message GetSkillCatalogResponse {

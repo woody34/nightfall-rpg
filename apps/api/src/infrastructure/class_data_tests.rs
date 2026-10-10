@@ -283,10 +283,24 @@ fn full_source_learning_trees_are_populated_inherited_and_bounded() {
         3521
     );
     assert_eq!(registry.known_skills().len(), 378);
-    assert!(registry
-        .known_skills()
-        .iter()
-        .all(|s| s.runtime_status == RuntimeSkillStatus::Deferred));
+    // Capability metadata from the merged Phase 3 catalogue is accepted without enabling
+    // execution in a legacy epoch. Registry loading must retain both classifications.
+    assert_eq!(
+        registry
+            .known_skills()
+            .iter()
+            .filter(|s| s.runtime_status == RuntimeSkillStatus::Executable)
+            .count(),
+        199
+    );
+    assert_eq!(
+        registry
+            .known_skills()
+            .iter()
+            .filter(|s| s.runtime_status == RuntimeSkillStatus::Deferred)
+            .count(),
+        179
+    );
     let strike = registry
         .get(ClassId(0))
         .unwrap()

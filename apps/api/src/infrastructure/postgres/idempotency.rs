@@ -16,6 +16,8 @@ pub(super) mod operation {
     pub(crate) const CREATE_CHARACTER: &str = "create_character";
     /// Forever-retained successful `GameService.ChangeClass`.
     pub(crate) const CHANGE_CLASS: &str = "change_class";
+    /// `GameService.LearnSkill`, retained by the normal 24-hour cleanup policy.
+    pub(crate) const LEARN_SKILL: &str = crate::application::ports::LEARN_SKILL_OPERATION;
     /// `SessionService.IssuePlayTicket`.
     pub(crate) const ISSUE_PLAY_TICKET: &str = "issue_play_ticket";
 }

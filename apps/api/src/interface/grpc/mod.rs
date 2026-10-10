@@ -16,8 +16,8 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::application::use_cases::{
-    ChangeClass, CreateCharacter, CreateCharacterInput, GetCharacter, ListClasses,
-    ListMyCharacters, Ping, TransferOptions,
+    ChangeClass, CreateCharacter, CreateCharacterInput, GetCharacter, GetSkillCatalog, LearnSkill,
+    LearnSkillInput, ListClasses, ListLearnableSkills, ListMyCharacters, Ping, TransferOptions,
 };
 use crate::application::{AppError, IdempotencyKey};
 use status::to_status;
@@ -51,6 +51,17 @@ pub struct GameServiceImpl {
     list_classes: ListClasses,
     change_class: ChangeClass,
     transfer_options: TransferOptions,
+    phase3: Option<Phase3UseCases>,
+}
+
+/// Phase 3 use cases installed together only when the runtime is ready.
+pub struct Phase3UseCases {
+    /// Live actor-owned eligibility.
+    pub list_learnable_skills: ListLearnableSkills,
+    /// Exact-rank paid learning with durable receipts.
+    pub learn_skill: LearnSkill,
+    /// Immutable validated metadata.
+    pub get_skill_catalog: GetSkillCatalog,
 }
 
 impl GameServiceImpl {
@@ -76,7 +87,16 @@ impl GameServiceImpl {
             list_classes,
             change_class,
             transfer_options,
+            phase3: None,
         }
+    }
+
+    /// Explicit injection for a ready runtime. Production composition leaves this absent
+    /// until real actor + durable checkpoint plumbing lands; tests inject typed fakes.
+    #[must_use]
+    pub fn with_phase3(mut self, use_cases: Phase3UseCases) -> Self {
+        self.phase3 = Some(use_cases);
+        self
     }
 
     /// Wraps in the tonic server type.
@@ -92,16 +112,46 @@ impl GameService for GameServiceImpl {
         &self,
         req: Request<pb::ListLearnableSkillsRequest>,
     ) -> Result<Response<pb::ListLearnableSkillsResponse>, Status> {
-        auth::caller(&req)?;
-        Err(to_status(AppError::Unavailable("phase 3 runtime is not yet available".into())))
+        let caller = auth::caller(&req)?;
+        let use_cases = self.phase3.as_ref().ok_or_else(|| {
+            to_status(AppError::Unavailable("phase 3 runtime is not yet available".into()))
+        })?;
+        let out = use_cases
+            .list_learnable_skills
+            .execute(caller, &req.get_ref().character_id)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(mapping::learnable_skills_to_pb(&out)))
     }
 
     async fn learn_skill(
         &self,
         req: Request<pb::LearnSkillRequest>,
     ) -> Result<Response<pb::LearnSkillResponse>, Status> {
-        auth::caller(&req)?;
-        Err(to_status(AppError::Unavailable("phase 3 runtime is not yet available".into())))
+        let caller = auth::caller(&req)?;
+        let started = std::time::Instant::now();
+        let req = req.into_inner();
+        let result = match &self.phase3 {
+            Some(use_cases) => {
+                use_cases
+                    .learn_skill
+                    .execute(LearnSkillInput {
+                        caller,
+                        character_id: req.character_id,
+                        skill_id: req.skill_id,
+                        skill_level: req.skill_level,
+                        idempotency_key: req.idempotency_key,
+                    })
+                    .await
+            },
+            None => Err(AppError::Unavailable("phase 3 runtime is not yet available".into())),
+        };
+        self.metrics.record_skill_learn_request(
+            started.elapsed(),
+            crate::infrastructure::telemetry::SkillLearnOutcome::from_result(&result),
+        );
+        let out = result.map_err(to_status)?;
+        Ok(Response::new(mapping::learn_result_to_pb(&out)))
     }
 
     async fn get_skill_catalog(
@@ -109,9 +159,11 @@ impl GameService for GameServiceImpl {
         req: Request<pb::GetSkillCatalogRequest>,
     ) -> Result<Response<pb::GetSkillCatalogResponse>, Status> {
         auth::caller(&req)?;
-        Err(to_status(AppError::Unavailable(
-            "phase 3 catalogue is not yet available".into(),
-        )))
+        let use_cases = self.phase3.as_ref().ok_or_else(|| {
+            to_status(AppError::Unavailable("phase 3 catalogue is not yet available".into()))
+        })?;
+        let out = use_cases.get_skill_catalog.execute().map_err(to_status)?;
+        Ok(Response::new(mapping::skill_catalogue_to_pb(&out)))
     }
 
     async fn list_classes(

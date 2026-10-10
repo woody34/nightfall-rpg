@@ -330,6 +330,264 @@ pub trait ClassTransferRuntime: Send + Sync {
     ) -> Result<FrozenTransferResult, super::AppError>;
 }
 
+/// Account-scoped operation for paid learning receipts (api-guidelines section 2).
+pub const LEARN_SKILL_OPERATION: &str = "learn_skill";
+
+/// Exact semantic request. Rank is never inferred again on a retry.
+#[must_use]
+pub fn learn_skill_fingerprint(
+    character: CharacterId,
+    skill: crate::domain::zone::skill::SkillRef,
+) -> String {
+    format!("v1|{character}|{}|{}", skill.id.0, skill.rank)
+}
+
+/// Owner-only effective sheet frozen at a successful learn's tick.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct LearnedEffectiveStats {
+    pub p_atk_q: i64,
+    pub p_def_q: i64,
+    pub m_atk_q: i64,
+    pub m_def_q: i64,
+    pub attack_speed: u32,
+    pub cast_speed: u32,
+    pub speed_q: i64,
+    pub accuracy_q: i64,
+    pub evasion_q: i64,
+    pub crit_permille: u32,
+}
+
+/// Immutable response stored with the fenced checkpoint, never rebuilt from later state.
+/// This application DTO maps to Z's proposed `FrozenLearnResult` when that export lands.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct FrozenLearnResult {
+    pub character_id: CharacterId,
+    pub skill: crate::domain::zone::skill::SkillRef,
+    pub sp_spent: u64,
+    pub sp_remaining: u64,
+    pub tick: crate::domain::zone::Tick,
+    pub hp: u32,
+    pub max_hp: u32,
+    pub mp: u32,
+    pub max_mp: u32,
+    pub cp: u32,
+    pub max_cp: u32,
+    pub effective_stats: LearnedEffectiveStats,
+    pub incarnation: u32,
+}
+
+/// Receipt lookup must use `idempotency_keys`, never transfer history or simulation state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LearnReceiptLookup {
+    /// No committed success for the account/operation/key.
+    Unknown,
+    /// Key used for a different character, skill or rank.
+    Conflict,
+    /// Exact original owner-only result, valid while offline.
+    Known(FrozenLearnResult),
+}
+
+/// Durable paid-learning receipt reads, scoped to the caller and `learn_skill` operation.
+#[async_trait]
+pub trait LearnReceiptRepository: Send + Sync {
+    /// Lookup precedes live-generation and gameplay checks. Infrastructure failure is fatal.
+    async fn learn_receipt_lookup(
+        &self,
+        caller: AccountId,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<LearnReceiptLookup>;
+}
+
+/// Frozen success carried outside simulation state into the checkpoint transaction.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct SuccessfulLearnReceipt {
+    pub account_id: AccountId,
+    pub key: IdempotencyKey,
+    pub request_fingerprint: String,
+    pub result: FrozenLearnResult,
+}
+
+impl SuccessfulLearnReceipt {
+    /// Checks the request/result binding and signed database bounds. Final checkpoint state
+    /// may be later within the same tick; the receipt remains the mutation's frozen response.
+    pub fn validate(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        owner: AccountId,
+    ) -> Result<(), CheckpointError> {
+        let result = &self.result;
+        if self.account_id != owner
+            || result.character_id != checkpoint.character_id
+            || result.skill.id.0 == 0
+            || result.skill.rank == 0
+            || self.request_fingerprint
+                != learn_skill_fingerprint(result.character_id, result.skill)
+            || i64::try_from(result.sp_spent).is_err()
+            || i64::try_from(result.sp_remaining).is_err()
+            || checkpoint.class_state.as_ref().is_none_or(|ledger| {
+                !ledger.learned_skills.iter().any(|skill| {
+                    skill.key == format!("l2.skill.{}", result.skill.id.0)
+                        && skill.level >= result.skill.rank
+                })
+            })
+        {
+            return Err(CheckpointError::Constraint("character_learn_receipt_valid".into()));
+        }
+        Ok(())
+    }
+
+    /// Extends only learning checkpoint fingerprints. Ordinary legacy fingerprints stay exact.
+    pub fn checkpoint_fingerprint(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> anyhow::Result<String> {
+        use sha2::{Digest as _, Sha256};
+        let body =
+            serde_json::to_vec(&("learn-checkpoint-v1", checkpoint.fingerprint(events), self))?;
+        Ok(format!("{:x}", Sha256::digest(body)))
+    }
+}
+
+/// A learning commit either writes a fenced checkpoint or settles against an earlier receipt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LearningCheckpointOutcome {
+    /// Applied/replayed checkpoint revision or stale fence. Stale consumes no receipt/key.
+    Checkpoint(CheckpointOutcome),
+    /// Another committed account/key won; return this exact result and write nothing.
+    ReceiptReplayed(FrozenLearnResult),
+}
+
+/// Atomic final progression/ledger/outbox/receipt writer, called only after durable log ack.
+#[async_trait]
+pub trait LearningCheckpointRepository: LearnReceiptRepository {
+    /// Receipt claim/recheck and checkpoint revision fence are one transaction. Failed/stale
+    /// requests roll back every child row, receipt, checkpoint key and outbox fact.
+    async fn checkpoint_learning(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        receipt: &SuccessfulLearnReceipt,
+    ) -> Result<LearningCheckpointOutcome, CheckpointError>;
+}
+
+/// One next-rank learning option computed from final actor-owned state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs, clippy::struct_excessive_bools)] // Independent flags required by the wire contract.
+pub struct LearnableSkill {
+    pub skill: crate::domain::class::SkillLearnDef,
+    pub effect_implemented: bool,
+    pub learned: bool,
+    pub affordable: bool,
+    pub trainer_required: bool,
+    pub eligible: bool,
+    pub unmet: Vec<String>,
+}
+
+/// Live query response; database progression must never stand in for actor state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct LearnableSkillsState {
+    pub skills: Vec<LearnableSkill>,
+    pub current_class_id: ClassId,
+    pub sp: u64,
+}
+
+/// RPC reply handle remains outside deterministic command and replay payloads.
+pub type LearnSkillReply =
+    tokio::sync::oneshot::Receiver<Result<FrozenLearnResult, super::AppError>>;
+
+/// Generation-fenced Phase 3 routing. Trainer/gameplay checks belong to the zone actor.
+#[async_trait]
+pub trait Phase3Runtime: Send + Sync {
+    /// Capture generation under the session lifecycle lock; never hold that lock awaiting a reply.
+    /// Offline/stale lanes are `FAILED_PRECONDITION`; a stopped zone is UNAVAILABLE.
+    async fn generation(
+        &self,
+        caller: AccountId,
+        character: CharacterId,
+    ) -> Result<SessionGeneration, super::AppError>;
+
+    /// Read next ranks (required level <= current level) from live state, checking the captured
+    /// account/character/generation again at execution. Includes honest unmet reasons.
+    async fn learnable_skills(
+        &self,
+        caller: AccountId,
+        character: CharacterId,
+        generation: SessionGeneration,
+    ) -> Result<LearnableSkillsState, super::AppError>;
+
+    /// Enqueue account/character/generation/key/exact skill rank. Recheck the durable receipt
+    /// before drafting; serialize learn/transfer and lifecycle barriers per character/tick.
+    /// Success is sent only after log ack + atomic final checkpoint/receipt/outbox ack.
+    /// Duplicate queued keys settle against that receipt; failed requests spend nothing.
+    async fn enqueue_learn_skill(
+        &self,
+        caller: AccountId,
+        character: CharacterId,
+        generation: SessionGeneration,
+        key: IdempotencyKey,
+        skill: crate::domain::zone::skill::SkillRef,
+    ) -> Result<LearnSkillReply, super::AppError>;
+}
+
+/// Source operate classification, independent of runtime capability or eligibility.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub enum SkillOperateType {
+    ActiveInstant,
+    ActiveInstantContinuous,
+    ActiveContinuous,
+    Passive,
+    Toggle,
+    Other,
+}
+
+/// Read-only catalogue entry backed by the independently validated registry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct SkillCatalogueEntry {
+    pub skill_id: crate::domain::zone::skill::SkillId,
+    pub key: String,
+    pub display_name: String,
+    pub max_level: u32,
+    pub effect_implemented: bool,
+    pub deferred_reasons: Vec<String>,
+    pub l2_ref: String,
+    /// Validated base values in rank order (index = rank - 1), before stat modifiers.
+    pub mp_consume_start: Vec<u32>,
+    pub mp_consume_end: Vec<u32>,
+    pub hp_consume: Vec<u32>,
+    /// Source milliseconds, before stat scaling and tick conversion.
+    pub reuse_ms: Vec<u32>,
+    pub hit_time_ms: Vec<u32>,
+    pub operate_type: SkillOperateType,
+    /// Exact registry strings, expanded in rank order, including unsupported values.
+    pub target_type: Vec<String>,
+    pub affect_scope: Vec<String>,
+}
+
+/// Immutable catalogue in skill-id order; metadata availability does not authorize gameplay.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct SkillCatalogue {
+    pub data_version: String,
+    pub skills: Vec<SkillCatalogueEntry>,
+}
+
+/// Startup registry adapter. Requests never read or parse data files.
+pub trait SkillCataloguePort: Send + Sync {
+    /// Missing catalogue is UNAVAILABLE; corrupt registry is INTERNAL.
+    fn catalogue(&self) -> Result<SkillCatalogue, super::AppError>;
+}
+
 /// Verifies bearer tokens issued by the identity provider (plan Revision 1, item 15).
 #[async_trait]
 pub trait TokenVerifier: Send + Sync {

@@ -82,10 +82,12 @@ pub enum SkillTreeStatus {
     Populated,
 }
 
-/// The Phase 3 effects engine is absent; sourced learning metadata is still available.
+/// Generated capability classification; execution additionally requires a validated Phase 3 epoch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeSkillStatus {
+    /// Generated as executable; the Phase 3 loader independently verifies every capability.
+    Executable,
     /// Metadata only; no skill execution or effect is implemented.
     Deferred,
 }

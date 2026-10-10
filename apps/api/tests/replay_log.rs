@@ -295,7 +295,14 @@ fn bounded_keeps_a_record_that_fits_and_digests_one_that_does_not() {
     record.outputs = (0..4_u128)
         .map(|n| PlayerOutput {
             entity: EntityId::from_uuid(Uuid::from_u128(n)),
-            bytes: Bytes::from(vec![u8::try_from(n).unwrap(); 200]),
+            bytes: encode_outputs(&vec![
+                ObserverOutput::Accepted {
+                    ordinal: Ordinal(1),
+                    seq: u32::try_from(n).unwrap(),
+                    tick: Tick(2),
+                };
+                50
+            ]),
         })
         .collect();
     let len = record.encoded_len();
@@ -342,7 +349,9 @@ fn a_record_with_encoded_outputs_has_a_fixed_wire_format() {
         expected.extend_from_slice(&[0x12, 0x01, 0xAA]);
         tail(&mut expected);
         assert_eq!(record.encode(), expected);
-        assert_eq!(AppliedTickRecord::decode(&expected).unwrap(), record);
+        // The transport golden stays unchanged, but its deliberately opaque 0xAA payload
+        // is a truncated protobuf varint. Recursive boundary validation now refuses it.
+        assert!(AppliedTickRecord::decode(&expected).is_err());
     }
 }
 
