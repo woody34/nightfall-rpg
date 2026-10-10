@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::class::ClassId;
-use super::subclass::Sex;
+use super::subclass::{LearnedSkill, Sex};
 use super::{AccountId, BaseStats, CharacterId, CharacterName, Race};
 
 /// Only two class transfers are reachable in Phase 2. Successful receipts are retained forever.
@@ -89,6 +89,9 @@ pub struct ClassState {
     pub base_class_id: ClassId,
     pub current_class_id: ClassId,
     pub sp: u64,
+    /// Learned metadata only; Phase 3 owns skill effects and active skill execution.
+    #[serde(default)]
+    pub learned_skills: Vec<LearnedSkill>,
     pub cp: u32,
     pub token_tier_1_count: u32,
     pub token_tier_2_count: u32,
@@ -106,6 +109,7 @@ impl ClassState {
             base_class_id,
             current_class_id: base_class_id,
             sp: 0,
+            learned_skills: Vec::new(),
             cp: 0,
             token_tier_1_count: 0,
             token_tier_2_count: 0,
@@ -117,10 +121,46 @@ impl ClassState {
     /// Rejects impossible persisted ledgers before any checkpoint write.
     pub fn validate(&self) -> Result<(), ClassStateError> {
         validate_receipts(&self.successful_transfer_receipts)?;
+        let mut previous: Option<&str> = None;
+        for skill in &self.learned_skills {
+            if skill.key.is_empty()
+                || skill.level == 0
+                || previous.is_some_and(|key| key >= skill.key.as_str())
+            {
+                return Err(ClassStateError::LearnedSkills);
+            }
+            previous = Some(&skill.key);
+        }
         if self.milestone_claimed_mask & !3 != 0 {
             return Err(ClassStateError::MilestoneMask);
         }
         Ok(())
+    }
+
+    /// Merges validated metadata by stable key, retaining highest levels and returning only
+    /// newly learned/upgraded keys in deterministic order. Auto-get does not charge SP.
+    pub fn merge_learned_skills(
+        &mut self,
+        skills: impl IntoIterator<Item = LearnedSkill>,
+    ) -> Vec<String> {
+        let mut levels: std::collections::BTreeMap<String, u32> = self
+            .learned_skills
+            .iter()
+            .map(|s| (s.key.clone(), s.level))
+            .collect();
+        let mut granted = std::collections::BTreeSet::new();
+        for skill in skills {
+            let level = levels.entry(skill.key.clone()).or_default();
+            if skill.level > *level {
+                *level = skill.level;
+                granted.insert(skill.key);
+            }
+        }
+        self.learned_skills = levels
+            .into_iter()
+            .map(|(key, level)| LearnedSkill { key, level })
+            .collect();
+        granted.into_iter().collect()
     }
 
     /// Inserts a success exactly once, refusing conflicting keys and history overflow.
@@ -166,6 +206,9 @@ pub enum ClassStateError {
     /// The frozen response disagrees with the requested target.
     #[error("transfer receipt target does not match result")]
     ReceiptTarget,
+    /// Learned metadata is not strictly ordered, has duplicate/empty keys or level zero.
+    #[error("invalid learned skill metadata")]
+    LearnedSkills,
     /// An unknown token milestone bit is present.
     #[error("unknown token milestone bit")]
     MilestoneMask,
