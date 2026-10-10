@@ -19,11 +19,11 @@ tasks:
     command: 'bash Scripts/setup-turbolink.sh'
     preset: 'utility'
   build-editor:
-    command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh NightfallEditor Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex"'
+    command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh NightfallEditor Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex ${NIGHTFALL_UBT_ARGS:-}"'
     deps: ['~:setup']
     preset: 'utility'
   build:
-    command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh Nightfall Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex"'
+    command: 'bash -c "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh Nightfall Linux Development -Project=$PWD/Nightfall.uproject -WaitMutex ${NIGHTFALL_UBT_ARGS:-}"'
     deps: ['~:setup']
     preset: 'utility'
   # Headless automation tests (ProductFilter only, so `Nightfall` selects just ours). The live ones

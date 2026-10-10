@@ -300,6 +300,20 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 			}
 		}
 		if (E.StatsChanged.IsSet()) OnStatsChanged.Broadcast(*E.StatsChanged);
+		if (E.AttackStarted.IsSet()) OnAttackStarted.Broadcast(*E.AttackStarted);
+		if (E.AttackCancelled.IsSet()) OnAttackCancelled.Broadcast(*E.AttackCancelled);
+		if (E.SkillCastStarted.IsSet()) OnSkillCastStarted.Broadcast(*E.SkillCastStarted);
+		if (E.SkillCastResult.IsSet()) OnSkillCastResult.Broadcast(*E.SkillCastResult);
+		if (E.SkillCastCancelled.IsSet()) OnSkillCastCancelled.Broadcast(*E.SkillCastCancelled);
+		if (E.EffectApplied.IsSet()) OnEffectApplied.Broadcast(*E.EffectApplied);
+		if (E.EffectRemoved.IsSet()) OnEffectRemoved.Broadcast(*E.EffectRemoved);
+		if (E.SkillReuse.IsSet()) OnSkillReuse.Broadcast(*E.SkillReuse);
+		if (E.SkillLearned.IsSet()) OnSkillLearned.Broadcast(*E.SkillLearned);
+		if (E.PvpStateChanged.IsSet()) OnPvpStateChanged.Broadcast(*E.PvpStateChanged);
+		if (E.ResurrectOffer.IsSet()) OnResurrectOffer.Broadcast(*E.ResurrectOffer);
+		if (E.SpGained.IsSet()) OnSpGained.Broadcast(*E.SpGained);
+		if (E.SkillStateSync.IsSet()) OnSkillStateSync.Broadcast(*E.SkillStateSync);
+		if (E.VitalsChanged.IsSet()) OnVitalsChanged.Broadcast(*E.VitalsChanged);
 		if (E.XpGained.IsSet()) OnXpGained.Broadcast(*E.XpGained);
 		if (E.LevelUp.IsSet()) OnLevelUp.Broadcast(*E.LevelUp);
 		if (E.TargetChanged.IsSet()) OnTargetChanged.Broadcast(*E.TargetChanged);
@@ -413,3 +427,16 @@ void UNetClientSubsystem::DropSocketForTesting()
 	ApplyClosedState(1006, TEXT("dropped by nf.DropSocket"), false);
 }
 #endif
+
+uint32 UNetClientSubsystem::SendCastSkill(uint32 SkillId, TOptional<FString> Target)
+{
+	FClientMessage M; M.Seq = ++NextSeq; M.CastSkill = FCastSkillIntent{SkillId, Target}; Send(M); return bConnected ? M.Seq : 0;
+}
+uint32 UNetClientSubsystem::SendCancelCast(TOptional<uint64> CastId)
+{
+	FClientMessage M; M.Seq = ++NextSeq; M.CancelCast = FCancelCastIntent{CastId}; Send(M); return bConnected ? M.Seq : 0;
+}
+uint32 UNetClientSubsystem::SendAcceptResurrect(uint64 OfferId, bool bAccept)
+{
+	FClientMessage M; M.Seq = ++NextSeq; M.AcceptResurrect = FAcceptResurrectIntent{OfferId, bAccept}; Send(M); return bConnected ? M.Seq : 0;
+}

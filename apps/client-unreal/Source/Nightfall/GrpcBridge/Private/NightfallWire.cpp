@@ -15,7 +15,10 @@ namespace NightfallWire
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::SetTarget && Intent.SetTarget.IsValid()) ||
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::Attack && Intent.Attack.IsValid()) ||
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::StopAttack && Intent.StopAttack.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::Respawn && Intent.Respawn.IsValid());
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::Respawn && Intent.Respawn.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CastSkill && Intent.CastSkill.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CancelCast && Intent.CancelCast.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::AcceptResurrect && Intent.AcceptResurrect.IsValid());
 
 		::nightfall::v1::ClientMessage Msg;
 		if (bHasIntent)
@@ -58,4 +61,12 @@ namespace NightfallWire
 		GRPC_TO_TURBOLINK(&Msg, &Out);
 		return true;
 	}
+}
+
+void NightfallWire::EncodeServerMessage(const FGrpcNightfallV1ServerMessage& In, TArray<uint8>& Out)
+{
+	::nightfall::v1::ServerMessage Msg;
+	TURBOLINK_TO_GRPC(&In, &Msg);
+	Out.SetNumUninitialized(static_cast<int32>(Msg.ByteSizeLong()));
+	Msg.SerializeWithCachedSizesToArray(Out.GetData());
 }
