@@ -42,6 +42,10 @@ conditions = [
   { kind = "unsupported", tag = "player", attrs = {"hp": "30"} }
 ]
 
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><player hp=\"30\" /></cond>",
+]
+
 [attribute]
 type = "NONE"
 power = 0

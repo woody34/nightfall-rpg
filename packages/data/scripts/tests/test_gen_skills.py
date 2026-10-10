@@ -212,6 +212,91 @@ class BlockerComputationTests(unittest.TestCase):
         self.assertIn("effect:TargetMe", blockers[9001])
         self.assertIn("ref:9001", blockers[9000])
 
+    def test_tick_hp_fatal_is_blocked(self):
+        xml = """
+        <skill id="9994" levels="1" name="Fatal Poison">
+            <set name="operateType" val="A2" />
+            <set name="targetType" val="ENEMY" />
+            <effects>
+                <effect name="TickHpFatal">
+                    <param power="-50" />
+                    <param ticks="5" />
+                </effect>
+            </effects>
+        </skill>
+        """
+        elem = ET.fromstring(xml)
+        _, blockers = GEN.compute_all_blockers({9994: ("test.xml", elem)}, {9994})
+        self.assertIn("effect:TickHpFatal", blockers[9994])
+
+    def test_get_agro_is_executable(self):
+        xml = """
+        <skill id="9993" levels="1" name="Agro Skill">
+            <set name="operateType" val="A1" />
+            <set name="targetType" val="ENEMY" />
+            <effects>
+                <effect name="GetAgro" />
+            </effects>
+        </skill>
+        """
+        elem = ET.fromstring(xml)
+        _, blockers = GEN.compute_all_blockers({9993: ("test.xml", elem)}, {9993})
+        self.assertEqual(blockers[9993], set())
+
+    def test_affect_limit_structured_table(self):
+        xml = """
+        <skill id="9992" levels="1" name="AoE Sweep">
+            <set name="operateType" val="A1" />
+            <set name="targetType" val="ENEMY" />
+            <set name="affectScope" val="RANGE" />
+            <set name="affectRange" val="200" />
+            <set name="affectLimit" val="5-12" />
+            <effects>
+                <effect name="PhysicalAttack">
+                    <param power="100" />
+                </effect>
+            </effects>
+        </skill>
+        """
+        elem = ET.fromstring(xml)
+        toml_text = GEN.generate_skill_toml(9992, "test.xml", elem, set())
+        self.assertIn("affect_limit = { offset = 5, width = 12 }", toml_text)
+
+    def test_periodic_effect_ticks_and_mode_and_raw_conditions(self):
+        xml = """
+        <skill id="9991" levels="1" name="DoT and Buff">
+            <set name="operateType" val="A2" />
+            <set name="targetType" val="ENEMY" />
+            <cond msgId="113" addName="1">
+                <using kind="SWORD,BLUNT" />
+            </cond>
+            <effects>
+                <effect name="TickHp">
+                    <param power="-25" />
+                    <param ticks="5" />
+                </effect>
+                <effect name="MaxHp">
+                    <param power="20" />
+                    <param type="PER" />
+                    <param heal="true" />
+                </effect>
+            </effects>
+        </skill>
+        """
+        elem = ET.fromstring(xml)
+        toml_text = GEN.generate_skill_toml(9991, "test.xml", elem, set())
+        # Check raw_conditions
+        import tomllib
+        parsed = tomllib.loads(toml_text)
+        self.assertIn("raw_conditions", parsed)
+        self.assertEqual(parsed["raw_conditions"], ['<cond msgId="113" addName="1"><using kind="SWORD,BLUNT" /></cond>'])
+        # Check TickHp mode defaulted to DIFF and ticks preserved
+        self.assertIn('mode = "DIFF"', toml_text)
+        self.assertIn('ticks = "5"', toml_text)
+        # Check MaxHp heal preserved verbatim
+        self.assertIn('heal = "true"', toml_text)
+        self.assertIn('type = "PER"', toml_text)
+
 
 if __name__ == "__main__":
     unittest.main()

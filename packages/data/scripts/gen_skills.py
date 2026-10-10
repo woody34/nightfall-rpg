@@ -270,8 +270,8 @@ def compute_all_blockers(
                     blockers.add(f"section:{child.tag}")
                 for eff in child.findall("effect"):
                     name = eff.attrib.get("name", "")
-                    if name == "TargetMe":
-                        blockers.add("effect:TargetMe")
+                    if name in ("TargetMe", "TickHpFatal"):
+                        blockers.add(f"effect:{name}")
                     elif name not in TIER_B_EFFECTS:
                         blockers.add(f"effect:{name}")
 
@@ -398,7 +398,14 @@ def generate_skill_toml(
 
     if "affectLimit" in raw_sets:
         al = raw_sets["affectLimit"]
-        lines.append(f'affect_limit = "{al}"')
+        if "-" in al:
+            parts = al.split("-")
+            offset = int(parts[0])
+            width = int(parts[1]) if len(parts) > 1 else 0
+        else:
+            offset = int(al)
+            width = 0
+        lines.append(f"affect_limit = {{ offset = {offset}, width = {width} }}")
     if "affectObject" in raw_sets:
         ao = raw_sets["affectObject"]
         lines.append(f'affect_object = "{ao}"')
@@ -459,6 +466,18 @@ def generate_skill_toml(
         lines.append(",\n".join(c_lines))
         lines.append("]\n")
 
+    raw_cond_elems = s.findall("cond")
+    if raw_cond_elems:
+        lines.append("raw_conditions = [")
+        for ce in raw_cond_elems:
+            xml_str = ET.tostring(ce, encoding="unicode").strip()
+            cleaned_xml = re.sub(r">\s+<", "><", xml_str)
+            cleaned_xml = " ".join(cleaned_xml.split("\n"))
+            cleaned_xml = re.sub(r"\s+", " ", cleaned_xml).strip()
+            cleaned_xml = re.sub(r">\s+<", "><", cleaned_xml)
+            lines.append(f"  {json.dumps(cleaned_xml)},")
+        lines.append("]\n")
+
     # Attribute
     attr_type = get_set_str("attributeType", "NONE")
     attr_power = get_set_int("attributePower", 0)
@@ -512,6 +531,10 @@ def generate_skill_toml(
                 for k, v in eff.attrib.items():
                     if k != "name":
                         eff_params[k] = v
+
+                # Periodic effects: ensure mode is recorded (defaulting to DIFF per TickHp/TickMp source if not in XML)
+                if eff_name in ("TickHp", "TickMp") and "mode" not in eff_params:
+                    eff_params["mode"] = "DIFF"
 
                 p_dict = {}
                 for pk in sorted(eff_params.keys()):

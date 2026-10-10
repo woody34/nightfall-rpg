@@ -58,5 +58,5 @@ stat_children = []
 [[effects]]
 section = "effects"
 name = "TickHp"
-params = { power = "-60", ticks = "1" }
+params = { mode = "DIFF", power = "-60", ticks = "1" }
 stat_children = []

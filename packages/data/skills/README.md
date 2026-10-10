@@ -52,13 +52,13 @@ is_magic = 0
 target_type = "ENEMY"
 affect_scope = "SINGLE"
 affect_range = 0
-affect_limit = ""
+affect_limit = { offset = 10, width = 10 }
 affect_object = ""
 ```
 - `target_type` (string or array of strings): Primary targeting requirement (`"SELF"`, `"TARGET"`, `"ENEMY"`, `"ENEMY_ONLY"`, `"PC_BODY"`). If target type varies across levels via source tables, an array of length `max_level` is used.
 - `affect_scope` (string): Area of effect scope (`"SINGLE"`, `"POINT_BLANK"`, `"RANGE"`, or `"unset"`).
 - `affect_range` (integer, optional): Radius of the affect scope in world units (scalar or per-level array).
-- `affect_limit` (string, optional): Maximum targets affected (e.g. `"9-10"` or `"6"`).
+- `affect_limit` (table, optional): Structured target limit `{ offset = N, width = M }` per `Skill.getAffectLimit` (`Skill.java:637-642`). The runtime calculates `offset + Rnd.get(width)`; when width is 0, no RNG draw occurs and the limit is exactly `offset`. (Note: In L2J source `Skill.java:638`, `if (affectLimit[1] == 0) return 0;` returns 0 for the uninitialized `0-0` default, indicating unlimited targets; for Nightfall skills, width 0 evaluates to exactly offset with no draw).
 - `affect_object` (string, optional): Target filter within scope (e.g. `"NOT_FRIEND"`).
 
 ### 3.4 Range, Timing & Resources
@@ -138,10 +138,13 @@ visual = "STUN"
 - `visual` (string, optional): Client visual effect identifier if present in source data.
 
 ### 3.8 Conditions Tree
-Conditions are structured as a recursive tree:
+Conditions are structured as a normalized recursive tree (`conditions`) alongside verbatim source `<cond>` XML nodes (`raw_conditions`):
 ```toml
 conditions = [
   { kind = "using_kind", weapon_kinds = ["SWORD", "BLUNT"] }
+]
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><using kind=\"SWORD,BLUNT\" /></cond>"
 ]
 ```
 Supported condition kinds:
@@ -149,6 +152,7 @@ Supported condition kinds:
 - `{ kind = "player_can_resurrect" }`: State check for valid dead target resurrection.
 - Logical operators: `{ op = "and", conditions = [...] }`, `{ op = "or", conditions = [...] }`, `{ op = "not", conditions = [...] }`.
 - Verbatim unsupported: `{ kind = "unsupported", tag = "player", attributes = { Charges = "3" } }`.
+- `raw_conditions` (array of strings, optional): Preserves the raw XML `<cond>` nodes verbatim, retaining attributes like `msgId` and `addName`.
 
 ### 3.9 Item Consumption
 ```toml
@@ -175,10 +179,21 @@ params = {}
 stat_children = [
   { op = "mul", stat = "pDef", value = ["1.08", "1.12", "1.15"] },
 ]
+
+[[effects]]
+section = "effects"
+name = "TickHp"
+params = { mode = "DIFF", power = ["-25", "-34", "-44", "-54", "-62", "-67"], ticks = "5" }
+stat_children = []
 ```
 - `section` (string): Root effect section (`"effects"`, `"selfEffects"`, `"endEffects"`).
 - `name` (string): Effect handler name.
-- `params` (table): Key-value parameters with values represented as exact strings (scalar string or array of exact strings).
+- `params` (table): Key-value parameters with values represented as exact strings (scalar string or array of exact strings). All source parameters (e.g. `heal = "true"` on `MaxHp`, `type = "PER"`, etc.) are preserved verbatim.
+  - Periodic effects (`TickHp`, `TickMp`, and any handler with a `ticks` attribute) record `ticks` verbatim and the calculation mode (`DIFF` or `PER`) verbatim (defaulting to `DIFF` per `TickHp.java:45` and `TickMp.java:41` if omitted from XML).
+  - Periodic interval: `interval_ms = ticks × EffectTickRatio` (where `EffectTickRatio = 666` ms from `config/character.properties:145`) per `BuffInfo.java:272` (`ThreadPoolManager.getInstance().scheduleEffectAtFixedRate(effectTask, effect.getTicks() * character().getEffectTickRatio(), effect.getTicks() * character().getEffectTickRatio())`).
+  - Amount multiplier: `getTicksMultiplier() = (ticks × EffectTickRatio) / 1000f` per `AbstractEffect.java:148-149`.
+  - Mode: `DIFF` scales power by `getTicksMultiplier()`; `PER` reads dynamic current HP/MP at each pulse and scales by `current × power × getTicksMultiplier()`.
+  - `TickHp` non-lethal clamp: DoT damage is clamped to `currentHp - 1` (`TickHp.java:75-76`), leaving at least 1 HP (zero damage if `currentHp <= 1`).
 - `stat_children` (array of tables): Modifier functions installed by the effect:
   - `op` (string): `"mul"`, `"add"`, `"sub"`, `"set"`.
   - `stat` (string): Target stat identifier (e.g. `"pDef"`, `"runSpd"`).
@@ -194,9 +209,12 @@ A skill is marked `runtime_status = "executable"` if and only if **all** of the 
 4. **Item Consumption:** None. Skills requiring item consumption are deferred.
 5. **Conditions:** Every condition leaf must be `using_kind` or `player_can_resurrect`. Any other condition defers the skill.
 6. **Effect Sections:** Only standard `"effects"` section is supported. `"selfEffects"` or `"endEffects"` defer the skill.
-7. **Effect Handlers (Tier B without TargetMe):**
+7. **Effect Handlers (Tier B without TargetMe and TickHpFatal):**
    `PhysicalAttack`, `MagicalAttack`, `MagicalAttackRange`, `Stun`, `Sleep`, `Root`, `Buff`, `Debuff`, `TickHp`, `TickMp`, `Heal`, `HpPerMax`, `MaxHp`, `MaxMp`, `Mp`, `Cp`, `Resurrection`, `GetAgro`, `AddHate`, `DispelBySlot`, `DispelByCategory`, `DefenceTrait`, `AttackTrait`, `Passive`.
-   *(Note: `TargetMe` is deferred with `effect:TargetMe`).*
+   *(Notes:*
+   *- `TargetMe` is deferred with `effect:TargetMe` (forced target selection on players not implemented in Phase 3).*
+   *- `TickHpFatal` is deferred with `effect:TickHpFatal` (lethal DoT excluded; TickHp non-lethal clamp applies).*
+   *- `GetAgro` is executable: represents a forced NPC intention, not hate, per `GetAgro.java:49-51` (`info.getEffected().getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, info.getEffector())`).)*
 8. **Stat Modifiers Whitelist:**
    `pAtk`, `pDef`, `mAtk`, `mDef`, `pAtkSpd`, `mAtkSpd`, `runSpd`, `maxHp`, `maxMp`, `maxCp`, `accCombat`, `rEvas`, `critRate`, `critDmg`, `critDmgAdd`, `regHp`, `regMp`, `regCp`, `physicalMpConsumeRate`, `magicalMpConsumeRate`, `danceMpConsumeRate`, `pReuse`, `mReuse`, `pSkillEvas`, `darkRes`, `darkPower`, `earthRes`, `earthPower`, `fireRes`, `firePower`, `holyRes`, `holyPower`, `waterRes`, `waterPower`, `windRes`, `windPower`, `debuffVuln`, `cancelVuln`.
    Any unwhitelisted stat child produces blocker `stat:<name>`.

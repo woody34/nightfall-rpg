@@ -13,7 +13,7 @@ is_magic = 1
 target_type = "SELF"
 affect_scope = "DEAD_PLEDGE"
 affect_range = 1000
-affect_limit = "50-50"
+affect_limit = { offset = 50, width = 50 }
 affect_object = "FRIEND"
 
 cast_range = 0
@@ -43,6 +43,10 @@ blockers = ["scope:DEAD_PLEDGE"]
 
 conditions = [
   { kind = "player_can_resurrect" }
+]
+
+raw_conditions = [
+  "<cond><player canResurrect=\"true\" /></cond>",
 ]
 
 [attribute]

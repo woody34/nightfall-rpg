@@ -42,6 +42,10 @@ conditions = [
   { kind = "unsupported", tag = "target", attrs = {"race": "DIVINE"} }
 ]
 
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><target race=\"DIVINE\" /></cond>",
+]
+
 [attribute]
 type = "UNHOLY"
 power = 20

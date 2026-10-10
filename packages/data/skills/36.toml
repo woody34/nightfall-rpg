@@ -13,7 +13,7 @@ is_magic = 0
 target_type = "SELF"
 affect_scope = "POINT_BLANK"
 affect_range = 150
-affect_limit = "6-12"
+affect_limit = { offset = 6, width = 12 }
 affect_object = "NOT_FRIEND"
 
 cast_range = 0
@@ -43,6 +43,10 @@ blockers = []
 
 conditions = [
   { kind = "using_kind", weapon_kinds = ["POLE"] }
+]
+
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><using kind=\"POLE\" /></cond>",
 ]
 
 [attribute]

@@ -12,7 +12,7 @@ is_magic = 0
 
 target_type = "ENEMY"
 affect_scope = "FAN"
-affect_limit = "5-12"
+affect_limit = { offset = 5, width = 12 }
 affect_object = "NOT_FRIEND"
 
 cast_range = 40
@@ -48,6 +48,10 @@ conditions = [
     { kind = "unsupported", tag = "player", attrs = {"Charges": "2"} }
     ]
   }
+]
+
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><and><using kind=\"DUAL,SWORD,BLUNT\" /><player Charges=\"2\" /></and></cond>",
 ]
 
 [attribute]

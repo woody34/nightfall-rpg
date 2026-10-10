@@ -52,5 +52,5 @@ visual = "DOT_BLEEDING"
 [[effects]]
 section = "effects"
 name = "TickHp"
-params = { power = ["-27", "-40"], ticks = "1" }
+params = { mode = "DIFF", power = ["-27", "-40"], ticks = "1" }
 stat_children = []

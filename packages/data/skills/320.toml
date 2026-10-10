@@ -12,7 +12,7 @@ is_magic = 0
 
 target_type = "ENEMY"
 affect_scope = "FAN"
-affect_limit = "5-12"
+affect_limit = { offset = 5, width = 12 }
 affect_object = "NOT_FRIEND"
 
 cast_range = 40
@@ -42,6 +42,10 @@ blockers = ["scope:FAN"]
 
 conditions = [
   { kind = "using_kind", weapon_kinds = ["POLE"] }
+]
+
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><using kind=\"POLE\" /></cond>",
 ]
 
 [attribute]

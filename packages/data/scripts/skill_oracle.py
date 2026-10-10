@@ -4,7 +4,7 @@
 Python 3.11+, standard library only, no floating-point arithmetic in golden outputs.
 Uses exact Fraction arithmetic and rational root intervals certified by isqrt.
 
-Covers all 13 required skill formulas:
+Covers all 18 required skill formula groups (23 formula keys):
 1. calcSkillPhysDam (+ skill crit)
 2. calcMagicDam (+ magic crit, spiritshot absent)
 3. calcMagicSuccess
@@ -18,6 +18,11 @@ Covers all 13 required skill formulas:
 11. calcCastTime (magic vs physical vs static, 500 ms floor rule)
 12. doRevive vitals (HP to 65% if lower; MP/CP unchanged)
 13. M.Atk / M.Def / MAtkSpd derivations (FuncMAtkMod / FuncMDefMod / FuncMAtkSpeed)
+14. TickHp non-lethal clamp (currentHp - 1) & EffectTickRatio amount multiplier
+15. cast staging times (continuous -300 ms, launch -400 ms, impact +400 ms, interrupt cutoff)
+16. Heal (Heal.java:84-102 branches, weapon grade / no-shot multiplier, static bypass, overheal clamp)
+17. FuncAtkEvasion ((int) intermediate cast before stat modifiers)
+18. stun-removal roll condition (PcStatus.java:83-96, CharStatus.java:142-146 rule vector)
 
 Run `python3 packages/data/scripts/skill_oracle.py [--check]`.
 """
@@ -1400,6 +1405,489 @@ def make_m_stat_derivation_vectors(bonuses: dict) -> dict[str, list[dict]]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Formula 14: TickHp non-lethal clamp & EffectTickRatio amount multiplier
+# ---------------------------------------------------------------------------
+def make_tick_hp_vectors() -> list[dict]:
+    source_lines = "TickHp.java:62-76, AbstractEffect.java:148-149, character.properties:145"
+    out = []
+
+    configs = [
+        # (power, ticks, mode, cur_hp, max_hp, desc)
+        # Non-lethal clamp DIFF DoT cases (TickHp.java:75-76)
+        (-100, 1, "DIFF", 50, 100, "Lethal DoT attempt clamped to curHp - 1 (50-1=49)"),
+        (-100, 5, "DIFF", 50, 100, "High power DoT (333 dmg) clamped to curHp - 1 (49)"),
+        (-500, 5, "DIFF", 200, 1000, "Massive DoT (1665 dmg) clamped to curHp - 1 (199)"),
+        (-50, 1, "DIFF", 1, 100, "DoT at 1 HP clamped to 0 (cannot kill)"),
+        (-50, 3, "DIFF", 1, 100, "DoT at 1 HP with ticks=3 clamped to 0"),
+        (-50, 5, "DIFF", 1, 100, "DoT at 1 HP with ticks=5 clamped to 0"),
+        (-50, 1, "DIFF", 2, 100, "DoT at 2 HP clamped to 1 HP remaining"),
+        (-10, 1, "DIFF", 5, 20, "DoT at 5 HP with 6.66 raw dmg clamped to 4"),
+        (-20, 1, "DIFF", 10, 50, "DoT at 10 HP with 13.32 raw dmg clamped to 9"),
+        (-100, 1, "DIFF", 67, 100, "DoT with raw dmg 66.6 at 67 HP (67-1=66 < 66.6 -> clamped to 66)"),
+        # Sub-lethal DIFF DoT cases (not clamped)
+        (-10, 1, "DIFF", 100, 200, "Sub-lethal DoT: 10 * 0.666 = 6.66 dmg (hp 100 -> 93.34)"),
+        (-25, 1, "DIFF", 500, 1000, "Sub-lethal DoT: 25 * 0.666 = 16.65 dmg"),
+        (-50, 1, "DIFF", 500, 1000, "Sub-lethal DoT: 50 * 0.666 = 33.3 dmg"),
+        (-25, 3, "DIFF", 500, 1000, "Sub-lethal DoT with ticks=3: 25 * 1.998 = 49.95 dmg"),
+        (-50, 3, "DIFF", 500, 1000, "Sub-lethal DoT with ticks=3: 50 * 1.998 = 99.9 dmg"),
+        (-25, 5, "DIFF", 500, 1000, "Sub-lethal DoT with ticks=5: 25 * 3.33 = 83.25 dmg"),
+        (-50, 5, "DIFF", 500, 1000, "Sub-lethal DoT with ticks=5: 50 * 3.33 = 166.5 dmg"),
+        # PER DoT cases (dynamic hp * power * ticksMultiplier)
+        (F("-0.05"), 5, "PER", 1000, 1000, "PER DoT 5% at 1000 HP: 1000 * 0.05 * 3.33 = 166.5 dmg"),
+        (F("-0.02"), 5, "PER", 1000, 1000, "PER DoT 2% at 1000 HP: 1000 * 0.02 * 3.33 = 66.6 dmg"),
+        (F("-0.10"), 1, "PER", 1000, 1000, "PER DoT 10% at 1000 HP, ticks=1: 1000 * 0.1 * 0.666 = 66.6 dmg"),
+        (F("-0.50"), 5, "PER", 10, 100, "PER DoT high power at 10 HP: raw 16.65 clamped to 9 (curHp-1)"),
+        (F("-0.05"), 5, "PER", 1, 100, "PER DoT at 1 HP clamped to 0"),
+        # HoT (positive power healing)
+        (25, 1, "DIFF", 50, 100, "HoT 25 power, ticks=1: 16.65 heal"),
+        (50, 3, "DIFF", 50, 200, "HoT 50 power, ticks=3: 99.9 heal"),
+        (100, 5, "DIFF", 500, 1000, "HoT 100 power, ticks=5: 333 heal"),
+        (100, 5, "DIFF", 900, 1000, "HoT 100 power clamped by maxHp (333 -> 100 heal)"),
+        (100, 5, "DIFF", 1000, 1000, "HoT at maxHp: 0 heal"),
+    ]
+
+    for hp_val in [20, 40, 80, 150, 300, 600, 1200]:
+        for p_val in [-15, -30, -60, -120]:
+            if len(configs) < 55:
+                configs.append((p_val, 1, "DIFF", hp_val, 2000, f"Grid DoT p={p_val}, hp={hp_val}"))
+
+    for p, ticks, mode, cur_hp, max_hp, desc in configs:
+        ticks_mult = F(ticks * 666, 1000)
+        power_frac = F(p)
+        if mode == "DIFF":
+            raw_amount = power_frac * ticks_mult
+        else:
+            raw_amount = F(cur_hp) * power_frac * ticks_mult
+
+        if raw_amount < 0:
+            raw_dmg = abs(raw_amount)
+            non_lethal_cap = max(F(0), F(cur_hp) - 1)
+            clamped_by_nl = (raw_dmg >= non_lethal_cap)
+            effective_amount = non_lethal_cap if clamped_by_nl else raw_dmg
+            final_hp = F(cur_hp) - effective_amount
+            rounded_amount = int(floor(effective_amount))
+            rounded_hp = int(floor(final_hp))
+            non_lethal_cap_str = format_fraction(non_lethal_cap)
+        else:
+            recoverable = max(F(0), F(max_hp) - F(cur_hp))
+            effective_amount = min(raw_amount, recoverable)
+            clamped_by_nl = False
+            non_lethal_cap_str = None
+            final_hp = F(cur_hp) + effective_amount
+            rounded_amount = int(floor(effective_amount))
+            rounded_hp = int(floor(final_hp))
+
+        out.append({
+            "description": desc,
+            "source_lines": source_lines,
+            "inputs": {
+                "power": format_fraction(power_frac),
+                "ticks": ticks,
+                "mode": mode,
+                "current_hp": cur_hp,
+                "max_hp": max_hp,
+                "effect_tick_ratio": 666,
+            },
+            "intermediate": {
+                "ticks_multiplier": format_fraction(ticks_mult),
+                "interval_ms": ticks * 666,
+                "raw_amount": format_fraction(raw_amount),
+                "non_lethal_cap": non_lethal_cap_str,
+                "clamped_by_non_lethal": clamped_by_nl,
+            },
+            "exact_rational": format_fraction(effective_amount),
+            "rounded_result": {
+                "amount": rounded_amount,
+                "final_hp": rounded_hp,
+            },
+            "rounding_rule": "Non-lethal clamp power=min(power, currentHp-1) at TickHp.java:75-76; (int) floor damage",
+        })
+
+    assert len(out) >= 40
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Formula 15: Cast staging times
+# ---------------------------------------------------------------------------
+def make_cast_staging_vectors() -> list[dict]:
+    source_lines = "L2Character.java:1508, 1625-1643, 4577-4581"
+    out = []
+
+    configs = [
+        # (hit_time_ms, cast_speed, is_continuous, is_static, start_tick, desc)
+        # Standard non-continuous
+        (1080, 333, False, False, 100, "Standard 1080 ms cast at base speed: cutoff=8, launch=680 ms, impact=1080 ms"),
+        (1500, 333, False, False, 100, "1500 ms cast: cutoff=13, launch=1100 ms, impact=1500 ms"),
+        (2000, 333, False, False, 100, "2000 ms cast: cutoff=18, launch=1600 ms, impact=2000 ms"),
+        (3000, 333, False, False, 100, "3000 ms cast: cutoff=28, launch=2600 ms, impact=3000 ms"),
+        (4000, 333, False, False, 100, "4000 ms cast: cutoff=38, launch=3600 ms, impact=4000 ms"),
+        # Continuous (-300 ms animation adjustment per L2Character.java:1627)
+        (1080, 333, True, False, 100, "Continuous 1080 ms: cutoff=8 (uses original 1080 ms), launch=380 ms, impact=780 ms"),
+        (1500, 333, True, False, 100, "Continuous 1500 ms: cutoff=13, launch=800 ms, impact=1200 ms"),
+        (2000, 333, True, False, 100, "Continuous 2000 ms: cutoff=18, launch=1300 ms, impact=1700 ms"),
+        (3000, 333, True, False, 100, "Continuous 3000 ms: cutoff=28, launch=2300 ms, impact=2700 ms"),
+        (4000, 333, True, False, 100, "Continuous 4000 ms: cutoff=38, launch=3300 ms, impact=3700 ms"),
+        # Short casts (design review F3/F4 citations)
+        (500, 333, False, False, 100, "500 ms cast: cutoff=3, launch=100 ms, impact=500 ms"),
+        (550, 333, False, False, 100, "550 ms cast: cutoff=3 (floor(5.5)-2), launch=150 ms, impact=550 ms"),
+        (500, 333, True, False, 100, "Continuous 500 ms: cutoff=3, launch=-200 ms, impact=200 ms"),
+        (550, 333, True, False, 100, "Continuous 550 ms: cutoff=3, launch=-150 ms, impact=250 ms"),
+        # Long casts
+        (6000, 333, False, False, 100, "Long 6000 ms cast: cutoff=58, launch=5600 ms, impact=6000 ms"),
+        (8000, 333, False, False, 100, "Long 8000 ms cast: cutoff=78, launch=7600 ms, impact=8000 ms"),
+        (6000, 333, True, False, 100, "Continuous 6000 ms: cutoff=58, launch=5300 ms, impact=5700 ms"),
+        # Cast speed scaling
+        (2000, 500, False, False, 100, "Speed 500: anim=1332 ms, cutoff=11, launch=932 ms, impact=1332 ms"),
+        (2000, 666, False, False, 100, "Speed 666: anim=1000 ms, cutoff=8, launch=600 ms, impact=1000 ms"),
+        (2000, 1000, False, False, 100, "Speed 1000: anim=666 ms, cutoff=4, launch=266 ms, impact=666 ms"),
+        (2000, 1500, False, False, 100, "Speed 1500: anim=444 ms -> 500 ms floor, cutoff=3, launch=100 ms"),
+        # Static casts
+        (1000, 333, False, True, 100, "Static 1000 ms cast: anim unscaled=1000 ms, cutoff=8, launch=600 ms"),
+        (1000, 333, True, True, 100, "Static continuous 1000 ms: cutoff=8, launch=300 ms, impact=700 ms"),
+    ]
+
+    for ht in [1200, 1800, 2400, 3500]:
+        for spd in [333, 450, 600]:
+            for cont in [False, True]:
+                if len(configs) < 55:
+                    configs.append((ht, spd, cont, False, 200, f"Grid ht={ht}, spd={spd}, cont={cont}"))
+
+    for ht, spd, cont, stat, st_tick, desc in configs:
+        raw_anim = F(ht) if stat else (F(ht) / F(spd)) * F(333)
+        anim_ms = floor(raw_anim)
+        if not stat and anim_ms < 500 and ht > 500:
+            anim_ms = 500
+
+        # Interrupt cutoff based on original anim_ms per L2Character.java:1508
+        cutoff_offset_ticks = (anim_ms // 100) - 2
+        cutoff_tick = st_tick + cutoff_offset_ticks
+
+        # Continuous adjustment per L2Character.java:1627
+        effective_anim_ms = anim_ms - 300 if cont else anim_ms
+        launch_offset_ms = effective_anim_ms - 400
+        launch_offset_ticks = ceil(F(launch_offset_ms, 100))
+        launch_tick = st_tick + launch_offset_ticks
+
+        impact_offset_ms = effective_anim_ms
+        impact_offset_ticks = max(1, ceil(F(impact_offset_ms, 100)))
+        impact_tick = st_tick + impact_offset_ticks
+
+        out.append({
+            "description": desc,
+            "source_lines": source_lines,
+            "inputs": {
+                "hit_time_ms": ht,
+                "cast_speed": spd,
+                "is_continuous": cont,
+                "is_static": stat,
+                "start_tick": st_tick,
+            },
+            "intermediate": {
+                "anim_ms": anim_ms,
+                "effective_anim_ms": effective_anim_ms,
+                "launch_offset_ms": launch_offset_ms,
+                "impact_offset_ms": impact_offset_ms,
+            },
+            "exact_rational": format_fraction(raw_anim),
+            "rounded_result": {
+                "interrupt_cutoff_offset_ticks": cutoff_offset_ticks,
+                "interrupt_cutoff_tick": cutoff_tick,
+                "launch_offset_ticks": launch_offset_ticks,
+                "launch_tick": launch_tick,
+                "impact_offset_ticks": impact_offset_ticks,
+                "impact_tick": impact_tick,
+            },
+            "rounding_rule": "Cutoff = floor(trunc(anim_ms)/100) - 2; continuous anim -= 300 ms; launch = anim - 400 ms; impact = launch + 400 ms; tick = ceil(ms / 100)",
+        })
+
+    assert len(out) >= 40
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Formula 16: Heal.java branches (84-102)
+# ---------------------------------------------------------------------------
+def make_heal_vectors() -> list[dict]:
+    source_lines = "Heal.java:84-102"
+    out = []
+
+    configs = [
+        # (power, m_atk, grade, is_stat, is_mag, bss, heal_effect, is_crit, cur_hp, max_hp, desc)
+        # Phase 3 standard: nongrade weapon, no shots (mAtkMul = 1 + 1 = 2)
+        (100, 200, "NONE", False, True, False, F(1), False, 500, 1000, "Phase 3 standard: nongrade weapon, mAtkMul=2, power=100, mAtk=200"),
+        (446, 200, "NONE", False, True, False, F(1), False, 500, 1000, "Battle Heal lvl 1: power=446, mAtk=200, mAtkMul=2"),
+        (892, 500, "NONE", False, True, False, F(1), False, 500, 2000, "Major Heal: power=892, mAtk=500, mAtkMul=2"),
+        # Unarmed / null weapon (mAtkMul = 1 + 1 = 2)
+        (100, 50, "UNARMED", False, True, False, F(1), False, 500, 1000, "Unarmed heal: mAtkMul=2"),
+        # S80 weapon (mAtkMul = 2 + 1 = 3)
+        (446, 500, "S80", False, True, False, F(1), False, 500, 2000, "S80 weapon without shots: mAtkMul=3"),
+        # S84 weapon (mAtkMul = 4 + 1 = 5)
+        (446, 500, "S84", False, True, False, F(1), False, 500, 2000, "S84 weapon without shots: mAtkMul=5"),
+        # Static heal (bypasses weapon, mAtk, heal_effect, crit)
+        (500, 500, "NONE", True, True, False, F(1), False, 200, 1000, "Static heal: bypasses mAtk contribution and crit"),
+        (500, 500, "NONE", True, True, False, F(12, 10), True, 200, 1000, "Static heal: ignores recipient heal_effect and crit"),
+        # Magic crit (amount * 3 per CT2.3 Gracia Final)
+        (100, 200, "NONE", False, True, False, F(1), True, 100, 2000, "Heal crit: amount * 3"),
+        (446, 500, "NONE", False, True, False, F(1), True, 100, 4000, "Battle Heal crit: amount * 3"),
+        # Recipient HEAL_EFFECT modifiers
+        (100, 200, "NONE", False, True, False, F(12, 10), False, 500, 1000, "Recipient HEAL_EFFECT = 1.2 (+20%)"),
+        (100, 200, "NONE", False, True, False, F(8, 10), False, 500, 1000, "Recipient HEAL_EFFECT = 0.8 (-20%)"),
+        # Overheal clamping
+        (500, 200, "NONE", False, True, False, F(1), False, 950, 1000, "Overheal clamp: 500 heal against 50 HP gap -> clamped to 50"),
+        (500, 200, "NONE", False, True, False, F(1), False, 1000, 1000, "Target already at max HP -> clamped to 0"),
+        (1000, 500, "NONE", False, True, False, F(1), True, 900, 1000, "Crit overheal clamp: 3000+ heal against 100 HP gap -> clamped to 100"),
+    ]
+
+    for p in [50, 150, 300, 600]:
+        for ma in [50, 100, 250, 400]:
+            for gr in ["NONE", "S80"]:
+                if len(configs) < 55:
+                    configs.append((p, ma, gr, False, True, False, F(1), False, 200, 2000, f"Grid p={p}, ma={ma}, gr={gr}"))
+
+    for p, ma, gr, stat, mag, bss, he, crit, cur_hp, max_hp, desc in configs:
+        if gr == "S84":
+            gr_mult = 4
+        elif gr == "S80":
+            gr_mult = 2
+        else:
+            gr_mult = 1
+        m_atk_mul = gr_mult * 4 if bss else gr_mult + 1
+
+        base_amt = F(p)
+        if not stat:
+            lo_root, _ = root_bounds(F(m_atk_mul * ma))
+            amt = (base_amt + lo_root) * he
+            if mag and crit:
+                amt *= 3
+        else:
+            amt = base_amt
+
+        recoverable = max(F(0), F(max_hp) - F(cur_hp))
+        clamped_amt = max(F(0), min(amt, recoverable))
+        final_hp = F(cur_hp) + clamped_amt
+
+        out.append({
+            "description": desc,
+            "source_lines": source_lines,
+            "inputs": {
+                "power": p,
+                "m_atk": ma,
+                "weapon_grade": gr,
+                "is_static": stat,
+                "is_magic": mag,
+                "bss": bss,
+                "heal_effect": format_fraction(he),
+                "is_crit": crit,
+                "current_hp": cur_hp,
+                "max_recoverable_hp": max_hp,
+            },
+            "intermediate": {
+                "m_atk_multiplier": m_atk_mul,
+                "pre_clamp_amount": format_fraction(amt),
+                "recoverable_gap": format_fraction(recoverable),
+            },
+            "exact_rational": format_fraction(clamped_amt),
+            "rounded_result": {
+                "heal_amount": int(floor(clamped_amt)),
+                "final_hp": int(floor(final_hp)),
+            },
+            "rounding_rule": "Heal.java:102 max(0, min(amount, maxRecoverableHp - currentHp)); (int) floor amount",
+        })
+
+    assert len(out) >= 40
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Formula 17: FuncAtkEvasion (int) intermediate cast
+# ---------------------------------------------------------------------------
+def make_func_atk_evasion_vectors() -> list[dict]:
+    source_lines = "FuncAtkEvasion.java:37,61, CharStat.java:171-174"
+    out = []
+
+    configs = [
+        # (level, dex, is_player, mod_op, mod_val, desc)
+        # Level 1 DEX 20 player cases (F9 finding: raw = sqrt(20)*6 + 1 = 27.8328 -> (int) cast = 27 vs without cast round = 28)
+        (1, 20, True, "none", 0, "Level 1 DEX 20 player base: (int) cast gives 27, without cast gives 28!"),
+        (1, 20, True, "add", 4, "Level 1 DEX 20 player +4 mod: cast gives 31 (27+4), without cast gives 32 (round(31.83))!"),
+        (1, 20, True, "add", 10, "Level 1 DEX 20 player +10 mod: cast gives 37, without cast gives 38!"),
+        (1, 20, True, "mul", F(11, 10), "Level 1 DEX 20 player *1.1 buff: cast gives 30 (round(29.7)), without cast gives 31 (round(30.62))!"),
+        (1, 20, True, "mul", F(9, 10), "Level 1 DEX 20 player *0.9 debuff: cast gives 24 (round(24.3)), without cast gives 25 (round(25.05))!"),
+        # Other DEX values at level 1
+        (1, 25, True, "none", 0, "Level 1 DEX 25 player: sqrt(25)*6+1 = 31.0 exact"),
+        (1, 30, True, "none", 0, "Level 1 DEX 30 player: sqrt(30)*6+1 = 33.86 -> cast 33 vs round 34"),
+        (1, 30, True, "add", 4, "Level 1 DEX 30 player +4 mod: cast 37 vs round 38"),
+        (1, 35, True, "none", 0, "Level 1 DEX 35 player: sqrt(35)*6+1 = 36.49 -> cast 36 vs round 36 (agreement)"),
+        (1, 40, True, "none", 0, "Level 1 DEX 40 player: sqrt(40)*6+1 = 38.94 -> cast 38 vs round 39"),
+        # Levels 20, 40, 60, 69
+        (20, 20, True, "none", 0, "Level 20 DEX 20 player: 46.83 -> cast 46 vs round 47"),
+        (40, 20, True, "none", 0, "Level 40 DEX 20 player: 66.83 -> cast 66 vs round 67"),
+        (60, 20, True, "none", 0, "Level 60 DEX 20 player: 86.83 -> cast 86 vs round 87"),
+        (69, 20, True, "none", 0, "Level 69 DEX 20 player: 95.83 -> cast 95 vs round 96"),
+        # Level >= 70 player diff branch (+(lvl - 69))
+        (70, 20, True, "none", 0, "Level 70 DEX 20 player: diff=1 -> 97.83 -> cast 97 vs round 98"),
+        (75, 20, True, "none", 0, "Level 75 DEX 20 player: diff=6 -> 107.83 -> cast 107 vs round 108"),
+        (77, 20, True, "none", 0, "Level 77 DEX 20 player: diff=8 -> 111.83 -> cast 111 vs round 112"),
+        # Level >= 78 player diff * 1.2 branch
+        (78, 20, True, "none", 0, "Level 78 DEX 20 player: diff=9*1.2=10.8 -> 115.63 -> cast 115 vs round 116"),
+        (80, 20, True, "none", 0, "Level 80 DEX 20 player: diff=11*1.2=13.2 -> 120.03 -> cast 120 vs round 120"),
+        (85, 20, True, "none", 0, "Level 85 DEX 20 player: diff=16*1.2=19.2 -> 131.03 -> cast 131 vs round 131"),
+        (85, 30, True, "add", 5, "Level 85 DEX 30 player +5: diff=19.2 -> cast vs round"),
+        # Additional player levels to ensure rich coverage
+        (45, 25, True, "none", 0, "Level 45 DEX 25 player: 76.0 exact"),
+        (55, 30, True, "add", 3, "Level 55 DEX 30 player +3 mod"),
+        (65, 35, True, "mul", F(11, 10), "Level 65 DEX 35 player *1.1 mod"),
+        # Monster / NPC cases (level > 69 addition: level - 69 + 2)
+        (1, 20, False, "none", 0, "NPC level 1 DEX 20: cast 27 vs round 28"),
+        (20, 20, False, "none", 0, "NPC level 20 DEX 20: cast 46 vs round 47"),
+        (70, 20, False, "none", 0, "NPC level 70 DEX 20: diff = (70-69)+2=3 -> cast 99 vs round 100"),
+        (75, 20, False, "none", 0, "NPC level 75 DEX 20: diff = (75-69)+2=8 -> cast 109 vs round 110"),
+        (80, 25, False, "none", 0, "NPC level 80 DEX 25: diff = (80-69)+2=13"),
+        (85, 35, False, "none", 0, "NPC level 85 DEX 35: diff = (85-69)+2=18"),
+    ]
+
+    for lv in [10, 30, 50, 72, 82]:
+        for dx in [22, 28, 33]:
+            if len(configs) < 55:
+                configs.append((lv, dx, True, "none", 0, f"Grid lvl={lv}, dex={dx}"))
+
+    for lv, dx, is_p, m_op, m_val, desc in configs:
+        lo_root, _ = root_bounds(F(dx))
+        raw = lo_root * 6 + F(lv)
+        if is_p:
+            if lv >= 70:
+                diff = F(lv - 69) * (F(12, 10) if lv >= 78 else F(1))
+                raw += diff
+        else:
+            if lv > 69:
+                raw += F(lv - 69 + 2)
+
+        intermediate_cast = floor(raw)
+
+        if m_op == "add":
+            val_with = F(intermediate_cast) + F(m_val)
+            val_without = raw + F(m_val)
+        elif m_op == "mul":
+            val_with = F(intermediate_cast) * F(m_val)
+            val_without = raw * F(m_val)
+        else:
+            val_with = F(intermediate_cast)
+            val_without = raw
+
+        final_with = rounded(val_with)
+        final_without = rounded(val_without)
+        discrepancy = (final_with != final_without)
+
+        out.append({
+            "description": desc,
+            "source_lines": source_lines,
+            "inputs": {
+                "level": lv,
+                "dex": dx,
+                "is_player": is_p,
+                "modifier": {
+                    "op": m_op,
+                    "val": format_fraction(F(m_val)),
+                },
+            },
+            "intermediate": {
+                "raw_evasion": format_fraction(raw),
+                "intermediate_cast": intermediate_cast,
+                "has_intermediate_discrepancy": discrepancy,
+            },
+            "exact_rational": format_fraction(val_with),
+            "rounded_result": {
+                "evasion_with_intermediate_cast": final_with,
+                "evasion_without_intermediate_cast": final_without,
+            },
+            "rounding_rule": "FuncAtkEvasion.java:61 (int) cast at order 1; CharStat.java:172 Math.round final evasion",
+        })
+
+    assert len(out) >= 40
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Formula 18: Stun removal roll condition
+# ---------------------------------------------------------------------------
+def make_stun_removal_vectors() -> list[dict]:
+    source_lines = "PcStatus.java:83-96, CharStatus.java:142-146"
+    out = []
+
+    configs = [
+        # (cause, target_kind, is_stunned, roll_draw, desc)
+        # Direct attack / physical / magic skill on stunned target with roll == 0 -> stun REMOVED
+        ("DIRECT_ATTACK", "PLAYER", True, 0, "Direct attack on stunned player, roll=0 -> stun REMOVED"),
+        ("PHYSICAL_SKILL", "PLAYER", True, 0, "Physical skill on stunned player, roll=0 -> stun REMOVED"),
+        ("MAGICAL_SKILL", "PLAYER", True, 0, "Magical skill on stunned player, roll=0 -> stun REMOVED"),
+        ("DIRECT_ATTACK", "NPC", True, 0, "Direct attack on stunned NPC, roll=0 -> stun REMOVED"),
+        ("PHYSICAL_SKILL", "NPC", True, 0, "Physical skill on stunned NPC, roll=0 -> stun REMOVED"),
+        # Direct attack on stunned target with rolls 1..9 -> stun RETAINED, roll consumed
+        ("DIRECT_ATTACK", "PLAYER", True, 1, "Direct attack on stunned player, roll=1 -> stun retained"),
+        ("DIRECT_ATTACK", "PLAYER", True, 2, "Direct attack on stunned player, roll=2 -> stun retained"),
+        ("DIRECT_ATTACK", "PLAYER", True, 5, "Direct attack on stunned player, roll=5 -> stun retained"),
+        ("DIRECT_ATTACK", "PLAYER", True, 9, "Direct attack on stunned player, roll=9 -> stun retained"),
+        ("MAGICAL_SKILL", "NPC", True, 4, "Magical skill on stunned NPC, roll=4 -> stun retained"),
+        # DOT damage on stunned target -> stun RETAINED, roll is NOT consumed (!isDOT guard)
+        ("DOT", "PLAYER", True, 0, "DoT on stunned player: !isDOT guard suppresses roll, stun retained"),
+        ("DOT", "PLAYER", True, 1, "DoT on stunned player: roll not consumed, stun retained"),
+        ("DOT", "NPC", True, 0, "DoT on stunned NPC: !isDOT guard suppresses roll, stun retained"),
+        ("DOT", "NPC", True, 9, "DoT on stunned NPC: roll not consumed, stun retained"),
+        # HP_CONSUMPTION on stunned target -> stun RETAINED, roll NOT consumed (!isHPConsumption guard)
+        ("HP_CONSUMPTION", "PLAYER", True, 0, "HP consumption on stunned player: !isHPConsumption suppresses roll, stun retained"),
+        ("HP_CONSUMPTION", "NPC", True, 0, "HP consumption on stunned NPC: !isHPConsumption suppresses roll, stun retained"),
+        # Target NOT stunned -> roll NOT consumed
+        ("DIRECT_ATTACK", "PLAYER", False, 0, "Direct attack on non-stunned player: roll not consumed"),
+        ("PHYSICAL_SKILL", "PLAYER", False, 0, "Physical skill on non-stunned player: roll not consumed"),
+        ("MAGICAL_SKILL", "NPC", False, 0, "Magical skill on non-stunned NPC: roll not consumed"),
+        ("DOT", "PLAYER", False, 0, "DoT on non-stunned player: roll not consumed"),
+    ]
+
+    for roll in range(10):
+        configs.append(("PHYSICAL_SKILL", "PLAYER", True, roll, f"Physical skill on stunned player roll={roll}"))
+        configs.append(("MAGICAL_SKILL", "PLAYER", True, roll, f"Magical skill on stunned player roll={roll}"))
+        if roll < 5:
+            configs.append(("DOT", "PLAYER", True, roll, f"DoT on stunned player roll={roll} (never removed)"))
+            configs.append(("HP_CONSUMPTION", "PLAYER", True, roll, f"HP consume on stunned player roll={roll} (never removed)"))
+
+    for cause, t_kind, stunned, roll, desc in configs:
+        is_dot = (cause == "DOT")
+        is_hp_con = (cause == "HP_CONSUMPTION")
+        eligible = (not is_dot and not is_hp_con and stunned)
+        roll_consumed = eligible
+        stun_removed = (eligible and roll == 0)
+        final_stunned = False if stun_removed else stunned
+
+        out.append({
+            "description": desc,
+            "source_lines": source_lines,
+            "inputs": {
+                "damage_cause": cause,
+                "target_kind": t_kind,
+                "target_is_stunned": stunned,
+                "roll_draw": roll,
+            },
+            "intermediate": {
+                "is_dot": is_dot,
+                "is_hp_consumption": is_hp_con,
+                "is_roll_eligible": eligible,
+                "roll_consumed": roll_consumed,
+            },
+            "exact_rational": "1" if stun_removed else "0",
+            "rounded_result": {
+                "roll_consumed": roll_consumed,
+                "stun_removed": stun_removed,
+                "final_is_stunned": final_stunned,
+            },
+            "rounding_rule": "PcStatus.java:93-96 and CharStatus.java:142-146: !isDOT && !isHPConsumption && isStunned -> Rnd.get(10)==0 (10% chance)",
+        })
+
+    assert len(out) >= 40
+    return out
+
+
 def generate() -> tuple[dict, str]:
     stat_bonus_data = read_toml("tables/stat_bonus.toml")
     pvp_data = read_toml("tables/pvp.toml")
@@ -1431,6 +1919,11 @@ def generate() -> tuple[dict, str]:
         "FuncMAtkMod": m_stat_dict["FuncMAtkMod"],
         "FuncMDefMod": m_stat_dict["FuncMDefMod"],
         "FuncMAtkSpeed": m_stat_dict["FuncMAtkSpeed"],
+        "TickHp": make_tick_hp_vectors(),
+        "cast_staging": make_cast_staging_vectors(),
+        "Heal": make_heal_vectors(),
+        "FuncAtkEvasion": make_func_atk_evasion_vectors(),
+        "stun_removal_condition": make_stun_removal_vectors(),
     }
 
     # Verify counts
@@ -1462,6 +1955,11 @@ def generate() -> tuple[dict, str]:
             "FuncMAtkMod": "Exact Q initVal * (INT.bonus)^2 * (levelMod)^2 at FuncMAtkMod.java:42-47",
             "FuncMDefMod": "Exact Q value * MEN.bonus * levelMod at FuncMDefMod.java:58-61",
             "FuncMAtkSpeed": "(int) truncation after cap at CharStat.java:252; 333 * WIT.bonus at FuncMAtkSpeed.java:42-45",
+            "TickHp": "Non-lethal clamp power=min(power, currentHp-1) at TickHp.java:75-76; ticksMultiplier=(ticks * EffectTickRatio)/1000f at AbstractEffect.java:148-149 with EffectTickRatio=666 from character.properties:145; DIFF vs PER calculation at TickHp.java:62-71",
+            "cast_staging": "Cast timing staging at L2Character.java:1508, 1625-1643, 4577-4581: base animation time, continuous-skill -300 ms, launch at anim - 400 ms, impact at launch + 400 ms, interrupt cutoff deadline floor(trunc(animation_ms)/100) - 2 ticks",
+            "Heal": "Heal.java:84-102: weapon grade multiplier (S84=4, S80=2, other=1), no-shot dynamic bonus (+1), sqrt(mAtkMul * mAtk) added unless static, recipient HEAL_EFFECT, x3 magic crit, and [0, maxRecoverableHp - currentHp] overheal clamp",
+            "FuncAtkEvasion": "FuncAtkEvasion.java:37,61: order 1 built-in func truncates (int) value before later stat modifiers; CharStat.java:171-174 rounds the final completed stat",
+            "stun_removal_condition": "PcStatus.java:83-96 and CharStatus.java:142-146: stun removal roll condition (!isDOT && !isHPConsumption && isStunned) triggering Rnd.get(10) == 0 (10% chance) on eligible direct damage",
         },
         "double_arithmetic_discrepancies": {
             "calcMagicSuccess_float_cast": "Formulas.java:1301 explicitly casts the double result to (float) before Math.round. In IEEE 754 binary32, precision is 24 bits. The oracle models this with binary_nearest(x, 24) to guarantee exact equivalence with the Java JVM.",
@@ -1469,6 +1967,9 @@ def generate() -> tuple[dict, str]:
             "calcAtkBreak_sqrt": "Formulas.java:1010 uses Math.sqrt(13 * dmg). The oracle similarly certifies integer interval agreement for all vectors.",
             "calculateKarmaLost_division": "Formulas.java:1820 divides integer exp by double multiplier then 30. All 85 multipliers in pcKarmaIncrease.xml have finite decimal expansions with up to 9 fractional digits. Rational arithmetic exp / F(mul) / 30 truncated matches Java double division for all game exp values.",
             "resurrect_quirk_boundary": "Formulas.java:1377 uses strictly greater comparison (restorePercent - baseRestorePercent > 20.0). Floating point round-off near boundary could flip this condition; rational arithmetic guarantees exactness at the 20.0 boundary.",
+            "FuncAtkEvasion_intermediate_cast": "FuncAtkEvasion.java:61 truncates intermediate evasion to (int) before modifiers. Without this intermediate truncation, rounding after modifiers produces different integer values (e.g. lvl 1 DEX 20 player yields 27 with cast vs 28 without; adding +4 modifier yields 31 vs 32; buff 1.1x yields 30 vs 31).",
+            "Heal_nongrade_shot_multiplier": "In Phase 3 with no spiritshots, nongrade weapon or unarmed yields mAtkMul = 1 + 1 = 2 per Heal.java:89. Static healing bypasses mAtk, heal_effect and crit.",
+            "TickHp_nonlethal_clamp": "TickHp.java:75-76 caps negative DoT power at currentHp - 1, preventing death from DoT. Clamped power is non-negative and zero if currentHp <= 1.",
         },
         "formulas": formulas,
     }

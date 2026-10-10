@@ -42,6 +42,10 @@ conditions = [
   { kind = "using_kind", weapon_kinds = ["DAGGER", "DUALDAGGER"] }
 ]
 
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><using kind=\"DAGGER,DUALDAGGER\" /></cond>",
+]
+
 [attribute]
 type = "NONE"
 power = 0
@@ -56,7 +60,7 @@ visual = "DOT_BLEEDING"
 [[effects]]
 section = "effects"
 name = "TickHp"
-params = { power = ["-25", "-34", "-44", "-54", "-62", "-67"], ticks = "5" }
+params = { mode = "DIFF", power = ["-25", "-34", "-44", "-54", "-62", "-67"], ticks = "5" }
 stat_children = [
   { op = "mul", stat = "runSpd", value = ["0.8", "0.8", "0.8", "0.8", "0.8", "0.8"] },
 ]

@@ -13,7 +13,7 @@ is_magic = 1
 target_type = "NPC_BODY"
 affect_scope = "RANGE"
 affect_range = 150
-affect_limit = "10-10"
+affect_limit = { offset = 10, width = 10 }
 affect_object = "NOT_FRIEND"
 
 cast_range = 400

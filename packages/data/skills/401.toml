@@ -42,6 +42,10 @@ conditions = [
   { kind = "using_kind", weapon_kinds = ["SWORD", "BLUNT", "DUAL"] }
 ]
 
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><using kind=\"SWORD,BLUNT,DUAL\" /></cond>",
+]
+
 [attribute]
 type = "UNHOLY"
 power = 20

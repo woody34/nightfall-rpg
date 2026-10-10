@@ -13,7 +13,7 @@ is_magic = 1
 target_type = "SELF"
 affect_scope = "PARTY_PLEDGE"
 affect_range = 1000
-affect_limit = "50-50"
+affect_limit = { offset = 50, width = 50 }
 affect_object = "FRIEND"
 
 cast_range = 0

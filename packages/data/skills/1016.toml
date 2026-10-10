@@ -42,6 +42,10 @@ conditions = [
   { kind = "player_can_resurrect" }
 ]
 
+raw_conditions = [
+  "<cond><player canResurrect=\"true\" /></cond>",
+]
+
 [attribute]
 type = "NONE"
 power = 0

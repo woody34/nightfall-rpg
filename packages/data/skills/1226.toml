@@ -42,6 +42,10 @@ conditions = [
   { kind = "unsupported", tag = "player", attrs = {"canSummon": "true"} }
 ]
 
+raw_conditions = [
+  "<cond><player canSummon=\"true\" /></cond>",
+]
+
 [attribute]
 type = "NONE"
 power = 0

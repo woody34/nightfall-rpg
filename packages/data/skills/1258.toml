@@ -47,6 +47,10 @@ conditions = [
   }
 ]
 
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><not><target npcType=\"L2Attackable\" /></not></cond>",
+]
+
 [attribute]
 type = "NONE"
 power = 0

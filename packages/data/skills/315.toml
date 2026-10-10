@@ -48,6 +48,10 @@ conditions = [
   }
 ]
 
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><and><using kind=\"SWORD,BLUNT\" /><using slot=\"lrhand\" /></and></cond>",
+]
+
 [attribute]
 type = "NONE"
 power = 0

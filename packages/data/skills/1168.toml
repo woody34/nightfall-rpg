@@ -52,5 +52,5 @@ visual = "DOT_POISON"
 [[effects]]
 section = "effects"
 name = "TickHp"
-params = { power = ["-11", "-24", "-32", "-41", "-50", "-58", "-63"], ticks = "5" }
+params = { mode = "DIFF", power = ["-11", "-24", "-32", "-41", "-50", "-58", "-63"], ticks = "5" }
 stat_children = []

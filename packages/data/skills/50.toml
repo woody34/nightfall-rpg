@@ -48,6 +48,11 @@ conditions = [
   }
 ]
 
+raw_conditions = [
+  "<cond msgId=\"113\" addName=\"1\"><using kind=\"DUALFIST\" /></cond>",
+  "<cond msgId=\"324\"><not><player Charges=\"#focusEnergyCharge\" /></not></cond>",
+]
+
 [attribute]
 type = "NONE"
 power = 0

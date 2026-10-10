@@ -13,7 +13,7 @@ is_magic = 1
 target_type = "SELF"
 affect_scope = "POINT_BLANK"
 affect_range = 200
-affect_limit = "10-10"
+affect_limit = { offset = 10, width = 10 }
 affect_object = "NOT_FRIEND"
 
 cast_range = 0

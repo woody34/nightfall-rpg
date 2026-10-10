@@ -12,7 +12,7 @@ is_magic = 1
 
 target_type = "ENEMY"
 affect_scope = "FAN"
-affect_limit = "5-12"
+affect_limit = { offset = 5, width = 12 }
 affect_object = "NOT_FRIEND"
 
 cast_range = 40
