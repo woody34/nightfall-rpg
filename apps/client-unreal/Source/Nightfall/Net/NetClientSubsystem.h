@@ -151,6 +151,9 @@ public:
 	/** Entities spawned and not yet despawned. A world that loads after connecting starts from these. */
 	const TMap<FString, FEntitySpawn>& GetKnownEntities() const { return KnownEntities; }
 
+	/** Current transport generation, bumped each time the WebSocket connects or closes. */
+	uint64 GetTransportGeneration() const { return SocketGeneration; }
+
 	// Test seams. Defaults: FWebSocketsModule and FTSTicker.
 	/** The seq of the newest intent or keep-alive sent (0 = none yet); lets tests see whether a click sent anything. */
 	uint32 GetLastSentSeq() const { return NextSeq; }

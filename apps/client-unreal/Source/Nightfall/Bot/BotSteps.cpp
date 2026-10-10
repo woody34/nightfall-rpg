@@ -396,13 +396,13 @@ namespace
 		return GI ? GI->GetSubsystem<UCombatStateSubsystem>() : nullptr;
 	}
 
-	FAutoConsoleCommandWithWorldAndArgs TargetCommand(TEXT("nf.Target"), TEXT("nf.Target <entity id|nearest_attackable|attacker|last|none>: SetTarget without attacking"),
+	FAutoConsoleCommandWithWorldAndArgs TargetCommand(TEXT("nf.Target"), TEXT("nf.Target <entity id|nearest_attackable|attacker|last|template:<id>|none>: SetTarget without attacking"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			UCombatStateSubsystem* Combat = CombatOf(World);
 			if (!Combat || Args.Num() != 1)
 			{
-				UE_LOG(LogNightfallBot, Warning, TEXT("nf.Target: usage nf.Target <entity id|nearest_attackable|attacker|last|none>"));
+				UE_LOG(LogNightfallBot, Warning, TEXT("nf.Target: usage nf.Target <entity id|nearest_attackable|attacker|last|template:<id>|none>"));
 				return;
 			}
 			FString Id = Args[0];
@@ -439,6 +439,17 @@ namespace
 				if (Id.IsEmpty())
 				{
 					UE_LOG(LogNightfallBot, Warning, TEXT("nf.Target: no attackable entity in view"));
+					return;
+				}
+			}
+			else if (Id.StartsWith(TEXT("template:"), ESearchCase::IgnoreCase))
+			{
+				const FString TemplateId = Id.Mid(9).TrimStartAndEnd();
+				const FBotContext Context{ GameInstanceOf(World), nullptr };
+				Id = BotPredicates::ResolveTemplateTarget(Context, TemplateId);
+				if (Id.IsEmpty())
+				{
+					UE_LOG(LogNightfallBot, Warning, TEXT("nf.Target template:%s: no unique living admitted NPC in view"), *TemplateId);
 					return;
 				}
 			}
