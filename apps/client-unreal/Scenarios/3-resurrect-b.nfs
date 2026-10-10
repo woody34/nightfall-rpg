@@ -22,12 +22,12 @@ nf.WaitFor own_dead 90
 nf.WaitFor resurrect_offer_pending 18
 nf.Expect resurrect_offer_matches_death
 nf.AcceptResurrect latest accept
-nf.WaitFor own_alive 3
+nf.WaitFor own_hp > 0 3
 nf.Expect resurrection_vitals_match_fixture
 nf.Expect resurrect_refund_matches_oracle
 nf.Expect public_revival_vitals_coherent
 nf.AcceptResurrect latest accept
-nf.WaitFor last_reject == no_resurrect_offer 3
+nf.WaitFor rejected == no_resurrect_offer 3
 nf.Expect resurrection_refunds == 1
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 240

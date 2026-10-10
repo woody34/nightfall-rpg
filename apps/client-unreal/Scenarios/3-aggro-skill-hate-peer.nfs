@@ -9,6 +9,6 @@ nf.WaitFor in_world 15
 nf.WaitFor own_sp >= 0 3
 nf.WaitFor npcs_fighting >= 1 90
 nf.Expect attacked_by == 0
-nf.Expect observer_private_stats == 0
+nf.Expect private_stats_leaks == 0
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 153

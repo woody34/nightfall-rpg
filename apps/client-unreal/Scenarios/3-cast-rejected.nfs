@@ -18,10 +18,10 @@ nf.WaitFor own_sp >= 0 3
 nf.SkillCatalog
 nf.WaitFor catalogue_skill_status 1147 == deferred 15
 nf.Cast 1147
-nf.WaitFor last_reject == skill_not_learned 3
+nf.WaitFor rejected == skill_not_learned 3
 nf.Expect cast_starts == 0
 nf.Cast 4294967295
-nf.WaitFor last_reject == skill_unknown 3
+nf.WaitFor rejected == skill_unknown 3
 nf.Expect cast_starts == 0
 nf.ClickMove 110 100
 nf.WaitFor own_at 110 100 1 30

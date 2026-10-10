@@ -55,6 +55,7 @@ sim_claim_artifacts "${SCENARIOS[@]}"
 
 selected="$(sim_fixture_detect "${SCENARIOS[@]}")" || sim_die "invalid scenario fixtures"
 sim_fixture_validate_mode "$selected" "$API_MODE"
+sim_phase3_parser_check "$selected" "${SCENARIOS[@]}"
 sim_scenario_budget "${SCENARIOS[@]}"
 sim_resolve_env
 sim_ensure_build

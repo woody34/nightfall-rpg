@@ -20,7 +20,7 @@ nf.WaitFor entity_effect_active 01970000-0000-7000-8000-000000000030 1068 30
 nf.WaitFor observed_cast_results >= 1 30
 nf.Expect observer_skill_baseline_coherent
 nf.Expect spawn_before_skill_references
-nf.Expect observer_private_stats == 0
+nf.Expect private_stats_leaks == 0
 nf.Expect public_vitals_coherent
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 153

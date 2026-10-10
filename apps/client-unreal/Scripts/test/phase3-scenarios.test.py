@@ -54,7 +54,7 @@ class ScenarioContracts(unittest.TestCase):
         owner = (SCENARIOS / '3-pvp-flag-a.nfs').read_text()
         peer = (SCENARIOS / '3-pvp-flag-b.nfs').read_text()
         for assertion in ('own_pvp == 1', 'own_pk == 1', 'own_karma > 0',
-                          'player_cp_damage_total > 0', 'last_reject == peace_zone',
+                          'player_cp_damage_total > 0', 'rejected == peace_zone',
                           'cast_cancel_reason == peace_zone', 'target_flag_expired_at_last_impact'):
             self.assertIn(assertion, owner)
         self.assertLess(peer.index('nf.WaitFor entity_casting'), peer.index('nf.WaitFor observed_cast_cancel_reason'))

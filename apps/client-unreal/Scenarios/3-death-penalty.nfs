@@ -33,7 +33,7 @@ nf.Expect own_dead
 nf.Expect death_penalty_matches_before_disconnect
 nf.Expect death_record_matches_before_disconnect
 nf.Respawn
-nf.WaitFor own_alive 3
+nf.WaitFor own_hp > 0 3
 nf.Expect town_respawn_vitals_match_fixture
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 240

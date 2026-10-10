@@ -20,6 +20,6 @@ nf.Cast 1016 01970000-0000-7000-8000-000000000031
 nf.WaitFor cast_results >= 1 18
 nf.WaitFor entity_alive 01970000-0000-7000-8000-000000000031 180
 nf.Expect public_revival_vitals_coherent
-nf.Expect observer_private_stats == 0
+nf.Expect private_stats_leaks == 0
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 351

@@ -44,7 +44,7 @@ nf.Expect own_karma == 0
 nf.Expect own_pk == 0
 nf.Expect own_pvp == 0
 nf.Respawn
-nf.WaitFor own_alive 3
+nf.WaitFor own_hp > 0 3
 # Retained flag must naturally expire; no live fixture mutation, no town-protection bypass.
 nf.WaitFor own_flag == none 180
 nf.ClickMove 115 116

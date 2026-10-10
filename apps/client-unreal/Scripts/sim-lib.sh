@@ -419,6 +419,12 @@ sim_finalize_verdict() {
 
 # Phase2 is always freshly provisioned before admission. The helper never reads root .env.
 sim_fixture_detect() { python3 "$SIM_HERE/phase2-fixture.py" detect "$@"; }
+sim_phase3_parser_check() {
+  local selected="$1"; shift
+  [[ "$selected" == phase3-* ]] || return 0
+  python3 "$SIM_HERE/sim-parser-check.py" --project "$SIM_PROJECT_DIR" "$@" \
+    || sim_die "Phase3 scenario/client registry mismatch; see phase3-fixtures.md"
+}
 sim_fixture_validate_mode() {
   [[ "$1" == phase2-* || "$1" == phase3-* ]] || return 0
   [[ "$2" == start ]] || sim_die "Phase2 fixture requires --api start; attaching is refused"

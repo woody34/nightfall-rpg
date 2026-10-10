@@ -56,38 +56,80 @@ budget contains the sum of its per-step waits plus exit grace. Wrappers/CI exten
 process budgets to at least `nf.Within +30s`, retaining all final evidence gates.
 No duration or cost is recomputed from client combat stats in Python/Bash.
 
-**REQUIRED HANDOFFS:** The following is a requested client contract, pending publication of M3 in
-client-progress.md. All predicates must return UNKNOWN before valid received
-scope evidence, reset on transport/entity/generation changes, and fence tick,
-incarnation, cast/effect/offer IDs. Owner bootstrap/revival exceptions follow
-binding design-review2. Neither uninitialized zero nor an Ack alone proves an effect.
-Unsupported predicates must fail parsing; do not skip assertions.
+**Final authoritative DSL handoff (merged client `3b21cd7`).** This single table
+covers every command and predicate used by the Phase3 scenarios. Names use the
+existing registry where semantics match: `rejected`, `private_stats_leaks`, and
+`own_hp > 0`. Numeric comparisons use `<op> <unsigned n>`; explicit skills use
+`<skill_id>` and entities use `<own|target|uuid>`. Pending names remain assertions
+and MUST fail parsing; UNKNOWN must never become a successful zero/absence check.
+All history is fenced by transport generation, entity incarnation, tick and the
+cast/effect/offer identity. Vector comparisons consume expected values from an
+independent, hash-pinned artifact; the harness does not calculate gameplay results.
 
-| Commands / predicates | Authoritative evidence |
-|---|---|
-| `nf.Cast <id> [self\|UUID]`, `nf.CancelCast` | WS intents → one Ack/rejection, then received Started/Result/Cancelled. Explicit corpse UUID for1016; no corpse SetTarget. |
-| `nf.Learn <id> <rank> [UUID-key]`, `nf.LearnableSkills`, `nf.SkillCatalog` | Owned-character RPC, exact-rank frozen response/idempotency fields; catalogue status/blockers. |
-| `nf.AcceptResurrect latest accept` | Captured valid owner offer id, then intent result/lifecycle. Client must retain last consumed id for duplicate-consent negative tests. |
-| skill_ready, skill_reuse_remaining, learned_rank | SkillReuse/SkillStateSync ready_tick, received current tick, SkillLearned/frozen receipt; skill-id keyed. |
-| cast_state, cast_starts/results/cancellations, observed_cast_results | Scoped lifecycle IDs, not intent count; observer baselines are not starts/results. |
-| buff_active/inactive, debuff_active, entity_effect_active/inactive, effect_count | Stable effect-id map from Applied/Removed/hydration; inactive requires a received baseline/removal, not absence of an unknown map. |
-| own_sp, sp_gained_total/events, skill_learned_events, learnable_contains, learn_rpc_error, learn_receipt_matches_first | Owner stats/sync/SpGained/SkillLearned and exact frozen RPC; retry creates no second event. Reconnect balances separate from connection-scoped event counters. |
-| own_mp_cost_matches, skill_damage/effect_matches_oracle, stat_matches_oracle, regen_matches_oracle, moving_regen_matches_oracle | Received resources/effective stats/results/regen with external independent fixture vectors. **MP costs currently missing from wire; stays UNKNOWN**, per client report. No runtime/client formula as expectation. |
-| own_flag/karma/pk/pvp, target_flag, player_cp_damage_total, cp_absorption_matches_received | Public PvP/spawn and private owner stats; CP damage from result field, absolute resources from owner stats. Public data never exposes peer CP/MP/SP totals. |
-| own_flag_deadline_matches_received, victim_flag_not_refreshed, pvp_private_stats_coherent | Received flag deadline/state history per incarnation, max-deadline refresh, victim copy, owner-only field scope. |
-| initial_hp/mp/cp, own_cp_damage_total | First owner bootstrap resource sample (frozen per admission), received AttackResult/SkillCastResult rows whose target is the owner. Never pass from zero-initialized state. |
-| entity_at <UUID> <x> <y> <tolerance>, entity_casting <UUID> <skill> | Newest authoritative position sample and non-baseline active SkillCastStarted; no animation/interpolation as evidence. |
-| cast_cancel_reason/observed_cast_cancel_reason, peace_impact_has_no_damage | Received correlated SkillCastCancelled PEACE_ZONE and target HP/effect history; started outside, target moved inside, no later result/HP loss for that cast. |
-| target_flag_remaining, target/own_flag_expired_at_last_impact, impact_counter_uses_received_flag, flagged_kill_matches_received | Compare received deadline with Started/start_tick and impact/result/death ticks and committed counters. Expiry predicate requires a witnessed start-before/impact-at-or-after deadline; a cast after expiry cannot pass. No cast-time/counter formula in client. |
-| last_reject, cancelled_cast_costs_retained, cast_dispositions_once, peace_rejection_has_no_start | Correlated intent seq/reason, start/result/cancel tick and received resource/reuse history. Cancel has no late IntentRejected. |
-| owner/observer_skill_baseline_coherent, spawn_before_skill_references, observer_private_stats, public_vitals_coherent | Identity-first and reference hydration trace, no duplicate lifecycle count, exact IDs/incarnations/deadlines and owner-only stats routing. |
-| buff_replacements, replacement_remove_before_apply, effect_identity_coherent, effect_remove_reason | Applied/Removed stable IDs and causal order/reason; replacement installs new ID. |
-| retained_effect_identity_coherent, restore_did_not_reapply_hooks | Received restored skill/pool/source/install-order/remainder fields and fixture oracle; offline pause, no replayed heal/instant hook. Admission may allocate fresh zone effect IDs. |
-| entity_in_view/dead/alive <UUID>, players_attacking_me, npc_target_is_owner, skill_hate_outcome_coherent | Received spawn/lifecycle/AttackStarted/target/AI projections. Ledger arithmetic belongs to engine oracles. |
-| own_death_penalty_matches_seed, death_record_matches_fixture/before_disconnect, death_xp_matches_fixture, town_respawn_vitals_match_fixture | Private sync/death/stats, deterministic seed/vector and actual recorded loss; not an assumed20% success. |
-| death_penalty_matches_before_disconnect | Exact received private penalty saved before socket loss and compared with the next owner bootstrap. Probability/cap branches need independent server vectors; no random roll is assumed to succeed. |
-| resurrect_offer_matches_death, resurrection_vitals_match_fixture, resurrect_refund_matches_oracle, resurrection_refunds, public_revival_vitals_coherent | Private offer/loss/id/expiry, death incarnation, Respawned then final VitalsChanged, owner vitals and independent refund vector; rank1 power0 is a valid zero-refund case. |
-| karma_gain/decay_matches_oracle | Committed PvP/stats/XP events, pre-kill PK count/pre-award level and external source vectors. |
+| Command or predicate | Merged registry status | Exact received message / action and required evidence |
+|---|---|---|
+| `nf.Login` | Registered | Login response/access token; authenticates using the private role token. |
+| `nf.EnterWorld` | Registered | Play ticket RPC then WebSocket admission; waits for own EntitySpawn. |
+| `nf.ClickMove <x> <y>` | Registered | Sends MoveTo intent; confirmation is EntityMove, not local interpolation. |
+| `nf.Target <uuid|template:id>` | Registered | Sends SetTarget; confirmation is TargetChanged. |
+| `nf.Attack / nf.StopAttack` | Registered | Sends Attack/StopAttack; intent receipt and attack lifecycle confirm outcome. |
+| `nf.Cast <id> [self|target|uuid]` | Registered | Sends CastSkill.skill_id/target; rank is chosen by the server; waits for Started/Result/Cancelled. |
+| `nf.CancelCast` | Registered | Sends CancelCast; terminal SkillCastCancelled carries authoritative reason. |
+| `nf.Learn <id> <rank> [uuid]` | Registered | LearnSkillRequest.character_id/skill_id/skill_level/idempotency_key; completed response/status, SkillLearned and StatsChanged are authoritative. Key reuse never buys next rank. |
+| `nf.LearnableSkills / nf.SkillCatalog` | Registered | ListLearnableSkills/GetSkillCatalog unary RPCs; completed response only. |
+| `nf.AcceptResurrect [latest|offer_id] [accept|decline]` | Registered | Reads the latest received ResurrectOffer.offer_id or explicit id; sends AcceptResurrect.offer_id/accept. |
+| `nf.Respawn` | Registered | Sends RespawnRequest; waits for EntityRespawned + VitalsChanged + owner StatsChanged. |
+| `nf.DropSocket` | Registered | Drops transport; no gameplay mutation. Reconnect requires fresh admission baselines. |
+| `nf.WaitFor / nf.Expect / nf.Within` | Registered | Scenario parser directives; WaitFor/Expect read the registered predicate, Within sets only the runner deadline. |
+| `connected` | `connected`: registered | Login/auth response access token; authenticated local transport state, not a zone event. |
+| `in_world`<br>`reconnects` | `in_world`: registered<br>`reconnects`: registered | WebSocket transport generation and owner EntitySpawn.entity/incarnation; no synthetic gameplay facts. |
+| `own_at`<br>`entity_at` | `own_at`: registered<br>`entity_at`: REQUIRED HANDOFF | EntitySpawn.position and EntityMove.entity/position/tick/incarnation; newest received sample, never client pawn position. |
+| `entity_in_view` | `entity_in_view`: REQUIRED HANDOFF | EntitySpawn/EntityDespawn admitted known-entity identity cache. |
+| `own_hp`<br>`own_dead`<br>`entity_alive`<br>`entity_dead` | `own_hp`: registered<br>`own_dead`: registered<br>`entity_alive`: REQUIRED HANDOFF<br>`entity_dead`: REQUIRED HANDOFF | EntitySpawn.hp, EntityDied.entity/incarnation, EntityRespawned, AttackResult.target_hp_after and VitalsChanged.hp; alive requires a known matching incarnation. |
+| `own_mp`<br>`own_cp`<br>`initial_mp`<br>`initial_cp`<br>`initial_hp` | `own_mp`: registered<br>`own_cp`: registered<br>`initial_mp`: REQUIRED HANDOFF<br>`initial_cp`: REQUIRED HANDOFF<br>`initial_hp`: REQUIRED HANDOFF | Owner StatsChanged.mp/cp and EntitySpawn.hp; initial_* freezes the first owner admission sample, never an uninitialized zero. |
+| `target` | `target`: registered | Owner TargetChanged.target; server-confirmed selection. |
+| `attack_state` | `attack_state`: registered | IntentAck/IntentRejected.seq correlated to Attack, AttackStarted.attacker/tick and AttackStopped; pending is local intent state. |
+| `rejected` | `rejected`: registered | IntentRejected.seq/reason; spelling is the existing client registry name (replaces last_reject). |
+| `private_stats_leaks` | `private_stats_leaks`: registered | StatsChanged.entity received for a non-owner; existing ClassStateSubsystem leak counter (replaces observer_private_stats). |
+| `own_sp`<br>`learned_rank` | `own_sp`: registered<br>`learned_rank`: registered | SkillStateSync.sp/learned, SkillLearned.skill_id/skill_level/sp_remaining and owner StatsChanged.sp. |
+| `sp_gained_total`<br>`sp_gained_events` | `sp_gained_total`: registered<br>`sp_gained_events`: registered | Owner SpGained.amount/total/tick/incarnation; total sums actual received credits, events counts admitted envelopes. |
+| `skill_learned_events` | `skill_learned_events`: registered | Owner SkillLearned.skill_id/skill_level/tick/incarnation; baseline is not a learned event. |
+| `catalogue_skill_status` | `catalogue_skill_status`: registered | GetSkillCatalogResponse.skills[].skill_id/effect_implemented/deferred_reasons. |
+| `learnable_contains` | `learnable_contains`: registered | ListLearnableSkillsResponse.skills[].skill.skill_id/skill_level; pending RPC cannot match. |
+| `learn_rpc_error` | `learn_rpc_error`: registered | Completed LearnSkill unary canonical gRPC status; pending does not equal success. |
+| `learn_receipt_matches_first` | `learn_receipt_matches_first`: registered | Two successful LearnSkillResponse messages for the same request UUID/fingerprint, all frozen response fields equal. |
+| `skill_ready`<br>`skill_reuse_remaining` | `skill_ready`: registered<br>`skill_reuse_remaining`: registered | Owner SkillReuse.skill_id/ready_tick and SkillStateSync.reuse[].ready_tick vs newest received authoritative tick. No predicted reuse formula. |
+| `cast_state`<br>`entity_casting` | `cast_state`: registered<br>`entity_casting`: REQUIRED HANDOFF | SkillCastStarted.caster/skill_id/cast_id/caster_incarnation/complete_at_tick, SkillCastResult and SkillCastCancelled of the same identity. Baseline hydration upserts without event counts. |
+| `cast_starts`<br>`cast_results`<br>`cast_cancellations`<br>`observed_cast_results` | `cast_starts`: registered<br>`cast_results`: registered<br>`cast_cancellations`: registered<br>`observed_cast_results`: registered | Distinct nonbaseline SkillCastStarted/SkillCastResult/SkillCastCancelled; owner versus observer audience. Generic counters are insufficient for skill-specific observer termination. |
+| `cast_cancel_reason`<br>`observed_cast_cancel_reason`<br>`cast_dispositions_once` | `cast_cancel_reason`: REQUIRED HANDOFF<br>`observed_cast_cancel_reason`: REQUIRED HANDOFF<br>`cast_dispositions_once`: REQUIRED HANDOFF | SkillCastStarted.cast_id + SkillCastResult.cast_id or SkillCastCancelled.cast_id/reason, with caster/incarnation and IntentAck/IntentRejected.seq. Exactly one terminal event per accepted cast; no late intent rejection. |
+| `cancelled_cast_costs_retained`<br>`own_mp_cost_matches` | `cancelled_cast_costs_retained`: REQUIRED HANDOFF<br>`own_mp_cost_matches`: UNKNOWN: missing cost/vector input | Owner StatsChanged.mp before/start/completion, SkillReuse.ready_tick and matching cast identity. own_mp_cost_matches needs independently pinned per-rank MP1/MP2 expected values; GetSkillCatalogResponse currently carries NO costs. Registered but always UNKNOWN. |
+| `skill_damage_matches_oracle`<br>`skill_effect_matches_oracle`<br>`stat_matches_oracle` | `skill_damage_matches_oracle`: REQUIRED HANDOFF<br>`skill_effect_matches_oracle`: REQUIRED HANDOFF<br>`stat_matches_oracle`: REQUIRED HANDOFF | SkillCastResult.targets[].resolution_kind/outcome/rolled/cp_absorbed/hp_removed/heal/applied_effect_ids + EffectApplied + owner StatsChanged.effective_stats compared to independent hash-pinned E1 vectors. No vector data has been supplied; no local gameplay formulas. |
+| `buff_active`<br>`buff_inactive`<br>`debuff_active`<br>`entity_effect_active`<br>`entity_effect_inactive`<br>`effect_count` | `buff_active`: registered<br>`buff_inactive`: registered<br>`debuff_active`: registered<br>`entity_effect_active`: registered<br>`entity_effect_inactive`: registered<br>`effect_count`: registered | EffectApplied.target/effect_id/skill_id/pool/end_tick and EffectRemoved.effect_id plus EntitySpawn.active_effects or baseline hydration. Absence only matches a known baseline, never missing state. |
+| `buff_replacements`<br>`replacement_remove_before_apply`<br>`effect_identity_coherent`<br>`effect_remove_reason` | `buff_replacements`: REQUIRED HANDOFF<br>`replacement_remove_before_apply`: REQUIRED HANDOFF<br>`effect_identity_coherent`: REQUIRED HANDOFF<br>`effect_remove_reason`: REQUIRED HANDOFF | EffectRemoved.target/incarnation/effect_id/reason/tick then EffectApplied with a NEW effect_id; retained stable IDs/deadlines and observed order, not elapsed client time. |
+| `retained_effect_identity_coherent`<br>`restore_did_not_reapply_hooks` | `retained_effect_identity_coherent`: REQUIRED HANDOFF<br>`restore_did_not_reapply_hooks`: REQUIRED HANDOFF | Baseline EffectApplied.skill_id/skill_level/pool/caster/applied_tick/end_tick and owner reuse sync compared before/after admission plus replay/checkpoint adapter evidence. Wire lacks modifier install order and periodic phase; those MUST come from server precision evidence. |
+| `owner_skill_baseline_coherent`<br>`observer_skill_baseline_coherent`<br>`spawn_before_skill_references` | `owner_skill_baseline_coherent`: REQUIRED HANDOFF<br>`observer_skill_baseline_coherent`: REQUIRED HANDOFF<br>`spawn_before_skill_references`: REQUIRED HANDOFF | Identity EntitySpawn/EntityRespawned batch, baseline SkillCastStarted/EffectApplied/PvpStateChanged and owner SkillStateSync/StatsChanged; every nested reference has an already-known matching incarnation, omitted hidden source pairs remain absent. |
+| `public_vitals_coherent`<br>`public_revival_vitals_coherent` | `public_vitals_coherent`: REQUIRED HANDOFF<br>`public_revival_vitals_coherent`: REQUIRED HANDOFF | EntitySpawn final hp/max_hp; EntityRespawned then baseline VitalsChanged.hp/max_hp/tick/incarnation, agreeing with public SkillCastResult target_hp_after. Never observer MP/CP. |
+| `regen_pulses`<br>`moving_regen_pulses`<br>`regen_matches_oracle`<br>`moving_regen_matches_oracle` | `regen_pulses`: REQUIRED HANDOFF<br>`moving_regen_pulses`: REQUIRED HANDOFF<br>`regen_matches_oracle`: REQUIRED HANDOFF<br>`moving_regen_matches_oracle`: REQUIRED HANDOFF | Owner StatsChanged.hp/mp/cp and VitalsChanged.hp/max_hp with EntityMove samples and independent E1 vectors; wire has NO regen-cause/pulse event. Exact pulse/moving/dead/full distinctions additionally need correlated actor/replay regen facts; do not infer a pulse from any HP increase. |
+| `own_flag`<br>`target_flag`<br>`target_flag_remaining`<br>`own_karma`<br>`own_pk`<br>`own_pvp`<br>`own_flag_deadline_matches_received` | `own_flag`: registered<br>`target_flag`: registered<br>`target_flag_remaining`: REQUIRED HANDOFF<br>`own_karma`: registered<br>`own_pk`: registered<br>`own_pvp`: registered<br>`own_flag_deadline_matches_received`: REQUIRED HANDOFF | PvpStateChanged.entity/flag_until_tick/karma/pk_count/pvp_count/tick/incarnation plus EntitySpawn.flag_until_tick/karma and owner SkillStateSync. remaining uses received tick only; classify chaotic from received karma. |
+| `own_cp_damage_total`<br>`player_cp_damage_total`<br>`cp_absorption_matches_received` | `own_cp_damage_total`: REQUIRED HANDOFF<br>`player_cp_damage_total`: REQUIRED HANDOFF<br>`cp_absorption_matches_received`: REQUIRED HANDOFF | Player-sourced AttackResult.cp_damage/damage/target_hp_after and SkillCastResult.targets[].cp_absorbed/hp_removed/target_hp_after with owner StatsChanged.cp. Nonzero witnessed absorption required. |
+| `victim_flag_not_refreshed`<br>`flagged_kill_matches_received`<br>`impact_counter_uses_received_flag`<br>`target_flag_expired_at_last_impact`<br>`own_flag_expired_at_last_impact` | `victim_flag_not_refreshed`: REQUIRED HANDOFF<br>`flagged_kill_matches_received`: REQUIRED HANDOFF<br>`impact_counter_uses_received_flag`: REQUIRED HANDOFF<br>`target_flag_expired_at_last_impact`: REQUIRED HANDOFF<br>`own_flag_expired_at_last_impact`: REQUIRED HANDOFF | AttackStarted or SkillCastStarted at a witnessed pre-expiry tick, matching AttackResult/SkillCastResult impact tick, EntityDied, and committed PvpStateChanged counters/deadline. Require start-before and impact-at-or-after expiry; no vacuous absent flag success. |
+| `peace_rejection_has_no_start`<br>`peace_impact_has_no_damage` | `peace_rejection_has_no_start`: REQUIRED HANDOFF<br>`peace_impact_has_no_damage`: REQUIRED HANDOFF | IntentRejected.reason=PEACE_ZONE/seq without corresponding start; or accepted SkillCastStarted followed by SkillCastCancelled.reason=PEACE_ZONE, and same target life HP/CP unchanged at that impact. Fixture and actor evidence distinguish both endpoint/pulse policies. |
+| `pvp_private_stats_coherent` | `pvp_private_stats_coherent`: REQUIRED HANDOFF | Owner StatsChanged.karma/pk_count/pvp_count/flag_until_tick agree with PvpStateChanged and SkillStateSync for the same tick/incarnation; private stats remain owner-only. |
+| `karma_gain_matches_oracle`<br>`karma_decay_matches_oracle` | `karma_gain_matches_oracle`: REQUIRED HANDOFF<br>`karma_decay_matches_oracle`: REQUIRED HANDOFF | Committed PvpStateChanged.karma/pk_count/pvp_count with EntityDied, XpGained and StatsChanged.level/xp compared to E1 frozen expected vectors (pre-award level and pre-kill counter). |
+| `attacked_by`<br>`npcs_fighting`<br>`players_attacking_me`<br>`npc_target_is_owner`<br>`skill_hate_outcome_coherent` | `attacked_by`: registered<br>`npcs_fighting`: registered<br>`players_attacking_me`: REQUIRED HANDOFF<br>`npc_target_is_owner`: REQUIRED HANDOFF<br>`skill_hate_outcome_coherent`: REQUIRED HANDOFF | AttackStarted.attacker/target and AttackResult, TargetChanged, EntityDied/Despawn; existing attacked_by/npcs_fighting count distinct NPCs from received attack history. No NPC hate ledger on wire; exact AddHate/GetAgro/heal/tie requires actor evidence. |
+| `own_death_penalty`<br>`death_penalty_matches_before_disconnect` | `own_death_penalty`: registered<br>`death_penalty_matches_before_disconnect`: REQUIRED HANDOFF | Owner SkillStateSync.death_penalty_level and StatsChanged.death_penalty_level, frozen before disconnect. Deterministic success/failure/cap additionally requires seeded actor vectors. |
+| `death_record_matches_fixture`<br>`death_record_matches_before_disconnect`<br>`death_xp_matches_fixture` | `death_record_matches_fixture`: REQUIRED HANDOFF<br>`death_record_matches_before_disconnect`: REQUIRED HANDOFF<br>`death_xp_matches_fixture`: REQUIRED HANDOFF | EntityDied + owner StatsChanged.xp/level and E1 loss vector. pre_death_xp/death_incarnation/recoverable_death_xp_loss are NOT on SkillStateSync; checkpoint/adapter evidence is required for the complete death record. |
+| `town_respawn_vitals_match_fixture`<br>`resurrection_vitals_match_fixture` | `town_respawn_vitals_match_fixture`: REQUIRED HANDOFF<br>`resurrection_vitals_match_fixture`: REQUIRED HANDOFF | EntityRespawned + final VitalsChanged and owner StatsChanged.hp/mp/cp compared to frozen external expected vector. Town and skill revival have separate pinned semantics; no client percentage calculation. |
+| `resurrect_offer_pending`<br>`resurrect_offer_matches_death`<br>`resurrect_refund_matches_oracle`<br>`resurrection_refunds` | `resurrect_offer_pending`: registered<br>`resurrect_offer_matches_death`: REQUIRED HANDOFF<br>`resurrect_refund_matches_oracle`: REQUIRED HANDOFF<br>`resurrection_refunds`: REQUIRED HANDOFF | Owner ResurrectOffer.target/incarnation/offer_id/restore_percent_q/recoverable_xp/expiry_tick/state/tick, accepted EntityRespawned and owner StatsChanged.xp; correlate one refund per offer/death incarnation against E1 vectors. |
+
+Run `python3 Scripts/sim-parser-check.py Scenarios/3-*.nfs` as the strict source
+compatibility gate. It reads BotPredicates/ClassBotPredicates/SkillBotPredicates
+and future predicate files from this merged tree; unknown names and known UNKNOWN
+projections cause exit1. There is no allowlist for missing names. The host regression
+`Scripts/test/phase3-parser.test.py` verifies that rejection over **every** scenario,
+including unknown-name and malformed-command mutations. Its PASS attests validator
+behavior, not scenario compatibility or the native Unreal parser. The strict gate
+currently FAILS; client implementation and vector/wire handoffs are still required.
 
 Current files cover core flows, **not the entire matrix's variants**. Pending
 client/engine integration includes exact 50/51 and100/101 checkpoint boundaries,
@@ -145,9 +187,8 @@ boot grace in both GetConfiguration.MaxDuration and TickTest's process deadline.
 Do not change client
 skill formulas. Harness run-soak.sh refuses casting before infrastructure if the
 client source lacks this hook. C# and its build are outside C-HARNESS ownership;
-no Gauntlet/packaged soak pass is claimed. Latest client-progress publishes M2
-`03281ca` and reports uncommitted core DSL/manifest support; the observed C# hook
-still uses the earlier120s allowance. Commands/counts/inactive effects match the
+no Gauntlet/packaged soak pass is claimed. Merged client M3 `3b21cd7` provides core DSL/manifest support; its C# still lacks
+the final SoakScenarioSeconds budget parameter. Commands/counts/inactive effects match the
 brief, but the added impact/initial-resource/causal predicates and oracle/death/
 retention/AI assertions remain handoffs. Integrate and reconcile the final client
 M3 commit before running scenarios; unsupported names must continue to fail parsing.

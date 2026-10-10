@@ -32,7 +32,7 @@ nf.ClickMove 110 116
 nf.WaitFor own_at 110 116 1 30
 nf.WaitFor entity_at 01970000-0000-7000-8000-000000000031 117 116 0.5 30
 nf.Attack
-nf.WaitFor last_reject == peace_zone 3
+nf.WaitFor rejected == peace_zone 3
 nf.Expect peace_rejection_has_no_start
 # Received Might application is the peer's signal to leave peace for an accepted cast.
 nf.Cast 1068 self

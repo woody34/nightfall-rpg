@@ -54,6 +54,7 @@ FIXTURES=()
 for scenario in "${SCENARIOS[@]}"; do
   selected="$(sim_fixture_detect "$scenario")" || sim_die "invalid scenario fixture"
   sim_fixture_validate_mode "$selected" "$API_MODE"
+  sim_phase3_parser_check "$selected" "$scenario"
   FIXTURES+=("$selected")
 done
 sim_scenario_budget "${SCENARIOS[@]}"
