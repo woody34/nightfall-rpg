@@ -48,6 +48,7 @@ bool FSkillObserverAuditTest::RunTest(const FString& Parameters)
  TestTrue(TEXT("mutual hydration sees entire identity batch"),Holds(TEXT("spawn_before_skill_references")));TestTrue(TEXT("original in-flight A baseline"),Baseline(A));TestTrue(TEXT("original in-flight B baseline"),Baseline(B));TestEqual(TEXT("hydration has no gameplay start counts"),Skills->GetCastTransitions(),0);
  Send(Messages[4]);TestFalse(TEXT("Might result cannot satisfy Wind Strike"),Result(A));
  Send(Messages[5]);Send(Messages[6]);Send(Messages[5]);TestTrue(TEXT("designated A result"),Result(A));TestTrue(TEXT("designated B result"),Result(B));TestTrue(TEXT("duplicate envelope still one designated terminal"),Once(A));TestTrue(TEXT("B one designated terminal"),Once(B));
+ auto Contradiction=Messages[5];Contradiction.SkillCastResult->EffectId=999;Send(Contradiction);TestFalse(TEXT("contradictory optional effect cannot count as duplicate"),Once(A));
  FWorldEvent Depart;Depart.Despawn=FEntityDespawn{A};Send(Depart);TestTrue(TEXT("witnessed departure"),Holds(TEXT("entity_not_in_view ")+A));TestFalse(TEXT("departed cast cannot satisfy current identity"),Result(A));
  Reset();TestFalse(TEXT("transport reset forgets departure"),Holds(TEXT("entity_not_in_view ")+A));
  TestEqual(TEXT("authored negative cases"),Json->GetArrayField(TEXT("negative_mutations")).Num(),6);

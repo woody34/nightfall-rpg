@@ -1153,7 +1153,7 @@ Unknown evidence evaluates false and is printed as unknown where applicable.
 | `own_karma/own_pk/own_pvp op n` | Received owner PvP values from same messages |
 | `own_sp op n`, `own_death_penalty op n` | Owner StatsChanged/SkillStateSync; SP also SkillLearned and SpGained |
 | `sp_gained_total/events op n`, `skill_learned_events op n` | Deduplicated owner SpGained / SkillLearned facts in current admission scope |
-| `own_mp_cost_matches <id>` | **UNKNOWN/false**: current catalogue and SkillStateSync contain no per-rank MP costs |
+| `own_mp_cost_matches <id>` | Exact received C6 catalogue rank MP1/MP2 costs versus owner StatsChanged stage deltas around matched SkillCastStarted/Result; missing metadata or samples is UNKNOWN |
 | `learnable_contains <id> <rank>` | Successful ListLearnableSkills exact received row |
 | `learn_rpc_error == none|<canonical gRPC code>` | Completed LearnSkill status; underscore names or numeric codes 0–16 |
 | `learn_receipt_matches_first` | Entire successful frozen LearnSkill reply compared with first reply for same retry key |
@@ -1182,9 +1182,7 @@ Ping reports an unavailable API; reachable auth/runtime/admission failures fail.
 `Scripts/run-tests.sh --require-live-api` makes unavailable API tests fail too.
 Use `-Phase3LiveCharacter=<UUID>` for a prepared fixture character; otherwise live
 admission tests create a fresh character. Live gameplay scenarios and server
-oracle verification are architect/harness work. Additional harness oracle,
-death-record, retention-hook, AI-hate and causal trace predicates are **not
-implemented** and fail scenario parsing. Generic independent E1 vectors are published on the data/zone branches; scenario input bindings and correlated actor/checkpoint evidence are still needed. The client does not select an arbitrary vector with a matching output or infer a regeneration cause from an HP increase.
+oracle verification are architect/harness work. All canonical and nested Phase 3 scenario command/predicate names now bind in the native registry. Received-history checks and exact frozen E1 karma/revival input lookups are documented in [PHASE3_PREDICATES.md](PHASE3_PREDICATES.md). Twelve predicates requiring regen causes, full death records, ordered modifiers, hate ledgers or RNG/credit traces remain **evidence-blocked**: they parse but always evaluate false with an explicit UNKNOWN reason. The strict harness source audit still rejects their uses. The peace no-damage check additionally needs the victim owner's private CP, and frozen lookups need a matching input vector. Parsing and authored offline dispatch fixtures do not attest live gameplay or server precision. The client never selects an arbitrary vector with a matching output or infers regeneration from an HP increase.
 
 Casting soak uses `-SoakRoleManifest=<roles.json>` and
 `-SoakScenarioSeconds=360`. Each role's process allowance is `SoakSeconds +
