@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -88,6 +89,28 @@ class CastingSoakTests(unittest.TestCase):
             self.assertEqual(env['PGPORT'], '27432')
             self.assertEqual(env['PGDATABASE'], 'nf_phase3_fixture_soak_test')
             for key in ('PGHOSTADDR', 'PGSERVICE', 'PGOPTIONS'): self.assertNotIn(key, env)
+
+    def test_two_iterations_include_persisted_endpoint_and_arrival_tolerance(self):
+        fixtures.prepare(REPO, self.out, 8, casting=True)
+        manifest = json.loads((self.out / 'roles.json').read_text())
+        for role in manifest['roles']:
+            source = Path(role['scenario']).read_text()
+            route = [line.split()[2:] for line in source.splitlines()
+                     if line.startswith('nf.WaitFor own_at ')]
+            position = (0, 0)
+            for iteration in range(2):
+                for x, y, tolerance, budget in route:
+                    destination = (int(x), int(y))
+                    # Worst start includes the previous own_at acceptance radius.
+                    distance = math.dist(position, destination) + (1 if iteration or position != (0, 0) else 0)
+                    self.assertGreaterEqual(int(budget), distance / 3.75 * 3)
+                    position = destination
+            waits = sum(int(line.split()[-1]) for line in source.splitlines()
+                        if line.startswith('nf.WaitFor '))
+            self.assertEqual(waits, 303)
+            self.assertIn('nf.Within 360', source)
+            self.assertGreaterEqual(360, waits + 30)
+        self.assertIn('-SoakScenarioSeconds=360', (SCRIPTS / 'run-soak.sh').read_text())
 
     def synthetic_reports(self):
         fixture_dir = self.out / 'fixtures'

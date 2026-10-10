@@ -138,9 +138,9 @@ seeders remove inherited libpq settings before supplying the guarded endpoint.
 **Client-owned NightfallSoak.cs handoff:** consume `-SoakRoleManifest=<roles.json>`,
 validate schema_version1/casting/count/order, use each role's scenario and
 `-DevTokenFile=<token_file>` (never inline tokens), retain unique UserDir/BotOutDir,
-and allow the final300s casting scenario plus boot grace (replace the earlier120s
+and allow the final360s casting scenario plus boot grace (replace the earlier120s
 request: the full sum of movement/cast/state waits now fits the scenario budget).
-Consume `-SoakScenarioSeconds=300` and include that final scenario allowance plus
+Consume `-SoakScenarioSeconds=360` and include that final scenario allowance plus
 boot grace in both GetConfiguration.MaxDuration and TickTest's process deadline.
 Do not change client
 skill formulas. Harness run-soak.sh refuses casting before infrastructure if the

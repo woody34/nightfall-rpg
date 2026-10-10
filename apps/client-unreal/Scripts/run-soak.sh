@@ -116,7 +116,7 @@ for ((i=0; i<180; i++)); do
 done
 curl -fsS -m 2 "http://localhost:$HTTP_PORT/health" >/dev/null || sim_die "API startup timed out"
 ROLE_ARGS=(); if ((CASTING)); then
-  ROLE_ARGS+=("-SoakRoleManifest=$OUT/fixtures/roles.json" "-SoakScenarioSeconds=300")
+  ROLE_ARGS+=("-SoakRoleManifest=$OUT/fixtures/roles.json" "-SoakScenarioSeconds=360")
 fi
 START=$(date +%s)
 CODE=0

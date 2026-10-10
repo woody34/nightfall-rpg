@@ -17,14 +17,17 @@ def casting_scenario(waypoints):
         '# Soak casting role: fixture coordinates; received state only.',
         '# Pinned dp3ca488dd skills/01100-01199.xml:1645 and01000-01099.xml:1560:',
         '# Base cast4000ms *3=12s; A1 state10ticks *100ms *3=3s.',
-        '# Route legs <=64tiles / fixture run3.75tiles/s *3 <=51.2s (round up to54s).',
+        '# BotLoop retains position: endpoint -> waypoint1 <=120tiles /3.75tiles/s *3=96s.',
+        '# First admission starts at0,0 (<=64tiles); subsequent legs <=64tiles *3/3.75 <=51.2s ->54s.',
         '# Speed: professions/human_mystic.toml:22; domain/zone/phase2.rs:109-112.',
-        '# Global sum of waits plus30s grace <=300s; long Might is1200s (line1553).',
+        '# Global sum of waits303s plus30s grace <=360s; long Might is1200s (line1553).',
         'nf.Login', 'nf.WaitFor connected 15', 'nf.EnterWorld', 'nf.WaitFor in_world 15',
         'nf.WaitFor learned_rank 1177 == 1 3',
         'nf.WaitFor skill_ready 1068 12', 'nf.Cast 1068 self', 'nf.WaitFor buff_active 1068 12']
-    for x, y in waypoints:
-        lines += [f'nf.ClickMove {x} {y}', f'nf.WaitFor own_at {x} {y} 1 54']
+    for index, (x, y) in enumerate(waypoints):
+        # Include the one-tile arrival tolerance from the preceding iteration.
+        seconds = 96 if index == 0 else 54
+        lines += [f'nf.ClickMove {x} {y}', f'nf.WaitFor own_at {x} {y} 1 {seconds}']
     lines += [
         'nf.WaitFor proxies >= 1 3', 'nf.Target nearest_attackable', 'nf.WaitFor target != none 3',
         'nf.WaitFor skill_ready 1177 12', 'nf.Cast 1177',
@@ -32,7 +35,7 @@ def casting_scenario(waypoints):
         'nf.WaitFor cast_state == idle 3', 'nf.Expect target == none',
         'nf.Expect buff_active 1068', 'nf.Expect cast_results >= 1',
         'nf.WaitFor xp_known 3', 'nf.WaitFor kill_xp_matches_fixture 3',
-        'nf.Expect own_xp > 0', 'nf.Expect own_level_matches_xp', 'nf.Within 300']
+        'nf.Expect own_xp > 0', 'nf.Expect own_level_matches_xp', 'nf.Within 360']
     # Short reuse may already be ready when Result arrives. The start/reuse history
     # is verified in the focused cast scenario; soak never requires seeing a subsecond window.
     return '\n'.join(lines) + '\n'
