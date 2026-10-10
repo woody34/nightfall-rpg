@@ -7,6 +7,7 @@
 
 mod audit;
 mod codec;
+mod codec_validation;
 mod epoch;
 mod gate;
 mod port;

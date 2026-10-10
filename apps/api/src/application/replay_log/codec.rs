@@ -595,6 +595,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
             StateDigestVersion::BinaryV2 => 4,
             StateDigestVersion::BinaryV3 => 5,
             StateDigestVersion::BinaryV4 => 6,
+            StateDigestVersion::BinaryV5 => 7,
         },
     }
 }
@@ -603,7 +604,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
 /// combat commands and facts. 3 (E2.4/E2.6): progression facts, the
 /// `alive` load flag, XP on `StatsChanged`. 4: binary v2 state digest. Schema 3 remains
 /// readable and writable for JSON v1 replay; earlier versions are refused (1 reads 0).
-pub const RECORD_SCHEMA_VERSION: u32 = 6;
+pub const RECORD_SCHEMA_VERSION: u32 = 7;
 
 pub(super) fn encode_events(events: &[ZoneEvent]) -> Vec<u8> {
     PbOutputs {
@@ -1322,12 +1323,13 @@ fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOu
 
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
     let pb = PbRecord::decode(bytes).map_err(err)?;
-    if ![3, 4, 5, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
+    if ![3, 4, 5, 6, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
         return Err(CodecError(format!(
-            "record schema {} is not supported (this build reads 3, 4, 5 and {RECORD_SCHEMA_VERSION})",
+            "record schema {} is not supported (this build reads 3, 4, 5, 6 and {RECORD_SCHEMA_VERSION})",
             pb.schema
         )));
     }
+    super::codec_validation::record(bytes, pb.schema, pb.output_form == 1)?;
     let output_form = output_form_from_pb(pb.output_form)?;
     let digest_len = match output_form {
         OutputForm::Encoded => None,
@@ -1365,8 +1367,10 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
             StateDigestVersion::BinaryV2
         } else if pb.schema == 5 {
             StateDigestVersion::BinaryV3
-        } else {
+        } else if pb.schema == 6 {
             StateDigestVersion::BinaryV4
+        } else {
+            StateDigestVersion::BinaryV5
         },
     })
 }
@@ -1786,7 +1790,7 @@ mod combat_tests {
             ..Default::default()
         };
         let error = super::decode_record(&prost::Message::encode_to_vec(&pb)).unwrap_err();
-        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5 and 6)");
+        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6 and 7)");
     }
 
     use super::*;
@@ -1926,5 +1930,105 @@ mod combat_tests {
         ] {
             assert_eq!(reason_from_pb(reason_to_pb(reason)).unwrap(), reason);
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod phase3_boundary_tests {
+    use super::*;
+
+    fn empty(schema: u32) -> PbRecord {
+        PbRecord {
+            schema,
+            state_digest: Bytes::from(vec![0; 32]),
+            ..PbRecord::default()
+        }
+    }
+    fn nested(tag: u32, value: &[u8]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        prost::encoding::encode_key(tag, prost::encoding::WireType::LengthDelimited, &mut bytes);
+        prost::encoding::encode_varint(value.len() as u64, &mut bytes);
+        bytes.extend_from_slice(value);
+        bytes
+    }
+    fn scalar(tag: u32, value: u64) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        prost::encoding::encode_key(tag, prost::encoding::WireType::Varint, &mut bytes);
+        prost::encoding::encode_varint(value, &mut bytes);
+        bytes
+    }
+
+    #[test]
+    fn all_record_versions_remain_readable_and_byte_exact() {
+        for (schema, digest) in [
+            (3, StateDigestVersion::JsonV1),
+            (4, StateDigestVersion::BinaryV2),
+            (5, StateDigestVersion::BinaryV3),
+            (6, StateDigestVersion::BinaryV4),
+            (7, StateDigestVersion::BinaryV5),
+        ] {
+            let bytes = empty(schema).encode_to_vec();
+            let record = decode_record(&bytes).unwrap();
+            assert_eq!(record.digest_version, digest);
+            assert_eq!(record.try_encode().unwrap(), bytes);
+        }
+    }
+
+    #[test]
+    fn old_records_reject_phase3_presence_at_every_protobuf_depth() {
+        for schema in 3..=6 {
+            // Empty/default extensions are still present, and prost would discard them.
+            for injection in [
+                nested(5, &nested(16, &[])),                        // CastSkill
+                nested(5, &nested(4, &nested(6, &nested(9, &[])))), // PlayerLoad.phase3
+                nested(5, &nested(5, &nested(4, &nested(6, &[])))), // NpcCombat.phase3
+                nested(5, &nested(7, &nested(3, &nested(9, &[])))), // forbidden replacement load
+                nested(9, &nested(1, &nested(20, &[]))),            // skill event
+                nested(9, &nested(1, &nested(1, &nested(9, &nested(9, &[]))))), // CombatView
+                nested(7, &nested(2, &nested(1, &nested(31, &[])))), // observer projection
+                nested(6, &scalar(5, 21)),                          // new rejection
+                nested(7, &nested(2, &nested(1, &nested(4, &scalar(5, 21))))),
+            ] {
+                let mut bytes = empty(schema).encode_to_vec();
+                bytes.extend(injection);
+                let error = decode_record(&bytes).unwrap_err();
+                assert!(error.0.contains("legacy"), "{error}");
+            }
+        }
+    }
+
+    #[test]
+    fn old_json_tags_cannot_smuggle_extensions_in_nested_receipts_or_projections() {
+        for schema in 5..=6 {
+            for json in [
+                br#"{"phase3":null}"#.as_slice(),
+                br#"{"class_state":{"successful_transfer_receipts":[{"result":{"phase3":{}}}]}}"#,
+                br#"{"combat":{"progression":{"phase3":{}}}}"#,
+                br#"{"checkpoint":{"outbox":[{"karma":0}]}}"#,
+            ] {
+                for injection in [
+                    nested(5, &nested(4, &nested(6, &nested(8, json)))),
+                    nested(5, &nested(15, json)),
+                    nested(9, &nested(1, &nested(18, json))),
+                    nested(7, &nested(2, &nested(1, &nested(18, json)))),
+                ] {
+                    let mut bytes = empty(schema).encode_to_vec();
+                    bytes.extend(injection);
+                    let error = decode_record(&bytes).unwrap_err();
+                    assert!(error.0.contains("Phase 3 field"), "{error}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn digest_comparison_validates_full_reproduction_before_hashing() {
+        let mut invalid = decode_record(&empty(6).encode_to_vec()).unwrap();
+        invalid.events = Bytes::from(nested(1, &nested(18, br#"{"phase3":{}}"#)));
+        let hashed = invalid.with_output_digests();
+        assert!(hashed.validate().is_ok()); // A digest has no inspectable event fields.
+        assert!(!hashed.reproduced_by(&invalid));
+        assert!(invalid.try_encode().is_err());
     }
 }

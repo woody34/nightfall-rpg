@@ -35,14 +35,15 @@ use super::stat_sheet::StatSheet;
 pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 
 /// Version of the [`ZoneSnapshot`] layout. Bump on any change to the snapshot or to the
-/// meaning of a field; `from_snapshot` accepts 4 through 8. 2: combat state, hate
+/// meaning of a field; `from_snapshot` accepts 4 through 9. 2: combat state, hate
 /// ledgers and the stat rules (Phase 1 E2.2). 3: NPC AI blocks, spawn slots and the respawn
 /// scheduler (Phase 1 E3.2–E3.4). 4: safe point and the player's `alive` load flag (E2.4).
 /// 5: application checkpoint lanes, excluded from the simulation digest.
 /// 6: explicit state digest version; older snapshots default to JSON v1.
 /// 7: resolved class registry, verified immutable hash, player identity and transfer ledger.
 /// 8: `BinaryV4` once-ever token policy; older epochs keep supply disabled.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 8;
+/// 9: isolated Phase 3 skills/effects/player-combat policy with `BinaryV5`.
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 9;
 
 /// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -56,6 +57,8 @@ pub enum StateDigestVersion {
     BinaryV3,
     /// Once-ever token supply policy, bound to a new live epoch.
     BinaryV4,
+    /// Phase 3 skills, effects, regeneration and player combat.
+    BinaryV5,
 }
 
 /// Identity of a zone.
@@ -190,12 +193,13 @@ pub struct SnapshotMeta {
     pub first_log_seq: Option<u64>,
 }
 
-impl Default for SnapshotMeta {
-    fn default() -> Self {
+impl SnapshotMeta {
+    /// Explicit historical constructor; a latest-schema bump cannot upgrade legacy policy.
+    pub fn legacy() -> Self {
         Self {
             classes_hash: String::new(),
             classes_rules_hash: None,
-            schema_version: SNAPSHOT_SCHEMA_VERSION,
+            schema_version: 8,
             digest_version: StateDigestVersion::BinaryV2,
             build_id: env!("CARGO_PKG_VERSION").to_owned(),
             config_hash: String::new(),
@@ -210,6 +214,9 @@ impl Default for SnapshotMeta {
 /// [`AppliedTick`]s, which replay (Story 3.3) relies on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ZoneSnapshot {
+    /// Phase 3 canonical state; absent for every legacy epoch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase3: Option<super::Phase3Snapshot>,
     /// Resolved Phase 2 data; absent means legacy simulation rules.
     #[serde(
         default,
@@ -344,6 +351,9 @@ pub enum SnapshotError {
 /// A draft that does not continue this zone: replay has diverged or the log has a gap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum TickError {
+    /// The Phase 3 boundary exists, but gameplay installation is not complete.
+    #[error("Phase 3 gameplay is not installed")]
+    Phase3NotReady,
     /// Application stopped before applying a lifecycle transition after a failed save.
     #[error("checkpoint persistence fence")]
     PersistenceFence,
@@ -378,14 +388,20 @@ impl ZoneSnapshot {
     /// All decoding and encoding boundaries share this check; old epochs never normalize
     /// an unsupported digest into an accepted one.
     pub fn validate_version(&self) -> Result<(), SnapshotError> {
-        use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, JsonV1};
+        use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, JsonV1};
         let valid =
             match (self.meta.schema_version, self.meta.digest_version, self.classes.is_some()) {
                 (4 | 5, JsonV1, false)
                 | (6..=8, JsonV1 | BinaryV2, false)
                 | (7, BinaryV3, true)
-                | (8, BinaryV4, true) => true,
-                (4..=8, _, _) => false,
+                | (8, BinaryV4, true) => self.phase3.is_none(),
+                (9, BinaryV5, true) => {
+                    self.rules.is_some()
+                && self.phase3.as_ref().is_some_and(super::Phase3Snapshot::validate)
+                // The M1 boundary cannot restore unvalidated gameplay sidecars.
+                && self.entities.is_empty() && self.spawn_slots.is_empty()
+                },
+                (4..=9, _, _) => false,
                 (version, _, _) => return Err(SnapshotError::Schema(version)),
             };
         if valid {
@@ -400,6 +416,7 @@ impl ZoneSnapshot {
 /// mutability, no locks, no clock.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZoneState {
+    phase3: Option<super::phase3::Phase3Zone>,
     classes: Option<Arc<crate::domain::class::ClassRegistry>>,
     seed: ZoneSeed,
     checkpoints: Vec<CheckpointSnapshot>,
@@ -449,8 +466,9 @@ impl ZoneState {
         Self {
             seed,
             classes: None,
+            phase3: None,
             checkpoints: Vec::new(),
-            meta: SnapshotMeta::default(),
+            meta: SnapshotMeta::legacy(),
             rng: ChaCha12Rng::from_seed(seed.key()),
             bounds,
             time_origin_ms,
@@ -466,6 +484,29 @@ impl ZoneState {
             safe_point: None,
             progress: BTreeMap::new(),
         }
+    }
+
+    /// Constructs a new Phase 3 epoch explicitly with all three rule bundles.
+    /// The boundary milestone fences execution until gameplay validation is installed.
+    pub fn new_phase3(
+        seed: ZoneSeed,
+        bounds: ZoneBounds,
+        time_origin_ms: i64,
+        rules: Arc<StatRules>,
+        classes: Arc<crate::domain::class::ClassRegistry>,
+        phase3_rules: super::Phase3Rules,
+    ) -> Result<Self, SnapshotError> {
+        let mut state = Self::new(seed, bounds, time_origin_ms)
+            .with_rules(rules)
+            .with_classes(classes)?;
+        let canonical = super::Phase3Snapshot::new(phase3_rules);
+        if !canonical.validate() {
+            return Err(SnapshotError::CombatMismatch);
+        }
+        state.phase3 = Some(super::phase3::Phase3Zone { canonical });
+        state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
+        state.meta.digest_version = StateDigestVersion::BinaryV5;
+        Ok(state)
     }
 
     /// Where dead players respawn (the zone file's `[safe_point]`); must be inside the bounds.
@@ -528,6 +569,9 @@ impl ZoneState {
         }
         state.meta = snapshot.meta;
         state.classes = snapshot.classes;
+        state.phase3 = snapshot
+            .phase3
+            .map(|canonical| super::phase3::Phase3Zone { canonical });
         let expected_hash = state.classes.as_deref().map(registry_hash).transpose()?;
         if state.meta.classes_rules_hash != expected_hash {
             return Err(SnapshotError::CombatMismatch);
@@ -587,6 +631,7 @@ impl ZoneState {
     #[must_use]
     pub fn snapshot(&self) -> ZoneSnapshot {
         ZoneSnapshot {
+            phase3: self.phase3.as_ref().map(|p| p.canonical.clone()),
             classes: self.classes.clone(),
             checkpoints: self.checkpoints.clone(),
             meta: self.meta.clone(),
@@ -755,6 +800,25 @@ impl ZoneState {
     /// AI phases, advances movement and combat, then diffs every player's AOI. The result is a pure function of the state and the
     /// draft. A draft that does not continue this zone is refused and nothing changes.
     pub fn run_tick(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
+        if self.phase3_enabled() {
+            self.run_tick_v5(&draft)
+        } else {
+            self.run_tick_legacy(draft)
+        }
+    }
+
+    /// Policy is selected only by the validated epoch version, never registry presence.
+    pub fn phase3_enabled(&self) -> bool {
+        self.meta.schema_version == 9 && self.meta.digest_version == StateDigestVersion::BinaryV5
+    }
+
+    // Fail closed during the boundary milestone rather than execute legacy rules as V5.
+    fn run_tick_v5(&mut self, draft: &AppliedTickDraft) -> Result<AppliedTick, TickError> {
+        self.check_draft(draft)?;
+        Err(TickError::Phase3NotReady)
+    }
+
+    fn run_tick_legacy(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
         self.check_draft(&draft)?;
         let tick = draft.tick;
         let mut events = Vec::new();
@@ -807,6 +871,7 @@ impl ZoneState {
             StateDigestVersion::BinaryV2 => self.binary_state_digest(),
             StateDigestVersion::BinaryV3 => self.phase2_state_digest(),
             StateDigestVersion::BinaryV4 => self.token_state_digest(),
+            StateDigestVersion::BinaryV5 => self.phase3_state_digest(),
         }
     }
 

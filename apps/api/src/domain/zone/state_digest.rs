@@ -16,6 +16,22 @@ use crate::domain::zone::{Intention, MemberState, NpcAi, SlotMember, Swing, Targ
 use sha2::{Digest as _, Sha256};
 
 impl ZoneState {
+    pub(super) fn phase3_state_digest(&self) -> [u8; 32] {
+        let mut w = Writer(Vec::new());
+        w.0.extend_from_slice(b"nightfall-state-v5\0");
+        w.0.extend_from_slice(&self.token_state_digest());
+        w.option(self.phase3.as_ref(), |w, p| {
+            let p = &p.canonical;
+            w.0.extend_from_slice(&p.rules_hash);
+            w.u64(p.next_entity_ordinal);
+            w.u64(p.next_cast_id);
+            w.u64(p.next_effect_id);
+            w.u64(p.next_offer_id);
+            w.u64(p.next_install_sequence);
+        });
+        Sha256::digest(&w.0).into()
+    }
+
     pub(super) fn token_state_digest(&self) -> [u8; 32] {
         let mut hash = Sha256::new();
         hash.update(b"nightfall.state.4\0token-policy.1\0");

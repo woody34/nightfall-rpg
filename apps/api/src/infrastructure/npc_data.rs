@@ -71,6 +71,10 @@ struct TemplateFile {
     move_speed: u32,
     collision_radius: u32,
     xp_reward: u64,
+    // Recognized in shared source data, but never projected into a legacy NPC profile.
+    // Phase 3 loads this reward into its separately versioned rules/profile block.
+    #[serde(default)]
+    sp_reward: u64,
     aggressive: bool,
     aggro_range: u32,
     #[serde(default)]
@@ -151,6 +155,9 @@ pub fn parse_template(stem: &str, src: &str, errors: &mut Vec<String>) -> Option
         if v == 0 {
             err(&format!("{name} must be positive"));
         }
+    }
+    if i64::try_from(f.sp_reward).is_err() {
+        err("sp_reward exceeds signed database range");
     }
     if f.p_atk.0 < 0 || f.p_def.0 < 0 {
         err("p_atk and p_def must not be negative");

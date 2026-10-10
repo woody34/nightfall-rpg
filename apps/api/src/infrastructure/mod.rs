@@ -26,6 +26,7 @@ pub mod outbox;
 pub mod postgres;
 pub mod rules_data;
 pub mod secrets;
+pub mod skill_data;
 pub mod telemetry;
 pub mod zone_data;
 

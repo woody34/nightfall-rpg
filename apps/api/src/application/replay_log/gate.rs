@@ -138,7 +138,9 @@ impl DurableTickGate {
             )));
         }
         let limit = self.log.max_record_bytes();
-        let record = AppliedTickRecord::from_applied(self.zone, tick).bounded(limit);
+        let record = AppliedTickRecord::from_applied(self.zone, tick);
+        record.validate().map_err(|e| GateError(e.to_string()))?;
+        let record = record.bounded(limit);
         if record.output_form == OutputForm::Sha256 {
             self.metrics.record_digested();
             let size = record.encoded_len();

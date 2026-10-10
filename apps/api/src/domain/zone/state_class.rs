@@ -76,6 +76,9 @@ impl ZoneState {
 
     /// Enables Phase 2 only for new epochs; restored legacy snapshots never call this.
     pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Result<Self, SnapshotError> {
+        if self.phase3.is_some() {
+            return Err(SnapshotError::CombatMismatch);
+        }
         self.meta.classes_rules_hash = Some(registry_hash(&classes)?);
         self.classes = Some(classes);
         self.meta.schema_version = 8;
@@ -86,7 +89,11 @@ impl ZoneState {
     /// Enables approved once-ever token supply only on an empty new epoch.
     /// Recovery must replay its old policy before bootstrap creates this boundary.
     pub fn with_token_policy(mut self) -> Result<Self, SnapshotError> {
-        if self.classes.is_none() || self.next_tick != Tick(0) || !self.entities.is_empty() {
+        if self.phase3.is_some()
+            || self.classes.is_none()
+            || self.next_tick != Tick(0)
+            || !self.entities.is_empty()
+        {
             return Err(SnapshotError::CombatMismatch);
         }
         self.meta.schema_version = 8;
@@ -101,7 +108,10 @@ impl ZoneState {
         crossing_from: Option<u32>,
         events: &mut Vec<ZoneEvent>,
     ) {
-        if self.meta.digest_version != StateDigestVersion::BinaryV4 {
+        if !matches!(
+            self.meta.digest_version,
+            StateDigestVersion::BinaryV4 | StateDigestVersion::BinaryV5
+        ) {
             return;
         }
         let Some(registry) = self.classes.as_deref() else {

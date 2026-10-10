@@ -1,0 +1,36 @@
+# Resource regeneration constants from the pinned L2J High Five source (packages/data/SOURCES.md).
+# Formulas.java lines 263-460 (calcHpRegen, calcMpRegen, calcCpRegen)
+# Formulas.java line 109 (HP_REGENERATE_PERIOD = 3000)
+
+source_game = { repository = "https://bitbucket.org/l2jserver/l2j-server-game", revision = "abfde0490ac52a2106e884b7242c0276c44cdf76", file = "src/main/java/com/l2jserver/gameserver/model/stats/Formulas.java" }
+source_datapack = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/chars/baseStats" }
+
+[period]
+# Periodic regeneration tick period: 3000 ms (30 ticks at 100 ms/tick)
+hp_regenerate_period_ms = 3000
+hp_regenerate_period_ticks = 30
+
+[movement_multipliers]
+# Formulas.java lines 335-340, 420-426, 446-452
+sitting = "1.5"
+standing = "1.1"
+moving = "0.7"
+
+[character_multipliers]
+# Default character multiplier from character.properties
+hp_regen_multiplier = "1.0"
+mp_regen_multiplier = "1.0"
+cp_regen_multiplier = "1.0"
+
+[stat_dependencies]
+# CON bonus for HP and CP; MEN bonus for MP
+hp_stat = "CON"
+mp_stat = "MEN"
+cp_stat = "CON"
+
+[rules]
+# Minimum initial regen value before stat/movement scaling: Math.max(1, init)
+min_initial_regen = 1
+# Base regen per class/level table source:
+# Base regen curves (hpRegen, mpRegen, cpRegen) are defined per class and level in the class baseStats templates.
+base_regen_source = "packages/data/classes/*.toml"
