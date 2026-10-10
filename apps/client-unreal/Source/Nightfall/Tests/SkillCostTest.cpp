@@ -30,9 +30,35 @@ bool FSkillCostTest::RunTest(const FString& Parameters)
  Catalog.Skills[0].MpConsumeStart.Reset();Skills->ApplyCatalog(Catalog);TestFalse(TEXT("legacy/malformed array is unknown not zero"),Holds(TEXT("own_mp_cost_matches 1177")));Catalog.Skills[0].MpConsumeStart=Row.MpConsumeStart;Skills->ApplyCatalog(Catalog);
  Start.CastId=3;Start.SkillLevel=2;Start.Tick=16;E={};E.SkillCastStarted=Start;Send(E);Stats.Tick=16;Stats.Mp=84;E={};E.StatsChanged=Stats;Send(E);
  FSkillReuse Reuse;Reuse.Entity=TEXT("owner");Reuse.Incarnation=1;Reuse.SkillId=1177;Reuse.Tick=16;Reuse.ReadyTick=30;E={};E.SkillReuse=Reuse;Send(E);
- FSkillCastCancelled Cancel;Cancel.Caster=TEXT("owner");Cancel.CasterIncarnation=1;Cancel.CastId=3;Cancel.Tick=17;Cancel.Reason=2;E={};E.SkillCastCancelled=Cancel;Send(E);TestTrue(TEXT("cancel retains received MP1 and reuse"),Holds(TEXT("cancelled_cast_costs_retained")));
+ FSkillCastCancelled Cancel;Cancel.Caster=TEXT("owner");Cancel.CasterIncarnation=1;Cancel.CastId=3;Cancel.Tick=17;Cancel.Reason=2;E={};E.SkillCastCancelled=Cancel;Send(E);TestFalse(TEXT("cancel waits for terminal tick closure"),Holds(TEXT("cancelled_cast_costs_retained")));
+ FServerMessage Close;Close.Ack=FAck{900,18};N->DispatchServerMessage(Close);TestTrue(TEXT("cancel retains received MP1 and reuse"),Holds(TEXT("cancelled_cast_costs_retained")));
  Stats.Tick=17;Stats.Mp=87;E={};E.StatsChanged=Stats;Send(E);TestFalse(TEXT("observed MP refund cannot pass retention"),Holds(TEXT("cancelled_cast_costs_retained")));
  N->OnDisconnected.Broadcast(TEXT("end"));TestFalse(TEXT("transport clears MP proof"),Audit->MpCostMatches(1177).IsSet());
+ return true;
+}
+#endif
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSkillCancelClosureTest,"Nightfall.Skill.CancelTerminalClosure",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FSkillCancelClosureTest::RunTest(const FString& Parameters)
+{
+ for(int32 Refund=0;Refund<2;++Refund)
+ {
+  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<USkillStateSubsystem>();auto* A=Scope.Get<USkillAuditSubsystem>();N->SetOwnEntityId(TEXT("owner"));
+  auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};FWorldEvent E;
+  FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Row=Catalog.Skills.AddDefaulted_GetRef();Row.SkillId=3;Row.MaxLevel=1;Row.MpConsumeStart={FUInt32(2)};Row.MpConsumeEnd={FUInt32(5)};S->ApplyCatalog(Catalog);
+  FEntitySpawn Spawn;Spawn.EntityId=TEXT("owner");Spawn.LifeIncarnation=1;Spawn.StateTick=10;E.Spawn=Spawn;Send(E);
+  FStatsChanged Stats;Stats.Entity=TEXT("owner");Stats.Incarnation=1;Stats.Tick=Stats.BaselineTick=10;Stats.bBaseline=true;Stats.Mp=100;E={};E.StatsChanged=Stats;Send(E);
+  FSkillCastStarted Cast;Cast.Caster=TEXT("owner");Cast.CasterIncarnation=1;Cast.CastId=1;Cast.SkillId=3;Cast.SkillLevel=1;Cast.Tick=11;E={};E.SkillCastStarted=Cast;Send(E);
+  Stats.Tick=11;Stats.bBaseline=false;Stats.Mp=98;E={};E.StatsChanged=Stats;Send(E);
+  FSkillReuse Reuse;Reuse.Entity=TEXT("owner");Reuse.Incarnation=1;Reuse.SkillId=3;Reuse.Tick=11;Reuse.ReadyTick=30;E={};E.SkillReuse=Reuse;Send(E);
+  FSkillCastCancelled Cancel;Cancel.Caster=TEXT("owner");Cancel.CasterIncarnation=1;Cancel.CastId=1;Cancel.Tick=12;Cancel.Reason=2;E={};E.SkillCastCancelled=Cancel;Send(E);
+  TestFalse(TEXT("no premature cancel proof"),A->CancelledCostsRetained().IsSet());
+  if(Refund){Reuse.Tick=12;Reuse.ReadyTick=12;E={};E.SkillReuse=Reuse;Send(E);}else{Stats.Tick=12;Stats.Mp=100;E={};E.StatsChanged=Stats;Send(E);}
+  FServerMessage Close;Close.Ack=FAck{1,13};N->DispatchServerMessage(Close);
+  const auto Proof=A->CancelledCostsRetained();TestTrue(TEXT("closed terminal yields evidence"),Proof.IsSet());TestFalse(TEXT("current refund contradicts retained costs"),Proof.Get(true));
+  FEntityRespawned Respawn;Respawn.Entity=TEXT("owner");Respawn.Incarnation=2;Respawn.Tick=14;E={};E.EntityRespawned=Respawn;Send(E);
+  TestFalse(TEXT("replacement life cannot certify old cast costs"),A->CancelledCostsRetained().IsSet());
+ }
  return true;
 }
 #endif

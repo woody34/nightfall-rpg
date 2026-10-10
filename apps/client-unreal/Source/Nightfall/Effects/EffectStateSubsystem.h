@@ -23,6 +23,7 @@ public:
 	TArray<FEffectApplied> Active(const FString& Entity) const;
 	bool Has(const FString& Entity, uint32 SkillId, TOptional<uint32> Pool = {}) const;
 	uint64 GetTick() const;
+ bool IsHydrated(const FString& Entity) const { return Fence.Hydrated(Entity, GetTick()); }
  bool IsKnown(const FString& Entity) const { return Fence.Identities.Contains(Entity.ToLower()); }
 	TOptional<uint64> Replacements(const FString& Entity) const { return IsKnown(Entity)?TOptional<uint64>(ReplacementCounts.FindRef(Entity.ToLower())):TOptional<uint64>(); }
  const TOptional<uint32>& GetRemoveReason() const { return LastRemoveReason; }

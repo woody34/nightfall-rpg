@@ -38,11 +38,13 @@ private:
   uint64 TerminalTick=0,SeenTick=0;
   bool bIdentityOk=true;
   TOptional<uint32> HpAtStart,CpAtStart;
+  TOptional<FSkillReuse> ReuseAtCancel;
   uint64 TargetFlagAtStart=0;
  };
  struct FImpact { FString Attacker,Target; uint32 Inc=0; uint64 Tick=0; uint64 StartTick=0; FPvpStateChanged AttackerBefore,TargetBefore; uint32 HpBefore=0,HpAfter=0,Cp=0; uint64 StartFlagDeadline=0; };
  struct FResourceDamage { uint64 Tick=0; uint32 Cp=0; uint32 Hp=0; uint32 HpAfter=0; };
  void ClearTransport();
+ bool AuditSubject(const FString& Id,uint32 Inc,uint64 Tick,bool Baseline,uint64 BaselineTick);
  bool Reference(const TOptional<FString>& Id,const TOptional<uint32>& Inc);
  void Impact(const FString& Attacker,const FString& Target,uint32 Inc,uint64 Tick,uint64 Start,uint32 Hp,uint32 Cp,uint32 Removed);
  void PvpCopy(const FPvpStateChanged& P,bool Private);
@@ -66,7 +68,6 @@ private:
  bool bPriorEffectsKnown=false;
  TArray<FStatsChanged> ResourceSamples;
  TMap<uint32,FSkillReuse> Reuse;
- TOptional<FSkillReuse> LastReuseAtCancel;
  TOptional<FSkillStateSync> Sync;
  TOptional<FResurrectOffer> Offer;
  TOptional<FEntityDied> Death;

@@ -47,7 +47,7 @@ void USkillAuditSubsystem::Deinitialize()
 void USkillAuditSubsystem::Reset(){ClearTransport();PriorPenalty.Reset();PriorOwner.Reset();PriorEffects.Reset();bPriorEffectsKnown=false;}
 void USkillAuditSubsystem::ClearTransport()
 {
- Fence.Reset();Stats.Reset();BeforeDeath.Reset();DeadResources.Reset();AfterRevival.Reset();bSkillRevival=false;TownRequest.Reset();KarmaGainChange.Reset();KarmaLossChange.Reset();XpCredit.Reset();Deaths.Reset();SwingTargetsAtStart.Reset();ResourceSamples.Reset();Reuse.Reset();LastReuseAtCancel.Reset();bSamplesComplete=bBaselineOk=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Departed.Reset();Swings.Reset();Vitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();RemovedEffects.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
+ Fence.Reset();Stats.Reset();BeforeDeath.Reset();DeadResources.Reset();AfterRevival.Reset();bSkillRevival=false;TownRequest.Reset();KarmaGainChange.Reset();KarmaLossChange.Reset();XpCredit.Reset();Deaths.Reset();SwingTargetsAtStart.Reset();ResourceSamples.Reset();Reuse.Reset();bSamplesComplete=bBaselineOk=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Departed.Reset();Swings.Reset();Vitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();RemovedEffects.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
  OwnCp=PlayerCp=0;References=PublicPairs=RevivalPairs=PvpPairs=CpPairs=EffectSamples=0;
  bReferencesOk=bVitalsOk=bPvpOk=bCpOk=bEffectsOk=bDispositionOk=true;
  bOwnerStatsBaseline=bOwnerSyncBaseline=bObserverBaseline=false;
@@ -69,6 +69,13 @@ FString USkillAuditSubsystem::CastKey(const FString& Id,uint32 Inc,uint64 Cast) 
 bool USkillAuditSubsystem::Reference(const TOptional<FString>& Id,const TOptional<uint32>& Inc)
 {
  ++References;const bool Ok=Id.IsSet()==Inc.IsSet() && (!Id.IsSet() || Fence.Visible(*Id,*Inc));bReferencesOk &= Ok;return Ok;
+}
+bool USkillAuditSubsystem::AuditSubject(const FString& Id,uint32 Inc,uint64 Tick,bool Baseline,uint64 BaselineTick)
+{
+ const auto* Known=Fence.Identities.Find(Id.ToLower());if(!Known)Known=Fence.Tombstones.Find(Id.ToLower());
+ // Delayed old-life/old-baseline frames are stale, not evidence of invalid delivery ordering.
+ if(Known && (Inc<Known->LifeIncarnation || (Inc==Known->LifeIncarnation && (Baseline?BaselineTick<Known->StateTick:Tick<=Known->StateTick))))return false;
+ Reference(Id,Inc);return true;
 }
 void USkillAuditSubsystem::ComparePvp(const FString& Id)
 {
@@ -168,8 +175,10 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  }
  if(E.SkillCastStarted.IsSet())
  {
-  const auto& S=*E.SkillCastStarted;if(!Fence.Accept(S.Caster,S.CasterIncarnation,S.Tick,S.bBaseline,S.BaselineTick))return;
+  const auto& S=*E.SkillCastStarted;
+  if(!AuditSubject(S.Caster,S.CasterIncarnation,S.Tick,S.bBaseline,S.BaselineTick))return;
   const bool ValidReference=Reference(S.Target,S.TargetIncarnation);
+  if(!Fence.Accept(S.Caster,S.CasterIncarnation,S.Tick,S.bBaseline,S.BaselineTick))return;
   const bool ValidBaseline=!S.bBaseline || (S.StartTick<S.BaselineTick && S.BaselineTick<S.CompleteTick);bBaselineOk &= ValidBaseline;const FString K=CastKey(S.Caster,S.CasterIncarnation,S.CastId);
   if(!Casts.Contains(K))
   {FCastEvidence C;
@@ -193,7 +202,7 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   if(Result)for(const auto& T:E.SkillCastResult->Targets)Fingerprint+=FString::Printf(TEXT("|%s|%u|%llu|%u|%u|%u|%u|%u|%u|%u"),*T.Target,T.TargetIncarnation,T.Tick,T.ResolutionKind,T.Outcome,T.Rolled,T.CpAbsorbed,T.HpRemoved,T.Heal,T.TargetHpAfter);
   if(Result)for(const auto& T:E.SkillCastResult->Targets)for(uint64 Effect:T.AppliedEffectIds)Fingerprint+=FString::Printf(TEXT("|effect:%s:%llu"),*T.Target,Effect);
   if(C->Terminals){C->bIdentityOk &= C->Terminal==Fingerprint;bDispositionOk &= C->Terminal==Fingerprint;return;}C->Terminal=Fingerprint;++C->Terminals;C->Reason=Result?0:E.SkillCastCancelled->Reason;C->TerminalTick=Tick;
-  if(!Result && Net && Net->IsOwnEntity(Caster)){const auto* ReuseAtCancel=Reuse.Find(C->Start.SkillId);LastReuseAtCancel=ReuseAtCancel?TOptional<FSkillReuse>(*ReuseAtCancel):TOptional<FSkillReuse>();}
+  if(!Result && Net && Net->IsOwnEntity(Caster)){const auto* ReuseAtCancel=Reuse.Find(C->Start.SkillId);C->ReuseAtCancel=ReuseAtCancel?TOptional<FSkillReuse>(*ReuseAtCancel):TOptional<FSkillReuse>();}
   if(Result)for(const auto& T:E.SkillCastResult->Targets)
   {
    Reference(T.Target,T.TargetIncarnation);
@@ -216,7 +225,10 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  }
  if(E.EffectApplied.IsSet())
  {
-  const auto& A=*E.EffectApplied;if(!A.EffectId || !Fence.Accept(A.Target,A.TargetIncarnation,A.Tick,A.bBaseline,A.BaselineTick))return;Reference(A.Caster,A.CasterIncarnation);
+  const auto& A=*E.EffectApplied;
+  if(!AuditSubject(A.Target,A.TargetIncarnation,A.Tick,A.bBaseline,A.BaselineTick))return;
+  Reference(A.Caster,A.CasterIncarnation);
+  if(!A.EffectId || !Fence.Accept(A.Target,A.TargetIncarnation,A.Tick,A.bBaseline,A.BaselineTick))return;
   const FString K=CastKey(A.Target,A.TargetIncarnation,A.EffectId);if(const auto* Tick=EffectTicks.Find(K);Tick && A.Tick<=*Tick)return;
   if(RemovedEffects.Contains(K)){bEffectsOk=false;return;}
   auto& Rows=Effects.FindOrAdd(A.Target.ToLower());if(const auto* Old=Rows.Find(A.EffectId))bEffectsOk &= Old->SkillId==A.SkillId && Old->SkillLevel==A.SkillLevel && Old->Pool==A.Pool && Old->AppliedTick==A.AppliedTick;
@@ -362,10 +374,10 @@ TOptional<bool> USkillAuditSubsystem::Check(const FString& Name) const
  if(Name==TEXT("peace_impact_has_no_damage"))
  {
   const FCastEvidence* Last=nullptr;for(const auto& Pair:Casts)if(Pair.Value.Reason==9 && Pair.Value.Terminals && (!Last || Pair.Value.TerminalTick>Last->TerminalTick))Last=&Pair.Value;
-  if(!Last || !Last->bIdentityOk || !Last->Start.Target.IsSet() || !Last->Start.TargetIncarnation.IsSet() || !Last->HpAtStart.IsSet())return {};
-  const auto* V=Vitals.Find(Last->Start.Target->ToLower());if(!V || V->Incarnation!=*Last->Start.TargetIncarnation)return {};
+  if(!Last || !Net || Net->GetLatestReceivedTick()<=Last->TerminalTick || !Fence.Visible(Last->Start.Caster,Last->Start.CasterIncarnation) || !Last->bIdentityOk || !Last->Start.Target.IsSet() || !Last->Start.TargetIncarnation.IsSet() || !Last->HpAtStart.IsSet())return {};
+  const auto* V=Vitals.Find(Last->Start.Target->ToLower());if(!V || V->Incarnation!=*Last->Start.TargetIncarnation || !Fence.Visible(*Last->Start.Target,*Last->Start.TargetIncarnation))return {};
   // Public-only observers cannot assert the victim's private CP. Exact CP proof is owner-scoped.
-  if(!Net || !Net->IsOwnEntity(*Last->Start.Target) || !Last->CpAtStart.IsSet() || !Stats.IsSet())return {};
+  if(!Net || !Net->IsOwnEntity(*Last->Start.Target) || !Last->CpAtStart.IsSet() || !Stats.IsSet() || Stats->Incarnation!=*Last->Start.TargetIncarnation)return {};
   return Last->Terminals==1 && V->Hp==*Last->HpAtStart && Stats->Cp==*Last->CpAtStart;
  }
  if(Name==TEXT("peace_rejection_has_no_start"))
@@ -415,15 +427,16 @@ TOptional<bool> USkillAuditSubsystem::CancelledCostsRetained() const
  using namespace SkillCostAudit;if(!Net || !bSamplesComplete)return {};
  const FCastEvidence* C=nullptr;
  for(const auto& Pair:Casts)if(!Pair.Value.Start.bBaseline && Net->IsOwnEntity(Pair.Value.Start.Caster) && Pair.Value.Terminals && Pair.Value.Reason!=0 && (!C || Pair.Value.Start.Tick>C->Start.Tick))C=&Pair.Value;
- if(!C || !LastReuseAtCancel.IsSet())return {};if(!C->bIdentityOk)return false;const auto* Row=CostRow(Net,C->Start.SkillId,C->Start.SkillLevel);if(!Row)return {};
+ if(!C || !C->ReuseAtCancel.IsSet() || Net->GetLatestReceivedTick()<=C->TerminalTick || !Fence.Visible(C->Start.Caster,C->Start.CasterIncarnation))return {};if(!C->bIdentityOk)return false;const auto* Row=CostRow(Net,C->Start.SkillId,C->Start.SkillLevel);if(!Row)return {};
  const uint32 Mp1=Row->MpConsumeStart[C->Start.SkillLevel-1].Value;
  const auto* BeforeStart=Before(ResourceSamples,C->Start.CasterIncarnation,C->Start.Tick);const auto* Start=At(ResourceSamples,C->Start.CasterIncarnation,C->Start.Tick);
  if(!BeforeStart || (!Start && Mp1))return {};
  const auto* Current=Stats.IsSet() && Stats->Incarnation==C->Start.CasterIncarnation?&*Stats:nullptr;if(!Current)return {};
  if(Start && !Delta(*BeforeStart,*Start,Mp1))return false;
- const auto& R=*LastReuseAtCancel;
+ const auto* CurrentReuse=Reuse.Find(C->Start.SkillId);if(!CurrentReuse)return {};
+ const auto& R=*CurrentReuse;const auto& Expected=*C->ReuseAtCancel;
  // This tests retained received costs, not a locally reconstructed reuse duration.
- return R.SkillId==C->Start.SkillId && R.Incarnation==C->Start.CasterIncarnation && R.Tick==C->Start.Tick && R.ReadyTick>C->TerminalTick && R.ReadyTick>Fence.Tick && Current->Mp==(Start?Start->Mp:BeforeStart->Mp);
+ return R.SkillId==C->Start.SkillId && R.Incarnation==C->Start.CasterIncarnation && R.Tick>=C->Start.Tick && R.ReadyTick==Expected.ReadyTick && R.ReadyTick>C->TerminalTick && R.ReadyTick>Net->GetLatestReceivedTick() && Current->Mp==(Start?Start->Mp:BeforeStart->Mp);
 }
 
 TOptional<bool> USkillAuditSubsystem::NotInView(const FString& Entity) const

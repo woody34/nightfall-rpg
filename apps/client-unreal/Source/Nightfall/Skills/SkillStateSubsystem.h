@@ -48,6 +48,7 @@ public:
  uint64 GetOperationSerial() const { return OperationSerial; }
  bool RpcDone() const { return bRpcDone && !bBusy; }
 	uint64 GetTick() const;
+	bool IsHydrated(const FString& Entity) const { return Fence.Hydrated(Entity, GetTick()); }
 	bool HasOwnerState() const { return bOwnerKnown; }
  bool HasSkillBaseline() const { return bSyncKnown; }
 	const TMap<uint32, uint32>& GetLearned() const { return Learned; }
