@@ -6,21 +6,137 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 
-/// Canonical Phase 3 policy, separately hashed from the historical stat/class registries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+/// Immutable Phase 3 policy, separately hashed from historical stat/class registries.
+/// Construction validates every registry capability and policy table; snapshot decoding
+/// performs the same checks without loading any external files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Phase3Rules {
-    /// Version of the paused, remaining-tick admission policy (design §5.2).
-    pub timer_policy_version: u32,
+    timer_policy_version: u32,
+    skills: super::skill::SkillRegistry,
+    pvp: super::skill_rules::PvpRules,
+    regen: super::skill_rules::RegenRules,
+    constants: super::skill_rules::Phase3Constants,
+    hash: [u8; 32],
 }
 
 impl Phase3Rules {
-    /// Hash using an explicit binary layout; never hashes a process-local representation.
-    pub fn hash(&self) -> [u8; 32] {
+    /// Assemble a validated immutable rules bundle. The timer policy is explicitly paused
+    /// offline (version one); this constructor cannot promote legacy snapshots.
+    pub fn try_new(
+        skills: super::skill::SkillRegistry,
+        pvp: super::skill_rules::PvpRules,
+        regen: super::skill_rules::RegenRules,
+        constants: super::skill_rules::Phase3Constants,
+    ) -> Result<Self, Vec<String>> {
+        let errors: Vec<_> = [pvp.validate(), regen.validate(), constants.validate()]
+            .into_iter()
+            .filter_map(Result::err)
+            .collect();
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        let timer_policy_version = 1_u32;
+        // Fixed execution constants are hashed too. Sources: character.properties:145,268
+        // (EffectTickRatio / MaxMAtkSpeed), accepted offline retention and offer policies.
+        let bytes = serde_json::to_vec(&(
+            timer_policy_version,
+            &skills,
+            &pvp,
+            &regen,
+            666_u32,
+            &constants,
+            50_u64,
+            100_u64,
+            600_u64,
+        ))
+        .map_err(|error| vec![format!("Phase3 rules canonical encoding: {error}")])?;
         let mut hash = Sha256::new();
         hash.update(b"nightfall.phase3.rules.1\0");
-        hash.update(self.timer_policy_version.to_le_bytes());
-        hash.finalize().into()
+        hash.update(bytes);
+        Ok(Self {
+            timer_policy_version,
+            skills,
+            pvp,
+            regen,
+            constants,
+            hash: hash.finalize().into(),
+        })
+    }
+
+    /// Class-tree references must resolve to the same rank/capability metadata in this epoch.
+    /// This prevents combining a current skill registry with an older class catalogue.
+    pub fn validate_catalogue(
+        &self,
+        classes: &crate::domain::class::ClassRegistry,
+    ) -> Result<(), String> {
+        for known in classes.known_skills() {
+            let skill = self
+                .skills
+                .get(super::skill::SkillId(known.id))
+                .ok_or_else(|| format!("Phase3 rules missing catalogue skill {}", known.id))?;
+            if skill.key != known.key
+                || skill.max_level != known.max_level
+                || skill.l2_ref != known.l2_ref
+                || skill.runtime_status != known.runtime_status
+                || skill.provenance.file != known.source_file
+            {
+                return Err(format!("Phase3 rules disagree with catalogue skill {}", known.id));
+            }
+        }
+        if self.skills.get(super::skill::SkillId(5076)).is_none() {
+            return Err("Phase3 rules missing system skill 5076".into());
+        }
+        Ok(())
+    }
+
+    /// Stable hash of the full rules bundle, including provenance and engine policy.
+    pub const fn hash(&self) -> [u8; 32] {
+        self.hash
+    }
+    /// Paused-timer persistence policy version.
+    pub const fn timer_policy_version(&self) -> u32 {
+        self.timer_policy_version
+    }
+    /// Capability-validated skill registry; source-only samples are absent.
+    pub const fn skills(&self) -> &super::skill::SkillRegistry {
+        &self.skills
+    }
+    /// Source flag/karma policy, with exact per-level divisors.
+    pub const fn pvp(&self) -> &super::skill_rules::PvpRules {
+        &self.pvp
+    }
+    /// Source-pinned C5 clamps/caps, included in the immutable epoch hash.
+    pub const fn constants(&self) -> &super::skill_rules::Phase3Constants {
+        &self.constants
+    }
+    /// Source regeneration periods and multipliers.
+    pub const fn regen(&self) -> &super::skill_rules::RegenRules {
+        &self.regen
+    }
+}
+
+impl<'de> Deserialize<'de> for Phase3Rules {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Snapshot {
+            timer_policy_version: u32,
+            skills: super::skill::SkillRegistry,
+            pvp: super::skill_rules::PvpRules,
+            regen: super::skill_rules::RegenRules,
+            constants: super::skill_rules::Phase3Constants,
+            hash: [u8; 32],
+        }
+        let snapshot = Snapshot::deserialize(deserializer)?;
+        let rules =
+            Self::try_new(snapshot.skills, snapshot.pvp, snapshot.regen, snapshot.constants)
+                .map_err(|errors| serde::de::Error::custom(errors.join("; ")))?;
+        if snapshot.timer_policy_version != rules.timer_policy_version
+            || snapshot.hash != rules.hash
+        {
+            return Err(serde::de::Error::custom("Phase3 rules hash/policy mismatch"));
+        }
+        Ok(rules)
     }
 }
 
@@ -86,7 +202,6 @@ pub(super) struct Phase3Zone {
     clippy::arithmetic_side_effects
 )]
 mod tests {
-    use super::*;
     use crate::application::replay_log::{decode_snapshot, encode_snapshot};
     use crate::domain::zone::*;
     use crate::infrastructure::{
@@ -104,9 +219,11 @@ mod tests {
             0,
             load_rules(&RulesSource::embedded()).unwrap().rules,
             load_classes(&ClassSource::embedded()).unwrap().registry,
-            Phase3Rules {
-                timer_policy_version: 1,
-            },
+            crate::infrastructure::skill_data::load_phase3_rules(
+                &crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+                &[],
+            )
+            .unwrap(),
         )
         .unwrap()
     }

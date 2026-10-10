@@ -38,6 +38,7 @@ mod progression;
 mod scaled;
 pub mod skill;
 pub mod skill_math;
+pub mod skill_rules;
 mod stat_rules;
 mod stat_sheet;
 #[cfg(test)]
@@ -92,10 +93,11 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 27] = [
+    const SOURCES: [(&str, &str); 28] = [
         ("mod.rs", include_str!("mod.rs")),
         ("skill.rs", include_str!("skill.rs")),
         ("skill_math.rs", include_str!("skill_math.rs")),
+        ("skill_rules.rs", include_str!("skill_rules.rs")),
         ("phase3.rs", include_str!("phase3.rs")),
         ("phase2.rs", include_str!("phase2.rs")),
         ("state_class.rs", include_str!("state_class.rs")),

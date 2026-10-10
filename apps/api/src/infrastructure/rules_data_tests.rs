@@ -457,3 +457,17 @@ fn the_loader_source_uses_no_floats() {
         }
     }
 }
+
+#[test]
+fn phase3_source_constants_do_not_change_legacy_rules_or_config_hash() {
+    let current = RulesSource::embedded();
+    let with_constants = load_rules(&current).unwrap();
+    let mut prior = current;
+    let formulas = prior.0.get_mut("tables/formulas.toml").unwrap();
+    let start = formulas.find("[constants]").unwrap();
+    let end = start + formulas[start..].find("[level_additions]").unwrap();
+    formulas.replace_range(start..end, "");
+    let without_constants = load_rules(&prior).unwrap();
+    assert_eq!(with_constants.config_hash, without_constants.config_hash);
+    assert_eq!(with_constants.rules, without_constants.rules);
+}

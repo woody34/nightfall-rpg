@@ -315,6 +315,9 @@ struct FormulasFile {
     max_level: u32,
     formulas: FormulaSet,
     level_additions: LevelAdditions,
+    // V5-only source additions must not alter historical physical rules hashes.
+    #[serde(default, rename = "constants", skip_serializing)]
+    _phase3_constants: Option<crate::domain::zone::skill_rules::Phase3Constants>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -1,14 +1,14 @@
 //! Strict, independent skill registry admission. A generated executable label is a claim
 //! checked against the engine's capabilities, not permission to partially execute a skill.
 
-use crate::domain::class::RuntimeSkillStatus;
-use crate::domain::zone::skill::{SkillCondition, SkillDef, SkillHandler, SkillId, SkillRegistry};
-use crate::domain::zone::skill_math::{periodic_interval, ExactRatio};
-use sha2::{Digest as _, Sha256};
-use std::collections::{BTreeMap, BTreeSet};
+use crate::domain::zone::skill::{validate_skill_shape, SkillDef, SkillId, SkillRegistry};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 include!("skill_data_embedded.rs");
+#[path = "skill_data_rules.rs"]
+mod rules;
+pub use rules::{load_phase3_rules, Phase3DataSource};
 
 /// Source text in canonical relative-file order.
 #[derive(Debug, Clone, Default)]
@@ -60,7 +60,6 @@ pub fn load_skills(
 ) -> Result<SkillRegistry, SkillDataError> {
     let mut errors = Vec::new();
     let mut skills = BTreeMap::new();
-    let mut blockers = BTreeMap::new();
     for (path, text) in &source.0 {
         let skill: SkillDef = match toml::from_str(text) {
             Ok(skill) => skill,
@@ -78,11 +77,10 @@ pub fn load_skills(
         {
             errors.push(format!("{path}: skill {} identity/provenance mismatch", id.0));
         }
-        validate_shape(&skill, &mut errors);
+        validate_skill_shape(&skill, &mut errors);
         if skill.sample_only {
             continue;
         }
-        blockers.insert(id, capabilities(&skill));
         if skills.insert(id, skill).is_some() {
             errors.push(format!("{path}: duplicate skill {}", id.0));
         }
@@ -92,371 +90,11 @@ pub fn load_skills(
             errors.push(format!("missing required skill {}", id.0));
         }
     }
-    // Fixed-point closure in id order; references cannot execute through a deferred child.
-    loop {
-        let previous = blockers.clone();
-        for (id, skill) in &skills {
-            let Some(own) = blockers.get_mut(id) else {
-                continue;
-            };
-            for target in references(skill) {
-                if previous.get(&target).is_none_or(|v| !v.is_empty()) {
-                    own.insert(format!("ref:{}", target.0));
-                }
-            }
-        }
-        if blockers == previous {
-            break;
-        }
-    }
-    for (id, skill) in &skills {
-        let computed = blockers.get(id).is_some_and(BTreeSet::is_empty);
-        if computed != (skill.runtime_status == RuntimeSkillStatus::Executable)
-            || computed != skill.blockers.is_empty()
-        {
-            errors.push(format!(
-                "skill {} ({}): runtime_status mismatch; engine blockers {:?}; generated {:?}",
-                id.0,
-                skill.l2_ref,
-                blockers.get(id),
-                skill.blockers
-            ));
-        }
-    }
     if !errors.is_empty() {
         return Err(SkillDataError(errors));
     }
-    let bytes = serde_json::to_vec(&skills).map_err(|e| SkillDataError(vec![e.to_string()]))?;
-    let mut hash = Sha256::new();
-    hash.update(b"nightfall.skills.1\0");
-    hash.update(bytes);
-    Ok(SkillRegistry::validated(skills, hash.finalize().into()))
+    SkillRegistry::try_new(skills).map_err(SkillDataError)
 }
-
-fn validate_shape(skill: &SkillDef, errors: &mut Vec<String>) {
-    let mut error = |message: &str| errors.push(format!("skill {}: {message}", skill.id.0));
-    if skill.max_level == 0 || skill.is_magic > 4 {
-        error("invalid rank count or magic classification");
-    }
-    let count = usize::try_from(skill.max_level).ok();
-    for values in [
-        &skill.mp_consume_start,
-        &skill.mp_consume_end,
-        &skill.hp_consume,
-        &skill.magic_level,
-        &skill.effect_point,
-    ] {
-        if Some(values.len()) != count {
-            error("per-rank array length mismatch");
-        }
-    }
-    if !skill.target_type.valid_length(skill.max_level)
-        || !skill.affect_scope.valid_length(skill.max_level)
-        || [
-            &skill.cast_range,
-            &skill.effect_range,
-            &skill.hit_time_ms,
-            &skill.cool_time_ms,
-            &skill.reuse_ms,
-            &skill.hit_cancel_ms,
-        ]
-        .iter()
-        .any(|v| !v.valid_length(skill.max_level))
-        || skill
-            .affect_range
-            .as_ref()
-            .is_some_and(|v| !v.valid_length(skill.max_level))
-    {
-        error("scalar/rank table length mismatch");
-    }
-    for rank in 1..=u32::try_from(skill.mp_consume_start.len()).unwrap_or(0) {
-        if skill
-            .target_type
-            .at(rank, skill.max_level)
-            .is_some_and(|target| target != "SELF")
-            && [&skill.cast_range, &skill.effect_range]
-                .iter()
-                .any(|range| range.at(rank, skill.max_level) == Some(&0))
-        {
-            error("zero non-self range: possible unresolved source rank table");
-            break;
-        }
-    }
-    if skill.min_chance > skill.max_chance {
-        error("invalid chance bounds");
-    }
-    if skill
-        .mp_consume_start
-        .iter()
-        .chain(&skill.mp_consume_end)
-        .chain(&skill.hp_consume)
-        .any(|n| *n < 0)
-    {
-        error("negative resource cost");
-    }
-    if let Some(abnormal) = &skill.abnormal {
-        if Some(abnormal.level.len()) != count || Some(abnormal.time_s.len()) != count {
-            error("abnormal rank table length mismatch");
-        }
-    }
-    for handler in &skill.effects {
-        if handler
-            .params
-            .values()
-            .any(|p| !p.valid_length(skill.max_level))
-            || handler
-                .stat_children
-                .iter()
-                .any(|p| Some(p.value.len()) != count)
-        {
-            error("handler rank table length mismatch");
-        }
-    }
-}
-
-fn capabilities(skill: &SkillDef) -> BTreeSet<String> {
-    let mut missing = BTreeSet::new();
-    if !["A1", "A2", "A3", "P"].contains(&skill.operate_type.as_str()) {
-        missing.insert(format!("operate:{}", skill.operate_type));
-    }
-    for target in skill.target_type.values() {
-        if !["SELF", "TARGET", "ENEMY", "ENEMY_ONLY", "PC_BODY"].contains(&target.as_str()) {
-            missing.insert(format!("target:{target}"));
-        }
-    }
-    for scope in skill.affect_scope.values() {
-        if !["SINGLE", "POINT_BLANK", "RANGE", "unset"].contains(&scope.as_str()) {
-            missing.insert(format!("scope:{scope}"));
-        }
-    }
-    if !["", "ALL", "NOT_FRIEND"].contains(&skill.affect_object.as_str()) {
-        missing.insert(format!("scope_filter:{}", skill.affect_object));
-    }
-    if !skill.item_consume.is_empty() {
-        missing.insert("item_consume".into());
-    }
-    for condition in &skill.conditions {
-        condition_capabilities(condition, &mut missing);
-    }
-    for handler in &skill.effects {
-        if handler.section != "effects" {
-            missing.insert(format!("section:{}", handler.section));
-        }
-        for condition in handler.conditions.iter().chain(&handler.section_conditions) {
-            condition_capabilities(condition, &mut missing);
-        }
-        handler_capabilities(handler, &mut missing);
-        for modifier in &handler.stat_children {
-            for condition in &modifier.conditions {
-                condition_capabilities(condition, &mut missing);
-            }
-            if !["mul", "add", "sub"].contains(&modifier.op.as_str()) {
-                missing.insert(format!("stat_op:{}", modifier.op));
-            }
-            if !STATS.contains(&modifier.stat.as_str()) {
-                missing.insert(format!("stat:{}", modifier.stat));
-            }
-            if modifier.value.iter().any(|v| !numeric(v)) {
-                missing.insert(format!("stat_value:{}", modifier.stat));
-            }
-        }
-    }
-    missing
-}
-
-fn condition_capabilities(condition: &SkillCondition, missing: &mut BTreeSet<String>) {
-    match condition {
-        SkillCondition::UsingKind { weapon_kinds } => {
-            if weapon_kinds.is_empty()
-                || weapon_kinds
-                    .iter()
-                    .any(|kind| !WEAPONS.contains(&kind.as_str()))
-            {
-                missing.insert("condition:weapon_kind".into());
-            }
-        },
-        SkillCondition::PlayerCanResurrect => {},
-        SkillCondition::And { conditions }
-        | SkillCondition::Or { conditions }
-        | SkillCondition::Not { conditions } => {
-            if conditions.is_empty()
-                || matches!(condition, SkillCondition::Not { .. }) && conditions.len() != 1
-            {
-                missing.insert("condition:arity".into());
-            }
-            for child in conditions {
-                condition_capabilities(child, missing);
-            }
-        },
-        SkillCondition::Unsupported { tag, attrs } => {
-            for key in attrs.keys() {
-                missing.insert(format!("cond:{tag}:{key}"));
-            }
-            if attrs.is_empty() {
-                missing.insert(format!("cond:{tag}"));
-            }
-        },
-    }
-}
-
-fn handler_capabilities(handler: &SkillHandler, missing: &mut BTreeSet<String>) {
-    let allowed: &[&str] = match handler.name.as_str() {
-        "PhysicalAttack" => &["power", "criticalChance", "ignoreShieldDefence"],
-        "MagicalAttack" | "Heal" | "HpPerMax" | "Resurrection" | "AddHate" => &["power"],
-        "MagicalAttackRange" => &["power", "shieldDefensePercent"],
-        "MaxHp" | "MaxMp" => &["power", "type", "heal"],
-        "TickHp" | "TickMp" => &["power", "mode", "ticks"],
-        "Mp" | "Cp" => &["amount", "mode"],
-        "DispelBySlot" => &["dispel"],
-        "DispelByCategory" => &["max", "slot", "rate"],
-        "DefenceTrait" | "AttackTrait" => TRAITS,
-        "Stun" | "Sleep" | "Root" | "Buff" | "Debuff" | "Passive" | "GetAgro" => &[],
-        _ => {
-            missing.insert(format!("effect:{}", handler.name));
-            return;
-        },
-    };
-    for (key, values) in &handler.params {
-        if !allowed.contains(&key.as_str()) {
-            missing.insert(format!("param:{}:{key}", handler.name));
-            continue;
-        }
-        for value in values.values() {
-            let valid = match key.as_str() {
-                "mode" | "type" => ["DIFF", "PER"].contains(&value.as_str()),
-                "ignoreShieldDefence" | "heal" => ["true", "false"].contains(&value.as_str()),
-                "slot" => ["ALL", "BUFF", "DEBUFF"].contains(&value.as_str()),
-                "criticalChance" | "max" | "rate" => value.parse::<i32>().is_ok(),
-                "ticks" => value
-                    .parse::<u32>()
-                    .is_ok_and(|v| periodic_interval(v, 666).is_ok()),
-                "dispel" => value.split(';').all(|entry| {
-                    let (slot, rank) = entry
-                        .split_once(',')
-                        .map_or((entry, None), |(slot, rank)| (slot, Some(rank)));
-                    [
-                        "BLEEDING",
-                        "POISON",
-                        "PARALYZE",
-                        "ROOT_PHYSICALLY",
-                        "TURN_STONE",
-                    ]
-                    .contains(&slot)
-                        && rank.is_none_or(|rank| rank.parse::<i32>().is_ok())
-                }),
-                _ => numeric(value),
-            };
-            if !valid {
-                missing.insert(format!("param_value:{}:{key}", handler.name));
-            }
-        }
-    }
-}
-
-fn numeric(value: &str) -> bool {
-    ExactRatio::parse_literal(value).is_ok()
-}
-
-fn references(skill: &SkillDef) -> BTreeSet<SkillId> {
-    skill
-        .effects
-        .iter()
-        .flat_map(|handler| handler.params.iter())
-        .filter(|(name, _)| name.eq_ignore_ascii_case("skillId"))
-        .flat_map(|(_, values)| values.values())
-        .filter_map(|v| v.parse::<u32>().ok())
-        .map(SkillId)
-        .collect()
-}
-
-const STATS: &[&str] = &[
-    "pAtk",
-    "pDef",
-    "mAtk",
-    "mDef",
-    "pAtkSpd",
-    "mAtkSpd",
-    "runSpd",
-    "maxHp",
-    "maxMp",
-    "maxCp",
-    "accCombat",
-    "rEvas",
-    "critRate",
-    "critDmg",
-    "critDmgAdd",
-    "regHp",
-    "regMp",
-    "regCp",
-    "physicalMpConsumeRate",
-    "magicalMpConsumeRate",
-    "danceMpConsumeRate",
-    "pReuse",
-    "mReuse",
-    "pSkillEvas",
-    "darkRes",
-    "darkPower",
-    "earthRes",
-    "earthPower",
-    "fireRes",
-    "firePower",
-    "holyRes",
-    "holyPower",
-    "waterRes",
-    "waterPower",
-    "windRes",
-    "windPower",
-    "debuffVuln",
-    "cancelVuln",
-];
-const WEAPONS: &[&str] = &[
-    "SHIELD",
-    "SIGIL",
-    "LIGHT",
-    "HEAVY",
-    "MAGIC",
-    "SWORD",
-    "BLUNT",
-    "DAGGER",
-    "DUAL",
-    "FIST",
-    "DUALFIST",
-    "BOW",
-    "POLE",
-    "RAPIER",
-    "ANCIENTSWORD",
-    "CROSSBOW",
-    "DUALDAGGER",
-    "BIGSWORD",
-    "BIGBLUNT",
-    "NONE",
-];
-const TRAITS: &[&str] = &[
-    "SHOCK",
-    "SLEEP",
-    "HOLD",
-    "PARALYZE",
-    "POISON",
-    "BLEED",
-    "DERANGEMENT",
-    "SWORD",
-    "BLUNT",
-    "DAGGER",
-    "POLE",
-    "BOW",
-    "DUAL",
-    "FIST",
-    "DUALFIST",
-    "RAPIER",
-    "ANCIENTSWORD",
-    "CROSSBOW",
-    "DUALDAGGER",
-    "PLANT_WEAKNESS",
-    "BEAST_WEAKNESS",
-    "BUG_WEAKNESS",
-    "DRAGON_WEAKNESS",
-    "ANIMAL_WEAKNESS",
-];
 
 #[cfg(test)]
 #[allow(
@@ -466,6 +104,9 @@ const TRAITS: &[&str] = &[
 )]
 mod tests {
     use super::*;
+    use crate::domain::class::RuntimeSkillStatus;
+    use crate::domain::zone::skill::numeric;
+    use crate::domain::zone::skill::SkillCondition;
     use std::fmt::Write as _;
 
     fn source() -> SkillSource {
@@ -526,7 +167,7 @@ mod tests {
                 .values()
                 .filter(|s| s.runtime_status == RuntimeSkillStatus::Executable)
                 .count(),
-            207
+            188
         );
     }
 
@@ -559,7 +200,11 @@ mod tests {
             &edited(|s| s.affect_object = "INVISIBLE".into()),
             &edited(|s| {
                 s.conditions = vec![SkillCondition::And {
-                    conditions: vec![SkillCondition::Not { conditions: vec![] }],
+                    conditions: vec![SkillCondition::Not {
+                        conditions: vec![],
+                        attrs: BTreeMap::new(),
+                    }],
+                    attrs: BTreeMap::new(),
                 }];
             }),
             &edited(|s| {
@@ -570,6 +215,7 @@ mod tests {
                         stat: "pAtk".into(),
                         value: vec!["2".into(); 9],
                         order: None,
+                        raw_attributes: BTreeMap::new(),
                         conditions: vec![],
                         raw_conditions: vec![],
                     });

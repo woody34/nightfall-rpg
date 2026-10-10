@@ -389,21 +389,25 @@ impl ZoneSnapshot {
     /// an unsupported digest into an accepted one.
     pub fn validate_version(&self) -> Result<(), SnapshotError> {
         use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, JsonV1};
-        let valid =
-            match (self.meta.schema_version, self.meta.digest_version, self.classes.is_some()) {
-                (4 | 5, JsonV1, false)
-                | (6..=8, JsonV1 | BinaryV2, false)
-                | (7, BinaryV3, true)
-                | (8, BinaryV4, true) => self.phase3.is_none(),
-                (9, BinaryV5, true) => {
-                    self.rules.is_some()
+        let valid = match (
+            self.meta.schema_version,
+            self.meta.digest_version,
+            self.classes.is_some(),
+        ) {
+            (4 | 5, JsonV1, false)
+            | (6..=8, JsonV1 | BinaryV2, false)
+            | (7, BinaryV3, true)
+            | (8, BinaryV4, true) => self.phase3.is_none(),
+            (9, BinaryV5, true) => {
+                self.rules.is_some()
                 && self.phase3.as_ref().is_some_and(super::Phase3Snapshot::validate)
+                && self.classes.as_deref().zip(self.phase3.as_ref()).is_some_and(|(classes, phase3)| phase3.rules.validate_catalogue(classes).is_ok())
                 // The M1 boundary cannot restore unvalidated gameplay sidecars.
                 && self.entities.is_empty() && self.spawn_slots.is_empty()
-                },
-                (4..=9, _, _) => false,
-                (version, _, _) => return Err(SnapshotError::Schema(version)),
-            };
+            },
+            (4..=9, _, _) => false,
+            (version, _, _) => return Err(SnapshotError::Schema(version)),
+        };
         if valid {
             Ok(())
         } else {
@@ -496,6 +500,9 @@ impl ZoneState {
         classes: Arc<crate::domain::class::ClassRegistry>,
         phase3_rules: super::Phase3Rules,
     ) -> Result<Self, SnapshotError> {
+        phase3_rules
+            .validate_catalogue(&classes)
+            .map_err(SnapshotError::Rules)?;
         let mut state = Self::new(seed, bounds, time_origin_ms)
             .with_rules(rules)
             .with_classes(classes)?;
