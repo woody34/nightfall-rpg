@@ -7,9 +7,11 @@
 
 pub mod account;
 pub mod character;
+pub mod class;
 pub mod events;
 pub(crate) mod ids;
 pub mod session;
+pub mod subclass;
 pub mod zone;
 
 pub use account::AccountId;
