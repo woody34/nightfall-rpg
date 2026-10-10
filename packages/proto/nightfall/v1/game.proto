@@ -184,6 +184,9 @@ message ClassInfo {
   repeated uint32 subclass_equivalents = 11;
   repeated SkillLearnInfo skill_tree = 12;
   repeated ProficiencyInfo proficiencies = 13;
+  uint32 walk_speed = 14; // source world units per second
+  uint32 run_speed = 15;
+  uint32 swim_speed = 16;
 }
 
 message PassiveInfo {
