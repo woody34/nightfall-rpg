@@ -319,7 +319,6 @@ fn facts(
 ) {
     for event in events {
         match event {
-            ZoneEvent::TokensReconciled { .. } => {},
             ZoneEvent::ClassChanged { class_id, .. } => {
                 increment(&mut report.class_changes, class_id.0.to_string());
             },
@@ -365,7 +364,8 @@ fn facts(
                     note_life(report, lives, entity, incarnation, *k);
                 }
             },
-            ZoneEvent::AttackResult { .. }
+            ZoneEvent::TokensReconciled { .. }
+            | ZoneEvent::AttackResult { .. }
             | ZoneEvent::AttackStarted { .. }
             | ZoneEvent::AttackCancelled { .. }
             | ZoneEvent::HateChanged { .. }

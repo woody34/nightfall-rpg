@@ -104,6 +104,12 @@ pub async fn start(
     db: Option<DatabaseConnection>,
     deps: &crate::Dependencies,
 ) -> anyhow::Result<RunningZone> {
+    // A PostgreSQL epoch must never depend on volatile history: after a crash its
+    // unresolved checkpoint prefix could not be recovered, even if a grant committed.
+    anyhow::ensure!(
+        db.is_none() || nats_url.is_some_and(|url| !url.trim().is_empty()),
+        "persistent character runtime requires NATS_URL for durable replay before startup"
+    );
     let metrics = deps.metrics.clone();
     let clock = deps.clock.clone();
     let def = cfg.load_zone()?;

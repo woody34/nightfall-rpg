@@ -35,12 +35,13 @@ use super::stat_sheet::StatSheet;
 pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 
 /// Version of the [`ZoneSnapshot`] layout. Bump on any change to the snapshot or to the
-/// meaning of a field; `from_snapshot` accepts 4, 5, 6 and 7. 2: combat state, hate
+/// meaning of a field; `from_snapshot` accepts 4 through 8. 2: combat state, hate
 /// ledgers and the stat rules (Phase 1 E2.2). 3: NPC AI blocks, spawn slots and the respawn
 /// scheduler (Phase 1 E3.2–E3.4). 4: safe point and the player's `alive` load flag (E2.4).
 /// 5: application checkpoint lanes, excluded from the simulation digest.
 /// 6: explicit state digest version; older snapshots default to JSON v1.
 /// 7: resolved class registry, verified immutable hash, player identity and transfer ledger.
+/// 8: `BinaryV4` once-ever token policy; older epochs keep supply disabled.
 pub const SNAPSHOT_SCHEMA_VERSION: u32 = 8;
 
 /// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.
@@ -372,6 +373,29 @@ pub enum TickError {
     },
 }
 
+impl ZoneSnapshot {
+    /// Validates the epoch's immutable format/policy pair without hashing catalogue data.
+    /// All decoding and encoding boundaries share this check; old epochs never normalize
+    /// an unsupported digest into an accepted one.
+    pub fn validate_version(&self) -> Result<(), SnapshotError> {
+        use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, JsonV1};
+        let valid =
+            match (self.meta.schema_version, self.meta.digest_version, self.classes.is_some()) {
+                (4 | 5, JsonV1, false)
+                | (6..=8, JsonV1 | BinaryV2, false)
+                | (7, BinaryV3, true)
+                | (8, BinaryV4, true) => true,
+                (4..=8, _, _) => false,
+                (version, _, _) => return Err(SnapshotError::Schema(version)),
+            };
+        if valid {
+            Ok(())
+        } else {
+            Err(SnapshotError::CombatMismatch)
+        }
+    }
+}
+
 /// One zone's authoritative simulation state. Single owner (the zone actor); no interior
 /// mutability, no locks, no clock.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -479,9 +503,7 @@ impl ZoneState {
 
     /// Rebuilds a zone from a snapshot, validating it.
     pub fn from_snapshot(snapshot: ZoneSnapshot) -> Result<Self, SnapshotError> {
-        if ![4, 5, 6, 7, SNAPSHOT_SCHEMA_VERSION].contains(&snapshot.meta.schema_version) {
-            return Err(SnapshotError::Schema(snapshot.meta.schema_version));
-        }
+        snapshot.validate_version()?;
         if snapshot.rng.key != snapshot.seed.key() {
             return Err(SnapshotError::SeedMismatch);
         }
@@ -505,23 +527,7 @@ impl ZoneState {
             return Err(SnapshotError::SafePointOutOfBounds);
         }
         state.meta = snapshot.meta;
-        if state.meta.schema_version < 6 {
-            state.meta.digest_version = StateDigestVersion::JsonV1;
-        }
-        if state.meta.digest_version == StateDigestVersion::BinaryV4
-            && state.meta.schema_version < 8
-        {
-            return Err(SnapshotError::CombatMismatch);
-        }
         state.classes = snapshot.classes;
-        if state.classes.is_some()
-            != matches!(
-                state.meta.digest_version,
-                StateDigestVersion::BinaryV3 | StateDigestVersion::BinaryV4
-            )
-        {
-            return Err(SnapshotError::CombatMismatch);
-        }
         let expected_hash = state.classes.as_deref().map(registry_hash).transpose()?;
         if state.meta.classes_rules_hash != expected_hash {
             return Err(SnapshotError::CombatMismatch);

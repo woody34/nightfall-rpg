@@ -168,49 +168,52 @@ async fn admission_grant_and_mark_only_wait_for_commit_and_reconnect_is_idempote
 }
 
 #[tokio::test]
-async fn admission_lost_commit_ack_retries_exact_request_and_never_duplicates_grants() {
-    let c = character(40, 0, 0);
-    let repo = Arc::new(Repo::new());
-    repo.inner.insert_for_test(c.clone());
-    repo.lost_reply.store(true, Ordering::Release);
-    let metrics = Arc::new(Grants::default());
-    let (handle, driver, log) = actor(token_state(1), repo.clone(), metrics.clone()).await;
-    handle.send(spawn(&c, Some(0))).unwrap();
-    assert_eq!(driver.step().await.unwrap(), TickOutcome::Ran(Tick(0)));
-    {
-        let requests = repo.requests.lock();
-        assert_eq!(requests.len(), 2);
-        assert_eq!(requests[0], requests[1]);
+async fn admission_transient_and_lost_ack_retry_exact_requests_without_duplicate_grants() {
+    for lost in [false, true] {
+        let c = character(40, 0, 0);
+        let repo = Arc::new(Repo::new());
+        repo.inner.insert_for_test(c.clone());
+        repo.lost_reply.store(lost, Ordering::Release);
+        repo.transient_once.store(!lost, Ordering::Release);
+        let metrics = Arc::new(Grants::default());
+        let (handle, driver, log) = actor(token_state(1), repo.clone(), metrics.clone()).await;
+        handle.send(spawn(&c, Some(0))).unwrap();
+        assert_eq!(driver.step().await.unwrap(), TickOutcome::Ran(Tick(0)));
+        {
+            let requests = repo.requests.lock();
+            assert_eq!(requests.len(), 2);
+            assert_eq!(requests[0], requests[1]);
+        }
+        assert_eq!(
+            repo.load_for_admission(c.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .revision,
+            1
+        );
+        assert_eq!(
+            repo.inner
+                .staged_events()
+                .iter()
+                .filter(|e| matches!(e, DomainEvent::CharacterTokenGranted { .. }))
+                .count(),
+            2
+        );
+        assert_eq!(metrics.0.load(Ordering::Acquire), if lost { 0 } else { 2 }); // applied-only
+        service(repo.clone(), metrics.clone())
+            .recover(log.as_ref(), ZoneId(77), 1)
+            .await
+            .unwrap();
+        assert_eq!(
+            repo.load_for_admission(c.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .revision,
+            1
+        );
     }
-    assert_eq!(
-        repo.load_for_admission(c.id)
-            .await
-            .unwrap()
-            .unwrap()
-            .revision,
-        1
-    );
-    assert_eq!(
-        repo.inner
-            .staged_events()
-            .iter()
-            .filter(|e| matches!(e, DomainEvent::CharacterTokenGranted { .. }))
-            .count(),
-        2
-    );
-    assert_eq!(metrics.0.load(Ordering::Acquire), 0); // applied-only, acknowledged as replay
-    service(repo.clone(), metrics.clone())
-        .recover(log.as_ref(), ZoneId(77), 1)
-        .await
-        .unwrap();
-    assert_eq!(
-        repo.load_for_admission(c.id)
-            .await
-            .unwrap()
-            .unwrap()
-            .revision,
-        1
-    );
 }
 
 #[tokio::test]
@@ -303,6 +306,7 @@ async fn admission_without_log_or_db_lane_fails_closed() {
 }
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)] // One ordered crash/retry sequence documents the admission boundary.
 async fn old_recovery_then_failed_upgrade_retries_new_durable_policy_before_join() {
     use crate::application::replay_log::{encode_snapshot, WatermarkReason};
     use crate::application::zone_bootstrap::ZoneBootstrap;
@@ -428,4 +432,204 @@ async fn old_recovery_then_failed_upgrade_retries_new_durable_policy_before_join
     );
     assert_eq!(saved.revision, 1);
     running.shutdown(WatermarkReason::Shutdown).await.unwrap();
+}
+
+struct TokenLogGate {
+    allow: Arc<AtomicBool>,
+    log: Arc<InMemoryEventLog>,
+}
+impl TickGate for TokenLogGate {
+    fn durable(&self) -> bool {
+        true
+    }
+    async fn admit(&self, tick: &AppliedTick) -> Result<(), GateError> {
+        if !self.allow.load(Ordering::Acquire) {
+            return Err(GateError("log ACK withheld".into()));
+        }
+        self.log
+            .append_applied(&AppliedTickRecord::from_applied(ZoneId(77), tick))
+            .await
+            .map_err(|e| GateError(e.to_string()))?;
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn held_log_never_reaches_db_or_outputs_and_retries_one_immutable_admission() {
+    use tokio_stream::StreamExt as _;
+    let state = token_state(1);
+    let c = character(40, 0, 0);
+    let log = Arc::new(InMemoryEventLog::default());
+    log.write_snapshot(&state.snapshot()).await.unwrap();
+    let repo = Arc::new(Repo::new());
+    repo.inner.insert_for_test(c.clone());
+    let metrics = Arc::new(Grants::default());
+    let allow = Arc::new(AtomicBool::new(false));
+    let (ticks, driver) = manual_ticks();
+    let handle = ZoneActor::spawn_gated(
+        state,
+        ticks,
+        TokenLogGate {
+            allow: allow.clone(),
+            log: log.clone(),
+        },
+    );
+    handle
+        .checkpoints
+        .install(service(repo.clone(), metrics.clone()));
+    let mut outputs = handle.subscribe();
+    handle.send(spawn(&c, Some(0))).unwrap();
+    for _ in 0..2 {
+        assert_eq!(driver.step().await.unwrap(), TickOutcome::Held(Tick(0)));
+        assert!(repo.requests.lock().is_empty());
+        assert!(outputs.try_recv().is_err());
+        assert_eq!(metrics.0.load(Ordering::Acquire), 0);
+    }
+    assert!(log
+        .read_epoch(ZoneId(77), 1)
+        .await
+        .unwrap()
+        .next()
+        .await
+        .is_none());
+    allow.store(true, Ordering::Release);
+    assert_eq!(driver.step().await.unwrap(), TickOutcome::Ran(Tick(0)));
+    assert_eq!(outputs.recv().await.unwrap().tick, Tick(0));
+    assert_eq!(repo.requests.lock().len(), 1);
+    assert_eq!(metrics.0.load(Ordering::Acquire), 2);
+    let mut records = log.read_epoch(ZoneId(77), 1).await.unwrap();
+    assert!(records.next().await.unwrap().is_ok());
+    assert!(records.next().await.is_none());
+}
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // Real command/impact/held-commit sequence is deliberately contiguous.
+async fn actual_combat_level_grant_is_in_critical_checkpoint_before_owner_output() {
+    let mut c = character(19, 0, 0);
+    c.xp = 835_861;
+    let repo = Arc::new(Repo::new());
+    repo.inner.insert_for_test(c.clone());
+    let metrics = Arc::new(Grants::default());
+    let state = token_state(1);
+    let def = crate::infrastructure::zone_data::parse_zone(
+        crate::infrastructure::zone_data::TEST_ZONE_TOML,
+    )
+    .unwrap();
+    let mut npc = crate::domain::zone::NpcCombat::from_template(
+        state.rules().unwrap(),
+        &def.npc_templates[0],
+    )
+    .unwrap();
+    npc.stats.max_hp = 1;
+    npc.xp_reward = 10_235;
+    let (handle, driver, _) = actor(state, repo.clone(), metrics.clone()).await;
+    let mut outputs = handle.subscribe();
+    handle.send(spawn(&c, Some(0))).unwrap();
+    handle
+        .send(ZoneInput::system(ZoneCommand::SpawnNpc {
+            name: "Milestonevictim".into(),
+            pos: Vec2Fixed::from_tiles(10, 10),
+            speed: Speed::DEFAULT,
+            combat: Some(Box::new(npc)),
+        }))
+        .unwrap();
+    driver.step().await.unwrap();
+    let batch = outputs.recv().await.unwrap();
+    let npc = batch
+        .events
+        .iter()
+        .find_map(|event| {
+            if let ZoneEvent::EntitySpawn {
+                entity,
+                kind: crate::domain::zone::EntityKind::Npc,
+                ..
+            } = event
+            {
+                Some(*entity)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let player = EntityId::from_uuid(c.id.as_uuid());
+    handle
+        .send(ZoneInput::session(
+            player,
+            SessionGeneration(1),
+            1,
+            ZoneCommand::SetTarget {
+                entity: player,
+                target: Some(npc),
+            },
+        ))
+        .unwrap();
+    handle
+        .send(ZoneInput::session(
+            player,
+            SessionGeneration(1),
+            2,
+            ZoneCommand::Attack { entity: player },
+        ))
+        .unwrap();
+    repo.hold.store(true, Ordering::Release);
+    let driving = tokio::spawn(async move {
+        for _ in 0..100 {
+            driver.step().await.unwrap();
+        }
+    });
+    tokio::time::timeout(Duration::from_secs(5), repo.entered.notified())
+        .await
+        .unwrap();
+    while let Ok(batch) = outputs.try_recv() {
+        assert!(!batch.events.iter().any(|event| matches!(
+            event,
+            ZoneEvent::TokensReconciled { .. } | ZoneEvent::LevelUp { .. }
+        )));
+    }
+    assert_eq!(metrics.0.load(Ordering::Acquire), 0);
+    {
+        let requests = repo.requests.lock();
+        let cp = &requests[0].0;
+        assert_eq!((cp.level, cp.xp), (20, 846_607));
+        assert_eq!(cp.class_state.as_ref().unwrap().token_tier_1_count, 1);
+        assert_eq!(cp.class_state.as_ref().unwrap().milestone_claimed_mask, 1);
+        assert!(requests[0].1.iter().any(|e| matches!(
+            e,
+            DomainEvent::CharacterTokenGranted {
+                tier: 1,
+                source: TokenSource::LevelUp,
+                ..
+            }
+        )));
+    }
+    assert_eq!(
+        repo.load_for_admission(c.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .revision,
+        0
+    );
+    repo.hold.store(false, Ordering::Release);
+    repo.release.notify_one();
+    let committed = outputs.recv().await.unwrap();
+    assert!(committed.events.iter().any(|e| matches!(
+        e,
+        ZoneEvent::TokensReconciled {
+            source: TokenSource::LevelUp,
+            ..
+        }
+    )));
+    assert_eq!(metrics.0.load(Ordering::Acquire), 1);
+    driving.abort();
+    let _ = driving.await;
+    assert_eq!(
+        repo.load_for_admission(c.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .class_state
+            .token_tier_1_count,
+        1
+    );
 }

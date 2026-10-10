@@ -404,8 +404,8 @@ impl CheckpointService {
                 } = event
                 {
                     if *who == entity.id {
-                        for tier in 1_u8..=2 {
-                            if adjustment.granted_mask & (1 << (tier - 1)) != 0 {
+                        for (tier, bit) in [(1_u8, 1), (2, 2)] {
+                            if adjustment.granted_mask & bit != 0 {
                                 let ordinal = player.events.len() as u64;
                                 player.events.push(DomainEvent::CharacterTokenGranted {
                                     metadata: EventMetadata {

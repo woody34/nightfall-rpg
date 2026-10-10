@@ -86,7 +86,7 @@ pub struct AppliedTickRecord {
     pub events: Bytes,
     /// SHA-256 of the canonical end-of-tick state ([`AppliedTick::state_digest`]).
     pub state_digest: Bytes,
-    /// State encoding, selected by the record schema (3: JSON v1, 4: binary v2, 5: binary v3).
+    /// State encoding, selected by the record schema (3: JSON v1, 4: binary v2, 5: binary v3, 6: token-policy v4).
     pub digest_version: crate::domain::zone::StateDigestVersion,
 }
 
@@ -223,9 +223,12 @@ impl std::io::Write for BoundedBytes {
 }
 
 /// Canonical snapshot transport. Legacy epochs retain JSON exactly; `BinaryV3` snapshots
-/// use a versioned length-prefixed zlib envelope, bounded on both sides of compression.
+/// and `BinaryV4` use versioned length-prefixed zlib envelopes, bounded on both sides.
 pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
     use std::io::Write as _;
+    snapshot
+        .validate_version()
+        .map_err(|e| CodecError(e.to_string()))?;
     let mut json = BoundedBytes {
         bytes: Vec::new(),
         maximum: MAX_SNAPSHOT_JSON,
@@ -277,7 +280,12 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
         if bytes.len() > MAX_SNAPSHOT_JSON {
             return Err(CodecError("legacy snapshot exceeds 32 MiB".into()));
         }
-        return serde_json::from_slice(bytes).map_err(|e| CodecError(e.to_string()));
+        let snapshot: ZoneSnapshot =
+            serde_json::from_slice(bytes).map_err(|e| CodecError(e.to_string()))?;
+        snapshot
+            .validate_version()
+            .map_err(|e| CodecError(e.to_string()))?;
+        return Ok(snapshot);
     }
     if bytes.len() > MAX_SNAPSHOT_ENCODED {
         return Err(CodecError("compressed snapshot exceeds broker budget".into()));
@@ -307,6 +315,9 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     }
     let snapshot: ZoneSnapshot =
         serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?;
+    snapshot
+        .validate_version()
+        .map_err(|e| CodecError(e.to_string()))?;
     let expected = if bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
         (8, crate::domain::zone::StateDigestVersion::BinaryV4)
     } else {

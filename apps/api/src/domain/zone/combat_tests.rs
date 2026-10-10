@@ -416,6 +416,7 @@ fn snapshots_of_another_schema_or_with_inconsistent_combat_are_refused() {
     assert_eq!(snap.meta.schema_version, SNAPSHOT_SCHEMA_VERSION);
     let mut compatible = snap.clone();
     compatible.meta.schema_version = 4;
+    compatible.meta.digest_version = StateDigestVersion::JsonV1;
     assert!(ZoneState::from_snapshot(compatible).is_ok());
     for v in [1, 2, 3] {
         let mut old = snap.clone();

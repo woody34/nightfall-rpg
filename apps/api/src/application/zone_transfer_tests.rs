@@ -37,6 +37,7 @@ struct Repo {
     inner: Arc<InMemoryCharacterRepository>,
     hold: AtomicBool,
     lost_reply: AtomicBool,
+    transient_once: AtomicBool,
     reject_constraint: AtomicBool,
     entered: Notify,
     release: Notify,
@@ -48,6 +49,7 @@ impl Repo {
             inner: Arc::new(InMemoryCharacterRepository::default()),
             hold: AtomicBool::new(false),
             lost_reply: AtomicBool::new(false),
+            transient_once: AtomicBool::new(false),
             reject_constraint: AtomicBool::new(false),
             entered: Notify::new(),
             release: Notify::new(),
@@ -89,6 +91,9 @@ impl CharacterRepository for Repo {
         }
         if self.reject_constraint.load(Ordering::Acquire) {
             return Err(CheckpointError::Constraint("outbox_reject_transfers".into()));
+        }
+        if self.transient_once.swap(false, Ordering::AcqRel) {
+            return Err(anyhow::anyhow!("transient failure before commit").into());
         }
         let result = self.inner.checkpoint(cp, events).await?;
         if self.lost_reply.swap(false, Ordering::AcqRel) {

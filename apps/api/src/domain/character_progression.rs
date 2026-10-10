@@ -432,7 +432,7 @@ impl ClassState {
     }
 }
 
-/// Actual ledger adjustments; a granted bit always also appears in claimed_mask.
+/// Actual ledger adjustments; a granted bit always also appears in `claimed_mask`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenReconciliation {
     /// Newly claimed tiers, including recognition without supply.
