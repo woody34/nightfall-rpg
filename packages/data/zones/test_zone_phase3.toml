@@ -1,0 +1,16 @@
+# Hand-written additive Phase 3 input; never fold into the legacy zone config hash.
+schema_version = 1
+id = "test_zone"
+
+# architecture-decisions.md §6 R7 / §7 D-R11: architect-set, configurable,
+# not source-derived. Centre is zones/test_zone.toml:33 (safe_point.pos).
+[peace_zone]
+shape = "square"
+centre = [126, 126] # Whole tiles, like the legacy safe point.
+half_width_millitiles = 10000
+inclusive = true
+
+[provenance]
+kind = "Nightfall configuration"
+decision = "architecture-decisions.md §6 R7 / §7 D-R11"
+safe_point = "packages/data/zones/test_zone.toml:33"

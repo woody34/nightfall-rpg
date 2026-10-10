@@ -13,6 +13,7 @@ capturing all metadata and growth curves.
 | Path | Holds |
 |------|-------|
 | `zones/<id>.toml` | bounds, fixed non-combat `[[npcs]]` (`attackable = false`), `[safe_point]`, `[[spawn_slots]]` |
+| `zones/test_zone_phase3.toml` | hand-written additive Phase 3 peace geometry; separate from the legacy zone config hash |
 | `npcs/<id>.toml` | one attackable monster template; file stem must equal `id` |
 | `tables/*.toml`, `classes/*.toml` | **generated** Phase 1 HF stat rules (bonuses, formulas, XP, death loss, starter weapon, starting classes); see [SOURCES.md](SOURCES.md), never hand-edit |
 | `races/<id>.toml` | **generated** 5 classic playable race definitions (`human`, `elf`, `dark_elf`, `orc`, `dwarf`) with racial fighter baseline movement, decimal collision strings, environmental traits, and passive skill descriptors |
@@ -82,6 +83,12 @@ stat oracle, from the repository root with:
 python3 -B packages/data/scripts/check_all.py --datapack /path/to/l2j-dp --game /path/to/l2j-game
 ```
 
-The runner continues through all checks and exits nonzero if any output is stale
+The runner also parses and validates the hand-written `zones/test_zone_phase3.toml`
+and reports its separate byte SHA-256. Its `[peace_zone]` has a whole-tile `centre`,
+`half_width_millitiles`, `shape = "square"` and `inclusive = true`; `[provenance]`
+identifies Nightfall configuration. Include this input in Phase3Rules hashing only.
+See [SOURCES.md](SOURCES.md#phase-3-peace-geometry-nightfall-configuration) for policy provenance.
+
+The runner continues through all checks and exits nonzero if geometry is invalid, any output is stale
 or any generator fails. Oracle comparisons include their input manifests; refresh
 manifests when inputs change while verifying that historical vectors stay unchanged.
