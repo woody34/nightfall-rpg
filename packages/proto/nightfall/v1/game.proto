@@ -149,7 +149,7 @@ message ClassProgress {
   uint64 sp = 5;
 }
 
-// Phase 3 fills these typed hooks; Phase 2 sends empty skill trees.
+// Source-backed learning metadata; active skill effects are deferred to Phase 3.
 message SkillLearnInfo {
   string key = 1;
   uint32 skill_level = 2;
@@ -157,6 +157,10 @@ message SkillLearnInfo {
   uint64 sp_cost = 4;
   bool auto_get = 5;
   repeated SkillItemRequirement required_items = 6;
+  uint32 skill_id = 7; // pinned reference source id
+  string l2_ref = 8;
+  bool learned_by_npc = 9;
+  bool effect_implemented = 10; // Phase 2 learning metadata; effects deferred to Phase 3
 }
 
 message SkillItemRequirement {
@@ -164,10 +168,14 @@ message SkillItemRequirement {
   uint32 count = 2;
 }
 
-// Phase 4 fills equipment mastery hooks.
+// Source-backed expertise metadata; equipment mastery effects are deferred to Phase 4.
 message ProficiencyInfo {
   string key = 1;
   uint32 min_level = 2;
+  uint32 skill_id = 3;
+  uint32 skill_level = 4;
+  string l2_ref = 5;
+  bool effect_implemented = 6;
 }
 
 message ClassInfo {
@@ -187,6 +195,7 @@ message ClassInfo {
   uint32 walk_speed = 14; // source world units per second
   uint32 run_speed = 15;
   uint32 swim_speed = 16;
+  bool skill_tree_populated = 17; // own tree populated; deferred children still inherit
 }
 
 message PassiveInfo {
