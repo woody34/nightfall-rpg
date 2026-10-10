@@ -348,6 +348,11 @@ pub(super) fn skill_catalogue_to_pb(
                 effect_implemented: skill.effect_implemented,
                 deferred_reasons: skill.deferred_reasons.clone(),
                 l2_ref: skill.l2_ref.clone(),
+                mp_consume_start: skill.mp_consume_start.clone(),
+                mp_consume_end: skill.mp_consume_end.clone(),
+                hp_consume: skill.hp_consume.clone(),
+                reuse_ms: skill.reuse_ms.clone(),
+                hit_time_ms: skill.hit_time_ms.clone(),
             })
             .collect(),
     }

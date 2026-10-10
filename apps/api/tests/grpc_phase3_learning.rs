@@ -5,6 +5,8 @@ mod common;
 use nightfall_api as api;
 #[path = "common/phase3.rs"]
 mod support;
+use api::application::ports::SkillCataloguePort;
+use api::application::use_cases::get_skill_catalog::RegistrySkillCatalogue;
 use api::application::use_cases::{GetSkillCatalog, LearnSkill, ListLearnableSkills};
 use api::domain::{AccountId, Character, CharacterName, Race};
 use api::infrastructure::memory::InMemoryCharacterRepository;
@@ -22,6 +24,12 @@ async fn fixture() -> (TestApp, Arc<InMemoryCharacterRepository>, Character, Arc
 async fn fixture_with_catalogue(
     failure: Option<&'static str>,
 ) -> (TestApp, Arc<InMemoryCharacterRepository>, Character, Arc<Runtime>) {
+    fixture_with_port(Arc::new(Catalogue { failure })).await
+}
+
+async fn fixture_with_port(
+    catalogue: Arc<dyn SkillCataloguePort>,
+) -> (TestApp, Arc<InMemoryCharacterRepository>, Character, Arc<Runtime>) {
     let repo = Arc::new(InMemoryCharacterRepository::default());
     let character = Character::create(
         AccountId::from_uuid(common::account()),
@@ -30,7 +38,6 @@ async fn fixture_with_catalogue(
     );
     repo.insert_for_test(character.clone());
     let runtime = Arc::new(Runtime::new(character.account_id, character.id));
-    let catalogue = Arc::new(Catalogue { failure });
     let use_cases = Phase3UseCases {
         learn_skill: LearnSkill::new(
             repo.clone(),
@@ -186,13 +193,96 @@ async fn query_and_catalogue_preserve_flags_metadata_and_named_blockers() {
             max_level: 9,
             effect_implemented: true,
             deferred_reasons: vec![],
-            l2_ref: "Power Strike".into()
+            l2_ref: "Power Strike".into(),
+            mp_consume_start: vec![0; 9],
+            mp_consume_end: vec![9, 9, 10, 11, 12, 13, 16, 16, 17],
+            hp_consume: vec![0; 9],
+            reuse_ms: vec![3000; 9],
+            hit_time_ms: vec![1080; 9],
         }
     );
     let deferred = catalog.skills.iter().find(|s| s.skill_id == 4).unwrap();
     assert!(!deferred.effect_implemented);
     assert_eq!(deferred.deferred_reasons, ["item_consume"]);
     assert_eq!(runtime.0.lock().writes, 0);
+}
+
+#[tokio::test]
+async fn catalogue_rank_metadata_matches_generated_toml_over_grpc() -> anyhow::Result<()> {
+    use api::domain::zone::skill::RankValue;
+    use api::infrastructure::{class_data, skill_data};
+    #[derive(serde::Deserialize)]
+    struct Expected {
+        id: u32,
+        max_level: u32,
+        mp_consume_start: Vec<u32>,
+        mp_consume_end: Vec<u32>,
+        hp_consume: Vec<u32>,
+        reuse_ms: RankValue<u32>,
+        hit_time_ms: RankValue<u32>,
+    }
+    let classes = class_data::load_classes(&class_data::ClassSource::embedded())?;
+    let skills = skill_data::load_skills(&skill_data::SkillSource::embedded(), &[])?;
+    let catalogue = RegistrySkillCatalogue::new(&classes.registry, &skills)?;
+    let (mut app, _, _, runtime) = fixture_with_port(Arc::new(catalogue)).await;
+    let out = app
+        .grpc
+        .get_skill_catalog(pb::GetSkillCatalogRequest {})
+        .await?
+        .into_inner();
+    // Pinned l2j-dp @3ca488dd, src/main/resources/data/stats/skills/:
+    // 00000-00099.xml:105-124; 01100-01199.xml:1630-1652; 01000-01099.xml:988-1015.
+    // Absent MP1/HP default to zero: l2j-game @abfde049, model/skills/Skill.java:205-208.
+    for source in [
+        include_str!("../../../packages/data/skills/3.toml"),
+        include_str!("../../../packages/data/skills/1177.toml"),
+        include_str!("../../../packages/data/skills/1040.toml"),
+    ] {
+        let expected: Expected = toml::from_str(source)?;
+        let entry = out
+            .skills
+            .iter()
+            .find(|s| s.skill_id == expected.id)
+            .ok_or_else(|| anyhow::anyhow!("catalogue missing {}", expected.id))?;
+        assert_eq!(entry.max_level, expected.max_level);
+        assert_eq!(entry.mp_consume_start, expected.mp_consume_start);
+        assert_eq!(entry.mp_consume_end, expected.mp_consume_end);
+        assert_eq!(entry.hp_consume, expected.hp_consume);
+        let rank_count = usize::try_from(expected.max_level)?;
+        for (wire, source) in [
+            (&entry.reuse_ms, expected.reuse_ms),
+            (&entry.hit_time_ms, expected.hit_time_ms),
+        ] {
+            let expected = match source {
+                RankValue::Scalar(value) => vec![value; rank_count],
+                RankValue::Levels(values) => values,
+            };
+            assert_eq!(wire, &expected);
+        }
+        for values in [
+            &entry.mp_consume_start,
+            &entry.mp_consume_end,
+            &entry.hp_consume,
+            &entry.reuse_ms,
+            &entry.hit_time_ms,
+        ] {
+            assert_eq!(values.len(), rank_count);
+        }
+    }
+    // All catalogue roots, including deferred skills, have complete rank metadata.
+    for entry in &out.skills {
+        for values in [
+            &entry.mp_consume_start,
+            &entry.mp_consume_end,
+            &entry.hp_consume,
+            &entry.reuse_ms,
+            &entry.hit_time_ms,
+        ] {
+            assert_eq!(values.len(), usize::try_from(entry.max_level)?);
+        }
+    }
+    assert_eq!(runtime.0.lock().writes, 0);
+    Ok(())
 }
 
 #[tokio::test]

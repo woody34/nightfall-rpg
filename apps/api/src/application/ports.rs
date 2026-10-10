@@ -549,6 +549,13 @@ pub struct SkillCatalogueEntry {
     pub effect_implemented: bool,
     pub deferred_reasons: Vec<String>,
     pub l2_ref: String,
+    /// Validated base values in rank order (index = rank - 1), before stat modifiers.
+    pub mp_consume_start: Vec<u32>,
+    pub mp_consume_end: Vec<u32>,
+    pub hp_consume: Vec<u32>,
+    /// Source milliseconds, before stat scaling and tick conversion.
+    pub reuse_ms: Vec<u32>,
+    pub hit_time_ms: Vec<u32>,
 }
 
 /// Immutable catalogue in skill-id order; metadata availability does not authorize gameplay.

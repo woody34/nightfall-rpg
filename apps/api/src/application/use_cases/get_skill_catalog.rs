@@ -3,7 +3,7 @@
 use crate::application::ports::{SkillCatalogue, SkillCatalogueEntry, SkillCataloguePort};
 use crate::application::AppError;
 use crate::domain::class::{ClassRegistry, RuntimeSkillStatus};
-use crate::domain::zone::skill::{SkillId, SkillRegistry};
+use crate::domain::zone::skill::{RankValue, SkillId, SkillRegistry};
 use std::fmt::Write as _;
 use std::sync::Arc;
 
@@ -37,6 +37,20 @@ impl RegistrySkillCatalogue {
                     effect_implemented: def.runtime_status == RuntimeSkillStatus::Executable,
                     deferred_reasons: def.blockers.clone(),
                     l2_ref: def.l2_ref.clone(),
+                    mp_consume_start: wire_costs(
+                        def.id,
+                        "mp_consume_start",
+                        &def.mp_consume_start,
+                    )?,
+                    mp_consume_end: wire_costs(def.id, "mp_consume_end", &def.mp_consume_end)?,
+                    hp_consume: wire_costs(def.id, "hp_consume", &def.hp_consume)?,
+                    reuse_ms: wire_ranks(def.id, "reuse_ms", &def.reuse_ms, def.max_level)?,
+                    hit_time_ms: wire_ranks(
+                        def.id,
+                        "hit_time_ms",
+                        &def.hit_time_ms,
+                        def.max_level,
+                    )?,
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -49,6 +63,34 @@ impl RegistrySkillCatalogue {
             skills: entries,
         }))
     }
+}
+
+fn wire_value(id: SkillId, field: &str, value: i64) -> anyhow::Result<u32> {
+    u32::try_from(value)
+        .map_err(|e| anyhow::anyhow!("catalogue skill {} {field} cannot fit uint32: {e}", id.0))
+}
+
+fn wire_costs(id: SkillId, field: &str, values: &[i64]) -> anyhow::Result<Vec<u32>> {
+    values
+        .iter()
+        .map(|&value| wire_value(id, field, value))
+        .collect()
+}
+
+fn wire_ranks(
+    id: SkillId,
+    field: &str,
+    values: &RankValue<i64>,
+    max_level: u32,
+) -> anyhow::Result<Vec<u32>> {
+    (1..=max_level)
+        .map(|rank| {
+            let value = values.at(rank, max_level).ok_or_else(|| {
+                anyhow::anyhow!("catalogue skill {} {field} missing rank {rank}", id.0)
+            })?;
+            wire_value(id, field, *value)
+        })
+        .collect()
 }
 
 impl SkillCataloguePort for RegistrySkillCatalogue {
@@ -79,6 +121,19 @@ impl GetSkillCatalog {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[test]
+    fn rank_projection_checks_wire_bounds_and_preserves_rank_tables() -> anyhow::Result<()> {
+        let id = SkillId(3);
+        assert_eq!(wire_costs(id, "cost", &[0, i64::from(u32::MAX)])?, [0, u32::MAX]);
+        assert!(wire_costs(id, "cost", &[-1]).is_err());
+        assert!(wire_costs(id, "cost", &[i64::from(u32::MAX) + 1]).is_err());
+        assert_eq!(wire_ranks(id, "time", &RankValue::Scalar(7), 3)?, [7, 7, 7]);
+        assert_eq!(wire_ranks(id, "time", &RankValue::Levels(vec![7, 0, 9]), 3)?, [7, 0, 9]);
+        assert!(wire_ranks(id, "time", &RankValue::Levels(vec![7]), 2).is_err());
+        assert!(wire_ranks(id, "time", &RankValue::Scalar(-1), 1).is_err());
+        Ok(())
+    }
+
     #[test]
     fn validated_registry_catalogue_has_only_roots_and_honest_blockers() {
         let classes = crate::infrastructure::class_data::load_classes(

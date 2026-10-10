@@ -240,6 +240,13 @@ impl SkillCataloguePort for Catalogue {
                     effect_implemented: true,
                     deferred_reasons: vec![],
                     l2_ref: "Power Strike".into(),
+                    // Pinned l2j-dp skills/00000-00099.xml:105-124;
+                    // missing MP1/HP: l2j-game model/skills/Skill.java:205-208.
+                    mp_consume_start: vec![0; 9],
+                    mp_consume_end: vec![9, 9, 10, 11, 12, 13, 16, 16, 17],
+                    hp_consume: vec![0; 9],
+                    reuse_ms: vec![3000; 9],
+                    hit_time_ms: vec![1080; 9],
                 },
                 SkillCatalogueEntry {
                     skill_id: SkillId(5),
@@ -249,6 +256,11 @@ impl SkillCataloguePort for Catalogue {
                     effect_implemented: true,
                     deferred_reasons: vec![],
                     l2_ref: "Other".into(),
+                    mp_consume_start: vec![0; 9],
+                    mp_consume_end: vec![0; 9],
+                    hp_consume: vec![0; 9],
+                    reuse_ms: vec![0; 9],
+                    hit_time_ms: vec![0; 9],
                 },
                 SkillCatalogueEntry {
                     skill_id: SkillId(4),
@@ -258,6 +270,11 @@ impl SkillCataloguePort for Catalogue {
                     effect_implemented: false,
                     deferred_reasons: vec!["item_consume".into()],
                     l2_ref: "Deferred".into(),
+                    mp_consume_start: vec![0],
+                    mp_consume_end: vec![0],
+                    hp_consume: vec![0],
+                    reuse_ms: vec![0],
+                    hit_time_ms: vec![0],
                 },
             ],
         })
