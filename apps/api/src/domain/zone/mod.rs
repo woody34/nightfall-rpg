@@ -52,6 +52,7 @@ mod stat_tests;
 mod state;
 pub mod state_effects;
 pub mod state_regen;
+pub mod state_skill;
 
 pub use ai::{
     Intention, MemberState, NpcAi, NpcBrain, SlotMember, SpawnSlotSpec, MAX_ATTACK_TIMEOUT_TICKS,
@@ -109,7 +110,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 36] = [
+    const SOURCES: [(&str, &str); 37] = [
         ("mod.rs", include_str!("mod.rs")),
         ("effects.rs", include_str!("effects.rs")),
         ("effective_stats.rs", include_str!("effective_stats.rs")),
@@ -121,6 +122,7 @@ mod tests {
         ("phase3_checkpoint.rs", include_str!("phase3_checkpoint.rs")),
         ("phase3_entity.rs", include_str!("phase3_entity.rs")),
         ("state_effects.rs", include_str!("state_effects.rs")),
+        ("state_skill.rs", include_str!("state_skill.rs")),
         ("phase2.rs", include_str!("phase2.rs")),
         ("state_class.rs", include_str!("state_class.rs")),
         ("ai.rs", include_str!("ai.rs")),
