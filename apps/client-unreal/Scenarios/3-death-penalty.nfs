@@ -2,7 +2,8 @@
 # fixture: phase3-trainer
 # Pending engine/client integration; declaration is not execution evidence.
 # Timeouts: received-state delivery 10 ticks *100ms *3 =3s (A1).
-# Login/RPC: existing runner allowance5s *3=15s; movement24 tiles/4 tiles per second *3=18s.
+# Login/RPC: existing runner allowance5s *3=15s; movement<=37.5tiles /3.75tiles/s *3<=30s.
+# Speed input: professions/human_mystic.toml:22 (run120); domain/zone/phase2.rs:109-112 (375milli-tiles/tick).
 # Fixture combat30s *3=90s; no damage calculation determines a wait.
 # Pinned dp3ca488dd src/main/resources/data/stats/skills/01100-01199.xml:1645,1846:
 # Wind Strike base hitTime4000ms *3=12s; Ice Bolt base3100ms *3 rounds up to12s.
@@ -15,7 +16,7 @@ nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor own_sp >= 0 3
 nf.ClickMove 110 100
-nf.WaitFor own_at 110 100 1 18
+nf.WaitFor own_at 110 100 1 30
 nf.Target template:skill_sentinel
 nf.WaitFor target != none 3
 nf.Attack

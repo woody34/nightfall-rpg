@@ -27,6 +27,21 @@ def guarded_database(url):
         raise ValueError('explicit loopback non-5432 port and nf_phase3_fixture_* DB required; no URL options')
 
 
+def psql_env(database_url, shim=False):
+    from urllib.parse import unquote
+    url = urlparse(database_url)
+    # PGHOSTADDR/PGSERVICE/PGOPTIONS could override the guarded endpoint or SQL
+    # session. Supply libpq inputs only from the validated URI, including standalone runs.
+    env = {key: value for key, value in os.environ.items() if not key.startswith('PG')}
+    env.update(PGCONNECT_TIMEOUT='3', PGAPPNAME='phase3_fixture_seed')
+    if shim:
+        env['PGDATABASE'] = database_url
+    else:
+        env.update(PGHOST=url.hostname, PGPORT=str(url.port), PGDATABASE=url.path[1:],
+                   PGUSER=unquote(url.username or ''), PGPASSWORD=unquote(url.password or ''))
+    return env
+
+
 def seed_sql(roles):
     rows, skills = [], []
     for name, role in roles.items():
@@ -87,14 +102,7 @@ def main():
     else:
         # libpq expands --dbname connection strings; PGDATABASE alone does not.
         # An owned psql shim consumes the environment URI in wrapper runs.
-        url = urlparse(os.environ['DATABASE_URL'])
-        from urllib.parse import unquote
-        env = dict(os.environ, PGCONNECT_TIMEOUT='3', PGAPPNAME='phase3_fixture_seed')
-        if os.environ.get('NIGHTFALL_FIXTURE_PSQL_SHIM') == '1':
-            env['PGDATABASE'] = os.environ['DATABASE_URL']
-        else:
-            env.update(PGHOST=url.hostname, PGPORT=str(url.port), PGDATABASE=url.path[1:],
-                       PGUSER=unquote(url.username or ''), PGPASSWORD=unquote(url.password or ''))
+        env = psql_env(os.environ['DATABASE_URL'], os.environ.get('NIGHTFALL_FIXTURE_PSQL_SHIM') == '1')
         subprocess.run(['psql', '-X', '--set=ON_ERROR_STOP=1', '--quiet'], input=sql, text=True, env=env, check=True)
     print(json.dumps(dict(schema_version=1, fixture_enabled=True, fixture=args.fixture,
                          dry_run=args.dry_run, schema_status='reconciled-000008-0a37fb3', roles=roles,

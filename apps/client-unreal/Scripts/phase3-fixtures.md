@@ -118,21 +118,36 @@ the current legacy zone loader has no peace fields. Reconcile that overlay when 
 schema lands. Resist/penalty branches require published seed/vector controls; they
 are not deterministic from a client login's wall-clock timing.
 
-Casting soak defaults to eight clients and1200s, all roles casting Wind Strike and
-long Might buffs. `soak-fixtures.py --casting` emits mode0600 tokens and an exact
+Casting soak defaults to eight clients and1200s, all roles at fixture level7 casting
+Wind Strike and long Might buffs. The low-HP NPC keeps source XP/SP rewards; the
+role's received kill/XP/reuse/effect checks contain no gameplay formulas and do not
+require the currently absent MP-cost metadata. `soak-fixtures.py --casting` emits mode0600 tokens and an exact
 `roles.json` manifest; seed-phase3-soak.py validates canonical inputs/unique UUIDs
 and seeds all roles in one fresh transaction before API startup. The casting
 NPC overlay has HP1 as an explicit test input; its source rewards are unchanged.
 Gauntlet/report filenames stay `1-kill-one-monster` for existing artifact consumers.
 Each role must supply positive cast_skill, skill_cast_result and effect_applied
 runtime counts, plus verified native schema3 cast/effect transitions. Missing
-casting evidence fails. `--legacy-attacks` retains the old attack workload and
-cannot count as Phase3 soak acceptance.
+casting evidence fails, including a missing role manifest and a transition report
+whose SHA-256 does not identify the replay-verified recording. `--legacy-attacks`
+retains the old workload and cannot count as Phase3 acceptance. A shorter or smaller
+casting smoke run can pass its own checks but `phase3_acceptance` stays false until
+eight clients each run at least1200s with every evidence gate passing. Standalone
+seeders remove inherited libpq settings before supplying the guarded endpoint.
 
 **Client-owned NightfallSoak.cs handoff:** consume `-SoakRoleManifest=<roles.json>`,
 validate schema_version1/casting/count/order, use each role's scenario and
 `-DevTokenFile=<token_file>` (never inline tokens), retain unique UserDir/BotOutDir,
-and allow the final120s casting scenario plus boot grace. Do not change client
+and allow the final300s casting scenario plus boot grace (replace the earlier120s
+request: the full sum of movement/cast/state waits now fits the scenario budget).
+Consume `-SoakScenarioSeconds=300` and include that final scenario allowance plus
+boot grace in both GetConfiguration.MaxDuration and TickTest's process deadline.
+Do not change client
 skill formulas. Harness run-soak.sh refuses casting before infrastructure if the
 client source lacks this hook. C# and its build are outside C-HARNESS ownership;
-no Gauntlet/packaged soak pass is claimed.
+no Gauntlet/packaged soak pass is claimed. Latest client-progress publishes M2
+`03281ca` and reports uncommitted core DSL/manifest support; the observed C# hook
+still uses the earlier120s allowance. Commands/counts/inactive effects match the
+brief, but the added impact/initial-resource/causal predicates and oracle/death/
+retention/AI assertions remain handoffs. Integrate and reconcile the final client
+M3 commit before running scenarios; unsupported names must continue to fail parsing.

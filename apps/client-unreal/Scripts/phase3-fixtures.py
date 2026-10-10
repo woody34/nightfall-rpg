@@ -89,6 +89,16 @@ def validate_seed_manifest(seed, selected, owner, observer, repo, paired):
         raise ValueError('Phase3 seed manifest does not match exact pre-admission inputs')
 
 
+def soak_profile(repo, account, character):
+    # Level7 is a fixture input with both rank1 skills available in the shipped tree.
+    # The level1 reward NPC remains the shipped template, with no XP/SP reward override.
+    xp = next(row['xp'] for row in tomllib.loads(
+        (repo / 'packages/data/tables/experience.toml').read_text())['to_level'] if row['level'] == 7)
+    return profiles('phase3-trainer', repo)['owner'] | {
+        'account_id': account, 'character_id': character, 'position': [0, 0],
+        'level': 7, 'xp': xp, 'learned_ranks': {'1177': 1, '1068': 1}}
+
+
 def tree_hashes(directory):
     return {str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted(directory.rglob('*')) if path.is_file()}
