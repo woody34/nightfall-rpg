@@ -78,6 +78,13 @@
 //!
 //! Tag numbers and enum values are part of the log format: never renumber, only add.
 
+#[path = "codec_sizing.rs"]
+mod sizing;
+pub use sizing::{
+    command_admission_size, digest_record_upper_bound, validate_record_budget,
+    AdmissionSizingError, CommandAdmissionSize,
+};
+
 use bytes::Bytes;
 use prost::Message;
 use uuid::Uuid;

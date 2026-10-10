@@ -14,7 +14,10 @@ mod port;
 mod record;
 
 pub use audit::{SessionAuditWriter, AUDIT_BUFFER};
-pub use codec::RECORD_SCHEMA_VERSION;
+pub use codec::{
+    command_admission_size, digest_record_upper_bound, validate_record_budget,
+    AdmissionSizingError, CommandAdmissionSize, RECORD_SCHEMA_VERSION,
+};
 pub use epoch::{
     open_epoch, start_epoch, CheckedRecords, EpochStarted, RecordedEpoch, ReplayError,
 };
