@@ -1,6 +1,6 @@
 # Phase 2 Plan: Race and Class
 
-**Status:** delivery plan 2026-10-09; local data model, server implementation, ordinary native acceptance, current packaged combat soak, and post-merge root Game and Editor builds verified (root main `00b9ac1`, soak receipt `/tmp/phase2-client-final-soak-01`); Required token supply/backfill decision (no production grants/backfill) remains pending (whole Phase 2 completion is not claimed; reconciled in outcome summary [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md)). **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Model/effort assignments below.
+**Status:** delivery plan 2026-10-09; local data model, server implementation, ordinary native acceptance, current packaged combat soak, and post-merge root Game and Editor builds verified (root main `00b9ac1`, soak receipt `/tmp/phase2-client-final-soak-01`); User accepted once-per-character transfer tokens at 20/40 including eligible existing backfill (2026-10-10): policy accepted, E4 implementation and validation pending (no production grants or backfill at baseline `88b9063`; whole Phase 2 completion is not claimed; reconciled in outcome summary [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md)). **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Model/effort assignments below.
 
 ## 1. Goal and locked decisions
 
@@ -10,7 +10,7 @@ Deliver creation/racial identity/exact growth/learned metadata/durable transfers
 - Zone is single writer; **log ack -> atomic DB checkpoint -> output/RPC success**.
 - Real autoGet learning metadata in scope; manual purchase/effects Phase3 except implemented racial static modifiers.
 - CP **u32/uint32**, owner-private/reserved, no absorption; initial0/derived known max, zero never full. Transfer preserves CP/HP/MP percentages with floor/alive HP min1.
-- **Token SUPPLY REQUIRED USER CHOICE PENDING** (milestones/admin/other). Generic typed ledger/consumption independent; no automatic grants/backfill before choice; E4 milestones conditional.
+- **Token POLICY ACCEPTED, E4 IMPLEMENTATION PENDING** (2026-10-10): once-per-character transfer tokens at 20/40 including eligible existing backfill. Claim bits authoritative forever (never refill claimed zero; delevel/death never clears bits). In tier order for each unclaimed tier: existing positive balance or completed current lineage/validated receipt marks claimed without adding a token; otherwise level >= 20/40 grants 1 and marks claimed. Any claim-bit change, including mark-only reconciliation, is critical: log acknowledgement -> atomic checkpoint -> visibility/output. First post-upgrade admission uses deterministic recorded Join critical checkpoint before visibility (no bulk offline SQL backfill). True live upward crossings use same helper; multi-tier jumps cover both tiers in tier order. Old snapshot7/record5/BinaryV3 epochs stay policy-disabled with no-grant replay; recover if needed and durably close the old epoch before establishing a fresh policy-enabled baseline and permitting live admission. Architecture plans snapshot8/record6/BinaryV4; implementation and compatibility validation are pending. Generic typed ledger/consumption independent; no production grants or backfill at baseline `88b9063`. E4 milestones and delevel protection now required.
 - Proceed with curated original Nightfall display names; IDs/keys/l2_ref remain stable.
 - Use shared prototype/placeholder bodies with one hair style/color/face at index0 and both sexes as metadata. `SKM_Manny_Simple` is not imported/cooked in this checkout; staged remote players use cylinder fallbacks. Distinct racial/sex bodies remain an explicit art limitation, not an approval blocker.
 
@@ -124,14 +124,14 @@ Models: **D = agy gemini-3.8-flash-high**, **C = Codex gpt-6.1-sol / high**, **Z
 | 3.5 Recovery/fences | Recover before admission, legacy None preservation, fail-closed lanes; midtick/log-before-DB/stale/missing/replacement cases cannot advance failed epoch. | C |
 | 3.6 Simulation scenario(s) [client-visible] | `2-class-transfer.nfs`, `2-class-transfer-rejected.nfs`, `2-class-transfer-observer-a.nfs`, `2-class-transfer-observer-b.nfs`, `2-class-transfer-reconnect.nfs` cover 3.1..3.3: 20/40 paths, guards, observers/persistence; export replay. | C |
 
-### E4 — Token bridge (milestone supply conditional)
+### E4 — Token bridge (policy accepted, implementation pending)
 
 | Story | Work / Done When | Model |
 |---|---|---|
-| 4.1 Milestones [client-visible, conditional] | Only after choice: once-ever true 20/40 crossing grants/critical checkpoint; single/multilevel crossings and chosen backfill tested. | C |
-| 4.2 Generic consumption [client-visible] | Independently consume typed tokens/counts; seeded balance consumed once, missing requirement rejects atomically without implied supply. | C |
-| 4.3 Delevel protection [conditional] | Durable counts/mask; 20->19->20, 40->39->40, both-crossing jumps/retry/recovery cannot duplicate grants. | C |
-| 4.4 Simulation scenario(s) [client-visible] | `2-class-transfer.nfs` covers 4.2; if milestones chosen, unit/native fixtures assert real 20/40 crossings for 4.1/4.3 separately from seeded consumption. | C |
+| 4.1 Milestones [client-visible, required] | Policy accepted: once-per-character true 20/40 crossing grants; every claim-bit change, including mark-only reconciliation, uses log ack -> atomic checkpoint -> visibility/output; single/multilevel crossings and admission backfill tested (unclaimed tier with positive balance or completed lineage/validated receipt marks claimed without token; otherwise level >= 20/40 grants 1 + claim; claimed zero never refills; first post-upgrade admission recorded Join checkpoint before visibility; implementation pending). | C |
+| 4.2 Generic consumption [client-visible] | Independently consume typed tokens/counts; seeded balance consumed once, missing requirement rejects atomically without implied supply (consumption verified at baseline `88b9063`). | C |
+| 4.3 Delevel protection [required] | Durable counts/mask; claim bit authoritative forever; 20->19->20, 40->39->40, both-crossing jumps/death/delevel/retry/recovery cannot clear bit or duplicate grants (implementation pending). | C |
+| 4.4 Simulation scenario(s) [client-visible] | `2-class-transfer.nfs` covers 4.2 seeded consumption; unit/native fixtures assert real 20/40 crossings and admission backfill for 4.1/4.3 separately from consumption-only seeded tests (validation pending). | C |
 
 ### E5 — Unreal presentation
 
@@ -177,7 +177,7 @@ Normal run-sim/run-sim-multi/CI discovery recognizes explicit `# fixture: phase2
 
 Coordinator serializes native/Compose runs. Fixture requires AUTH_DEV_TOKENS=1, recognized explicit pack/owned isolated DB marker; refuse wrong DB/unexpected receipts/revision/admitted player. API creates UUID manifest; bound final-schema SQL seeds authoritative XP/class/vitals/tokens/mask and **126,126 before tickets/admission**. No root.env/live edits/production spawn changes; no credentials logged.
 
-Assert true20/40 parent paths, consumption/maxima/real learning/receipt/outbox/observer/reconnect. Reject19/39, third76/85, no token/far/dead/combat/wrong root/parent. Seeded balances prove consumption only; chosen milestones need real crossing unit/native fixtures. Lost response: disconnect after commit, retry offline for full equality. Crash tests use disposable DB/adapters.
+Assert true20/40 parent paths, consumption/maxima/real learning/receipt/outbox/observer/reconnect. Reject19/39, third76/85, no token/far/dead/combat/wrong root/parent. Seeded balances prove consumption only; accepted policy requires real crossing and admission backfill unit/native fixtures separately from consumption-only seeded tests. Lost response: disconnect after commit, retry offline for full equality. Crash tests use disposable DB/adapters.
 
 ## 5. Dependencies and integration
 
@@ -188,7 +188,7 @@ flowchart LR
  F --> U[UE catalogue/projection]
  A --> T[Critical transfer/recovery]
  Z --> T
- P[User supply choice] --> M[Conditional milestones]
+ P[Accepted 20/40 policy] --> M[Required token milestones]
  A --> M
  T --> S[Nine scenarios/replay evidence]
  U --> S
@@ -196,7 +196,7 @@ flowchart LR
  S --> R[Independent review/root integration]
 ```
 
-Waves gate dependencies: foundations -> independent creation/schema, zone and UE work on CLI-owned branches -> ports/durability/failure/legacy/payload checks -> coordinator native evidence. Consumption independent of supply; milestones wait. Independent critical review then root direct integration under user method; no PR/invented timings. Commit owned files; root controls shared-stack runs.
+Waves gate dependencies: foundations -> independent creation/schema, zone and UE work on CLI-owned branches -> ports/durability/failure/legacy/payload checks -> coordinator native evidence. Consumption independent of supply; token policy accepted, E4 implementation and validation pending. Independent critical review then root direct integration under user method; no PR/invented timings. Commit owned files; root controls shared-stack runs.
 
 ## 6. Risks
 
@@ -205,7 +205,7 @@ Waves gate dependencies: foundations -> independent creation/schema, zone and UE
 - Account-key race: one new transfer/tick plus second preflight/permanent DB uniqueness; cross-zone needs reservation.
 - Snapshot growth: measure actual JetStream payload; coordinate versioned compression, retain all data.
 - Legacy drift: golden bytes/fingerprints and None checkpoint preserve migrated ledger.
-- Token exploits/pending policy: required supply/backfill choice and conditional durable once-ever bits.
+- Token bridge implementation: once-per-character tokens at 20/40 including eligible existing backfill accepted (2026-10-10); claim bits authoritative forever, deterministic admission Join checkpoint before visibility, live crossings in tier order, delevel protection, and historical epoch replay preservation pending E4 implementation/validation.
 - Art/effect overstatement: truthful index-zero appearance/sex metadata and shared placeholder bodies and unavailable skills; no claim of distinct racial/sex art assets.
 - External gates: CI runner **unregistered**, **two-week reliability gate pending** separately from local Phase2 acceptance; no fresh 14-day wait is required to integrate reviewed features. Current packaged 8-client 20-minute combat soak verified and closed on current source (`/tmp/phase2-client-final-soak-01`, combat tick p99 16.087356 ms < 20 ms); root main `00b9ac168414b99513726903cef829d3bda9ea0c` merged and pushed, and post-merge root Game and Editor builds verified (class smoke 6/6 PASS).
 
@@ -216,17 +216,18 @@ Manual SP purchase/skill execution/buffs Phase3; inventory/equipment/mastery eff
 ## 8. Outcome reconciliation
 
 - [x] Catalogue/growth/39 real trees/count/refs/source provenance verified (13 Rust + 3 Python tests pass, independent admission reviews APPROVE `4adde1e`).
-- [ ] Required token supply/backfill choice recorded; no premature grants. Curated names and prototype art are documented implementation assumptions. (Token choice STILL PENDING; generic consumption verified, production grants/backfill absent).
+- [x] Required token supply/backfill policy accepted (once-per-character transfer tokens at 20/40 including eligible existing backfill, 2026-10-10; claim bits authoritative forever; no premature grants at baseline `88b9063`). Curated names and prototype art are documented implementation assumptions.
+- [ ] E4 token bridge implementation and validation pending: claim-bit precedence and non-refill, deterministic first post-upgrade admission Join checkpoint before visibility, live upward crossings in tier order, delevel protection, historical epoch replay preservation, and native real crossing/backfill test evidence.
 - [x] Production `(0,0)` and fixture `(126,126)` spawn, cap 85, tier 2 playable, Master `(126,128)` radius 3 verified in contracts and test gates.
 - [x] Creation/concurrency/legacy retries/migration preservation/normalized learning verified (`grpc_create_character15`, Postgres concurrent bounded 7, all 9 profiles preserved at 85/XP/position).
 - [x] Independent racial/class/CP vectors and actual learned keys verified (397 lib tests, exact CON max CP floor, living HP min 1, Human XP, Elf run/evasion, DE crit).
 - [x] Actor/account-key/permanent frozen receipts/log->DB->output/fail-closed recovery proven (38 functional suites / 642 pass with real DB 26432 & NATS 25422; runtime review `8edffd1` PASS).
 - [x] Old/new snapshots/records/digests/fingerprints and payload limits verified (BinaryV3 snapshot 2,060,904 -> 152,362 bytes; prost catalogue 455,324 bytes; codec `a8ac679` & outer NFR `5b6861b` PASS).
-- [x] E1..E5 simulations and ordinary native acceptance verified: root coordinator suite passed 30 scenario files / 25 logical units (19 Phase 1a + 11 Phase 2 files; 25 PASS, 0 FAIL, 0 quarantine in 1,193.284 s / 19m 53.284s, 35 recordings, 35 replay logs, and 35 trace HTML files retained; all owned stacks cleaned). Required-live automation passed 62/62 without skips at `6820c62`. Historical retry verified in `2-class-transfer-reconnect.nfs` (keyA replayed after keyB + reconnect). Diagnostic-01 failure and corrected retry-02 pass documented.
+- [x] Existing race/class/transfer simulations and ordinary native acceptance verified (historical Oct 9; new E4 grants/backfill not covered): root coordinator suite passed 30 scenario files / 25 logical units (19 Phase 1a + 11 Phase 2 files; 25 PASS, 0 FAIL, 0 quarantine in 1,193.284 s / 19m 53.284s, 35 recordings, 35 replay logs, and 35 trace HTML files retained; all owned stacks cleaned). Required-live automation passed 62/62 without skips at `6820c62`. Historical retry verified in `2-class-transfer-reconnect.nfs` (keyA replayed after keyB + reconnect). Diagnostic-01 failure and corrected retry-02 pass documented.
 - [x] All 19 Phase 1a baseline scenario files retained and verified in full coordinator suite; updated Human XP expectations matched. Informational contract coverage logged: events 13/13, payloads 3/3, intents 5/6 (missing `stop_move`), reasons 3/13, close codes 1/4, NPC transitions 7/10, player attack states 3/4.
 - [x] Release combat performance gate verified: release quiescent 200 players + 200 Keltirs over 500 ticks measured p50 211 µs, p99 670 µs; 50 pairs measured p50 31 µs, p99 125 µs (both below the 20 ms budget). Documented optimized cargo bench on quiescent host passed (NPC mean 0.143ms < 2ms, 1000 observers mean 5.087ms < 10ms). Standalone debug all-target run failure retained (NPC mean 3.091ms > 2ms). Real Keycloak test passed 1/0/0 in 4.06s with pinned Keycloak 26.8.0.
 - [x] Current packaged combat soak verified: coordinator soak (`/tmp/phase2-client-final-soak-01/report.json`, `summary.txt`, `replay-check.log`) passed (`passed: true`, cleanup exit `0`, wrapper exit `0`, errors `[]`). 8 clients ran 1,200 s requested across 23 cycles each (184 total cycles), observed per client 1,231.441–1,250.215 s. Combat tick p99 was 16.087356 ms, below the unchanged 20 ms budget. Observed histogram ticks 12,612 equal complete recorded 12,612 ticks. Replay verification exact match across 96,281 outputs, 22,662,346 bytes compared, 0 digest-only in 324.4 ms. Source commit 4f61f0a staged Game hash `3af752926c8ca3a384c736509bf18217d66fbb3cf27555b7fe002bc47b7eff99`, stage 49.25 s passed. Native, production, API, and data identical to tested `92b34d2` against frozen release API and replay artifacts.
 - [x] Root main merge and post-merge Game and Editor builds verified: root main `00b9ac168414b99513726903cef829d3bda9ea0c` merged and pushed; root Game PASS exit 0 in 42.11 s, Editor PASS exit 0 in 32.70 s, focused class smoke 6/6 PASS zero skips, exit 0. Tracked root clean, user untracked trace preserved, and seven generated/bridge module links verified strictly inside root checkout independent of client worktree.
-- [ ] Required external and token gates pending: external self-hosted CI runner remains unregistered; existing two-week reliability programme remains pending as a separate operational follow-up. Required token supply/backfill decision remains pending (no production grants or backfill). Whole Phase 2 completion is not claimed.
+- [ ] Required external and E4 token implementation gates pending: external self-hosted CI runner remains unregistered; existing two-week reliability programme remains pending as a separate operational follow-up. E4 token bridge implementation and validation pending (no production grants or backfill at baseline `88b9063`). Whole Phase 2 completion is not claimed.
 
-Detailed verification metrics, evidence receipts, and open gates are documented in [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md). See also [class transfer observability](../engineering/class-transfer-observability.md) and offline diagrams [class tree](../diagrams/phase-2-class-tree.html) / [class transfer](../diagrams/phase-2-class-transfer.html). Final acceptance remains pending until the required token decision is resolved.
+Detailed verification metrics, evidence receipts, and open gates are documented in [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md). See also [class transfer observability](../engineering/class-transfer-observability.md) and offline diagrams [class tree](../diagrams/phase-2-class-tree.html) / [class transfer](../diagrams/phase-2-class-transfer.html). Final acceptance remains pending until E4 token bridge implementation and validation are completed.

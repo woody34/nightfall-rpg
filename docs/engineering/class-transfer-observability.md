@@ -41,9 +41,11 @@ show **No data**. Rates also need enough scrape samples; an empty series is not 
 zero. Checkpoint lag/failure and paused-zone instruments are initialized at startup, so they
 can report zero before a transfer occurs. No query replaces missing series with synthetic zero.
 
-The typed `token_tier_1_count`/`token_tier_2_count` ledger proves consumption. Required token
-supply/backfill policy is still undecided; there is no production grant mechanism or grant metric.
-These panels do not resolve that product decision or establish full Phase 2 acceptance.
+The typed `token_tier_1_count`/`token_tier_2_count` ledger proves consumption. Policy is accepted
+for once-per-character transfer tokens at 20/40 including eligible existing backfill (2026-10-10);
+grant runtime, instrumentation, and dashboard validation remain pending. There is no production grant
+mechanism or grant metric at baseline `88b9063`. Do not introduce metric names or panels until an actual
+runtime contract exists. These panels do not establish full Phase 2 acceptance.
 
 Run `python3 scripts/validate_class_observability.py` from any directory for the focused JSON,
 catalogue, diagram and link checks. Query-name validation uses the exporter contract; it is
