@@ -182,6 +182,9 @@ impl ClassState {
             }
             previous = Some(&skill.key);
         }
+        if self.token_tier_1_count > i32::MAX as u32 || self.token_tier_2_count > i32::MAX as u32 {
+            return Err(ClassStateError::TokenCount);
+        }
         if self.milestone_claimed_mask & !3 != 0 {
             return Err(ClassStateError::MilestoneMask);
         }
@@ -295,6 +298,48 @@ impl ClassState {
         Ok(())
     }
 
+    /// Reconciles the once-ever level 20/40 supply in tier order. Context validation
+    /// proves that every completed receipt belongs to this character's current lineage.
+    /// `crossing_from` restricts new supply to true upward crossings; admission uses None.
+    /// Existing balances and completed transfers are recognized even after deleveling.
+    pub fn reconcile_tokens(
+        &mut self,
+        registry: &super::class::ClassRegistry,
+        identity: &CharacterIdentity,
+        character_id: CharacterId,
+        level: u32,
+        crossing_from: Option<u32>,
+    ) -> Result<TokenReconciliation, ClassStateError> {
+        self.validate_for(registry, identity, character_id)?;
+        if !(1..=85).contains(&level) || crossing_from.is_some_and(|old| !(1..=85).contains(&old)) {
+            return Err(ClassStateError::Level);
+        }
+        let mut result = TokenReconciliation::default();
+        for (index, threshold) in [(0_u8, 20), (1, 40)] {
+            let bit = 1 << index;
+            if self.milestone_claimed_mask & bit != 0 {
+                continue;
+            }
+            let balance = if index == 0 {
+                &mut self.token_tier_1_count
+            } else {
+                &mut self.token_tier_2_count
+            };
+            let completed = self.successful_transfer_receipts.len() > usize::from(index);
+            if *balance > 0 || completed {
+                self.milestone_claimed_mask |= bit;
+                result.claimed_mask |= bit;
+            } else if level >= threshold && crossing_from.is_none_or(|old| old < threshold) {
+                // Only zero -> one is possible; existing positive balances are preserved.
+                *balance = 1;
+                self.milestone_claimed_mask |= bit;
+                result.claimed_mask |= bit;
+                result.granted_mask |= bit;
+            }
+        }
+        Ok(result)
+    }
+
     /// Validates incoming free-learning metadata before atomically merging it. Attainable
     /// inherited levels remain valid after deleveling; foreign lineages and racial keys fail.
     pub fn merge_learned_skills_checked(
@@ -387,9 +432,33 @@ impl ClassState {
     }
 }
 
+/// Actual ledger adjustments; a granted bit always also appears in claimed_mask.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TokenReconciliation {
+    /// Newly claimed tiers, including recognition without supply.
+    pub claimed_mask: u8,
+    /// Tiers whose zero balance became one.
+    pub granted_mask: u8,
+}
+
+/// Bounded source labels shared by deterministic facts and commit telemetry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TokenSource {
+    /// First eligible admission in the token-policy epoch.
+    Admission,
+    /// True upward level crossing.
+    LevelUp,
+}
+
 /// Invalid shared class ledger.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum ClassStateError {
+    /// Counter exceeds the persistent signed-integer bound.
+    #[error("token counter exceeds storage bound")]
+    TokenCount,
+    /// Reconciliation requires playable levels.
+    #[error("invalid token reconciliation level")]
+    Level,
     /// More successes than reachable transfer tiers.
     #[error("at most two successful transfer receipts are allowed")]
     ReceiptLimit,
@@ -685,6 +754,130 @@ mod tests {
                 },
             }
             assert!(corrupt.validate_for(&registry, &identity, id).is_err(), "field {field}");
+        }
+    }
+    #[test]
+    fn tokens_are_once_ever_at_boundaries_and_claimed_empty_never_refills() {
+        let registry = crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap()
+        .registry;
+        let context = receipt(1, 1).result;
+        for (level, expected) in [(19, 0), (20, 1), (39, 1), (40, 3), (85, 3)] {
+            let mut state = ClassState::new(ClassId(0));
+            let changed = state
+                .reconcile_tokens(&registry, &context.identity, context.character_id, level, None)
+                .unwrap();
+            assert_eq!((changed.claimed_mask, changed.granted_mask), (expected, expected));
+            assert_eq!(state.token_tier_1_count, u32::from(expected & 1 != 0));
+            assert_eq!(state.token_tier_2_count, u32::from(expected & 2 != 0));
+            state.token_tier_1_count = 0;
+            state.token_tier_2_count = 0;
+            for lower in [1, 19, 39, level].into_iter().filter(|n| *n <= level) {
+                assert_eq!(
+                    state
+                        .reconcile_tokens(
+                            &registry,
+                            &context.identity,
+                            context.character_id,
+                            lower,
+                            None
+                        )
+                        .unwrap()
+                        .granted_mask,
+                    0
+                );
+            }
+            assert_eq!(state.milestone_claimed_mask, expected);
+        }
+        for (old, new, expected) in [
+            (19, 20, 1),
+            (39, 40, 2),
+            (19, 40, 3),
+            (1, 85, 3),
+            (20, 21, 0),
+            (40, 39, 0),
+            (85, 85, 0),
+        ] {
+            let mut state = ClassState::new(ClassId(0));
+            let change = state
+                .reconcile_tokens(
+                    &registry,
+                    &context.identity,
+                    context.character_id,
+                    new,
+                    Some(old),
+                )
+                .unwrap();
+            assert_eq!(change.granted_mask, expected);
+        }
+    }
+
+    #[test]
+    fn existing_tokens_and_completed_receipts_are_recognized_below_threshold_without_supply() {
+        let registry = crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap()
+        .registry;
+        let context = receipt(1, 1).result;
+        for count in [1, 7, i32::MAX as u32] {
+            let mut state = ClassState::new(ClassId(0));
+            state.token_tier_1_count = count;
+            state.token_tier_2_count = count;
+            let change = state
+                .reconcile_tokens(&registry, &context.identity, context.character_id, 1, None)
+                .unwrap();
+            assert_eq!((change.claimed_mask, change.granted_mask), (3, 0));
+            assert_eq!((state.token_tier_1_count, state.token_tier_2_count), (count, count));
+        }
+        for completed in [1, 2] {
+            let mut state = ClassState::new(ClassId(0));
+            state.current_class_id = ClassId(completed);
+            state.record_success(receipt(1, 1)).unwrap();
+            if completed == 2 {
+                let mut second = receipt(2, 2);
+                second.result.level = 40;
+                state.record_success(second).unwrap();
+            }
+            let before = serde_json::to_vec(&state.successful_transfer_receipts).unwrap();
+            let change = state
+                .reconcile_tokens(&registry, &context.identity, context.character_id, 19, None)
+                .unwrap();
+            assert_eq!(
+                (change.claimed_mask, change.granted_mask),
+                (if completed == 1 { 1 } else { 3 }, 0)
+            );
+            assert_eq!(before, serde_json::to_vec(&state.successful_transfer_receipts).unwrap());
+            let change = state
+                .reconcile_tokens(&registry, &context.identity, context.character_id, 40, None)
+                .unwrap();
+            assert_eq!(change.granted_mask, if completed == 1 { 2 } else { 0 });
+        }
+    }
+
+    #[test]
+    fn malformed_token_ledger_is_rejected_atomically() {
+        let registry = crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap()
+        .registry;
+        let context = receipt(1, 1).result;
+        for kind in 0..4 {
+            let mut state = ClassState::new(ClassId(0));
+            match kind {
+                0 => state.milestone_claimed_mask = 4,
+                1 => state.token_tier_2_count = u32::MAX,
+                2 => state.current_class_id = ClassId(1),
+                _ => state.successful_transfer_receipts.push(receipt(1, 4)),
+            }
+            let before = state.clone();
+            assert!(state
+                .reconcile_tokens(&registry, &context.identity, context.character_id, 40, None)
+                .is_err());
+            assert_eq!(state, before);
         }
     }
 }

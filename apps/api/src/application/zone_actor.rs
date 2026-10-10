@@ -179,6 +179,11 @@ pub struct GateError(pub String);
 /// tick's record, so the log is always ahead of anything observable. A durable gate may also
 /// wait (retrying) inside `admit`; the actor simply stalls. The tick budget is 100 ms.
 pub trait TickGate: Send + Sync + 'static {
+    /// Whether admission proves an acknowledged replay-log append.
+    fn durable(&self) -> bool {
+        false
+    }
+
     /// Admits or holds one tick's record.
     fn admit(&self, tick: &AppliedTick) -> impl Future<Output = Result<(), GateError>> + Send;
 
@@ -588,6 +593,16 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         let tick = record.tick;
 
+        if record
+            .events
+            .iter()
+            .any(|event| matches!(event, crate::domain::zone::ZoneEvent::TokensReconciled { .. }))
+            && (!self.gate.durable() || self.checkpoints.service().is_none())
+        {
+            tracing::error!("token reconciliation requires log and checkpoint lanes");
+            self.failed = true;
+            return TickOutcome::Held(tick);
+        }
         if let Some(service) = self.checkpoints.service() {
             service
                 .lock()

@@ -23,6 +23,9 @@ use crate::domain::{CharacterId, DomainEvent, EventMetadata, Position, SessionId
 
 /// Checkpoint telemetry, separate from simulation telemetry.
 pub trait CheckpointMetrics: Send + Sync {
+    /// Actual newly committed token; replayed acknowledgements do not re-emit metrics.
+    fn token_granted(&self, _tier: u8, _source: crate::domain::character_progression::TokenSource) {
+    }
     /// A failed transaction attempt.
     fn failed(&self);
     /// Age of the pending request; zero after acknowledgement.
@@ -320,7 +323,9 @@ impl CheckpointService {
             }
         }
         for event in &tick.events {
-            if let crate::domain::zone::ZoneEvent::ClassTransfer { entity, .. } = event {
+            if let crate::domain::zone::ZoneEvent::ClassTransfer { entity, .. }
+            | crate::domain::zone::ZoneEvent::TokensReconciled { entity, .. } = event
+            {
                 anyhow::ensure!(
                     self.players.get(entity).is_some_and(|p| !p.fenced),
                     "class transfer checkpoint lane missing or fenced"
@@ -388,8 +393,39 @@ impl CheckpointService {
             });
             player.dirty |= changed;
             player.latest = Some(cp);
-            let mut immediate = false;
+            let mut immediate = tick.events.iter().any(|event| matches!(event,
+                crate::domain::zone::ZoneEvent::TokensReconciled { entity: who, .. } if *who == entity.id));
             for event in &tick.events {
+                if let crate::domain::zone::ZoneEvent::TokensReconciled {
+                    entity: who,
+                    tick: at,
+                    adjustment,
+                    source,
+                } = event
+                {
+                    if *who == entity.id {
+                        for tier in 1_u8..=2 {
+                            if adjustment.granted_mask & (1 << (tier - 1)) != 0 {
+                                let ordinal = player.events.len() as u64;
+                                player.events.push(DomainEvent::CharacterTokenGranted {
+                                    metadata: EventMetadata {
+                                        event_id: stable_id(
+                                            entity.id,
+                                            snapshot.seed.zone,
+                                            tick.epoch,
+                                            *at,
+                                            Some(ordinal),
+                                        ),
+                                        sequence: (player.revision.saturating_add(1), ordinal),
+                                    },
+                                    character_id: CharacterId::from_uuid(entity.id.as_uuid()),
+                                    tier,
+                                    source: *source,
+                                });
+                            }
+                        }
+                    }
+                }
                 if let crate::domain::zone::ZoneEvent::ClassTransfer {
                     tick: at,
                     entity: who,
@@ -445,7 +481,8 @@ impl CheckpointService {
                         let metadata = match event {
                             DomainEvent::CharacterLeveled { metadata, .. }
                             | DomainEvent::CharacterDied { metadata, .. }
-                            | DomainEvent::CharacterClassChanged { metadata, .. } => metadata,
+                            | DomainEvent::CharacterClassChanged { metadata, .. }
+                            | DomainEvent::CharacterTokenGranted { metadata, .. } => metadata,
                             DomainEvent::CharacterCreated { .. } => continue,
                         };
                         let ordinal = offset.saturating_add(n as u64);
@@ -604,7 +641,17 @@ async fn save(
     loop {
         metrics.lag(started.elapsed());
         match observe_attempt(repo.checkpoint(cp, &player.events), metrics, started).await {
-            Ok(CheckpointOutcome::Applied(revision) | CheckpointOutcome::Replayed(revision)) => {
+            Ok(
+                outcome @ (CheckpointOutcome::Applied(revision)
+                | CheckpointOutcome::Replayed(revision)),
+            ) => {
+                if matches!(outcome, CheckpointOutcome::Applied(_)) {
+                    for event in &player.events {
+                        if let DomainEvent::CharacterTokenGranted { tier, source, .. } = event {
+                            metrics.token_granted(*tier, *source);
+                        }
+                    }
+                }
                 if let Some(session) = session {
                     audit.record_checkpoint(
                         session,

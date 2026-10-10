@@ -75,6 +75,7 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::EntityRespawned { .. }
                 | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::ClassTransfer { .. }
+                | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::XpGained { .. }
                 | ZoneEvent::LevelUp { .. }
@@ -981,7 +982,7 @@ fn snapshots_without_a_digest_version_keep_json_across_restores() {
             ZoneState::from_snapshot(serde_json::from_value(snapshot).unwrap()).unwrap();
         assert_eq!(state.snapshot().meta.digest_version, StateDigestVersion::JsonV1);
         let upgraded = state.snapshot();
-        assert_eq!(upgraded.meta.schema_version, SNAPSHOT_SCHEMA_VERSION);
+        assert_eq!(upgraded.meta.schema_version, schema);
         let mut restored = ZoneState::from_snapshot(upgraded).unwrap();
         assert_eq!(run(&mut state, vec![]), run(&mut restored, vec![]));
         assert_eq!(state.state_digest(), state.json_state_digest());

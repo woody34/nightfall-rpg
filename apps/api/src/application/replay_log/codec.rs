@@ -415,7 +415,7 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19"
     )]
     item: Option<PbOutputItem>,
 }
@@ -425,6 +425,8 @@ enum PbOutputItem {
     // Canonical integer-only Phase2 event JSON; legacy event tags remain byte-identical.
     #[prost(bytes, tag = "18")]
     Phase2(Vec<u8>),
+    #[prost(bytes, tag = "19")]
+    TokensReconciled(Vec<u8>),
     #[prost(message, tag = "1")]
     Spawn(PbSpawnEvent),
     #[prost(message, tag = "2")]
@@ -592,6 +594,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
             StateDigestVersion::JsonV1 => 3,
             StateDigestVersion::BinaryV2 => 4,
             StateDigestVersion::BinaryV3 => 5,
+            StateDigestVersion::BinaryV4 => 6,
         },
     }
 }
@@ -600,7 +603,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
 /// combat commands and facts. 3 (E2.4/E2.6): progression facts, the
 /// `alive` load flag, XP on `StatsChanged`. 4: binary v2 state digest. Schema 3 remains
 /// readable and writable for JSON v1 replay; earlier versions are refused (1 reads 0).
-pub const RECORD_SCHEMA_VERSION: u32 = 5;
+pub const RECORD_SCHEMA_VERSION: u32 = 6;
 
 pub(super) fn encode_events(events: &[ZoneEvent]) -> Vec<u8> {
     PbOutputs {
@@ -1062,6 +1065,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::TokensReconciled { .. } => PbOutputItem::TokensReconciled(canonical_json(e)),
         ZoneEvent::ClassChanged { .. } | ZoneEvent::ClassTransfer { .. } => {
             PbOutputItem::Phase2(canonical_json(e))
         },
@@ -1318,9 +1322,9 @@ fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOu
 
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
     let pb = PbRecord::decode(bytes).map_err(err)?;
-    if ![3, 4, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
+    if ![3, 4, 5, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
         return Err(CodecError(format!(
-            "record schema {} is not supported (this build reads 3, 4 and {RECORD_SCHEMA_VERSION})",
+            "record schema {} is not supported (this build reads 3, 4, 5 and {RECORD_SCHEMA_VERSION})",
             pb.schema
         )));
     }
@@ -1359,8 +1363,10 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
             StateDigestVersion::JsonV1
         } else if pb.schema == 4 {
             StateDigestVersion::BinaryV2
-        } else {
+        } else if pb.schema == 5 {
             StateDigestVersion::BinaryV3
+        } else {
+            StateDigestVersion::BinaryV4
         },
     })
 }
@@ -1589,6 +1595,16 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::TokensReconciled(bytes) => {
+            let event: ZoneEvent = serde_json::from_slice(&bytes).map_err(err)?;
+            if !matches!(event, ZoneEvent::TokensReconciled { adjustment, .. }
+                if adjustment.claimed_mask != 0 && adjustment.claimed_mask & !3 == 0
+                    && adjustment.granted_mask & !adjustment.claimed_mask == 0)
+            {
+                return Err(err("invalid token reconciliation tag"));
+            }
+            event
+        },
         PbOutputItem::Phase2(bytes) => {
             let event: ZoneEvent = serde_json::from_slice(&bytes).map_err(err)?;
             if !matches!(
@@ -1770,7 +1786,7 @@ mod combat_tests {
             ..Default::default()
         };
         let error = super::decode_record(&prost::Message::encode_to_vec(&pb)).unwrap_err();
-        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4 and 5)");
+        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5 and 6)");
     }
 
     use super::*;

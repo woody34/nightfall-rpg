@@ -41,7 +41,7 @@ pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 /// 5: application checkpoint lanes, excluded from the simulation digest.
 /// 6: explicit state digest version; older snapshots default to JSON v1.
 /// 7: resolved class registry, verified immutable hash, player identity and transfer ledger.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 7;
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 8;
 
 /// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -53,6 +53,8 @@ pub enum StateDigestVersion {
     BinaryV2,
     /// Phase 2 identity, class ledger and immutable transfer receipts.
     BinaryV3,
+    /// Once-ever token supply policy, bound to a new live epoch.
+    BinaryV4,
 }
 
 /// Identity of a zone.
@@ -477,7 +479,7 @@ impl ZoneState {
 
     /// Rebuilds a zone from a snapshot, validating it.
     pub fn from_snapshot(snapshot: ZoneSnapshot) -> Result<Self, SnapshotError> {
-        if ![4, 5, 6, SNAPSHOT_SCHEMA_VERSION].contains(&snapshot.meta.schema_version) {
+        if ![4, 5, 6, 7, SNAPSHOT_SCHEMA_VERSION].contains(&snapshot.meta.schema_version) {
             return Err(SnapshotError::Schema(snapshot.meta.schema_version));
         }
         if snapshot.rng.key != snapshot.seed.key() {
@@ -506,9 +508,18 @@ impl ZoneState {
         if state.meta.schema_version < 6 {
             state.meta.digest_version = StateDigestVersion::JsonV1;
         }
-        state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
+        if state.meta.digest_version == StateDigestVersion::BinaryV4
+            && state.meta.schema_version < 8
+        {
+            return Err(SnapshotError::CombatMismatch);
+        }
         state.classes = snapshot.classes;
-        if state.classes.is_some() != (state.meta.digest_version == StateDigestVersion::BinaryV3) {
+        if state.classes.is_some()
+            != matches!(
+                state.meta.digest_version,
+                StateDigestVersion::BinaryV3 | StateDigestVersion::BinaryV4
+            )
+        {
             return Err(SnapshotError::CombatMismatch);
         }
         let expected_hash = state.classes.as_deref().map(registry_hash).transpose()?;
@@ -789,6 +800,7 @@ impl ZoneState {
             StateDigestVersion::JsonV1 => self.json_state_digest(),
             StateDigestVersion::BinaryV2 => self.binary_state_digest(),
             StateDigestVersion::BinaryV3 => self.phase2_state_digest(),
+            StateDigestVersion::BinaryV4 => self.token_state_digest(),
         }
     }
 
@@ -934,6 +946,7 @@ impl ZoneState {
                         combat,
                     },
                 )?;
+                self.reconcile_player_tokens(tick, *entity, None, &mut events);
                 events.extend(self.owner_state(tick, *entity));
                 Ok(events)
             },
@@ -1321,7 +1334,8 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         ZoneEvent::ClassChanged { entity, .. }
         | ZoneEvent::EntityDied { entity, .. }
         | ZoneEvent::EntityRespawned { entity, .. } => sees(entity),
-        ZoneEvent::ClassTransfer { .. }
+        ZoneEvent::TokensReconciled { .. }
+        | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
         | ZoneEvent::Progression(_)
@@ -1394,7 +1408,8 @@ impl<'a> CellFacts<'a> {
                 ZoneEvent::ClassChanged { entity, .. }
                 | ZoneEvent::EntityDied { entity, .. }
                 | ZoneEvent::EntityRespawned { entity, .. } => (*entity, None, false),
-                ZoneEvent::ClassTransfer { .. }
+                ZoneEvent::TokensReconciled { .. }
+                | ZoneEvent::ClassTransfer { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
                 | ZoneEvent::Progression(_)

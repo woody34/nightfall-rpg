@@ -411,7 +411,8 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             session_generation: u32::try_from(generation.0).unwrap_or(u32::MAX),
         }))],
         // Internal; never in an observer's output.
-        ZoneEvent::ClassTransfer { .. }
+        ZoneEvent::TokensReconciled { .. }
+        | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
         | ZoneEvent::Progression(_) => Vec::new(),

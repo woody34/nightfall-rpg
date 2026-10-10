@@ -202,6 +202,7 @@ pub fn decode_outputs(bytes: &[u8]) -> Result<Vec<ObserverOutput>, CodecError> {
 pub(crate) const MAX_SNAPSHOT_JSON: usize = 32 * 1024 * 1024;
 /// Conservative default broker budget, leaving 1 KiB for subject/headers.
 pub(crate) const MAX_SNAPSHOT_ENCODED: usize = 1024 * 1024 - 1024;
+const TOKEN_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP8\0";
 const SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP7\0";
 
 struct BoundedBytes {
@@ -231,7 +232,11 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
     };
     serde_json::to_writer(&mut json, snapshot).map_err(|e| CodecError(e.to_string()))?;
     let json = json.bytes;
-    if snapshot.meta.digest_version != crate::domain::zone::StateDigestVersion::BinaryV3 {
+    if !matches!(
+        snapshot.meta.digest_version,
+        crate::domain::zone::StateDigestVersion::BinaryV3
+            | crate::domain::zone::StateDigestVersion::BinaryV4
+    ) {
         return Ok(json);
     }
     let mut compressed = flate2::write::ZlibEncoder::new(
@@ -249,7 +254,13 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
         .map_err(|e| CodecError(e.to_string()))?
         .bytes;
     let mut out = Vec::with_capacity(body.len().saturating_add(12));
-    out.extend_from_slice(SNAPSHOT_MAGIC);
+    out.extend_from_slice(
+        if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV4 {
+            TOKEN_SNAPSHOT_MAGIC
+        } else {
+            SNAPSHOT_MAGIC
+        },
+    );
     let length = u32::try_from(json.len()).map_err(|e| CodecError(e.to_string()))?;
     out.extend_from_slice(&length.to_le_bytes());
     out.extend_from_slice(&body);
@@ -262,7 +273,7 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
 /// Reads legacy JSON or a bounded Phase2 envelope. Rejects truncated streams, dishonest
 /// length headers, trailing compressed bytes and decompression beyond the declared bound.
 pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
-    if !bytes.starts_with(SNAPSHOT_MAGIC) {
+    if !bytes.starts_with(SNAPSHOT_MAGIC) && !bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
         if bytes.len() > MAX_SNAPSHOT_JSON {
             return Err(CodecError("legacy snapshot exceeds 32 MiB".into()));
         }
@@ -296,9 +307,12 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     }
     let snapshot: ZoneSnapshot =
         serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?;
-    if snapshot.meta.schema_version != 7
-        || snapshot.meta.digest_version != crate::domain::zone::StateDigestVersion::BinaryV3
-    {
+    let expected = if bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
+        (8, crate::domain::zone::StateDigestVersion::BinaryV4)
+    } else {
+        (7, crate::domain::zone::StateDigestVersion::BinaryV3)
+    };
+    if (snapshot.meta.schema_version, snapshot.meta.digest_version) != expected {
         return Err(CodecError("snapshot envelope/schema mismatch".into()));
     }
     Ok(snapshot)

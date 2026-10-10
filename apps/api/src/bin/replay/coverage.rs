@@ -319,6 +319,7 @@ fn facts(
 ) {
     for event in events {
         match event {
+            ZoneEvent::TokensReconciled { .. } => {},
             ZoneEvent::ClassChanged { class_id, .. } => {
                 increment(&mut report.class_changes, class_id.0.to_string());
             },

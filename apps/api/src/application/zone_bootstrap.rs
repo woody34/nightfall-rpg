@@ -200,7 +200,7 @@ impl ZoneBootstrap {
                     }
                 }
             }
-            state = state.with_classes(registry.clone())?;
+            state = state.with_classes(registry.clone())?.with_token_policy()?;
         }
         let mut snapshot = state.snapshot();
         if let Some((_, hash)) = &self.classes {

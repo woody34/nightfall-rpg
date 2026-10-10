@@ -78,8 +78,72 @@ impl ZoneState {
     pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Result<Self, SnapshotError> {
         self.meta.classes_rules_hash = Some(registry_hash(&classes)?);
         self.classes = Some(classes);
-        self.meta.digest_version = StateDigestVersion::BinaryV3;
+        self.meta.schema_version = 8;
+        self.meta.digest_version = StateDigestVersion::BinaryV4;
         Ok(self)
+    }
+
+    /// Enables approved once-ever token supply only on an empty new epoch.
+    /// Recovery must replay its old policy before bootstrap creates this boundary.
+    pub fn with_token_policy(mut self) -> Result<Self, SnapshotError> {
+        if self.classes.is_none() || self.next_tick != Tick(0) || !self.entities.is_empty() {
+            return Err(SnapshotError::CombatMismatch);
+        }
+        self.meta.schema_version = 8;
+        self.meta.digest_version = StateDigestVersion::BinaryV4;
+        Ok(self)
+    }
+
+    pub(super) fn reconcile_player_tokens(
+        &mut self,
+        tick: Tick,
+        entity: EntityId,
+        crossing_from: Option<u32>,
+        events: &mut Vec<ZoneEvent>,
+    ) {
+        if self.meta.digest_version != StateDigestVersion::BinaryV4 {
+            return;
+        }
+        let Some(registry) = self.classes.as_deref() else {
+            return;
+        };
+        let Some(combat) = self
+            .entities
+            .get_mut(&entity)
+            .and_then(|e| e.combat.as_mut())
+        else {
+            return;
+        };
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut combat.role
+        else {
+            return;
+        };
+        // The entire ledger was validated at admission/restore and every mutation preserves
+        // it. Validation here fails closed by retaining an unchanged ledger.
+        let Ok(adjustment) = p.class_state.reconcile_tokens(
+            registry,
+            &p.identity,
+            CharacterId::from_uuid(entity.as_uuid()),
+            combat.sheet.level(),
+            crossing_from,
+        ) else {
+            return;
+        };
+        if adjustment.claimed_mask != 0 {
+            events.push(ZoneEvent::TokensReconciled {
+                tick,
+                entity,
+                adjustment,
+                source: if crossing_from.is_some() {
+                    crate::domain::character_progression::TokenSource::LevelUp
+                } else {
+                    crate::domain::character_progression::TokenSource::Admission
+                },
+            });
+        }
     }
 
     pub(super) fn loaded_player(
@@ -525,6 +589,7 @@ mod tests {
         let mut class_state = ClassState::new(base);
         class_state.token_tier_1_count = 1;
         class_state.token_tier_2_count = 1;
+        class_state.milestone_claimed_mask = 3;
         let progression = PlayerProgression {
             identity: CharacterIdentity {
                 account_id: account,
@@ -718,7 +783,7 @@ mod tests {
             replay = ZoneState::from_snapshot(replay.snapshot()).unwrap();
             assert_eq!(s.state_digest(), replay.state_digest());
         }
-        assert_eq!(s.snapshot().meta.digest_version, StateDigestVersion::BinaryV3);
+        assert_eq!(s.snapshot().meta.digest_version, StateDigestVersion::BinaryV4);
     }
     #[test]
     fn restored_identity_and_receipts_cannot_cross_characters() {
@@ -870,6 +935,7 @@ mod tests {
             };
             p.class_state.token_tier_1_count = 0;
             p.class_state.token_tier_2_count = 0;
+            p.class_state.milestone_claimed_mask = 0;
             assert!(empty
                 .transfer_unmet(e, class.id)
                 .contains(&RejectReason::TransferRequirement));
@@ -979,9 +1045,13 @@ mod tests {
     }
 
     #[test]
-    fn human_keltir_reward_is_29_and_real_crossings_learn_metadata_without_token_grants() {
-        for level in [19, 39] {
+    fn human_keltir_real_crossings_supply_only_in_new_policy_and_learn_metadata() {
+        for (level, enabled) in [(19, false), (39, false), (19, true), (39, true)] {
             let (mut s, e, a) = fixture(level);
+            if !enabled {
+                s.meta.digest_version = StateDigestVersion::BinaryV3;
+                s.meta.schema_version = 7;
+            }
             let next_xp = s.rules.as_ref().unwrap().xp_to_level(level + 1).unwrap();
             let CombatRole::Player {
                 xp,
@@ -1001,6 +1071,7 @@ mod tests {
             *xp = next_xp - 29;
             p.class_state.token_tier_1_count = 0;
             p.class_state.token_tier_2_count = 0;
+            p.class_state.milestone_claimed_mask = 0;
             let zone = crate::infrastructure::zone_data::parse_zone(
                 crate::infrastructure::zone_data::TEST_ZONE_TOML,
             )
@@ -1060,9 +1131,30 @@ mod tests {
             assert_eq!(c.sheet.level(), level + 1);
             let p = s.class_player(e, a, SessionGeneration(1)).unwrap();
             assert!(!p.class_state.learned_skills.is_empty());
-            assert_eq!(p.class_state.token_tier_1_count, 0);
-            assert_eq!(p.class_state.token_tier_2_count, 0);
-            assert_eq!(p.class_state.milestone_claimed_mask, 0);
+            assert_eq!(p.class_state.token_tier_1_count, u32::from(enabled && level == 19));
+            assert_eq!(p.class_state.token_tier_2_count, u32::from(enabled && level == 39));
+            assert_eq!(
+                p.class_state.milestone_claimed_mask,
+                if enabled {
+                    if level == 19 {
+                        1
+                    } else {
+                        2
+                    }
+                } else {
+                    0
+                }
+            );
+            let before = p.class_state.clone();
+            for _ in 0..20 {
+                s.run_tick(s.draft(vec![])).unwrap();
+            }
+            assert_eq!(
+                s.class_player(e, a, SessionGeneration(1))
+                    .unwrap()
+                    .class_state,
+                before
+            );
         }
     }
     #[test]
@@ -1169,5 +1261,83 @@ mod tests {
         );
         assert!(reconnected.outputs[&owner].iter().any(|out| matches!(out,
             ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, identity: Some(public), .. }) if *entity == owner && public.class_id == ClassId(1))));
+    }
+    #[test]
+    fn token_admission_and_replay_preserve_vitals_and_legacy_bytes() {
+        use crate::application::replay_log::{decode_snapshot, encode_snapshot, AppliedTickRecord};
+        let (legacy, e, a) = fixture(40);
+        let p = legacy.class_player(e, a, SessionGeneration(1)).unwrap();
+        let mut ledger = p.class_state.clone();
+        ledger.token_tier_1_count = 0;
+        ledger.token_tier_2_count = 0;
+        ledger.milestone_claimed_mask = 0;
+        for enabled in [false, true] {
+            let mut state = ZoneState::new(legacy.seed(), legacy.bounds(), 0)
+                .with_rules(legacy.rules.clone().unwrap())
+                .with_classes(legacy.classes.clone().unwrap())
+                .unwrap();
+            if !enabled {
+                state.meta.digest_version = StateDigestVersion::BinaryV3;
+                state.meta.schema_version = 7;
+            }
+            let initial = state.snapshot();
+            let encoded = encode_snapshot(&initial).unwrap();
+            assert_eq!(encode_snapshot(&decode_snapshot(&encoded).unwrap()).unwrap(), encoded);
+            let mut replay = ZoneState::from_snapshot(decode_snapshot(&encoded).unwrap()).unwrap();
+            let load = PlayerLoad {
+                progression: Some(Box::new(PlayerProgression {
+                    identity: p.identity.clone(),
+                    class_state: ledger.clone(),
+                    max_cp: 0,
+                })),
+                checkpoint_revision: Some(0),
+                level: 40,
+                xp: state.rules.as_ref().unwrap().xp_to_level(40).unwrap(),
+                hp: Some(17),
+                mp: Some(9),
+                ..PlayerLoad::fresh("human_fighter")
+            };
+            let draft = state.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+                entity: e,
+                name: "Tester".into(),
+                pos: Vec2Fixed::from_tiles(126, 126),
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                load: Some(Box::new(load)),
+            })]);
+            let applied = state.run_tick(draft.clone()).unwrap();
+            let repeated = replay.run_tick(draft).unwrap();
+            let record = AppliedTickRecord::from_applied(state.seed().zone, &applied);
+            assert!(record
+                .reproduced_by(&AppliedTickRecord::from_applied(state.seed().zone, &repeated)));
+            assert_eq!(
+                record.encode(),
+                AppliedTickRecord::decode(&record.encode())
+                    .unwrap()
+                    .encode()
+            );
+            let combat = state.entities[&e].combat.as_ref().unwrap();
+            assert_eq!((combat.hp, combat.mp, combat.sheet.level()), (17, 9, 40));
+            let p = state.class_player(e, a, SessionGeneration(1)).unwrap();
+            assert_eq!(p.class_state.milestone_claimed_mask, if enabled { 3 } else { 0 });
+            assert_eq!(p.class_state.token_tier_1_count, u32::from(enabled));
+            assert_eq!(p.class_state.token_tier_2_count, u32::from(enabled));
+            assert!(applied
+                .outputs
+                .values()
+                .flatten()
+                .all(|o| !matches!(o, ObserverOutput::Event(ZoneEvent::TokensReconciled { .. }))));
+            let reconnected = apply(
+                &mut state,
+                ZoneInput::system(ZoneCommand::ReplaceSession {
+                    entity: e,
+                    generation: SessionGeneration(2),
+                }),
+            );
+            assert!(!reconnected
+                .events
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::TokensReconciled { .. })));
+        }
     }
 }

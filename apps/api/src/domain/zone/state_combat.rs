@@ -732,6 +732,9 @@ impl ZoneState {
             total,
         });
         if let Some((old, new)) = self.relevel(player) {
+            if new > old {
+                self.reconcile_player_tokens(tick, player, Some(old), events);
+            }
             for level in old.saturating_add(1)..=new {
                 events.push(ZoneEvent::LevelUp {
                     tick,
