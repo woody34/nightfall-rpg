@@ -83,7 +83,7 @@ pub struct SuccessfulTransferReceipt {
 /// A bounded, forever-retained transfer history and the active main-class resource ledger.
 /// XP/level/HP/MP remain in the existing progression state to avoid competing copies.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "ClassStateParts")]
 #[allow(missing_docs)]
 pub struct ClassState {
     pub base_class_id: ClassId,
@@ -97,8 +97,43 @@ pub struct ClassState {
     pub token_tier_2_count: u32,
     /// Bits 0 and 1 mark the level-20 and level-40 token grants, never reset by death.
     pub milestone_claimed_mask: u8,
-    #[serde(deserialize_with = "deserialize_receipts")]
     pub successful_transfer_receipts: Vec<SuccessfulTransferReceipt>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ClassStateParts {
+    pub base_class_id: ClassId,
+    pub current_class_id: ClassId,
+    pub sp: u64,
+    /// Learned metadata only; Phase 3 owns skill effects and active skill execution.
+    #[serde(default)]
+    pub learned_skills: Vec<LearnedSkill>,
+    pub cp: u32,
+    pub token_tier_1_count: u32,
+    pub token_tier_2_count: u32,
+    /// Bits 0 and 1 mark the level-20 and level-40 token grants, never reset by death.
+    pub milestone_claimed_mask: u8,
+    pub successful_transfer_receipts: Vec<SuccessfulTransferReceipt>,
+}
+
+impl TryFrom<ClassStateParts> for ClassState {
+    type Error = ClassStateError;
+    fn try_from(parts: ClassStateParts) -> Result<Self, Self::Error> {
+        let state = Self {
+            base_class_id: parts.base_class_id,
+            current_class_id: parts.current_class_id,
+            sp: parts.sp,
+            learned_skills: parts.learned_skills,
+            cp: parts.cp,
+            token_tier_1_count: parts.token_tier_1_count,
+            token_tier_2_count: parts.token_tier_2_count,
+            milestone_claimed_mask: parts.milestone_claimed_mask,
+            successful_transfer_receipts: parts.successful_transfer_receipts,
+        };
+        state.validate()?;
+        Ok(state)
+    }
 }
 
 impl ClassState {
@@ -121,6 +156,22 @@ impl ClassState {
     /// Rejects impossible persisted ledgers before any checkpoint write.
     pub fn validate(&self) -> Result<(), ClassStateError> {
         validate_receipts(&self.successful_transfer_receipts)?;
+        let mut prior: Option<&FrozenTransferResult> = None;
+        for receipt in &self.successful_transfer_receipts {
+            let result = &receipt.result;
+            if result.identity.base_class_id != self.base_class_id {
+                return Err(ClassStateError::Identity);
+            }
+            if prior.is_some_and(|previous| {
+                previous.character_id != result.character_id
+                    || previous.identity != result.identity
+                    || previous.name != result.name
+                    || previous.stats != result.stats
+            }) {
+                return Err(ClassStateError::Identity);
+            }
+            prior = Some(result);
+        }
         let mut previous: Option<&str> = None;
         for skill in &self.learned_skills {
             if skill.key.is_empty()
@@ -133,6 +184,75 @@ impl ClassState {
         }
         if self.milestone_claimed_mask & !3 != 0 {
             return Err(ClassStateError::MilestoneMask);
+        }
+        Ok(())
+    }
+
+    /// Contextual admission/checkpoint/snapshot validation against immutable catalogue and
+    /// containing character. Historical mutable resources are never compared with live state.
+    pub fn validate_for(
+        &self,
+        registry: &super::class::ClassRegistry,
+        identity: &CharacterIdentity,
+        character_id: CharacterId,
+    ) -> Result<(), ClassStateError> {
+        self.validate()?;
+        if identity.base_class_id != self.base_class_id
+            || identity.appearance.hair_style != 0
+            || identity.appearance.hair_color != 0
+            || identity.appearance.face != 0
+        {
+            return Err(ClassStateError::Identity);
+        }
+        let base = registry
+            .get(self.base_class_id)
+            .ok_or(ClassStateError::Lineage)?;
+        if base.tier != 0 || base.race != identity.race || base.base_class_id != self.base_class_id
+        {
+            return Err(ClassStateError::Lineage);
+        }
+        let current = registry
+            .get(self.current_class_id)
+            .ok_or(ClassStateError::Lineage)?;
+        if current.tier > 2
+            || current.race != identity.race
+            || current.base_class_id != self.base_class_id
+        {
+            return Err(ClassStateError::Lineage);
+        }
+        let mut parent = self.base_class_id;
+        for (ordinal, receipt) in self.successful_transfer_receipts.iter().enumerate() {
+            let target = registry
+                .get(receipt.target_class_id)
+                .ok_or(ClassStateError::Lineage)?;
+            if target.tier > 2
+                || usize::from(target.tier) != ordinal.saturating_add(1)
+                || target.parent != Some(parent)
+                || target.base_class_id != self.base_class_id
+                || target.race != identity.race
+            {
+                return Err(ClassStateError::ReceiptHistory);
+            }
+            let result = &receipt.result;
+            if result.character_id != character_id
+                || result.identity != *identity
+                || result.stats != base.base_stats
+            {
+                return Err(ClassStateError::Identity);
+            }
+            if !(target.min_level..=85).contains(&result.level)
+                || result.hp > result.max_hp
+                || result.mp > result.max_mp
+                || result.cp > result.max_cp
+            {
+                return Err(ClassStateError::ReceiptHistory);
+            }
+            parent = target.id;
+        }
+        if parent != self.current_class_id
+            || usize::from(current.tier) != self.successful_transfer_receipts.len()
+        {
+            return Err(ClassStateError::ReceiptHistory);
         }
         Ok(())
     }
@@ -181,6 +301,21 @@ impl ClassState {
         if receipt.result.current_class_id != receipt.target_class_id {
             return Err(ClassStateError::ReceiptTarget);
         }
+        if receipt.result.identity.base_class_id != self.base_class_id {
+            return Err(ClassStateError::Identity);
+        }
+        if self
+            .successful_transfer_receipts
+            .first()
+            .is_some_and(|known| {
+                known.result.character_id != receipt.result.character_id
+                    || known.result.identity != receipt.result.identity
+                    || known.result.name != receipt.result.name
+                    || known.result.stats != receipt.result.stats
+            })
+        {
+            return Err(ClassStateError::Identity);
+        }
         self.successful_transfer_receipts.push(receipt);
         Ok(())
     }
@@ -206,6 +341,15 @@ pub enum ClassStateError {
     /// The frozen response disagrees with the requested target.
     #[error("transfer receipt target does not match result")]
     ReceiptTarget,
+    /// Active profession is unknown, unsupported or belongs to another lineage/race.
+    #[error("invalid class lineage")]
+    Lineage,
+    /// Ledger or frozen response contradicts immutable containing identity.
+    #[error("class ledger identity mismatch")]
+    Identity,
+    /// Receipt sequence does not describe the current reachable transfer history.
+    #[error("invalid class transfer receipt history")]
+    ReceiptHistory,
     /// Learned metadata is not strictly ordered, has duplicate/empty keys or level zero.
     #[error("invalid learned skill metadata")]
     LearnedSkills,
@@ -228,15 +372,6 @@ fn validate_receipts(receipts: &[SuccessfulTransferReceipt]) -> Result<(), Class
         }
     }
     Ok(())
-}
-
-fn deserialize_receipts<'de, D>(deserializer: D) -> Result<Vec<SuccessfulTransferReceipt>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let receipts = Vec::deserialize(deserializer)?;
-    validate_receipts(&receipts).map_err(serde::de::Error::custom)?;
-    Ok(receipts)
 }
 
 /// Legacy Phase 1 combat profile for a lineage's base profession; unknown ids fail closed.
@@ -285,4 +420,154 @@ pub fn auto_get_metadata(
         .into_iter()
         .map(|(key, level)| LearnedSkill { key, level })
         .collect())
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    fn receipt(key: u128, target: u32) -> SuccessfulTransferReceipt {
+        let mut character = super::super::Character::create(
+            AccountId::from_uuid(Uuid::nil()),
+            CharacterName::new("Hero").unwrap(),
+            Race::Human,
+        );
+        character.id = CharacterId::from_uuid(Uuid::nil());
+        SuccessfulTransferReceipt {
+            key: Uuid::from_u128(key),
+            target_class_id: ClassId(target),
+            result: FrozenTransferResult {
+                character_id: character.id,
+                identity: character.identity(),
+                name: character.name,
+                current_class_id: ClassId(target),
+                level: 20,
+                xp: 100,
+                sp: 0,
+                stats: character.stats,
+                position_millitiles: [126_000, 126_000],
+                hp: 50,
+                mp: 20,
+                cp: 10,
+                max_hp: 100,
+                max_mp: 40,
+                max_cp: 20,
+                token_tier_1_count: 0,
+                token_tier_2_count: 0,
+                granted_skill_keys: Vec::new(),
+            },
+        }
+    }
+
+    #[test]
+    fn success_history_is_bounded_and_keys_are_immutable() {
+        let mut state = ClassState::new(ClassId(0));
+        let first = receipt(1, 1);
+        state.record_success(first.clone()).unwrap();
+        state.record_success(first.clone()).unwrap();
+        assert_eq!(state.successful_transfer_receipts.len(), 1);
+        let mut changed = first.clone();
+        changed.target_class_id = ClassId(4);
+        assert_eq!(state.record_success(changed), Err(ClassStateError::ConflictingReceipt));
+        state.record_success(receipt(2, 2)).unwrap();
+        assert_eq!(state.record_success(receipt(3, 3)), Err(ClassStateError::ReceiptLimit));
+        state.validate().unwrap();
+        let json = serde_json::to_value(&state).unwrap();
+        assert_eq!(serde_json::from_value::<ClassState>(json).unwrap(), state);
+    }
+
+    #[test]
+    fn deserialization_refuses_unbounded_or_duplicate_history() {
+        let mut state = ClassState::new(ClassId(0));
+        state.successful_transfer_receipts = vec![receipt(1, 1), receipt(2, 2), receipt(3, 3)];
+        assert!(
+            serde_json::from_value::<ClassState>(serde_json::to_value(&state).unwrap()).is_err()
+        );
+        let one = receipt(1, 1);
+        state.successful_transfer_receipts = vec![one.clone(), one];
+        assert!(
+            serde_json::from_value::<ClassState>(serde_json::to_value(&state).unwrap()).is_err()
+        );
+    }
+
+    #[test]
+    fn learned_metadata_merge_is_ordered_upgrades_only_and_does_not_charge_sp() {
+        let mut state = ClassState::new(ClassId(0));
+        state.sp = 500;
+        let skill = |key: &str, level| LearnedSkill {
+            key: key.into(),
+            level,
+        };
+        assert_eq!(
+            state.merge_learned_skills([skill("test.b", 1), skill("test.a", 2)]),
+            vec!["test.a", "test.b"]
+        );
+        assert_eq!(
+            state.merge_learned_skills([skill("test.a", 1), skill("test.b", 3)]),
+            vec!["test.b"]
+        );
+        assert_eq!(state.learned_skills, vec![skill("test.a", 2), skill("test.b", 3)]);
+        assert_eq!(state.sp, 500);
+        state.validate().unwrap();
+    }
+    #[test]
+    fn entire_local_ledger_is_validated_during_deserialization() {
+        for mask in 0..=255 {
+            let mut state = ClassState::new(ClassId(0));
+            state.milestone_claimed_mask = mask;
+            let result =
+                serde_json::from_value::<ClassState>(serde_json::to_value(&state).unwrap());
+            assert_eq!(result.is_ok(), mask <= 3);
+        }
+        let mut state = ClassState::new(ClassId(0));
+        let mut success = receipt(1, 1);
+        success.result.identity.base_class_id = ClassId(10);
+        state.successful_transfer_receipts.push(success);
+        assert_eq!(state.validate(), Err(ClassStateError::Identity));
+        assert!(
+            serde_json::from_value::<ClassState>(serde_json::to_value(&state).unwrap()).is_err()
+        );
+    }
+
+    #[test]
+    fn contextual_validation_refuses_corrupt_lineages_identities_and_history() {
+        let registry = crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap()
+        .registry;
+        let success = receipt(1, 1);
+        let identity = success.result.identity.clone();
+        let id = success.result.character_id;
+        let mut state = ClassState::new(ClassId(0));
+        state.validate_for(&registry, &identity, id).unwrap();
+        for current in [31, 123, 88, 999] {
+            state.current_class_id = ClassId(current);
+            assert!(state.validate_for(&registry, &identity, id).is_err());
+        }
+        state.current_class_id = ClassId(1);
+        state.record_success(success.clone()).unwrap();
+        state.validate_for(&registry, &identity, id).unwrap();
+        for field in 0..7 {
+            let mut corrupt = state.clone();
+            let result = &mut corrupt.successful_transfer_receipts[0].result;
+            match field {
+                0 => result.character_id = CharacterId::from_uuid(Uuid::from_u128(7)),
+                1 => result.identity.account_id = AccountId::from_uuid(Uuid::from_u128(7)),
+                2 => result.identity.race = Race::Elf,
+                3 => result.identity.appearance.sex = Sex::Female,
+                4 => result.identity.base_class_id = ClassId(18),
+                5 => {
+                    result.current_class_id = ClassId(88);
+                    corrupt.successful_transfer_receipts[0].target_class_id = ClassId(88);
+                },
+                _ => {
+                    result.current_class_id = ClassId(999);
+                    corrupt.successful_transfer_receipts[0].target_class_id = ClassId(999);
+                },
+            }
+            assert!(corrupt.validate_for(&registry, &identity, id).is_err(), "field {field}");
+        }
+    }
 }
