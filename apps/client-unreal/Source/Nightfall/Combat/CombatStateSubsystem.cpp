@@ -168,14 +168,16 @@ void UCombatStateSubsystem::ApplySpawn(const FEntitySpawn& Spawn)
 		Held = *Gone;
 		bHeld = true;
 	}
-	if (bHeld && NightfallProto::IsStaleSpawn(Held, Spawn))
+	if (bHeld && (NightfallProto::IsStaleSpawn(Held, Spawn) || (Net() && Net()->IsPhase3Projection() && FindEntity(Spawn.EntityId) && Held.SessionGeneration == Spawn.SessionGeneration && Held.LifeIncarnation == Spawn.LifeIncarnation && Held.StateTick == Spawn.StateTick)))
 	{
 		UE_LOG(LogNightfall, Verbose, TEXT("combat: stale spawn for %s ignored"), *Spawn.EntityId);
 		return;
 	}
 	Tombstones.Remove(Key(Spawn.EntityId));
 	FCombatEntity& E = FindOrAdd(Spawn.EntityId);
+	if (IsOwn(Spawn.EntityId)) { Own = {}; SelectionTick = 0; ClearTarget(); }
 	E.Spawn = Spawn;
+	E.IdentityBaselineTick = Spawn.StateTick; E.ClassTick = Spawn.StateTick;
 	E.bCombatant = Spawn.bCombatant;
 	E.bDead = Spawn.bDead;
 	E.bAttackable = Spawn.bAttackable;
@@ -209,7 +211,7 @@ void UCombatStateSubsystem::ApplyAttackResult(const FAttackResult& R)
 	FCombatEntity* Target = Entities.Find(Key(R.Target));
 	if (Target)
 	{
-		if (Net() && Net()->IsPhase3Projection() && (R.TargetIncarnation != Target->Incarnation || R.Tick <= Target->Spawn.StateTick)) return;
+		if (Net() && Net()->IsPhase3Projection() && (R.TargetIncarnation != Target->Incarnation || R.Tick <= Target->IdentityBaselineTick)) return;
 		// A swing that landed on an earlier life, or older than what we already applied, is stale.
 		if (Target->Incarnation != 0 && R.TargetIncarnation != 0 && R.TargetIncarnation < Target->Incarnation) return;
 		if (R.Tick < Target->LastFactTick) return;
@@ -252,6 +254,7 @@ void UCombatStateSubsystem::ApplyDied(const FEntityDied& Died)
 {
 	FCombatEntity* E = Entities.Find(Key(Died.Entity));
 	if (!E) return;   // not in our area of interest
+	if (Net() && Net()->IsPhase3Projection() && (Died.Incarnation != E->Incarnation || Died.Tick <= E->IdentityBaselineTick)) return;
 	if (E->Incarnation != 0 && Died.Incarnation != 0 && Died.Incarnation < E->Incarnation) return;
 	if (Died.Tick < E->LastFactTick) return;
 	if (Died.Incarnation > E->Incarnation) E->Incarnation = Died.Incarnation;
@@ -267,12 +270,13 @@ void UCombatStateSubsystem::ApplyRespawned(const FEntityRespawned& Respawned)
 {
 	FCombatEntity* E = Entities.Find(Key(Respawned.Entity));
 	if (!E) return;
+	if (Net() && Net()->IsPhase3Projection() && Respawned.Incarnation <= E->Incarnation) return;
 	// A respawn of an earlier life, or older than what we already applied, is stale.
 	if (E->Incarnation != 0 && Respawned.Incarnation != 0 && Respawned.Incarnation < E->Incarnation) return;
 	if (Respawned.Tick < E->LastFactTick) return;
 	if (Respawned.Incarnation > E->Incarnation) E->Incarnation = Respawned.Incarnation;   // the life fence advances
 	E->bDead = false;
-	if (Net() && Net()->IsPhase3Projection()) E->Spawn.StateTick = Respawned.Tick;
+	if (Net() && Net()->IsPhase3Projection()) E->IdentityBaselineTick = Respawned.Tick;
 	E->Hp = Respawned.Hp;
 	E->LastFactTick = Respawned.Tick;
 	if (IsOwn(Respawned.Entity)) RespawnSeq = 0;
@@ -284,7 +288,7 @@ void UCombatStateSubsystem::ApplyStats(const FStatsChanged& Stats)
 	if (Net() && Net()->IsPhase3Projection())
 	{
 		const auto* Known = FindEntity(Stats.Entity);
-		if (!Known || Stats.Incarnation != Known->Incarnation || (Stats.bBaseline ? Stats.BaselineTick != Known->Spawn.StateTick : Stats.Tick <= Known->Spawn.StateTick)) return;
+		if (!Known || Stats.Incarnation != Known->Incarnation || (Stats.bBaseline ? Stats.BaselineTick != Known->IdentityBaselineTick || Stats.Tick != Stats.BaselineTick : Stats.Tick <= Known->IdentityBaselineTick)) return;
 	}
 	if (!IsOwn(Stats.Entity) || Stats.Tick < Own.LastStatsTick) return;   // owner-only and monotonic
 	FCombatEntity& E = FindOrAdd(Stats.Entity);
@@ -332,7 +336,7 @@ void UCombatStateSubsystem::ApplyTargetChanged(const FTargetChanged& Changed)
 	if (Net() && Net()->IsPhase3Projection())
 	{
 		const auto* Known = FindOwnEntity();
-		if (!Known || (Changed.bBaseline ? Changed.BaselineTick != Known->Spawn.StateTick : Changed.Tick <= Known->Spawn.StateTick) || Changed.Tick < SelectionTick) return;
+		if (!Known || (Changed.bBaseline ? Changed.BaselineTick != Known->IdentityBaselineTick || Changed.Tick != Changed.BaselineTick : Changed.Tick <= Known->IdentityBaselineTick) || Changed.Tick < SelectionTick) return;
 		if (!Changed.Target.IsEmpty()) { const auto* Target = FindEntity(Changed.Target); if (!Target || !Changed.TargetIncarnation.IsSet() || *Changed.TargetIncarnation != Target->Incarnation) return; }
 		SelectionTick = Changed.Tick;
 	}
@@ -537,16 +541,16 @@ FCombatHudModel UCombatStateSubsystem::BuildHudModel() const
 void UCombatStateSubsystem::ApplyClassChanged(const FClassChanged& Changed)
 {
 	FCombatEntity* E = Entities.Find(Key(Changed.Entity));
-	if (!E || Changed.SessionGeneration != E->Spawn.SessionGeneration || Changed.Tick < E->Spawn.StateTick) return;
+	if (!E || Changed.SessionGeneration != E->Spawn.SessionGeneration || Changed.Tick < E->ClassTick || Changed.Tick < E->IdentityBaselineTick) return;
 	E->Spawn.ClassId = Changed.ClassId;
-	E->Spawn.StateTick = Changed.Tick;
+	E->ClassTick = Changed.Tick;
 	OnChanged.Broadcast();
 }
 
 void UCombatStateSubsystem::ApplyVitals(const FVitalsChanged& V)
 {
 	auto* E = Entities.Find(Key(V.Entity));
-	if (!E || V.Incarnation != E->Incarnation || V.Tick < E->LastFactTick || (V.bBaseline ? V.BaselineTick != E->Spawn.StateTick : V.Tick <= E->Spawn.StateTick)) return;
+	if (!E || V.Incarnation != E->Incarnation || V.Tick < E->LastFactTick || (V.bBaseline ? V.BaselineTick != E->IdentityBaselineTick || V.Tick != V.BaselineTick : V.Tick <= E->IdentityBaselineTick)) return;
 	E->Hp = V.Hp; E->MaxHp = V.MaxHp; E->LastFactTick = V.Tick; OnChanged.Broadcast();
 }
 void UCombatStateSubsystem::ApplySkillResult(const FSkillCastResult& R)
@@ -554,7 +558,7 @@ void UCombatStateSubsystem::ApplySkillResult(const FSkillCastResult& R)
 	for (const auto& Hit : R.Targets)
 	{
 		auto* E = Entities.Find(Key(Hit.Target));
-		if (!E || Hit.TargetIncarnation != E->Incarnation || Hit.Tick <= E->Spawn.StateTick || Hit.Tick < E->LastFactTick) continue;
+		if (!E || Hit.TargetIncarnation != E->Incarnation || Hit.Tick <= E->IdentityBaselineTick || Hit.Tick < E->LastFactTick) continue;
 		const FString Event = FString::Printf(TEXT("skill|%llu|%llu|%s|%s|%u"), R.CastId, Hit.Tick, *R.Caster, *Hit.Target, Hit.ResolutionKind);
 		if (!RememberEvent(Event)) continue;
 		E->Hp = Hit.TargetHpAfter; E->LastFactTick = Hit.Tick;

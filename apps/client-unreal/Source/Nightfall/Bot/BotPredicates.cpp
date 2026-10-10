@@ -1,5 +1,6 @@
 #include "BotPredicates.h"
 #include "ClassBotPredicates.h"
+#include "SkillBotPredicates.h"
 #include "BotFixtureData.h"
 #include "BotScenarioRunner.h"
 #include "Auth/AuthSubsystem.h"
@@ -1189,4 +1190,5 @@ void FBotPredicateRegistry::RegisterBuiltins()
 	RegisterNumber(TEXT("late_spawn_hp_bad"), TEXT("Wounded NPC spawns whose next AttackResult did not continue from the spawn's HP (must stay 0)"),
 		Count([](const FBotObservations& O) { return O.LateSpawnHpBad; }));
 	ClassBotPredicates::Register(*this);
+	SkillBotPredicates::Register(*this);
 }

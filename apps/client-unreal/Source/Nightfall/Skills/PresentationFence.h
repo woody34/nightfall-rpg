@@ -29,8 +29,15 @@ struct FPresentationFence
 	bool Accept(const FString& Id, uint32 Inc, uint64 At, bool bBaseline = false, uint64 BaselineTick = 0) const
 	{
 		const auto* S = Identities.Find(Id.ToLower());
-		return S && Inc == S->LifeIncarnation && (bBaseline ? BaselineTick == S->StateTick && At >= BaselineTick : At > S->StateTick);
+		return S && Inc == S->LifeIncarnation && (bBaseline ? BaselineTick == S->StateTick && At == BaselineTick : At > S->StateTick);
 	}
+	bool Died(const FEntityDied& D)
+	{
+		auto* S = Identities.Find(D.Entity.ToLower());
+		if (!S || !Accept(D.Entity, D.Incarnation, D.Tick)) return false;
+		S->bDead = true; Tick = FMath::Max(Tick, D.Tick); return true;
+	}
+	bool Dead(const FString& Id) const { const auto* S = Identities.Find(Id.ToLower()); return S && S->bDead; }
 	bool Visible(const FString& Id, uint32 Inc) const
 	{
 		const auto* S = Identities.Find(Id.ToLower()); return S && Inc == S->LifeIncarnation;

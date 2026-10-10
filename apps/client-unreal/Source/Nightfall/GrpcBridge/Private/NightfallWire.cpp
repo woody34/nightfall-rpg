@@ -47,6 +47,7 @@ namespace NightfallWire
 		::nightfall::v1::CreateCharacterRequest Msg;
 		if (Size < 0 || (Size > 0 && !Data) || !Msg.ParseFromArray(Data, Size)) return false;
 		GRPC_TO_TURBOLINK(&Msg, &Out);
+
 		return true;
 	}
 
@@ -59,6 +60,13 @@ namespace NightfallWire
 			return false;
 		}
 		GRPC_TO_TURBOLINK(&Msg, &Out);
+  // TurboLink materializes absent shared message fields. Preserve protobuf presence here.
+  if(Msg.has_event() && Msg.event().has_spawn() && Out.Payload.Event.IsValid() && Out.Payload.Event->Event.Spawn.IsValid())
+  {
+   auto& Spawn=*Out.Payload.Event->Event.Spawn;
+   if(!Msg.event().spawn().has_pending_swing())Spawn.PendingSwing.Reset();
+   if(!Msg.event().spawn().has_pending_cast())Spawn.PendingCast.Reset();
+  }
 		return true;
 	}
 }
@@ -66,7 +74,19 @@ namespace NightfallWire
 void NightfallWire::EncodeServerMessage(const FGrpcNightfallV1ServerMessage& In, TArray<uint8>& Out)
 {
 	::nightfall::v1::ServerMessage Msg;
-	TURBOLINK_TO_GRPC(&In, &Msg);
+	// The generated server marshaler dereferences nullable spawn message fields.
+ FGrpcNightfallV1ServerMessage Safe=In;
+ bool bSpawn=false,bSwing=false,bCast=false;
+ if(In.Payload.PayloadCase==EGrpcNightfallV1ServerMessagePayload::Event && In.Payload.Event.IsValid() && In.Payload.Event->Event.EventCase==EGrpcNightfallV1WorldEventEvent::Spawn && In.Payload.Event->Event.Spawn.IsValid())
+ {
+  bSpawn=true;Safe.Payload.Event=MakeShared<FGrpcNightfallV1WorldEvent>(*In.Payload.Event);
+  Safe.Payload.Event->Event.Spawn=MakeShared<FGrpcNightfallV1EntitySpawn>(*In.Payload.Event->Event.Spawn);
+  auto& Spawn=*Safe.Payload.Event->Event.Spawn;bSwing=Spawn.PendingSwing.IsValid();bCast=Spawn.PendingCast.IsValid();
+  if(!bSwing)Spawn.PendingSwing=MakeShared<FGrpcNightfallV1AttackStarted>();
+  if(!bCast)Spawn.PendingCast=MakeShared<FGrpcNightfallV1SkillCastStarted>();
+ }
+ TURBOLINK_TO_GRPC(&Safe,&Msg);
+ if(bSpawn){if(!bSwing)Msg.mutable_event()->mutable_spawn()->clear_pending_swing();if(!bCast)Msg.mutable_event()->mutable_spawn()->clear_pending_cast();}
 	Out.SetNumUninitialized(static_cast<int32>(Msg.ByteSizeLong()));
 	Msg.SerializeWithCachedSizesToArray(Out.GetData());
 }

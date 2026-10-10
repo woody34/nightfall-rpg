@@ -18,6 +18,8 @@ struct FCombatEntity
 	uint32 Hp = 0;
 	uint32 MaxHp = 0;
 	uint32 Level = 0;
+	uint64 IdentityBaselineTick = 0; // immutable until spawn/respawn; class facts have their own watermark
+	uint64 ClassTick = 0;
 	uint64 LastFactTick = 0;     // newest tick that touched Hp / life; older facts are stale
 };
 

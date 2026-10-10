@@ -30,11 +30,14 @@ bool FSkillStateFencesTest::RunTest(const FString& Parameters)
 	Selection.bBaseline = false; Selection.Target.Reset(); E.TargetChanged = Selection; Send(N,E); TestEqual(TEXT("ordinary same-tick selection suppressed"), C->GetOwn().TargetId, FString(TEXT("other")));
 	Selection.Tick = 11; E.TargetChanged = Selection; Send(N,E); TestTrue(TEXT("later clear accepted"), C->GetOwn().TargetId.IsEmpty());
 	FSkillReuse Reuse; Reuse.Entity = TEXT("owner"); Reuse.Incarnation = 1; Reuse.SkillId = 3; Reuse.Tick = 10; Reuse.ReadyTick = 99;
-	E = {}; E.SkillReuse = Reuse; Send(N,E); TestEqual(TEXT("ordinary same-tick reuse ignored"), S->ReuseRemaining(3).GetValue(), uint64(10));
+	E = {}; E.SkillReuse = Reuse; Send(N,E); TestEqual(TEXT("ordinary same-tick reuse ignored"), S->ReuseRemaining(3).GetValue(), uint64(9));
 	FSkillCastStarted Cast; Cast.Caster = TEXT("other"); Cast.CasterIncarnation = 1; Cast.CastId = 8; Cast.SkillId = 3; Cast.Tick = Cast.BaselineTick = 10; Cast.StartTick = 7; Cast.CompleteTick = 16; Cast.bBaseline = true; Cast.Target = TEXT("hidden"); Cast.TargetIncarnation = 5;
 	E = {}; E.SkillCastStarted = Cast; Send(N,E); TestTrue(TEXT("cast hydrated"), S->FindCast(TEXT("other"))->Cast.IsSet()); TestFalse(TEXT("hidden endpoint omitted"), S->FindCast(TEXT("other"))->Cast->Target.IsSet()); TestEqual(TEXT("no hydration transition"), S->GetCastTransitions(), 0);
 	FSkillCastCancelled Cancel; Cancel.Caster = TEXT("other"); Cancel.CasterIncarnation = 1; Cancel.CastId = 8; Cancel.Tick = 11; Cancel.Reason = 2; E = {}; E.SkillCastCancelled = Cancel; Send(N,E); Send(N,E); TestEqual(TEXT("deduped cast completion"), S->GetCastTransitions(), 1);
 	E = {}; E.SkillCastStarted = Cast; Send(N,E); TestFalse(TEXT("stale hydration cannot revive cancelled cast"), S->FindCast(TEXT("other"))->Cast.IsSet());
+	FClassChanged Class; Class.Entity = TEXT("owner"); Class.SessionGeneration = 1; Class.ClassId = 2; Class.Tick = 12; E = {}; E.ClassChanged = Class; Send(N,E);
+	Stats.bBaseline = false; Stats.Tick = 12; Stats.Mp = 32; E = {}; E.StatsChanged = Stats; Send(N,E); TestEqual(TEXT("class fact does not advance identity baseline"), C->GetOwn().Mp, uint32(32));
+	Stats.bBaseline = true; Stats.Tick = 13; Stats.Mp = 999; E.StatsChanged = Stats; Send(N,E); TestEqual(TEXT("late baseline mark rejected"), C->GetOwn().Mp, uint32(32));
 	FSpGained Sp; Sp.Entity = TEXT("owner"); Sp.Incarnation = 1; Sp.Tick = 12; Sp.Amount = 7; Sp.Total = 98; E = {}; E.SpGained = Sp; Send(N,E); Send(N,E); TestEqual(TEXT("SP deduped"), S->GetSpGainedTotal(), uint64(7));
 	FEntityRespawned Revive; Revive.Entity = TEXT("other"); Revive.Incarnation = 2; Revive.Tick = 13; Revive.Hp = 65; E = {}; E.EntityRespawned = Revive; Send(N,E);
 	FVitalsChanged V; V.Entity = TEXT("other"); V.Incarnation = 2; V.Tick = V.BaselineTick = 13; V.bBaseline = true; V.Hp = 72; V.MaxHp = 150; E = {}; E.VitalsChanged = V; Send(N,E);
@@ -67,7 +70,8 @@ bool FPvpStateTest::RunTest(const FString& Parameters)
 	FWorldEvent E; E.PvpStateChanged = P; Send(N,E); TestEqual(TEXT("public purple bootstrap"), S->Flag(TEXT("other")),FString(TEXT("pvp"))); TestEqual(TEXT("public counters"), S->FindPvp(TEXT("other"))->PvpCount,uint32(7));
 	P.bBaseline = false; P.Tick = 11; P.Karma = 99; E.PvpStateChanged = P; Send(N,E); TestEqual(TEXT("karma takes red priority"), S->Flag(TEXT("other")),FString(TEXT("chaotic")));
 	P.Incarnation = 0; P.Tick = 12; P.Karma = 0; E.PvpStateChanged = P; Send(N,E); TestEqual(TEXT("stale PvP incarnation rejected"), S->FindPvp(TEXT("other"))->Karma,uint32(99));
-	FResurrectOffer O; O.Target = TEXT("owner"); O.TargetIncarnation = 1; O.OfferId = 4; O.State = 1; O.ExpiryTick = 50; O.Tick = 12; E = {}; E.ResurrectOffer = O; Send(N,E); TestTrue(TEXT("received offer pending"), S->OfferPending()); O.State = 2; O.Tick = 13; E.ResurrectOffer = O; Send(N,E); TestFalse(TEXT("received decline clears offer"), S->OfferPending());
+	FEntityDied D; D.Entity = TEXT("owner"); D.Incarnation = 1; D.Tick = 11; E = {}; E.EntityDied = D; Send(N,E);
+	FResurrectOffer O; O.Target = TEXT("owner"); O.TargetIncarnation = 1; O.OfferId = 4; O.State = 1; O.ExpiryTick = 50; O.Tick = 12; E = {}; E.ResurrectOffer = O; Send(N,E); TestTrue(TEXT("received offer pending"), S->OfferPending()); O.State = 2; O.Tick = 13; E.ResurrectOffer = O; Send(N,E); TestFalse(TEXT("received decline clears offer"), S->OfferPending()); O.State = 1; E.ResurrectOffer = O; Send(N,E); TestFalse(TEXT("equal-tick replay cannot undo terminal offer"), S->OfferPending());
 	return true;
 }
 #endif
