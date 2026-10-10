@@ -23,7 +23,9 @@ Public `ClassChanged` observer fan-out also does not increment it. The
 [admitted-event consumer](../../apps/api/src/infrastructure/telemetry/combat.rs) and its
 [focused test](../../apps/api/src/infrastructure/telemetry/combat_tests.rs) define that boundary.
 
-Labels are limited to the two response outcomes and catalogue profession IDs `from`/`to`.
+Application labels are limited to the two response outcomes and catalogue profession IDs `from`/`to`.
+The Prometheus exporter also adds the fixed `otel_scope_name="nightfall-api"` label; panel
+aggregations retain only the documented application labels (and `le` for buckets).
 They contain no account, character, name or mutation key. A successful-response count is
 therefore different from the number of new transfers.
 
