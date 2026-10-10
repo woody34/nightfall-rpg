@@ -52,6 +52,30 @@ class GeneratedCorpusTests(unittest.TestCase):
                 for node, result in zip(stats, out['stat_children']):
                     self.assertEqual(result['value'], GEN.expand(node.get('val'), tables, levels))
 
+    def test_review_condition_reference_tables(self):
+        for sid, ref, values in [(8, '#focusEnergyCharge', list(map(str, range(1, 9)))),
+                                 (50, '#focusEnergyCharge', list(map(str, range(1, 9)))),
+                                 (451, '#chargeConsume', ['2', '3'])]:
+            self.assertEqual(self.files[sid]['condition_tables'][ref], values)
+            _, elem = self.xml[sid]
+            self.assertIn(ref, ET.tostring(elem, encoding='unicode'))
+            self.assertEqual(self.files[sid]['runtime_status'], 'deferred')
+
+    def test_c5_formula_constants_and_pinned_provenance(self):
+        formulas = tomllib.loads((DATA / 'tables/formulas.toml').read_text())
+        config = Path('/home/matt-woodruff/.cache/nightfall/l2j/l2j-game') / formulas['source']['config']
+        lines = config.read_text().splitlines()
+        for key, value, line in [('MinAbnormalStateSuccessRate', 10, 277),
+                                 ('MaxAbnormalStateSuccessRate', 90, 278),
+                                 ('MaxMAtkSpeed', 1999, 268), ('MaxPAtkSpeed', 1500, 264),
+                                 ('MaxEvasion', 250, 272)]:
+            entry = formulas['constants'][key]
+            self.assertEqual(entry['value'], value)
+            self.assertEqual(entry['line'], line)
+            self.assertEqual(entry['symbol'], key)
+            self.assertEqual(entry['file'], formulas['source']['config'])
+            self.assertEqual(entry['literal'], lines[line - 1].strip())
+
     def test_nine_unsupported_stat_conditions_defer(self):
         for sid in [94, 148, 171, 225, 290, 291, 293, 294, 1297]:
             skill = self.files[sid]
@@ -111,6 +135,35 @@ class SyntheticAdmissionTests(unittest.TestCase):
 
     def blockers(self, elem):
         return GEN.compute_all_blockers({9999: ('probe.xml', elem)}, {9999})[1][9999]
+
+    def test_unknown_weapon_kind_defers_and_preserves_requirements(self):
+        elem = self.skill('<cond><using kind="SWORD,MYSTERY"/></cond>')
+        blockers = self.blockers(elem)
+        self.assertEqual(blockers, {'cond:using_kind:MYSTERY'})
+        out = tomllib.loads(GEN.generate_skill_toml(9999, 'probe.xml', elem, blockers))
+        self.assertEqual(out['runtime_status'], 'deferred')
+        self.assertEqual(out['conditions'][0]['attrs'], {'kind': 'SWORD,MYSTERY'})
+        self.assertIn('SWORD,MYSTERY', out['raw_conditions'][0])
+        for kind in GEN.ALLOWED_WEAPON_KINDS:
+            self.assertTrue(GEN.is_cond_allowed(ET.fromstring(f'<using kind="{kind}"/>')))
+
+    def test_unknown_stat_attribute_defers_and_preserves_requirements(self):
+        elem = self.skill('<effects><effect name="Buff"><mul stat="pAtk" val="2" mystery="1"/></effect></effects>')
+        blockers = self.blockers(elem)
+        self.assertEqual(blockers, {'stat_attr:mystery'})
+        out = tomllib.loads(GEN.generate_skill_toml(9999, 'probe.xml', elem, blockers))
+        self.assertEqual(out['runtime_status'], 'deferred')
+        self.assertEqual(out['effects'][0]['stat_children'][0]['raw_attributes'],
+                         {'stat': 'pAtk', 'val': '2', 'mystery': '1'})
+
+    def test_condition_reference_tables_exported_at_every_site(self):
+        elem = self.skill('<table name="#charges">2 3</table><cond><player Charges="#charges"/></cond>'
+                          '<effects><player Charges="#charges"/><effect name="Buff"><player Charges="#charges"/>'
+                          '<mul stat="pAtk" val="2"><player Charges="#charges"/></mul></effect></effects>')
+        out = tomllib.loads(GEN.generate_skill_toml(9999, 'probe.xml', elem, self.blockers(elem)))
+        self.assertEqual(out['condition_tables'], {'#charges': ['2', '3']})
+        self.assertIn('Charges="#charges"', out['raw_conditions'][0])
+        self.assertEqual(out['conditions'][0]['attrs']['Charges'], '#charges')
 
     def test_recursive_toml_and_unknown_attributes_round_trip(self):
         elem = self.skill('<cond><and><using kind="SWORD"/><or><not><player hp="30" mystery="a &quot;quote&quot;"/>'

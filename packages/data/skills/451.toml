@@ -42,6 +42,7 @@ raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><and><using kind=\"DUAL\" /
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "SPEED_UP_SPECIAL", level = [1, 1], time_s = [15, 15], is_debuff = false }
 source_sets = { abnormalLvl = "1", abnormalTime = "15", abnormalType = "SPEED_UP_SPECIAL", affectScope = "SINGLE", chargeConsume = ["2", "3"], effectPoint = ["582", "624"], hitCancelTime = "500", hitTime = "1000", icon = "icon.skill0451", magicLvl = ["62", "68"], mpConsume2 = ["29", "32"], operateType = "A2", reuseDelay = "30000", rideState = "NONE", targetType = "SELF" }
+condition_tables = { "#chargeConsume" = ["2", "3"] }
 
 [[conditions]]
 kind = "and"
