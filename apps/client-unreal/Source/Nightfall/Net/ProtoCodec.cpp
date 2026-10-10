@@ -505,6 +505,7 @@ namespace NightfallProto
 		if (In.MoveTo.IsSet())
 		{
 			TSharedPtr<FGrpcNightfallV1MoveToRequest> MoveTo = MakeShared<FGrpcNightfallV1MoveToRequest>();
+			MoveTo->HasDestination = true;
 			MoveTo->Destination.X = In.MoveTo->Destination.X;
 			MoveTo->Destination.Y = In.MoveTo->Destination.Y;
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MoveTo;

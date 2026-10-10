@@ -139,7 +139,8 @@ class GameService final {
     // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
     // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
     // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
-    // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+    // (zone unavailable), RESOURCE_EXHAUSTED (bounded actor queue/admission capacity),
+    // INTERNAL (persistence failure; no infrastructure detail disclosed).
     virtual ::grpc::Status LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::nightfall::v1::LearnSkillResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>> AsyncLearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>>(AsyncLearnSkillRaw(context, request, cq));
@@ -215,7 +216,8 @@ class GameService final {
       // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
       // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
       // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
-      // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+      // (zone unavailable), RESOURCE_EXHAUSTED (bounded actor queue/admission capacity),
+      // INTERNAL (persistence failure; no infrastructure detail disclosed).
       virtual void LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
@@ -440,7 +442,8 @@ class GameService final {
     // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
     // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
     // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
-    // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+    // (zone unavailable), RESOURCE_EXHAUSTED (bounded actor queue/admission capacity),
+    // INTERNAL (persistence failure; no infrastructure detail disclosed).
     virtual ::grpc::Status LearnSkill(::grpc::ServerContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response);
     // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
     // Errors: UNAUTHENTICATED, UNAVAILABLE (catalogue unavailable, including rollout stub), INTERNAL.

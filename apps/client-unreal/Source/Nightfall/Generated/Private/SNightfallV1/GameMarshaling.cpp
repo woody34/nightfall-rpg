@@ -120,7 +120,9 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::Character* in, FGrpcNightfallV1Cha
     out->Name=StringCast<TCHAR>((const UTF8CHAR*)(in->name().c_str())).Get();
     out->Race=StaticCast<EGrpcNightfallV1Race>(in->race());
     out->Level=in->level();
-    GRPC_TO_TURBOLINK(&(in->stats()), &(out->Stats));
+    out->HasStats = in->has_stats();
+    out->Stats = {};
+    if (out->HasStats) GRPC_TO_TURBOLINK(&(in->stats()), &(out->Stats));
     {
         FGrpcNightfallV1Position field;
         GRPC_TO_TURBOLINK(&(in->position()), &field);
@@ -147,7 +149,8 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1Character* in, ::nightfall::v1::Cha
     out->set_name((const char*)StringCast<UTF8CHAR>(*(in->Name)).Get());
     out->set_race(::nightfall::v1::Race(static_cast<uint8>(in->Race)));
     out->set_level(in->Level);
-    TURBOLINK_TO_GRPC(&(in->Stats), out->mutable_stats());
+    if (in->HasStats) TURBOLINK_TO_GRPC(&(in->Stats), out->mutable_stats());
+    else out->clear_stats();
     TURBOLINK_TO_GRPC(in->Position.Get(), out->mutable_position());
     out->set_class_id(in->ClassId);
     out->set_base_class_id(in->BaseClassId);
@@ -268,7 +271,9 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassInfo* in, FGrpcNightfallV1Cla
     out->ParentClassId=in->parent_class_id();
     out->MinLevel=in->min_level();
     out->Archetype=StaticCast<EGrpcNightfallV1Archetype>(in->archetype());
-    GRPC_TO_TURBOLINK(&(in->base_stats()), &(out->BaseStats));
+    out->HasBaseStats = in->has_base_stats();
+    out->BaseStats = {};
+    if (out->HasBaseStats) GRPC_TO_TURBOLINK(&(in->base_stats()), &(out->BaseStats));
     out->SubclassAllowed=in->subclass_allowed();
     out->SubclassEquivalents.Empty();
     for (int i=0; i<in->subclass_equivalents_size(); ++i) {
@@ -298,7 +303,8 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassInfo* in, ::nightfall::v1::Cla
     out->set_parent_class_id(in->ParentClassId);
     out->set_min_level(in->MinLevel);
     out->set_archetype(::nightfall::v1::Archetype(static_cast<uint8>(in->Archetype)));
-    TURBOLINK_TO_GRPC(&(in->BaseStats), out->mutable_base_stats());
+    if (in->HasBaseStats) TURBOLINK_TO_GRPC(&(in->BaseStats), out->mutable_base_stats());
+    else out->clear_base_stats();
     out->set_subclass_allowed(in->SubclassAllowed);
     for(const auto& value : in->SubclassEquivalents) {
         out->add_subclass_equivalents(value);
@@ -379,14 +385,17 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1RaceInfo* in, ::nightfall::v1::Race
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassMasterInfo* in, FGrpcNightfallV1ClassMasterInfo* out)
 {
     out->Name=StringCast<TCHAR>((const UTF8CHAR*)(in->name().c_str())).Get();
-    GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
+    out->HasPosition = in->has_position();
+    out->Position = {};
+    if (out->HasPosition) GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
     out->InteractionRadius=in->interaction_radius();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassMasterInfo* in, ::nightfall::v1::ClassMasterInfo* out)
 {
     out->set_name((const char*)StringCast<UTF8CHAR>(*(in->Name)).Get());
-    TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
+    if (in->HasPosition) TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
+    else out->clear_position();
     out->set_interaction_radius(in->InteractionRadius);
 }
 
@@ -411,7 +420,9 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ListClassesResponse* in, FGrpcNigh
     }
     out->PlayableLevelCap=in->playable_level_cap();
     out->MaxTransferTier=in->max_transfer_tier();
-    GRPC_TO_TURBOLINK(&(in->class_master()), &(out->ClassMaster));
+    out->HasClassMaster = in->has_class_master();
+    out->ClassMaster = {};
+    if (out->HasClassMaster) GRPC_TO_TURBOLINK(&(in->class_master()), &(out->ClassMaster));
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ListClassesResponse* in, ::nightfall::v1::ListClassesResponse* out)
@@ -425,7 +436,8 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ListClassesResponse* in, ::nightfal
     }
     out->set_playable_level_cap(in->PlayableLevelCap);
     out->set_max_transfer_tier(in->MaxTransferTier);
-    TURBOLINK_TO_GRPC(&(in->ClassMaster), out->mutable_class_master());
+    if (in->HasClassMaster) TURBOLINK_TO_GRPC(&(in->ClassMaster), out->mutable_class_master());
+    else out->clear_class_master();
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::TransferOptionsRequest* in, FGrpcNightfallV1TransferOptionsRequest* out)
@@ -494,7 +506,9 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ChangeClassRequest* in, ::nightfall
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ChangeClassResponse* in, FGrpcNightfallV1ChangeClassResponse* out)
 {
-    GRPC_TO_TURBOLINK(&(in->character()), &(out->Character));
+    out->HasCharacter = in->has_character();
+    out->Character = {};
+    if (out->HasCharacter) GRPC_TO_TURBOLINK(&(in->character()), &(out->Character));
     out->GrantedSkillKeys.Empty();
     for (int i=0; i<in->granted_skill_keys_size(); ++i) {
         out->GrantedSkillKeys.Add(StringCast<TCHAR>((const UTF8CHAR*)(in->granted_skill_keys(i).c_str())).Get());
@@ -505,7 +519,8 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ChangeClassResponse* in, FGrpcNigh
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ChangeClassResponse* in, ::nightfall::v1::ChangeClassResponse* out)
 {
-    TURBOLINK_TO_GRPC(&(in->Character), out->mutable_character());
+    if (in->HasCharacter) TURBOLINK_TO_GRPC(&(in->Character), out->mutable_character());
+    else out->clear_character();
     for(const auto& value : in->GrantedSkillKeys) {
         out->add_granted_skill_keys((const char*)StringCast<UTF8CHAR>(*(value)).Get());
     }
@@ -525,7 +540,9 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ListLearnableSkillsRequest* in, ::n
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::LearnableSkill* in, FGrpcNightfallV1LearnableSkill* out)
 {
-    GRPC_TO_TURBOLINK(&(in->skill()), &(out->Skill));
+    out->HasSkill = in->has_skill();
+    out->Skill = {};
+    if (out->HasSkill) GRPC_TO_TURBOLINK(&(in->skill()), &(out->Skill));
     out->Learned=in->learned();
     out->Affordable=in->affordable();
     out->TrainerRequired=in->trainer_required();
@@ -538,7 +555,8 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::LearnableSkill* in, FGrpcNightfall
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1LearnableSkill* in, ::nightfall::v1::LearnableSkill* out)
 {
-    TURBOLINK_TO_GRPC(&(in->Skill), out->mutable_skill());
+    if (in->HasSkill) TURBOLINK_TO_GRPC(&(in->Skill), out->mutable_skill());
+    else out->clear_skill();
     out->set_learned(in->Learned);
     out->set_affordable(in->Affordable);
     out->set_trainer_required(in->TrainerRequired);
@@ -663,6 +681,15 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCatalogEntry* in, FGrpcNightf
     for (int i=0; i<in->hit_time_ms_size(); ++i) {
         out->HitTimeMs.Add(in->hit_time_ms(i));
     }
+    out->OperateType=StaticCast<EGrpcNightfallV1SkillOperateType>(in->operate_type());
+    out->TargetType.Empty();
+    for (int i=0; i<in->target_type_size(); ++i) {
+        out->TargetType.Add(StringCast<TCHAR>((const UTF8CHAR*)(in->target_type(i).c_str())).Get());
+    }
+    out->AffectScope.Empty();
+    for (int i=0; i<in->affect_scope_size(); ++i) {
+        out->AffectScope.Add(StringCast<TCHAR>((const UTF8CHAR*)(in->affect_scope(i).c_str())).Get());
+    }
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCatalogEntry* in, ::nightfall::v1::SkillCatalogEntry* out)
@@ -690,6 +717,13 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCatalogEntry* in, ::nightfall:
     }
     for(const auto& value : in->HitTimeMs) {
         out->add_hit_time_ms(value);
+    }
+    out->set_operate_type(::nightfall::v1::SkillOperateType(static_cast<uint8>(in->OperateType)));
+    for(const auto& value : in->TargetType) {
+        out->add_target_type((const char*)StringCast<UTF8CHAR>(*(value)).Get());
+    }
+    for(const auto& value : in->AffectScope) {
+        out->add_affect_scope((const char*)StringCast<UTF8CHAR>(*(value)).Get());
     }
 }
 

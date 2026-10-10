@@ -24,6 +24,10 @@ bool FProtoCodecEncodeTest::RunTest(const FString& Parameters)
 	// seq=1; move_to(10) { destination(1) { x(1)=1.0f, y(2)=2.0f } }
 	const TArray<uint8> ExpectedMove = { 0x08, 0x01, 0x52, 0x0c, 0x0a, 0x0a, 0x0d, 0x00, 0x00, 0x80, 0x3f, 0x15, 0x00, 0x00, 0x00, 0x40 };
 	TestEqual(TEXT("MoveTo bytes"), Bytes, ExpectedMove);
+	Move.MoveTo = FMoveToIntent{ FNetVec2{ 0.f, 0.f } };
+	NightfallProto::Encode(Move, Bytes);
+	const TArray<uint8> ExpectedOrigin = { 0x08, 0x01, 0x52, 0x02, 0x0a, 0x00 };
+	TestEqual(TEXT("origin destination retains present-empty message bytes"), Bytes, ExpectedOrigin);
 
 	FClientMessage Bare;
 	Bare.Seq = 7;
