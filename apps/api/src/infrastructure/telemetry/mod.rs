@@ -7,6 +7,7 @@
 mod combat;
 mod layers;
 mod metrics;
+mod phase3;
 
 use std::time::Duration;
 
@@ -33,6 +34,10 @@ pub use layers::{
     GrpcTelemetryLayer, UuidV7RequestId,
 };
 pub use metrics::{record_tick_stats, FrameDirection, Metrics, OutboxStats, OutboxStatsSource};
+pub use phase3::{
+    SkillCastOutcome, SkillEffectChange, SkillEffectKind, SkillLearnOutcome, SkillOutcome,
+    SkillResolutionKind,
+};
 
 const DEFAULT_FILTER: &str = "info,tower_http=debug,sqlx=warn";
 const METRIC_EXPORT_INTERVAL: Duration = Duration::from_secs(10);

@@ -129,21 +129,28 @@ impl GameService for GameServiceImpl {
         req: Request<pb::LearnSkillRequest>,
     ) -> Result<Response<pb::LearnSkillResponse>, Status> {
         let caller = auth::caller(&req)?;
-        let use_cases = self.phase3.as_ref().ok_or_else(|| {
-            to_status(AppError::Unavailable("phase 3 runtime is not yet available".into()))
-        })?;
+        let started = std::time::Instant::now();
         let req = req.into_inner();
-        let out = use_cases
-            .learn_skill
-            .execute(LearnSkillInput {
-                caller,
-                character_id: req.character_id,
-                skill_id: req.skill_id,
-                skill_level: req.skill_level,
-                idempotency_key: req.idempotency_key,
-            })
-            .await
-            .map_err(to_status)?;
+        let result = match &self.phase3 {
+            Some(use_cases) => {
+                use_cases
+                    .learn_skill
+                    .execute(LearnSkillInput {
+                        caller,
+                        character_id: req.character_id,
+                        skill_id: req.skill_id,
+                        skill_level: req.skill_level,
+                        idempotency_key: req.idempotency_key,
+                    })
+                    .await
+            },
+            None => Err(AppError::Unavailable("phase 3 runtime is not yet available".into())),
+        };
+        self.metrics.record_skill_learn_request(
+            started.elapsed(),
+            crate::infrastructure::telemetry::SkillLearnOutcome::from_result(&result),
+        );
+        let out = result.map_err(to_status)?;
         Ok(Response::new(mapping::learn_result_to_pb(&out)))
     }
 
