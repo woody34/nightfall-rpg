@@ -1,6 +1,6 @@
 # Phase 2 Plan: Race and Class
 
-**Status:** delivery plan 2026-10-09; acceptance/choices pending. **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Model/effort assignments below.
+**Status:** delivery plan 2026-10-09; acceptance and required token-supply choice pending. **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Model/effort assignments below.
 
 ## 1. Goal and locked decisions
 
@@ -11,8 +11,8 @@ Deliver creation/racial identity/exact growth/learned metadata/durable transfers
 - Real autoGet learning metadata in scope; manual purchase/effects Phase3 except implemented racial static modifiers.
 - CP **u32/uint32**, owner-private/reserved, no absorption; initial0/derived known max, zero never full. Transfer preserves CP/HP/MP percentages with floor/alive HP min1.
 - **Token SUPPLY REQUIRED USER CHOICE PENDING** (milestones/admin/other). Generic typed ledger/consumption independent; no automatic grants/backfill before choice; E4 milestones conditional.
-- Original Nightfall display names draft: optional user choice; IDs/keys/l2_ref stable.
-- **Art fallback choice PENDING**: Manny one hair style/color/face, index0; both sexes metadata. UI truthful.
+- Proceed with curated original Nightfall display names; IDs/keys/l2_ref remain stable.
+- Use existing Manny prototype bodies with one hair style/color/face at index0 and both sexes as metadata. Distinct racial/sex bodies remain an explicit art limitation, not an approval blocker.
 
 ## 2. Source authority and contracts
 
@@ -137,7 +137,7 @@ Models: **D = agy gemini-3.8-flash-high**, **C = Codex gpt-6.1-sol / high**, **Z
 
 | Story | Work / Done When | Model |
 |---|---|---|
-| 5.1 Creation UI [client-visible] | Race/root/sex metadata, index-zero appearance/stat preview/truthful Manny; widget/payload/error/cook checks pass, art choice pending. | C |
+| 5.1 Creation UI [client-visible] | Race/root/sex metadata, index-zero appearance/stat preview/truthful Manny; widget/payload/error/cook checks pass, prototype art limitation is documented. | C |
 | 5.2 Catalogue/tree [client-visible] | Auth/cache/hierarchy/skills/proficiencies/unavailable effects/tier3; parent/current/available/unmet projections verified. | C |
 | 5.3 Master workflow [client-visible] | Location/range/ordinary travel/options/confirm/retry; errors/delayed/offline replies and commit-gated success verified. | C |
 | 5.4 HUD/projection [client-visible] | CP/SP/tokens/class/title/cue and tick/generation fences; zero CP/binary frames/stale/late-AOI/duplicate RPC yield correct single presentation. | C |
@@ -204,7 +204,7 @@ Waves gate dependencies: foundations -> independent creation/schema, zone and UE
 - Snapshot growth: measure actual JetStream payload; coordinate versioned compression, retain all data.
 - Legacy drift: golden bytes/fingerprints and None checkpoint preserve migrated ledger.
 - Token exploits/pending policy: required supply/backfill choice and conditional durable once-ever bits.
-- Art/effect overstatement: truthful index-zero Manny/sex metadata and unavailable skills; user choices pending.
+- Art/effect overstatement: truthful index-zero Manny/sex metadata and unavailable skills; no claim of distinct racial/sex art assets.
 - External gates: CI runner **unregistered**, **two-week reliability gate pending** separately from local Phase2 acceptance; no fresh 14-day wait is required to integrate reviewed features. Existing Phase1a eight-client 20-minute soak evidence completed; Phase2 needs new actual local regression measurements.
 
 ## 7. Out of scope
@@ -214,7 +214,7 @@ Manual SP purchase/skill execution/buffs Phase3; inventory/equipment/mastery eff
 ## 8. Outcome — all pending
 
 - [ ] Catalogue/growth/39 real trees/count/refs/source provenance verified.
-- [ ] Required supply/backfill and art choices, optional naming choice recorded; no premature grants.
+- [ ] Required token supply/backfill choice recorded; no premature grants. Curated names and prototype art are documented implementation assumptions.
 - [ ] Production/fixture spawn, cap/tier/Master locks verified.
 - [ ] Creation/concurrency/legacy retries/migration preservation/normalized learning verified.
 - [ ] Independent racial/class/CP vectors and actual learned keys verified.
