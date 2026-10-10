@@ -353,6 +353,28 @@ pub(super) fn skill_catalogue_to_pb(
                 hp_consume: skill.hp_consume.clone(),
                 reuse_ms: skill.reuse_ms.clone(),
                 hit_time_ms: skill.hit_time_ms.clone(),
+                operate_type: match skill.operate_type {
+                    crate::application::ports::SkillOperateType::ActiveInstant => {
+                        pb::SkillOperateType::ActiveInstant
+                    },
+                    crate::application::ports::SkillOperateType::ActiveInstantContinuous => {
+                        pb::SkillOperateType::ActiveInstantContinuous
+                    },
+                    crate::application::ports::SkillOperateType::ActiveContinuous => {
+                        pb::SkillOperateType::ActiveContinuous
+                    },
+                    crate::application::ports::SkillOperateType::Passive => {
+                        pb::SkillOperateType::Passive
+                    },
+                    crate::application::ports::SkillOperateType::Toggle => {
+                        pb::SkillOperateType::Toggle
+                    },
+                    crate::application::ports::SkillOperateType::Other => {
+                        pb::SkillOperateType::Other
+                    },
+                } as i32,
+                target_type: skill.target_type.clone(),
+                affect_scope: skill.affect_scope.clone(),
             })
             .collect(),
     }

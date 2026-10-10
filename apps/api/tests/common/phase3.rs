@@ -247,6 +247,9 @@ impl SkillCataloguePort for Catalogue {
                     hp_consume: vec![0; 9],
                     reuse_ms: vec![3000; 9],
                     hit_time_ms: vec![1080; 9],
+                    operate_type: api::application::ports::SkillOperateType::ActiveInstant,
+                    target_type: vec!["ENEMY".into(); 9],
+                    affect_scope: vec!["SINGLE".into(); 9],
                 },
                 SkillCatalogueEntry {
                     skill_id: SkillId(5),
@@ -261,6 +264,9 @@ impl SkillCataloguePort for Catalogue {
                     hp_consume: vec![0; 9],
                     reuse_ms: vec![0; 9],
                     hit_time_ms: vec![0; 9],
+                    operate_type: api::application::ports::SkillOperateType::Other,
+                    target_type: vec!["SELF".into(); 9],
+                    affect_scope: vec!["unset".into(); 9],
                 },
                 SkillCatalogueEntry {
                     skill_id: SkillId(4),
@@ -275,6 +281,9 @@ impl SkillCataloguePort for Catalogue {
                     hp_consume: vec![0],
                     reuse_ms: vec![0],
                     hit_time_ms: vec![0],
+                    operate_type: api::application::ports::SkillOperateType::Other,
+                    target_type: vec!["SELF".into()],
+                    affect_scope: vec!["unset".into()],
                 },
             ],
         })

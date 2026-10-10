@@ -199,6 +199,9 @@ async fn query_and_catalogue_preserve_flags_metadata_and_named_blockers() {
             hp_consume: vec![0; 9],
             reuse_ms: vec![3000; 9],
             hit_time_ms: vec![1080; 9],
+            operate_type: pb::SkillOperateType::ActiveInstant as i32,
+            target_type: vec!["ENEMY".into(); 9],
+            affect_scope: vec!["SINGLE".into(); 9],
         }
     );
     let deferred = catalog.skills.iter().find(|s| s.skill_id == 4).unwrap();
@@ -279,6 +282,67 @@ async fn catalogue_rank_metadata_matches_generated_toml_over_grpc() -> anyhow::R
             &entry.hit_time_ms,
         ] {
             assert_eq!(values.len(), usize::try_from(entry.max_level)?);
+        }
+    }
+    assert_eq!(runtime.0.lock().writes, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn catalogue_cast_classification_comes_from_validated_registry() -> anyhow::Result<()> {
+    use api::domain::zone::skill::RankValue;
+    use api::infrastructure::{class_data, skill_data};
+    let classes = class_data::load_classes(&class_data::ClassSource::embedded())?;
+    let skills = skill_data::load_skills(&skill_data::SkillSource::embedded(), &[])?;
+    let catalogue = RegistrySkillCatalogue::new(&classes.registry, &skills)?;
+    let (mut app, _, _, runtime) = fixture_with_port(Arc::new(catalogue)).await;
+    let out = app
+        .grpc
+        .get_skill_catalog(pb::GetSkillCatalogRequest {})
+        .await?
+        .into_inner();
+    // Pinned l2j-dp @3ca488dd src/main/resources/data/stats/skills/:
+    // 00000-00099.xml:111,122,126 (3); 01000-01099.xml:1003,1014,1017 (1040);
+    // 00200-00299.xml:1015-1022 (239); 01000-01099.xml:3-17 (1001).
+    // Missing scope is preserved as registry "unset" (Skill.java:268 default NONE).
+    for (id, operate, target, scope, implemented) in [
+        (3, pb::SkillOperateType::ActiveInstant, "ENEMY", "SINGLE", true),
+        (1040, pb::SkillOperateType::ActiveInstantContinuous, "TARGET", "SINGLE", true),
+        (239, pb::SkillOperateType::Passive, "SELF", "unset", true),
+        (1001, pb::SkillOperateType::Toggle, "SELF", "unset", false),
+    ] {
+        let entry = out
+            .skills
+            .iter()
+            .find(|s| s.skill_id == id)
+            .ok_or_else(|| anyhow::anyhow!("missing {id}"))?;
+        let ranks = usize::try_from(entry.max_level)?;
+        assert_eq!(entry.operate_type, operate as i32);
+        assert_eq!(entry.target_type, vec![target; ranks]);
+        assert_eq!(entry.affect_scope, vec![scope; ranks]);
+        assert_eq!(entry.effect_implemented, implemented);
+        if id == 1001 {
+            assert!(entry
+                .deferred_reasons
+                .iter()
+                .any(|reason| reason == "operate:T"));
+        }
+    }
+    for entry in &out.skills {
+        let def = skills
+            .get(api::domain::zone::skill::SkillId(entry.skill_id))
+            .ok_or_else(|| anyhow::anyhow!("missing definition"))?;
+        let ranks = usize::try_from(entry.max_level)?;
+        for (wire, source) in [
+            (&entry.target_type, &def.target_type),
+            (&entry.affect_scope, &def.affect_scope),
+        ] {
+            let expected = match source {
+                RankValue::Scalar(value) => vec![value.clone(); ranks],
+                RankValue::Levels(values) => values.clone(),
+            };
+            assert_eq!(wire.len(), ranks);
+            assert_eq!(wire, &expected);
         }
     }
     assert_eq!(runtime.0.lock().writes, 0);

@@ -538,6 +538,18 @@ pub trait Phase3Runtime: Send + Sync {
     ) -> Result<LearnSkillReply, super::AppError>;
 }
 
+/// Source operate classification, independent of runtime capability or eligibility.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub enum SkillOperateType {
+    ActiveInstant,
+    ActiveInstantContinuous,
+    ActiveContinuous,
+    Passive,
+    Toggle,
+    Other,
+}
+
 /// Read-only catalogue entry backed by the independently validated registry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(missing_docs)]
@@ -556,6 +568,10 @@ pub struct SkillCatalogueEntry {
     /// Source milliseconds, before stat scaling and tick conversion.
     pub reuse_ms: Vec<u32>,
     pub hit_time_ms: Vec<u32>,
+    pub operate_type: SkillOperateType,
+    /// Exact registry strings, expanded in rank order, including unsupported values.
+    pub target_type: Vec<String>,
+    pub affect_scope: Vec<String>,
 }
 
 /// Immutable catalogue in skill-id order; metadata availability does not authorize gameplay.

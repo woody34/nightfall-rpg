@@ -1,6 +1,8 @@
 //! Immutable skill catalogue backed by Z's independently validated registry.
 
-use crate::application::ports::{SkillCatalogue, SkillCatalogueEntry, SkillCataloguePort};
+use crate::application::ports::{
+    SkillCatalogue, SkillCatalogueEntry, SkillCataloguePort, SkillOperateType,
+};
 use crate::application::AppError;
 use crate::domain::class::{ClassRegistry, RuntimeSkillStatus};
 use crate::domain::zone::skill::{RankValue, SkillId, SkillRegistry};
@@ -37,6 +39,19 @@ impl RegistrySkillCatalogue {
                     effect_implemented: def.runtime_status == RuntimeSkillStatus::Executable,
                     deferred_reasons: def.blockers.clone(),
                     l2_ref: def.l2_ref.clone(),
+                    operate_type: operate_type(&def.operate_type),
+                    target_type: wire_strings(
+                        def.id,
+                        "target_type",
+                        &def.target_type,
+                        def.max_level,
+                    )?,
+                    affect_scope: wire_strings(
+                        def.id,
+                        "affect_scope",
+                        &def.affect_scope,
+                        def.max_level,
+                    )?,
                     mp_consume_start: wire_costs(
                         def.id,
                         "mp_consume_start",
@@ -63,6 +78,34 @@ impl RegistrySkillCatalogue {
             skills: entries,
         }))
     }
+}
+
+// Pinned l2j-game @abfde049 model/skills/SkillOperateType.java:94-131.
+// A3 is the isSelfContinuous branch; A4/channelled/directional types stay OTHER.
+fn operate_type(source: &str) -> SkillOperateType {
+    match source {
+        "A1" => SkillOperateType::ActiveInstant,
+        "A2" => SkillOperateType::ActiveInstantContinuous,
+        "A3" => SkillOperateType::ActiveContinuous,
+        "P" => SkillOperateType::Passive,
+        "T" => SkillOperateType::Toggle,
+        _ => SkillOperateType::Other,
+    }
+}
+
+fn wire_strings(
+    id: SkillId,
+    field: &str,
+    values: &RankValue<String>,
+    max_level: u32,
+) -> anyhow::Result<Vec<String>> {
+    (1..=max_level)
+        .map(|rank| {
+            values.at(rank, max_level).cloned().ok_or_else(|| {
+                anyhow::anyhow!("catalogue skill {} {field} missing rank {rank}", id.0)
+            })
+        })
+        .collect()
 }
 
 fn wire_value(id: SkillId, field: &str, value: i64) -> anyhow::Result<u32> {
@@ -131,6 +174,34 @@ mod tests {
         assert_eq!(wire_ranks(id, "time", &RankValue::Levels(vec![7, 0, 9]), 3)?, [7, 0, 9]);
         assert!(wire_ranks(id, "time", &RankValue::Levels(vec![7]), 2).is_err());
         assert!(wire_ranks(id, "time", &RankValue::Scalar(-1), 1).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn classification_preserves_source_types_and_rank_strings() -> anyhow::Result<()> {
+        for (source, expected) in [
+            ("A1", SkillOperateType::ActiveInstant),
+            ("A2", SkillOperateType::ActiveInstantContinuous),
+            ("A3", SkillOperateType::ActiveContinuous),
+            ("P", SkillOperateType::Passive),
+            ("T", SkillOperateType::Toggle),
+            ("A4", SkillOperateType::Other),
+            ("CA1", SkillOperateType::Other),
+            ("DA2", SkillOperateType::Other),
+            ("future", SkillOperateType::Other),
+        ] {
+            assert_eq!(operate_type(source), expected);
+        }
+        let id = SkillId(3);
+        assert_eq!(
+            wire_strings(id, "scope", &RankValue::Scalar("unset".into()), 2)?,
+            ["unset", "unset"]
+        );
+        assert_eq!(
+            wire_strings(id, "target", &RankValue::Levels(vec!["SELF".into(), "ENEMY".into()]), 2)?,
+            ["SELF", "ENEMY"]
+        );
+        assert!(wire_strings(id, "target", &RankValue::Levels(vec!["SELF".into()]), 2).is_err());
         Ok(())
     }
 
