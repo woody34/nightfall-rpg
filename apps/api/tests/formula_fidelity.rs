@@ -146,6 +146,10 @@ fn golden_is_bound_to_every_input_and_the_independent_generator() {
     let o = oracle();
     assert_eq!(o.schema, 1);
     let mut inputs = EMBEDDED.to_vec();
+    // oracle.py binds every tables/*.toml file, including additive Phase 3 tables that
+    // deliberately stay outside the legacy StatRules bundle and its immutable hash.
+    inputs.push(("tables/pvp.toml", include_str!("../../../packages/data/tables/pvp.toml")));
+    inputs.push(("tables/regen.toml", include_str!("../../../packages/data/tables/regen.toml")));
     inputs.push(("npcs/keltir.toml", include_str!("../../../packages/data/npcs/keltir.toml")));
     inputs.push(("scripts/oracle.py", include_str!("../../../packages/data/scripts/oracle.py")));
     assert_eq!(inputs.len(), o.inputs_sha256.len());

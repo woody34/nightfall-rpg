@@ -274,6 +274,19 @@ impl Phase3Snapshot {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Phase3Zone {
     pub(super) canonical: Phase3Snapshot,
+    pub(super) schedule: super::state_effects::Phase3Schedule,
+}
+
+impl Phase3Zone {
+    pub(super) fn from_canonical(
+        canonical: Phase3Snapshot,
+    ) -> Result<Self, super::effects::EffectError> {
+        let schedule = super::state_effects::Phase3Schedule::rebuild(&canonical.entities)?;
+        Ok(Self {
+            canonical,
+            schedule,
+        })
+    }
 }
 
 #[cfg(test)]

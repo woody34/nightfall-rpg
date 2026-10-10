@@ -9,6 +9,7 @@
     clippy::arithmetic_side_effects
 )]
 
+use std::collections::BTreeMap;
 use std::hint::black_box;
 use std::time::Instant;
 
@@ -20,8 +21,12 @@ use nightfall_api::domain::zone::effects::{
 };
 use nightfall_api::domain::zone::skill::{SkillId, SkillRef};
 use nightfall_api::domain::zone::skill_math::ExactRatio;
+use nightfall_api::domain::zone::state_effects::Phase3Schedule;
+use nightfall_api::domain::zone::state_regen::RegenSchedule;
 use nightfall_api::domain::zone::state_regen::{restore_regen, RegenAmounts, RegenResource};
-use nightfall_api::domain::zone::{ResourceFractions, Tick};
+use nightfall_api::domain::zone::{
+    CastState, EntityId, EntityOrdinal, Phase3Entity, ResourceFractions, Tick,
+};
 
 const ENTITIES: usize = 1_000;
 
@@ -136,6 +141,31 @@ fn report(name: &str, mut operation: impl FnMut()) {
 }
 fn main() {
     let lists = vec![full_effects(); ENTITIES];
+    let entities = lists
+        .iter()
+        .enumerate()
+        .map(|(index, effects)| {
+            let ordinal = u64::try_from(index).unwrap() + 1;
+            (
+                EntityId::from_uuid(uuid::Uuid::from_u128(u128::from(ordinal))),
+                Phase3Entity {
+                    ordinal: EntityOrdinal(ordinal),
+                    cast: CastState::Idle,
+                    reuse: BTreeMap::new(),
+                    effects: effects.clone(),
+                    modifier_install_order: BTreeMap::new(),
+                    regen: RegenSchedule {
+                        next_at: Some(Tick(30)),
+                    },
+                    fractions: ResourceFractions::default(),
+                    player: None,
+                },
+            )
+        })
+        .collect();
+    // Synthetic scheduling load only: excludes canonical source validation and live tick
+    // handlers, exactly like the scan kernels above. Construction is outside selection time.
+    let schedule = Phase3Schedule::rebuild(&entities).unwrap();
     let mut criterion = Criterion::default().configure_from_args();
     criterion.bench_function("phase3/regen_1000", |b| b.iter(|| black_box(regeneration())));
     criterion.bench_function("phase3/pulses_1000_full_pools", |b| {
@@ -144,9 +174,17 @@ fn main() {
     criterion.bench_function("phase3/expiry_1000_full_pools", |b| {
         b.iter(|| black_box(expiry_scan(&lists)));
     });
+    criterion.bench_function("phase3/index_idle_1000_full_pools", |b| {
+        b.iter(|| black_box(schedule.effect_pulses(Tick(6))));
+    });
+    criterion.bench_function("phase3/index_due_1000_full_pools", |b| {
+        b.iter(|| black_box(schedule.effect_pulses(Tick(7))));
+    });
     criterion.final_summary();
     assert_eq!(pulse_scan(&lists), 44_000);
     assert_eq!(expiry_scan(&lists), 44_000);
+    assert!(schedule.effect_pulses(Tick(6)).is_empty());
+    assert_eq!(schedule.effect_pulses(Tick(7)).len(), 44_000);
     report("phase3 kernel regen/1000", || {
         black_box(regeneration());
     });
@@ -155,5 +193,14 @@ fn main() {
     });
     report("phase3 kernel expiry/1000x44", || {
         black_box(expiry_scan(&lists));
+    });
+    report("phase3 indexed idle/1000x44", || {
+        black_box(schedule.effect_pulses(Tick(6)));
+    });
+    report("phase3 indexed due selection/1000x44", || {
+        black_box(schedule.effect_pulses(Tick(7)));
+    });
+    report("phase3 indexed synchronized regen selection/1000", || {
+        black_box(schedule.regen_candidates(Tick(30)));
     });
 }

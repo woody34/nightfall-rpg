@@ -511,7 +511,10 @@ impl ZoneState {
         if !canonical.validate() {
             return Err(SnapshotError::CombatMismatch);
         }
-        state.phase3 = Some(super::phase3::Phase3Zone { canonical });
+        state.phase3 = Some(
+            super::phase3::Phase3Zone::from_canonical(canonical)
+                .map_err(|error| SnapshotError::Rules(error.to_string()))?,
+        );
         state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
         state.meta.digest_version = StateDigestVersion::BinaryV5;
         Ok(state)
@@ -579,7 +582,9 @@ impl ZoneState {
         state.classes = snapshot.classes;
         state.phase3 = snapshot
             .phase3
-            .map(|canonical| super::phase3::Phase3Zone { canonical });
+            .map(super::phase3::Phase3Zone::from_canonical)
+            .transpose()
+            .map_err(|error| SnapshotError::Rules(error.to_string()))?;
         let expected_hash = state.classes.as_deref().map(registry_hash).transpose()?;
         if state.meta.classes_rules_hash != expected_hash {
             return Err(SnapshotError::CombatMismatch);
