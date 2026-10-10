@@ -403,6 +403,81 @@ pub trait LearnReceiptRepository: Send + Sync {
     ) -> anyhow::Result<LearnReceiptLookup>;
 }
 
+/// Frozen success carried outside simulation state into the checkpoint transaction.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct SuccessfulLearnReceipt {
+    pub account_id: AccountId,
+    pub key: IdempotencyKey,
+    pub request_fingerprint: String,
+    pub result: FrozenLearnResult,
+}
+
+impl SuccessfulLearnReceipt {
+    /// Checks the request/result binding and signed database bounds. Final checkpoint state
+    /// may be later within the same tick; the receipt remains the mutation's frozen response.
+    pub fn validate(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        owner: AccountId,
+    ) -> Result<(), CheckpointError> {
+        let result = &self.result;
+        if self.account_id != owner
+            || result.character_id != checkpoint.character_id
+            || result.skill.id.0 == 0
+            || result.skill.rank == 0
+            || self.request_fingerprint
+                != learn_skill_fingerprint(result.character_id, result.skill)
+            || i64::try_from(result.sp_spent).is_err()
+            || i64::try_from(result.sp_remaining).is_err()
+            || checkpoint.class_state.as_ref().is_none_or(|ledger| {
+                !ledger.learned_skills.iter().any(|skill| {
+                    skill.key == format!("l2.skill.{}", result.skill.id.0)
+                        && skill.level >= result.skill.rank
+                })
+            })
+        {
+            return Err(CheckpointError::Constraint("character_learn_receipt_valid".into()));
+        }
+        Ok(())
+    }
+
+    /// Extends only learning checkpoint fingerprints. Ordinary legacy fingerprints stay exact.
+    pub fn checkpoint_fingerprint(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> anyhow::Result<String> {
+        use sha2::{Digest as _, Sha256};
+        let body =
+            serde_json::to_vec(&("learn-checkpoint-v1", checkpoint.fingerprint(events), self))?;
+        Ok(format!("{:x}", Sha256::digest(body)))
+    }
+}
+
+/// A learning commit either writes a fenced checkpoint or settles against an earlier receipt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LearningCheckpointOutcome {
+    /// Applied/replayed checkpoint revision or stale fence. Stale consumes no receipt/key.
+    Checkpoint(CheckpointOutcome),
+    /// Another committed account/key won; return this exact result and write nothing.
+    ReceiptReplayed(FrozenLearnResult),
+}
+
+/// Atomic final progression/ledger/outbox/receipt writer, called only after durable log ack.
+#[async_trait]
+pub trait LearningCheckpointRepository: LearnReceiptRepository {
+    /// Receipt claim/recheck and checkpoint revision fence are one transaction. Failed/stale
+    /// requests roll back every child row, receipt, checkpoint key and outbox fact.
+    async fn checkpoint_learning(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        receipt: &SuccessfulLearnReceipt,
+    ) -> Result<LearningCheckpointOutcome, CheckpointError>;
+}
+
 /// One next-rank learning option computed from final actor-owned state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(missing_docs, clippy::struct_excessive_bools)] // Independent flags required by the wire contract.
