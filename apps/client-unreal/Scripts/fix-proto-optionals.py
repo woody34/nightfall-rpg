@@ -30,9 +30,18 @@ for header in (root / 'Public').rglob('*Message.h'):
     text = marshal.read_text()
     for enum, case, field in optionals:
         pattern = re.compile(r'    switch\(in->_' + re.escape(field) + r'_case\(\)\)\n    \{\n    case [^\n]+:\n(.*?)        break;\n    \}', re.S)
-        text, count = pattern.subn('    out->_' + field + '._' + field + 'Case = ' + enum + '::NotSet;\n    if (in->has_' + field + '())\n    {\n\\1    }', text)
+        message = 'F' + enum[1:].removesuffix('_' + field)
+        function = re.compile(r'(^void GRPC_TO_TURBOLINK\([^\n]*\b' + re.escape(message)
+                              + r'\* out\)\n\{\n)(.*?)(?=^void |\Z)', re.M | re.S)
+        def patch_function(match):
+            body, count = pattern.subn('    out->_' + field + '._' + field + 'Case = ' + enum + '::NotSet;\n'
+                                      '    if (in->has_' + field + '())\n    {\n\\1    }', match[2])
+            if count != 1:
+                raise SystemExit(f'{marshal}: expected one synthetic optional {message}.{field}, found {count}')
+            return match[1] + body
+        text, count = function.subn(patch_function, text)
         if count != 1:
-            raise SystemExit(f'{marshal}: expected one synthetic optional {field}, found {count}')
+            raise SystemExit(f'{marshal}: expected one decoder for {message}, found {count}')
     marshal.write_text(text)
 
 # Generated template blank lines contain trailing spaces; normalize deterministically.
