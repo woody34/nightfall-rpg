@@ -7,6 +7,7 @@
 
 pub mod account;
 pub mod character;
+pub mod character_progression;
 pub mod class;
 pub mod events;
 pub(crate) mod ids;

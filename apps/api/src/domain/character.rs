@@ -4,6 +4,8 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use super::character_progression::{CharacterAppearance, CharacterIdentity, ClassState};
+use super::class::ClassId;
 use super::ids::uuid_id;
 use super::AccountId;
 
@@ -82,6 +84,18 @@ impl Race {
             Race::Orc => "orc_fighter",
             Race::Dwarf => "dwarven_fighter",
         }
+    }
+
+    /// Retail id of the backwards-compatible fighter creation default.
+    #[must_use]
+    pub const fn starting_class_id(self) -> ClassId {
+        ClassId(match self {
+            Race::Human => 0,
+            Race::Elf => 18,
+            Race::DarkElf => 31,
+            Race::Orc => 44,
+            Race::Dwarf => 53,
+        })
     }
 
     /// Stable string form used in the database and in NATS subjects.
@@ -252,11 +266,28 @@ pub struct Character {
     pub stats: BaseStats,
     /// Last known world position.
     pub position: Position,
+    /// Appearance fixed at creation.
+    pub appearance: CharacterAppearance,
+    /// Mutable class resources and bounded successful mutation history.
+    pub class_state: ClassState,
+    /// Cumulative experience of the active main class.
+    pub xp: u64,
 }
 
 impl Character {
+    /// Immutable identity sent to the zone at admission.
+    #[must_use]
+    pub fn identity(&self) -> CharacterIdentity {
+        CharacterIdentity {
+            account_id: self.account_id,
+            race: self.race,
+            base_class_id: self.class_state.base_class_id,
+            appearance: self.appearance,
+        }
+    }
+
     /// Level cap (Phase 1 §3).
-    pub const MAX_LEVEL: u32 = 80;
+    pub const MAX_LEVEL: u32 = 85;
 
     /// Creates a level-1 character with the race's starting stats at the origin.
     #[must_use]
@@ -269,6 +300,9 @@ impl Character {
             level: 1,
             stats: race.starting_stats(),
             position: Position::default(),
+            appearance: CharacterAppearance::default(),
+            class_state: ClassState::new(race.starting_class_id()),
+            xp: 0,
         }
     }
 }
