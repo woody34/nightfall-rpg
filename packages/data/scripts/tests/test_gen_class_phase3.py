@@ -45,7 +45,8 @@ class ProfileCorpusTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.files, cls.section = GEN.generate(DP, GAME)
-        cls.profiles = {p['id']: p for content in cls.files.values() if (p := tomllib.loads(content))}
+        cls.profiles = {p['id']: p for rel, content in cls.files.items()
+                        if rel.startswith('classes-phase3/') and (p := tomllib.loads(content))}
 
     def test_all_89_profiles_and_22695_regen_literals_match_xml(self):
         self.assertEqual(set(self.profiles), set(range(58)) | set(range(88, 119)))
@@ -139,6 +140,13 @@ class ProfileCorpusTests(unittest.TestCase):
             self.assertIn('classes-phase3/human_fighter.toml', stale)
             self.assertIn('unexpected file: classes-phase3/orphan.toml', stale)
             self.assertEqual((out / 'npcs/keltir.toml').read_bytes(), before)
+            weapon = out / 'tables-phase3/starter_weapon.toml'
+            weapon.write_text(weapon.read_text().replace('value = "5"', 'value = "6"'))
+            (out / 'tables-phase3/orphan.toml').write_text('schema = 1\n')
+            stale = GEN.write_outputs(out, self.files, self.section, True)
+            self.assertIn('tables-phase3/starter_weapon.toml', stale)
+            self.assertIn('unexpected file: tables-phase3/orphan.toml', stale)
+            self.assertIn('value = "6"', weapon.read_text())
             (out / 'npcs/keltir.toml').write_text(before.decode().replace('m_atk = 5\n', 'm_atk = 6\n'))
             self.assertIn('npcs/keltir.toml:[phase3]', GEN.write_outputs(out, self.files, self.section, True))
 
