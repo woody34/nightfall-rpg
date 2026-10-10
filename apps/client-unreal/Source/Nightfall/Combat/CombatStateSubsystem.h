@@ -26,6 +26,7 @@ struct FCombatEntity
 /** Owner-only state: MP, XP and the selection arrive only for the player's own entity. */
 struct FOwnCombatState
 {
+	TOptional<FEffectiveStats> EffectiveStats;
 	bool bMpKnown = false;
 	uint32 Mp = 0;
 	uint32 MaxMp = 0;

@@ -309,6 +309,7 @@ void UCombatStateSubsystem::ApplyStats(const FStatsChanged& Stats)
 	Own.TokenTier1Count = Stats.TokenTier1Count;
 	Own.TokenTier2Count = Stats.TokenTier2Count;
 	Own.LastStatsTick = Stats.Tick;
+	Own.EffectiveStats = Stats.EffectiveStats;
 	OnChanged.Broadcast();
 }
 

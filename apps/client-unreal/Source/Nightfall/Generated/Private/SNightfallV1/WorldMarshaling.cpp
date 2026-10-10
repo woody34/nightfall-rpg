@@ -825,7 +825,9 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::StatsChanged* in, FGrpcNightfallV1
     out->PvpCount=in->pvp_count();
     out->FlagUntilTick=in->flag_until_tick();
     out->DeathPenaltyLevel=in->death_penalty_level();
-    GRPC_TO_TURBOLINK(&(in->effective_stats()), &(out->EffectiveStats));
+    out->HasEffectiveStats = in->has_effective_stats();
+    out->EffectiveStats = {};
+    if (out->HasEffectiveStats) GRPC_TO_TURBOLINK(&(in->effective_stats()), &(out->EffectiveStats));
     out->Baseline=in->baseline();
     out->BaselineTick=in->baseline_tick();
     out->Incarnation=in->incarnation();
@@ -852,7 +854,8 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::
     out->set_pvp_count(in->PvpCount);
     out->set_flag_until_tick(in->FlagUntilTick);
     out->set_death_penalty_level(in->DeathPenaltyLevel);
-    TURBOLINK_TO_GRPC(&(in->EffectiveStats), out->mutable_effective_stats());
+    if (in->HasEffectiveStats) TURBOLINK_TO_GRPC(&(in->EffectiveStats), out->mutable_effective_stats());
+    else out->clear_effective_stats();
     out->set_baseline(in->Baseline);
     out->set_baseline_tick(in->BaselineTick);
     out->set_incarnation(in->Incarnation);

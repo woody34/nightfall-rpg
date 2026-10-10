@@ -24,9 +24,9 @@ bool FSkillNestedCodecTest::RunTest(const FString& Parameters)
  auto& Hit=E.SkillCastResult->Targets.AddDefaulted_GetRef();Hit.Target=TEXT("own");Hit.CpAbsorbed=7;Hit.HpRemoved=8;Hit.TargetHpAfter=92;Hit.AppliedEffectIds.Add(MAX_uint64);
  NightfallWire::EncodeServerMessage(M,Bytes);if(!TestTrue(TEXT("result nested rows decode"),NightfallProto::Decode(Bytes.GetData(),Bytes.Num(),Out)))return false;
  TestEqual(TEXT("CP absorption remains distinct"),Out.Event->SkillCastResult->Targets[0].CpAbsorbed,7u);TestEqual(TEXT("HP removal remains distinct"),Out.Event->SkillCastResult->Targets[0].HpRemoved,8u);TestEqual(TEXT("applied IDs exact64"),Out.Event->SkillCastResult->Targets[0].AppliedEffectIds[0],MAX_uint64);
- E.EventCase=EGrpcNightfallV1WorldEventEvent::StatsChanged;E.StatsChanged=MakeShared<FGrpcNightfallV1StatsChanged>();E.StatsChanged->EffectiveStats.MAtkQ=-123;E.StatsChanged->EffectiveStats.CastSpeed=1999;
+ E.EventCase=EGrpcNightfallV1WorldEventEvent::StatsChanged;E.StatsChanged=MakeShared<FGrpcNightfallV1StatsChanged>();E.StatsChanged->HasEffectiveStats=true;E.StatsChanged->EffectiveStats.MAtkQ=-123;E.StatsChanged->EffectiveStats.CastSpeed=1999;
  NightfallWire::EncodeServerMessage(M,Bytes);if(!TestTrue(TEXT("effective stats nested decode"),NightfallProto::Decode(Bytes.GetData(),Bytes.Num(),Out)))return false;
- TestEqual(TEXT("signed effective field"),Out.Event->StatsChanged->EffectiveStats.MAtkQ,int64(-123));TestEqual(TEXT("received cast speed"),Out.Event->StatsChanged->EffectiveStats.CastSpeed,1999u);
+ TestEqual(TEXT("signed effective field"),Out.Event->StatsChanged->EffectiveStats->MAtkQ,int64(-123));TestEqual(TEXT("received cast speed"),Out.Event->StatsChanged->EffectiveStats->CastSpeed,1999u);
  return true;
 }
 #endif

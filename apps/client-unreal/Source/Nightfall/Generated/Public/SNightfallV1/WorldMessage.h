@@ -888,6 +888,10 @@ struct FGrpcNightfallV1StatsChanged : public FGrpcMessage
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1EffectiveStats EffectiveStats;
 
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasEffectiveStats = false;
+
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     bool Baseline = false;
 
