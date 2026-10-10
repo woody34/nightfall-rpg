@@ -41,7 +41,8 @@ bool USkillStateSubsystem::IsOwn(const FString& Id) const { return Net && Net->I
 void USkillStateSubsystem::ClearOwner()
 {
 	++OperationSerial; bBusy = false; bRpcDone = false; FirstReceipts.Reset(); bReceiptMatches.Reset(); Counts.Reset(); bLearnDone = false; bLearnableKnown = false; Learnable = {}; LearnReceipt = {};
-	LastOfferId=0; Learned.Reset(); Reuse.Reset(); Sp.Reset(); Offer.Reset(); LearnedEvents.Reset(); SpGainEvents.Reset(); OwnerTick = 0;
+	InitialHp.Reset(); InitialMp.Reset(); InitialCp.Reset(); ObservedCancel.Reset();
+ LastOfferId=0; Learned.Reset(); Reuse.Reset(); Sp.Reset(); Offer.Reset(); LearnedEvents.Reset(); SpGainEvents.Reset(); OwnerTick = 0;
 	SyncTick = StatsTick = SpTick = LastSpGainTick = OfferTick = SpGainedTotal = 0; DeathPenalty = 0;
 	bOwnerKnown = bSyncKnown = bStatsKnown = bSpGainKnown = false;
 }
@@ -50,7 +51,7 @@ void USkillStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 {
 	if (!Fence.Spawn(S)) return;
 	Casts.Remove(S.EntityId.ToLower()); Swings.Remove(S.EntityId.ToLower());
-	if (IsOwn(S.EntityId)) ClearOwner();
+	if (IsOwn(S.EntityId)) { ClearOwner(); InitialHp=S.Hp; }
 	FPvpStateChanged P; P.Entity = S.EntityId; P.Incarnation = S.LifeIncarnation; P.Karma = S.Karma; P.PkCount = S.PkCount; P.PvpCount = S.PvpCount; P.FlagUntilTick = S.FlagUntilTick; P.Tick = S.StateTick;
 	Pvp.Add(S.EntityId.ToLower(), P);
 	if(S.PendingSwing.IsSet()){auto Swing=*S.PendingSwing;Swing.bBaseline=true;Swing.Tick=Swing.BaselineTick=S.StateTick;ApplySwing(Swing);}
@@ -99,7 +100,8 @@ void USkillStateSubsystem::ApplyLearned(const FSkillLearned& L)
 void USkillStateSubsystem::ApplyStats(const FStatsChanged& S)
 {
 	if (!IsOwn(S.Entity) || !Fence.Accept(S.Entity, S.Incarnation, S.Tick, S.bBaseline, S.BaselineTick) || (bStatsKnown && S.Tick <= StatsTick)) return;
-	if (!Sp.IsSet() || S.Tick >= SpTick) { Sp = S.Sp; SpTick = S.Tick; }
+	if(!InitialMp.IsSet())InitialMp=S.Mp; if(!InitialCp.IsSet())InitialCp=S.Cp;
+ if (!Sp.IsSet() || S.Tick >= SpTick) { Sp = S.Sp; SpTick = S.Tick; }
 	DeathPenalty = S.DeathPenaltyLevel; StatsTick = S.Tick; OwnerTick = FMath::Max(OwnerTick, S.Tick); bStatsKnown = bOwnerKnown = true;
 	FPvpStateChanged P; P.Entity = S.Entity; P.Incarnation = S.Incarnation; P.Tick = S.Tick; P.Karma = S.Karma; P.PkCount = S.PkCount; P.PvpCount = S.PvpCount; P.FlagUntilTick = S.FlagUntilTick; P.bBaseline = S.bBaseline; P.BaselineTick = S.BaselineTick; ApplyPvp(P);
 	Fence.Tick = FMath::Max(Fence.Tick, S.Tick); OnChanged.Broadcast();
@@ -157,7 +159,7 @@ void USkillStateSubsystem::ApplyResult(const FSkillCastResult& R)
 void USkillStateSubsystem::ApplyCancel(const FSkillCastCancelled& C)
 {
  const int32 Before=CastTransitions;FinishCast(C.Caster,C.CasterIncarnation,C.CastId,C.Tick,C.Reason);
- if(CastTransitions!=Before && IsOwn(C.Caster))++Counts.FindOrAdd(TEXT("cast_cancellations"));
+ if(CastTransitions!=Before){ObservedCancel=C;if(IsOwn(C.Caster))++Counts.FindOrAdd(TEXT("cast_cancellations"));}
 }
 TOptional<uint64> USkillStateSubsystem::ReuseRemaining(uint32 Id) const
 {

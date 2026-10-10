@@ -1161,6 +1161,14 @@ Unknown evidence evaluates false and is printed as unknown where applicable.
 | `resurrect_offer_pending` | Owner ResurrectOffer ID/state/expiry, current death incarnation |
 | `vitals_max_hp <own|self|target|UUID> op n` | EntitySpawn.max_hp, StatsChanged.max_hp (owner), VitalsChanged.max_hp including final revival baseline |
 | `catalogue_skill_status <id> == executable|deferred` | GetSkillCatalog.effect_implemented |
+| `entity_alive/dead/in_view <own|self|target|UUID>` | Known EntitySpawn identity, EntityDied/Respawned and accepted public absolute HP; absent identity stays unknown |
+| `entity_at <entity> <x> <y> <tol>` | Newest received EntitySpawn/EntityMove position sample, gated by current known identity |
+| `entity_casting <entity> <id>` | Current SkillCastStarted skill ID, including identity hydration; terminal Result/Cancelled clears it |
+| `initial_hp/mp/cp op n` | First owner EntitySpawn HP and first accepted StatsChanged MP/CP in the current admission; later updates do not rewrite these samples |
+| `target_flag_remaining op n` | Received PvpStateChanged.flag_until_tick minus newest received tick, clamped at zero |
+| `cast_cancel_reason/observed_cast_cancel_reason == <reason>` | Last accepted SkillCastCancelled.reason with caster life/cast ID fences; observed includes the owner |
+| `buff_replacements op n`, `replacement_remove_before_apply` | Known buff EffectRemoved(reason=REPLACED) followed by same target/skill/pool EffectApplied with a new effect ID; duplicates/baselines excluded |
+| `effect_remove_reason == <reason>` | Last accepted EffectRemoved.reason for a previously known stable effect ID |
 
 Identity baselines reset projections; ordinary deltas at/before them are rejected.
 Explicit hydration must match the identity tick and incarnation. Hidden reference
@@ -1176,4 +1184,11 @@ Use `-Phase3LiveCharacter=<UUID>` for a prepared fixture character; otherwise li
 admission tests create a fresh character. Live gameplay scenarios and server
 oracle verification are architect/harness work. Additional harness oracle,
 death-record, retention-hook, AI-hate and causal trace predicates are **not
-implemented** and fail scenario parsing until their contracts/vectors are published.
+implemented** and fail scenario parsing. Generic independent E1 vectors are published on the data/zone branches; scenario input bindings and correlated actor/checkpoint evidence are still needed. The client does not select an arbitrary vector with a matching output or infer a regeneration cause from an HP increase.
+
+Casting soak uses `-SoakRoleManifest=<roles.json>` and
+`-SoakScenarioSeconds=360`. Each role's process allowance is `SoakSeconds +
+SoakScenarioSeconds + 60` for boot and a final complete scenario; Gauntlet adds
+30 seconds for collection. Both process and Gauntlet deadlines use this allowance.
+Manifest paths, casting mode, role order/count and private token permissions are
+validated before launching. A manifest/build pass does not prove a casting soak.

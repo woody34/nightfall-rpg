@@ -654,6 +654,8 @@ void FBotPredicateRegistry::RegisterEquality(const FString& Name, const FString&
 		{
 			FString Observed;
 			const bool bEqual = Matches(C, Rhs, Observed);
+			// Missing projections cannot satisfy inequality by inversion.
+			if (!bEqual && (Observed == TEXT("unknown") || Observed == TEXT("pending"))) return {false, Observed};
 			return { bEqual == bWantEqual, Observed };
 		};
 	} });

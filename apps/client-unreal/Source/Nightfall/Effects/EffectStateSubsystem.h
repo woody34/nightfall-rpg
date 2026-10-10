@@ -24,11 +24,18 @@ public:
 	bool Has(const FString& Entity, uint32 SkillId, TOptional<uint32> Pool = {}) const;
 	uint64 GetTick() const;
  bool IsKnown(const FString& Entity) const { return Fence.Identities.Contains(Entity.ToLower()); }
-	int32 GetTransitionCount() const { return TransitionCount; }
+	TOptional<uint64> Replacements(const FString& Entity) const { return IsKnown(Entity)?TOptional<uint64>(ReplacementCounts.FindRef(Entity.ToLower())):TOptional<uint64>(); }
+ const TOptional<uint32>& GetRemoveReason() const { return LastRemoveReason; }
+ const TOptional<bool>& ReplacementOrdered() const { return bReplacementOrdered; }
+ int32 GetTransitionCount() const { return TransitionCount; }
 private:
 	FPresentationFence Fence;
 	TMap<FString, TMap<uint64, FEffectApplied>> Effects;
 	TMap<FString, TMap<uint64, uint64>> Changes;
 	int32 TransitionCount = 0;
+ TMap<FString,TMap<uint64,FEffectApplied>> PendingReplacements;
+ TMap<FString,uint64> ReplacementCounts;
+ TOptional<uint32> LastRemoveReason;
+ TOptional<bool> bReplacementOrdered;
 	UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
 };

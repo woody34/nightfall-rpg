@@ -14,6 +14,7 @@ namespace Nightfall
         private DateTime Started;
         private int Clients;
         private int Seconds;
+        private int ProcessBudget;
         private string Output;
 
         public NightfallSoak(UnrealTestContext context) : base(context) { }
@@ -29,7 +30,9 @@ namespace Nightfall
                 throw new ArgumentException("SoakClients must be 1..8 and SoakSeconds positive");
             string manifestPath = Globals.Params.ParseValue("SoakRoleManifest", "");
             var lanes = ReadRoles(manifestPath, Clients);
-            config.MaxDuration = Seconds + (lanes != null ? 210 : 180); // boot plus the final complete 90-second scenario
+            int scenarioSeconds = Globals.Params.ParseValue("SoakScenarioSeconds", lanes != null ? 360 : 90);
+            ProcessBudget = GetProcessBudget(Seconds, scenarioSeconds);
+            config.MaxDuration = checked(ProcessBudget + 30); // Gauntlet collection grace after the role deadline
             config.AllRolesExit = true;
             config.FailOnEnsures = true;
             var roles = config.RequireRoles(UnrealTargetRole.Client, Clients);
@@ -51,6 +54,13 @@ namespace Nightfall
                 roles[i].CommandLineParams.Add("UserDir", $"\"{Path.Combine(dir, "User")}\"");
             }
             return config;
+        }
+
+        private static int GetProcessBudget(int seconds, int scenarioSeconds)
+        {
+            if (seconds < 1 || scenarioSeconds < 1)
+                throw new ArgumentException("SoakSeconds and SoakScenarioSeconds must be positive");
+            return checked(seconds + scenarioSeconds + 60); // boot plus the final complete scenario
         }
 
         private sealed class Lane
@@ -116,9 +126,9 @@ namespace Nightfall
                     SetUnrealTestResult(TestResult.Failed);
                     return;
                 }
-                if (!role.AppInstance.HasExited && (DateTime.UtcNow - Started).TotalSeconds > Seconds + 180)
+                if (!role.AppInstance.HasExited && (DateTime.UtcNow - Started).TotalSeconds > ProcessBudget)
                 {
-                    ReportError("Soak client exceeded its {0}s process budget", Seconds + 180);
+                    ReportError("Soak client exceeded its {0}s process budget", ProcessBudget);
                     MarkTestComplete();
                     SetUnrealTestResult(TestResult.TimedOut);
                     return;

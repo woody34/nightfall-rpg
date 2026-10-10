@@ -41,6 +41,10 @@ public:
  const FSwingView* FindSwing(const FString& Id) const { return Swings.Find(Id.ToLower()); }
  TOptional<uint64> History(const FString& Name) const;
  TOptional<bool> ReceiptMatchesFirst() const { return bReceiptMatches; }
+ const TOptional<uint32>& GetInitialHp() const { return InitialHp; }
+ const TOptional<uint32>& GetInitialMp() const { return InitialMp; }
+ const TOptional<uint32>& GetInitialCp() const { return InitialCp; }
+ const TOptional<FSkillCastCancelled>& GetObservedCancel() const { return ObservedCancel; }
  uint64 GetOperationSerial() const { return OperationSerial; }
  bool RpcDone() const { return bRpcDone && !bBusy; }
 	uint64 GetTick() const;
@@ -91,6 +95,8 @@ private:
  TMap<FString,FString> FirstReceipts;
  TOptional<bool> bReceiptMatches;
  TMap<FString,uint64> Counts;
+ TOptional<uint32> InitialHp, InitialMp, InitialCp;
+ TOptional<FSkillCastCancelled> ObservedCancel;
  TMap<FString,FSwingView> Swings;
 	bool bBusy = false, bCatalogKnown = false, bLearnableKnown = false, bLearnDone = false;
 	FGrpcNightfallV1GetSkillCatalogResponse Catalog;

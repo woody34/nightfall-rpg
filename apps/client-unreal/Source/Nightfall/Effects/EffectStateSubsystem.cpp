@@ -20,11 +20,11 @@ void UEffectStateSubsystem::Deinitialize()
 	if (Net) { Net->OnEntitySpawn.RemoveAll(this); Net->OnEntityRespawned.RemoveAll(this); Net->OnEntityDespawn.RemoveAll(this); Net->OnEffectApplied.RemoveAll(this); Net->OnEffectRemoved.RemoveAll(this); Net->OnIntentAck.RemoveAll(this); Net->OnEntityMove.RemoveAll(this); Net->OnVitalsChanged.RemoveAll(this); Net->OnConnected.RemoveAll(this); Net->OnDisconnected.RemoveAll(this); }
 	Super::Deinitialize();
 }
-void UEffectStateSubsystem::Reset() { Fence.Reset(); Effects.Reset(); Changes.Reset(); TransitionCount = 0; }
+void UEffectStateSubsystem::Reset() { Fence.Reset(); Effects.Reset(); Changes.Reset(); PendingReplacements.Reset(); ReplacementCounts.Reset(); LastRemoveReason.Reset(); bReplacementOrdered.Reset(); TransitionCount = 0; }
 void UEffectStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 {
 	if (!Fence.Spawn(S)) return;
-	Effects.Remove(S.EntityId.ToLower()); Changes.Remove(S.EntityId.ToLower());
+	Effects.Remove(S.EntityId.ToLower()); Changes.Remove(S.EntityId.ToLower()); PendingReplacements.Remove(S.EntityId.ToLower()); ReplacementCounts.Remove(S.EntityId.ToLower());
 	for (const auto& A : S.ActiveEffects)
 	{
 		FEffectApplied E; E.Target = S.EntityId; E.TargetIncarnation = S.LifeIncarnation; E.EffectId = A.EffectId; E.SkillId = A.SkillId; E.SkillLevel = A.SkillLevel; E.Pool = A.bIsDebuff ? 3 : 1;
@@ -34,8 +34,8 @@ void UEffectStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 		E.EndTick = A.RemainingTicks ? S.StateTick + A.RemainingTicks : 0; E.bBaseline = true; E.BaselineTick = S.StateTick; ApplyEffect(E);
 	}
 }
-void UEffectStateSubsystem::ApplyRespawn(const FEntityRespawned& R) { if (Fence.Respawn(R)) { Effects.Remove(R.Entity.ToLower()); Changes.Remove(R.Entity.ToLower()); } }
-void UEffectStateSubsystem::ApplyDespawn(const FEntityDespawn& D) { Fence.Despawn(D.EntityId); Effects.Remove(D.EntityId.ToLower()); Changes.Remove(D.EntityId.ToLower()); }
+void UEffectStateSubsystem::ApplyRespawn(const FEntityRespawned& R) { if (Fence.Respawn(R)) { Effects.Remove(R.Entity.ToLower()); Changes.Remove(R.Entity.ToLower()); PendingReplacements.Remove(R.Entity.ToLower()); ReplacementCounts.Remove(R.Entity.ToLower()); } }
+void UEffectStateSubsystem::ApplyDespawn(const FEntityDespawn& D) { Fence.Despawn(D.EntityId); Effects.Remove(D.EntityId.ToLower()); Changes.Remove(D.EntityId.ToLower()); PendingReplacements.Remove(D.EntityId.ToLower()); ReplacementCounts.Remove(D.EntityId.ToLower()); }
 void UEffectStateSubsystem::ApplyEffect(const FEffectApplied& E)
 {
 	if (!E.EffectId || !Fence.Accept(E.Target, E.TargetIncarnation, E.Tick, E.bBaseline, E.BaselineTick)) return;
@@ -43,7 +43,14 @@ void UEffectStateSubsystem::ApplyEffect(const FEffectApplied& E)
 	if (const auto* At = Changed.Find(E.EffectId); At && E.Tick <= *At) return;
 	FEffectApplied Copy = E;
 	if (!Copy.Caster.IsSet() || !Copy.CasterIncarnation.IsSet() || !Fence.Visible(*Copy.Caster, *Copy.CasterIncarnation)) { Copy.Caster.Reset(); Copy.CasterIncarnation.Reset(); }
-	Effects.FindOrAdd(E.Target.ToLower()).Add(E.EffectId, Copy); Changed.Add(E.EffectId, E.Tick);
+	if(!E.bBaseline)
+ {
+  if(auto* Pending=PendingReplacements.Find(E.Target.ToLower()))
+   for(auto It=Pending->CreateIterator();It;++It)
+    if(It.Value().SkillId==E.SkillId && It.Value().Pool==E.Pool && It.Key()!=E.EffectId && E.Tick>=It.Value().Tick)
+    {bReplacementOrdered=true;++ReplacementCounts.FindOrAdd(E.Target.ToLower());It.RemoveCurrent();break;}
+ }
+ Effects.FindOrAdd(E.Target.ToLower()).Add(E.EffectId, Copy); Changed.Add(E.EffectId, E.Tick);
 	Fence.Tick = FMath::Max(Fence.Tick, E.Tick); if (!E.bBaseline) ++TransitionCount;
 }
 void UEffectStateSubsystem::ApplyRemoved(const FEffectRemoved& E)
@@ -52,7 +59,13 @@ void UEffectStateSubsystem::ApplyRemoved(const FEffectRemoved& E)
 	auto& Changed = Changes.FindOrAdd(E.Target.ToLower());
 	if (const auto* At = Changed.Find(E.EffectId); At && E.Tick < *At) return;
 	// Removal may legitimately follow application in the same tick; duplicate removals are no-ops.
-	auto& Rows = Effects.FindOrAdd(E.Target.ToLower()); if (Rows.Remove(E.EffectId)) ++TransitionCount;
+	auto& Rows = Effects.FindOrAdd(E.Target.ToLower());
+ if(const auto* Old=Rows.Find(E.EffectId))
+ {
+  LastRemoveReason=E.Reason;
+  if(E.Reason==2 && (Old->Pool==1 || Old->Pool==2)){auto Copy=*Old;Copy.Tick=E.Tick;PendingReplacements.FindOrAdd(E.Target.ToLower()).Add(E.EffectId,Copy);bReplacementOrdered=false;}
+  Rows.Remove(E.EffectId);++TransitionCount;
+ }
 	Changed.Add(E.EffectId, E.Tick); Fence.Tick = FMath::Max(Fence.Tick, E.Tick);
 }
 TArray<FEffectApplied> UEffectStateSubsystem::Active(const FString& Entity) const
