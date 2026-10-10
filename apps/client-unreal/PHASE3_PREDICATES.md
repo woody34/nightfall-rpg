@@ -34,3 +34,12 @@ The core Phase 3 commands and predicates implemented before round 2 are document
 | `cancelled_cast_costs_retained` | Owner SkillCastStarted/Cancelled exact rank plus catalogue MP1, received start StatsChanged delta and SkillReuse at start whose deadline remains beyond cancellation. MP returns to a higher value cannot satisfy the received retention comparison. Requires the catalogue to have been loaded; no missing-cost zero assumption. |
 
 C6 catalogue tags8–12 and generated arrays are integrated from API95d2738; the metadata is validated base data before actor modifiers. None of these checks executes a gameplay formula or mutates resources.
+
+| Observer predicate | Authoritative input and evidence required |
+|---|---|
+| `cast_result_for <entity> <id>` | Newest witnessed Started for that current visible caster/incarnation/skill/cast ID must receive a Result matching caster/incarnation/skill/rank/cast ID. An unrelated prior result cannot satisfy it. |
+| `cast_terminal_once_for <entity> <id>` | The same identity must have one matching Result; identical duplicates are no-ops and contradictory terminals fail. |
+| `observed_cast_baseline_for <entity> <id>` | Explicit baseline Started after identity admission, with received original `start_tick < baseline_tick < complete_tick` and matched source/target incarnations. Ordinary or completed casts cannot satisfy it. |
+| `entity_not_in_view <entity>` | A witnessed current-transport identity was subsequently despawned; initial absence is UNKNOWN. Re-entry and transport reset invalidate the departure sample. |
+
+`Nightfall.Skill.ObserverCastIdentity` consumes the harness-authored `Scenarios/fixtures/phase3-observer-mutual.json` and executes its six negative cases. This is native client dispatch evidence, not an engine-produced recording or live gameplay attestation.

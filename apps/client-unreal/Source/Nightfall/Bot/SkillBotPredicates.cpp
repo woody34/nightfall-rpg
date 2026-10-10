@@ -56,6 +56,15 @@ bool SkillBotPredicates::ParseUnsigned(const FString& Text, uint64& Out)
 void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 {
 	using namespace SkillBotDetail;
+ for (const FString& Name : {FString(TEXT("cast_result_for")),FString(TEXT("cast_terminal_once_for")),FString(TEXT("observed_cast_baseline_for"))})
+  R.Register({Name,Name+TEXT(" <own|uuid> <skill_id>"),TEXT("Correlated received caster/incarnation/skill/cast identity"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+  {
+   uint32 Skill;if(A.Num()!=2 || !EntityArg(A[0]) || !Id(A[1],Skill)){Error=TEXT("needs an entity and positive skill ID");return nullptr;}
+   return [Name,Arg=A[0],Skill](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->CastFor(Entity(C,Arg),Skill,Name):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("matched cast identity")):FString(TEXT("cast identity mismatch"))):FString(TEXT("unknown: designated start/baseline/result not witnessed"))};};
+  }});
+ R.Register({TEXT("entity_not_in_view"),TEXT("entity_not_in_view <uuid>"),TEXT("Previously known identity departed in this transport"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+ {if(A.Num()!=1 || !EntityArg(A[0])){Error=TEXT("needs an entity");return nullptr;}return [Arg=A[0]](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->NotInView(Entity(C,Arg)):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("departed")):FString(TEXT("visible"))):FString(TEXT("unknown: no witnessed departure"))};};}});
+
  R.Register({TEXT("cancelled_cast_costs_retained"),TEXT("cancelled_cast_costs_retained"),TEXT("Received cancelled cast retains start MP and SkillReuse deadline"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
  {if(!A.IsEmpty()){Error=TEXT("takes no arguments");return nullptr;}return [](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->CancelledCostsRetained():TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("retained")):FString(TEXT("refunded or mismatched"))):FString(TEXT("unknown: cancelled cast, catalogue, resource or reuse evidence missing"))};};}});
 

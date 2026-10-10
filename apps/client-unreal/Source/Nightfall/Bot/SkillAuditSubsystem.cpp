@@ -44,7 +44,7 @@ void USkillAuditSubsystem::Deinitialize()
 void USkillAuditSubsystem::Reset(){ClearTransport();PriorPenalty.Reset();PriorOwner.Reset();}
 void USkillAuditSubsystem::ClearTransport()
 {
- Fence.Reset();Stats.Reset();ResourceSamples.Reset();Reuse.Reset();LastReuseAtCancel.Reset();bSamplesComplete=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Swings.Reset();Vitals.Reset();ExpectedVitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
+ Fence.Reset();Stats.Reset();ResourceSamples.Reset();Reuse.Reset();LastReuseAtCancel.Reset();bSamplesComplete=bBaselineOk=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Departed.Reset();Swings.Reset();Vitals.Reset();ExpectedVitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
  OwnCp=PlayerCp=0;References=PublicPairs=RevivalPairs=PvpPairs=CpPairs=EffectSamples=0;
  bReferencesOk=bVitalsOk=bPvpOk=bCpOk=bEffectsOk=bDispositionOk=true;
  bOwnerStatsBaseline=bOwnerSyncBaseline=bObserverBaseline=false;
@@ -111,14 +111,14 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   const auto& S=*E.Spawn;
   if(const auto* Old=Fence.Identities.Find(S.EntityId.ToLower());Old && Net && Net->IsOwnEntity(S.EntityId) && !NightfallProto::IsStaleSpawn(*Old,S) && S.SessionGeneration>Old->SessionGeneration)Disconnected(TEXT("replacement"));
   if(!Fence.Spawn(S))return;
-  PublicPvp.Remove(S.EntityId.ToLower());PrivatePvp.Remove(S.EntityId.ToLower());Effects.Remove(S.EntityId.ToLower());Swings.Remove(S.EntityId.ToLower());
+  Departed.Remove(S.EntityId.ToLower());PublicPvp.Remove(S.EntityId.ToLower());PrivatePvp.Remove(S.EntityId.ToLower());Effects.Remove(S.EntityId.ToLower());Swings.Remove(S.EntityId.ToLower());
   FVitalsChanged V;V.Entity=S.EntityId;V.Incarnation=S.LifeIncarnation;V.Tick=S.StateTick;V.Hp=S.Hp;V.MaxHp=S.MaxHp;Vitals.Add(S.EntityId.ToLower(),V);
   FPvpStateChanged P;P.Entity=S.EntityId;P.Incarnation=S.LifeIncarnation;P.Tick=P.BaselineTick=S.StateTick;P.bBaseline=true;P.FlagUntilTick=S.FlagUntilTick;P.Karma=S.Karma;P.PkCount=S.PkCount;P.PvpCount=S.PvpCount;PublicPvp.Add(S.EntityId.ToLower(),P);
   // V5 identity frames must not contain reference-bearing legacy hydration.
   bReferencesOk &= S.ActiveEffects.IsEmpty() && !S.PendingCast.IsSet() && !S.PendingSwing.IsSet();
   return;
  }
- if(E.Despawn.IsSet()){const FString Id=E.Despawn->EntityId.ToLower();Fence.Despawn(Id);Swings.Remove(Id);Effects.Remove(Id);PublicPvp.Remove(Id);PrivatePvp.Remove(Id);return;}
+ if(E.Despawn.IsSet()){const FString Id=E.Despawn->EntityId.ToLower();if(Fence.Identities.Contains(Id))Departed.Add(Id);Fence.Despawn(Id);Swings.Remove(Id);Effects.Remove(Id);PublicPvp.Remove(Id);PrivatePvp.Remove(Id);return;}
  if(E.EntityDied.IsSet())
  {
   const auto& D=*E.EntityDied;if(!Fence.Died(D))return;DeathIncarnations.Add(D.Entity.ToLower(),D.Incarnation);Swings.Remove(D.Entity.ToLower());
@@ -150,8 +150,12 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  if(E.SkillCastStarted.IsSet())
  {
   const auto& S=*E.SkillCastStarted;if(!Fence.Accept(S.Caster,S.CasterIncarnation,S.Tick,S.bBaseline,S.BaselineTick))return;
-  Reference(S.Target,S.TargetIncarnation);const FString K=CastKey(S.Caster,S.CasterIncarnation,S.CastId);
-  if(!Casts.Contains(K)){Casts.Add(K,{S,0,0,FString(),0});if(!S.bBaseline && Net && Net->IsOwnEntity(S.Caster))++OwnStartCount;}if(S.bBaseline && Net && !Net->IsOwnEntity(S.Caster))bObserverBaseline=true;return;
+  const bool ValidReference=Reference(S.Target,S.TargetIncarnation);
+  const bool ValidBaseline=!S.bBaseline || (S.StartTick<S.BaselineTick && S.BaselineTick<S.CompleteTick);bBaselineOk &= ValidBaseline;const FString K=CastKey(S.Caster,S.CasterIncarnation,S.CastId);
+  if(!Casts.Contains(K))
+  {FCastEvidence C;C.Start=S;C.SeenTick=S.Tick;C.bIdentityOk=ValidReference && ValidBaseline;if(S.bBaseline)C.Hydration=S;Casts.Add(K,C);if(!S.bBaseline && Net && Net->IsOwnEntity(S.Caster))++OwnStartCount;}
+  else
+  {auto& C=Casts[K];C.bIdentityOk &= ValidReference && ValidBaseline && C.Start.SkillId==S.SkillId && C.Start.SkillLevel==S.SkillLevel;C.SeenTick=FMath::Max(C.SeenTick,S.Tick);if(S.bBaseline)C.Hydration=S;}if(S.bBaseline && Net && !Net->IsOwnEntity(S.Caster))bObserverBaseline=true;return;
  }
  if(E.SkillCastResult.IsSet() || E.SkillCastCancelled.IsSet())
  {
@@ -159,9 +163,11 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   const uint32 Inc=Result?E.SkillCastResult->CasterIncarnation:E.SkillCastCancelled->CasterIncarnation;
   const uint64 Tick=Result?E.SkillCastResult->Tick:E.SkillCastCancelled->Tick,Id=Result?E.SkillCastResult->CastId:E.SkillCastCancelled->CastId;
   if(!Fence.Accept(Caster,Inc,Tick))return;
-  auto* C=Casts.Find(CastKey(Caster,Inc,Id));if(!C){bDispositionOk=false;return;}FString Fingerprint=FString::Printf(TEXT("%d|%llu|%u"),Result,Tick,Result?0:E.SkillCastCancelled->Reason);
+  auto* C=Casts.Find(CastKey(Caster,Inc,Id));if(!C || Tick<C->Start.Tick)return;
+  if(Result && (E.SkillCastResult->SkillId!=C->Start.SkillId || E.SkillCastResult->SkillLevel!=C->Start.SkillLevel)){C->bIdentityOk=false;bDispositionOk=false;return;}
+  FString Fingerprint=FString::Printf(TEXT("%d|%llu|%u"),Result,Tick,Result?0:E.SkillCastCancelled->Reason);
   if(Result)for(const auto& T:E.SkillCastResult->Targets)Fingerprint+=FString::Printf(TEXT("|%s|%u|%llu|%u|%u|%u|%u|%u|%u|%u"),*T.Target,T.TargetIncarnation,T.Tick,T.ResolutionKind,T.Outcome,T.Rolled,T.CpAbsorbed,T.HpRemoved,T.Heal,T.TargetHpAfter);
-  if(C->Terminals){bDispositionOk &= C->Terminal==Fingerprint;return;}C->Terminal=Fingerprint;++C->Terminals;C->Reason=Result?0:E.SkillCastCancelled->Reason;C->TerminalTick=Tick;
+  if(C->Terminals){C->bIdentityOk &= C->Terminal==Fingerprint;bDispositionOk &= C->Terminal==Fingerprint;return;}C->Terminal=Fingerprint;++C->Terminals;C->Reason=Result?0:E.SkillCastCancelled->Reason;C->TerminalTick=Tick;
   if(!Result && Net && Net->IsOwnEntity(Caster)){const auto* ReuseAtCancel=Reuse.Find(C->Start.SkillId);LastReuseAtCancel=ReuseAtCancel?TOptional<FSkillReuse>(*ReuseAtCancel):TOptional<FSkillReuse>();}
   if(Result)for(const auto& T:E.SkillCastResult->Targets)
   {
@@ -226,8 +232,8 @@ TOptional<bool> USkillAuditSubsystem::Check(const FString& Name) const
 {
  if(Name==TEXT("cast_dispositions_once")){uint32 N=0;for(const auto& C:Casts)if(!C.Value.Start.bBaseline){++N;if(C.Value.Terminals!=1)return false;}return N?TOptional<bool>(bDispositionOk):TOptional<bool>();}
  if(Name==TEXT("spawn_before_skill_references"))return References?TOptional<bool>(bReferencesOk):TOptional<bool>();
- if(Name==TEXT("owner_skill_baseline_coherent"))return bOwnerStatsBaseline && bOwnerSyncBaseline?TOptional<bool>(bReferencesOk && bPvpOk):TOptional<bool>();
- if(Name==TEXT("observer_skill_baseline_coherent"))return bObserverBaseline?TOptional<bool>(bReferencesOk):TOptional<bool>();
+ if(Name==TEXT("owner_skill_baseline_coherent"))return bOwnerStatsBaseline && bOwnerSyncBaseline?TOptional<bool>(bReferencesOk && bPvpOk && bBaselineOk):TOptional<bool>();
+ if(Name==TEXT("observer_skill_baseline_coherent"))return bObserverBaseline?TOptional<bool>(bReferencesOk && bBaselineOk):TOptional<bool>();
  if(Name==TEXT("public_vitals_coherent") || Name==TEXT("public_revival_vitals_coherent"))
  {
   if(!(Name==TEXT("public_vitals_coherent")?PublicPairs:RevivalPairs) || !Net)return {};
@@ -322,4 +328,27 @@ TOptional<bool> USkillAuditSubsystem::CancelledCostsRetained() const
  const auto& R=*LastReuseAtCancel;
  // This tests retained received costs, not a locally reconstructed reuse duration.
  return R.SkillId==C->Start.SkillId && R.Incarnation==C->Start.CasterIncarnation && R.Tick==C->Start.Tick && R.ReadyTick>C->TerminalTick && R.ReadyTick>Fence.Tick && Current->Mp==(Start?Start->Mp:BeforeStart->Mp);
+}
+
+TOptional<bool> USkillAuditSubsystem::NotInView(const FString& Entity) const
+{
+ const FString Id=Entity.ToLower();if(Fence.Identities.Contains(Id))return false;return Departed.Contains(Id)?TOptional<bool>(true):TOptional<bool>();
+}
+TOptional<bool> USkillAuditSubsystem::CastFor(const FString& Entity,uint32 Skill,const FString& Predicate) const
+{
+ const auto* Identity=Fence.Identities.Find(Entity.ToLower());if(!Identity)return {};
+ const FCastEvidence* C=nullptr;
+ for(const auto& Pair:Casts)
+ {
+  const auto& Candidate=Pair.Value;
+  if(Candidate.Start.Caster.Equals(Entity,ESearchCase::IgnoreCase) && Candidate.Start.CasterIncarnation==Identity->LifeIncarnation && Candidate.Start.SkillId==Skill && Candidate.SeenTick>=Identity->StateTick && (!C || Candidate.SeenTick>C->SeenTick || (Candidate.SeenTick==C->SeenTick && Candidate.Start.CastId>C->Start.CastId)))C=&Candidate;
+ }
+ if(!C)return {};
+ if(Predicate==TEXT("observed_cast_baseline_for"))
+ {
+  if(!C->Hydration.IsSet())return {};const auto& H=*C->Hydration;
+  return C->bIdentityOk && H.bBaseline && H.StartTick<H.BaselineTick && H.BaselineTick<H.CompleteTick && H.BaselineTick==H.Tick;
+ }
+ if(!C->Terminals)return {};
+ return C->bIdentityOk && C->Terminals==1 && C->Reason==0;
 }
