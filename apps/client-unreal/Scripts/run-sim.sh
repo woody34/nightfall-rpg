@@ -56,6 +56,7 @@ for scenario in "${SCENARIOS[@]}"; do
   sim_fixture_validate_mode "$selected" "$API_MODE"
   FIXTURES+=("$selected")
 done
+sim_scenario_budget "${SCENARIOS[@]}"
 sim_resolve_env
 sim_ensure_build
 mkdir -p "$SIM_SAVED_DIR"
