@@ -27,7 +27,8 @@
     "cast_staging": "Cast timing staging at L2Character.java:1508, 1625-1643, 4577-4581: base animation time, continuous-skill -300 ms, launch at anim - 400 ms, impact at launch + 400 ms, interrupt cutoff deadline floor(trunc(animation_ms)/100) - 2 ticks",
     "Heal": "Heal.java:84-102: weapon grade multiplier (S84=4, S80=2, other=1), no-shot dynamic bonus (+1), sqrt(mAtkMul * mAtk) added unless static, recipient HEAL_EFFECT, x3 magic crit, and [0, maxRecoverableHp - currentHp] overheal clamp",
     "FuncAtkEvasion": "FuncAtkEvasion.java:37,61: order 1 built-in func truncates (int) value before later stat modifiers; CharStat.java:171-174 rounds the final completed stat",
-    "stun_removal_condition": "PcStatus.java:83-96 and CharStatus.java:142-146: stun removal roll condition (!isDOT && !isHPConsumption && isStunned) triggering Rnd.get(10) == 0 (10% chance) on eligible direct damage"
+    "stun_removal_condition": "PcStatus.java:83-96 and CharStatus.java:142-146: stun removal roll condition (!isDOT && !isHPConsumption && isStunned) triggering Rnd.get(10) == 0 (10% chance) on eligible direct damage",
+    "getAffectLimit": "Skill.java:637-641: width 0 (affectLimit[1] == 0) returns 0 with no draw; width > 0 returns offset + Rnd.get(width); AffectScope.java:73,143,182,233,287,357,386,401,417 treats limit <= 0 as UNLIMITED (Integer.MAX_VALUE)"
   },
   "double_arithmetic_discrepancies": {
     "calcMagicSuccess_float_cast": "Formulas.java:1301 explicitly casts the double result to (float) before Math.round. In IEEE 754 binary32, precision is 24 bits. The oracle models this with binary_nearest(x, 24) to guarantee exact equivalence with the Java JVM.",
@@ -37,7 +38,8 @@
     "resurrect_quirk_boundary": "Formulas.java:1377 uses strictly greater comparison (restorePercent - baseRestorePercent > 20.0). Floating point round-off near boundary could flip this condition; rational arithmetic guarantees exactness at the 20.0 boundary.",
     "FuncAtkEvasion_intermediate_cast": "FuncAtkEvasion.java:61 truncates intermediate evasion to (int) before modifiers. Without this intermediate truncation, rounding after modifiers produces different integer values (e.g. lvl 1 DEX 20 player yields 27 with cast vs 28 without; adding +4 modifier yields 31 vs 32; buff 1.1x yields 30 vs 31).",
     "Heal_nongrade_shot_multiplier": "In Phase 3 with no spiritshots, nongrade weapon or unarmed yields mAtkMul = 1 + 1 = 2 per Heal.java:89. Static healing bypasses mAtk, heal_effect and crit.",
-    "TickHp_nonlethal_clamp": "TickHp.java:75-76 caps negative DoT power at currentHp - 1, preventing death from DoT. Clamped power is non-negative and zero if currentHp <= 1."
+    "TickHp_nonlethal_clamp": "TickHp.java:75-76 caps negative DoT power at currentHp - 1, preventing death from DoT. Clamped power is non-negative and zero if currentHp <= 1.",
+    "getAffectLimit_unlimited_zero": "Skill.java:638 returns 0 when width==0. AffectScope treats 0 as unlimited targets (affectLimit > 0 guard and .limit(affectLimit > 0 ? affectLimit : Integer.MAX_VALUE)). Fixed-limit skills require width > 0 in retail datapack."
   },
   "formulas": {
     "calcSkillPhysDam": [
@@ -22899,11 +22901,1289 @@
         },
         "rounding_rule": "PcStatus.java:93-96 and CharStatus.java:142-146: !isDOT && !isHPConsumption && isStunned -> Rnd.get(10)==0 (10% chance)"
       }
+    ],
+    "getAffectLimit": [
+      {
+        "description": "Uninitialized default 0-0: width 0 -> no draw, returns 0, AffectScope treats as UNLIMITED",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 0,
+          "width": 0,
+          "roll_draw": null
+        },
+        "intermediate": {
+          "width_is_zero": true,
+          "draw_performed": false,
+          "raw_limit": 0,
+          "is_unlimited": true
+        },
+        "exact_rational": "0",
+        "rounded_result": {
+          "limit_return": 0,
+          "is_unlimited": true,
+          "stream_limit": 2147483647
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Fixed limit candidate 10-0 (skill 981): width 0 -> no draw, returns 0, UNLIMITED",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 10,
+          "width": 0,
+          "roll_draw": null
+        },
+        "intermediate": {
+          "width_is_zero": true,
+          "draw_performed": false,
+          "raw_limit": 0,
+          "is_unlimited": true
+        },
+        "exact_rational": "0",
+        "rounded_result": {
+          "limit_return": 0,
+          "is_unlimited": true,
+          "stream_limit": 2147483647
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Fixed limit candidate 8-0 (skill 986): width 0 -> no draw, returns 0, UNLIMITED",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 8,
+          "width": 0,
+          "roll_draw": null
+        },
+        "intermediate": {
+          "width_is_zero": true,
+          "draw_performed": false,
+          "raw_limit": 0,
+          "is_unlimited": true
+        },
+        "exact_rational": "0",
+        "rounded_result": {
+          "limit_return": 0,
+          "is_unlimited": true,
+          "stream_limit": 2147483647
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Fixed limit candidate 9-0 (skill 1547): width 0 -> no draw, returns 0, UNLIMITED",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 9,
+          "width": 0,
+          "roll_draw": null
+        },
+        "intermediate": {
+          "width_is_zero": true,
+          "draw_performed": false,
+          "raw_limit": 0,
+          "is_unlimited": true
+        },
+        "exact_rational": "0",
+        "rounded_result": {
+          "limit_return": 0,
+          "is_unlimited": true,
+          "stream_limit": 2147483647
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Offset 5 width 0: width 0 -> no draw, returns 0, UNLIMITED",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 0,
+          "roll_draw": null
+        },
+        "intermediate": {
+          "width_is_zero": true,
+          "draw_performed": false,
+          "raw_limit": 0,
+          "is_unlimited": true
+        },
+        "exact_rational": "0",
+        "rounded_result": {
+          "limit_return": 0,
+          "is_unlimited": true,
+          "stream_limit": 2147483647
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Offset 1 width 0: width 0 -> no draw, returns 0, UNLIMITED",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 1,
+          "width": 0,
+          "roll_draw": null
+        },
+        "intermediate": {
+          "width_is_zero": true,
+          "draw_performed": false,
+          "raw_limit": 0,
+          "is_unlimited": true
+        },
+        "exact_rational": "0",
+        "rounded_result": {
+          "limit_return": 0,
+          "is_unlimited": true,
+          "stream_limit": 2147483647
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Offset 50 width 0: width 0 -> no draw, returns 0, UNLIMITED",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 0,
+          "roll_draw": null
+        },
+        "intermediate": {
+          "width_is_zero": true,
+          "draw_performed": false,
+          "raw_limit": 0,
+          "is_unlimited": true
+        },
+        "exact_rational": "0",
+        "rounded_result": {
+          "limit_return": 0,
+          "is_unlimited": true,
+          "stream_limit": 2147483647
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Offset 100 width 0: width 0 -> no draw, returns 0, UNLIMITED",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 100,
+          "width": 0,
+          "roll_draw": null
+        },
+        "intermediate": {
+          "width_is_zero": true,
+          "draw_performed": false,
+          "raw_limit": 0,
+          "is_unlimited": true
+        },
+        "exact_rational": "0",
+        "rounded_result": {
+          "limit_return": 0,
+          "is_unlimited": true,
+          "stream_limit": 2147483647
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-12 with roll=0 -> limit 5",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 12,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 5,
+          "is_unlimited": false
+        },
+        "exact_rational": "5",
+        "rounded_result": {
+          "limit_return": 5,
+          "is_unlimited": false,
+          "stream_limit": 5
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-12 with roll=1 -> limit 6",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 12,
+          "roll_draw": 1
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 6,
+          "is_unlimited": false
+        },
+        "exact_rational": "6",
+        "rounded_result": {
+          "limit_return": 6,
+          "is_unlimited": false,
+          "stream_limit": 6
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-12 with roll=3 -> limit 8",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 12,
+          "roll_draw": 3
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 8,
+          "is_unlimited": false
+        },
+        "exact_rational": "8",
+        "rounded_result": {
+          "limit_return": 8,
+          "is_unlimited": false,
+          "stream_limit": 8
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-12 with roll=5 -> limit 10",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 12,
+          "roll_draw": 5
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 10,
+          "is_unlimited": false
+        },
+        "exact_rational": "10",
+        "rounded_result": {
+          "limit_return": 10,
+          "is_unlimited": false,
+          "stream_limit": 10
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-12 with roll=8 -> limit 13",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 12,
+          "roll_draw": 8
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 13,
+          "is_unlimited": false
+        },
+        "exact_rational": "13",
+        "rounded_result": {
+          "limit_return": 13,
+          "is_unlimited": false,
+          "stream_limit": 13
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-12 with roll=11 -> limit 16",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 12,
+          "roll_draw": 11
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 16,
+          "is_unlimited": false
+        },
+        "exact_rational": "16",
+        "rounded_result": {
+          "limit_return": 16,
+          "is_unlimited": false,
+          "stream_limit": 16
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 10-10 with roll=0 -> limit 10",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 10,
+          "width": 10,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 10,
+          "is_unlimited": false
+        },
+        "exact_rational": "10",
+        "rounded_result": {
+          "limit_return": 10,
+          "is_unlimited": false,
+          "stream_limit": 10
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 10-10 with roll=1 -> limit 11",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 10,
+          "width": 10,
+          "roll_draw": 1
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 11,
+          "is_unlimited": false
+        },
+        "exact_rational": "11",
+        "rounded_result": {
+          "limit_return": 11,
+          "is_unlimited": false,
+          "stream_limit": 11
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 10-10 with roll=4 -> limit 14",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 10,
+          "width": 10,
+          "roll_draw": 4
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 14,
+          "is_unlimited": false
+        },
+        "exact_rational": "14",
+        "rounded_result": {
+          "limit_return": 14,
+          "is_unlimited": false,
+          "stream_limit": 14
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 10-10 with roll=7 -> limit 17",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 10,
+          "width": 10,
+          "roll_draw": 7
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 17,
+          "is_unlimited": false
+        },
+        "exact_rational": "17",
+        "rounded_result": {
+          "limit_return": 17,
+          "is_unlimited": false,
+          "stream_limit": 17
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 10-10 with roll=9 -> limit 19",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 10,
+          "width": 10,
+          "roll_draw": 9
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 19,
+          "is_unlimited": false
+        },
+        "exact_rational": "19",
+        "rounded_result": {
+          "limit_return": 19,
+          "is_unlimited": false,
+          "stream_limit": 19
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 9-10 with roll=0 -> limit 9",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 9,
+          "width": 10,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 9,
+          "is_unlimited": false
+        },
+        "exact_rational": "9",
+        "rounded_result": {
+          "limit_return": 9,
+          "is_unlimited": false,
+          "stream_limit": 9
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 9-10 with roll=1 -> limit 10",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 9,
+          "width": 10,
+          "roll_draw": 1
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 10,
+          "is_unlimited": false
+        },
+        "exact_rational": "10",
+        "rounded_result": {
+          "limit_return": 10,
+          "is_unlimited": false,
+          "stream_limit": 10
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 9-10 with roll=3 -> limit 12",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 9,
+          "width": 10,
+          "roll_draw": 3
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 12,
+          "is_unlimited": false
+        },
+        "exact_rational": "12",
+        "rounded_result": {
+          "limit_return": 12,
+          "is_unlimited": false,
+          "stream_limit": 12
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 9-10 with roll=6 -> limit 15",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 9,
+          "width": 10,
+          "roll_draw": 6
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 15,
+          "is_unlimited": false
+        },
+        "exact_rational": "15",
+        "rounded_result": {
+          "limit_return": 15,
+          "is_unlimited": false,
+          "stream_limit": 15
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 9-10 with roll=9 -> limit 18",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 9,
+          "width": 10,
+          "roll_draw": 9
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 18,
+          "is_unlimited": false
+        },
+        "exact_rational": "18",
+        "rounded_result": {
+          "limit_return": 18,
+          "is_unlimited": false,
+          "stream_limit": 18
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 6-12 with roll=0 -> limit 6",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 6,
+          "width": 12,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 6,
+          "is_unlimited": false
+        },
+        "exact_rational": "6",
+        "rounded_result": {
+          "limit_return": 6,
+          "is_unlimited": false,
+          "stream_limit": 6
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 6-12 with roll=1 -> limit 7",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 6,
+          "width": 12,
+          "roll_draw": 1
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 7,
+          "is_unlimited": false
+        },
+        "exact_rational": "7",
+        "rounded_result": {
+          "limit_return": 7,
+          "is_unlimited": false,
+          "stream_limit": 7
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 6-12 with roll=4 -> limit 10",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 6,
+          "width": 12,
+          "roll_draw": 4
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 10,
+          "is_unlimited": false
+        },
+        "exact_rational": "10",
+        "rounded_result": {
+          "limit_return": 10,
+          "is_unlimited": false,
+          "stream_limit": 10
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 6-12 with roll=7 -> limit 13",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 6,
+          "width": 12,
+          "roll_draw": 7
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 13,
+          "is_unlimited": false
+        },
+        "exact_rational": "13",
+        "rounded_result": {
+          "limit_return": 13,
+          "is_unlimited": false,
+          "stream_limit": 13
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 6-12 with roll=11 -> limit 17",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 6,
+          "width": 12,
+          "roll_draw": 11
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 17,
+          "is_unlimited": false
+        },
+        "exact_rational": "17",
+        "rounded_result": {
+          "limit_return": 17,
+          "is_unlimited": false,
+          "stream_limit": 17
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-50 with roll=0 -> limit 50",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 50,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 50,
+          "is_unlimited": false
+        },
+        "exact_rational": "50",
+        "rounded_result": {
+          "limit_return": 50,
+          "is_unlimited": false,
+          "stream_limit": 50
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-50 with roll=1 -> limit 51",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 50,
+          "roll_draw": 1
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 51,
+          "is_unlimited": false
+        },
+        "exact_rational": "51",
+        "rounded_result": {
+          "limit_return": 51,
+          "is_unlimited": false,
+          "stream_limit": 51
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-50 with roll=10 -> limit 60",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 50,
+          "roll_draw": 10
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 60,
+          "is_unlimited": false
+        },
+        "exact_rational": "60",
+        "rounded_result": {
+          "limit_return": 60,
+          "is_unlimited": false,
+          "stream_limit": 60
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-50 with roll=25 -> limit 75",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 50,
+          "roll_draw": 25
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 75,
+          "is_unlimited": false
+        },
+        "exact_rational": "75",
+        "rounded_result": {
+          "limit_return": 75,
+          "is_unlimited": false,
+          "stream_limit": 75
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-50 with roll=49 -> limit 99",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 50,
+          "roll_draw": 49
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 99,
+          "is_unlimited": false
+        },
+        "exact_rational": "99",
+        "rounded_result": {
+          "limit_return": 99,
+          "is_unlimited": false,
+          "stream_limit": 99
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 1-10 with roll=0 -> limit 1",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 1,
+          "width": 10,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 1,
+          "is_unlimited": false
+        },
+        "exact_rational": "1",
+        "rounded_result": {
+          "limit_return": 1,
+          "is_unlimited": false,
+          "stream_limit": 1
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 1-10 with roll=2 -> limit 3",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 1,
+          "width": 10,
+          "roll_draw": 2
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 3,
+          "is_unlimited": false
+        },
+        "exact_rational": "3",
+        "rounded_result": {
+          "limit_return": 3,
+          "is_unlimited": false,
+          "stream_limit": 3
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 1-10 with roll=5 -> limit 6",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 1,
+          "width": 10,
+          "roll_draw": 5
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 6,
+          "is_unlimited": false
+        },
+        "exact_rational": "6",
+        "rounded_result": {
+          "limit_return": 6,
+          "is_unlimited": false,
+          "stream_limit": 6
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 1-10 with roll=9 -> limit 10",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 1,
+          "width": 10,
+          "roll_draw": 9
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 10,
+          "is_unlimited": false
+        },
+        "exact_rational": "10",
+        "rounded_result": {
+          "limit_return": 10,
+          "is_unlimited": false,
+          "stream_limit": 10
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 3-6 with roll=0 -> limit 3",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 3,
+          "width": 6,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 3,
+          "is_unlimited": false
+        },
+        "exact_rational": "3",
+        "rounded_result": {
+          "limit_return": 3,
+          "is_unlimited": false,
+          "stream_limit": 3
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 3-6 with roll=1 -> limit 4",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 3,
+          "width": 6,
+          "roll_draw": 1
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 4,
+          "is_unlimited": false
+        },
+        "exact_rational": "4",
+        "rounded_result": {
+          "limit_return": 4,
+          "is_unlimited": false,
+          "stream_limit": 4
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 3-6 with roll=3 -> limit 6",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 3,
+          "width": 6,
+          "roll_draw": 3
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 6,
+          "is_unlimited": false
+        },
+        "exact_rational": "6",
+        "rounded_result": {
+          "limit_return": 6,
+          "is_unlimited": false,
+          "stream_limit": 6
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 3-6 with roll=5 -> limit 8",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 3,
+          "width": 6,
+          "roll_draw": 5
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 8,
+          "is_unlimited": false
+        },
+        "exact_rational": "8",
+        "rounded_result": {
+          "limit_return": 8,
+          "is_unlimited": false,
+          "stream_limit": 8
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-5 with roll=0 -> limit 5",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 5,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 5,
+          "is_unlimited": false
+        },
+        "exact_rational": "5",
+        "rounded_result": {
+          "limit_return": 5,
+          "is_unlimited": false,
+          "stream_limit": 5
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-5 with roll=1 -> limit 6",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 5,
+          "roll_draw": 1
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 6,
+          "is_unlimited": false
+        },
+        "exact_rational": "6",
+        "rounded_result": {
+          "limit_return": 6,
+          "is_unlimited": false,
+          "stream_limit": 6
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-5 with roll=2 -> limit 7",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 5,
+          "roll_draw": 2
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 7,
+          "is_unlimited": false
+        },
+        "exact_rational": "7",
+        "rounded_result": {
+          "limit_return": 7,
+          "is_unlimited": false,
+          "stream_limit": 7
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-5 with roll=4 -> limit 9",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 5,
+          "roll_draw": 4
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 9,
+          "is_unlimited": false
+        },
+        "exact_rational": "9",
+        "rounded_result": {
+          "limit_return": 9,
+          "is_unlimited": false,
+          "stream_limit": 9
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-15 with roll=0 -> limit 5",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 15,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 5,
+          "is_unlimited": false
+        },
+        "exact_rational": "5",
+        "rounded_result": {
+          "limit_return": 5,
+          "is_unlimited": false,
+          "stream_limit": 5
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-15 with roll=3 -> limit 8",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 15,
+          "roll_draw": 3
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 8,
+          "is_unlimited": false
+        },
+        "exact_rational": "8",
+        "rounded_result": {
+          "limit_return": 8,
+          "is_unlimited": false,
+          "stream_limit": 8
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-15 with roll=7 -> limit 12",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 15,
+          "roll_draw": 7
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 12,
+          "is_unlimited": false
+        },
+        "exact_rational": "12",
+        "rounded_result": {
+          "limit_return": 12,
+          "is_unlimited": false,
+          "stream_limit": 12
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 5-15 with roll=14 -> limit 19",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 5,
+          "width": 15,
+          "roll_draw": 14
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 19,
+          "is_unlimited": false
+        },
+        "exact_rational": "19",
+        "rounded_result": {
+          "limit_return": 19,
+          "is_unlimited": false,
+          "stream_limit": 19
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 15-25 with roll=0 -> limit 15",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 15,
+          "width": 25,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 15,
+          "is_unlimited": false
+        },
+        "exact_rational": "15",
+        "rounded_result": {
+          "limit_return": 15,
+          "is_unlimited": false,
+          "stream_limit": 15
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 15-25 with roll=5 -> limit 20",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 15,
+          "width": 25,
+          "roll_draw": 5
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 20,
+          "is_unlimited": false
+        },
+        "exact_rational": "20",
+        "rounded_result": {
+          "limit_return": 20,
+          "is_unlimited": false,
+          "stream_limit": 20
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 15-25 with roll=12 -> limit 27",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 15,
+          "width": 25,
+          "roll_draw": 12
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 27,
+          "is_unlimited": false
+        },
+        "exact_rational": "27",
+        "rounded_result": {
+          "limit_return": 27,
+          "is_unlimited": false,
+          "stream_limit": 27
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 15-25 with roll=24 -> limit 39",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 15,
+          "width": 25,
+          "roll_draw": 24
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 39,
+          "is_unlimited": false
+        },
+        "exact_rational": "39",
+        "rounded_result": {
+          "limit_return": 39,
+          "is_unlimited": false,
+          "stream_limit": 39
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-100 with roll=0 -> limit 50",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 100,
+          "roll_draw": 0
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 50,
+          "is_unlimited": false
+        },
+        "exact_rational": "50",
+        "rounded_result": {
+          "limit_return": 50,
+          "is_unlimited": false,
+          "stream_limit": 50
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-100 with roll=10 -> limit 60",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 100,
+          "roll_draw": 10
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 60,
+          "is_unlimited": false
+        },
+        "exact_rational": "60",
+        "rounded_result": {
+          "limit_return": 60,
+          "is_unlimited": false,
+          "stream_limit": 60
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-100 with roll=49 -> limit 99",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 100,
+          "roll_draw": 49
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 99,
+          "is_unlimited": false
+        },
+        "exact_rational": "99",
+        "rounded_result": {
+          "limit_return": 99,
+          "is_unlimited": false,
+          "stream_limit": 99
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      },
+      {
+        "description": "Retail 50-100 with roll=99 -> limit 149",
+        "source_lines": "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417",
+        "inputs": {
+          "offset": 50,
+          "width": 100,
+          "roll_draw": 99
+        },
+        "intermediate": {
+          "width_is_zero": false,
+          "draw_performed": true,
+          "raw_limit": 149,
+          "is_unlimited": false
+        },
+        "exact_rational": "149",
+        "rounded_result": {
+          "limit_return": 149,
+          "is_unlimited": false,
+          "stream_limit": 149
+        },
+        "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED"
+      }
     ]
   },
   "inputs_sha256": {
     "npcs/keltir.toml": "11c39edcef97ed3c609a960472e89f120d1916b9a14bc3be7e9d8544793a4aa2",
-    "scripts/skill_oracle.py": "5bc4278d66d074a5622d6889a1ae36047b30c6434433402d0aafbc4613ab1933",
+    "scripts/skill_oracle.py": "e07729c5d0724fbac19a155cc9c4da3a70e401ccd3d6e65b79ffcf9bf247817d",
     "tables/formulas.toml": "c45f7e5edce70459791bf2f42820dc9ac6a70f340f059845895e0f020a196338",
     "tables/pvp.toml": "aa1487a49d6ece49da1d23aa105e789ae1709c4a2899925846df7aaf178fe518",
     "tables/regen.toml": "6e60a1287e0f1f9d617ef8a2fca6edc858fece9e2326a39693ffeb335075096f",

@@ -262,6 +262,25 @@ class BlockerComputationTests(unittest.TestCase):
         toml_text = GEN.generate_skill_toml(9992, "test.xml", elem, set())
         self.assertIn("affect_limit = { offset = 5, width = 12 }", toml_text)
 
+    def test_affect_limit_width_zero(self):
+        xml = """
+        <skill id="9990" levels="1" name="AoE Unlimited Width Zero">
+            <set name="operateType" val="A1" />
+            <set name="targetType" val="ENEMY" />
+            <set name="affectScope" val="RANGE" />
+            <set name="affectRange" val="200" />
+            <set name="affectLimit" val="10-0" />
+            <effects>
+                <effect name="PhysicalAttack">
+                    <param power="100" />
+                </effect>
+            </effects>
+        </skill>
+        """
+        elem = ET.fromstring(xml)
+        toml_text = GEN.generate_skill_toml(9990, "test.xml", elem, set())
+        self.assertIn("affect_limit = { offset = 10, width = 0 }", toml_text)
+
     def test_periodic_effect_ticks_and_mode_and_raw_conditions(self):
         xml = """
         <skill id="9991" levels="1" name="DoT and Buff">

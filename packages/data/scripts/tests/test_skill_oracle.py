@@ -78,8 +78,9 @@ class FormulaVerificationTests(unittest.TestCase):
             "Heal",
             "FuncAtkEvasion",
             "stun_removal_condition",
+            "getAffectLimit",
         ]
-        self.assertEqual(len(self.formulas), 23)
+        self.assertEqual(len(self.formulas), 24)
         for name in expected_formulas:
             self.assertIn(name, self.formulas)
             vecs = self.formulas[name]
@@ -255,6 +256,51 @@ class FormulaVerificationTests(unittest.TestCase):
         v_non_stunned = next(v for v in vecs if v["inputs"]["damage_cause"] == "DIRECT_ATTACK" and not v["inputs"]["target_is_stunned"] and v["inputs"]["roll_draw"] == 0)
         self.assertFalse(v_non_stunned["rounded_result"]["stun_removed"])
         self.assertFalse(v_non_stunned["rounded_result"]["roll_consumed"])
+
+    def test_get_affect_limit_behavior(self):
+        vecs = self.formulas["getAffectLimit"]
+        self.assertGreaterEqual(len(vecs), 40)
+        # Width 0 cases: no draw, returns 0, unlimited
+        for v in vecs:
+            if v["inputs"]["width"] == 0:
+                self.assertEqual(v["rounded_result"]["limit_return"], 0)
+                self.assertTrue(v["rounded_result"]["is_unlimited"])
+                self.assertEqual(v["rounded_result"]["stream_limit"], 2147483647)
+                self.assertFalse(v["intermediate"]["draw_performed"])
+                self.assertIsNone(v["inputs"]["roll_draw"])
+                self.assertEqual(v["exact_rational"], "0")
+            else:
+                self.assertFalse(v["rounded_result"]["is_unlimited"])
+                self.assertEqual(
+                    v["rounded_result"]["limit_return"],
+                    v["inputs"]["offset"] + v["inputs"]["roll_draw"],
+                )
+                self.assertEqual(
+                    v["rounded_result"]["stream_limit"],
+                    v["inputs"]["offset"] + v["inputs"]["roll_draw"],
+                )
+                self.assertTrue(v["intermediate"]["draw_performed"])
+                self.assertIsNotNone(v["inputs"]["roll_draw"])
+                self.assertEqual(
+                    v["exact_rational"],
+                    str(v["inputs"]["offset"] + v["inputs"]["roll_draw"]),
+                )
+
+        # Specific retail checks
+        # 10-0 fixed-limit candidate (skill 981)
+        v_10_0 = next(v for v in vecs if v["inputs"]["offset"] == 10 and v["inputs"]["width"] == 0)
+        self.assertEqual(v_10_0["rounded_result"]["limit_return"], 0)
+        self.assertTrue(v_10_0["rounded_result"]["is_unlimited"])
+
+        # 5-12 retail skill (e.g. skill 9) with roll=0 -> 5
+        v_5_12_r0 = next(v for v in vecs if v["inputs"]["offset"] == 5 and v["inputs"]["width"] == 12 and v["inputs"]["roll_draw"] == 0)
+        self.assertEqual(v_5_12_r0["rounded_result"]["limit_return"], 5)
+        self.assertFalse(v_5_12_r0["rounded_result"]["is_unlimited"])
+
+        # 5-12 retail skill with max roll=11 -> 16
+        v_5_12_r11 = next(v for v in vecs if v["inputs"]["offset"] == 5 and v["inputs"]["width"] == 12 and v["inputs"]["roll_draw"] == 11)
+        self.assertEqual(v_5_12_r11["rounded_result"]["limit_return"], 16)
+        self.assertFalse(v_5_12_r11["rounded_result"]["is_unlimited"])
 
 
 if __name__ == "__main__":

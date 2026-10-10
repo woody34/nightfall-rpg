@@ -1888,6 +1888,98 @@ def make_stun_removal_vectors() -> list[dict]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# Formula 19: Skill.getAffectLimit and AffectScope limit evaluation
+# ---------------------------------------------------------------------------
+def make_get_affect_limit_vectors() -> list[dict]:
+    source_lines = (
+        "Skill.java:637-641, AffectScope.java:73-75, 143-145, 182-184, 233-235, 287-289, 357-359, 386, 401, 417"
+    )
+    out = []
+
+    configs = [
+        # (offset, width, roll_draw, desc)
+        # Width 0 cases: no draw and NO limit (unlimited)
+        (0, 0, None, "Uninitialized default 0-0: width 0 -> no draw, returns 0, AffectScope treats as UNLIMITED"),
+        (10, 0, None, "Fixed limit candidate 10-0 (skill 981): width 0 -> no draw, returns 0, UNLIMITED"),
+        (8, 0, None, "Fixed limit candidate 8-0 (skill 986): width 0 -> no draw, returns 0, UNLIMITED"),
+        (9, 0, None, "Fixed limit candidate 9-0 (skill 1547): width 0 -> no draw, returns 0, UNLIMITED"),
+        (5, 0, None, "Offset 5 width 0: width 0 -> no draw, returns 0, UNLIMITED"),
+        (1, 0, None, "Offset 1 width 0: width 0 -> no draw, returns 0, UNLIMITED"),
+        (50, 0, None, "Offset 50 width 0: width 0 -> no draw, returns 0, UNLIMITED"),
+        (100, 0, None, "Offset 100 width 0: width 0 -> no draw, returns 0, UNLIMITED"),
+    ]
+
+    # Width > 0 cases from retail datapack:
+    # 5-12 (skills 9, 24, 1174, 1181, 1295, 1296)
+    for roll in [0, 1, 3, 5, 8, 11]:
+        configs.append((5, 12, roll, f"Retail 5-12 with roll={roll} -> limit {5 + roll}"))
+    # 10-10 (skills 18, 97, 103, 1034, 1049, 1096, 1099, 1101, 1208, 1209, 1272, 1399, 404)
+    for roll in [0, 1, 4, 7, 9]:
+        configs.append((10, 10, roll, f"Retail 10-10 with roll={roll} -> limit {10 + roll}"))
+    # 9-10 (skills 286, 302, 1072, 1167)
+    for roll in [0, 1, 3, 6, 9]:
+        configs.append((9, 10, roll, f"Retail 9-10 with roll={roll} -> limit {9 + roll}"))
+    # 6-12 (skills 36, 1171)
+    for roll in [0, 1, 4, 7, 11]:
+        configs.append((6, 12, roll, f"Retail 6-12 with roll={roll} -> limit {6 + roll}"))
+    # 50-50 (skills 1003, 1005, 1254)
+    for roll in [0, 1, 10, 25, 49]:
+        configs.append((50, 50, roll, f"Retail 50-50 with roll={roll} -> limit {50 + roll}"))
+    # Other retail XML patterns:
+    # 1-10
+    for roll in [0, 2, 5, 9]:
+        configs.append((1, 10, roll, f"Retail 1-10 with roll={roll} -> limit {1 + roll}"))
+    # 3-6
+    for roll in [0, 1, 3, 5]:
+        configs.append((3, 6, roll, f"Retail 3-6 with roll={roll} -> limit {3 + roll}"))
+    # 5-5
+    for roll in [0, 1, 2, 4]:
+        configs.append((5, 5, roll, f"Retail 5-5 with roll={roll} -> limit {5 + roll}"))
+    # 5-15
+    for roll in [0, 3, 7, 14]:
+        configs.append((5, 15, roll, f"Retail 5-15 with roll={roll} -> limit {5 + roll}"))
+    # 15-25
+    for roll in [0, 5, 12, 24]:
+        configs.append((15, 25, roll, f"Retail 15-25 with roll={roll} -> limit {15 + roll}"))
+    # 50-100
+    for roll in [0, 10, 49, 99]:
+        configs.append((50, 100, roll, f"Retail 50-100 with roll={roll} -> limit {50 + roll}"))
+
+    for offset, width, roll, desc in configs:
+        width_is_zero = (width == 0)
+        draw_performed = (width > 0)
+        raw_limit = 0 if width_is_zero else (offset + roll)
+        is_unlimited = (raw_limit <= 0)
+        stream_limit = 2147483647 if is_unlimited else raw_limit
+
+        out.append({
+            "description": desc,
+            "source_lines": source_lines,
+            "inputs": {
+                "offset": offset,
+                "width": width,
+                "roll_draw": roll if draw_performed else None,
+            },
+            "intermediate": {
+                "width_is_zero": width_is_zero,
+                "draw_performed": draw_performed,
+                "raw_limit": raw_limit,
+                "is_unlimited": is_unlimited,
+            },
+            "exact_rational": "0" if is_unlimited else str(raw_limit),
+            "rounded_result": {
+                "limit_return": raw_limit,
+                "is_unlimited": is_unlimited,
+                "stream_limit": stream_limit,
+            },
+            "rounding_rule": "Skill.java:638 if (affectLimit[1] == 0) return 0; else offset + Rnd.get(width); AffectScope.java limit 0 is UNLIMITED",
+        })
+
+    assert len(out) >= 40, f"make_get_affect_limit_vectors has only {len(out)} vectors (< 40)"
+    return out
+
+
 def generate() -> tuple[dict, str]:
     stat_bonus_data = read_toml("tables/stat_bonus.toml")
     pvp_data = read_toml("tables/pvp.toml")
@@ -1924,6 +2016,7 @@ def generate() -> tuple[dict, str]:
         "Heal": make_heal_vectors(),
         "FuncAtkEvasion": make_func_atk_evasion_vectors(),
         "stun_removal_condition": make_stun_removal_vectors(),
+        "getAffectLimit": make_get_affect_limit_vectors(),
     }
 
     # Verify counts
@@ -1960,6 +2053,7 @@ def generate() -> tuple[dict, str]:
             "Heal": "Heal.java:84-102: weapon grade multiplier (S84=4, S80=2, other=1), no-shot dynamic bonus (+1), sqrt(mAtkMul * mAtk) added unless static, recipient HEAL_EFFECT, x3 magic crit, and [0, maxRecoverableHp - currentHp] overheal clamp",
             "FuncAtkEvasion": "FuncAtkEvasion.java:37,61: order 1 built-in func truncates (int) value before later stat modifiers; CharStat.java:171-174 rounds the final completed stat",
             "stun_removal_condition": "PcStatus.java:83-96 and CharStatus.java:142-146: stun removal roll condition (!isDOT && !isHPConsumption && isStunned) triggering Rnd.get(10) == 0 (10% chance) on eligible direct damage",
+            "getAffectLimit": "Skill.java:637-641: width 0 (affectLimit[1] == 0) returns 0 with no draw; width > 0 returns offset + Rnd.get(width); AffectScope.java:73,143,182,233,287,357,386,401,417 treats limit <= 0 as UNLIMITED (Integer.MAX_VALUE)",
         },
         "double_arithmetic_discrepancies": {
             "calcMagicSuccess_float_cast": "Formulas.java:1301 explicitly casts the double result to (float) before Math.round. In IEEE 754 binary32, precision is 24 bits. The oracle models this with binary_nearest(x, 24) to guarantee exact equivalence with the Java JVM.",
@@ -1970,6 +2064,7 @@ def generate() -> tuple[dict, str]:
             "FuncAtkEvasion_intermediate_cast": "FuncAtkEvasion.java:61 truncates intermediate evasion to (int) before modifiers. Without this intermediate truncation, rounding after modifiers produces different integer values (e.g. lvl 1 DEX 20 player yields 27 with cast vs 28 without; adding +4 modifier yields 31 vs 32; buff 1.1x yields 30 vs 31).",
             "Heal_nongrade_shot_multiplier": "In Phase 3 with no spiritshots, nongrade weapon or unarmed yields mAtkMul = 1 + 1 = 2 per Heal.java:89. Static healing bypasses mAtk, heal_effect and crit.",
             "TickHp_nonlethal_clamp": "TickHp.java:75-76 caps negative DoT power at currentHp - 1, preventing death from DoT. Clamped power is non-negative and zero if currentHp <= 1.",
+            "getAffectLimit_unlimited_zero": "Skill.java:638 returns 0 when width==0. AffectScope treats 0 as unlimited targets (affectLimit > 0 guard and .limit(affectLimit > 0 ? affectLimit : Integer.MAX_VALUE)). Fixed-limit skills require width > 0 in retail datapack.",
         },
         "formulas": formulas,
     }
