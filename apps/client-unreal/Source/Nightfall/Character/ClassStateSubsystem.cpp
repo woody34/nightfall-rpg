@@ -96,17 +96,29 @@ void UClassStateSubsystem::LoadOptions(FDone Done)
 	});
 }
 
-void UClassStateSubsystem::Transfer(uint32 TargetClassId, FDone Done)
+void UClassStateSubsystem::Transfer(uint32 TargetClassId, FDone Done, const FString& IdempotencyKey)
 {
 	if (!Flow || bBusy) return;
 	const uint64 Serial = Begin(TEXT("transfer"));
 	Flow->ChangeClass(SelectedId(), TargetClassId, [Weak = TWeakObjectPtr<UClassStateSubsystem>(this), Serial, Done](const FNetResult& R, const FGrpcNightfallV1ChangeClassResponse& Response)
 	{
 		if (!Weak.IsValid() || Serial != Weak->OperationSerial) return;
-		if (R.IsOk()) { Weak->Character = Response.Character; Weak->LastGrantedSkillKeys = Response.GrantedSkillKeys; ++Weak->TransferCount; }
-		// Class identity in the world is driven exclusively by ClassChanged / EntitySpawn.
-		Weak->Complete(Serial, R, Done);
-	});
+		Weak->CompleteTransfer(Serial, R, Response, Done);
+	}, IdempotencyKey);
+}
+
+void UClassStateSubsystem::CompleteTransfer(uint64 Serial, const FNetResult& Result, const FGrpcNightfallV1ChangeClassResponse& Response, FDone Done)
+{
+	if (Serial != OperationSerial) return;
+	if (Result.IsOk())
+	{
+		// An idempotent receipt is immutable: a replay may describe an earlier class and token
+		// balance. Keep it separate from GetCharacter, options, and live world/resource facts.
+		LastTransferResponse = Response;
+		LastGrantedSkillKeys = Response.GrantedSkillKeys;
+		++TransferCount;
+	}
+	Complete(Serial, Result, Done);
 }
 
 void UClassStateSubsystem::RefreshCharacter(FDone Done)
@@ -192,6 +204,7 @@ void UClassStateSubsystem::ApplyClassChanged(const FClassChanged& Changed)
 	if (Net && !Net->IsOwnEntity(Changed.Entity)) ++ObservedTransferCount;
 	if (!Net || !Net->IsOwnEntity(Changed.Entity) || !OwnClass.IsSet() || Changed.SessionGeneration != Generation || Changed.Tick < ClassTick) return;
 	const bool bAdvanced = OwnClass.GetValue() != Changed.ClassId;
+	if (bAdvanced) ++OwnClassEventCount;
 	OwnClass = Changed.ClassId;
 	if (bAdvanced && Flow) Flow->SetStatus(TEXT("Class advanced: ") + OwnClassLabel());
 	ClassTick = Changed.Tick;
@@ -210,6 +223,7 @@ void UClassStateSubsystem::ResetWorld(const FString& Reason)
 	Options = FGrpcNightfallV1TransferOptionsResponse();
 	bHasOptions = false;
 	ObservedTransferCount = 0;
+	OwnClassEventCount = 0;
 	PrivateStatsLeakCount = 0;
 	OwnMoveSpeed = 0.f;
 	OnChanged.Broadcast();
@@ -227,6 +241,7 @@ void UClassStateSubsystem::ResetAccount()
 	ResetWorld(TEXT("Left account"));
 	LastCreated = FGrpcNightfallV1Character();
 	Character = FGrpcNightfallV1Character();
+	LastTransferResponse = FGrpcNightfallV1ChangeClassResponse();
 	CreationCount = 0;
 	TransferCount = 0;
 	LastGrantedSkillKeys.Reset();

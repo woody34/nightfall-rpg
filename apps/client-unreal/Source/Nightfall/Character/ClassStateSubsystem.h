@@ -24,7 +24,7 @@ public:
 	void LoadCatalogue(FDone Done = nullptr);
 	void Create(const FGrpcNightfallV1CreateCharacterRequest& Request, FDone Done = nullptr);
 	void LoadOptions(FDone Done = nullptr);
-	void Transfer(uint32 TargetClassId, FDone Done = nullptr);
+	void Transfer(uint32 TargetClassId, FDone Done = nullptr, const FString& IdempotencyKey = FString());
 	void RefreshCharacter(FDone Done = nullptr);
 	void EnterCreated();
 
@@ -32,6 +32,7 @@ public:
 	const FGrpcNightfallV1TransferOptionsResponse& GetOptions() const { return Options; }
 	const FGrpcNightfallV1Character& GetLastCreated() const { return LastCreated; }
 	const FGrpcNightfallV1Character& GetCharacter() const { return Character; }
+	const FGrpcNightfallV1ChangeClassResponse& GetLastTransferResponse() const { return LastTransferResponse; }
 	const FNetResult& GetLastResult() const { return LastResult; }
 	const FString& GetLastOperation() const { return LastOperation; }
 	bool IsBusy() const { return bBusy; }
@@ -41,6 +42,7 @@ public:
 	int32 GetTransferCount() const { return TransferCount; }
 	const TArray<FString>& GetLastGrantedSkillKeys() const { return LastGrantedSkillKeys; }
 	int32 GetObservedTransferCount() const { return ObservedTransferCount; }
+	int32 GetOwnClassEventCount() const { return OwnClassEventCount; }
 	int32 GetPrivateStatsLeakCount() const { return PrivateStatsLeakCount; }
 	float GetOwnMoveSpeed() const { return OwnMoveSpeed; }
 	const FGrpcNightfallV1ClassInfo* FindClass(uint32 ClassId) const;
@@ -66,6 +68,7 @@ private:
 	void CompleteOptions(uint64 Serial, const FNetResult& Result, const FGrpcNightfallV1TransferOptionsResponse& Response, FDone Done);
 	uint64 Begin(const FString& Operation);
 	void Complete(uint64 Serial, const FNetResult& Result, FDone Done);
+	void CompleteTransfer(uint64 Serial, const FNetResult& Result, const FGrpcNightfallV1ChangeClassResponse& Response, FDone Done);
 	FString SelectedId() const;
 	UPROPERTY() TObjectPtr<ULoginFlowSubsystem> Flow;
 	UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
@@ -73,6 +76,7 @@ private:
 	FGrpcNightfallV1TransferOptionsResponse Options;
 	FGrpcNightfallV1Character LastCreated;
 	FGrpcNightfallV1Character Character;
+	FGrpcNightfallV1ChangeClassResponse LastTransferResponse;
 	TArray<FString> LastGrantedSkillKeys;
 	FNetResult LastResult;
 	FString LastOperation;
@@ -85,6 +89,7 @@ private:
 	uint64 ClassTick = 0;
 	uint32 Generation = 0;
 	int32 ObservedTransferCount = 0;
+	int32 OwnClassEventCount = 0;
 	int32 PrivateStatsLeakCount = 0;
 	float OwnMoveSpeed = 0.f;
 	FDelegateHandle SpawnHandle, ClassHandle, StatsHandle, MoveHandle;

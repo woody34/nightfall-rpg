@@ -374,12 +374,12 @@ void ULoginFlowSubsystem::TransferOptions(const FString& CharacterId, USessionCl
 	}, [Callback](const FNetResult& R) { Callback(R, FGrpcNightfallV1TransferOptionsResponse()); });
 }
 
-void ULoginFlowSubsystem::ChangeClass(const FString& CharacterId, uint32 TargetClassId, USessionClient::FChangeClassCallback Callback)
+void ULoginFlowSubsystem::ChangeClass(const FString& CharacterId, uint32 TargetClassId, USessionClient::FChangeClassCallback Callback, const FString& IdempotencyKey)
 {
 	FGrpcNightfallV1ChangeClassRequest Request;
 	Request.CharacterId = CharacterId;
 	Request.TargetClassId = TargetClassId;
-	Request.IdempotencyKey = NewIdempotencyKey();
+	Request.IdempotencyKey = IdempotencyKey.IsEmpty() ? NewIdempotencyKey() : IdempotencyKey;
 	WithFreshToken([Weak = TWeakObjectPtr<ULoginFlowSubsystem>(this), Request, Callback]()
 	{
 		if (Weak.IsValid() && Weak->Session) Weak->Session->ChangeClass(Request, Callback);

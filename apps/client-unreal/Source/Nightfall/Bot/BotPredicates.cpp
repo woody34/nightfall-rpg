@@ -91,6 +91,8 @@ void FBotObservations::Unbind()
 
 void FBotObservations::Reset()
 {
+	ClassStateMark.Reset();
+	OwnClassWireEvents = 0;
 	Acks = 0;
 	OwnSpawns = 0;
 	FirstOwnEntityId.Reset();
@@ -152,6 +154,13 @@ void FBotObservations::Observe(const UCombatStateSubsystem* Combat)
 void FBotObservations::BindPhase1(UNetClientSubsystem* Net)
 {
 	TWeakObjectPtr<UNetClientSubsystem> Weak(Net);
+	const FDelegateHandle ClassWire = Net->OnWireReceived.AddLambda([this, Weak](const TArray<uint8>& Bytes)
+	{
+		FServerMessage Message;
+		const auto* N = Weak.Get();
+		if (N && NightfallProto::Decode(Bytes.GetData(), Bytes.Num(), Message) && Message.Event.IsSet()
+			&& Message.Event->ClassChanged.IsSet() && N->IsOwnEntity(Message.Event->ClassChanged->Entity)) ++OwnClassWireEvents;
+	});
 	auto KindOf = [Weak](const FString& Id) -> uint32
 	{
 		const UNetClientSubsystem* N = Weak.Get();
@@ -262,7 +271,7 @@ void FBotObservations::BindPhase1(UNetClientSubsystem* Net)
 		XpGainedSinceReconnect += G.Amount;
 		bAwaitingStats = false;
 	});
-	Phase1Unbinders.Add([Weak, Ack, Hit, Spawn, Move, Died, Respawned, Stats, Xp]
+	Phase1Unbinders.Add([Weak, Ack, Hit, Spawn, Move, Died, Respawned, Stats, Xp, ClassWire]
 	{
 		if (UNetClientSubsystem* N = Weak.Get())
 		{
@@ -274,6 +283,7 @@ void FBotObservations::BindPhase1(UNetClientSubsystem* Net)
 			N->OnEntityRespawned.Remove(Respawned);
 			N->OnStatsChanged.Remove(Stats);
 			N->OnXpGained.Remove(Xp);
+			N->OnWireReceived.Remove(ClassWire);
 		}
 	});
 }

@@ -1,6 +1,7 @@
 #include "ClassBotPredicates.h"
 #include "BotPredicates.h"
 #include "BotCharacterName.h"
+#include "BotScenarioRunner.h"
 #include "Character/ClassStateSubsystem.h"
 #include "Character/CharacterCreation.h"
 #include "Combat/CombatStateSubsystem.h"
@@ -17,6 +18,19 @@
 
 namespace
 {
+	TArray<uint64> CurrentClassState(const FBotContext& C)
+	{
+		const auto* GI = C.GameInstance;
+		const auto* S = GI ? GI->GetSubsystem<UClassStateSubsystem>() : nullptr;
+		const auto* N = C.Net(); const auto* Combat = C.Combat();
+		const auto* Entity = N && Combat ? Combat->FindEntity(N->GetOwnEntityId()) : nullptr;
+		if (!S || !S->GetOwnClassId().IsSet() || !S->HasOptions() || !Entity || !Combat->GetOwn().bCpKnown) return {};
+		const auto& Own = Combat->GetOwn(); const auto& Options = S->GetOptions();
+		return { S->GetOwnClassId().GetValue(), S->GetCharacter().ClassId.Value, Options.CurrentClassId.Value,
+			Own.ClassId, Entity->Hp, Entity->MaxHp, Own.Mp, Own.MaxMp, Own.Cp, Own.MaxCp, Own.Sp, Own.Xp,
+			Own.TokenTier1Count, Own.TokenTier2Count, Options.TokenTier1Count.Value, Options.TokenTier2Count.Value,
+			static_cast<uint64>(S->GetOwnClassEventCount()), static_cast<uint64>(C.Observations ? C.Observations->OwnClassWireEvents : 0) };
+	}
 	UClassStateSubsystem* State(const FBotContext& C) { return C.GameInstance ? C.GameInstance->GetSubsystem<UClassStateSubsystem>() : nullptr; }
 	FString ErrorName(ENetError Error)
 	{
@@ -54,6 +68,11 @@ void ClassBotPredicates::Register(FBotPredicateRegistry& R)
 	Number(TEXT("creation_budget"), TEXT("Base-stat sum returned by creation"), [](const auto& S) { return Budget(S.GetLastCreated().Stats); });
 	Number(TEXT("transfer_granted_skill_keys"), TEXT("Actual newly granted/upgraded keys returned by latest successful transfer"), [](const auto& S) { return S.GetLastGrantedSkillKeys().Num(); });
 	Number(TEXT("observed_class_transfers"), TEXT("Admitted public class changes received for other players"), [](const auto& S) { return S.GetObservedTransferCount(); });
+	Number(TEXT("own_class_events"), TEXT("Admitted owner ClassChanged advances since newest admission"), [](const auto& S) { return S.GetOwnClassEventCount(); });
+	R.RegisterNumber(TEXT("own_class_wire_events"), TEXT("Every received owner ClassChanged envelope, including stale/duplicate events before projection filtering"), [](const FBotContext& C) -> TOptional<double> { return C.Observations ? TOptional<double>(C.Observations->OwnClassWireEvents) : TOptional<double>(); });
+	Number(TEXT("transfer_receipt_class"), TEXT("Class in immutable last successful RPC receipt; may be historical"), [](const auto& S) { return S.GetLastTransferResponse().Character.ClassId.Value; });
+	Number(TEXT("transfer_receipt_tier2_tokens"), TEXT("Tier2 balance frozen in last RPC receipt"), [](const auto& S) { return S.GetLastTransferResponse().TokenTier2Count.Value; });
+	R.RegisterFlag(TEXT("class_state_matches_mark"), TEXT("Live class/tree/current Character and owner resources unchanged from nf.MarkClassState"), [](const FBotContext& C) { const auto Now = CurrentClassState(C); return C.Observations && !Now.IsEmpty() && Now == C.Observations->ClassStateMark; });
 	Number(TEXT("private_stats_leaks"), TEXT("Private stats erroneously received for other entities"), [](const auto& S) { return S.GetPrivateStatsLeakCount(); });
 	Number(TEXT("own_move_milli_speed"), TEXT("Authoritative owner wire speed rounded to milli-tiles/s to compare float transport fairly"), [](const auto& S) { return FMath::RoundToInt(S.GetOwnMoveSpeed() * 1000.f); });
 	Number(TEXT("own_move_speed"), TEXT("Most recent authoritative owner EntityMove speed in tiles/s"), [](const auto& S) { return S.GetOwnMoveSpeed(); });
@@ -123,6 +142,13 @@ namespace
 		return GI ? GI->GetSubsystem<UClassStateSubsystem>() : nullptr;
 	}
 	FAutoConsoleCommandWithWorld OpenDialogCommand(TEXT("nf.OpenClassDialog"), TEXT("Open the actual class master dialog for rendered developer smoke"), FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W) { if (auto* PC = W ? Cast<ANightfallPlayerController>(W->GetFirstPlayerController()) : nullptr) PC->OpenClassDialog(); }));
+	FAutoConsoleCommandWithWorld MarkClassCommand(TEXT("nf.MarkClassState"), TEXT("Record live class/resources before an idempotent receipt retry"), FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W)
+	{
+		if (auto* GI = W ? W->GetGameInstance() : nullptr) if (auto* Runner = GI->GetSubsystem<UBotScenarioRunner>())
+		{
+			Runner->MarkClassState(CurrentClassState(Runner->MakeContext()));
+		}
+	}));
 	FAutoConsoleCommandWithWorld InventoryCommand(TEXT("nf.ProxyInventory"), TEXT("List authoritative visible entity IDs and their actual native proxy classes"), FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W)
 	{
 		const auto* GI = W ? W->GetGameInstance() : nullptr;
@@ -160,9 +186,11 @@ namespace
 		auto N = [&A](int32 I) -> uint32 { return A.IsValidIndex(I) ? FCString::Strtoui64(*A[I], nullptr, 10) : 0; };
 		S->Create(NightfallCreation::Request(BotCharacterName::FromGuid(FGuid::NewGuid()), N(0), N(1), N(2), N(3), N(4), N(5)));
 	}));
-	FAutoConsoleCommandWithWorldAndArgs TransferCommand(TEXT("nf.ChangeClass"), TEXT("nf.ChangeClass <target class id>; uses authenticated idempotent RPC"), FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A, UWorld* W)
+	FAutoConsoleCommandWithWorldAndArgs TransferCommand(TEXT("nf.ChangeClass"), TEXT("nf.ChangeClass <target class id> [idempotency UUID]; uses authenticated RPC"), FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A, UWorld* W)
 	{
-		if (auto* S = State(W); S && A.Num() == 1 && A[0].IsNumeric()) S->Transfer(FCString::Strtoui64(*A[0], nullptr, 10));
+		FGuid Key;
+		if (A.Num() < 1 || A.Num() > 2 || !A[0].IsNumeric() || (A.Num() == 2 && !FGuid::ParseExact(A[1], EGuidFormats::DigitsWithHyphens, Key))) return;
+		if (auto* S = State(W)) S->Transfer(FCString::Strtoui64(*A[0], nullptr, 10), nullptr, A.Num() == 2 ? A[1] : FString());
 	}));
 	FAutoConsoleCommandWithWorld MoveMasterCommand(TEXT("nf.MoveMaster"), TEXT("Walk through the ordinary click path to the server catalogue class master"), FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* W)
 	{

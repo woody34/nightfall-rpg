@@ -45,6 +45,7 @@ public:
 	FBotContext MakeContext();
 	/** nf.Mark: hit-count baseline for target_hits_since_mark / target_hit_from_full. */
 	void MarkHits() { MakeContext(); Observations.MarkHits(); }
+	void MarkClassState(const TArray<uint64>& Values) { Observations.ClassStateMark = Values; }
 
 	const FBotObservations& GetObservations() const { return Observations; }
 

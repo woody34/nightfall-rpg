@@ -61,6 +61,8 @@ struct NIGHTFALL_API FBotObservations
 	TSet<FString> MovingEntities;           // entities whose newest EntityMove has a destination
 	struct FLastHit { uint32 HpAfter = 0; uint32 Damage = 0; int32 Count = 0; };
 	TMap<FString, FLastHit> LastHitOn;      // newest landed hit (HIT/CRIT) per target
+	TArray<uint64> ClassStateMark;          // nf.MarkClassState: current authoritative class/resources before a receipt retry
+	int32 OwnClassWireEvents = 0;           // every owner ClassChanged wire envelope, before dedupe/generation filtering
 
 	/** nf.Mark: the current landed-hit count per target becomes the baseline. */
 	void MarkHits()

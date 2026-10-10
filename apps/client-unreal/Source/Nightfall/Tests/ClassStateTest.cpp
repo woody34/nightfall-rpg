@@ -90,6 +90,11 @@ bool FClassProjectionTest::RunTest(const FString& Parameters)
 	FServerMessage M; FWorldEvent E; E.Spawn = Spawn; M.Event = E; Net->DispatchServerMessage(M);
 	TestEqual(TEXT("spawn class zero is known"), State->OwnClassLabel(), FString(TEXT("Class 0")));
 	const uint8 Bytes[] = { 0x12, 0x0d, 0x6a, 0x0b, 0x0a, 3, 'o', 'w', 'n', 0x10, 1, 0x18, 15, 0x20, 2 };
+	FBotObservations WireObservations; WireObservations.Bind(I.GameInstance);
+	TArray<uint8> Envelope(Bytes, UE_ARRAY_COUNT(Bytes));
+	Net->OnWireReceived.Broadcast(Envelope); Net->OnWireReceived.Broadcast(Envelope);
+	TestEqual(TEXT("strict receipt diagnostics count duplicate raw owner events before admission filtering"), WireObservations.OwnClassWireEvents, 2);
+	WireObservations.Unbind();
 	TestTrue(TEXT("new wire event decodes"), NightfallProto::Decode(Bytes, UE_ARRAY_COUNT(Bytes), M)); Net->DispatchServerMessage(M);
 	TestEqual(TEXT("class event updates projection"), State->OwnClassLabel(), FString(TEXT("Class 1")));
 	TestEqual(TEXT("net admission identity updated"), Net->GetKnownEntities()[TEXT("own")].ClassId, 1u);
@@ -195,6 +200,23 @@ bool FClassRequestLifecycleTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("refresh and creation cannot replace in-flight mutation serial"), State->OperationSerial, Transfer);
 	State->Complete(Transfer, FNetResult(), nullptr);
 	TestFalse(TEXT("original mutation completion remains deliverable"), State->IsBusy());
+	State->Character.ClassId = 2; Spawn.ClassId = 2; Spawn.StateTick = 3; State->ApplySpawn(Spawn);
+	FGrpcNightfallV1TransferOptionsResponse CurrentOptions; CurrentOptions.CurrentClassId = 2; State->ApplyOptions(CurrentOptions);
+	auto* Combat = I.Get<UCombatStateSubsystem>(); Combat->ApplySpawn(Spawn);
+	FStatsChanged CurrentStats; CurrentStats.Entity = TEXT("new-owner"); CurrentStats.ClassId = 2; CurrentStats.Cp = 17; CurrentStats.MaxCp = 25; CurrentStats.Tick = 5; Combat->ApplyStats(CurrentStats);
+	const uint64 Retry = State->Begin(TEXT("transfer"));
+	FGrpcNightfallV1ChangeClassResponse Historical; Historical.Character.ClassId = 1; Historical.TokenTier2Count = 1; Historical.GrantedSkillKeys.Add(TEXT("frozen-original-grant"));
+	State->CompleteTransfer(Retry, FNetResult(), Historical, nullptr);
+	TestEqual(TEXT("immutable receipt preserves original class1"), State->GetLastTransferResponse().Character.ClassId.Value, 1u);
+	TestEqual(TEXT("historical receipt cannot rewind current Character read"), State->Character.ClassId.Value, 2u);
+	TestEqual(TEXT("historical receipt cannot rewind live class"), State->OwnClass.GetValue(), 2u);
+	TestEqual(TEXT("historical receipt cannot rewind class-tree options"), State->Options.CurrentClassId.Value, 2u);
+	TestEqual(TEXT("historical balance cannot restore a consumed token"), Combat->GetOwn().TokenTier2Count, 0u);
+	TestEqual(TEXT("receipt cannot replace current CP"), Combat->GetOwn().Cp, 17u);
+	TestEqual(TEXT("receipt cannot invent an extra class event"), State->GetOwnClassEventCount(), 0);
+	State->ResetAccount();
+	State->CompleteTransfer(Retry, FNetResult(), Historical, nullptr);
+	TestTrue(TEXT("logout invalidates receipt callbacks and clears prior frozen data"), State->GetLastTransferResponse().GrantedSkillKeys.IsEmpty());
 	ARemoteEntityActor* Proxy = I.GameInstance->GetWorld()->SpawnActor<ARemoteEntityActor>();
 	Proxy->DisplayName = TEXT("Visitor"); Proxy->SetClassPresentation(1, TEXT("Class 1"), true);
 	TestEqual(TEXT("observer proxy preserves authoritative class identity"), Proxy->GetClassId(), 1u);
@@ -239,6 +261,17 @@ bool FClassObserverProjectionTest::RunTest(const FString& Parameters)
 	Net->OnConnected.Broadcast();
 	TestTrue(TEXT("direct new admission also destroys prior proxies"), ReplacedMaster->IsActorBeingDestroyed());
 	TestEqual(TEXT("new admission begins with an empty AOI proxy map"), Proxies->GetProxies().Num(), 0);
+	State->ApplyCatalogue(FGrpcNightfallV1ListClassesResponse());
+	Master.EntityId = TEXT("late-catalogue-guide"); E.Spawn = Master; M.Event = E; Net->DispatchServerMessage(M);
+	auto* GenericGuide = Proxies->GetProxies()[Master.EntityId].Get();
+	TestNull(TEXT("before catalogue the noncombat NPC is generic"), Cast<AClassMasterActor>(GenericGuide));
+	Spawn.EntityId = TEXT("late-catalogue-visitor"); Spawn.Name = TEXT("Late visitor"); Spawn.ClassId = 0; Spawn.SessionGeneration = 4; Spawn.StateTick = 1; E.Spawn = Spawn; M.Event = E; Net->DispatchServerMessage(M);
+	auto* LateVisitor = Proxies->GetProxies()[Spawn.EntityId].Get();
+	auto LateCatalogue = Catalogue(); LateCatalogue.Classes[0].DisplayName = TEXT("Human Armsbearer"); State->ApplyCatalogue(LateCatalogue);
+	TestTrue(TEXT("late catalogue destroys the generic guide proxy"), GenericGuide->IsActorBeingDestroyed());
+	TestNotNull(TEXT("late catalogue promotes the same authoritative ID to clickable master"), Cast<AClassMasterActor>(Proxies->GetProxies()[Master.EntityId].Get()));
+	TestEqual(TEXT("late catalogue promotion preserves exactly one guide and one visitor"), Proxies->GetProxies().Num(), 2);
+	TestEqual(TEXT("late catalogue updates current player class label"), LateVisitor->GetNameplate(), FString(TEXT("Late visitor — Human Armsbearer")));
 	return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FClassScenarioContractTest, "Nightfall.Class.Scenarios.NativeContracts", Flags)
