@@ -282,6 +282,13 @@ mod tests {
         }
         refused(
             &edited(|s| {
+                s.effects[0].name = "TickMp".into();
+                s.effects[0].params.remove("ticks");
+            }),
+            "runtime_status mismatch",
+        );
+        refused(
+            &edited(|s| {
                 s.effects[0].name = "TickHp".into();
                 s.effects[0].params.insert(
                     "ticks".into(),

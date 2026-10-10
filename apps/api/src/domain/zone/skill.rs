@@ -601,6 +601,10 @@ fn handler_capabilities(handler: &SkillHandler, missing: &mut BTreeSet<String>) 
             return;
         },
     };
+    if matches!(handler.name.as_str(), "TickHp" | "TickMp") && !handler.params.contains_key("ticks")
+    {
+        missing.insert(format!("param_missing:{}:ticks", handler.name));
+    }
     for (key, values) in &handler.params {
         if !allowed.contains(&key.as_str()) {
             missing.insert(format!("param:{}:{key}", handler.name));

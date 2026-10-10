@@ -199,6 +199,30 @@ impl ClassState {
         identity: &CharacterIdentity,
         character_id: CharacterId,
     ) -> Result<(), ClassStateError> {
+        self.validate_for_policy(registry, identity, character_id, false)
+    }
+
+    /// Phase 3 admits paid, executable ranks from the current class lineage as well as
+    /// historical auto-grants. Call only for an explicitly versioned Phase 3 payload;
+    /// legacy admission and snapshots continue using `validate_for` unchanged.
+    /// Current level is deliberately not a guard: a character may have delevelled since
+    /// learning. The learning mutation checks the required level before spending SP.
+    pub fn validate_for_phase3(
+        &self,
+        registry: &super::class::ClassRegistry,
+        identity: &CharacterIdentity,
+        character_id: CharacterId,
+    ) -> Result<(), ClassStateError> {
+        self.validate_for_policy(registry, identity, character_id, true)
+    }
+
+    fn validate_for_policy(
+        &self,
+        registry: &super::class::ClassRegistry,
+        identity: &CharacterIdentity,
+        character_id: CharacterId,
+        allow_manual: bool,
+    ) -> Result<(), ClassStateError> {
         self.validate()?;
         if identity.base_class_id != self.base_class_id
             || identity.appearance.hair_style != 0
@@ -223,7 +247,7 @@ impl ClassState {
         {
             return Err(ClassStateError::Lineage);
         }
-        self.validate_learned_metadata(registry, identity.race)?;
+        self.validate_learned_metadata(registry, identity.race, allow_manual)?;
         let mut parent = self.base_class_id;
         for (ordinal, receipt) in self.successful_transfer_receipts.iter().enumerate() {
             let target = registry
@@ -265,18 +289,24 @@ impl ClassState {
         &self,
         registry: &super::class::ClassRegistry,
         race: Race,
+        allow_manual: bool,
     ) -> Result<(), ClassStateError> {
         let mut allowed = std::collections::BTreeSet::new();
         for row in registry
             .skill_tree(self.current_class_id)
             .map_err(|_| ClassStateError::Lineage)?
         {
-            if row.auto_get && row.required_level <= 85 {
+            if (row.auto_get || allow_manual) && row.required_level <= 85 {
                 let known = registry
                     .known_skill(row.skill_id)
                     .ok_or(ClassStateError::LearnedSkills)?;
                 if known.key != row.key || row.skill_level > known.max_level {
                     return Err(ClassStateError::LearnedSkills);
+                }
+                if !row.auto_get
+                    && known.runtime_status != super::class::RuntimeSkillStatus::Executable
+                {
+                    continue;
                 }
                 allowed.insert((row.key.as_str(), row.skill_level));
             }
@@ -351,11 +381,11 @@ impl ClassState {
         let incoming: Vec<_> = skills.into_iter().collect();
         let mut probe = self.clone();
         probe.learned_skills.clone_from(&incoming);
-        probe.validate_learned_metadata(registry, race)?;
+        probe.validate_learned_metadata(registry, race, false)?;
         let mut candidate = self.clone();
         let granted = candidate.merge_learned_skills(incoming);
         candidate.validate()?;
-        candidate.validate_learned_metadata(registry, race)?;
+        candidate.validate_learned_metadata(registry, race, false)?;
         *self = candidate;
         Ok(granted)
     }
@@ -692,6 +722,43 @@ mod tests {
                 serde_json::from_value(serde_json::to_value(forged).unwrap()).unwrap();
             assert_eq!(
                 decoded.validate_for(&registry, &result.identity, result.character_id),
+                Err(ClassStateError::LearnedSkills)
+            );
+        }
+    }
+
+    #[test]
+    fn phase3_manual_rank_validation_is_explicit_and_lineage_bound() {
+        let registry = crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap()
+        .registry;
+        let result = receipt(1, 1).result;
+        let mut state = ClassState::new(ClassId(0));
+        state.merge_learned_skills([LearnedSkill {
+            key: "l2.skill.3".into(),
+            level: 1,
+        }]);
+        assert_eq!(
+            state.validate_for(&registry, &result.identity, result.character_id),
+            Err(ClassStateError::LearnedSkills)
+        );
+        state
+            .validate_for_phase3(&registry, &result.identity, result.character_id)
+            .unwrap();
+        // Persisting a learned rank after delevel is legal; no current-level input is used.
+        for (key, rank) in [
+            ("l2.skill.3", 999),
+            ("l2.skill.1183", 1),
+            ("l2.skill.999999", 1),
+        ] {
+            state.learned_skills = vec![LearnedSkill {
+                key: key.into(),
+                level: rank,
+            }];
+            assert_eq!(
+                state.validate_for_phase3(&registry, &result.identity, result.character_id),
                 Err(ClassStateError::LearnedSkills)
             );
         }
