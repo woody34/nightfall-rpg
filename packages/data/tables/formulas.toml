@@ -168,6 +168,13 @@ restore_mp = "0.00"
 restore_mp_q = 0
 spawn_protection_seconds = 600
 
+[constants]
+MinAbnormalStateSuccessRate = { value = 10, file = "src/main/resources/config/character.properties", line = 277, symbol = "MinAbnormalStateSuccessRate", literal = "MinAbnormalStateSuccessRate = 10" }
+MaxAbnormalStateSuccessRate = { value = 90, file = "src/main/resources/config/character.properties", line = 278, symbol = "MaxAbnormalStateSuccessRate", literal = "MaxAbnormalStateSuccessRate = 90" }
+MaxMAtkSpeed = { value = 1999, file = "src/main/resources/config/character.properties", line = 268, symbol = "MaxMAtkSpeed", literal = "MaxMAtkSpeed = 1999" }
+MaxPAtkSpeed = { value = 1500, file = "src/main/resources/config/character.properties", line = 264, symbol = "MaxPAtkSpeed", literal = "MaxPAtkSpeed = 1500" }
+MaxEvasion = { value = 250, file = "src/main/resources/config/character.properties", line = 272, symbol = "MaxEvasion", literal = "MaxEvasion = 250" }
+
 # Level additions on top of `level` (index = level - 1), exact, from the branches above.
 [level_additions]
 accuracy = [

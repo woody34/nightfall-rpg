@@ -18,6 +18,8 @@ attack_range = 1500
 move_speed = 400
 collision_radius = 300
 xp_reward = 28
+# Sourced from pinned Young Keltir npc 20545 (D/src/main/resources/data/stats/npcs/20500-20599.xml)
+sp_reward = 2
 aggressive = true
 aggro_range = 6000
 clan_id = "keltir"
