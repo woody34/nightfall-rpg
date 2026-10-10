@@ -43,7 +43,7 @@ class ParserAudit(unittest.TestCase):
             path = Path(tmp) / 'parser.nfs'
             for source in ('nf.Expect invented', 'nf.Invented', 'nf.Learn 1177',
                            'nf.Cast 1177 corpse', 'nf.AcceptResurrect latest maybe',
-                           'nf.Expect own_mp_cost_matches 1177', 'nf.WaitFor connected 0'):
+                           'nf.Expect regen_matches_oracle', 'nf.WaitFor connected 0'):
                 path.write_text(source)
                 self.assertTrue(checker.validate([path]), source)
             path.write_text('nf.Learn 1177 2 01970000-0000-7000-8000-000000000032\n'
@@ -64,6 +64,27 @@ class ParserAudit(unittest.TestCase):
                 self.assertEqual(result.returncode, 2, result.stderr)
                 self.assertIn('unregistered predicate invented', result.stderr)
                 self.assertIn('registry mismatch', result.stderr)
+
+    def test_conditional_catalogue_cost_projection_is_not_always_unknown(self):
+        # A minimal post-C6 registry shape isolates this gate from the version of
+        # client-owned C++ currently integrated into the harness branch.
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            bot = project / 'Source/Nightfall/Bot'
+            bot.mkdir(parents=True)
+            (bot / 'SkillBotPredicates.cpp').write_text(
+                'R.Register(TEXT("own_mp_cost_matches"));\n'
+                'R.Register(TEXT("regen_matches_oracle"));\n'
+                'if(Name==TEXT("regen_matches_oracle")) '
+                'return {false,TEXT("unknown: missing causal evidence")};\n')
+            (bot / 'BotSteps.cpp').write_text('TEXT("nf.Expect")\n')
+            path = project / 'costs.nfs'
+            path.write_text('nf.Expect own_mp_cost_matches 1177\n')
+            self.assertEqual(checker.validate([path], project), [])
+            path.write_text('nf.Expect regen_matches_oracle\n')
+            failures = checker.validate([path], project)
+            self.assertEqual([row['error'] for row in failures],
+                             ['unavailable received projection regen_matches_oracle'])
 
 
 if __name__ == '__main__':
