@@ -53,9 +53,11 @@ done
 
 sim_claim_artifacts "${SCENARIOS[@]}"
 
+selected="$(sim_fixture_detect "${SCENARIOS[@]}")" || sim_die "invalid scenario fixtures"
+sim_fixture_validate_mode "$selected" "$API_MODE"
 sim_resolve_env
 sim_ensure_build
-sim_api_prepare "$API_MODE"
+sim_unit_prepare "$selected" "$API_MODE" "${SCENARIOS[@]}"
 mkdir -p "$SIM_SAVED_DIR"
 
 marker="$(sim_new_marker)"
@@ -182,6 +184,9 @@ done
 FINAL_INFRA=()
 if ! sim_suite_transitions "${SCENARIOS[@]}"; then
   FINAL_INFRA+=(suite_transition_coverage); FAILED=$((FAILED + 1))
+fi
+if ! sim_fixture_finish; then
+  FINAL_INFRA+=(fixture_cleanup); FAILED=$((FAILED + 1))
 fi
 if ! python3 "$HERE/sim-junit.py" merge "$ARTIFACTS/group.xml" "$GROUP" "${REPORTS[@]}"; then
   FINAL_INFRA+=(group_junit_merge); FAILED=$((FAILED + 1))

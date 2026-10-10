@@ -48,14 +48,23 @@ mapfile -t SCENARIOS < <(sim_expand_scenarios "${ARGS[@]}")
 
 sim_claim_artifacts "${SCENARIOS[@]}"
 
+# Validate every unit before any API/Compose operation. Single-client sequences reset
+# Phase2 ledgers per scenario; observer roles belong in the multi wrapper.
+FIXTURES=()
+for scenario in "${SCENARIOS[@]}"; do
+  selected="$(sim_fixture_detect "$scenario")" || sim_die "invalid scenario fixture"
+  sim_fixture_validate_mode "$selected" "$API_MODE"
+  FIXTURES+=("$selected")
+done
 sim_resolve_env
 sim_ensure_build
-sim_api_prepare "$API_MODE"
 mkdir -p "$SIM_SAVED_DIR"
 
 FAILED=0
 SUMMARY=()
 for scenario in "${SCENARIOS[@]}"; do
+  selected="${FIXTURES[${#SUMMARY[@]}]}"
+  sim_unit_prepare "$selected" "$API_MODE" "$scenario"
   name="$(basename "$scenario" .nfs)"
   dest="$ARTIFACTS/$name"
   marker="$(sim_new_marker)"
@@ -123,12 +132,18 @@ for scenario in "${SCENARIOS[@]}"; do
       fi
     fi
   fi
+  if ! sim_fixture_finish; then
+    status=FAIL; note="${note:+$note; }fixture cleanup failed"
+    FAILED=$((FAILED + 1)); FIXTURE_CLEANUP_FAILED=1
+  fi
   line="$status $name (${secs}s, replay=$replay)${note:+ - $note}"
   SUMMARY+=("$line")
   echo "$line"
+  [[ "${FIXTURE_CLEANUP_FAILED:-0}" != 1 ]] || break
 done
 
 FINAL_INFRA=()
+if [[ "${FIXTURE_CLEANUP_FAILED:-0}" == 1 ]]; then FINAL_INFRA+=(fixture_cleanup); fi
 if ! sim_suite_transitions "${SCENARIOS[@]}"; then
   FINAL_INFRA+=(suite_transition_coverage); FAILED=$((FAILED + 1))
 fi

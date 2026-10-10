@@ -7,7 +7,6 @@ import json
 import os
 from pathlib import Path
 import signal
-import re
 import subprocess
 import sys
 import time
@@ -18,6 +17,9 @@ REPO = PROJECT.parents[1]
 _spec = importlib.util.spec_from_file_location('sim_gates', PROJECT / 'Scripts/sim-gates.py')
 gates = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gates)
+_fixture_spec = importlib.util.spec_from_file_location('phase2_fixture', PROJECT / 'Scripts/phase2-fixture.py')
+phase2 = importlib.util.module_from_spec(_fixture_spec)
+_fixture_spec.loader.exec_module(phase2)
 
 
 def run_clients(command, log, seconds, env=None):
@@ -75,19 +77,8 @@ def units(scenarios):
 
 
 def fixture(batch):
-    """Scenario roles must agree on one explicitly supported deterministic fixture."""
-    fixtures = []
-    for path in batch:
-        values = re.findall(r"^#\s*fixture:\s*(\S+)\s*$", path.read_text(), re.MULTILINE)
-        if len(values) > 1:
-            raise ValueError(f"duplicate fixture header: {path.name}")
-        value = values[0] if values else "default"
-        if value not in ("default", "phase1a-social-aggro", "phase1a-late-entry"):
-            raise ValueError(f"unsupported fixture {value}: {path.name}")
-        fixtures.append(value)
-    if len(set(fixtures)) != 1:
-        raise ValueError("scenario roles must request the same fixture")
-    return fixtures[0]
+    """Shared exact Phase2 pack/role contract, retaining legacy fixture selection."""
+    return phase2.fixture(batch)
 
 
 def junit_failures(folder, names):
@@ -257,7 +248,8 @@ def main():
             raise ValueError("scenario fixture selection requires --fresh-stack; an attached API cannot switch fixtures")
     except (ValueError, OSError) as error:
         parser.error(str(error))
-    if args.fresh_stack and not os.environ.get("COMPOSE_PROJECT_NAME", "").startswith("nightfall-sim-"):
+    if (args.fresh_stack and any(value not in phase2.PHASE2 for value in fixtures)
+            and not os.environ.get("COMPOSE_PROJECT_NAME", "").startswith("nightfall-sim-")):
         parser.error("--fresh-stack requires an isolated COMPOSE_PROJECT_NAME=nightfall-sim-...")
     artifacts = args.artifacts.resolve()
     # Retain the published path layout, but never reuse evidence from an earlier invocation.
@@ -299,19 +291,19 @@ def main():
         env.pop("ZONE_FILE", None)
         if fixture_name == "phase1a-late-entry":
             env["ZONE_FILE"] = str(REPO / "apps/api/fixtures/phase1a-late-entry/zones/late_entry.toml")
-        elif fixture_name != "default":
+        elif fixture_name != "default" and fixture_name not in phase2.PHASE2:
             env["ZONE_SIM_FIXTURE"] = fixture_name
         orchestration_errors = []
         with (dest / "orchestration.log").open("w") as log:
             try:
-                if args.fresh_stack:
+                if args.fresh_stack and fixture_name not in phase2.PHASE2:
                     subprocess.run(["docker", "compose", "down", "--volumes", "--remove-orphans"], cwd=REPO,
                                    stdout=log, stderr=subprocess.STDOUT, check=True, timeout=120)
                 code = run_clients(command, log, args.timeout + 600, env=env)
             except (OSError, subprocess.SubprocessError) as error:
                 log.write(f"orchestration failed: {error}\n")
                 orchestration_errors.append(str(error))
-        if args.fresh_stack:
+        if args.fresh_stack and fixture_name not in phase2.PHASE2:
             with (dest / "compose.log").open("w") as log:
                 try:
                     subprocess.run(["docker", "compose", "logs", "--no-color"], cwd=REPO,
@@ -319,6 +311,18 @@ def main():
                 except (OSError, subprocess.SubprocessError) as error:
                     log.write(f"compose log collection failed: {error}\n")
                     orchestration_errors.append(str(error))
+        if fixture_name in phase2.PHASE2:
+            # A forced wrapper/process-group timeout may interrupt its EXIT trap. Retry only
+            # generated owned fixture resources, never the root Compose project.
+            for state_path in dest.glob('*/fixture/state.json'):
+                folder = state_path.parent
+                try:
+                    status_path = folder / 'cleanup-status.json'
+                    cleaned = status_path.exists() and json.loads(status_path.read_text()).get('completed') is True
+                    if not cleaned:
+                        phase2.cleanup(folder)
+                except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+                    orchestration_errors.append('owned Phase2 fixture cleanup failed; see fixture logs')
         bad_reports = junit_failures(dest, names)
         if len(names) > 1 and not group_report_matches(dest, names):
             orchestration_errors.append("missing, invalid or incomplete group JUnit merge")

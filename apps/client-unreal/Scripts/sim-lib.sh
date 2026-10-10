@@ -1,6 +1,9 @@
 # Shared helpers for run-sim.sh and run-sim-multi.sh. Source it; it runs nothing by itself.
 #
 # Environment overrides (mainly for tests):
+#   SIM_API_BIN       optional API executable (Phase2 defaults to a current-repo build)
+#   SIM_MIGRATE_BIN   Phase2 migration executable; must match the current candidate
+#   SIM_PHASE2_SEEDER explicit published pack seeder path; see phase2-fixtures.md
 #   SIM_BOT_BIN       bot executable to run instead of the UnrealEditor binary (no uproject arg is passed)
 #   SIM_SKIP_BUILD=1  never build
 #   SIM_SAVED_DIR     where the bot writes its outputs (default <project>/Saved/Sim)
@@ -147,10 +150,13 @@ sim_api_prepare() {
       (
         cd "$SIM_REPO"
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
+        if [[ -n "${SIM_API_BIN:-}" ]]; then
+          AUTH_DEV_TOKENS=1 exec "$SIM_API_BIN"
+        fi
         AUTH_DEV_TOKENS=1 exec cargo run --quiet -p nightfall-api
       ) >"${SIM_API_LOG:-/dev/null}" 2>&1 &
       SIM_STARTED_API_PID=$!
-      trap sim_api_cleanup EXIT
+      trap sim_exit_cleanup EXIT
       local i
       for ((i = 0; i < ${SIM_API_WAIT:-180}; i++)); do
         kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "API exited during startup (see ${SIM_API_LOG:-its log})"
@@ -173,6 +179,14 @@ sim_api_cleanup() {
   [[ -n "$SIM_STARTED_API_PID" ]] || return 0
   pkill -TERM -P "$SIM_STARTED_API_PID" 2>/dev/null || true
   kill -TERM "$SIM_STARTED_API_PID" 2>/dev/null || true
+  if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
+    local grace
+    for ((grace=0; grace<15; grace++)); do
+      kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || break
+      sleep 1
+    done
+    kill -KILL "$SIM_STARTED_API_PID" 2>/dev/null || true
+  fi
   wait "$SIM_STARTED_API_PID" 2>/dev/null || true
   SIM_STARTED_API_PID=""
 }
@@ -220,6 +234,16 @@ sim_bot_cmd() {
     mapfile -d '' -t extra_args <"$args_file"
     rm -f "$args_file"
     SIM_BOT_CMD+=("${extra_args[@]}")
+  fi
+  if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
+    local fixture_args_file
+    fixture_args_file="$(mktemp)"
+    python3 "$SIM_HERE/phase2-fixture.py" args --folder "$SIM_FIXTURE_DIR" "$scenario" >"$fixture_args_file" \
+      || { rm -f "$fixture_args_file"; sim_die "invalid fixture role arguments"; }
+    local -a fixture_args=()
+    mapfile -d '' -t fixture_args <"$fixture_args_file"
+    rm -f "$fixture_args_file"
+    SIM_BOT_CMD+=("${fixture_args[@]}")
   fi
 }
 
@@ -391,4 +415,76 @@ sim_finalize_verdict() {
   python3 "$SIM_HERE/sim-gates.py" finalize --folder "$ARTIFACTS" \
     --out "${SIM_PIPELINE_VERDICT:-$ARTIFACTS/pipeline-verdict.json}" --code "$code" \
     "${args[@]}" "${names[@]}"
+}
+
+# Phase2 is always freshly provisioned before admission. The helper never reads root .env.
+sim_fixture_detect() { python3 "$SIM_HERE/phase2-fixture.py" detect "$@"; }
+sim_fixture_validate_mode() {
+  [[ "$1" == phase2-* ]] || return 0
+  [[ "$2" == start ]] || sim_die "Phase2 fixture requires --api start; attaching is refused"
+  [[ "$SIM_API_URL" == http://localhost:3000 || "$SIM_API_URL" == http://127.0.0.1:3000 ]] \
+    || sim_die "Phase2 chooses fresh endpoints; explicit SIM_API_URL is unsupported"
+}
+
+sim_exit_cleanup() {
+  local original_code=$? cleanup_code=0
+  trap - EXIT
+  sim_api_cleanup
+  if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
+    python3 "$SIM_HERE/phase2-fixture.py" cleanup --folder "$SIM_FIXTURE_DIR" || cleanup_code=$?
+  fi
+  if ((cleanup_code != 0)); then original_code=2; fi
+  exit "$original_code"
+}
+
+sim_fixture_finish() {
+  [[ -n "${SIM_FIXTURE_DIR:-}" ]] || return 0
+  local code=0
+  sim_api_cleanup
+  python3 "$SIM_HERE/phase2-fixture.py" cleanup --folder "$SIM_FIXTURE_DIR" || code=$?
+  # On failure leave the directory active so EXIT retries the owned teardown.
+  ((code == 0)) || return "$code"
+  SIM_FIXTURE_DIR=""
+  SIM_API_URL="$SIM_PRE_FIXTURE_API_URL"
+  if [[ "$SIM_PRE_FIXTURE_NATS_SET" == x ]]; then export NATS_URL="$SIM_PRE_FIXTURE_NATS"; else unset NATS_URL; fi
+}
+
+sim_unit_prepare() {
+  local selected="$1" mode="$2"; shift 2
+  if [[ "$selected" != phase2-* ]]; then
+    [[ -n "$SIM_STARTED_API_PID" ]] || sim_api_prepare "$mode"
+    return
+  fi
+  sim_api_cleanup
+  SIM_PRE_FIXTURE_API_URL="$SIM_API_URL"
+  SIM_PRE_FIXTURE_NATS_SET="${NATS_URL+x}"
+  SIM_PRE_FIXTURE_NATS="${NATS_URL:-}"
+  SIM_FIXTURE_DIR="$ARTIFACTS/$(basename "$1" .nfs)/fixture"
+  trap sim_exit_cleanup EXIT
+  trap 'exit 130' INT TERM
+  python3 "$SIM_HERE/phase2-fixture.py" provision --folder "$SIM_FIXTURE_DIR" "$@" \
+    || sim_die "Phase2 fixture provisioning failed (before API startup)"
+  local endpoints_file
+  endpoints_file="$(mktemp)"
+  python3 "$SIM_HERE/phase2-fixture.py" endpoint --folder "$SIM_FIXTURE_DIR" >"$endpoints_file" \
+    || { rm -f "$endpoints_file"; sim_die "invalid fixture endpoints"; }
+  local -a endpoints=()
+  mapfile -t endpoints <"$endpoints_file"; rm -f "$endpoints_file"
+  SIM_API_URL="${endpoints[0]}"; export NATS_URL="${endpoints[1]}"
+  sim_api_endpoint_probe free || sim_die "fixture API endpoint occupied"
+  SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe free || sim_die "fixture gRPC endpoint occupied"
+  python3 "$SIM_HERE/phase2-fixture.py" exec-api --folder "$SIM_FIXTURE_DIR" >"$SIM_FIXTURE_DIR/api.log" 2>&1 &
+  SIM_STARTED_API_PID=$!
+  local i
+  for ((i = 0; i < ${SIM_API_WAIT:-180}; i++)); do
+    kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
+    if sim_api_healthy; then
+      sim_api_endpoint_probe owned || sim_die "fixture API ownership verification failed"
+      SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe owned || sim_die "fixture gRPC ownership verification failed"
+      kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
+      return 0
+    fi
+    sleep 1
+  done
+  sim_die "fixture API did not become healthy"
 }
