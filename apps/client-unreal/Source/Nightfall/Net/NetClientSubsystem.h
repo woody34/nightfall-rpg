@@ -101,6 +101,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Nightfall|Net")
 	bool IsConnected() const { return bConnected; }
+	bool IsPhase3Projection() const { return bPhase3Projection; }
+	uint64 GetLatestReceivedTick() const { return LatestReceivedTick; }
 
 	/**
 	 * The server closes a session that sends nothing for 60 s (4408). While connected, a check runs
@@ -239,6 +241,8 @@ private:
 	FSocketFactory SocketFactory;
 	FScheduler Scheduler;
 	bool bConnected = false;
+	bool bPhase3Projection = false;
+	uint64 LatestReceivedTick = 0;
 	bool bWantConnected = false;
 	bool bReconnectPending = false;
 	/** Bumped by Connect and Disconnect; pending reconnects and ticket replies compare it. */

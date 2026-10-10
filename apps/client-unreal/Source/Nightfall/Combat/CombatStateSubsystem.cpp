@@ -33,6 +33,8 @@ void UCombatStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Handles.Add(N->OnIntentAck.AddUObject(this, &UCombatStateSubsystem::ApplyAck));
 	Handles.Add(N->OnIntentRejected.AddUObject(this, &UCombatStateSubsystem::ApplyRejected));
 	Handles.Add(N->OnClassChanged.AddUObject(this, &UCombatStateSubsystem::ApplyClassChanged));
+	N->OnVitalsChanged.AddUObject(this, &UCombatStateSubsystem::ApplyVitals);
+	N->OnSkillCastResult.AddUObject(this, &UCombatStateSubsystem::ApplySkillResult);
 	// The server re-sends every spawn (and the owner's stats) on a new connection, so the old
 	// projection is dropped on both edges: nothing from the previous session can leak into the next.
 	N->OnConnected.AddDynamic(this, &UCombatStateSubsystem::Reset);
@@ -43,6 +45,8 @@ void UCombatStateSubsystem::Deinitialize()
 {
 	if (UNetClientSubsystem* N = Net())
 	{
+		N->OnVitalsChanged.RemoveAll(this);
+		N->OnSkillCastResult.RemoveAll(this);
 		N->OnEntitySpawn.Remove(Handles[0]);
 		N->OnEntityDespawn.Remove(Handles[1]);
 		N->OnAttackResult.Remove(Handles[2]);
@@ -83,6 +87,7 @@ void UCombatStateSubsystem::Reset()
 {
 	Entities.Reset();
 	Own = FOwnCombatState();
+	SelectionTick = 0;
 	AttackState = EAttackState::Idle;
 	PendingTargetId.Reset();
 	bClearPending = false;
@@ -204,6 +209,7 @@ void UCombatStateSubsystem::ApplyAttackResult(const FAttackResult& R)
 	FCombatEntity* Target = Entities.Find(Key(R.Target));
 	if (Target)
 	{
+		if (Net() && Net()->IsPhase3Projection() && (R.TargetIncarnation != Target->Incarnation || R.Tick <= Target->Spawn.StateTick)) return;
 		// A swing that landed on an earlier life, or older than what we already applied, is stale.
 		if (Target->Incarnation != 0 && R.TargetIncarnation != 0 && R.TargetIncarnation < Target->Incarnation) return;
 		if (R.Tick < Target->LastFactTick) return;
@@ -266,6 +272,7 @@ void UCombatStateSubsystem::ApplyRespawned(const FEntityRespawned& Respawned)
 	if (Respawned.Tick < E->LastFactTick) return;
 	if (Respawned.Incarnation > E->Incarnation) E->Incarnation = Respawned.Incarnation;   // the life fence advances
 	E->bDead = false;
+	if (Net() && Net()->IsPhase3Projection()) E->Spawn.StateTick = Respawned.Tick;
 	E->Hp = Respawned.Hp;
 	E->LastFactTick = Respawned.Tick;
 	if (IsOwn(Respawned.Entity)) RespawnSeq = 0;
@@ -274,6 +281,11 @@ void UCombatStateSubsystem::ApplyRespawned(const FEntityRespawned& Respawned)
 
 void UCombatStateSubsystem::ApplyStats(const FStatsChanged& Stats)
 {
+	if (Net() && Net()->IsPhase3Projection())
+	{
+		const auto* Known = FindEntity(Stats.Entity);
+		if (!Known || Stats.Incarnation != Known->Incarnation || (Stats.bBaseline ? Stats.BaselineTick != Known->Spawn.StateTick : Stats.Tick <= Known->Spawn.StateTick)) return;
+	}
 	if (!IsOwn(Stats.Entity) || Stats.Tick < Own.LastStatsTick) return;   // owner-only and monotonic
 	FCombatEntity& E = FindOrAdd(Stats.Entity);
 	E.bCombatant = true;
@@ -317,6 +329,13 @@ void UCombatStateSubsystem::ApplyLevelUp(const FLevelUp& LevelUp)
 void UCombatStateSubsystem::ApplyTargetChanged(const FTargetChanged& Changed)
 {
 	if (!IsOwn(Changed.Entity)) return;   // owner-only
+	if (Net() && Net()->IsPhase3Projection())
+	{
+		const auto* Known = FindOwnEntity();
+		if (!Known || (Changed.bBaseline ? Changed.BaselineTick != Known->Spawn.StateTick : Changed.Tick <= Known->Spawn.StateTick) || Changed.Tick < SelectionTick) return;
+		if (!Changed.Target.IsEmpty()) { const auto* Target = FindEntity(Changed.Target); if (!Target || !Changed.TargetIncarnation.IsSet() || *Changed.TargetIncarnation != Target->Incarnation) return; }
+		SelectionTick = Changed.Tick;
+	}
 	const FString NewTarget = Key(Changed.Target);
 	// With a newer selection of ours in flight, this is the echo of an earlier one: it must not
 	// end the attack we have queued for the newer target.
@@ -521,5 +540,28 @@ void UCombatStateSubsystem::ApplyClassChanged(const FClassChanged& Changed)
 	if (!E || Changed.SessionGeneration != E->Spawn.SessionGeneration || Changed.Tick < E->Spawn.StateTick) return;
 	E->Spawn.ClassId = Changed.ClassId;
 	E->Spawn.StateTick = Changed.Tick;
+	OnChanged.Broadcast();
+}
+
+void UCombatStateSubsystem::ApplyVitals(const FVitalsChanged& V)
+{
+	auto* E = Entities.Find(Key(V.Entity));
+	if (!E || V.Incarnation != E->Incarnation || V.Tick < E->LastFactTick || (V.bBaseline ? V.BaselineTick != E->Spawn.StateTick : V.Tick <= E->Spawn.StateTick)) return;
+	E->Hp = V.Hp; E->MaxHp = V.MaxHp; E->LastFactTick = V.Tick; OnChanged.Broadcast();
+}
+void UCombatStateSubsystem::ApplySkillResult(const FSkillCastResult& R)
+{
+	for (const auto& Hit : R.Targets)
+	{
+		auto* E = Entities.Find(Key(Hit.Target));
+		if (!E || Hit.TargetIncarnation != E->Incarnation || Hit.Tick <= E->Spawn.StateTick || Hit.Tick < E->LastFactTick) continue;
+		const FString Event = FString::Printf(TEXT("skill|%llu|%llu|%s|%s|%u"), R.CastId, Hit.Tick, *R.Caster, *Hit.Target, Hit.ResolutionKind);
+		if (!RememberEvent(Event)) continue;
+		E->Hp = Hit.TargetHpAfter; E->LastFactTick = Hit.Tick;
+		FDamageNumber Number; Number.AttackerId = R.Caster; Number.TargetId = Hit.Target; Number.Tick = Hit.Tick;
+		Number.Damage = Hit.HpRemoved + Hit.CpAbsorbed; Number.bTargetIsOwn = IsOwn(Hit.Target);
+		Number.Outcome = Hit.Outcome == 1 || Hit.Outcome == 4 ? ENetAttackOutcome::Miss : Hit.Outcome == 3 ? ENetAttackOutcome::Crit : ENetAttackOutcome::Hit;
+		if (Hit.Rolled || Hit.Outcome == 1 || Hit.Outcome == 4) OnDamageNumber.Broadcast(Number);
+	}
 	OnChanged.Broadcast();
 }

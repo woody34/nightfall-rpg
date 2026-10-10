@@ -92,6 +92,7 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 		ReconnectAttempt = 0;
 		Frame.Reset();
 		KnownEntities.Reset();
+		bPhase3Projection = false; LatestReceivedTick = 0;
 		Tombstones.Reset();   // the server re-sends every spawn in our area of interest
 		TickTimeOriginMs.Reset();   // a new session may be a new zone epoch; the next EntityMove re-learns it
 		KeepAliveSeqs.Reset();
@@ -206,6 +207,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 {
 	if (Msg.Ack.IsSet())
 	{
+		LatestReceivedTick = FMath::Max(LatestReceivedTick, Msg.Ack->Tick);
 		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Ack->Seq);
 		UE_LOG(LogNightfall, Verbose, TEXT("ws: ack seq %u (applies on tick %llu)"), Msg.Ack->Seq, Msg.Ack->Tick);
 		OnIntentAck.Broadcast(*Msg.Ack);
@@ -226,6 +228,28 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 	if (Msg.Event.IsSet())
 	{
 		const FWorldEvent& E = *Msg.Event;
+		if (E.Move.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.Move->Tick);
+		if (E.AttackResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.AttackResult->Tick);
+		if (E.EntityDied.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EntityDied->Tick);
+		if (E.EntityRespawned.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EntityRespawned->Tick);
+		if (E.StatsChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.StatsChanged->Tick);
+		if (E.AttackStarted.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.AttackStarted->Tick);
+		if (E.AttackCancelled.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.AttackCancelled->Tick);
+		if (E.ClassChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.ClassChanged->Tick);
+		if (E.SkillCastStarted.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SkillCastStarted->Tick);
+		if (E.SkillCastResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SkillCastResult->Tick);
+		if (E.SkillCastCancelled.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SkillCastCancelled->Tick);
+		if (E.EffectApplied.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EffectApplied->Tick);
+		if (E.EffectRemoved.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EffectRemoved->Tick);
+		if (E.SkillReuse.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SkillReuse->Tick);
+		if (E.SkillLearned.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SkillLearned->Tick);
+		if (E.PvpStateChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.PvpStateChanged->Tick);
+		if (E.ResurrectOffer.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.ResurrectOffer->Tick);
+		if (E.SpGained.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SpGained->Tick);
+		if (E.SkillStateSync.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SkillStateSync->Tick);
+		if (E.VitalsChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.VitalsChanged->Tick);
+		if (E.TargetChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.TargetChanged->Tick);
+		if (E.SkillStateSync.IsSet() || E.SkillCastStarted.IsSet() || E.EffectApplied.IsSet() || E.VitalsChanged.IsSet() || (E.StatsChanged.IsSet() && E.StatsChanged->bBaseline)) bPhase3Projection = true;
 		if (E.Spawn.IsSet())
 		{
 			const FEntitySpawn* Known = KnownEntities.Find(E.Spawn->EntityId);

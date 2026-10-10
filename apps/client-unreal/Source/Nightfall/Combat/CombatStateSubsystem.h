@@ -124,6 +124,8 @@ public:
 	void ApplyDied(const FEntityDied& Died);
 	void ApplyRespawned(const FEntityRespawned& Respawned);
 	void ApplyStats(const FStatsChanged& Stats);
+	void ApplyVitals(const FVitalsChanged& V);
+	void ApplySkillResult(const FSkillCastResult& R);
 	void ApplyXp(const FXpGained& Xp);
 	void ApplyLevelUp(const FLevelUp& LevelUp);
 	void ApplyTargetChanged(const FTargetChanged& Changed);
@@ -195,6 +197,7 @@ private:
 
 	TMap<FString, FCombatEntity> Entities;   // keyed by lower-case id
 	FOwnCombatState Own;
+	uint64 SelectionTick = 0;
 
 	EAttackState AttackState = EAttackState::Idle;
 	FString PendingTargetId;                 // SetTarget sent, not yet confirmed by TargetChanged
