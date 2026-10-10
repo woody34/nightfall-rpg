@@ -3,6 +3,29 @@
 Provenance for the generated stat tables (Phase 1 plan §2 fidelity gate, Story E1.1).
 `tables/*.toml` and `classes/*.toml` are generated; `zones/` and `npcs/` are hand-written.
 
+## Phase 3 peace geometry (Nightfall configuration)
+
+`zones/test_zone_phase3.toml` is a hand-written, schema-1 additive input. Its
+`[provenance].kind = "Nightfall configuration"` distinguishes architect policy
+from pinned L2J values. Architecture decisions §6 R7 / §7 D-R11 set a configurable
+inclusive square with half-width **10,000 milli-tiles**, centred on the legacy
+safe point **(126,126)** (`zones/test_zone.toml:33`). Its inclusive edges are
+**(116,116)..(136,136)** whole tiles and contain the Class Master **(126,128)**
+(`zones/test_zone.toml:28`); legacy bounds are **(0,0)..(256,256)** (`:9–10`).
+
+Schema: top-level `schema_version = 1`, `id = "test_zone"`; `[peace_zone]`
+contains `shape = "square"`, `centre = [126,126]` in whole tiles,
+`half_width_millitiles = 10000`, `inclusive = true`; `[provenance]` contains
+`kind`, `decision`, and `safe_point` citations. Width is configurable, not a
+source-derived constant. `check_all.py` parses both files, requires centre to
+equal safe_point, validates integer units, bounds containment and inclusive
+Class Master containment, and prints SHA-256 of the new file's complete bytes.
+
+The engine must include this separate input in Phase3Rules hashing and embed it
+in its Phase 3 input inventory. Do not include it in the legacy zone config hash
+or load it as a legacy zone file. `zones/test_zone.toml` bytes and historical
+oracle manifests stay unchanged. No generator owns this geometry file.
+
 ## Pinned High Five source
 
 | Repository | Revision | Role |
