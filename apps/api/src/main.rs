@@ -43,11 +43,12 @@ async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
     let zone =
         zone_runtime::start(&ZoneRuntimeConfig::from_env(), cfg.nats_url.as_deref(), db, &deps)
             .await?;
-    let services = build_grpc_services(&deps);
 
     let zones = ZoneRegistry::from_handle(zone.handle().clone());
     let sessions_shutdown = CancellationToken::new();
     let realtime = start_realtime(&deps, zones, sessions_shutdown.clone());
+    deps.class_transfers = Some(realtime.sessions.clone());
+    let services = build_grpc_services(&deps)?;
     let router = build_http_router(&deps, &realtime);
 
     let (http, grpc) = bind(cfg.http_addr, cfg.grpc_addr).await?;
@@ -141,6 +142,30 @@ async fn build_dependencies(
     Option<SessionAuditDrain>,
 )> {
     let mut deps = Dependencies::in_memory();
+    use infrastructure::class_data::{load_classes, ClassSource};
+    let class_source = match std::env::var_os("CLASS_DATA_DIR") {
+        Some(path) => ClassSource::from_dir(std::path::Path::new(&path))?,
+        None => ClassSource::embedded(),
+    };
+    let classes = load_classes(&class_source)?;
+    deps.classes = Some(classes.clone());
+    deps.characters = Arc::new(
+        infrastructure::memory::InMemoryCharacterRepository::default()
+            .with_classes(classes.registry.clone()),
+    );
+    if let Some(path) = std::env::var_os("CHARACTER_NAME_BLOCKLIST_PATH") {
+        let raw = std::fs::read_to_string(path)?;
+        let mut blocked = std::collections::BTreeSet::new();
+        for line in raw
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        {
+            let name = nightfall_api::domain::CharacterName::new(line)?;
+            blocked.insert(name.normalized());
+        }
+        deps.blocked_character_names = Arc::new(blocked);
+    }
     deps.ws_public_url.clone_from(&cfg.ws_public_url);
     deps.session_limits.max_sessions_per_ip = cfg.ws_max_sessions_per_ip;
     deps.audit = Arc::new(infrastructure::memory::DiscardSessionAudit);
@@ -150,6 +175,7 @@ async fn build_dependencies(
         let conn = infrastructure::postgres::connect(url).await?;
         deps.characters = Arc::new(
             infrastructure::postgres::PgCharacterRepository::new(conn.clone())
+                .with_classes(classes.registry.clone())
                 .with_metrics(metrics.clone()),
         );
         deps.accounts = Arc::new(

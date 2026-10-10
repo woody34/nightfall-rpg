@@ -38,7 +38,7 @@ sea-orm-cli generate entity --database-url "$DATABASE_URL" --database-schema "$S
   --output-dir "$out" --with-serde none --date-time-crate chrono
 
 # The scratch schema name must not leak into the entities: tables resolve through search_path.
-sed -i -E 's/schema_name = "[^"]*", //' "$out"/*.rs
+sed -i -E -e 's/schema_name = "[^"]*", //' -e '/^[[:space:]]*schema_name = "[^"]*",$/d' "$out"/*.rs
 rustfmt --edition 2021 --config-path ../../rustfmt.toml "$out"/*.rs
 
 if [[ "${1:-}" == "--check" ]]; then

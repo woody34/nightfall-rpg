@@ -146,7 +146,22 @@ impl TickTelemetry for CombatConsumer {
                 ZoneEvent::NpcIntentionChanged { to, .. } => {
                     self.metrics.record_npc_intention_transition((*to).into());
                 },
-                ZoneEvent::AttackStarted { .. }
+                ZoneEvent::ClassTransfer {
+                    old_class_id,
+                    receipt,
+                    ..
+                } => {
+                    // Only the internal success fact counts; public AOI fan-out is ignored.
+                    self.metrics.class_transfers_total.add(
+                        1,
+                        &[
+                            KeyValue::new("from", i64::from(old_class_id.0)),
+                            KeyValue::new("to", i64::from(receipt.target_class_id.0)),
+                        ],
+                    );
+                },
+                ZoneEvent::ClassChanged { .. }
+                | ZoneEvent::AttackStarted { .. }
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::StatsChanged { .. }

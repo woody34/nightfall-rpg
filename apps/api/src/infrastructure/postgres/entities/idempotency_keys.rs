@@ -19,6 +19,28 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::character_transfer_receipts::Entity")]
+    CharacterTransferReceipts,
+}
+
+impl Related<super::character_transfer_receipts::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CharacterTransferReceipts.def()
+    }
+}
+
+impl Related<super::characters::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::character_transfer_receipts::Relation::Characters.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::character_transfer_receipts::Relation::IdempotencyKeys
+                .def()
+                .rev(),
+        )
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

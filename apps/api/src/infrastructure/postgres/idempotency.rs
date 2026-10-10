@@ -14,6 +14,8 @@ use crate::domain::AccountId;
 pub(super) mod operation {
     /// `GameService.CreateCharacter`.
     pub(crate) const CREATE_CHARACTER: &str = "create_character";
+    /// Forever-retained successful `GameService.ChangeClass`.
+    pub(crate) const CHANGE_CLASS: &str = "change_class";
     /// `SessionService.IssuePlayTicket`.
     pub(crate) const ISSUE_PLAY_TICKET: &str = "issue_play_ticket";
 }

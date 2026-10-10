@@ -1,21 +1,26 @@
+use crate::domain::class::ClassRegistry;
 use std::future::Future;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use sea_orm::sea_query::Expr;
 use sea_orm::{
-    ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder,
-    QuerySelect, RuntimeErr, TransactionTrait,
+    ActiveValue, ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, DbErr, EntityTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, RuntimeErr, Statement, TransactionTrait,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::character_ledger;
 use super::entities::{characters, outbox};
 use super::idempotency::{self, operation, Claim};
-use crate::application::ports::RepositoryError;
+use crate::application::ports::{MutationReceiptLookup, RepositoryError};
 use crate::application::{
     CharacterCheckpoint, CharacterRepository, CheckpointError, CheckpointOutcome, CreateOutcome,
     IdempotencyKey, ProgressionState,
 };
+use crate::domain::character_progression::base_class_profile;
+use crate::domain::subclass::Sex;
 use crate::domain::{
     AccountId, BaseStats, Character, CharacterId, CharacterName, DomainEvent, Position, Race,
 };
@@ -26,6 +31,7 @@ use crate::infrastructure::telemetry::Metrics;
 pub struct PgCharacterRepository {
     db: DatabaseConnection,
     metrics: Option<Metrics>,
+    classes: Option<Arc<ClassRegistry>>,
 }
 
 impl PgCharacterRepository {
@@ -35,7 +41,22 @@ impl PgCharacterRepository {
         Self {
             db: db.into(),
             metrics: None,
+            classes: None,
         }
+    }
+
+    /// Shares the zone's validated startup registry for contextual admission validation.
+    #[must_use]
+    pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Self {
+        self.classes = Some(classes);
+        self
+    }
+
+    fn validate_character(&self, c: &Character) -> anyhow::Result<()> {
+        let registry =
+            crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
+        c.class_state.validate_for(&registry, &c.identity(), c.id)?;
+        Ok(())
     }
 
     /// Records every query in `db_query_seconds{repo="character",op}`.
@@ -59,6 +80,9 @@ fn model_to_character(m: characters::Model) -> anyhow::Result<Character> {
         .ok_or_else(|| anyhow::anyhow!("unknown race in database: {}", m.race))?;
     let stat = |v: i16| -> anyhow::Result<u32> { Ok(u32::try_from(v)?) };
     Ok(Character {
+        appearance: character_ledger::appearance(&m)?,
+        class_state: character_ledger::state(&m)?,
+        xp: u64::try_from(m.xp)?,
         id: CharacterId::from_uuid(m.id),
         account_id: AccountId::from_uuid(m.account_id),
         name: CharacterName::new(m.name)?,
@@ -114,10 +138,28 @@ fn character_active_model(c: &Character) -> anyhow::Result<characters::ActiveMod
         pos_y: set(c.position.y),
         created_at: ActiveValue::NotSet,
         updated_at: ActiveValue::NotSet,
-        xp: ActiveValue::NotSet,
+        xp: set(i64::try_from(c.xp)?),
         hp: ActiveValue::NotSet,
         mp: ActiveValue::NotSet,
-        class_profile: set(c.race.starting_class_profile().to_owned()),
+        class_profile: set(base_class_profile(c.class_state.base_class_id)
+            .ok_or_else(|| anyhow::anyhow!("unknown base class profile"))?
+            .to_owned()),
+        base_class_id: set(i32::try_from(c.class_state.base_class_id.0)?),
+        current_class_id: set(i32::try_from(c.class_state.current_class_id.0)?),
+        active_class_slot: set(0),
+        sex: set(match c.appearance.sex {
+            Sex::Male => "male",
+            Sex::Female => "female",
+        }
+        .to_owned()),
+        hair_style: set(i32::try_from(c.appearance.hair_style)?),
+        hair_color: set(i32::try_from(c.appearance.hair_color)?),
+        face: set(i32::try_from(c.appearance.face)?),
+        sp: set(i64::try_from(c.class_state.sp)?),
+        cp: set(i32::try_from(c.class_state.cp)?),
+        token_tier_1_count: set(i32::try_from(c.class_state.token_tier_1_count)?),
+        token_tier_2_count: set(i32::try_from(c.class_state.token_tier_2_count)?),
+        milestone_claimed_mask: set(i16::from(c.class_state.milestone_claimed_mask)),
         alive: ActiveValue::NotSet,
         revision: ActiveValue::NotSet,
     })
@@ -126,24 +168,56 @@ fn character_active_model(c: &Character) -> anyhow::Result<characters::ActiveMod
 #[async_trait]
 impl CharacterRepository for PgCharacterRepository {
     async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>> {
-        self.timed("get", characters::Entity::find_by_id(id.as_uuid()).one(&self.db))
-            .await?
-            .map(model_to_character)
-            .transpose()
+        self.timed("get", async {
+            let tx = self.db.begin().await?;
+            let model = characters::Entity::find_by_id(id.as_uuid())
+                .lock_shared()
+                .one(&tx)
+                .await?;
+            let mut character = model.map(model_to_character).transpose()?;
+            if let Some(c) = &mut character {
+                character_ledger::hydrate(&tx, c).await?;
+                self.validate_character(c)?;
+            }
+            tx.commit().await?;
+            Ok(character)
+        })
+        .await
     }
 
     async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
-        let rows = self
-            .timed(
-                "list_by_account",
-                characters::Entity::find()
-                    .filter(characters::Column::AccountId.eq(account.as_uuid()))
-                    // uuid v7: id order is creation order.
-                    .order_by_asc(characters::Column::Id)
-                    .all(&self.db),
-            )
-            .await?;
-        rows.into_iter().map(model_to_character).collect()
+        self.timed("list_by_account", async {
+            let tx = self.db.begin().await?;
+            let rows = characters::Entity::find()
+                .filter(characters::Column::AccountId.eq(account.as_uuid()))
+                .order_by_asc(characters::Column::Id)
+                .lock_shared()
+                .all(&tx)
+                .await?;
+            let mut out = Vec::with_capacity(rows.len());
+            for model in rows {
+                let mut character = model_to_character(model)?;
+                character_ledger::hydrate(&tx, &mut character).await?;
+                self.validate_character(&character)?;
+                out.push(character);
+            }
+            tx.commit().await?;
+            Ok(out)
+        })
+        .await
+    }
+
+    async fn mutation_receipt_lookup(
+        &self,
+        caller: AccountId,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<MutationReceiptLookup> {
+        self.timed(
+            "mutation_receipt_lookup",
+            character_ledger::receipt_lookup(&self.db, caller, key, fingerprint),
+        )
+        .await
     }
 
     /// One transaction:
@@ -167,27 +241,41 @@ impl CharacterRepository for PgCharacterRepository {
         &self,
         character_id: CharacterId,
     ) -> anyhow::Result<Option<ProgressionState>> {
-        self.timed(
-            "load_for_admission",
-            characters::Entity::find_by_id(character_id.as_uuid()).one(&self.db),
-        )
-        .await?
-        .map(|m| {
-            Ok(ProgressionState {
-                position: Position {
-                    x: m.pos_x,
-                    y: m.pos_y,
-                },
-                level: u32::try_from(m.level)?,
-                xp: u64::try_from(m.xp)?,
-                hp: m.hp.map(u32::try_from).transpose()?,
-                mp: m.mp.map(u32::try_from).transpose()?,
-                alive: m.alive,
-                class_profile: m.class_profile,
-                revision: u64::try_from(m.revision)?,
-            })
+        self.timed("load_for_admission", async {
+            let tx = self.db.begin().await?;
+            let model = characters::Entity::find_by_id(character_id.as_uuid())
+                .lock_shared()
+                .one(&tx)
+                .await?;
+            let progression = if let Some(m) = model {
+                let hp = m.hp.map(u32::try_from).transpose()?;
+                let mp = m.mp.map(u32::try_from).transpose()?;
+                let alive = m.alive;
+                let class_profile = m.class_profile.clone();
+                let revision = u64::try_from(m.revision)?;
+                let mut c = model_to_character(m)?;
+                character_ledger::hydrate(&tx, &mut c).await?;
+                self.validate_character(&c)?;
+                Some(ProgressionState {
+                    position: c.position,
+                    level: c.level,
+                    xp: c.xp,
+                    hp,
+                    mp,
+                    alive,
+                    class_profile,
+                    revision,
+                    identity: c.identity(),
+                    name: c.name,
+                    class_state: c.class_state,
+                })
+            } else {
+                None
+            };
+            tx.commit().await?;
+            Ok(progression)
         })
-        .transpose()
+        .await
     }
 
     /// One transaction:
@@ -215,7 +303,7 @@ struct StoredCheckpoint {
 }
 
 /// Maps a failed statement to `Constraint` when Postgres reports a check violation (23514).
-fn checkpoint_db_error(e: DbErr) -> CheckpointError {
+pub(super) fn checkpoint_db_error(e: DbErr) -> CheckpointError {
     let (DbErr::Exec(RuntimeErr::SqlxError(s)) | DbErr::Query(RuntimeErr::SqlxError(s))) = &e
     else {
         return CheckpointError::Other(e.into());
@@ -241,14 +329,13 @@ impl PgCharacterRepository {
         let fingerprint = cp.fingerprint(events);
         let tx = self.db.begin().await.map_err(other)?;
 
-        let account = characters::Entity::find_by_id(cp.character_id.as_uuid())
-            .select_only()
-            .column(characters::Column::AccountId)
-            .into_tuple::<Uuid>()
+        let original = characters::Entity::find_by_id(cp.character_id.as_uuid())
             .one(&tx)
             .await
             .map_err(other)?
             .ok_or(CheckpointError::NotFound)?;
+        let original = model_to_character(original)?;
+        let account = original.account_id.as_uuid();
 
         let produced = cp
             .revision_seen
@@ -279,7 +366,7 @@ impl PgCharacterRepository {
         }
 
         let to_i32 = |v: u32| i32::try_from(v).map_err(anyhow::Error::from);
-        let updated = characters::Entity::update_many()
+        let mut update = characters::Entity::update_many()
             .col_expr(characters::Column::Level, Expr::value(to_i32(cp.level)?))
             .col_expr(
                 characters::Column::Xp,
@@ -299,14 +386,45 @@ impl PgCharacterRepository {
             .filter(
                 characters::Column::Revision
                     .eq(i64::try_from(cp.revision_seen).map_err(anyhow::Error::from)?),
-            )
-            .exec(&tx)
-            .await
-            .map_err(checkpoint_db_error)?;
+            );
+        if let Some(ledger) = &cp.class_state {
+            update = update
+                .col_expr(
+                    characters::Column::CurrentClassId,
+                    Expr::value(to_i32(ledger.current_class_id.0)?),
+                )
+                .col_expr(
+                    characters::Column::Sp,
+                    Expr::value(i64::try_from(ledger.sp).map_err(anyhow::Error::from)?),
+                )
+                .col_expr(characters::Column::Cp, Expr::value(to_i32(ledger.cp)?))
+                .col_expr(
+                    characters::Column::TokenTier1Count,
+                    Expr::value(to_i32(ledger.token_tier_1_count)?),
+                )
+                .col_expr(
+                    characters::Column::TokenTier2Count,
+                    Expr::value(to_i32(ledger.token_tier_2_count)?),
+                )
+                .col_expr(
+                    characters::Column::MilestoneClaimedMask,
+                    Expr::value(i16::from(ledger.milestone_claimed_mask)),
+                );
+        }
+        let updated = update.exec(&tx).await.map_err(checkpoint_db_error)?;
         if updated.rows_affected == 0 {
             tx.rollback().await.map_err(other)?;
             return Ok(CheckpointOutcome::Stale);
         }
+
+        if let Some(ledger) = &cp.class_state {
+            let registry =
+                crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
+            ledger
+                .validate_for(&registry, &original.identity(), cp.character_id)
+                .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
+        }
+        character_ledger::persist(&tx, cp, &original).await?;
 
         for event in events {
             let staged = outbox::ActiveModel {
@@ -360,14 +478,37 @@ impl PgCharacterRepository {
             let stored: StoredResponse =
                 serde_json::from_value(response).map_err(anyhow::Error::from)?;
             let existing = characters::Entity::find_by_id(stored.character_id)
+                .lock_shared()
                 .one(&tx)
                 .await
                 .map_err(anyhow::Error::from)?
                 .ok_or_else(|| anyhow::anyhow!("idempotency key points at missing character"))?;
+            let mut character = model_to_character(existing)?;
+            character_ledger::hydrate(&tx, &mut character).await?;
+            self.validate_character(&character)?;
             tx.commit().await.map_err(anyhow::Error::from)?;
-            return Ok(CreateOutcome::Replayed(model_to_character(existing)?));
+            return Ok(CreateOutcome::Replayed(character));
         }
 
+        // The idempotency claim precedes capacity checks: a retry replays even at seven slots.
+        // A transaction advisory lock serializes distinct-key creates for the same account,
+        // including older accounts which predate the accounts table's auth upsert.
+        tx.execute_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 723041))",
+            [character.account_id.to_string().into()],
+        ))
+        .await
+        .map_err(anyhow::Error::from)?;
+        let count = characters::Entity::find()
+            .filter(characters::Column::AccountId.eq(character.account_id.as_uuid()))
+            .count(&tx)
+            .await
+            .map_err(anyhow::Error::from)?;
+        if count >= 7 {
+            return Err(RepositoryError::SlotsFull);
+        }
+        self.validate_character(character)?;
         let insert = characters::Entity::insert(character_active_model(character)?)
             .exec_without_returning(&tx)
             .await;
@@ -379,6 +520,7 @@ impl PgCharacterRepository {
             return Err(anyhow::Error::from(e).into());
         }
 
+        character_ledger::create_main_slot(&tx, character).await?;
         let event = DomainEvent::CharacterCreated {
             character_id: character.id,
             account_id: character.account_id,

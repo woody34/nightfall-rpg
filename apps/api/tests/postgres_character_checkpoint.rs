@@ -40,6 +40,7 @@ async fn seeded(pool: &PgPool) -> (PgCharacterRepository, Character) {
 
 fn checkpoint(c: &Character, revision_seen: u64, k: &str) -> CharacterCheckpoint {
     CharacterCheckpoint {
+        class_state: None,
         character_id: c.id,
         revision_seen,
         level: 3,

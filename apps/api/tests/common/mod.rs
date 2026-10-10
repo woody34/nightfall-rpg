@@ -129,13 +129,16 @@ impl TestApp {
         deps.tokens = Arc::new(TestTokenVerifier) as Arc<dyn TokenVerifier>;
         deps.audit = audit.clone();
         customize(&mut deps);
-        let services = build_grpc_services(&deps);
         let zones = ZoneRegistry::from_handle(
             nightfall_api::application::zone_actor::ZoneActor::spawn(state, IntervalTicks::new()),
         );
         let zone = zones.fixture().clone();
         let sessions_shutdown = CancellationToken::new();
         let realtime = start_realtime(&deps, zones, sessions_shutdown.clone());
+        if deps.class_transfers.is_none() {
+            deps.class_transfers = Some(realtime.sessions.clone());
+        }
+        let services = build_grpc_services(&deps).unwrap();
         let router = build_http_router(&deps, &realtime);
 
         let (http, grpc) = bind("127.0.0.1:0".parse().unwrap(), "127.0.0.1:0".parse().unwrap())

@@ -14,6 +14,7 @@
 //! * `rules_data`: stat rules from `packages/data/tables/` and `packages/data/classes/`.
 
 pub mod auth;
+mod character_validation;
 pub mod class_data;
 pub mod data_hash;
 pub mod eventlog;

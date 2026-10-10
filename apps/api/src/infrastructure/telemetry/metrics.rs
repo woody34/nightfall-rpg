@@ -93,6 +93,8 @@ pub struct Metrics {
     pub eventlog_digested_records_total: Counter<u64>,
     /// Zones paused because their replay log has been unavailable longer than allowed.
     pub zones_paused: UpDownCounter<i64>,
+    pub(super) class_transfers_total: Counter<u64>,
+    class_transfer_seconds: Histogram<f64>,
     pub(super) combat_attacks_total: Counter<u64>,
     pub(super) combat_deaths_total: Counter<u64>,
     pub(super) combat_respawns_total: Counter<u64>,
@@ -157,6 +159,16 @@ impl Metrics {
             zones_paused: meter
                 .i64_up_down_counter("nightfall_zones_paused")
                 .with_description("Zones paused because their replay log is unavailable")
+                .build(),
+            class_transfers_total: meter
+                .u64_counter("nightfall_class_transfers")
+                .with_description("Durably checkpointed class transfers by bounded profession ids")
+                .build(),
+            class_transfer_seconds: meter
+                .f64_histogram("nightfall_class_transfer")
+                .with_unit("s")
+                .with_description("Class transfer RPC latency, including durable checkpoint")
+                .with_boundaries(IO_BUCKETS.to_vec())
                 .build(),
             combat_attacks_total: meter
                 .u64_counter("nightfall_combat_attacks")
@@ -286,6 +298,17 @@ impl Metrics {
             &[KeyValue::new("repo", repo), KeyValue::new("op", op)],
         );
         out
+    }
+
+    /// Transfer RPC wall time; outcome has only success/error labels and no identity.
+    pub fn record_class_transfer_latency(&self, elapsed: Duration, succeeded: bool) {
+        self.class_transfer_seconds.record(
+            elapsed.as_secs_f64(),
+            &[KeyValue::new(
+                "outcome",
+                if succeeded { "success" } else { "error" },
+            )],
+        );
     }
 
     /// Counts one finished gRPC request.

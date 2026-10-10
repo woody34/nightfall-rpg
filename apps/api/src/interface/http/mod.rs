@@ -56,6 +56,9 @@ impl IntoResponse for AppError {
             AppError::Unauthenticated(_) => StatusCode::UNAUTHORIZED,
             AppError::PermissionDenied(_) => StatusCode::FORBIDDEN,
             AppError::AlreadyExists(_) | AppError::IdempotencyConflict => StatusCode::CONFLICT,
+            AppError::FailedPrecondition(_) => StatusCode::CONFLICT,
+            AppError::ResourceExhausted(_) => StatusCode::TOO_MANY_REQUESTS,
+            AppError::Unavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             AppError::Infrastructure(e) => {
                 tracing::error!(error = ?e, "infrastructure error");
                 StatusCode::INTERNAL_SERVER_ERROR
@@ -68,7 +71,10 @@ impl IntoResponse for AppError {
             | AppError::Unauthenticated(_)
             | AppError::PermissionDenied(_)
             | AppError::AlreadyExists(_)
-            | AppError::IdempotencyConflict => self.to_string(),
+            | AppError::IdempotencyConflict
+            | AppError::FailedPrecondition(_)
+            | AppError::ResourceExhausted(_)
+            | AppError::Unavailable(_) => self.to_string(),
         };
         (status, Json(serde_json::json!({ "error": body }))).into_response()
     }

@@ -34,17 +34,59 @@ pub struct Model {
     pub class_profile: String,
     pub alive: bool,
     pub revision: i64,
+    pub base_class_id: i32,
+    pub current_class_id: i32,
+    pub active_class_slot: i16,
+    #[sea_orm(column_type = "Text")]
+    pub sex: String,
+    pub hair_style: i32,
+    pub hair_color: i32,
+    pub face: i32,
+    pub sp: i64,
+    pub cp: i32,
+    pub token_tier_1_count: i32,
+    pub token_tier_2_count: i32,
+    pub milestone_claimed_mask: i16,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::character_class_slots::Entity")]
+    CharacterClassSlots,
+    #[sea_orm(has_many = "super::character_transfer_receipts::Entity")]
+    CharacterTransferReceipts,
     #[sea_orm(has_many = "super::play_tickets::Entity")]
     PlayTickets,
+}
+
+impl Related<super::character_class_slots::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CharacterClassSlots.def()
+    }
+}
+
+impl Related<super::character_transfer_receipts::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CharacterTransferReceipts.def()
+    }
 }
 
 impl Related<super::play_tickets::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::PlayTickets.def()
+    }
+}
+
+impl Related<super::idempotency_keys::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::character_transfer_receipts::Relation::IdempotencyKeys.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::character_transfer_receipts::Relation::Characters
+                .def()
+                .rev(),
+        )
     }
 }
 

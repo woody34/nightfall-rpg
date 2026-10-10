@@ -1,13 +1,16 @@
+use crate::domain::class::ClassRegistry;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use parking_lot::Mutex;
 
-use crate::application::ports::RepositoryError;
+use crate::application::ports::{transfer_fingerprint, RepositoryError};
 use crate::application::{
     CharacterCheckpoint, CharacterRepository, CheckpointError, CheckpointOutcome, CreateOutcome,
     IdempotencyKey, ProgressionState,
 };
+use crate::domain::character_progression::base_class_profile;
 use crate::domain::{AccountId, Character, CharacterId, DomainEvent};
 
 #[derive(Default)]
@@ -31,11 +34,16 @@ impl State {
             ProgressionState {
                 position: c.position,
                 level: c.level,
-                xp: 0,
+                xp: c.xp,
                 hp: None,
                 mp: None,
                 alive: true,
-                class_profile: c.race.starting_class_profile().to_owned(),
+                class_profile: base_class_profile(c.class_state.base_class_id)
+                    .unwrap_or("invalid")
+                    .to_owned(),
+                identity: c.identity(),
+                name: c.name.clone(),
+                class_state: c.class_state.clone(),
                 revision: 0,
             },
         );
@@ -46,9 +54,23 @@ impl State {
 #[derive(Default)]
 pub struct InMemoryCharacterRepository {
     state: Mutex<State>,
+    classes: Option<Arc<ClassRegistry>>,
 }
 
 impl InMemoryCharacterRepository {
+    /// Uses the same validated startup catalogue as creation and the zone.
+    #[must_use]
+    pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Self {
+        self.classes = Some(classes);
+        self
+    }
+    fn validate(&self, c: &Character) -> anyhow::Result<()> {
+        let registry =
+            crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
+        c.class_state.validate_for(&registry, &c.identity(), c.id)?;
+        Ok(())
+    }
+
     /// Seeds a character directly, bypassing idempotency. Test helper.
     pub fn insert_for_test(&self, c: Character) {
         let mut s = self.state.lock();
@@ -85,7 +107,11 @@ impl InMemoryCharacterRepository {
 #[async_trait]
 impl CharacterRepository for InMemoryCharacterRepository {
     async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>> {
-        Ok(self.state.lock().characters.get(&id).cloned())
+        let character = self.state.lock().characters.get(&id).cloned();
+        if let Some(c) = &character {
+            self.validate(c)?;
+        }
+        Ok(character)
     }
 
     async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
@@ -99,6 +125,9 @@ impl CharacterRepository for InMemoryCharacterRepository {
             .collect();
         // Ids are uuid v7, so id order is creation order (the Postgres adapter sorts the same).
         out.sort_by_key(|c| c.id.as_uuid());
+        for c in &out {
+            self.validate(c)?;
+        }
         Ok(out)
     }
 
@@ -121,9 +150,18 @@ impl CharacterRepository for InMemoryCharacterRepository {
             })?;
             return Ok(CreateOutcome::Replayed(existing));
         }
+        self.validate(character)?;
         let norm = character.name.normalized();
         if s.names.contains_key(&norm) {
             return Err(RepositoryError::NameTaken);
+        }
+        if s.characters
+            .values()
+            .filter(|c| c.account_id == character.account_id)
+            .count()
+            >= 7
+        {
+            return Err(RepositoryError::SlotsFull);
         }
         s.names.insert(norm, character.id);
         s.keys
@@ -142,7 +180,11 @@ impl CharacterRepository for InMemoryCharacterRepository {
         &self,
         character_id: CharacterId,
     ) -> anyhow::Result<Option<ProgressionState>> {
-        Ok(self.state.lock().progression.get(&character_id).cloned())
+        let state = self.state.lock();
+        if let Some(c) = state.characters.get(&character_id) {
+            self.validate(c)?;
+        }
+        Ok(state.progression.get(&character_id).cloned())
     }
 
     async fn checkpoint(
@@ -176,6 +218,61 @@ impl CharacterRepository for InMemoryCharacterRepository {
         if let Some(name) = checkpoint.violated_constraint() {
             return Err(CheckpointError::Constraint(name.to_owned()));
         }
+        if let Some(ledger) = &checkpoint.class_state {
+            let character = s
+                .characters
+                .get(&checkpoint.character_id)
+                .ok_or(CheckpointError::NotFound)?;
+            let registry =
+                crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
+            ledger
+                .validate_for(&registry, &character.identity(), checkpoint.character_id)
+                .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
+            if ledger.base_class_id != character.class_state.base_class_id {
+                return Err(CheckpointError::Constraint("characters_base_class_immutable".into()));
+            }
+            for known in &character.class_state.learned_skills {
+                if !ledger
+                    .learned_skills
+                    .iter()
+                    .any(|skill| skill.key == known.key && skill.level >= known.level)
+                {
+                    return Err(CheckpointError::Constraint(
+                        "character_learned_skills_monotone".into(),
+                    ));
+                }
+            }
+            for known in &character.class_state.successful_transfer_receipts {
+                if ledger.receipt(known.key) != Some(known) {
+                    return Err(CheckpointError::Constraint(
+                        "character_transfer_receipts_immutable".into(),
+                    ));
+                }
+            }
+            for receipt in &ledger.successful_transfer_receipts {
+                if receipt.result.character_id != checkpoint.character_id
+                    || receipt.result.identity != character.identity()
+                {
+                    return Err(CheckpointError::Constraint(
+                        "character_transfer_receipts_identity".into(),
+                    ));
+                }
+                let fp = transfer_fingerprint(checkpoint.character_id, receipt.target_class_id);
+                for other in s.characters.values().filter(|c| c.account_id == account) {
+                    if let Some(known) = other.class_state.receipt(receipt.key) {
+                        if fp
+                            != transfer_fingerprint(
+                                known.result.character_id,
+                                known.target_class_id,
+                            )
+                            || known != receipt
+                        {
+                            return Err(CheckpointError::KeyReused);
+                        }
+                    }
+                }
+            }
+        }
         let revision = current
             .checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("revision overflow"))?;
@@ -187,10 +284,17 @@ impl CharacterRepository for InMemoryCharacterRepository {
             p.mp = Some(checkpoint.mp);
             p.alive = checkpoint.alive;
             p.revision = revision;
+            if let Some(ledger) = &checkpoint.class_state {
+                p.class_state = ledger.clone();
+            }
         }
         if let Some(c) = s.characters.get_mut(&checkpoint.character_id) {
             c.level = checkpoint.level;
             c.position = checkpoint.position;
+            c.xp = checkpoint.xp;
+            if let Some(ledger) = &checkpoint.class_state {
+                c.class_state = ledger.clone();
+            }
         }
         s.outbox.extend_from_slice(events);
         s.checkpoint_keys.insert(scoped, (fingerprint, revision));
@@ -229,6 +333,7 @@ mod tests {
             alive: true,
             position: Position { x: 1.5, y: 2.5 },
             idempotency: ("save_checkpoint".to_owned(), IdempotencyKey::parse(key).unwrap()),
+            class_state: None,
         }
     }
 

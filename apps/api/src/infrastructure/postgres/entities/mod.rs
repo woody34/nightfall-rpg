@@ -4,6 +4,10 @@ pub mod prelude;
 
 pub mod account_sessions;
 pub mod accounts;
+pub mod character_certifications;
+pub mod character_class_slots;
+pub mod character_learned_skills;
+pub mod character_transfer_receipts;
 pub mod characters;
 pub mod idempotency_keys;
 pub mod outbox;

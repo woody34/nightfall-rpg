@@ -2,6 +2,10 @@
 
 pub use super::account_sessions::Entity as AccountSessions;
 pub use super::accounts::Entity as Accounts;
+pub use super::character_certifications::Entity as CharacterCertifications;
+pub use super::character_class_slots::Entity as CharacterClassSlots;
+pub use super::character_learned_skills::Entity as CharacterLearnedSkills;
+pub use super::character_transfer_receipts::Entity as CharacterTransferReceipts;
 pub use super::characters::Entity as Characters;
 pub use super::idempotency_keys::Entity as IdempotencyKeys;
 pub use super::outbox::Entity as Outbox;

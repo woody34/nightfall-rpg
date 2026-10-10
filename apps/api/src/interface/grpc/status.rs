@@ -13,6 +13,9 @@ pub(crate) fn to_status(e: AppError) -> Status {
         AppError::Unauthenticated(m) => Status::unauthenticated(m),
         AppError::PermissionDenied(m) => Status::permission_denied(m),
         AppError::IdempotencyConflict => Status::failed_precondition(e.to_string()),
+        AppError::FailedPrecondition(m) => Status::failed_precondition(m),
+        AppError::ResourceExhausted(m) => Status::resource_exhausted(m),
+        AppError::Unavailable(m) => Status::unavailable(m),
         AppError::Infrastructure(err) => {
             tracing::error!(error = ?err, "infrastructure error");
             Status::internal("internal error")
@@ -41,6 +44,9 @@ mod tests {
             (AppError::Unauthenticated("x".into()), Code::Unauthenticated),
             (AppError::PermissionDenied("x".into()), Code::PermissionDenied),
             (AppError::IdempotencyConflict, Code::FailedPrecondition),
+            (AppError::FailedPrecondition("x".into()), Code::FailedPrecondition),
+            (AppError::ResourceExhausted("x".into()), Code::ResourceExhausted),
+            (AppError::Unavailable("x".into()), Code::Unavailable),
             (AppError::Infrastructure(anyhow::anyhow!("db down")), Code::Internal),
         ];
         for (e, code) in cases {

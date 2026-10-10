@@ -1,13 +1,16 @@
 //! One module per use case. Each exposes a struct holding its ports and an `execute` method.
 
 pub mod authenticate;
+pub mod change_class;
 pub mod consume_play_ticket;
 pub mod create_character;
 pub mod ensure_account;
 pub mod get_character;
 pub mod issue_play_ticket;
+pub mod list_classes;
 pub mod list_my_characters;
 pub mod ping;
+pub mod transfer_options;
 
 pub use authenticate::Authenticate;
 pub use consume_play_ticket::{ConsumePlayTicket, TicketRejection};
@@ -17,3 +20,7 @@ pub use get_character::GetCharacter;
 pub use issue_play_ticket::{IssuePlayTicket, IssuePlayTicketInput};
 pub use list_my_characters::ListMyCharacters;
 pub use ping::{Ping, PingOutput};
+
+pub use change_class::ChangeClass;
+pub use list_classes::{ClassCatalogue, ListClasses};
+pub use transfer_options::TransferOptions;

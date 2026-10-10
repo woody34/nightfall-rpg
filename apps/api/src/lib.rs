@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 use application::session::{SessionContext, SessionLimits, SessionRegistry};
 use application::use_cases::{
-    Authenticate, ConsumePlayTicket, CreateCharacter, EnsureAccount, GetCharacter, IssuePlayTicket,
-    ListMyCharacters, Ping,
+    Authenticate, ChangeClass, ConsumePlayTicket, CreateCharacter, EnsureAccount, GetCharacter,
+    IssuePlayTicket, ListClasses, ListMyCharacters, Ping, TransferOptions,
 };
 use application::zone_registry::ZoneRegistry;
 use application::{
@@ -38,6 +38,12 @@ pub const DEFAULT_WS_PUBLIC_URL: &str = "ws://localhost:3000/ws";
 /// The ports the server needs, already bound to adapters.
 #[derive(Clone)]
 pub struct Dependencies {
+    /// Startup-resolved catalogue; None loads embedded validated data before services bind.
+    pub classes: Option<infrastructure::class_data::ResolvedClasses>,
+    /// Live session routing, installed once realtime is constructed.
+    pub class_transfers: Option<Arc<dyn application::ports::ClassTransferRuntime>>,
+    /// Curated, operator-provided exact normalized names.
+    pub blocked_character_names: Arc<std::collections::BTreeSet<String>>,
     /// Character persistence.
     pub characters: Arc<dyn CharacterRepository>,
     /// Account persistence.
@@ -70,6 +76,9 @@ impl Dependencies {
     #[must_use]
     pub fn in_memory() -> Self {
         Self {
+            classes: None,
+            class_transfers: None,
+            blocked_character_names: Arc::default(),
             characters: Arc::new(infrastructure::memory::InMemoryCharacterRepository::default()),
             accounts: Arc::new(infrastructure::memory::InMemoryAccountRepository::default()),
             sessions: Arc::new(infrastructure::memory::InMemorySessionRepository::default()),
@@ -97,18 +106,31 @@ pub struct GrpcServices {
 }
 
 /// Wires use cases to the gRPC services.
-#[must_use]
-pub fn build_grpc_services(deps: &Dependencies) -> GrpcServices {
+pub fn build_grpc_services(deps: &Dependencies) -> anyhow::Result<GrpcServices> {
+    use infrastructure::class_data::{load_classes, ClassSource};
+    let classes = match &deps.classes {
+        Some(classes) => classes.clone(),
+        None => load_classes(&ClassSource::embedded())?,
+    };
     let authenticate = Authenticate::new(
         deps.tokens.clone(),
         EnsureAccount::new(deps.accounts.clone(), deps.clock.clone()),
     );
-    GrpcServices {
+    Ok(GrpcServices {
         game: GameServiceImpl::new(
+            deps.metrics.clone(),
             Ping::new(deps.clock.clone()),
             GetCharacter::new(deps.characters.clone()),
-            CreateCharacter::new(deps.characters.clone()),
+            CreateCharacter::new(deps.characters.clone(), classes.registry.clone())
+                .with_blocked_names(deps.blocked_character_names.clone()),
             ListMyCharacters::new(deps.characters.clone()),
+            ListClasses::new(classes.registry.clone(), classes.config_hash),
+            ChangeClass::new(
+                deps.characters.clone(),
+                classes.registry,
+                deps.class_transfers.clone(),
+            ),
+            TransferOptions::new(deps.characters.clone(), deps.class_transfers.clone()),
         ),
         session: SessionServiceImpl::new(IssuePlayTicket::new(
             deps.characters.clone(),
@@ -118,7 +140,7 @@ pub fn build_grpc_services(deps: &Dependencies) -> GrpcServices {
             deps.ws_public_url.clone(),
         )),
         auth: AuthLayer::new(Arc::new(authenticate)),
-    }
+    })
 }
 
 /// The real-time channel: the running zones and what every session shares.
