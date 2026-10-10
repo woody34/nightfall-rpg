@@ -27,3 +27,11 @@ pub use transfer_options::TransferOptions;
 
 pub mod get_skill_catalog;
 pub use get_skill_catalog::{GetSkillCatalog, RegistrySkillCatalogue};
+
+pub mod learn_skill;
+pub mod list_learnable_skills;
+pub use learn_skill::{LearnSkill, LearnSkillInput};
+pub use list_learnable_skills::ListLearnableSkills;
+
+#[cfg(test)]
+mod learning_tests;

@@ -66,7 +66,8 @@ service GameService {
   // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
   // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
   // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
-  // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+  // (zone unavailable), RESOURCE_EXHAUSTED (bounded actor queue/admission capacity),
+  // INTERNAL (persistence failure; no infrastructure detail disclosed).
   rpc LearnSkill(LearnSkillRequest) returns (LearnSkillResponse);
 
   // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
