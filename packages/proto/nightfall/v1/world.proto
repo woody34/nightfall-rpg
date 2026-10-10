@@ -363,6 +363,8 @@ message TargetChanged {
   bool baseline = 3; // owner admission/replacement selection, accepted at baseline_tick
   uint64 baseline_tick = 4;
   optional uint32 target_incarnation = 5;
+  uint64 tick = 6; // V5 fact tick; legacy encodes zero/absent. Baselines are accepted at
+                   // tick=baseline_tick; ordinary deltas require tick > the identity baseline.
 }
 
 // Authoritative class change visible to the character's area of interest.
