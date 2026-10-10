@@ -119,7 +119,7 @@ at client `4f61f0a` (identical native/production/API/data to tested `92b34d2`). 
 16.087356 ms (< 20 ms budget), observed histogram ticks 12,612 equaled recorded 12,612 ticks, and replay matched 96,281 outputs
 (22,662,346 bytes compared, 0 digest-only). Main `00b9ac1` merged and pushed; root Game (42.11 s), Editor
 (32.70 s), and focused class smoke (6/6, zero skips) passed with exit 0. The user trace was preserved.
-Required token supply/backfill remains undecided; whole Phase 2 completion is not claimed.
+Required token milestone crossing and admission backfill scenarios are authored and validated; whole Phase 2 completion is not claimed.
 See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.md),
 [class transfer observability](../../docs/engineering/class-transfer-observability.md), and
 [class tree diagram](../../docs/diagrams/phase-2-class-tree.html).
@@ -134,22 +134,32 @@ See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.m
 | Public observer class/title and owner resource privacy | `2-class-transfer-observer-a.nfs`, `2-class-transfer-observer-b.nfs` (paired) |
 | Reconstruct class/token state between successive transfers and historical retry | `2-class-transfer-reconnect.nfs` (reconstructs state and replays historical keyA after keyB + reconnect) |
 | Late callbacks after logout/account switch and pending-mutation exclusion | `Nightfall.Class.State.AccountAndRequestLifetimes` |
-| Missing claimed token and reconnect preservation | `2-class-transfer-missing-token.nfs` |
+| Missing claimed token and reconnect preservation, wire admission claimed-zero verification | `2-class-transfer-missing-token.nfs` |
+| Level 20 token milestone, combat overlay, delevel/relevel preservation, single transfer consumption, post-consumption re-crossing zero verification | `2-token-milestone20.nfs` |
+| Level 40 token milestone, combat overlay, delevel/relevel preservation, dual transfer consumption, post-consumption re-crossing zero verification | `2-token-milestone40.nfs` |
+| Level 19->40 multi-milestone jump, temporary combat overlay, dual token grant and consumption | `2-token-jump19-40.nfs` |
+| Legacy level 40 admission backfill, shipped zone, durable claim, auto-get skill catch-up, dual transfer consumption | `2-token-backfill.nfs` |
 | Additive optional wire contract / typed identity and resource projection | `Nightfall.Class.Creation.OptionalPresence`, `Nightfall.Class.State.WireAndFences` |
 
-The transfer, reconnect, observer-pair and missing-token scenarios require the Phase 2 harness to seed their disposable account **before
+The transfer, reconnect, observer-pair, missing-token, and token milestone / backfill scenarios require the Phase 2 harness to seed their disposable account **before
 admission**: positive is a level-40 Human base class 0 with tokens 1/1 at `(126,126)`, and missing-token
-is level 20 with its tier-1 milestone claimed and token count 0 at that position. These seeded
-balances exercise consumption only. Production token supply/backfill remains an unresolved
-product decision; automatic grants and backfill are absent. Fixtures are provisioned before admission
-and never modify a live character. The consumption fixture provisions a sparse learned ledger containing only
+is level 20 with its tier-1 milestone claimed and token count 0 at that position. The four approved
+once-only token milestone and admission backfill profiles exercise live token grants, delevel/relevel stability,
+idempotency, and backfill:
+- `phase2-token-level20` (`2-token-milestone20.nfs`): seeded at level 19 (XP 835,861; 0/0 tokens). Asserts initial admission tokens 0/0, kills the temporary overlay oracle to cross level 20 (XP 846,607; 1/0 tokens) followed by unarmed combat cooldown (StopAttack and bounded Sleep 2) and fresh transfer options, survives reconnect (asserting initial admission balance 1/0), dies to the sentinel (XP 832,278 level 19; tokens unchanged), respawns, relevels to 20 on a second oracle kill (XP 843,024; tokens remain 1/0 without duplicate grant), and consumes the token at the Class Master with idempotency retry before and after reconnect (asserting admission 0/0). A post-consumption spent-token re-crossing check (second death to XP 828,695 at level 19, respawn, and third kill to XP 839,441 at level 20) proves claimed zero never refills on real crossing with class 1 and options 0/0 retained.
+- `phase2-token-level40` (`2-token-milestone40.nfs`): seeded at level 39 (XP 15,422,928; 1/0 tokens). Asserts initial admission tokens 1/0, kills the overlay oracle to cross level 40 (XP 15,488,816; 1/1 tokens) followed by unarmed combat cooldown and fresh transfer options, survives reconnect (asserting initial admission balance 1/1), dies to the sentinel (XP 15,400,965 level 39; tokens unchanged), respawns, relevels to 40 on a second oracle kill (XP 15,466,853; tokens remain 1/1 without duplicate grant), and completes two successive transfers (0 -> 1 -> 2) consuming both tokens with idempotency retry before and after reconnect (asserting admission 0/0). A post-consumption spent-token re-crossing check (second death to XP 15,379,002 at level 39, respawn, and third kill to XP 15,444,890 at level 40) proves claimed zero never refills on real crossing with class 2 and options 0/0 retained.
+- `phase2-token-jump19-40` (`2-token-jump19-40.nfs`): seeded at level 19 (XP 835,861; 0/0 tokens). Asserts initial admission tokens 0/0, kills the high-yield overlay oracle to jump directly to level 40 (XP 15,422,929; 1/1 tokens awarded across both thresholds) followed by unarmed combat cooldown and fresh options, reconnects (asserting initial admission balance 1/1), completes two transfers, and verifies historical retry after reconnect (asserting admission 0/0).
+- `phase2-token-backfill` (`2-token-backfill.nfs`): legacy level 40 Human base class 0 character admitted with 0/0 tokens; authoritative admission automatically backfills both tokens (1/1) immediately (verified via first-frame initial token predicates on entry and repeated reconnects), catches up 4 auto-get skills on first transfer, and consumes both tokens across two transfers (reconnect asserting admission 0/0).
+
+Fixtures are provisioned before admission and never modify a live character. The three combat crossing profiles (`phase2-token-level20`, `phase2-token-level40`, `phase2-token-jump19-40`) generate an isolated, temporary test overlay derived from `packages/data` before API startup, modifying only `zones/test_zone.toml` (safe spawn at `126,126`, Class Master at `126,128`, oracle at `126,125`, sentinel at `130,126`) and introducing two standard NPC templates (`token_oracle` and `token_sentinel`) without modifying shipped packages. `phase2-token-backfill` uses the shipped test zone without combat overlay.
+The consumption fixture provisions a sparse learned ledger containing only
 `racial.adaptable 1` without L2 auto-get entries. Direct pinned XML oracle verification of inherited Human 0/1/2
 at level 40 confirms identical baseline ranks (1320 rank 4, 1322 rank 1, 194 rank 1, 239 rank 2); the first
 transfer catches up four omitted metadata keys and the second catches up zero (not class-specific new unlocks),
 whereas a fully learned class 0 ledger at 40 would show zero delta on both transfers. The ordinary runners
-read `# fixture:` declarations (`phase2-transfer`, `phase2-transfer-observer`, `phase2-transfer-missing-token`)
+read `# fixture:` declarations (`phase2-transfer`, `phase2-transfer-observer`, `phase2-transfer-missing-token`, `phase2-token-level20`, `phase2-token-level40`, `phase2-token-jump19-40`, `phase2-token-backfill`)
 and provision before admission; the observer pair uses different accounts. Independent creation matrices use
-numeric suffixes (`-01`, `-02`, `-03`) to avoid pair discovery. Ordinary creation starts at `(0,0)`. The
+numeric suffixes (`-01`, `-02`, `-03`) and token scenarios use distinct solo filenames (`2-token-*.nfs`) to avoid accidental runner pairing. Ordinary creation starts at `(0,0)`. The
 range-denial scenario travels around monster homes in segments below the server's 64-tile move limit.
 
 Run a seeded transfer through the ordinary wrapper, choosing a fresh artifact directory:
