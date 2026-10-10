@@ -194,8 +194,8 @@ impl CharacterCheckpoint {
             "position": [self.position.x, self.position.y],
             "events": events,
         });
-        if let Some(class_state) = &self.class_state {
-            body["class_state"] = serde_json::json!(class_state);
+        if let (Some(class_state), Some(object)) = (&self.class_state, body.as_object_mut()) {
+            object.insert("class_state".into(), serde_json::json!(class_state));
         }
         Sha256::digest(body.to_string().as_bytes())
             .iter()

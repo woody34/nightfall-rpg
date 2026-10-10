@@ -55,6 +55,7 @@ pub struct GameServiceImpl {
 
 impl GameServiceImpl {
     /// Builds the service from its use cases.
+    #[allow(clippy::too_many_arguments)] // Explicit use-case injection at the composition boundary.
     #[must_use]
     pub fn new(
         metrics: crate::infrastructure::telemetry::Metrics,

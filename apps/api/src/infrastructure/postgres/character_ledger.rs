@@ -177,7 +177,8 @@ pub(super) async fn persist(
             &fingerprint,
             response.clone(),
         )
-        .await?;
+        .await
+        .map_err(super::character_repository::checkpoint_anyhow_error)?;
         if let Claim::Existing {
             fingerprint: stored,
             response: stored_response,

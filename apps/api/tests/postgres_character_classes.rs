@@ -289,7 +289,7 @@ async fn failed_outbox_rolls_back_transfer_resources_receipt_skill_and_retry_key
     let fact = event(&c, key);
     assert!(matches!(
         repo.checkpoint(&cp, std::slice::from_ref(&fact)).await,
-        Err(CheckpointError::Other(_))
+        Err(CheckpointError::Constraint(name)) if name == "outbox_reject_transfers"
     ));
     assert_eq!(repo.get(c.id).await.unwrap().unwrap(), c);
     assert_eq!(count(&pool, "character_transfer_receipts").await, 0);

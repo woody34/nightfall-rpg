@@ -19,7 +19,9 @@ async fn catalogue_contains_all_races_professions_limits_and_appearance_hooks() 
         .await
         .unwrap()
         .into_inner();
-    assert_eq!(response.data_version.len(), 64);
+    let digest = response.data_version.strip_prefix("sha256:").unwrap();
+    assert_eq!(digest.len(), 64);
+    assert!(digest.bytes().all(|byte| byte.is_ascii_hexdigit()));
     assert_eq!((response.playable_level_cap, response.max_transfer_tier), (85, 2));
     assert_eq!(
         response.class_master,

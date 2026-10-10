@@ -302,7 +302,7 @@ struct StoredCheckpoint {
     revision: u64,
 }
 
-/// Maps a failed statement to `Constraint` when Postgres reports a check violation (23514).
+/// Classifies integrity violations as permanent; transport/serialization failures remain retryable.
 pub(super) fn checkpoint_db_error(e: DbErr) -> CheckpointError {
     let (DbErr::Exec(RuntimeErr::SqlxError(s)) | DbErr::Query(RuntimeErr::SqlxError(s))) = &e
     else {
@@ -310,9 +310,16 @@ pub(super) fn checkpoint_db_error(e: DbErr) -> CheckpointError {
     };
     let violated = s
         .as_database_error()
-        .filter(|d| d.code().as_deref() == Some("23514"))
-        .and_then(|d| d.constraint().map(str::to_owned));
+        .filter(|d| d.code().is_some_and(|code| code.starts_with("23")))
+        .map(|d| d.constraint().unwrap_or("checkpoint_integrity").to_owned());
     violated.map_or_else(|| CheckpointError::Other(e.into()), CheckpointError::Constraint)
+}
+
+pub(super) fn checkpoint_anyhow_error(error: anyhow::Error) -> CheckpointError {
+    match error.downcast::<DbErr>() {
+        Ok(error) => checkpoint_db_error(error),
+        Err(error) => CheckpointError::Other(error),
+    }
 }
 
 impl PgCharacterRepository {
@@ -321,7 +328,7 @@ impl PgCharacterRepository {
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
-        let other = |e: DbErr| CheckpointError::Other(e.into());
+        let other = checkpoint_db_error;
         if let Some(name) = cp.violated_constraint() {
             // Values the column types cannot even hold; no statement needed to know.
             return Err(CheckpointError::Constraint(name.to_owned()));
@@ -350,7 +357,8 @@ impl PgCharacterRepository {
             serde_json::to_value(StoredCheckpoint { revision: produced })
                 .map_err(anyhow::Error::from)?,
         )
-        .await?;
+        .await
+        .map_err(checkpoint_anyhow_error)?;
         if let Claim::Existing {
             fingerprint: stored_fp,
             response,

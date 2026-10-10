@@ -55,8 +55,9 @@ impl IntoResponse for AppError {
             AppError::NotFound { .. } => StatusCode::NOT_FOUND,
             AppError::Unauthenticated(_) => StatusCode::UNAUTHORIZED,
             AppError::PermissionDenied(_) => StatusCode::FORBIDDEN,
-            AppError::AlreadyExists(_) | AppError::IdempotencyConflict => StatusCode::CONFLICT,
-            AppError::FailedPrecondition(_) => StatusCode::CONFLICT,
+            AppError::AlreadyExists(_)
+            | AppError::IdempotencyConflict
+            | AppError::FailedPrecondition(_) => StatusCode::CONFLICT,
             AppError::ResourceExhausted(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::Unavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             AppError::Infrastructure(e) => {

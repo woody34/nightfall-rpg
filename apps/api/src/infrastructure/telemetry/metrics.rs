@@ -114,6 +114,7 @@ pub struct Metrics {
 
 impl Metrics {
     /// Builds the catalogue on `provider`, whose Prometheus reader writes into `registry`.
+    #[allow(clippy::too_many_lines)] // One instrument catalogue keeps metric names and defaults together.
     pub(super) fn new(provider: SdkMeterProvider, registry: Registry) -> Self {
         let meter = opentelemetry::metrics::MeterProvider::meter(&provider, "nightfall-api");
         let outbox_source: SharedSource = Arc::default();

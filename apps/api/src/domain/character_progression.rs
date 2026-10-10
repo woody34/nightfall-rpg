@@ -305,7 +305,7 @@ impl ClassState {
     ) -> Result<Vec<String>, ClassStateError> {
         let incoming: Vec<_> = skills.into_iter().collect();
         let mut probe = self.clone();
-        probe.learned_skills = incoming.clone();
+        probe.learned_skills.clone_from(&incoming);
         probe.validate_learned_metadata(registry, race)?;
         let mut candidate = self.clone();
         let granted = candidate.merge_learned_skills(incoming);
