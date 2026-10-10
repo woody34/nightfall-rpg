@@ -35,6 +35,7 @@ pub struct Harness {
     pub log: Arc<JetStreamEventLog>,
     pub store: Arc<PgZoneSnapshotStore>,
     pub running: RunningZone,
+    pub metrics: Metrics,
 }
 
 impl Harness {
@@ -77,8 +78,9 @@ impl Harness {
         .await
         .unwrap();
         let audit = Arc::new(InMemorySessionAudit::default());
+        let metrics = Metrics::detached();
         running.handle().checkpoints.install(
-            CheckpointService::new(adapter.clone(), audit, Arc::new(Metrics::detached()))
+            CheckpointService::new(adapter.clone(), audit, Arc::new(metrics.clone()))
                 .with_durability(log.clone(), store.clone()),
         );
         let app = TestApp::spawn_with_handle(
@@ -93,6 +95,7 @@ impl Harness {
             log,
             store,
             running,
+            metrics,
         }
     }
 

@@ -504,14 +504,88 @@ async fn real_combat_crossings_death_recross_and_one_kill_multilevel_jump_checkp
         assert_eq!(h.repo.get(c.id).await.unwrap().unwrap().class_state, consumed.class_state);
         assert_eq!(
             client
-                .change_class(first_request)
+                .change_class(first_request.clone())
                 .await
                 .unwrap()
                 .into_inner(),
             first
         );
         assert_eq!(grants(&h.pool, &c).await, facts);
+        if death_xp.is_some() && recross_xp.is_some() {
+            let (spent_dead_xp, spent_recross_xp) = if destination == 20 {
+                (828_695, 839_441)
+            } else {
+                (15_379_002, 15_444_890)
+            };
+            let frozen =
+                serde_json::to_vec(&consumed.class_state.successful_transfer_receipts).unwrap();
+            let grant_metrics = token_metrics(&h);
+            assert_eq!(grant_metrics.len(), 1);
+            assert!(grant_metrics[0].contains("source=\"level_up\""));
+            assert!(grant_metrics[0].ends_with(" 1"));
+            let brute = npc(&h, &mut replacement, "SpentSentinel", 0, true).await;
+            attack_target(&mut replacement, 1, &brute).await;
+            replacement.until(|m| matches!(event(m), Some(pb::world_event::Event::EntityDied(dead)) if dead.entity == p.entity_id())).await;
+            let dead = h.repo.load_for_admission(c.id).await.unwrap().unwrap();
+            assert_eq!(
+                (dead.level, dead.xp, dead.hp, dead.alive),
+                (destination.checked_sub(1).unwrap(), spent_dead_xp, Some(0), false)
+            );
+            assert_eq!(dead.class_state.current_class_id, consumed.class_state.current_class_id);
+            assert_eq!(balances(&h.repo.get(c.id).await.unwrap().unwrap()), ([0, 0], claimed));
+            assert_eq!(
+                serde_json::to_vec(&dead.class_state.successful_transfer_receipts).unwrap(),
+                frozen
+            );
+            assert_eq!(grants(&h.pool, &c).await, facts);
+            assert_eq!(token_metrics(&h), grant_metrics);
+            h.app
+                .zone
+                .send(ZoneInput::system(ZoneCommand::Despawn {
+                    entity: EntityId::from_uuid(Uuid::parse_str(&brute).unwrap()),
+                }))
+                .unwrap();
+            replacement
+                .send(&pb::ClientMessage {
+                    seq: 3,
+                    intent: Some(pb::client_message::Intent::Respawn(pb::RespawnRequest {})),
+                })
+                .await;
+            replacement.until(|m| matches!(event(m), Some(pb::world_event::Event::EntityRespawned(r)) if r.entity == p.entity_id())).await;
+            assert_eq!(h.repo.load_for_admission(c.id).await.unwrap().unwrap().xp, spent_dead_xp);
+            let target = npc(&h, &mut replacement, "SpentRecrossOracle", raw, false).await;
+            attack_target(&mut replacement, 4, &target).await;
+            replacement.until(|m| matches!(event(m), Some(pb::world_event::Event::LevelUp(up)) if up.level == destination)).await;
+            let relevel = h.repo.load_for_admission(c.id).await.unwrap().unwrap();
+            assert_eq!((relevel.level, relevel.xp), (destination, spent_recross_xp));
+            assert_eq!(relevel.class_state.current_class_id, consumed.class_state.current_class_id);
+            assert_eq!(balances(&h.repo.get(c.id).await.unwrap().unwrap()), ([0, 0], claimed));
+            assert_eq!(
+                serde_json::to_vec(&relevel.class_state.successful_transfer_receipts).unwrap(),
+                frozen
+            );
+            assert_eq!(grants(&h.pool, &c).await, facts);
+            assert_eq!(token_metrics(&h), grant_metrics);
+            assert_eq!(
+                client
+                    .change_class(first_request.clone())
+                    .await
+                    .unwrap()
+                    .into_inner(),
+                first
+            );
+        }
         replacement.close().await;
         h.running.shutdown(WatermarkReason::Shutdown).await.unwrap();
     }
+}
+
+fn token_metrics(h: &Harness) -> Vec<String> {
+    h.metrics
+        .render()
+        .unwrap()
+        .lines()
+        .filter(|line| line.starts_with("nightfall_class_transfer_token_grants_total{"))
+        .map(str::to_owned)
+        .collect()
 }
