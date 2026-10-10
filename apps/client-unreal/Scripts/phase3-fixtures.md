@@ -122,6 +122,10 @@ independent, hash-pinned artifact; the harness does not calculate gameplay resul
 | `town_respawn_vitals_match_fixture`<br>`resurrection_vitals_match_fixture` | `town_respawn_vitals_match_fixture`: REQUIRED HANDOFF<br>`resurrection_vitals_match_fixture`: REQUIRED HANDOFF | EntityRespawned + final VitalsChanged and owner StatsChanged.hp/mp/cp compared to frozen external expected vector. Town and skill revival have separate pinned semantics; no client percentage calculation. |
 | `resurrect_offer_pending`<br>`resurrect_offer_matches_death`<br>`resurrect_refund_matches_oracle`<br>`resurrection_refunds` | `resurrect_offer_pending`: registered<br>`resurrect_offer_matches_death`: REQUIRED HANDOFF<br>`resurrect_refund_matches_oracle`: REQUIRED HANDOFF<br>`resurrection_refunds`: REQUIRED HANDOFF | Owner ResurrectOffer.target/incarnation/offer_id/restore_percent_q/recoverable_xp/expiry_tick/state/tick, accepted EntityRespawned and owner StatsChanged.xp; correlate one refund per offer/death incarnation against E1 vectors. |
 
+| `own_level` | Registered | Owner StatsChanged.level and EntitySpawn.level; received level only. |
+| `target_distance` | Registered | TargetChanged selection plus newest EntitySpawn/EntityMove positions for owner and selected target; scheduling/range evidence, no skill formula. |
+| `resurrect_offer_state` | REQUIRED HANDOFF | Owner ResurrectOffer.offer_id/target_incarnation/state/tick for the newest witnessed offer, preserving DECLINED/EXPIRED terminal history; absent/pending cannot satisfy it. |
+
 Run `python3 Scripts/sim-parser-check.py Scenarios/3-*.nfs` as the strict source
 compatibility gate. It reads BotPredicates/ClassBotPredicates/SkillBotPredicates
 and future predicate files from this merged tree; unknown names and known UNKNOWN
@@ -131,15 +135,103 @@ including unknown-name and malformed-command mutations. Its PASS attests validat
 behavior, not scenario compatibility or the native Unreal parser. The strict gate
 currently FAILS; client implementation and vector/wire handoffs are still required.
 
-Current files cover core flows, **not the entire matrix's variants**. Pending
-client/engine integration includes exact 50/51 and100/101 checkpoint boundaries,
-seeded resist/status/stun/physical-skill fixtures, stronger/lower/overflow/dispel
-branches, nonlethal player/NPC DoT, real regen dead/full/NPC variants, full PvP
-endpoint/AoE/pulse cross-products, learning cap/competing-kill
-and historical-receipt variants, resurrection decline/expiry/replacement/town
-race/crash matrix, and AddHate/heal/GetAgro/tie variants. These require published
-runtime/data/vector/DSL contracts; source files and covers headers are not pass
-attestations. Actor/adapter precision tests remain the server owners' work.
+The canonical17 files and `Scenarios/variants/3-*.nfs` are source contracts,
+not execution attestations. `Scenarios/phase3-variants.json` maps named variants
+back to the canonical matrix row, exact required assertions, pre-admission pack,
+and mandatory actor/adapter precision reports. CI and traceability discover nested
+`.nfs` files. Orphan variants, missing assertions, changed fixture headers, and
+insufficient wait budgets fail validation. A covers header by itself cannot pass.
+
+Additional seed packs: `phase3-trainer-low-sp` (SP0),
+`phase3-trainer-low-level` (level4), `phase3-trainer-low-mp` (MP0,110/100),
+`phase3-penalty-cap` (untimed penalty5,110/100), `phase3-sp-near-cap`
+(SP=i64MAX-1,110/100). They retain the original guarded pre-admission lifecycle.
+Low-MP asserts received MP<9 before Wind Strike; if login/regen erased the input,
+the scenario fails rather than pretending a resource rejection was exercised.
+The capped penalty scenario requires **exactly5** before death, after death and
+reconnect; an always-zero implementation cannot pass. Seed SQL writes declared
+penalty/PvP inputs rather than silently substituting zero.
+
+Deterministic land/resist and penalty-success/failure fixture definitions are in
+`precision_cases[].deterministic_roll_fixture`: test-only draw-site injection0/99,
+exclusive bound100, requiring the **complete ordered RNG trace**, including earlier
+success/reflection/duration draws. They are **actor fixture handoffs**, not supported
+live-server seed controls: no chosen wall-clock login or small cast sample proves
+an outcome. Engine owners must consume these fixtures and publish the named test
+and hash-linked actual trace. No test-only RNG override enters production WS/DB.
+
+Run `python3 Scripts/phase3-variants.py` for source validation. Run it with
+`--evidence <precision-report-dir>` for required evidence completeness. Missing
+reports, missing expected assertions, wrong fixture hashes, missing retained test
+artifacts and missing actual injected-draw traces fail. Every `evidence: null`
+means **not tested**; source validation never changes that status. Reports name the
+requested test, canonical case hash, boolean verdict for every listed invariant,
+and relative artifact->SHA256 links. These reports supplement native recording,
+byte replay, pipeline and contract gates; they do not replace them.
+
+| Named runtime variant | Canonical matrix file | Fixture / required behavior |
+|---|---|---|
+| `cast-unlearned` | `3-cast-rejected.nfs` | `phase3-trainer`; `nf.WaitFor rejected == skill_not_learned 3`; `nf.Expect cast_starts == 0` |
+| `cast-invalid-target` | `3-cast-rejected.nfs` | `phase3-trainer`; `nf.WaitFor rejected == invalid_target_type 3`; `nf.Expect cast_starts == 0` |
+| `cast-low-mp` | `3-cast-rejected.nfs` | `phase3-trainer-low-mp`; `nf.Expect own_mp < 9`; `nf.WaitFor rejected == insufficient_mp 3`; `nf.Expect cast_starts == 0` |
+| `cast-range` | `3-cast-rejected.nfs` | `phase3-trainer`; `nf.Expect target_distance > 30`; `nf.WaitFor rejected == out_of_range 3`; `nf.Expect cast_starts == 0` |
+| `cast-move-cancel` | `3-cast-rejected.nfs` | `phase3-trainer`; `nf.WaitFor cast_cancel_reason == moved 3`; `nf.Expect cancelled_cast_costs_retained`; `nf.Expect cast_results == 0` |
+| `learn-low-sp` | `3-learn-rejected.nfs` | `phase3-trainer-low-sp`; `nf.Expect own_sp == 0`; `nf.Expect learned_rank 1177 == 1`; `nf.Expect skill_learned_events == 0` |
+| `learn-low-level` | `3-learn-rejected.nfs` | `phase3-trainer-low-level`; `nf.Expect own_level == 4`; `nf.Expect own_sp == 10000`; `nf.Expect skill_learned_events == 0` |
+| `learn-unknown` | `3-learn-rejected.nfs` | `phase3-trainer`; `nf.WaitFor learn_rpc_error == invalid_argument 15`; `nf.Expect own_sp == 10000`; `nf.Expect skill_learned_events == 0` |
+| `learn-key-conflict` | `3-learn-rejected.nfs` | `phase3-trainer`; `nf.WaitFor learn_rpc_error == failed_precondition 15`; `nf.Expect own_sp == 9760`; `nf.Expect skill_learned_events == 1` |
+| `learn-casting` | `3-learn-rejected.nfs` | `phase3-trainer`; `nf.WaitFor cast_state == casting 12`; `nf.Expect own_sp == 10000`; `nf.Expect skill_learned_events == 0` |
+| `learn-dead` | `3-learn-rejected.nfs` | `phase3-trainer`; `nf.WaitFor own_dead 90`; `nf.Expect own_sp == 10000`; `nf.Expect skill_learned_events == 0` |
+| `death-penalty-cap` | `3-death-penalty.nfs` | `phase3-penalty-cap`; `nf.Expect own_death_penalty == 5`; `nf.Expect death_record_matches_before_disconnect` |
+| `resurrect-decline-a` | `3-resurrect-a.nfs` | `phase3-resurrect`; `nf.Expect entity_dead 01970000-0000-7000-8000-000000000031`; `nf.Expect cast_results == 1` |
+| `resurrect-decline-b` | `3-resurrect-b.nfs` | `phase3-resurrect`; `nf.WaitFor resurrect_offer_state == declined 3`; `nf.Expect resurrection_refunds == 0`; `nf.Expect own_dead` |
+| `resurrect-expiry-a` | `3-resurrect-a.nfs` | `phase3-resurrect`; `nf.Expect entity_dead 01970000-0000-7000-8000-000000000031`; `nf.Expect cast_results == 1` |
+| `resurrect-expiry-b` | `3-resurrect-b.nfs` | `phase3-resurrect`; `nf.WaitFor resurrect_offer_state == expired 180`; `nf.Expect resurrection_refunds == 0`; `nf.Expect own_dead` |
+| `learn-sp-near-cap` | `3-learn-skill.nfs` | `phase3-sp-near-cap`; `nf.WaitFor sp_gained_total == 1 90`; `nf.Expect own_sp == 9223372036854775807`; `nf.Expect sp_gained_events == 1`; `nf.Expect sp_gained_events == 0` |
+
+| Required precision variant (all pending engine/adapter execution) | Matrix file | Exact required named test / setup |
+|---|---|---|
+| `cast-reuse-boundary` | `3-cast-rejected.nfs` | `phase3_cast_reuse_boundary`; reuse ready-1 / ready tick |
+| `cast-status-guards` | `3-cast-rejected.nfs` | `phase3_cast_status_guards`; stun/silence/physical-mute statuses independently |
+| `cast-real-weapon` | `3-cast-rejected.nfs` | `phase3_cast_real_weapon`; actual Squire sword versus using kind condition |
+| `cast-completion-resources` | `3-cast-rejected.nfs` | `phase3_cast_completion_resources`; accepted start then resources consumed by an ordinary competing action |
+| `cast-completion-range` | `3-cast-rejected.nfs` | `phase3_cast_completion_range`; target crosses effectRange after accepted start |
+| `cast-damage-break` | `3-cast-rejected.nfs` | `phase3_cast_damage_break`; pinned hitCancelTime cutoffs with injected break rolls |
+| `cast-already-casting` | `3-cast-rejected.nfs` | `phase3_cast_already_casting`; different learned ready skill while existing cast pending |
+| `learn-lineage-item-capability` | `3-learn-rejected.nfs` | `phase3_learn_lineage_item_capability`; valid other-lineage skill, item-learning skill, deferred skill separately |
+| `learn-engagement-guards` | `3-learn-rejected.nfs` | `phase3_learn_engagement_guards`; incoming hate/swings/readiness/hostile effects within trainer radius |
+| `learn-auth-generation` | `3-learn-rejected.nfs` | `phase3_learn_auth_generation`; missing token / foreign character / missing character / stale session generation |
+| `learn-queued-duplicates` | `3-learn-skill.nfs` | `phase3_learn_queued_duplicates`; same UUID twice then conflicting body; two keys same rank |
+| `learn-historical-receipt` | `3-learn-skill.nfs` | `phase3_learn_historical_receipt`; retry same successful key after later rank/class/progression/disconnect |
+| `sp-competing-keltir` | `3-pvp-flag-a.nfs` | `phase3_sp_competing_keltir`; two living players hit one keltir; A nonlethal then B lethal; reverse roles |
+| `sp-signed-cap` | `3-pvp-flag-b.nfs` | `phase3_sp_signed_cap`; killer SP=i64MAX-1, other role0; reverse roles |
+| `buff-higher-lower-overflow` | `3-buff-expires.nfs` | `phase3_buff_higher_lower_overflow`; rank1 then rank2 then rank1 PA_UP; full buff pool then next distinct buff |
+| `buff-dispel-capped-heal` | `3-buff-expires.nfs` | `phase3_buff_dispel_capped_heal`; capped actual heal and DispelBySlot/Category on supported effects |
+| `debuff-land` | `3-debuff-status.nfs` | `phase3_debuff_land`; eligible target and injected calcEffectSuccess bounded draw0 |
+| `debuff-resist` | `3-debuff-status.nfs` | `phase3_debuff_resist`; same eligible target and injected calcEffectSuccess bounded draw99 |
+| `debuff-immune` | `3-debuff-status.nfs` | `phase3_debuff_immune`; immune target trait, independent source vector |
+| `physical-skill` | `3-debuff-status.nfs` | `phase3_physical_skill`; real supported weapon; physical evasion0 and injected nonzero branch |
+| `status-stun-root-overlap` | `3-debuff-status.nfs` | `phase3_status_stun_root_overlap`; same tick stun versus swing, root versus movement, overlapping status expiries |
+| `dot-nonlethal-break` | `3-debuff-status.nfs` | `phase3_dot_nonlethal_break`; TickHp on player/NPC atHP1 withCP0/positive and direct damage/DoT |
+| `regen-standing-moving-npc` | `3-regen.nfs` | `phase3_regen_standing_moving_npc`; 30tick player HP/MP/CP; moving and NPC HP/MP, multiple fractional pulses |
+| `regen-dead-full` | `3-regen.nfs` | `phase3_regen_dead_full`; dead and full player/NPC resources across multiple pulse boundaries |
+| `reconnect-reuse-50-51` | `3-cast-reconnect.nfs` | `phase3_reconnect_reuse_50_51`; freeze checkpoint at remaining50 then51 via actor scheduler |
+| `reconnect-effects-100-101` | `3-cast-reconnect.nfs` | `phase3_reconnect_effects_100_101`; buff and debuff each at remaining100 then101, with periodic phase/install order |
+| `replacement-live-cast-offer` | `3-cast-reconnect.nfs` | `phase3_replacement_live_cast_offer`; replace session during pending cast and valid resurrection offer |
+| `death-penalty-roll-success` | `3-death-penalty.nfs` | `phase3_death_penalty_roll_success`; NPC or chaotic-player death; injected eligible roll0; old penalty0 |
+| `death-penalty-roll-failure` | `3-death-penalty.nfs` | `phase3_death_penalty_roll_failure`; same eligible death; injected roll99; old penalty0 |
+| `death-penalty-ineligible` | `3-death-penalty.nfs` | `phase3_death_penalty_ineligible`; neutral-player death and peace endpoints independently |
+| `death-penalty-cap-actor` | `3-death-penalty.nfs` | `phase3_death_penalty_cap_actor`; eligible NPC death; old penalty5, success and failure rolls |
+| `resurrect-exact-expiry` | `3-resurrect-b.nfs` | `phase3_resurrect_exact_expiry`; accept at expiry-1 and expiry tick using actor scheduler |
+| `resurrect-competing-offers` | `3-resurrect-a.nfs` | `phase3_resurrect_competing_offers`; two caster completions ordered same tick for same corpse |
+| `resurrect-town-race` | `3-resurrect-b.nfs` | `phase3_resurrect_town_race`; queued town respawn and accept in both ordinal orders |
+| `resurrect-disconnect-new-offer` | `3-resurrect-b.nfs` | `phase3_resurrect_disconnect_new_offer`; disconnect vs replacement while offered; reconnect then new offer |
+| `resurrect-crash-once` | `3-resurrect-b.nfs` | `phase3_resurrect_crash_once`; log/checkpoint/receipt/outbox lost-ack/crash stages via adapters |
+| `hate-effectpoint-addhate` | `3-aggro-skill-hate.nfs` | `phase3_hate_effectpoint_addhate`; multiple NPC ledgers, two owners; effectPoint and AddHate |
+| `hate-heal-overheal` | `3-aggro-skill-hate.nfs` | `phase3_hate_heal_overheal`; all NPCs hating healed target; actual heal and zero overheal |
+| `hate-tie-getagro` | `3-aggro-skill-hate.nfs` | `phase3_hate_tie_getagro`; tied ledgers current target versus none, GetAgro request ordinal interactions |
+| `peace-endpoint-aoe-pulse` | `3-pvp-flag-a.nfs` | `phase3_peace_endpoint_aoe_pulse`; caster/target/both inclusive square; start versus impact/AoE/pulse |
+| `karma-no-decay-paths` | `3-pvp-karma-decay.nfs` | `phase3_karma_no_decay_paths`; chaotic-unflagged kill, healer, time, death vs monster XP pre-award level |
 
 Schema3 coverage consumers use `player_cast_states` and `effect_states` plus the
 maps listed in sim-gates.py. They retain every schema2 field, reject missing or

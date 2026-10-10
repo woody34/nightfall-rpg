@@ -247,7 +247,7 @@ def main():
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
-    scenarios = sorted(args.scenarios.resolve().glob("*.nfs"))
+    scenarios = sorted(args.scenarios.resolve().rglob("*.nfs"))
     if not scenarios:
         parser.error("no scenarios")
     try:

@@ -1,0 +1,844 @@
+{
+  "schema_version": 1,
+  "runtime_cases": [
+    {
+      "id": "cast-unlearned",
+      "canonical": "3-cast-rejected.nfs",
+      "scenarios": [
+        "variants/3-cast-unlearned.nfs"
+      ],
+      "fixture": "phase3-trainer",
+      "assertions": [
+        "nf.WaitFor rejected == skill_not_learned 3",
+        "nf.Expect cast_starts == 0"
+      ]
+    },
+    {
+      "id": "cast-invalid-target",
+      "canonical": "3-cast-rejected.nfs",
+      "scenarios": [
+        "variants/3-cast-invalid-target.nfs"
+      ],
+      "fixture": "phase3-trainer",
+      "assertions": [
+        "nf.WaitFor rejected == invalid_target_type 3",
+        "nf.Expect cast_starts == 0"
+      ]
+    },
+    {
+      "id": "cast-low-mp",
+      "canonical": "3-cast-rejected.nfs",
+      "scenarios": [
+        "variants/3-cast-low-mp.nfs"
+      ],
+      "fixture": "phase3-trainer-low-mp",
+      "assertions": [
+        "nf.Expect own_mp < 9",
+        "nf.WaitFor rejected == insufficient_mp 3",
+        "nf.Expect cast_starts == 0"
+      ]
+    },
+    {
+      "id": "cast-range",
+      "canonical": "3-cast-rejected.nfs",
+      "scenarios": [
+        "variants/3-cast-range.nfs"
+      ],
+      "fixture": "phase3-trainer",
+      "assertions": [
+        "nf.Expect target_distance > 30",
+        "nf.WaitFor rejected == out_of_range 3",
+        "nf.Expect cast_starts == 0"
+      ]
+    },
+    {
+      "id": "cast-move-cancel",
+      "canonical": "3-cast-rejected.nfs",
+      "scenarios": [
+        "variants/3-cast-move-cancel.nfs"
+      ],
+      "fixture": "phase3-trainer",
+      "assertions": [
+        "nf.WaitFor cast_cancel_reason == moved 3",
+        "nf.Expect cancelled_cast_costs_retained",
+        "nf.Expect cast_results == 0"
+      ]
+    },
+    {
+      "id": "learn-low-sp",
+      "canonical": "3-learn-rejected.nfs",
+      "scenarios": [
+        "variants/3-learn-low-sp.nfs"
+      ],
+      "fixture": "phase3-trainer-low-sp",
+      "assertions": [
+        "nf.Expect own_sp == 0",
+        "nf.Expect learned_rank 1177 == 1",
+        "nf.Expect skill_learned_events == 0"
+      ]
+    },
+    {
+      "id": "learn-low-level",
+      "canonical": "3-learn-rejected.nfs",
+      "scenarios": [
+        "variants/3-learn-low-level.nfs"
+      ],
+      "fixture": "phase3-trainer-low-level",
+      "assertions": [
+        "nf.Expect own_level == 4",
+        "nf.Expect own_sp == 10000",
+        "nf.Expect skill_learned_events == 0"
+      ]
+    },
+    {
+      "id": "learn-unknown",
+      "canonical": "3-learn-rejected.nfs",
+      "scenarios": [
+        "variants/3-learn-unknown.nfs"
+      ],
+      "fixture": "phase3-trainer",
+      "assertions": [
+        "nf.WaitFor learn_rpc_error == invalid_argument 15",
+        "nf.Expect own_sp == 10000",
+        "nf.Expect skill_learned_events == 0"
+      ]
+    },
+    {
+      "id": "learn-key-conflict",
+      "canonical": "3-learn-rejected.nfs",
+      "scenarios": [
+        "variants/3-learn-key-conflict.nfs"
+      ],
+      "fixture": "phase3-trainer",
+      "assertions": [
+        "nf.WaitFor learn_rpc_error == failed_precondition 15",
+        "nf.Expect own_sp == 9760",
+        "nf.Expect skill_learned_events == 1"
+      ]
+    },
+    {
+      "id": "learn-casting",
+      "canonical": "3-learn-rejected.nfs",
+      "scenarios": [
+        "variants/3-learn-casting.nfs"
+      ],
+      "fixture": "phase3-trainer",
+      "assertions": [
+        "nf.WaitFor cast_state == casting 12",
+        "nf.Expect own_sp == 10000",
+        "nf.Expect skill_learned_events == 0"
+      ]
+    },
+    {
+      "id": "learn-dead",
+      "canonical": "3-learn-rejected.nfs",
+      "scenarios": [
+        "variants/3-learn-dead.nfs"
+      ],
+      "fixture": "phase3-trainer",
+      "assertions": [
+        "nf.WaitFor own_dead 90",
+        "nf.Expect own_sp == 10000",
+        "nf.Expect skill_learned_events == 0"
+      ]
+    },
+    {
+      "id": "death-penalty-cap",
+      "canonical": "3-death-penalty.nfs",
+      "scenarios": [
+        "variants/3-death-penalty-cap.nfs"
+      ],
+      "fixture": "phase3-penalty-cap",
+      "assertions": [
+        "nf.Expect own_death_penalty == 5",
+        "nf.Expect death_record_matches_before_disconnect"
+      ]
+    },
+    {
+      "id": "resurrect-decline-a",
+      "canonical": "3-resurrect-a.nfs",
+      "scenarios": [
+        "variants/3-resurrect-decline-a.nfs"
+      ],
+      "fixture": "phase3-resurrect",
+      "assertions": [
+        "nf.Expect entity_dead 01970000-0000-7000-8000-000000000031",
+        "nf.Expect cast_results == 1"
+      ]
+    },
+    {
+      "id": "resurrect-decline-b",
+      "canonical": "3-resurrect-b.nfs",
+      "scenarios": [
+        "variants/3-resurrect-decline-b.nfs"
+      ],
+      "fixture": "phase3-resurrect",
+      "assertions": [
+        "nf.WaitFor resurrect_offer_state == declined 3",
+        "nf.Expect resurrection_refunds == 0",
+        "nf.Expect own_dead"
+      ]
+    },
+    {
+      "id": "resurrect-expiry-a",
+      "canonical": "3-resurrect-a.nfs",
+      "scenarios": [
+        "variants/3-resurrect-expiry-a.nfs"
+      ],
+      "fixture": "phase3-resurrect",
+      "assertions": [
+        "nf.Expect entity_dead 01970000-0000-7000-8000-000000000031",
+        "nf.Expect cast_results == 1"
+      ]
+    },
+    {
+      "id": "resurrect-expiry-b",
+      "canonical": "3-resurrect-b.nfs",
+      "scenarios": [
+        "variants/3-resurrect-expiry-b.nfs"
+      ],
+      "fixture": "phase3-resurrect",
+      "assertions": [
+        "nf.WaitFor resurrect_offer_state == expired 180",
+        "nf.Expect resurrection_refunds == 0",
+        "nf.Expect own_dead"
+      ]
+    },
+    {
+      "id": "learn-sp-near-cap",
+      "canonical": "3-learn-skill.nfs",
+      "scenarios": [
+        "variants/3-learn-sp-near-cap.nfs"
+      ],
+      "fixture": "phase3-sp-near-cap",
+      "assertions": [
+        "nf.WaitFor sp_gained_total == 1 90",
+        "nf.Expect own_sp == 9223372036854775807",
+        "nf.Expect sp_gained_events == 1",
+        "nf.Expect sp_gained_events == 0"
+      ]
+    }
+  ],
+  "precision_cases": [
+    {
+      "id": "cast-reuse-boundary",
+      "canonical": "3-cast-rejected.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "reuse ready-1 / ready tick",
+      "assertions": [
+        "cooldown_reject_before_deadline",
+        "accept_at_deadline",
+        "one_disposition"
+      ],
+      "requested_test": "phase3_cast_reuse_boundary",
+      "evidence": null
+    },
+    {
+      "id": "cast-status-guards",
+      "canonical": "3-cast-rejected.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "stun/silence/physical-mute statuses independently",
+      "assertions": [
+        "incapacitated_reject",
+        "silenced_reject",
+        "physical_magic_distinction",
+        "no_resource_mutation"
+      ],
+      "requested_test": "phase3_cast_status_guards",
+      "evidence": null
+    },
+    {
+      "id": "cast-real-weapon",
+      "canonical": "3-cast-rejected.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "actual Squire sword versus using kind condition",
+      "assertions": [
+        "weapon_condition_reject",
+        "no_started",
+        "no_mp_or_reuse_mutation"
+      ],
+      "requested_test": "phase3_cast_real_weapon",
+      "evidence": null
+    },
+    {
+      "id": "cast-completion-resources",
+      "canonical": "3-cast-rejected.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "accepted start then resources consumed by an ordinary competing action",
+      "assertions": [
+        "start_ack_once",
+        "resources_cancel_same_cast",
+        "mp1_reuse_retained",
+        "no_late_reject"
+      ],
+      "requested_test": "phase3_cast_completion_resources",
+      "evidence": null
+    },
+    {
+      "id": "cast-completion-range",
+      "canonical": "3-cast-rejected.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "target crosses effectRange after accepted start",
+      "assertions": [
+        "out_of_range_cancel_same_cast",
+        "no_result_damage",
+        "no_late_reject"
+      ],
+      "requested_test": "phase3_cast_completion_range",
+      "evidence": null
+    },
+    {
+      "id": "cast-damage-break",
+      "canonical": "3-cast-rejected.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "pinned hitCancelTime cutoffs with injected break rolls",
+      "assertions": [
+        "break_before_cutoff",
+        "no_break_after_cutoff",
+        "mp1_reuse_retained",
+        "one_terminal"
+      ],
+      "requested_test": "phase3_cast_damage_break",
+      "evidence": null
+    },
+    {
+      "id": "cast-already-casting",
+      "canonical": "3-cast-rejected.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "different learned ready skill while existing cast pending",
+      "assertions": [
+        "already_casting_reject",
+        "original_cast_identity_preserved"
+      ],
+      "requested_test": "phase3_cast_already_casting",
+      "evidence": null
+    },
+    {
+      "id": "learn-lineage-item-capability",
+      "canonical": "3-learn-rejected.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "valid other-lineage skill, item-learning skill, deferred skill separately",
+      "assertions": [
+        "failed_precondition_each",
+        "sp_rank_state_unchanged",
+        "no_receipt_event_outbox"
+      ],
+      "requested_test": "phase3_learn_lineage_item_capability",
+      "evidence": null
+    },
+    {
+      "id": "learn-engagement-guards",
+      "canonical": "3-learn-rejected.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "incoming hate/swings/readiness/hostile effects within trainer radius",
+      "assertions": [
+        "failed_precondition_each",
+        "no_key_sp_event_write"
+      ],
+      "requested_test": "phase3_learn_engagement_guards",
+      "evidence": null
+    },
+    {
+      "id": "learn-auth-generation",
+      "canonical": "3-learn-rejected.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "missing token / foreign character / missing character / stale session generation",
+      "assertions": [
+        "canonical_code_each",
+        "no_receipt_ownership_bypass",
+        "no_actor_mutation"
+      ],
+      "requested_test": "phase3_learn_auth_generation",
+      "evidence": null
+    },
+    {
+      "id": "learn-queued-duplicates",
+      "canonical": "3-learn-skill.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "same UUID twice then conflicting body; two keys same rank",
+      "assertions": [
+        "one_spend_receipt_outbox",
+        "identical_frozen_replies",
+        "conflict_failed_precondition",
+        "loser_does_not_buy_next_rank"
+      ],
+      "requested_test": "phase3_learn_queued_duplicates",
+      "evidence": null
+    },
+    {
+      "id": "learn-historical-receipt",
+      "canonical": "3-learn-skill.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "retry same successful key after later rank/class/progression/disconnect",
+      "assertions": [
+        "all_original_response_fields",
+        "no_second_spend_event",
+        "live_stats_not_overwritten"
+      ],
+      "requested_test": "phase3_learn_historical_receipt",
+      "evidence": null
+    },
+    {
+      "id": "sp-competing-keltir",
+      "canonical": "3-pvp-flag-a.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "two living players hit one keltir; A nonlethal then B lethal; reverse roles",
+      "assertions": [
+        "nonlethal_zero_sp",
+        "lethal_one_sp_event_delta2",
+        "no_corpse_reconnect_replay_reaward"
+      ],
+      "requested_test": "phase3_sp_competing_keltir",
+      "evidence": null
+    },
+    {
+      "id": "sp-signed-cap",
+      "canonical": "3-pvp-flag-b.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "killer SP=i64MAX-1, other role0; reverse roles",
+      "assertions": [
+        "actual_delta1_at_cap",
+        "total_i64MAX",
+        "one_event",
+        "no_overflow"
+      ],
+      "requested_test": "phase3_sp_signed_cap",
+      "evidence": null
+    },
+    {
+      "id": "buff-higher-lower-overflow",
+      "canonical": "3-buff-expires.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "rank1 then rank2 then rank1 PA_UP; full buff pool then next distinct buff",
+      "assertions": [
+        "higher_replaces_new_id",
+        "lower_silent_no_refresh",
+        "oldest_overflow",
+        "remove_before_apply",
+        "pool_limit"
+      ],
+      "requested_test": "phase3_buff_higher_lower_overflow",
+      "evidence": null
+    },
+    {
+      "id": "buff-dispel-capped-heal",
+      "canonical": "3-buff-expires.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "capped actual heal and DispelBySlot/Category on supported effects",
+      "assertions": [
+        "actual_heal_not_requested",
+        "dispelled_removal_reason",
+        "max_hp_final_vitals",
+        "no_phantom_pulse"
+      ],
+      "requested_test": "phase3_buff_dispel_capped_heal",
+      "evidence": null
+    },
+    {
+      "id": "debuff-land",
+      "canonical": "3-debuff-status.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "eligible target and injected calcEffectSuccess bounded draw0",
+      "assertions": [
+        "landed_effect_received",
+        "source_duration",
+        "full_rng_draw_order"
+      ],
+      "requested_test": "phase3_debuff_land",
+      "evidence": null,
+      "deterministic_roll_fixture": {
+        "injection": "test-only actor RNG draw site (never a live WS command or DB mutation)",
+        "site": "calcEffectSuccess",
+        "range_exclusive": 100,
+        "value": 0,
+        "require_full_ordered_draw_trace": true,
+        "source": "architecture-decisions.md \u00a78 F1; pinned Formulas.java:1158 and A15"
+      }
+    },
+    {
+      "id": "debuff-resist",
+      "canonical": "3-debuff-status.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "same eligible target and injected calcEffectSuccess bounded draw99",
+      "assertions": [
+        "resist_outcome_received",
+        "no_effect_applied",
+        "full_rng_draw_order"
+      ],
+      "requested_test": "phase3_debuff_resist",
+      "evidence": null,
+      "deterministic_roll_fixture": {
+        "injection": "test-only actor RNG draw site (never a live WS command or DB mutation)",
+        "site": "calcEffectSuccess",
+        "range_exclusive": 100,
+        "value": 99,
+        "require_full_ordered_draw_trace": true,
+        "source": "architecture-decisions.md \u00a78 F1; pinned Formulas.java:1158 and A15"
+      }
+    },
+    {
+      "id": "debuff-immune",
+      "canonical": "3-debuff-status.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "immune target trait, independent source vector",
+      "assertions": [
+        "immune_branch_no_effect",
+        "correct_rng_consumption"
+      ],
+      "requested_test": "phase3_debuff_immune",
+      "evidence": null
+    },
+    {
+      "id": "physical-skill",
+      "canonical": "3-debuff-status.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "real supported weapon; physical evasion0 and injected nonzero branch",
+      "assertions": [
+        "physical_damage_oracle",
+        "no_autoattack_hit_roll",
+        "crit_evasion_draw_order"
+      ],
+      "requested_test": "phase3_physical_skill",
+      "evidence": null
+    },
+    {
+      "id": "status-stun-root-overlap",
+      "canonical": "3-debuff-status.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "same tick stun versus swing, root versus movement, overlapping status expiries",
+      "assertions": [
+        "stun_before_swing",
+        "root_blocks_move",
+        "one_expiry_does_not_clear_other_status"
+      ],
+      "requested_test": "phase3_status_stun_root_overlap",
+      "evidence": null
+    },
+    {
+      "id": "dot-nonlethal-break",
+      "canonical": "3-debuff-status.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "TickHp on player/NPC atHP1 withCP0/positive and direct damage/DoT",
+      "assertions": [
+        "nonlethal_hp1_clamp",
+        "player_cp_absorption",
+        "player_npc_break_distinction",
+        "pulse_phase_and_order"
+      ],
+      "requested_test": "phase3_dot_nonlethal_break",
+      "evidence": null
+    },
+    {
+      "id": "regen-standing-moving-npc",
+      "canonical": "3-regen.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "30tick player HP/MP/CP; moving and NPC HP/MP, multiple fractional pulses",
+      "assertions": [
+        "exact_oracle_whole_outputs",
+        "fraction_remainders_persisted",
+        "standing_moving_distinct"
+      ],
+      "requested_test": "phase3_regen_standing_moving_npc",
+      "evidence": null
+    },
+    {
+      "id": "regen-dead-full",
+      "canonical": "3-regen.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "dead and full player/NPC resources across multiple pulse boundaries",
+      "assertions": [
+        "no_dead_growth",
+        "no_full_growth",
+        "clamped_fractions_clear"
+      ],
+      "requested_test": "phase3_regen_dead_full",
+      "evidence": null
+    },
+    {
+      "id": "reconnect-reuse-50-51",
+      "canonical": "3-cast-reconnect.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "freeze checkpoint at remaining50 then51 via actor scheduler",
+      "assertions": [
+        "50_absent",
+        "51_restored_paused",
+        "no_wallclock_dependency"
+      ],
+      "requested_test": "phase3_reconnect_reuse_50_51",
+      "evidence": null
+    },
+    {
+      "id": "reconnect-effects-100-101",
+      "canonical": "3-cast-reconnect.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "buff and debuff each at remaining100 then101, with periodic phase/install order",
+      "assertions": [
+        "100_absent",
+        "101_restored_paused",
+        "phase_order_source_preserved",
+        "no_onstart_heal_reapplied"
+      ],
+      "requested_test": "phase3_reconnect_effects_100_101",
+      "evidence": null
+    },
+    {
+      "id": "replacement-live-cast-offer",
+      "canonical": "3-cast-reconnect.nfs",
+      "owner": "Z",
+      "layer": "actor-adapter",
+      "setup": "replace session during pending cast and valid resurrection offer",
+      "assertions": [
+        "same_live_cast_offer",
+        "no_despawn_or_double_terminal",
+        "owner_bootstrap_without_later_mutation"
+      ],
+      "requested_test": "phase3_replacement_live_cast_offer",
+      "evidence": null
+    },
+    {
+      "id": "death-penalty-roll-success",
+      "canonical": "3-death-penalty.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "NPC or chaotic-player death; injected eligible roll0; old penalty0",
+      "assertions": [
+        "penalty1_received",
+        "death_xp_delevel_record",
+        "private_untimed_restore",
+        "effects_cast_swing_fractions_cleared"
+      ],
+      "requested_test": "phase3_death_penalty_roll_success",
+      "evidence": null,
+      "deterministic_roll_fixture": {
+        "injection": "test-only actor RNG draw site (never a live WS command or DB mutation)",
+        "site": "death_penalty",
+        "range_exclusive": 100,
+        "value": 0,
+        "require_full_ordered_draw_trace": true,
+        "source": "architecture-decisions.md \u00a78 F1; pinned Formulas.java:1158 and A15"
+      }
+    },
+    {
+      "id": "death-penalty-roll-failure",
+      "canonical": "3-death-penalty.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "same eligible death; injected roll99; old penalty0",
+      "assertions": [
+        "penalty0_received",
+        "eligible_roll_consumed",
+        "death_record_persisted"
+      ],
+      "requested_test": "phase3_death_penalty_roll_failure",
+      "evidence": null,
+      "deterministic_roll_fixture": {
+        "injection": "test-only actor RNG draw site (never a live WS command or DB mutation)",
+        "site": "death_penalty",
+        "range_exclusive": 100,
+        "value": 99,
+        "require_full_ordered_draw_trace": true,
+        "source": "architecture-decisions.md \u00a78 F1; pinned Formulas.java:1158 and A15"
+      }
+    },
+    {
+      "id": "death-penalty-ineligible",
+      "canonical": "3-death-penalty.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "neutral-player death and peace endpoints independently",
+      "assertions": [
+        "no_penalty_roll_or_increment",
+        "source_xp_rule",
+        "no_private_leak"
+      ],
+      "requested_test": "phase3_death_penalty_ineligible",
+      "evidence": null
+    },
+    {
+      "id": "death-penalty-cap-actor",
+      "canonical": "3-death-penalty.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "eligible NPC death; old penalty5, success and failure rolls",
+      "assertions": [
+        "penalty_stays5",
+        "modifiers_not_double_installed",
+        "reconnect_exact"
+      ],
+      "requested_test": "phase3_death_penalty_cap_actor",
+      "evidence": null
+    },
+    {
+      "id": "resurrect-exact-expiry",
+      "canonical": "3-resurrect-b.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "accept at expiry-1 and expiry tick using actor scheduler",
+      "assertions": [
+        "accept_before_expiry",
+        "reject_at_expiry",
+        "one_offer_terminal",
+        "refund_once"
+      ],
+      "requested_test": "phase3_resurrect_exact_expiry",
+      "evidence": null
+    },
+    {
+      "id": "resurrect-competing-offers",
+      "canonical": "3-resurrect-a.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "two caster completions ordered same tick for same corpse",
+      "assertions": [
+        "first_valid_offer_retained",
+        "later_offer_not_replace",
+        "caster_source_visibility_filtered"
+      ],
+      "requested_test": "phase3_resurrect_competing_offers",
+      "evidence": null
+    },
+    {
+      "id": "resurrect-town-race",
+      "canonical": "3-resurrect-b.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "queued town respawn and accept in both ordinal orders",
+      "assertions": [
+        "one_revival_one_refund",
+        "stale_death_incarnation_reject",
+        "town_rule_unchanged"
+      ],
+      "requested_test": "phase3_resurrect_town_race",
+      "evidence": null
+    },
+    {
+      "id": "resurrect-disconnect-new-offer",
+      "canonical": "3-resurrect-b.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "disconnect vs replacement while offered; reconnect then new offer",
+      "assertions": [
+        "logout_invalidates_offer",
+        "replacement_retains_offer",
+        "new_death_offer_id",
+        "mp_cp_unchanged"
+      ],
+      "requested_test": "phase3_resurrect_disconnect_new_offer",
+      "evidence": null
+    },
+    {
+      "id": "resurrect-crash-once",
+      "canonical": "3-resurrect-b.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "log/checkpoint/receipt/outbox lost-ack/crash stages via adapters",
+      "assertions": [
+        "output_withheld_before_ack",
+        "frozen_retry",
+        "one_refund_receipt_outbox",
+        "memory_postgres_parity"
+      ],
+      "requested_test": "phase3_resurrect_crash_once",
+      "evidence": null
+    },
+    {
+      "id": "hate-effectpoint-addhate",
+      "canonical": "3-aggro-skill-hate.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "multiple NPC ledgers, two owners; effectPoint and AddHate",
+      "assertions": [
+        "absolute_effectpoint_once",
+        "addhate_source_amount",
+        "stable_target_projection"
+      ],
+      "requested_test": "phase3_hate_effectpoint_addhate",
+      "evidence": null
+    },
+    {
+      "id": "hate-heal-overheal",
+      "canonical": "3-aggro-skill-hate.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "all NPCs hating healed target; actual heal and zero overheal",
+      "assertions": [
+        "actual_heal_oracle_per_ledger",
+        "zero_overheal_zero_hate",
+        "unrelated_ledger_unchanged"
+      ],
+      "requested_test": "phase3_hate_heal_overheal",
+      "evidence": null
+    },
+    {
+      "id": "hate-tie-getagro",
+      "canonical": "3-aggro-skill-hate.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "tied ledgers current target versus none, GetAgro request ordinal interactions",
+      "assertions": [
+        "retain_current_else_lowest_id",
+        "getagro_no_hate_increment",
+        "forced_request_at_ai_phase",
+        "stale_noop"
+      ],
+      "requested_test": "phase3_hate_tie_getagro",
+      "evidence": null
+    },
+    {
+      "id": "peace-endpoint-aoe-pulse",
+      "canonical": "3-pvp-flag-a.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "caster/target/both inclusive square; start versus impact/AoE/pulse",
+      "assertions": [
+        "reject_start_no_resources",
+        "cancel_impact_no_damage",
+        "filter_aoe_rows",
+        "pulse_block_advances_phase"
+      ],
+      "requested_test": "phase3_peace_endpoint_aoe_pulse",
+      "evidence": null
+    },
+    {
+      "id": "karma-no-decay-paths",
+      "canonical": "3-pvp-karma-decay.nfs",
+      "owner": "C-API/PVP",
+      "layer": "actor-adapter",
+      "setup": "chaotic-unflagged kill, healer, time, death vs monster XP pre-award level",
+      "assertions": [
+        "neither_pk_nor_pvp",
+        "no_healer_flag",
+        "no_time_death_decay",
+        "exact_monster_multiplier"
+      ],
+      "requested_test": "phase3_karma_no_decay_paths",
+      "evidence": null
+    }
+  ]
+}

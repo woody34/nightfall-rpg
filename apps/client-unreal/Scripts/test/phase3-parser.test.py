@@ -26,7 +26,7 @@ class ParserAudit(unittest.TestCase):
         self.assertIn('"kept"', checker.clean_cpp('/* removed */ TEXT("kept")'))
 
     def test_each_scenario_is_audited_without_allowlisting_unknown_names(self):
-        paths = sorted((SCRIPTS.parent / 'Scenarios').glob('3-*.nfs'))
+        paths = sorted((SCRIPTS.parent / 'Scenarios').rglob('3-*.nfs'))
         for path in paths:
             expected = checker.validate([path])
             result = subprocess.run([sys.executable, str(SCRIPTS / 'sim-parser-check.py'), '--json', str(path)],

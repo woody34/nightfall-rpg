@@ -106,7 +106,7 @@ def check(plans, scenarios, manifest=None, extra_plans=()):
             key = (phase[1], row[2])
             stories[key] = {"complete": bool(row[1]), "visible": "[client-visible]" in row[3],
                             "path": plan, "line": lineno, "title": row[3].strip()}
-    for scenario in sorted(scenarios.glob("*.nfs")):
+    for scenario in sorted(scenarios.rglob("*.nfs")):
         lines = scenario.read_text().splitlines()
         first = next((line for line in lines if line.strip()), "")
         header = re.fullmatch(r"#\s*covers:\s*(.+)", first)
