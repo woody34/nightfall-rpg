@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 2 class progression tree · Nightfall</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #eb6c36;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1280px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 24px; max-width: 100ch; }
+    .notes p + p { margin-top: 10px; }
+    .race-section { margin-top: 32px; }
+    .race-title {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      font-weight: 400;
+      color: var(--color-ink);
+      margin-bottom: 8px;
+      border-bottom: 1px solid #bfc0c0;
+      padding-bottom: 4px;
+    }
+    .branch-title {
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--color-muted);
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+
+    .diagram-container { width: 100%; overflow-x: auto; margin-bottom: 16px; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; }
+    svg { width: 100%; min-width: 1120px; display: block; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2.2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1rem;
+    }
+
+    .lead {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--color-muted);
+      max-width: 90ch;
+      margin-bottom: 1.5rem;
+    }
+
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · Tree / Hierarchy · Minimal light</p>
+    <h1>Phase 2 class progression tree</h1>
+    <p class="lead">
+      Complete authoritative topology of all 89 Nightfall professions across five races, partitioned into nine root-branch progression panels.
+      In Phase 2, progression is capped at level 85 and Tier 2 (last playable column). Tier 3 professions (level 76 requirement; dashed border) are catalogued for metadata completeness but unavailable for transfer.
+    </p>
+    <div class="race-section">
+      <h2 class="race-title">Human</h2>
+      <h3 class="branch-title">Human Armsbearer branch (Tier 0 root 0)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 528" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-0-title tree-root-0-desc">
+  <title id="tree-root-0-title">Human Armsbearer progression tree</title>
+  <desc id="tree-root-0-desc">Progression tree for Human Armsbearer (Human Fighter) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="270.0" x2="290.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="290.0" y2="422.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="310.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="270.0" x2="310.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="422.0" x2="310.0" y2="422.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="118.0" x2="560.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="270.0" x2="560.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="560.0" y2="308.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="580.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="308.0" x2="580.0" y2="308.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="422.0" x2="560.0" y2="422.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="384.0" x2="560.0" y2="460.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="384.0" x2="580.0" y2="384.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="460.0" x2="580.0" y2="460.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="232.0" x2="850.0" y2="232.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="308.0" x2="850.0" y2="308.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="384.0" x2="850.0" y2="384.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="460.0" x2="850.0" y2="460.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="0" data-parent="" data-tier="0" data-race="human" data-min-level="1">
+  <rect x="40" y="242.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="266.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[0] Human Armsbearer</text>
+  <text x="54" y="286.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Human Fighter</text>
+  </g>
+  <g data-class-id="1" data-parent="0" data-tier="1" data-race="human" data-min-level="20">
+  <rect x="310" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[1] Steel Initiate</text>
+  <text x="324" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Warrior</text>
+  </g>
+  <g data-class-id="4" data-parent="0" data-tier="1" data-race="human" data-min-level="20">
+  <rect x="310" y="242.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="266.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[4] Oathbound Guard</text>
+  <text x="324" y="286.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Human Knight</text>
+  </g>
+  <g data-class-id="7" data-parent="0" data-tier="1" data-race="human" data-min-level="20">
+  <rect x="310" y="394.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="418.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[7] Roadrunner</text>
+  <text x="324" y="438.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Rogue</text>
+  </g>
+  <g data-class-id="2" data-parent="1" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[2] Twinblade Champion</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Gladiator</text>
+  </g>
+  <g data-class-id="88" data-parent="2" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[88] Blade Paragon</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Duelist</text>
+  </g>
+  <g data-class-id="3" data-parent="1" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[3] Pike Marshal</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Warlord</text>
+  </g>
+  <g data-class-id="89" data-parent="3" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[89] Pike Sovereign</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Dreadnought</text>
+  </g>
+  <g data-class-id="5" data-parent="4" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="204.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[5] Dawnshield</text>
+  <text x="594" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Paladin</text>
+  </g>
+  <g data-class-id="90" data-parent="5" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="204.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[90] Sunshield Paragon</text>
+  <text x="864" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Phoenix Knight</text>
+  </g>
+  <g data-class-id="6" data-parent="4" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="280.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="304.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[6] Gravewarden</text>
+  <text x="594" y="324.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Dark Avenger</text>
+  </g>
+  <g data-class-id="91" data-parent="6" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="280.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="304.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[91] Grave Sentinel</text>
+  <text x="864" y="324.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Hell Knight</text>
+  </g>
+  <g data-class-id="8" data-parent="7" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="356.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="380.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[8] Vault Seeker</text>
+  <text x="594" y="400.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Treasure Hunter</text>
+  </g>
+  <g data-class-id="93" data-parent="8" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="356.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="380.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[93] Vault Paragon</text>
+  <text x="864" y="400.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Adventurer</text>
+  </g>
+  <g data-class-id="9" data-parent="7" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="432.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="456.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[9] Farshot</text>
+  <text x="594" y="476.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Hawkeye</text>
+  </g>
+  <g data-class-id="92" data-parent="9" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="432.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="456.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[92] Horizon Archer</text>
+  <text x="864" y="476.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Sagittarius</text>
+  </g>
+</svg>
+      </div>
+      <h3 class="branch-title">Human Spellbearer branch (Tier 0 root 10)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 452" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-10-title tree-root-10-desc">
+  <title id="tree-root-10-title">Human Spellbearer progression tree</title>
+  <desc id="tree-root-10-desc">Progression tree for Human Spellbearer (Human Mystic) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="251.0" x2="290.0" y2="251.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="156.0" x2="290.0" y2="346.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="156.0" x2="310.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="346.0" x2="310.0" y2="346.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="156.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="560.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="580.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="346.0" x2="560.0" y2="346.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="308.0" x2="560.0" y2="384.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="308.0" x2="580.0" y2="308.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="384.0" x2="580.0" y2="384.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="232.0" x2="850.0" y2="232.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="308.0" x2="850.0" y2="308.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="384.0" x2="850.0" y2="384.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="10" data-parent="" data-tier="0" data-race="human" data-min-level="1">
+  <rect x="40" y="223.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="247.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[10] Human Spellbearer</text>
+  <text x="54" y="267.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Human Mystic</text>
+  </g>
+  <g data-class-id="11" data-parent="10" data-tier="1" data-race="human" data-min-level="20">
+  <rect x="310" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[11] Ember Initiate</text>
+  <text x="324" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Human Wizard</text>
+  </g>
+  <g data-class-id="15" data-parent="10" data-tier="1" data-race="human" data-min-level="20">
+  <rect x="310" y="318.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="342.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[15] Light Initiate</text>
+  <text x="324" y="362.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Cleric</text>
+  </g>
+  <g data-class-id="12" data-parent="11" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[12] Flameweaver</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Sorcerer</text>
+  </g>
+  <g data-class-id="94" data-parent="12" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[94] Inferno Sage</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Archmage</text>
+  </g>
+  <g data-class-id="13" data-parent="11" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[13] Boneweaver</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Necromancer</text>
+  </g>
+  <g data-class-id="95" data-parent="13" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[95] Soul Harvester</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Soultaker</text>
+  </g>
+  <g data-class-id="14" data-parent="11" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="204.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[14] Pactkeeper</text>
+  <text x="594" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Warlock</text>
+  </g>
+  <g data-class-id="96" data-parent="14" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="204.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[96] Pact Sovereign</text>
+  <text x="864" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Arcana Lord</text>
+  </g>
+  <g data-class-id="16" data-parent="15" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="280.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="304.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[16] Lifewarden</text>
+  <text x="594" y="324.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Bishop</text>
+  </g>
+  <g data-class-id="97" data-parent="16" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="280.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="304.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[97] Dawn Luminary</text>
+  <text x="864" y="324.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Cardinal</text>
+  </g>
+  <g data-class-id="17" data-parent="15" data-tier="2" data-race="human" data-min-level="40">
+  <rect x="580" y="356.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="380.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[17] Fatekeeper</text>
+  <text x="594" y="400.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Prophet</text>
+  </g>
+  <g data-class-id="98" data-parent="17" data-tier="3" data-race="human" data-min-level="76">
+  <rect x="850" y="356.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="380.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[98] Fate Luminary</text>
+  <text x="864" y="400.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Hierophant</text>
+  </g>
+</svg>
+      </div>
+    </div>
+    <div class="race-section">
+      <h2 class="race-title">Elf</h2>
+      <h3 class="branch-title">Elven Armsbearer branch (Tier 0 root 18)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 376" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-18-title tree-root-18-desc">
+  <title id="tree-root-18-title">Elven Armsbearer progression tree</title>
+  <desc id="tree-root-18-desc">Progression tree for Elven Armsbearer (Elven Fighter) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="194.0" x2="290.0" y2="194.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="290.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="310.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="270.0" x2="310.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="118.0" x2="560.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="270.0" x2="560.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="560.0" y2="308.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="580.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="308.0" x2="580.0" y2="308.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="232.0" x2="850.0" y2="232.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="308.0" x2="850.0" y2="308.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="18" data-parent="" data-tier="0" data-race="elf" data-min-level="1">
+  <rect x="40" y="166.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="190.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[18] Elven Armsbearer</text>
+  <text x="54" y="210.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elven Fighter</text>
+  </g>
+  <g data-class-id="19" data-parent="18" data-tier="1" data-race="elf" data-min-level="20">
+  <rect x="310" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[19] Groveguard</text>
+  <text x="324" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elven Knight</text>
+  </g>
+  <g data-class-id="22" data-parent="18" data-tier="1" data-race="elf" data-min-level="20">
+  <rect x="310" y="242.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="266.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[22] Wildscout</text>
+  <text x="324" y="286.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elven Scout</text>
+  </g>
+  <g data-class-id="20" data-parent="19" data-tier="2" data-race="elf" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[20] Sanctum Shield</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Temple Knight</text>
+  </g>
+  <g data-class-id="99" data-parent="20" data-tier="3" data-race="elf" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[99] Sanctum Sentinel</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Eva&#x27;s Templar</text>
+  </g>
+  <g data-class-id="21" data-parent="19" data-tier="2" data-race="elf" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[21] Anthem Keeper</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Sword Singer</text>
+  </g>
+  <g data-class-id="100" data-parent="21" data-tier="3" data-race="elf" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[100] Anthem Paragon</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Sword Muse</text>
+  </g>
+  <g data-class-id="23" data-parent="22" data-tier="2" data-race="elf" data-min-level="40">
+  <rect x="580" y="204.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[23] Meadowstalker</text>
+  <text x="594" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Plains Walker</text>
+  </g>
+  <g data-class-id="101" data-parent="23" data-tier="3" data-race="elf" data-min-level="76">
+  <rect x="850" y="204.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[101] Gale Stalker</text>
+  <text x="864" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Wind Rider</text>
+  </g>
+  <g data-class-id="24" data-parent="22" data-tier="2" data-race="elf" data-min-level="40">
+  <rect x="580" y="280.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="304.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[24] Starshot</text>
+  <text x="594" y="324.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Silver Ranger</text>
+  </g>
+  <g data-class-id="102" data-parent="24" data-tier="3" data-race="elf" data-min-level="76">
+  <rect x="850" y="280.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="304.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[102] Starfall Archer</text>
+  <text x="864" y="324.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Moonlight Sentinel</text>
+  </g>
+</svg>
+      </div>
+      <h3 class="branch-title">Elven Spellbearer branch (Tier 0 root 25)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-25-title tree-root-25-desc">
+  <title id="tree-root-25-title">Elven Spellbearer progression tree</title>
+  <desc id="tree-root-25-desc">Progression tree for Elven Spellbearer (Elven Mystic) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="175.0" x2="290.0" y2="175.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="290.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="310.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="232.0" x2="310.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="118.0" x2="560.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="232.0" x2="560.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="580.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="232.0" x2="850.0" y2="232.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="25" data-parent="" data-tier="0" data-race="elf" data-min-level="1">
+  <rect x="40" y="147.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="171.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[25] Elven Spellbearer</text>
+  <text x="54" y="191.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elven Mystic</text>
+  </g>
+  <g data-class-id="26" data-parent="25" data-tier="1" data-race="elf" data-min-level="20">
+  <rect x="310" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[26] Brook Initiate</text>
+  <text x="324" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elven Wizard</text>
+  </g>
+  <g data-class-id="29" data-parent="25" data-tier="1" data-race="elf" data-min-level="20">
+  <rect x="310" y="204.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[29] Grove Seer</text>
+  <text x="324" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elven Oracle</text>
+  </g>
+  <g data-class-id="27" data-parent="26" data-tier="2" data-race="elf" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[27] Frostweaver</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Spellsinger</text>
+  </g>
+  <g data-class-id="103" data-parent="27" data-tier="3" data-race="elf" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[103] Frost Sage</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Mystic Muse</text>
+  </g>
+  <g data-class-id="28" data-parent="26" data-tier="2" data-race="elf" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[28] Tidekeeper</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elemental Summoner</text>
+  </g>
+  <g data-class-id="104" data-parent="28" data-tier="3" data-race="elf" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[104] Tide Sovereign</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elemental Master</text>
+  </g>
+  <g data-class-id="30" data-parent="29" data-tier="2" data-race="elf" data-min-level="40">
+  <rect x="580" y="204.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[30] Lifespring</text>
+  <text x="594" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Elven Elder</text>
+  </g>
+  <g data-class-id="105" data-parent="30" data-tier="3" data-race="elf" data-min-level="76">
+  <rect x="850" y="204.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[105] Grove Luminary</text>
+  <text x="864" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Eva&#x27;s Saint</text>
+  </g>
+</svg>
+      </div>
+    </div>
+    <div class="race-section">
+      <h2 class="race-title">Dark Elf</h2>
+      <h3 class="branch-title">Dark Armsbearer branch (Tier 0 root 31)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 376" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-31-title tree-root-31-desc">
+  <title id="tree-root-31-title">Dark Armsbearer progression tree</title>
+  <desc id="tree-root-31-desc">Progression tree for Dark Armsbearer (Dark Fighter) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="194.0" x2="290.0" y2="194.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="290.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="310.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="270.0" x2="310.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="118.0" x2="560.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="270.0" x2="560.0" y2="270.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="560.0" y2="308.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="580.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="308.0" x2="580.0" y2="308.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="232.0" x2="850.0" y2="232.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="308.0" x2="850.0" y2="308.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="31" data-parent="" data-tier="0" data-race="dark_elf" data-min-level="1">
+  <rect x="40" y="166.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="190.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[31] Dark Armsbearer</text>
+  <text x="54" y="210.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Dark Fighter</text>
+  </g>
+  <g data-class-id="32" data-parent="31" data-tier="1" data-race="dark_elf" data-min-level="20">
+  <rect x="310" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[32] Gloamguard</text>
+  <text x="324" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Palus Knight</text>
+  </g>
+  <g data-class-id="35" data-parent="31" data-tier="1" data-race="dark_elf" data-min-level="20">
+  <rect x="310" y="242.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="266.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[35] Shade Initiate</text>
+  <text x="324" y="286.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Assassin</text>
+  </g>
+  <g data-class-id="33" data-parent="32" data-tier="2" data-race="dark_elf" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[33] Duskshield</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Shillien Knight</text>
+  </g>
+  <g data-class-id="106" data-parent="33" data-tier="3" data-race="dark_elf" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[106] Dusk Sentinel</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Shillien Templar</text>
+  </g>
+  <g data-class-id="34" data-parent="32" data-tier="2" data-race="dark_elf" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[34] Edge Cantor</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Bladedancer</text>
+  </g>
+  <g data-class-id="107" data-parent="34" data-tier="3" data-race="dark_elf" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[107] Edge Paragon</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Spectral Dancer</text>
+  </g>
+  <g data-class-id="36" data-parent="35" data-tier="2" data-race="dark_elf" data-min-level="40">
+  <rect x="580" y="204.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[36] Riftstalker</text>
+  <text x="594" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Abyss Walker</text>
+  </g>
+  <g data-class-id="108" data-parent="36" data-tier="3" data-race="dark_elf" data-min-level="76">
+  <rect x="850" y="204.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[108] Rift Hunter</text>
+  <text x="864" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Ghost Hunter</text>
+  </g>
+  <g data-class-id="37" data-parent="35" data-tier="2" data-race="dark_elf" data-min-level="40">
+  <rect x="580" y="280.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="304.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[37] Nightshot</text>
+  <text x="594" y="324.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Phantom Ranger</text>
+  </g>
+  <g data-class-id="109" data-parent="37" data-tier="3" data-race="dark_elf" data-min-level="76">
+  <rect x="850" y="280.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="304.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[109] Nightfall Archer</text>
+  <text x="864" y="324.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Ghost Sentinel</text>
+  </g>
+</svg>
+      </div>
+      <h3 class="branch-title">Dark Spellbearer branch (Tier 0 root 38)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-38-title tree-root-38-desc">
+  <title id="tree-root-38-title">Dark Spellbearer progression tree</title>
+  <desc id="tree-root-38-desc">Progression tree for Dark Spellbearer (Dark Mystic) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="175.0" x2="290.0" y2="175.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="290.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="310.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="232.0" x2="310.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="118.0" x2="560.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="232.0" x2="560.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="232.0" x2="580.0" y2="232.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="232.0" x2="850.0" y2="232.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="38" data-parent="" data-tier="0" data-race="dark_elf" data-min-level="1">
+  <rect x="40" y="147.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="171.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[38] Dark Spellbearer</text>
+  <text x="54" y="191.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Dark Mystic</text>
+  </g>
+  <g data-class-id="39" data-parent="38" data-tier="1" data-race="dark_elf" data-min-level="20">
+  <rect x="310" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[39] Gloam Initiate</text>
+  <text x="324" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Dark Wizard</text>
+  </g>
+  <g data-class-id="42" data-parent="38" data-tier="1" data-race="dark_elf" data-min-level="20">
+  <rect x="310" y="204.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[42] Dusk Seer</text>
+  <text x="324" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Shillien Oracle</text>
+  </g>
+  <g data-class-id="40" data-parent="39" data-tier="2" data-race="dark_elf" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[40] Galeweaver</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Spellhowler</text>
+  </g>
+  <g data-class-id="110" data-parent="40" data-tier="3" data-race="dark_elf" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[110] Tempest Sage</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Storm Screamer</text>
+  </g>
+  <g data-class-id="41" data-parent="39" data-tier="2" data-race="dark_elf" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[41] Veilkeeper</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Phantom Summoner</text>
+  </g>
+  <g data-class-id="111" data-parent="41" data-tier="3" data-race="dark_elf" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[111] Veil Sovereign</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Spectral Master</text>
+  </g>
+  <g data-class-id="43" data-parent="42" data-tier="2" data-race="dark_elf" data-min-level="40">
+  <rect x="580" y="204.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[43] Soulmender</text>
+  <text x="594" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Shillien Elder</text>
+  </g>
+  <g data-class-id="112" data-parent="43" data-tier="3" data-race="dark_elf" data-min-level="76">
+  <rect x="850" y="204.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="228.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[112] Soul Luminary</text>
+  <text x="864" y="248.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Shillien Saint</text>
+  </g>
+</svg>
+      </div>
+    </div>
+    <div class="race-section">
+      <h2 class="race-title">Orc</h2>
+      <h3 class="branch-title">Orc Armsbearer branch (Tier 0 root 44)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 224" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-44-title tree-root-44-desc">
+  <title id="tree-root-44-title">Orc Armsbearer progression tree</title>
+  <desc id="tree-root-44-desc">Progression tree for Orc Armsbearer (Orc Fighter) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="118.0" x2="290.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="80.0" x2="290.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="80.0" x2="310.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="156.0" x2="310.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="80.0" x2="560.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="156.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="44" data-parent="" data-tier="0" data-race="orc" data-min-level="1">
+  <rect x="40" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[44] Orc Armsbearer</text>
+  <text x="54" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Orc Fighter</text>
+  </g>
+  <g data-class-id="45" data-parent="44" data-tier="1" data-race="orc" data-min-level="20">
+  <rect x="310" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[45] War Initiate</text>
+  <text x="324" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Orc Raider</text>
+  </g>
+  <g data-class-id="47" data-parent="44" data-tier="1" data-race="orc" data-min-level="20">
+  <rect x="310" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[47] Fist Initiate</text>
+  <text x="324" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Monk</text>
+  </g>
+  <g data-class-id="46" data-parent="45" data-tier="2" data-race="orc" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[46] Ragebreaker</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Destroyer</text>
+  </g>
+  <g data-class-id="113" data-parent="46" data-tier="3" data-race="orc" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[113] Rage Paragon</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Titan</text>
+  </g>
+  <g data-class-id="48" data-parent="47" data-tier="2" data-race="orc" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[48] Stormfist</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Tyrant</text>
+  </g>
+  <g data-class-id="114" data-parent="48" data-tier="3" data-race="orc" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[114] Storm Paragon</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Grand Khavatari</text>
+  </g>
+</svg>
+      </div>
+      <h3 class="branch-title">Orc Spiritbearer branch (Tier 0 root 49)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 224" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-49-title tree-root-49-desc">
+  <title id="tree-root-49-title">Orc Spiritbearer progression tree</title>
+  <desc id="tree-root-49-desc">Progression tree for Orc Spiritbearer (Orc Mystic) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="118.0" x2="290.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="118.0" x2="310.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="118.0" x2="560.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="49" data-parent="" data-tier="0" data-race="orc" data-min-level="1">
+  <rect x="40" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[49] Orc Spiritbearer</text>
+  <text x="54" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Orc Mystic</text>
+  </g>
+  <g data-class-id="50" data-parent="49" data-tier="1" data-race="orc" data-min-level="20">
+  <rect x="310" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[50] Flame Seer</text>
+  <text x="324" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Orc Shaman</text>
+  </g>
+  <g data-class-id="51" data-parent="50" data-tier="2" data-race="orc" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[51] Clan Sovereign</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Overlord</text>
+  </g>
+  <g data-class-id="115" data-parent="51" data-tier="3" data-race="orc" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[115] Clan Paragon</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Dominator</text>
+  </g>
+  <g data-class-id="52" data-parent="50" data-tier="2" data-race="orc" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[52] War Cantor</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Warcryer</text>
+  </g>
+  <g data-class-id="116" data-parent="52" data-tier="3" data-race="orc" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[116] War Luminary</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Doom Cryer</text>
+  </g>
+</svg>
+      </div>
+    </div>
+    <div class="race-section">
+      <h2 class="race-title">Dwarf</h2>
+      <h3 class="branch-title">Dwarven Armsbearer branch (Tier 0 root 53)</h3>
+      <div class="diagram-container">
+<svg viewBox="0 0 1120 224" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tree-root-53-title tree-root-53-desc">
+  <title id="tree-root-53-title">Dwarven Armsbearer progression tree</title>
+  <desc id="tree-root-53-desc">Progression tree for Dwarven Armsbearer (Dwarf Fighter) across Tier 1, Tier 2, and Tier 3.</desc>
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <text x="40" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 0 · CREATION (LV 1)</text>
+  <text x="310" y="24" fill="#4f5d75" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 1 · TRANSFER 1 (LV 20)</text>
+  <text x="580" y="24" fill="#eb6c36" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 2 · TRANSFER 2 (LV 40)</text>
+  <text x="850" y="24" fill="#7d889b" font-size="12" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.08em">TIER 3 · DEFERRED (LV 76)</text>
+  <line x1="270.0" y1="118.0" x2="290.0" y2="118.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="80.0" x2="290.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="80.0" x2="310.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="290.0" y1="156.0" x2="310.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="80.0" x2="560.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="80.0" x2="580.0" y2="80.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="540.0" y1="156.0" x2="560.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="560.0" y1="156.0" x2="580.0" y2="156.0" stroke="#4f5d75" stroke-width="1.2"/>
+  <line x1="810.0" y1="80.0" x2="850.0" y2="80.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <line x1="810.0" y1="156.0" x2="850.0" y2="156.0" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <g data-class-id="53" data-parent="" data-tier="0" data-race="dwarf" data-min-level="1">
+  <rect x="40" y="90.0" width="230" height="56" rx="6" fill="#fff" stroke="#2d3142" stroke-width="1.5"/>
+  <text x="54" y="114.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[53] Dwarven Armsbearer</text>
+  <text x="54" y="134.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Dwarf Fighter</text>
+  </g>
+  <g data-class-id="54" data-parent="53" data-tier="1" data-race="dwarf" data-min-level="20">
+  <rect x="310" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[54] Delve Initiate</text>
+  <text x="324" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Scavenger</text>
+  </g>
+  <g data-class-id="56" data-parent="53" data-tier="1" data-race="dwarf" data-min-level="20">
+  <rect x="310" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.2"/>
+  <text x="324" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[56] Forge Initiate</text>
+  <text x="324" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Artisan</text>
+  </g>
+  <g data-class-id="55" data-parent="54" data-tier="2" data-race="dwarf" data-min-level="40">
+  <rect x="580" y="52.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[55] Relic Seeker</text>
+  <text x="594" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Bounty Hunter</text>
+  </g>
+  <g data-class-id="117" data-parent="55" data-tier="3" data-race="dwarf" data-min-level="76">
+  <rect x="850" y="52.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="76.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[117] Relic Paragon</text>
+  <text x="864" y="96.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Fortune Seeker</text>
+  </g>
+  <g data-class-id="57" data-parent="56" data-tier="2" data-race="dwarf" data-min-level="40">
+  <rect x="580" y="128.0" width="230" height="56" rx="6" fill="#fff" stroke="#4f5d75" stroke-width="1.5"/>
+  <text x="594" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#2d3142">[57] Siege Crafter</text>
+  <text x="594" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Warsmith</text>
+  </g>
+  <g data-class-id="118" data-parent="57" data-tier="3" data-race="dwarf" data-min-level="76">
+  <rect x="850" y="128.0" width="230" height="56" rx="6" fill="rgba(79,93,117,0.04)" stroke="#bfc0c0" stroke-width="1.2" stroke-dasharray="4,4"/>
+  <text x="864" y="152.0" font-family="'Geist', sans-serif" font-size="13" font-weight="600" fill="#4f5d75">[118] Forge Sovereign</text>
+  <text x="864" y="172.0" font-family="'Geist Mono', monospace" font-size="12" fill="#4f5d75">Maestro</text>
+  </g>
+</svg>
+      </div>
+    </div>
+    <div class="notes">
+      <p><strong>Authoritative data source and revision:</strong> Profession attributes and hierarchy derive from <code>packages/data/professions/*.toml</code>, anchored to upstream Lineage 2 High Five datapack revision <code>3ca488dd2bd0bfaca43e378886a3c2e37968153a</code> (<code>l2j-server-datapack</code>). Each node displays its stable ID and curated original Nightfall name on the first line, with the upstream reference name (<code>l2_ref</code>) on the second. The upstream pin supports mechanics and lineage, not the project-authored display names. Tier headers show minimum levels.</p>
+      <p><strong>Corrected hierarchy metadata:</strong> The graph reflects authoritative structural fixes over historical upstream errata: <code>Edge Cantor</code> (ID 34) correctly connects to parent <code>Gloamguard</code> (ID 32), and <code>Tide Sovereign</code> (ID 104) connects to parent <code>Tidekeeper</code> (ID 28).</p>
+      <p><strong>Phase 2 bounds and availability:</strong> All 89 nodes are uniquely indexed. Playable characters start at level 1 in Tier 0 (Creation). Class transfers are eligible at level 20 for Tier 1 and level 40 for Tier 2. Phase 2 enforces a playable level cap of 85 and a maximum transfer tier of 2. Tier 3 professions (level 76 minimum) are catalogued but deferred/locked from live admission.</p>
+      <p>Source files: <a href="../../packages/data/professions/">packages/data/professions/</a> · <a href="../engineering/class-transfer-observability.md">class-transfer-observability.md</a> · <a href="phase-2-class-transfer.html">phase-2-class-transfer.html</a>.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class transfer lifecycle · Nightfall</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #eb6c36;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1344px; min-width: 0; width: 100%; }
+    .notes { overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; margin-top: 20px; max-width: 100ch; }
+    .notes p + p { margin-top: 10px; }
+    code { font-family: var(--font-mono); font-size: 0.9em; }
+    a { color: #2e5aa8; }
+
+    .diagram-container { width: 100%; overflow-x: auto; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; }
+    svg { width: 100%; min-width: 1280px; display: block; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2.2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nightfall · Process · Minimal light</p>
+    <h1>Class transfer lifecycle</h1>
+    <div class="diagram-container">
+<svg viewBox="0 0 1280 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="phase-2-class-transfer-title phase-2-class-transfer-desc">
+<title id="phase-2-class-transfer-title">Class transfer lifecycle</title>
+<desc id="phase-2-class-transfer-desc">Receipt-first API lookup, actor preflight, immutable draft with eligibility guards, durable log acknowledgement, atomic database checkpoint, then new-transfer success and output. An existing frozen receipt returns directly.</desc>
+<defs><marker id="transfer-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+<line x1="0" y1="60" x2="1280" y2="60" stroke="#bfc0c0"/>
+<text x="16" y="95" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" font-weight="600">API / CLIENT</text>
+<text x="16" y="115" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75">authenticated caller</text>
+<line x1="0" y1="160" x2="1280" y2="160" stroke="#bfc0c0"/>
+<text x="16" y="195" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" font-weight="600">LIVE ACTOR</text>
+<text x="16" y="215" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75">guards + tick state</text>
+<line x1="0" y1="260" x2="1280" y2="260" stroke="#bfc0c0"/>
+<text x="16" y="295" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" font-weight="600">DURABLE LOG</text>
+<text x="16" y="315" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75">JetStream record</text>
+<line x1="0" y1="360" x2="1280" y2="360" stroke="#bfc0c0"/>
+<text x="16" y="395" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" font-weight="600">CHECKPOINT</text>
+<text x="16" y="415" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75">Postgres transaction</text>
+<line x1="180" y1="60" x2="180" y2="460" stroke="#bfc0c0"/>
+<text x="270" y="24" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" text-anchor="middle" font-weight="600">1</text>
+<text x="270" y="44" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">REQUEST</text>
+<path d="M 340 108 H 346 V 408 H 352" fill="none" stroke="#4f5d75" marker-end="url(#transfer-arrow)"/>
+<text x="422" y="24" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" text-anchor="middle" font-weight="600">2</text>
+<text x="422" y="44" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">RECEIPT CHECK</text>
+<path d="M 492 408 H 498 V 208 H 504" fill="none" stroke="#4f5d75" marker-end="url(#transfer-arrow)"/>
+<text x="574" y="24" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" text-anchor="middle" font-weight="600">3</text>
+<text x="574" y="44" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">ACTOR PREFLIGHT</text>
+<path d="M 644 208 H 650 V 208 H 656" fill="none" stroke="#4f5d75" marker-end="url(#transfer-arrow)"/>
+<text x="726" y="24" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" text-anchor="middle" font-weight="600">4</text>
+<text x="726" y="44" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">DRAFT &amp; RUN</text>
+<path d="M 796 208 H 802 V 308 H 808" fill="none" stroke="#4f5d75" marker-end="url(#transfer-arrow)"/>
+<text x="878" y="24" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" text-anchor="middle" font-weight="600">5</text>
+<text x="878" y="44" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">LOG ACK</text>
+<path d="M 948 308 H 954 V 408 H 960" fill="none" stroke="#4f5d75" marker-end="url(#transfer-arrow)"/>
+<text x="1030" y="24" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#eb6c36" text-anchor="middle" font-weight="600">6</text>
+<text x="1030" y="44" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">ATOMIC DB</text>
+<path d="M 1100 408 H 1106 V 108 H 1112" fill="none" stroke="#4f5d75" marker-end="url(#transfer-arrow)"/>
+<text x="1182" y="24" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#4f5d75" text-anchor="middle" font-weight="600">7</text>
+<text x="1182" y="44" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">RELEASE</text>
+<rect x="200" y="72" width="140" height="72" rx="6" fill="#fff" stroke="#4f5d75"/>
+<text x="270" y="93" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#2d3142" text-anchor="middle" font-weight="600">ChangeClass</text>
+<text x="270" y="114" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">caller + key</text>
+<text x="270" y="131" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">ownership check</text>
+<rect x="352" y="372" width="140" height="72" rx="6" fill="#fff" stroke="#4f5d75"/>
+<text x="422" y="393" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#2d3142" text-anchor="middle" font-weight="600">Frozen receipt</text>
+<text x="422" y="414" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">key + body check</text>
+<text x="422" y="431" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">unknown → actor</text>
+<rect x="504" y="172" width="140" height="72" rx="6" fill="#fff" stroke="#4f5d75"/>
+<text x="574" y="193" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#2d3142" text-anchor="middle" font-weight="600">Live preflight</text>
+<text x="574" y="214" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">receipt + lane</text>
+<text x="574" y="231" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">ordered one/tick</text>
+<rect x="656" y="172" width="140" height="72" rx="6" fill="#fff" stroke="#4f5d75"/>
+<text x="726" y="193" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#2d3142" text-anchor="middle" font-weight="600">Draft &amp; guards</text>
+<text x="726" y="214" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">then mutate</text>
+<text x="726" y="231" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">class + learning</text>
+<rect x="808" y="272" width="140" height="72" rx="6" fill="#fff" stroke="#4f5d75"/>
+<text x="878" y="293" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#2d3142" text-anchor="middle" font-weight="600">Durable ack</text>
+<text x="878" y="314" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">JetStream append</text>
+<text x="878" y="331" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">record confirmed</text>
+<rect x="960" y="372" width="140" height="72" rx="6" fill="#fff" stroke="#eb6c36"/>
+<text x="1030" y="393" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#2d3142" text-anchor="middle" font-weight="600">Atomic commit</text>
+<text x="1030" y="414" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">revision fence</text>
+<text x="1030" y="431" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">ledger + outbox</text>
+<rect x="1112" y="72" width="140" height="72" rx="6" fill="#fff" stroke="#4f5d75"/>
+<text x="1182" y="93" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#2d3142" text-anchor="middle" font-weight="600">Release &amp; RPC</text>
+<text x="1182" y="114" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">ClassChanged</text>
+<text x="1182" y="131" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">owner stats</text>
+<path d="M 422 372 V 144" fill="none" stroke="#4f5d75" stroke-dasharray="4,4" marker-end="url(#transfer-arrow)"/>
+<rect x="352" y="72" width="140" height="72" rx="6" fill="#f5f5f5" stroke="#4f5d75" stroke-dasharray="4,4"/>
+<text x="422" y="93" font-family="&#x27;Geist&#x27;, sans-serif" font-size="12" fill="#2d3142" text-anchor="middle" font-weight="600">Known receipt</text>
+<text x="422" y="114" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">frozen RPC only</text>
+<text x="422" y="131" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75" text-anchor="middle">no live mutation</text>
+<text x="16" y="494" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75">New transfer: log acknowledgement → atomic DB commit → public/owner output + RPC success.</text>
+<text x="16" y="520" font-family="&#x27;Geist Mono&#x27;, monospace" font-size="12" fill="#4f5d75">Receipt replay returns a prior committed result. Rejection returns an error. Neither drafts a new transfer.</text>
+</svg>
+    </div>
+    <div class="notes">
+      <p><strong>Step sequence and order:</strong> The class transfer workflow executes in seven strictly ordered stages across four system domains (API/Transport, Live Zone Actor, Durable JetStream Replay Log, and Postgres Persistence):</p>
+      <p>1. <code>ChangeClass</code> gRPC request enters <code>GameService.ChangeClass</code>. The caller's <code>AccountId</code> is authenticated and the <code>CharacterId</code> and <code>IdempotencyKey</code> are validated and parsed.</p>
+      <p>2. <strong>Offline account-scoped frozen receipt lookup:</strong> Before routing to live actor state, the persistence ledger checks for an existing receipt matching <code>(account_id, idempotency_key, fingerprint)</code>. If the key matches the same request body, the original frozen <code>ChangeClassResponse</code> is returned immediately without live zone involvement. If the key is reused with a conflicting body, the request is rejected with <code>IdempotencyConflict</code>.</p>
+      <p>3. <strong>Live actor preflight:</strong> For an unknown receipt, the API routes the command to the live zone actor. Before drafting, the actor rechecks the account-wide receipt and the required checkpoint lane. It admits at most one new transfer per tick while preserving command order; known receipts resolve without a new transfer.</p>
+      <p>4. <strong>Immutable draft, guards and deterministic execution:</strong> The actor builds an <code>AppliedTickDraft</code>, then <code>ZoneState::run_tick</code> applies its commands in order. The transfer command checks identity/account and exact generation, alive state, no attack/chase/swing/cooldown or incoming engagement, distance within 3 tiles of <strong>Class Master at (126, 128)</strong>, current class as direct parent of the target, matching race, level 20/40, target tier &le; 2 and supported typed-token requirements. Only after those checks pass does it mutate class/resources/learned metadata, consume one token and emit the internal <code>ZoneEvent::ClassTransfer</code>. A rejected command leaves progression and tokens unchanged.</p>
+      <p>5. <strong>Durable replay log admission:</strong> <code>DurableTickGate::admit</code> appends the <code>AppliedTickRecord</code> to the JetStream replay log and awaits acknowledgment. A new transfer cannot release output or RPC success before this acknowledgement and the following database commit.</p>
+      <p>6. <strong>Revision-fenced atomic Postgres checkpoint:</strong> The checkpoint worker executes an atomic database transaction: updates character progression and <code>character_class_slots</code> (slot 0), decrements token counts, upserts monotonic learned skills in <code>character_learned_skills</code>, stores the full immutable result in <code>idempotency_keys</code> and its permanent reference in <code>character_transfer_receipts</code>, and stages a <code>CharacterClassChanged</code> domain event in the transactional <code>outbox</code>. The transaction is revision-fenced (<code>WHERE revision = revision_seen</code>). A transient retry retains the same draft and holds subsequent drafts; permanent, stale, or missing lane conditions fail closed without success. Zone recovery reconciles the contiguous durable prefix before new admissions.</p>
+      <p>7. <strong>Public output release:</strong> After <strong>BOTH</strong> the JetStream log ack and the Postgres transaction commit succeed, the zone actor broadcasts <code>ZoneEvent::ClassChanged</code> to AOI observers, sends updated stats to the character owner, and returns the successful gRPC <code>ChangeClassResponse</code>.</p>
+      <p><strong>Idempotency and historical isolation:</strong> Replaying a frozen idempotency receipt returns the exact historical response (e.g. class 1) even if the character subsequently advanced to class 2, without altering or reverting live projection. Character creation remains strictly at (0, 0); coordinates (126, 126) belong solely to isolated test fixtures. No milestone grants are triggered during class transfer. RPC completion is an application acknowledgement, not standalone worldstate; data checkpointed consists of progression and ledger facts rather than an open event schema.</p>
+      <p>Source files: <a href="../../apps/api/src/application/use_cases/change_class.rs">change_class.rs</a> · <a href="../../apps/api/src/domain/zone/state_class.rs">state_class.rs</a> · <a href="../../apps/api/src/application/zone_actor.rs">zone_actor.rs</a> · <a href="../../apps/api/src/application/checkpoint.rs">checkpoint.rs</a> · <a href="../../apps/api/src/infrastructure/postgres/character_ledger.rs">character_ledger.rs</a>.</p>
+    </div>
+  </div>
+</body>
+</html>

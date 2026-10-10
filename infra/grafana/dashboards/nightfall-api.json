@@ -952,7 +952,7 @@
       "id": 19,
       "type": "timeseries",
       "title": "Checkpoint lag",
-      "description": "E4.2 worker hook; zero until the checkpoint worker is integrated.",
+      "description": "Age of oldest pending checkpoint in the integrated zone checkpoint lane; 0 s when drained. Measures shared, all-zone persistence lag rather than class-only stalls.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -999,7 +999,7 @@
       "id": 20,
       "type": "timeseries",
       "title": "Checkpoint failures / s",
-      "description": "E4.2 worker hook; zero until the checkpoint worker is integrated.",
+      "description": "Failures in the integrated zone checkpoint lane. Critical transfer retries hold subsequent drafts until acknowledged. Shared all-zone persistence failures, not class-only failures.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1025,6 +1025,251 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Class transfer outcomes / s",
+      "description": "ChangeClass use-case responses by outcome (success/error) derived from nightfall_class_transfer_seconds_count after auth and UUID parsing (includes replayed receipts). Does not claim unauthenticated/malformed rejections or newly committed transfers.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 80,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (outcome) (rate(nightfall_class_transfer_seconds_count[$__rate_interval]))",
+          "legendFormat": "{{outcome}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Class transfer outcome count",
+      "description": "Cumulative ChangeClass use-case response counts by outcome (success/error) from nightfall_class_transfer_seconds_count after auth and UUID parsing (includes replayed receipts). Does not claim all gRPC requests or unauthenticated rejections.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 88,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (outcome) (nightfall_class_transfer_seconds_count)",
+          "legendFormat": "{{outcome}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Class transfer latency p50 / p99",
+      "description": "Wall-clock latency of ChangeClass use-case execution by outcome (success/error) from nightfall_class_transfer_seconds_bucket, including durable replay log admission and atomic database checkpointing.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 88,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, outcome) (rate(nightfall_class_transfer_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "p50 {{outcome}}",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le, outcome) (rate(nightfall_class_transfer_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "p99 {{outcome}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Durable class transfers / s",
+      "description": "Zone-wide admitted class transfer success facts released after durable replay-log acknowledgement and atomic database checkpoint by from and to profession IDs (nightfall_class_transfers_total). Ignores replayed receipts and AOI observer fanout.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 96,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (from, to) (rate(nightfall_class_transfers_total[$__rate_interval]))",
+          "legendFormat": "{{from}} \u2192 {{to}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Durable class transfers total",
+      "description": "Cumulative zone-wide admitted class transfer success facts released after durable replay-log acknowledgement and atomic database checkpoint by from and to profession IDs (nightfall_class_transfers_total). Bounded profession IDs only; no identity or PII.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 96,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (from, to) (nightfall_class_transfers_total)",
+          "legendFormat": "{{from}} \u2192 {{to}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 10

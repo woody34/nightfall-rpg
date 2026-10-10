@@ -19,6 +19,8 @@ Open locally in a browser; repository viewers may show HTML source instead of re
 | [NPC state machine](npc-state-machine.html) | State machine | Idle / Active / Attack / ReturnHome / Dead with think, aggro, clan call, leash and timeout guards; corpse → hidden → respawn of a spawn-slot member. |
 | [Proxy animation states](proxy-animation-states.html) | State machine | Idle / Walk / Run / Attack / Flinch / Dying / Corpse with speed guards, swing impact lead, hit reaction, death priority, late AOI entry and respawn. |
 | [Simulation pipeline](simulation-pipeline.html) | Swimlane | Push-to-main/nightly and PR-nonblocking lanes, self-hosted runner, Compose stack, dev-token API, N bot processes, artifacts, server replay-check, coverage summary and quarantine list. |
+| [Class progression tree](phase-2-class-tree.html) | Tree / Hierarchy | All 89 Nightfall professions across five races, nine root branches, and four tiers (playable cap 85, max tier 2; tier 3 deferred). |
+| [Class transfer lifecycle](phase-2-class-transfer.html) | Process | Account-scoped frozen idempotency check, live actor guards (Class Master at 126, 128), durable replay log ack, revision-fenced atomic Postgres checkpoint, and public release. |
 
 ## Regenerate and validate
 
