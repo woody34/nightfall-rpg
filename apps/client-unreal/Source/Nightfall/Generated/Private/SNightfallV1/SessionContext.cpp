@@ -25,8 +25,8 @@ void GrpcContext_SessionService_IssuePlayTicket::Call(const FGrpcNightfallV1Issu
 
 void GrpcContext_SessionService_IssuePlayTicket::OnRpcEvent(bool Ok, const void* EventTag)
 {
-	Super::OnRpcEventInternal(Ok, EventTag, 
-		[this](const FGrpcResult& _Result, ::nightfall::v1::IssuePlayTicketResponse* _RpcResponse) 
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::IssuePlayTicketResponse* _RpcResponse)
 		{
 			USessionServiceClient* client = (USessionServiceClient*)(this->Client);
 			if (!(client->OnIssuePlayTicketResponse.IsBound())) return;

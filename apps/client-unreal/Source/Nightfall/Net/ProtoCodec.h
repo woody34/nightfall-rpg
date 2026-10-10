@@ -52,6 +52,13 @@ struct FEntitySpawn
 	uint32 Hp = 0;                 // 11
 	uint32 MaxHp = 0;              // 12
 	uint32 Level = 0;              // 13
+	uint32 Race = 0;
+	uint32 ClassId = 0;
+	uint32 Sex = 0;
+	uint32 HairStyle = 0;
+	uint32 HairColor = 0;
+	uint32 Face = 0;
+	uint64 StateTick = 0;
 };
 
 struct FEntityMove
@@ -109,6 +116,13 @@ struct FStatsChanged
 	uint32 MaxMp = 0;      // 5
 	uint32 Level = 0;      // 6
 	uint64 Xp = 0;         // 7: cumulative XP, including death loss
+	uint32 Cp = 0;
+	uint32 MaxCp = 0;
+	uint32 ClassId = 0;
+	uint64 Sp = 0;
+	uint32 TokenTier1Count = 0;
+	uint32 TokenTier2Count = 0;
+	uint64 Tick = 0;
 };
 
 /** Owner-only. */
@@ -132,6 +146,14 @@ struct FTargetChanged
 	FString Target;        // 2: empty means cleared
 };
 
+struct FClassChanged
+{
+	FString Entity;
+	uint32 ClassId = 0;
+	uint64 Tick = 0;
+	uint32 SessionGeneration = 0;
+};
+
 struct FWorldEvent
 {
 	TOptional<FEntitySpawn> Spawn;     // WorldEvent.spawn = 1
@@ -143,6 +165,7 @@ struct FWorldEvent
 	TOptional<FStatsChanged> StatsChanged;       // 7
 	TOptional<FXpGained> XpGained;               // 8
 	TOptional<FLevelUp> LevelUp;                 // 9
+	TOptional<FClassChanged> ClassChanged;       // 13
 	TOptional<FTargetChanged> TargetChanged;     // 10
 	// attack_started (11) and attack_cancelled (12) are decoded by the wire layer but the client
 	// has no consumer until the animation story (E5.4).

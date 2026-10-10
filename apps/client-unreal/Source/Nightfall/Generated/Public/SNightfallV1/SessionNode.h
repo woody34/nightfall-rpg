@@ -35,10 +35,10 @@ private:
 
 	UPROPERTY()
 	USessionService* SessionService;
-	
+
 	UPROPERTY()
 	USessionServiceClient* SessionServiceClient;
-	
+
 	FGrpcContextHandle Context;
 	FGrpcNightfallV1IssuePlayTicketRequest Request;
 	EGrpcServiceState ServiceState;
@@ -47,7 +47,7 @@ private:
 
 	UFUNCTION()
 	void OnServiceStateChanged(EGrpcServiceState NewState);
-	
+
 	UFUNCTION()
 	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
 

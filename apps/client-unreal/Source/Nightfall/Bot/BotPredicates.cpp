@@ -1,4 +1,5 @@
 #include "BotPredicates.h"
+#include "ClassBotPredicates.h"
 #include "BotFixtureData.h"
 #include "BotScenarioRunner.h"
 #include "Auth/AuthSubsystem.h"
@@ -854,17 +855,21 @@ void FBotPredicateRegistry::RegisterBuiltins()
 				&& E->Hp == E->MaxHp && E->Hp > 0 && Actor && IsValid(Actor->Get());
 		});
 
-	Custom(TEXT("kill_xp_matches_fixture"), TEXT("Newest kill adds exactly keltir.toml xp_reward to XP at target selection; level matches that expected total"),
+	Custom(TEXT("kill_xp_matches_fixture"), TEXT("Newest kill matches the independent keltir XP fixture, including Human29 vs raw28; level matches expected total"),
 		[](const FBotContext& C) -> FBotPredicateValue
 		{
 			const FBotObservations* O = C.Observations;
 			const FBotFixtureData& D = FBotFixtureData::Get();
 			if (!O || !D.KeltirXpReward.IsSet() || !O->XpAtTargetSelection.IsSet() || !O->LastXpGainedAmount.IsSet() || !O->TrackedXp.IsSet())
 				return { false, TEXT("kill XP evidence unavailable") };
-			const uint64 Reward = D.KeltirXpReward.GetValue();
-			const uint64 Expected = O->XpAtTargetSelection.GetValue() + Reward;
 			const UCombatStateSubsystem* Combat = C.Combat();
 			const FCombatEntity* Own = Combat ? Combat->FindOwnEntity() : nullptr;
+			// Independent fixed server oracle: pinned keltir28 awards Human29. No runtime formula
+			// is reproduced here; changing the fixture requires an intentional oracle update.
+			const bool bHuman = Own && Own->Spawn.Race == 1;
+			if (bHuman && D.KeltirXpReward.GetValue() != 28) return { false, TEXT("Human XP fixture changed; update independent oracle") };
+			const uint64 Reward = bHuman ? 29 : D.KeltirXpReward.GetValue();
+			const uint64 Expected = O->XpAtTargetSelection.GetValue() + Reward;
 			return { O->LastXpGainedAmount.GetValue() == Reward && O->TrackedXp.GetValue() == Expected && Own && Own->Level == D.LevelForXp(Expected),
 				FString::Printf(TEXT("amount %llu expected %llu; total %llu expected %llu"), O->LastXpGainedAmount.GetValue(), Reward, O->TrackedXp.GetValue(), Expected) };
 		});
@@ -1057,4 +1062,5 @@ void FBotPredicateRegistry::RegisterBuiltins()
 		Count([](const FBotObservations& O) { return O.LateSpawnProjectionBad; }));
 	RegisterNumber(TEXT("late_spawn_hp_bad"), TEXT("Wounded NPC spawns whose next AttackResult did not continue from the spawn's HP (must stay 0)"),
 		Count([](const FBotObservations& O) { return O.LateSpawnHpBad; }));
+	ClassBotPredicates::Register(*this);
 }

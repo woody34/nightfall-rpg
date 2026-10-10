@@ -31,6 +31,11 @@ public:
 	virtual void Deinitialize() override;
 
 	void ListCharacters(USessionClient::FCharacterListCallback Callback);
+	void CreateCharacter(const FGrpcNightfallV1CreateCharacterRequest& Request, USessionClient::FCharacterCallback Callback);
+	void ListClasses(USessionClient::FCatalogueCallback Callback);
+	void TransferOptions(const FString& CharacterId, USessionClient::FTransferOptionsCallback Callback);
+	void ChangeClass(const FString& CharacterId, uint32 TargetClassId, USessionClient::FChangeClassCallback Callback);
+	void GetCharacter(const FString& CharacterId, USessionClient::FCharacterCallback Callback);
 	void CreateCharacter(const FString& Name, EGrpcNightfallV1Race Race, USessionClient::FCharacterCallback Callback);
 
 	/** Gets a play ticket for CharacterId (new idempotency key) and connects with it. */

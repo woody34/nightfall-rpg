@@ -93,6 +93,9 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 	}
 	Service->Connect();
 	Client = Service->MakeClient();
+	Client->OnListClassesResponse.AddDynamic(this, &USessionClient::HandleListClasses);
+	Client->OnTransferOptionsResponse.AddDynamic(this, &USessionClient::HandleTransferOptions);
+	Client->OnChangeClassResponse.AddDynamic(this, &USessionClient::HandleChangeClass);
 	Client->OnPingResponse.AddDynamic(this, &USessionClient::HandlePing);
 	Client->OnGetCharacterResponse.AddDynamic(this, &USessionClient::HandleGetCharacter);
 	Client->OnCreateCharacterResponse.AddDynamic(this, &USessionClient::HandleCreateCharacter);
@@ -113,6 +116,9 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 void USessionClient::Deinitialize()
 {
 	// Callers may hold references captured in their callbacks; drop them without invoking.
+	PendingListClasses.Empty();
+	PendingTransferOptions.Empty();
+	PendingChangeClass.Empty();
 	PendingPing.Empty();
 	PendingGetCharacter.Empty();
 	PendingCreateCharacter.Empty();
@@ -319,4 +325,45 @@ void USessionClient::HandleListMyCharacters(FGrpcContextHandle Handle, const FGr
 void USessionClient::HandleIssuePlayTicket(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1IssuePlayTicketResponse& Response)
 {
 	Complete(PendingIssuePlayTicket, Handle.Value, Result, Response);
+}
+
+void USessionClient::ListClasses(FCatalogueCallback Callback)
+{
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1ListClassesResponse()); })) return;
+	const FGrpcContextHandle Handle = Client->InitListClasses();
+	PendingListClasses.Add(Handle.Value, MoveTemp(Callback));
+	Client->ListClasses(Handle, FGrpcNightfallV1ListClassesRequest(), MakeMetaData(true), CallTimeoutSeconds);
+}
+
+void USessionClient::TransferOptions(const FString& CharacterId, FTransferOptionsCallback Callback)
+{
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1TransferOptionsResponse()); })) return;
+	FGrpcNightfallV1TransferOptionsRequest Request;
+	Request.CharacterId = CharacterId;
+	const FGrpcContextHandle Handle = Client->InitTransferOptions();
+	PendingTransferOptions.Add(Handle.Value, MoveTemp(Callback));
+	Client->TransferOptions(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+
+void USessionClient::ChangeClass(const FGrpcNightfallV1ChangeClassRequest& Request, FChangeClassCallback Callback)
+{
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1ChangeClassResponse()); })) return;
+	const FGrpcContextHandle Handle = Client->InitChangeClass();
+	PendingChangeClass.Add(Handle.Value, MoveTemp(Callback));
+	Client->ChangeClass(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+
+void USessionClient::HandleListClasses(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListClassesResponse& Response)
+{
+	Complete(PendingListClasses, Handle.Value, Result, Response);
+}
+
+void USessionClient::HandleTransferOptions(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1TransferOptionsResponse& Response)
+{
+	Complete(PendingTransferOptions, Handle.Value, Result, Response);
+}
+
+void USessionClient::HandleChangeClass(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ChangeClassResponse& Response)
+{
+	Complete(PendingChangeClass, Handle.Value, Result, Response);
 }

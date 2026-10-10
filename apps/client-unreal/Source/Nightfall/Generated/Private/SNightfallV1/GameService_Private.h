@@ -74,3 +74,48 @@ public:
 	UGameService::FListMyCharactersResponseLambda ResponseLambda;
 };
 
+UCLASS()
+class UGameServiceListClassesLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListClassesResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FListClassesResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceTransferOptionsLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1TransferOptionsResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FTransferOptionsResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceChangeClassLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ChangeClassResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FChangeClassResponseLambda ResponseLambda;
+};
+

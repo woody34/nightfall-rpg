@@ -7,6 +7,8 @@
 class UInputMappingContext;
 class UInputAction;
 class UNightfallHud;
+class UNightfallClassDialog;
+class AClassMasterActor;
 
 /**
  * Click-to-move, Lineage 2 style: a click raycasts the ground, the destination is sent to the
@@ -54,6 +56,9 @@ public:
 	 * Ground click: StopAttack if an attack is outstanding, then MoveToWorldLocation.
 	 * Returns the MoveTo seq.
 	 */
+	void OpenClassDialog() { ShowClassMaster(); }
+	UNightfallClassDialog* GetClassDialog() const { return ClassDialog; }
+
 	uint32 ClickGroundLocation(const FVector& Target);
 
 	/**
@@ -64,4 +69,7 @@ public:
 
 private:
 	void OnClickMove();
+	void ShowClassMaster();
+	void LoadClassCatalogue();
+	UPROPERTY(Transient) TObjectPtr<UNightfallClassDialog> ClassDialog;
 };

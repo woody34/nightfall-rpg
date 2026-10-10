@@ -41,6 +41,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Nightfall")
 	FString DisplayName;
 
+	/** Public class title and transfer cue, supplied by the admitted server identity. */
+	void SetClassPresentation(uint32 InClassId, const FString& Title, bool bTransferred);
+	FString GetNameplate() const;
+	bool HasTransferCue() const;
+	void ClearTransferCue() { TransferCueUntil = 0.0; }
+	uint32 GetClassId() const { return ClassId; }
+
 	/** World units per server tile unit (Phase 6 §3: 32 px tiles become 100 cm). */
 	UPROPERTY(EditDefaultsOnly, Category = "Nightfall")
 	float UnitsPerTile = 100.f;
@@ -58,4 +65,7 @@ public:
 private:
 	TWeakObjectPtr<class UNetClientSubsystem> Net;
 	bool bAnimatedBody = false;
+	uint32 ClassId = 0;
+	FString ClassTitle;
+	double TransferCueUntil = 0.0;
 };

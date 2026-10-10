@@ -12,9 +12,24 @@ DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1CreateCharacterRequest, ::nightfall::v1::C
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1BaseStats, ::nightfall::v1::BaseStats)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1Character, ::nightfall::v1::Character)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1Position, ::nightfall::v1::Position)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ClassProgress, ::nightfall::v1::ClassProgress)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillLearnInfo, ::nightfall::v1::SkillLearnInfo)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillItemRequirement, ::nightfall::v1::SkillItemRequirement)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ProficiencyInfo, ::nightfall::v1::ProficiencyInfo)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ClassInfo, ::nightfall::v1::ClassInfo)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1PassiveInfo, ::nightfall::v1::PassiveInfo)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1RaceInfo, ::nightfall::v1::RaceInfo)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ClassMasterInfo, ::nightfall::v1::ClassMasterInfo)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ListClassesRequest, ::nightfall::v1::ListClassesRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ListClassesResponse, ::nightfall::v1::ListClassesResponse)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1TransferOptionsRequest, ::nightfall::v1::TransferOptionsRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1TransferOption, ::nightfall::v1::TransferOption)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1TransferOptionsResponse, ::nightfall::v1::TransferOptionsResponse)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ChangeClassRequest, ::nightfall::v1::ChangeClassRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ChangeClassResponse, ::nightfall::v1::ChangeClassResponse)
 
-FGrpcNightfallV1ListMyCharactersResponse UGrpcNightfallV1ListMyCharactersResponseHelperLibrary::MakeListMyCharactersResponse( 
-    TArray<FGrpcNightfallV1Character> Characters 
+FGrpcNightfallV1ListMyCharactersResponse UGrpcNightfallV1ListMyCharactersResponseHelperLibrary::MakeListMyCharactersResponse(
+    TArray<FGrpcNightfallV1Character> Characters
 )
 {
     FGrpcNightfallV1ListMyCharactersResponse ListMyCharactersResponse;
@@ -26,8 +41,8 @@ FGrpcNightfallV1ListMyCharactersResponse UGrpcNightfallV1ListMyCharactersRespons
     return ListMyCharactersResponse;
 }
 
-void UGrpcNightfallV1ListMyCharactersResponseHelperLibrary::BreakListMyCharactersResponse(const FGrpcNightfallV1ListMyCharactersResponse& ListMyCharactersResponse,  
-    TArray<FGrpcNightfallV1Character>& Characters 
+void UGrpcNightfallV1ListMyCharactersResponseHelperLibrary::BreakListMyCharactersResponse(const FGrpcNightfallV1ListMyCharactersResponse& ListMyCharactersResponse,
+    TArray<FGrpcNightfallV1Character>& Characters
 )
 {
     for (auto& element : ListMyCharactersResponse.Characters)
@@ -36,9 +51,31 @@ void UGrpcNightfallV1ListMyCharactersResponseHelperLibrary::BreakListMyCharacter
     }
 }
 
-FGrpcNightfallV1Character UGrpcNightfallV1CharacterHelperLibrary::MakeCharacter( 
-    FString Id, FString Name, EGrpcNightfallV1Race Race, 
-    FUInt32 Level, FGrpcNightfallV1BaseStats Stats, FGrpcNightfallV1Position Position 
+FGrpcNightfallV1CreateCharacterRequest_base_class_id UGrpcNightfallV1CreateCharacterRequest_base_class_idHelperLibrary::Make_base_class_id(EGrpcNightfallV1CreateCharacterRequest_base_class_id _base_class_idCase,
+    FUInt32 BaseClassId
+)
+{
+    FGrpcNightfallV1CreateCharacterRequest_base_class_id _base_class_id;
+    _base_class_id._base_class_idCase = _base_class_idCase;
+    _base_class_id.BaseClassId = BaseClassId;
+
+    return _base_class_id;
+}
+
+void UGrpcNightfallV1CreateCharacterRequest_base_class_idHelperLibrary::Break_base_class_id(const FGrpcNightfallV1CreateCharacterRequest_base_class_id& _base_class_id, EGrpcNightfallV1CreateCharacterRequest_base_class_id& _base_class_idCase,
+    FUInt32& BaseClassId
+)
+{
+    _base_class_idCase = _base_class_id._base_class_idCase;
+    BaseClassId = _base_class_id.BaseClassId;
+}
+
+FGrpcNightfallV1Character UGrpcNightfallV1CharacterHelperLibrary::MakeCharacter(
+    FString Id, FString Name, EGrpcNightfallV1Race Race,
+    FUInt32 Level, FGrpcNightfallV1BaseStats Stats, FGrpcNightfallV1Position Position,
+    FUInt32 ClassId, FUInt32 BaseClassId, FUInt32 ActiveClassSlot,
+    TArray<FGrpcNightfallV1ClassProgress> Classes, EGrpcNightfallV1Sex Sex, FUInt32 HairStyle,
+    FUInt32 HairColor, FUInt32 Face
 )
 {
     FGrpcNightfallV1Character Character;
@@ -48,13 +85,27 @@ FGrpcNightfallV1Character UGrpcNightfallV1CharacterHelperLibrary::MakeCharacter(
     Character.Level = Level;
     Character.Stats = Stats;
     Character.Position = MakeShareable(new FGrpcNightfallV1Position(Position));
+    Character.ClassId = ClassId;
+    Character.BaseClassId = BaseClassId;
+    Character.ActiveClassSlot = ActiveClassSlot;
+    for (const auto& element : Classes)
+    {
+        Character.Classes.Add(MakeShareable(new FGrpcNightfallV1ClassProgress(element)));
+    }
+    Character.Sex = Sex;
+    Character.HairStyle = HairStyle;
+    Character.HairColor = HairColor;
+    Character.Face = Face;
 
     return Character;
 }
 
-void UGrpcNightfallV1CharacterHelperLibrary::BreakCharacter(const FGrpcNightfallV1Character& Character,  
-    FString& Id, FString& Name, EGrpcNightfallV1Race& Race, 
-    FUInt32& Level, FGrpcNightfallV1BaseStats& Stats, FGrpcNightfallV1Position& Position 
+void UGrpcNightfallV1CharacterHelperLibrary::BreakCharacter(const FGrpcNightfallV1Character& Character,
+    FString& Id, FString& Name, EGrpcNightfallV1Race& Race,
+    FUInt32& Level, FGrpcNightfallV1BaseStats& Stats, FGrpcNightfallV1Position& Position,
+    FUInt32& ClassId, FUInt32& BaseClassId, FUInt32& ActiveClassSlot,
+    TArray<FGrpcNightfallV1ClassProgress>& Classes, EGrpcNightfallV1Sex& Sex, FUInt32& HairStyle,
+    FUInt32& HairColor, FUInt32& Face
 )
 {
     Id = Character.Id;
@@ -62,9 +113,67 @@ void UGrpcNightfallV1CharacterHelperLibrary::BreakCharacter(const FGrpcNightfall
     Race = Character.Race;
     Level = Character.Level;
     Stats = Character.Stats;
-    if(Character.Position.Get()) 
+    if(Character.Position.Get())
     {
         Position = *(Character.Position.Get());
     }
+    ClassId = Character.ClassId;
+    BaseClassId = Character.BaseClassId;
+    ActiveClassSlot = Character.ActiveClassSlot;
+    for (auto& element : Character.Classes)
+    {
+        Classes.Add(*(element.Get()));
+    }
+    Sex = Character.Sex;
+    HairStyle = Character.HairStyle;
+    HairColor = Character.HairColor;
+    Face = Character.Face;
+}
+
+FGrpcNightfallV1SkillLearnInfo UGrpcNightfallV1SkillLearnInfoHelperLibrary::MakeSkillLearnInfo(
+    FString Key, FUInt32 SkillLevel, FUInt32 RequiredLevel,
+    FUInt64 SpCost, bool AutoGet, TArray<FGrpcNightfallV1SkillItemRequirement> RequiredItems,
+    FUInt32 SkillId, FString L2Ref, bool LearnedByNpc,
+    bool EffectImplemented
+)
+{
+    FGrpcNightfallV1SkillLearnInfo SkillLearnInfo;
+    SkillLearnInfo.Key = Key;
+    SkillLearnInfo.SkillLevel = SkillLevel;
+    SkillLearnInfo.RequiredLevel = RequiredLevel;
+    SkillLearnInfo.SpCost = SpCost;
+    SkillLearnInfo.AutoGet = AutoGet;
+    for (const auto& element : RequiredItems)
+    {
+        SkillLearnInfo.RequiredItems.Add(MakeShareable(new FGrpcNightfallV1SkillItemRequirement(element)));
+    }
+    SkillLearnInfo.SkillId = SkillId;
+    SkillLearnInfo.L2Ref = L2Ref;
+    SkillLearnInfo.LearnedByNpc = LearnedByNpc;
+    SkillLearnInfo.EffectImplemented = EffectImplemented;
+
+    return SkillLearnInfo;
+}
+
+void UGrpcNightfallV1SkillLearnInfoHelperLibrary::BreakSkillLearnInfo(const FGrpcNightfallV1SkillLearnInfo& SkillLearnInfo,
+    FString& Key, FUInt32& SkillLevel, FUInt32& RequiredLevel,
+    FUInt64& SpCost, bool& AutoGet, TArray<FGrpcNightfallV1SkillItemRequirement>& RequiredItems,
+    FUInt32& SkillId, FString& L2Ref, bool& LearnedByNpc,
+    bool& EffectImplemented
+)
+{
+    Key = SkillLearnInfo.Key;
+    SkillLevel = SkillLearnInfo.SkillLevel;
+    RequiredLevel = SkillLearnInfo.RequiredLevel;
+    SpCost = SkillLearnInfo.SpCost;
+    AutoGet = SkillLearnInfo.AutoGet;
+    for (auto& element : SkillLearnInfo.RequiredItems)
+    {
+        RequiredItems.Add(*(element.Get()));
+    }
+    SkillId = SkillLearnInfo.SkillId;
+    L2Ref = SkillLearnInfo.L2Ref;
+    LearnedByNpc = SkillLearnInfo.LearnedByNpc;
+    EffectImplemented = SkillLearnInfo.EffectImplemented;
 }
 

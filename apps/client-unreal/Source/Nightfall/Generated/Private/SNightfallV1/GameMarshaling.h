@@ -31,7 +31,55 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1Character* in, ::nightfall::v1::Cha
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::Position* in, FGrpcNightfallV1Position* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1Position* in, ::nightfall::v1::Position* out);
 
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassProgress* in, FGrpcNightfallV1ClassProgress* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassProgress* in, ::nightfall::v1::ClassProgress* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillLearnInfo* in, FGrpcNightfallV1SkillLearnInfo* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillLearnInfo* in, ::nightfall::v1::SkillLearnInfo* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillItemRequirement* in, FGrpcNightfallV1SkillItemRequirement* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillItemRequirement* in, ::nightfall::v1::SkillItemRequirement* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ProficiencyInfo* in, FGrpcNightfallV1ProficiencyInfo* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ProficiencyInfo* in, ::nightfall::v1::ProficiencyInfo* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassInfo* in, FGrpcNightfallV1ClassInfo* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassInfo* in, ::nightfall::v1::ClassInfo* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::PassiveInfo* in, FGrpcNightfallV1PassiveInfo* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1PassiveInfo* in, ::nightfall::v1::PassiveInfo* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::RaceInfo* in, FGrpcNightfallV1RaceInfo* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1RaceInfo* in, ::nightfall::v1::RaceInfo* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassMasterInfo* in, FGrpcNightfallV1ClassMasterInfo* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassMasterInfo* in, ::nightfall::v1::ClassMasterInfo* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ListClassesRequest* in, FGrpcNightfallV1ListClassesRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ListClassesRequest* in, ::nightfall::v1::ListClassesRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ListClassesResponse* in, FGrpcNightfallV1ListClassesResponse* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ListClassesResponse* in, ::nightfall::v1::ListClassesResponse* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::TransferOptionsRequest* in, FGrpcNightfallV1TransferOptionsRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1TransferOptionsRequest* in, ::nightfall::v1::TransferOptionsRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::TransferOption* in, FGrpcNightfallV1TransferOption* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1TransferOption* in, ::nightfall::v1::TransferOption* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::TransferOptionsResponse* in, FGrpcNightfallV1TransferOptionsResponse* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1TransferOptionsResponse* in, ::nightfall::v1::TransferOptionsResponse* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ChangeClassRequest* in, FGrpcNightfallV1ChangeClassRequest* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ChangeClassRequest* in, ::nightfall::v1::ChangeClassRequest* out);
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ChangeClassResponse* in, FGrpcNightfallV1ChangeClassResponse* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ChangeClassResponse* in, ::nightfall::v1::ChangeClassResponse* out);
+
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::PingResponse> GameService_Ping_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::Character> GameService_GetCharacter_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::Character> GameService_CreateCharacter_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListMyCharactersResponse> GameService_ListMyCharacters_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListClassesResponse> GameService_ListClasses_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::TransferOptionsResponse> GameService_TransferOptions_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ChangeClassResponse> GameService_ChangeClass_ReaderWriter;

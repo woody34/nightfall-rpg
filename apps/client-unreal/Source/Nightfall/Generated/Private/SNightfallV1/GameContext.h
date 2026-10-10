@@ -55,3 +55,42 @@ public:
 	GrpcContext_GameService_ListMyCharacters(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
 };
 
+class GrpcContext_GameService_ListClasses : public GrpcContext_Ping_Pong<GameService_ListClasses_ReaderWriter, ::nightfall::v1::ListClassesResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_ListClasses_ReaderWriter, ::nightfall::v1::ListClassesResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1ListClassesRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_ListClasses(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_TransferOptions : public GrpcContext_Ping_Pong<GameService_TransferOptions_ReaderWriter, ::nightfall::v1::TransferOptionsResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_TransferOptions_ReaderWriter, ::nightfall::v1::TransferOptionsResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1TransferOptionsRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_TransferOptions(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_ChangeClass : public GrpcContext_Ping_Pong<GameService_ChangeClass_ReaderWriter, ::nightfall::v1::ChangeClassResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_ChangeClass_ReaderWriter, ::nightfall::v1::ChangeClassResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1ChangeClassRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_ChangeClass(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+

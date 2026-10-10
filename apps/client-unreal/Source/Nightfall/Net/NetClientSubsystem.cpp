@@ -274,6 +274,19 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 				OnEntityRespawned.Broadcast(Re);
 			}
 		}
+		if (E.ClassChanged.IsSet())
+		{
+			const FClassChanged& Changed = *E.ClassChanged;
+			FEntitySpawn* Held = KnownEntities.Find(Changed.Entity);
+			// A class fact needs an admitted entity and must match its session incarnation.
+			if (Held && Changed.SessionGeneration == Held->SessionGeneration && Changed.Tick >= Held->StateTick
+				&& !(Changed.Tick == Held->StateTick && Changed.ClassId == Held->ClassId))
+			{
+				Held->ClassId = Changed.ClassId;
+				Held->StateTick = Changed.Tick;
+				OnClassChanged.Broadcast(Changed);
+			}
+		}
 		if (E.StatsChanged.IsSet()) OnStatsChanged.Broadcast(*E.StatsChanged);
 		if (E.XpGained.IsSet()) OnXpGained.Broadcast(*E.XpGained);
 		if (E.LevelUp.IsSet()) OnLevelUp.Broadcast(*E.LevelUp);

@@ -1,0 +1,42 @@
+# covers: 2 E3.1, 2 E3.6, 2 E4.2, 2 E5.2, 2 E5.3, 2 E5.5
+# Level1 fixture from ordinary creation: master requirements and invalid transfers change no identity.
+nf.Login
+nf.WaitFor connected 15
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.CreateClass 1 0 1
+nf.WaitFor class_rpc_error == none 15
+nf.EnterCreated
+nf.WaitFor in_world 15
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect eligible_options == 0
+nf.Expect transfer_option 1 blocked
+nf.ChangeClass 1
+nf.WaitFor class_rpc_error == failedprecondition 15
+nf.Expect transfer_count == 0
+nf.Expect world_class == 0
+# Reach the advertised master by walking around the monster homes; no test teleport.
+nf.ClickMove 0 48
+nf.WaitFor own_at 0 48 1 45
+nf.ClickMove 0 96
+nf.WaitFor own_at 0 96 1 45
+nf.ClickMove 0 128
+nf.WaitFor own_at 0 128 1 30
+nf.ClickMove 48 128
+nf.WaitFor own_at 48 128 1 45
+nf.ClickMove 96 128
+nf.WaitFor own_at 96 128 1 45
+nf.MoveMaster
+nf.WaitFor at_class_master 30
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect transfer_option 1 blocked
+nf.ChangeClass 1
+nf.WaitFor class_rpc_error == failedprecondition 15
+nf.Expect transfer_count == 0
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_class == 0
+nf.Expect character_matches_world
+nf.Within 210

@@ -25,8 +25,8 @@ void GrpcContext_GameService_Ping::Call(const FGrpcNightfallV1PingRequest& Reque
 
 void GrpcContext_GameService_Ping::OnRpcEvent(bool Ok, const void* EventTag)
 {
-	Super::OnRpcEventInternal(Ok, EventTag, 
-		[this](const FGrpcResult& _Result, ::nightfall::v1::PingResponse* _RpcResponse) 
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::PingResponse* _RpcResponse)
 		{
 			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
 			if (!(client->OnPingResponse.IsBound())) return;
@@ -60,8 +60,8 @@ void GrpcContext_GameService_GetCharacter::Call(const FGrpcNightfallV1GetCharact
 
 void GrpcContext_GameService_GetCharacter::OnRpcEvent(bool Ok, const void* EventTag)
 {
-	Super::OnRpcEventInternal(Ok, EventTag, 
-		[this](const FGrpcResult& _Result, ::nightfall::v1::Character* _RpcResponse) 
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::Character* _RpcResponse)
 		{
 			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
 			if (!(client->OnGetCharacterResponse.IsBound())) return;
@@ -95,8 +95,8 @@ void GrpcContext_GameService_CreateCharacter::Call(const FGrpcNightfallV1CreateC
 
 void GrpcContext_GameService_CreateCharacter::OnRpcEvent(bool Ok, const void* EventTag)
 {
-	Super::OnRpcEventInternal(Ok, EventTag, 
-		[this](const FGrpcResult& _Result, ::nightfall::v1::Character* _RpcResponse) 
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::Character* _RpcResponse)
 		{
 			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
 			if (!(client->OnCreateCharacterResponse.IsBound())) return;
@@ -130,8 +130,8 @@ void GrpcContext_GameService_ListMyCharacters::Call(const FGrpcNightfallV1ListMy
 
 void GrpcContext_GameService_ListMyCharacters::OnRpcEvent(bool Ok, const void* EventTag)
 {
-	Super::OnRpcEventInternal(Ok, EventTag, 
-		[this](const FGrpcResult& _Result, ::nightfall::v1::ListMyCharactersResponse* _RpcResponse) 
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::ListMyCharactersResponse* _RpcResponse)
 		{
 			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
 			if (!(client->OnListMyCharactersResponse.IsBound())) return;
@@ -141,6 +141,111 @@ void GrpcContext_GameService_ListMyCharacters::OnRpcEvent(bool Ok, const void* E
 				GRPC_TO_TURBOLINK(_RpcResponse, &response);
 			}
 			client->OnListMyCharactersResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_ListClasses::GrpcContext_GameService_ListClasses(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_ListClasses::Call(const FGrpcNightfallV1ListClassesRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::ListClassesRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncListClasses(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_ListClasses::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::ListClassesResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnListClassesResponse.IsBound())) return;
+
+			FGrpcNightfallV1ListClassesResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnListClassesResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_TransferOptions::GrpcContext_GameService_TransferOptions(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_TransferOptions::Call(const FGrpcNightfallV1TransferOptionsRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::TransferOptionsRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncTransferOptions(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_TransferOptions::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::TransferOptionsResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnTransferOptionsResponse.IsBound())) return;
+
+			FGrpcNightfallV1TransferOptionsResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnTransferOptionsResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_ChangeClass::GrpcContext_GameService_ChangeClass(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_ChangeClass::Call(const FGrpcNightfallV1ChangeClassRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::ChangeClassRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncChangeClass(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_ChangeClass::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::ChangeClassResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnChangeClassResponse.IsBound())) return;
+
+			FGrpcNightfallV1ChangeClassResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnChangeClassResponse.Broadcast(Handle, _Result, response);
 		}
 	);
 }

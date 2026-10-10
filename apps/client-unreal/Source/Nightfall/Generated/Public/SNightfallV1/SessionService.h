@@ -13,7 +13,7 @@ class TURBOLINKGRPC_API USessionService : public UGrpcService
 public:
 	UFUNCTION(BlueprintCallable, Category = TurboLink)
 	virtual void Connect() override;
-	
+
 	UFUNCTION(BlueprintCallable, Category = TurboLink)
 	virtual EGrpcServiceState GetServiceState() const override;
 
@@ -24,7 +24,7 @@ private:
 	virtual void Shutdown() override;
 
 	UPROPERTY()
-	USessionServiceClient* InnerClient; 
+	USessionServiceClient* InnerClient;
 public:
 	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1IssuePlayTicketResponse& Response)> FIssuePlayTicketResponseLambda;
 	void CallIssuePlayTicket(const FGrpcNightfallV1IssuePlayTicketRequest& Request, FIssuePlayTicketResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);

@@ -35,10 +35,10 @@ private:
 
 	UPROPERTY()
 	UGameService* GameService;
-	
+
 	UPROPERTY()
 	UGameServiceClient* GameServiceClient;
-	
+
 	FGrpcContextHandle Context;
 	FGrpcNightfallV1PingRequest Request;
 	EGrpcServiceState ServiceState;
@@ -47,7 +47,7 @@ private:
 
 	UFUNCTION()
 	void OnServiceStateChanged(EGrpcServiceState NewState);
-	
+
 	UFUNCTION()
 	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
 
@@ -83,10 +83,10 @@ private:
 
 	UPROPERTY()
 	UGameService* GameService;
-	
+
 	UPROPERTY()
 	UGameServiceClient* GameServiceClient;
-	
+
 	FGrpcContextHandle Context;
 	FGrpcNightfallV1GetCharacterRequest Request;
 	EGrpcServiceState ServiceState;
@@ -95,7 +95,7 @@ private:
 
 	UFUNCTION()
 	void OnServiceStateChanged(EGrpcServiceState NewState);
-	
+
 	UFUNCTION()
 	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
 
@@ -131,10 +131,10 @@ private:
 
 	UPROPERTY()
 	UGameService* GameService;
-	
+
 	UPROPERTY()
 	UGameServiceClient* GameServiceClient;
-	
+
 	FGrpcContextHandle Context;
 	FGrpcNightfallV1CreateCharacterRequest Request;
 	EGrpcServiceState ServiceState;
@@ -143,7 +143,7 @@ private:
 
 	UFUNCTION()
 	void OnServiceStateChanged(EGrpcServiceState NewState);
-	
+
 	UFUNCTION()
 	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
 
@@ -179,10 +179,10 @@ private:
 
 	UPROPERTY()
 	UGameService* GameService;
-	
+
 	UPROPERTY()
 	UGameServiceClient* GameServiceClient;
-	
+
 	FGrpcContextHandle Context;
 	FGrpcNightfallV1ListMyCharactersRequest Request;
 	EGrpcServiceState ServiceState;
@@ -191,12 +191,156 @@ private:
 
 	UFUNCTION()
 	void OnServiceStateChanged(EGrpcServiceState NewState);
-	
+
 	UFUNCTION()
 	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
 
 	UFUNCTION()
 	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListMyCharactersResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceListClasses : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceListClassesDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListClassesResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService ListClasses",
+		AdvancedDisplay = 2))
+	static UCallGameServiceListClasses* ListClasses(UObject* WorldContextObject, const FGrpcNightfallV1ListClassesRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListClassesDelegate OnListClassesResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListClassesDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1ListClassesRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListClassesResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceTransferOptions : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceTransferOptionsDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1TransferOptionsResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService TransferOptions",
+		AdvancedDisplay = 2))
+	static UCallGameServiceTransferOptions* TransferOptions(UObject* WorldContextObject, const FGrpcNightfallV1TransferOptionsRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceTransferOptionsDelegate OnTransferOptionsResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceTransferOptionsDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1TransferOptionsRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1TransferOptionsResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceChangeClass : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceChangeClassDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ChangeClassResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService ChangeClass",
+		AdvancedDisplay = 2))
+	static UCallGameServiceChangeClass* ChangeClass(UObject* WorldContextObject, const FGrpcNightfallV1ChangeClassRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceChangeClassDelegate OnChangeClassResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceChangeClassDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1ChangeClassRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ChangeClassResponse& Response);
 
 	void Shutdown();
 };

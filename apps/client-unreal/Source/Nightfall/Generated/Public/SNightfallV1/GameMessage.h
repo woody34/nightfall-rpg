@@ -15,6 +15,29 @@ enum class EGrpcNightfallV1Race : uint8
     RACE_DWARF=5,
 };
 
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.Sex", ScriptName="EGrpcNightfallV1Sex"))
+enum class EGrpcNightfallV1Sex : uint8
+{
+    SEX_UNSPECIFIED=0,
+    SEX_MALE=1,
+    SEX_FEMALE=2,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.Archetype", ScriptName="EGrpcNightfallV1Archetype"))
+enum class EGrpcNightfallV1Archetype : uint8
+{
+    ARCHETYPE_UNSPECIFIED=0,
+    ARCHETYPE_FIGHTER=1,
+    ARCHETYPE_MYSTIC=2,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.CreateCharacterRequest._base_class_id", ScriptName="EGrpcNightfallV1CreateCharacterRequest_base_class_id"))
+enum class EGrpcNightfallV1CreateCharacterRequest_base_class_id : uint8
+{
+    BaseClassId=0,
+    NotSet=255,
+};
+
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ListMyCharactersRequest"))
 struct FGrpcNightfallV1ListMyCharactersRequest : public FGrpcMessage
 {
@@ -66,6 +89,20 @@ struct FGrpcNightfallV1GetCharacterRequest : public FGrpcMessage
     FString CharacterId = "";
 };
 
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.CreateCharacterRequest._base_class_id",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1CreateCharacterRequest_base_class_idHelperLibrary.Make_base_class_id",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1CreateCharacterRequest_base_class_idHelperLibrary.Break_base_class_id"))
+struct FGrpcNightfallV1CreateCharacterRequest_base_class_id : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1CreateCharacterRequest_base_class_id _base_class_idCase = EGrpcNightfallV1CreateCharacterRequest_base_class_id::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 BaseClassId = 0;
+};
+
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.CreateCharacterRequest"))
 struct FGrpcNightfallV1CreateCharacterRequest : public FGrpcMessage
 {
@@ -83,6 +120,21 @@ struct FGrpcNightfallV1CreateCharacterRequest : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     EGrpcNightfallV1Race Race = static_cast<EGrpcNightfallV1Race>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1CreateCharacterRequest_base_class_id _base_class_id;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1Sex Sex = static_cast<EGrpcNightfallV1Sex>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HairStyle = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HairColor = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Face = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.BaseStats"))
@@ -134,6 +186,29 @@ struct FGrpcNightfallV1Character : public FGrpcMessage
     FGrpcNightfallV1BaseStats Stats;
 
     TSharedPtr<FGrpcNightfallV1Position> Position;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 BaseClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ActiveClassSlot = 0;
+
+    TArray<TSharedPtr<FGrpcNightfallV1ClassProgress>> Classes;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1Sex Sex = static_cast<EGrpcNightfallV1Sex>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HairStyle = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HairColor = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Face = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.Position"))
@@ -149,19 +224,378 @@ struct FGrpcNightfallV1Position : public FGrpcMessage
     float Y = 0;
 };
 
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClassProgress"))
+struct FGrpcNightfallV1ClassProgress : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Slot = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Level = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Exp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Sp = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillLearnInfo",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1SkillLearnInfoHelperLibrary.MakeSkillLearnInfo",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1SkillLearnInfoHelperLibrary.BreakSkillLearnInfo"))
+struct FGrpcNightfallV1SkillLearnInfo : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Key = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 RequiredLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 SpCost = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool AutoGet = false;
+
+    TArray<TSharedPtr<FGrpcNightfallV1SkillItemRequirement>> RequiredItems;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString L2Ref = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool LearnedByNpc = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool EffectImplemented = false;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SkillItemRequirement"))
+struct FGrpcNightfallV1SkillItemRequirement : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Item = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Count = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ProficiencyInfo"))
+struct FGrpcNightfallV1ProficiencyInfo : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Key = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 MinLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SkillLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString L2Ref = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool EffectImplemented = false;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClassInfo"))
+struct FGrpcNightfallV1ClassInfo : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Key = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString DisplayName = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1Race Race = static_cast<EGrpcNightfallV1Race>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Tier = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ParentClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 MinLevel = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1Archetype Archetype = static_cast<EGrpcNightfallV1Archetype>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1BaseStats BaseStats;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool SubclassAllowed = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> SubclassEquivalents;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1SkillLearnInfo> SkillTree;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1ProficiencyInfo> Proficiencies;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 WalkSpeed = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 RunSpeed = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SwimSpeed = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool SkillTreePopulated = false;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.PassiveInfo"))
+struct FGrpcNightfallV1PassiveInfo : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Key = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString DisplayName = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Description = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Implemented = false;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.RaceInfo"))
+struct FGrpcNightfallV1RaceInfo : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1Race Race = static_cast<EGrpcNightfallV1Race>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString DisplayName = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool MysticPath = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 WalkSpeed = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 RunSpeed = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> BaseClassIds;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FString> PassiveSkillKeys;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HairStyleCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HairColorCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 FaceCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1PassiveInfo> Passives;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClassMasterInfo"))
+struct FGrpcNightfallV1ClassMasterInfo : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Name = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1Position Position;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    float InteractionRadius = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ListClassesRequest"))
+struct FGrpcNightfallV1ListClassesRequest : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ListClassesResponse"))
+struct FGrpcNightfallV1ListClassesResponse : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString DataVersion = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1RaceInfo> Races;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1ClassInfo> Classes;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 PlayableLevelCap = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 MaxTransferTier = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ClassMasterInfo ClassMaster;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.TransferOptionsRequest"))
+struct FGrpcNightfallV1TransferOptionsRequest : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString CharacterId = "";
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.TransferOption"))
+struct FGrpcNightfallV1TransferOption : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Eligible = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FString> Unmet;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.TransferOptionsResponse"))
+struct FGrpcNightfallV1TransferOptionsResponse : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1TransferOption> Options;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 CurrentClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TokenTier1Count = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TokenTier2Count = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ChangeClassRequest"))
+struct FGrpcNightfallV1ChangeClassRequest : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString CharacterId = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TargetClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString IdempotencyKey = "";
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ChangeClassResponse"))
+struct FGrpcNightfallV1ChangeClassResponse : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1Character Character;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FString> GrantedSkillKeys;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TokenTier1Count = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TokenTier2Count = 0;
+};
+
 UCLASS()
 class UGrpcNightfallV1ListMyCharactersResponseHelperLibrary : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
 public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static FGrpcNightfallV1ListMyCharactersResponse MakeListMyCharactersResponse( 
-        TArray<FGrpcNightfallV1Character> Characters 
+    static FGrpcNightfallV1ListMyCharactersResponse MakeListMyCharactersResponse(
+        TArray<FGrpcNightfallV1Character> Characters
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static void BreakListMyCharactersResponse(const FGrpcNightfallV1ListMyCharactersResponse& ListMyCharactersResponse,  
-        TArray<FGrpcNightfallV1Character>& Characters 
+    static void BreakListMyCharactersResponse(const FGrpcNightfallV1ListMyCharactersResponse& ListMyCharactersResponse,
+        TArray<FGrpcNightfallV1Character>& Characters
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1CreateCharacterRequest_base_class_idHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1CreateCharacterRequest_base_class_id Make_base_class_id(EGrpcNightfallV1CreateCharacterRequest_base_class_id _base_class_idCase,
+        FUInt32 BaseClassId
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_base_class_id(const FGrpcNightfallV1CreateCharacterRequest_base_class_id& _base_class_id, EGrpcNightfallV1CreateCharacterRequest_base_class_id& _base_class_idCase,
+        FUInt32& BaseClassId
     );
 };
 
@@ -171,14 +605,42 @@ class UGrpcNightfallV1CharacterHelperLibrary : public UBlueprintFunctionLibrary
     GENERATED_BODY()
 public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static FGrpcNightfallV1Character MakeCharacter( 
-        FString Id, FString Name, EGrpcNightfallV1Race Race, 
-        FUInt32 Level, FGrpcNightfallV1BaseStats Stats, FGrpcNightfallV1Position Position 
+    static FGrpcNightfallV1Character MakeCharacter(
+        FString Id, FString Name, EGrpcNightfallV1Race Race,
+        FUInt32 Level, FGrpcNightfallV1BaseStats Stats, FGrpcNightfallV1Position Position,
+        FUInt32 ClassId, FUInt32 BaseClassId, FUInt32 ActiveClassSlot,
+        TArray<FGrpcNightfallV1ClassProgress> Classes, EGrpcNightfallV1Sex Sex, FUInt32 HairStyle,
+        FUInt32 HairColor, FUInt32 Face
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static void BreakCharacter(const FGrpcNightfallV1Character& Character,  
-        FString& Id, FString& Name, EGrpcNightfallV1Race& Race, 
-        FUInt32& Level, FGrpcNightfallV1BaseStats& Stats, FGrpcNightfallV1Position& Position 
+    static void BreakCharacter(const FGrpcNightfallV1Character& Character,
+        FString& Id, FString& Name, EGrpcNightfallV1Race& Race,
+        FUInt32& Level, FGrpcNightfallV1BaseStats& Stats, FGrpcNightfallV1Position& Position,
+        FUInt32& ClassId, FUInt32& BaseClassId, FUInt32& ActiveClassSlot,
+        TArray<FGrpcNightfallV1ClassProgress>& Classes, EGrpcNightfallV1Sex& Sex, FUInt32& HairStyle,
+        FUInt32& HairColor, FUInt32& Face
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1SkillLearnInfoHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1SkillLearnInfo MakeSkillLearnInfo(
+        FString Key, FUInt32 SkillLevel, FUInt32 RequiredLevel,
+        FUInt64 SpCost, bool AutoGet, TArray<FGrpcNightfallV1SkillItemRequirement> RequiredItems,
+        FUInt32 SkillId, FString L2Ref, bool LearnedByNpc,
+        bool EffectImplemented
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void BreakSkillLearnInfo(const FGrpcNightfallV1SkillLearnInfo& SkillLearnInfo,
+        FString& Key, FUInt32& SkillLevel, FUInt32& RequiredLevel,
+        FUInt64& SpCost, bool& AutoGet, TArray<FGrpcNightfallV1SkillItemRequirement>& RequiredItems,
+        FUInt32& SkillId, FString& L2Ref, bool& LearnedByNpc,
+        bool& EffectImplemented
     );
 };

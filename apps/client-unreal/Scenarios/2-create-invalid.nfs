@@ -1,0 +1,26 @@
+# covers: 2 E2.2, 2 E2.5, 2 E5.1, 2 E5.5
+# Invalid race/class/sex/appearance creates must fail before persistence; a later valid create works.
+nf.Login
+nf.WaitFor connected 15
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.CreateClass 5 10 1
+nf.WaitFor class_rpc_error == invalidargument 15
+nf.Expect creation_count == 0
+nf.CreateClass 1 1 1
+nf.WaitFor class_rpc_error == invalidargument 15
+nf.Expect creation_count == 0
+nf.CreateClass 1 0 9
+nf.WaitFor class_rpc_error == invalidargument 15
+nf.Expect creation_count == 0
+nf.CreateClass 1 0 1 1
+nf.WaitFor class_rpc_error == invalidargument 15
+nf.Expect creation_count == 0
+nf.CreateClass 1 0 1
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 1
+nf.Expect creation_matches_catalogue
+nf.EnterCreated
+nf.WaitFor in_world 15
+nf.Expect world_class == 0
+nf.Within 90

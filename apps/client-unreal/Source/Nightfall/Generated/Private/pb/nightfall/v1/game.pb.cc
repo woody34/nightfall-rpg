@@ -123,7 +123,9 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 template <typename>
 PROTOBUF_CONSTEXPR CreateCharacterRequest::CreateCharacterRequest(
     ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.idempotency_key_)*/ {
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.idempotency_key_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
@@ -137,7 +139,16 @@ PROTOBUF_CONSTEXPR CreateCharacterRequest::CreateCharacterRequest(
 
   , /*decltype(_impl_.race_)*/ 0
 
-  , /*decltype(_impl_._cached_size_)*/{}} {}
+  , /*decltype(_impl_.base_class_id_)*/ 0u
+
+  , /*decltype(_impl_.sex_)*/ 0
+
+  , /*decltype(_impl_.hair_style_)*/ 0u
+
+  , /*decltype(_impl_.hair_color_)*/ 0u
+
+  , /*decltype(_impl_.face_)*/ 0u
+} {}
 struct CreateCharacterRequestDefaultTypeInternal {
   PROTOBUF_CONSTEXPR CreateCharacterRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~CreateCharacterRequestDefaultTypeInternal() {}
@@ -179,6 +190,7 @@ PROTOBUF_CONSTEXPR Character::Character(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_._has_bits_)*/{}
   , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.classes_)*/{}
   , /*decltype(_impl_.id_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
@@ -192,6 +204,20 @@ PROTOBUF_CONSTEXPR Character::Character(
   , /*decltype(_impl_.race_)*/ 0
 
   , /*decltype(_impl_.level_)*/ 0u
+
+  , /*decltype(_impl_.class_id_)*/ 0u
+
+  , /*decltype(_impl_.base_class_id_)*/ 0u
+
+  , /*decltype(_impl_.active_class_slot_)*/ 0u
+
+  , /*decltype(_impl_.sex_)*/ 0
+
+  , /*decltype(_impl_.hair_style_)*/ 0u
+
+  , /*decltype(_impl_.hair_color_)*/ 0u
+
+  , /*decltype(_impl_.face_)*/ 0u
 } {}
 struct CharacterDefaultTypeInternal {
   PROTOBUF_CONSTEXPR CharacterDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -221,10 +247,401 @@ struct PositionDefaultTypeInternal {
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PositionDefaultTypeInternal _Position_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ClassProgress::ClassProgress(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.slot_)*/ 0u
+
+  , /*decltype(_impl_.class_id_)*/ 0u
+
+  , /*decltype(_impl_.exp_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.sp_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.level_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct ClassProgressDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ClassProgressDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ClassProgressDefaultTypeInternal() {}
+  union {
+    ClassProgress _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ClassProgressDefaultTypeInternal _ClassProgress_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillLearnInfo::SkillLearnInfo(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.required_items_)*/{}
+  , /*decltype(_impl_.key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.l2_ref_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_.required_level_)*/ 0u
+
+  , /*decltype(_impl_.sp_cost_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.auto_get_)*/ false
+
+  , /*decltype(_impl_.learned_by_npc_)*/ false
+
+  , /*decltype(_impl_.effect_implemented_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillLearnInfoDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillLearnInfoDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillLearnInfoDefaultTypeInternal() {}
+  union {
+    SkillLearnInfo _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillLearnInfoDefaultTypeInternal _SkillLearnInfo_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillItemRequirement::SkillItemRequirement(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.item_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.count_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillItemRequirementDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillItemRequirementDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillItemRequirementDefaultTypeInternal() {}
+  union {
+    SkillItemRequirement _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillItemRequirementDefaultTypeInternal _SkillItemRequirement_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ProficiencyInfo::ProficiencyInfo(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.l2_ref_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.min_level_)*/ 0u
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_.effect_implemented_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct ProficiencyInfoDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ProficiencyInfoDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ProficiencyInfoDefaultTypeInternal() {}
+  union {
+    ProficiencyInfo _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ProficiencyInfoDefaultTypeInternal _ProficiencyInfo_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ClassInfo::ClassInfo(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.subclass_equivalents_)*/ {}
+  ,/* _impl_._subclass_equivalents_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.skill_tree_)*/{}
+  , /*decltype(_impl_.proficiencies_)*/{}
+  , /*decltype(_impl_.key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.display_name_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.base_stats_)*/nullptr
+  , /*decltype(_impl_.class_id_)*/ 0u
+
+  , /*decltype(_impl_.race_)*/ 0
+
+  , /*decltype(_impl_.tier_)*/ 0u
+
+  , /*decltype(_impl_.parent_class_id_)*/ 0u
+
+  , /*decltype(_impl_.min_level_)*/ 0u
+
+  , /*decltype(_impl_.archetype_)*/ 0
+
+  , /*decltype(_impl_.subclass_allowed_)*/ false
+
+  , /*decltype(_impl_.skill_tree_populated_)*/ false
+
+  , /*decltype(_impl_.walk_speed_)*/ 0u
+
+  , /*decltype(_impl_.run_speed_)*/ 0u
+
+  , /*decltype(_impl_.swim_speed_)*/ 0u
+} {}
+struct ClassInfoDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ClassInfoDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ClassInfoDefaultTypeInternal() {}
+  union {
+    ClassInfo _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ClassInfoDefaultTypeInternal _ClassInfo_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR PassiveInfo::PassiveInfo(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.display_name_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.description_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.implemented_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct PassiveInfoDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR PassiveInfoDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~PassiveInfoDefaultTypeInternal() {}
+  union {
+    PassiveInfo _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PassiveInfoDefaultTypeInternal _PassiveInfo_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR RaceInfo::RaceInfo(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.base_class_ids_)*/ {}
+  ,/* _impl_._base_class_ids_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.passive_skill_keys_)*/{}
+  , /*decltype(_impl_.passives_)*/{}
+  , /*decltype(_impl_.display_name_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.race_)*/ 0
+
+  , /*decltype(_impl_.mystic_path_)*/ false
+
+  , /*decltype(_impl_.walk_speed_)*/ 0u
+
+  , /*decltype(_impl_.run_speed_)*/ 0u
+
+  , /*decltype(_impl_.hair_style_count_)*/ 0u
+
+  , /*decltype(_impl_.hair_color_count_)*/ 0u
+
+  , /*decltype(_impl_.face_count_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct RaceInfoDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR RaceInfoDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~RaceInfoDefaultTypeInternal() {}
+  union {
+    RaceInfo _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 RaceInfoDefaultTypeInternal _RaceInfo_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ClassMasterInfo::ClassMasterInfo(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.name_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.position_)*/nullptr
+  , /*decltype(_impl_.interaction_radius_)*/ 0
+} {}
+struct ClassMasterInfoDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ClassMasterInfoDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ClassMasterInfoDefaultTypeInternal() {}
+  union {
+    ClassMasterInfo _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ClassMasterInfoDefaultTypeInternal _ClassMasterInfo_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ListClassesRequest::ListClassesRequest(
+    ::_pbi::ConstantInitialized) {}
+struct ListClassesRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ListClassesRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ListClassesRequestDefaultTypeInternal() {}
+  union {
+    ListClassesRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ListClassesRequestDefaultTypeInternal _ListClassesRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ListClassesResponse::ListClassesResponse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.races_)*/{}
+  , /*decltype(_impl_.classes_)*/{}
+  , /*decltype(_impl_.data_version_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.class_master_)*/nullptr
+  , /*decltype(_impl_.playable_level_cap_)*/ 0u
+
+  , /*decltype(_impl_.max_transfer_tier_)*/ 0u
+} {}
+struct ListClassesResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ListClassesResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ListClassesResponseDefaultTypeInternal() {}
+  union {
+    ListClassesResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ListClassesResponseDefaultTypeInternal _ListClassesResponse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR TransferOptionsRequest::TransferOptionsRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.character_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct TransferOptionsRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR TransferOptionsRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~TransferOptionsRequestDefaultTypeInternal() {}
+  union {
+    TransferOptionsRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TransferOptionsRequestDefaultTypeInternal _TransferOptionsRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR TransferOption::TransferOption(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.unmet_)*/{}
+  , /*decltype(_impl_.class_id_)*/ 0u
+
+  , /*decltype(_impl_.eligible_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct TransferOptionDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR TransferOptionDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~TransferOptionDefaultTypeInternal() {}
+  union {
+    TransferOption _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TransferOptionDefaultTypeInternal _TransferOption_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR TransferOptionsResponse::TransferOptionsResponse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.options_)*/{}
+  , /*decltype(_impl_.current_class_id_)*/ 0u
+
+  , /*decltype(_impl_.token_tier_1_count_)*/ 0u
+
+  , /*decltype(_impl_.token_tier_2_count_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct TransferOptionsResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR TransferOptionsResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~TransferOptionsResponseDefaultTypeInternal() {}
+  union {
+    TransferOptionsResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TransferOptionsResponseDefaultTypeInternal _TransferOptionsResponse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ChangeClassRequest::ChangeClassRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.character_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.idempotency_key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.target_class_id_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct ChangeClassRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ChangeClassRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ChangeClassRequestDefaultTypeInternal() {}
+  union {
+    ChangeClassRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ChangeClassRequestDefaultTypeInternal _ChangeClassRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ChangeClassResponse::ChangeClassResponse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.granted_skill_keys_)*/{}
+  , /*decltype(_impl_.character_)*/nullptr
+  , /*decltype(_impl_.token_tier_1_count_)*/ 0u
+
+  , /*decltype(_impl_.token_tier_2_count_)*/ 0u
+} {}
+struct ChangeClassResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ChangeClassResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ChangeClassResponseDefaultTypeInternal() {}
+  union {
+    ChangeClassResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ChangeClassResponseDefaultTypeInternal _ChangeClassResponse_default_instance_;
 }  // namespace v1
 }  // namespace nightfall
-static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fgame_2eproto[9];
-static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fgame_2eproto[1];
+static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fgame_2eproto[24];
+static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fgame_2eproto[3];
 static constexpr const ::_pb::ServiceDescriptor**
     file_level_service_descriptors_nightfall_2fv1_2fgame_2eproto = nullptr;
 const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(
@@ -274,7 +691,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_S
     ~0u,  // no _split_
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GetCharacterRequest, _impl_.character_id_),
-    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
@@ -286,6 +703,20 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_S
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_.account_id_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_.name_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_.race_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_.base_class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_.sex_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_.hair_style_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_.hair_color_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CreateCharacterRequest, _impl_.face_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::BaseStats, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -314,12 +745,28 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_S
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.level_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.stats_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.position_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.base_class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.active_class_slot_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.classes_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.sex_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.hair_style_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.hair_color_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.face_),
     ~0u,
     ~0u,
     ~0u,
     ~0u,
     0,
     1,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Position, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -330,6 +777,235 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_S
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Position, _impl_.x_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Position, _impl_.y_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassProgress, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassProgress, _impl_.slot_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassProgress, _impl_.class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassProgress, _impl_.level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassProgress, _impl_.exp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassProgress, _impl_.sp_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.required_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.sp_cost_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.auto_get_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.required_items_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.l2_ref_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.learned_by_npc_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearnInfo, _impl_.effect_implemented_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillItemRequirement, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillItemRequirement, _impl_.item_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillItemRequirement, _impl_.count_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ProficiencyInfo, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ProficiencyInfo, _impl_.key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ProficiencyInfo, _impl_.min_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ProficiencyInfo, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ProficiencyInfo, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ProficiencyInfo, _impl_.l2_ref_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ProficiencyInfo, _impl_.effect_implemented_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.display_name_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.race_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.tier_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.parent_class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.min_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.archetype_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.base_stats_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.subclass_allowed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.subclass_equivalents_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.skill_tree_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.proficiencies_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.walk_speed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.run_speed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.swim_speed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassInfo, _impl_.skill_tree_populated_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PassiveInfo, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PassiveInfo, _impl_.key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PassiveInfo, _impl_.display_name_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PassiveInfo, _impl_.description_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PassiveInfo, _impl_.implemented_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.race_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.display_name_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.mystic_path_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.walk_speed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.run_speed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.base_class_ids_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.passive_skill_keys_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.hair_style_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.hair_color_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.face_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RaceInfo, _impl_.passives_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassMasterInfo, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassMasterInfo, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassMasterInfo, _impl_.name_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassMasterInfo, _impl_.position_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassMasterInfo, _impl_.interaction_radius_),
+    ~0u,
+    0,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesResponse, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesResponse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesResponse, _impl_.data_version_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesResponse, _impl_.races_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesResponse, _impl_.classes_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesResponse, _impl_.playable_level_cap_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesResponse, _impl_.max_transfer_tier_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListClassesResponse, _impl_.class_master_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOptionsRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOptionsRequest, _impl_.character_id_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOption, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOption, _impl_.class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOption, _impl_.eligible_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOption, _impl_.unmet_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOptionsResponse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOptionsResponse, _impl_.options_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOptionsResponse, _impl_.current_class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOptionsResponse, _impl_.token_tier_1_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TransferOptionsResponse, _impl_.token_tier_2_count_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassRequest, _impl_.character_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassRequest, _impl_.target_class_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassRequest, _impl_.idempotency_key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassResponse, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassResponse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassResponse, _impl_.character_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassResponse, _impl_.granted_skill_keys_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassResponse, _impl_.token_tier_1_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ChangeClassResponse, _impl_.token_tier_2_count_),
+    0,
+    ~0u,
+    ~0u,
+    ~0u,
 };
 
 static const ::_pbi::MigrationSchema
@@ -339,10 +1015,25 @@ static const ::_pbi::MigrationSchema
         { 17, -1, -1, sizeof(::nightfall::v1::PingRequest)},
         { 26, -1, -1, sizeof(::nightfall::v1::PingResponse)},
         { 36, -1, -1, sizeof(::nightfall::v1::GetCharacterRequest)},
-        { 45, -1, -1, sizeof(::nightfall::v1::CreateCharacterRequest)},
-        { 57, -1, -1, sizeof(::nightfall::v1::BaseStats)},
-        { 71, 85, -1, sizeof(::nightfall::v1::Character)},
-        { 91, -1, -1, sizeof(::nightfall::v1::Position)},
+        { 45, 62, -1, sizeof(::nightfall::v1::CreateCharacterRequest)},
+        { 71, -1, -1, sizeof(::nightfall::v1::BaseStats)},
+        { 85, 107, -1, sizeof(::nightfall::v1::Character)},
+        { 121, -1, -1, sizeof(::nightfall::v1::Position)},
+        { 131, -1, -1, sizeof(::nightfall::v1::ClassProgress)},
+        { 144, -1, -1, sizeof(::nightfall::v1::SkillLearnInfo)},
+        { 162, -1, -1, sizeof(::nightfall::v1::SkillItemRequirement)},
+        { 172, -1, -1, sizeof(::nightfall::v1::ProficiencyInfo)},
+        { 186, 211, -1, sizeof(::nightfall::v1::ClassInfo)},
+        { 228, -1, -1, sizeof(::nightfall::v1::PassiveInfo)},
+        { 240, -1, -1, sizeof(::nightfall::v1::RaceInfo)},
+        { 259, 270, -1, sizeof(::nightfall::v1::ClassMasterInfo)},
+        { 273, -1, -1, sizeof(::nightfall::v1::ListClassesRequest)},
+        { 281, 295, -1, sizeof(::nightfall::v1::ListClassesResponse)},
+        { 301, -1, -1, sizeof(::nightfall::v1::TransferOptionsRequest)},
+        { 310, -1, -1, sizeof(::nightfall::v1::TransferOption)},
+        { 321, -1, -1, sizeof(::nightfall::v1::TransferOptionsResponse)},
+        { 333, -1, -1, sizeof(::nightfall::v1::ChangeClassRequest)},
+        { 344, 356, -1, sizeof(::nightfall::v1::ChangeClassResponse)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -355,6 +1046,21 @@ static const ::_pb::Message* const file_default_instances[] = {
     &::nightfall::v1::_BaseStats_default_instance_._instance,
     &::nightfall::v1::_Character_default_instance_._instance,
     &::nightfall::v1::_Position_default_instance_._instance,
+    &::nightfall::v1::_ClassProgress_default_instance_._instance,
+    &::nightfall::v1::_SkillLearnInfo_default_instance_._instance,
+    &::nightfall::v1::_SkillItemRequirement_default_instance_._instance,
+    &::nightfall::v1::_ProficiencyInfo_default_instance_._instance,
+    &::nightfall::v1::_ClassInfo_default_instance_._instance,
+    &::nightfall::v1::_PassiveInfo_default_instance_._instance,
+    &::nightfall::v1::_RaceInfo_default_instance_._instance,
+    &::nightfall::v1::_ClassMasterInfo_default_instance_._instance,
+    &::nightfall::v1::_ListClassesRequest_default_instance_._instance,
+    &::nightfall::v1::_ListClassesResponse_default_instance_._instance,
+    &::nightfall::v1::_TransferOptionsRequest_default_instance_._instance,
+    &::nightfall::v1::_TransferOption_default_instance_._instance,
+    &::nightfall::v1::_TransferOptionsResponse_default_instance_._instance,
+    &::nightfall::v1::_ChangeClassRequest_default_instance_._instance,
+    &::nightfall::v1::_ChangeClassResponse_default_instance_._instance,
 };
 const char descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
     "\n\027nightfall/v1/game.proto\022\014nightfall.v1\""
@@ -364,40 +1070,117 @@ const char descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto[] PROTOBUF_SE
     "ient_version\030\001 \001(\t\">\n\014PingResponse\022\026\n\016se"
     "rver_version\030\001 \001(\t\022\026\n\016server_time_ms\030\002 \001"
     "(\003\"+\n\023GetCharacterRequest\022\024\n\014character_i"
-    "d\030\001 \001(\t\"y\n\026CreateCharacterRequest\022\027\n\017ide"
-    "mpotency_key\030\001 \001(\t\022\026\n\naccount_id\030\002 \001(\tB\002"
-    "\030\001\022\014\n\004name\030\003 \001(\t\022 \n\004race\030\004 \001(\0162\022.nightfa"
-    "ll.v1.Race\"Y\n\tBaseStats\022\013\n\003str\030\001 \001(\r\022\013\n\003"
-    "dex\030\002 \001(\r\022\013\n\003con\030\003 \001(\r\022\013\n\003int\030\004 \001(\r\022\013\n\003w"
-    "it\030\005 \001(\r\022\013\n\003men\030\006 \001(\r\"\250\001\n\tCharacter\022\n\n\002i"
-    "d\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022 \n\004race\030\003 \001(\0162\022.ni"
-    "ghtfall.v1.Race\022\r\n\005level\030\004 \001(\r\022&\n\005stats\030"
-    "\005 \001(\0132\027.nightfall.v1.BaseStats\022(\n\010positi"
-    "on\030\006 \001(\0132\026.nightfall.v1.Position\" \n\010Posi"
-    "tion\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002*k\n\004Race\022\024\n\020RA"
-    "CE_UNSPECIFIED\020\000\022\016\n\nRACE_HUMAN\020\001\022\014\n\010RACE"
-    "_ELF\020\002\022\021\n\rRACE_DARK_ELF\020\003\022\014\n\010RACE_ORC\020\004\022"
-    "\016\n\nRACE_DWARF\020\0052\315\002\n\013GameService\022=\n\004Ping\022"
-    "\031.nightfall.v1.PingRequest\032\032.nightfall.v"
-    "1.PingResponse\022J\n\014GetCharacter\022!.nightfa"
-    "ll.v1.GetCharacterRequest\032\027.nightfall.v1"
-    ".Character\022P\n\017CreateCharacter\022$.nightfal"
-    "l.v1.CreateCharacterRequest\032\027.nightfall."
-    "v1.Character\022a\n\020ListMyCharacters\022%.night"
-    "fall.v1.ListMyCharactersRequest\032&.nightf"
-    "all.v1.ListMyCharactersResponseb\006proto3"
+    "d\030\001 \001(\t\"\375\001\n\026CreateCharacterRequest\022\027\n\017id"
+    "empotency_key\030\001 \001(\t\022\026\n\naccount_id\030\002 \001(\tB"
+    "\002\030\001\022\014\n\004name\030\003 \001(\t\022 \n\004race\030\004 \001(\0162\022.nightf"
+    "all.v1.Race\022\032\n\rbase_class_id\030\005 \001(\rH\000\210\001\001\022"
+    "\036\n\003sex\030\006 \001(\0162\021.nightfall.v1.Sex\022\022\n\nhair_"
+    "style\030\007 \001(\r\022\022\n\nhair_color\030\010 \001(\r\022\014\n\004face\030"
+    "\t \001(\rB\020\n\016_base_class_id\"Y\n\tBaseStats\022\013\n\003"
+    "str\030\001 \001(\r\022\013\n\003dex\030\002 \001(\r\022\013\n\003con\030\003 \001(\r\022\013\n\003i"
+    "nt\030\004 \001(\r\022\013\n\003wit\030\005 \001(\r\022\013\n\003men\030\006 \001(\r\"\360\002\n\tC"
+    "haracter\022\n\n\002id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022 \n\004ra"
+    "ce\030\003 \001(\0162\022.nightfall.v1.Race\022\r\n\005level\030\004 "
+    "\001(\r\022&\n\005stats\030\005 \001(\0132\027.nightfall.v1.BaseSt"
+    "ats\022(\n\010position\030\006 \001(\0132\026.nightfall.v1.Pos"
+    "ition\022\020\n\010class_id\030\007 \001(\r\022\025\n\rbase_class_id"
+    "\030\010 \001(\r\022\031\n\021active_class_slot\030\t \001(\r\022,\n\007cla"
+    "sses\030\n \003(\0132\033.nightfall.v1.ClassProgress\022"
+    "\036\n\003sex\030\013 \001(\0162\021.nightfall.v1.Sex\022\022\n\nhair_"
+    "style\030\014 \001(\r\022\022\n\nhair_color\030\r \001(\r\022\014\n\004face\030"
+    "\016 \001(\r\" \n\010Position\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\""
+    "W\n\rClassProgress\022\014\n\004slot\030\001 \001(\r\022\020\n\010class_"
+    "id\030\002 \001(\r\022\r\n\005level\030\003 \001(\r\022\013\n\003exp\030\004 \001(\004\022\n\n\002"
+    "sp\030\005 \001(\004\"\377\001\n\016SkillLearnInfo\022\013\n\003key\030\001 \001(\t"
+    "\022\023\n\013skill_level\030\002 \001(\r\022\026\n\016required_level\030"
+    "\003 \001(\r\022\017\n\007sp_cost\030\004 \001(\004\022\020\n\010auto_get\030\005 \001(\010"
+    "\022:\n\016required_items\030\006 \003(\0132\".nightfall.v1."
+    "SkillItemRequirement\022\020\n\010skill_id\030\007 \001(\r\022\016"
+    "\n\006l2_ref\030\010 \001(\t\022\026\n\016learned_by_npc\030\t \001(\010\022\032"
+    "\n\022effect_implemented\030\n \001(\010\"3\n\024SkillItemR"
+    "equirement\022\014\n\004item\030\001 \001(\t\022\r\n\005count\030\002 \001(\r\""
+    "\204\001\n\017ProficiencyInfo\022\013\n\003key\030\001 \001(\t\022\021\n\tmin_"
+    "level\030\002 \001(\r\022\020\n\010skill_id\030\003 \001(\r\022\023\n\013skill_l"
+    "evel\030\004 \001(\r\022\016\n\006l2_ref\030\005 \001(\t\022\032\n\022effect_imp"
+    "lemented\030\006 \001(\010\"\356\003\n\tClassInfo\022\020\n\010class_id"
+    "\030\001 \001(\r\022\013\n\003key\030\002 \001(\t\022\024\n\014display_name\030\003 \001("
+    "\t\022 \n\004race\030\004 \001(\0162\022.nightfall.v1.Race\022\014\n\004t"
+    "ier\030\005 \001(\r\022\027\n\017parent_class_id\030\006 \001(\r\022\021\n\tmi"
+    "n_level\030\007 \001(\r\022*\n\tarchetype\030\010 \001(\0162\027.night"
+    "fall.v1.Archetype\022+\n\nbase_stats\030\t \001(\0132\027."
+    "nightfall.v1.BaseStats\022\030\n\020subclass_allow"
+    "ed\030\n \001(\010\022\034\n\024subclass_equivalents\030\013 \003(\r\0220"
+    "\n\nskill_tree\030\014 \003(\0132\034.nightfall.v1.SkillL"
+    "earnInfo\0224\n\rproficiencies\030\r \003(\0132\035.nightf"
+    "all.v1.ProficiencyInfo\022\022\n\nwalk_speed\030\016 \001"
+    "(\r\022\021\n\trun_speed\030\017 \001(\r\022\022\n\nswim_speed\030\020 \001("
+    "\r\022\034\n\024skill_tree_populated\030\021 \001(\010\"Z\n\013Passi"
+    "veInfo\022\013\n\003key\030\001 \001(\t\022\024\n\014display_name\030\002 \001("
+    "\t\022\023\n\013description\030\003 \001(\t\022\023\n\013implemented\030\004 "
+    "\001(\010\"\247\002\n\010RaceInfo\022 \n\004race\030\001 \001(\0162\022.nightfa"
+    "ll.v1.Race\022\024\n\014display_name\030\002 \001(\t\022\023\n\013myst"
+    "ic_path\030\003 \001(\010\022\022\n\nwalk_speed\030\004 \001(\r\022\021\n\trun"
+    "_speed\030\005 \001(\r\022\026\n\016base_class_ids\030\006 \003(\r\022\032\n\022"
+    "passive_skill_keys\030\007 \003(\t\022\030\n\020hair_style_c"
+    "ount\030\010 \001(\r\022\030\n\020hair_color_count\030\t \001(\r\022\022\n\n"
+    "face_count\030\n \001(\r\022+\n\010passives\030\013 \003(\0132\031.nig"
+    "htfall.v1.PassiveInfo\"e\n\017ClassMasterInfo"
+    "\022\014\n\004name\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.night"
+    "fall.v1.Position\022\032\n\022interaction_radius\030\003"
+    " \001(\002\"\024\n\022ListClassesRequest\"\350\001\n\023ListClass"
+    "esResponse\022\024\n\014data_version\030\001 \001(\t\022%\n\005race"
+    "s\030\002 \003(\0132\026.nightfall.v1.RaceInfo\022(\n\007class"
+    "es\030\003 \003(\0132\027.nightfall.v1.ClassInfo\022\032\n\022pla"
+    "yable_level_cap\030\004 \001(\r\022\031\n\021max_transfer_ti"
+    "er\030\005 \001(\r\0223\n\014class_master\030\006 \001(\0132\035.nightfa"
+    "ll.v1.ClassMasterInfo\".\n\026TransferOptions"
+    "Request\022\024\n\014character_id\030\001 \001(\t\"C\n\016Transfe"
+    "rOption\022\020\n\010class_id\030\001 \001(\r\022\020\n\010eligible\030\002 "
+    "\001(\010\022\r\n\005unmet\030\003 \003(\t\"\232\001\n\027TransferOptionsRe"
+    "sponse\022-\n\007options\030\001 \003(\0132\034.nightfall.v1.T"
+    "ransferOption\022\030\n\020current_class_id\030\002 \001(\r\022"
+    "\032\n\022token_tier_1_count\030\003 \001(\r\022\032\n\022token_tie"
+    "r_2_count\030\004 \001(\r\"\\\n\022ChangeClassRequest\022\024\n"
+    "\014character_id\030\001 \001(\t\022\027\n\017target_class_id\030\002"
+    " \001(\r\022\027\n\017idempotency_key\030\003 \001(\t\"\225\001\n\023Change"
+    "ClassResponse\022*\n\tcharacter\030\001 \001(\0132\027.night"
+    "fall.v1.Character\022\032\n\022granted_skill_keys\030"
+    "\002 \003(\t\022\032\n\022token_tier_1_count\030\003 \001(\r\022\032\n\022tok"
+    "en_tier_2_count\030\004 \001(\r*k\n\004Race\022\024\n\020RACE_UN"
+    "SPECIFIED\020\000\022\016\n\nRACE_HUMAN\020\001\022\014\n\010RACE_ELF\020"
+    "\002\022\021\n\rRACE_DARK_ELF\020\003\022\014\n\010RACE_ORC\020\004\022\016\n\nRA"
+    "CE_DWARF\020\005*8\n\003Sex\022\023\n\017SEX_UNSPECIFIED\020\000\022\014"
+    "\n\010SEX_MALE\020\001\022\016\n\nSEX_FEMALE\020\002*S\n\tArchetyp"
+    "e\022\031\n\025ARCHETYPE_UNSPECIFIED\020\000\022\025\n\021ARCHETYP"
+    "E_FIGHTER\020\001\022\024\n\020ARCHETYPE_MYSTIC\020\0022\325\004\n\013Ga"
+    "meService\022=\n\004Ping\022\031.nightfall.v1.PingReq"
+    "uest\032\032.nightfall.v1.PingResponse\022J\n\014GetC"
+    "haracter\022!.nightfall.v1.GetCharacterRequ"
+    "est\032\027.nightfall.v1.Character\022P\n\017CreateCh"
+    "aracter\022$.nightfall.v1.CreateCharacterRe"
+    "quest\032\027.nightfall.v1.Character\022a\n\020ListMy"
+    "Characters\022%.nightfall.v1.ListMyCharacte"
+    "rsRequest\032&.nightfall.v1.ListMyCharacter"
+    "sResponse\022R\n\013ListClasses\022 .nightfall.v1."
+    "ListClassesRequest\032!.nightfall.v1.ListCl"
+    "assesResponse\022^\n\017TransferOptions\022$.night"
+    "fall.v1.TransferOptionsRequest\032%.nightfa"
+    "ll.v1.TransferOptionsResponse\022R\n\013ChangeC"
+    "lass\022 .nightfall.v1.ChangeClassRequest\032!"
+    ".nightfall.v1.ChangeClassResponseb\006proto"
+    "3"
 };
 static ::absl::once_flag descriptor_table_nightfall_2fv1_2fgame_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fgame_2eproto = {
     false,
     false,
-    1159,
+    4201,
     descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto,
     "nightfall/v1/game.proto",
     &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
     nullptr,
     0,
-    9,
+    24,
     schemas,
     file_default_instances,
     TableStruct_nightfall_2fv1_2fgame_2eproto::offsets,
@@ -437,6 +1220,34 @@ bool Race_IsValid(int value) {
     case 3:
     case 4:
     case 5:
+      return true;
+    default:
+      return false;
+  }
+}
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* Sex_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fgame_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fgame_2eproto[1];
+}
+bool Sex_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+      return true;
+    default:
+      return false;
+  }
+}
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* Archetype_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fgame_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fgame_2eproto[2];
+}
+bool Archetype_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
       return true;
     default:
       return false;
@@ -1287,6 +2098,12 @@ void GetCharacterRequest::InternalSwap(GetCharacterRequest* other) {
 
 class CreateCharacterRequest::_Internal {
  public:
+  using HasBits = decltype(std::declval<CreateCharacterRequest>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(CreateCharacterRequest, _impl_._has_bits_);
+  static void set_has_base_class_id(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
 CreateCharacterRequest::CreateCharacterRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
@@ -1298,7 +2115,9 @@ CreateCharacterRequest::CreateCharacterRequest(const CreateCharacterRequest& fro
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   CreateCharacterRequest* const _this = this; (void)_this;
   new (&_impl_) Impl_{
-      decltype(_impl_.idempotency_key_) {}
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.idempotency_key_) {}
 
     , decltype(_impl_.account_id_) {}
 
@@ -1306,7 +2125,16 @@ CreateCharacterRequest::CreateCharacterRequest(const CreateCharacterRequest& fro
 
     , decltype(_impl_.race_) {}
 
-    , /*decltype(_impl_._cached_size_)*/{}};
+    , decltype(_impl_.base_class_id_) {}
+
+    , decltype(_impl_.sex_) {}
+
+    , decltype(_impl_.hair_style_) {}
+
+    , decltype(_impl_.hair_color_) {}
+
+    , decltype(_impl_.face_) {}
+  };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   _impl_.idempotency_key_.InitDefault();
@@ -1330,14 +2158,18 @@ CreateCharacterRequest::CreateCharacterRequest(const CreateCharacterRequest& fro
   if (!from._internal_name().empty()) {
     _this->_impl_.name_.Set(from._internal_name(), _this->GetArenaForAllocation());
   }
-  _this->_impl_.race_ = from._impl_.race_;
+  ::memcpy(&_impl_.race_, &from._impl_.race_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.face_) -
+    reinterpret_cast<char*>(&_impl_.race_)) + sizeof(_impl_.face_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.CreateCharacterRequest)
 }
 
 inline void CreateCharacterRequest::SharedCtor(::_pb::Arena* arena) {
   (void)arena;
   new (&_impl_) Impl_{
-      decltype(_impl_.idempotency_key_) {}
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.idempotency_key_) {}
 
     , decltype(_impl_.account_id_) {}
 
@@ -1345,7 +2177,16 @@ inline void CreateCharacterRequest::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.race_) { 0 }
 
-    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.base_class_id_) { 0u }
+
+    , decltype(_impl_.sex_) { 0 }
+
+    , decltype(_impl_.hair_style_) { 0u }
+
+    , decltype(_impl_.hair_color_) { 0u }
+
+    , decltype(_impl_.face_) { 0u }
+
   };
   _impl_.idempotency_key_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -1391,11 +2232,17 @@ void CreateCharacterRequest::Clear() {
   _impl_.account_id_.ClearToEmpty();
   _impl_.name_.ClearToEmpty();
   _impl_.race_ = 0;
+  _impl_.base_class_id_ = 0u;
+  ::memset(&_impl_.sex_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.face_) -
+      reinterpret_cast<char*>(&_impl_.sex_)) + sizeof(_impl_.face_));
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* CreateCharacterRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
@@ -1443,6 +2290,53 @@ const char* CreateCharacterRequest::_InternalParse(const char* ptr, ::_pbi::Pars
           goto handle_unusual;
         }
         continue;
+      // optional uint32 base_class_id = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _Internal::set_has_base_class_id(&has_bits);
+          _impl_.base_class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.Sex sex = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_sex(static_cast<::nightfall::v1::Sex>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hair_style = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.hair_style_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hair_color = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.hair_color_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 face = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.face_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -1459,6 +2353,7 @@ const char* CreateCharacterRequest::_InternalParse(const char* ptr, ::_pbi::Pars
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -1503,6 +2398,42 @@ failure:
         4, this->_internal_race(), target);
   }
 
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional uint32 base_class_id = 5;
+  if (cached_has_bits & 0x00000001u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_base_class_id(), target);
+  }
+
+  // .nightfall.v1.Sex sex = 6;
+  if (this->_internal_sex() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        6, this->_internal_sex(), target);
+  }
+
+  // uint32 hair_style = 7;
+  if (this->_internal_hair_style() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_hair_style(), target);
+  }
+
+  // uint32 hair_color = 8;
+  if (this->_internal_hair_color() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_hair_color(), target);
+  }
+
+  // uint32 face = 9;
+  if (this->_internal_face() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        9, this->_internal_face(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -1543,6 +2474,37 @@ failure:
                   ::_pbi::WireFormatLite::EnumSize(this->_internal_race());
   }
 
+  // optional uint32 base_class_id = 5;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_base_class_id());
+  }
+
+  // .nightfall.v1.Sex sex = 6;
+  if (this->_internal_sex() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_sex());
+  }
+
+  // uint32 hair_style = 7;
+  if (this->_internal_hair_style() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hair_style());
+  }
+
+  // uint32 hair_color = 8;
+  if (this->_internal_hair_color() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hair_color());
+  }
+
+  // uint32 face = 9;
+  if (this->_internal_face() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_face());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -1573,6 +2535,21 @@ void CreateCharacterRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg,
   if (from._internal_race() != 0) {
     _this->_internal_set_race(from._internal_race());
   }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_base_class_id(from._internal_base_class_id());
+  }
+  if (from._internal_sex() != 0) {
+    _this->_internal_set_sex(from._internal_sex());
+  }
+  if (from._internal_hair_style() != 0) {
+    _this->_internal_set_hair_style(from._internal_hair_style());
+  }
+  if (from._internal_hair_color() != 0) {
+    _this->_internal_set_hair_color(from._internal_hair_color());
+  }
+  if (from._internal_face() != 0) {
+    _this->_internal_set_face(from._internal_face());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -1592,13 +2569,19 @@ void CreateCharacterRequest::InternalSwap(CreateCharacterRequest* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.idempotency_key_, lhs_arena,
                                        &other->_impl_.idempotency_key_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.account_id_, lhs_arena,
                                        &other->_impl_.account_id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, lhs_arena,
                                        &other->_impl_.name_, rhs_arena);
-  swap(_impl_.race_, other->_impl_.race_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(CreateCharacterRequest, _impl_.face_)
+      + sizeof(CreateCharacterRequest::_impl_.face_)
+      - PROTOBUF_FIELD_OFFSET(CreateCharacterRequest, _impl_.race_)>(
+          reinterpret_cast<char*>(&_impl_.race_),
+          reinterpret_cast<char*>(&other->_impl_.race_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata CreateCharacterRequest::GetMetadata() const {
@@ -1957,6 +2940,7 @@ Character::Character(const Character& from)
   new (&_impl_) Impl_{
       decltype(_impl_._has_bits_){from._impl_._has_bits_}
     , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.classes_){from._impl_.classes_}
     , decltype(_impl_.id_) {}
 
     , decltype(_impl_.name_) {}
@@ -1966,6 +2950,20 @@ Character::Character(const Character& from)
     , decltype(_impl_.race_) {}
 
     , decltype(_impl_.level_) {}
+
+    , decltype(_impl_.class_id_) {}
+
+    , decltype(_impl_.base_class_id_) {}
+
+    , decltype(_impl_.active_class_slot_) {}
+
+    , decltype(_impl_.sex_) {}
+
+    , decltype(_impl_.hair_style_) {}
+
+    , decltype(_impl_.hair_color_) {}
+
+    , decltype(_impl_.face_) {}
   };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -1990,8 +2988,8 @@ Character::Character(const Character& from)
     _this->_impl_.position_ = new ::nightfall::v1::Position(*from._impl_.position_);
   }
   ::memcpy(&_impl_.race_, &from._impl_.race_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.level_) -
-    reinterpret_cast<char*>(&_impl_.race_)) + sizeof(_impl_.level_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.face_) -
+    reinterpret_cast<char*>(&_impl_.race_)) + sizeof(_impl_.face_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.Character)
 }
 
@@ -2000,6 +2998,7 @@ inline void Character::SharedCtor(::_pb::Arena* arena) {
   new (&_impl_) Impl_{
       decltype(_impl_._has_bits_){}
     , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.classes_){arena}
     , decltype(_impl_.id_) {}
 
     , decltype(_impl_.name_) {}
@@ -2009,6 +3008,20 @@ inline void Character::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.race_) { 0 }
 
     , decltype(_impl_.level_) { 0u }
+
+    , decltype(_impl_.class_id_) { 0u }
+
+    , decltype(_impl_.base_class_id_) { 0u }
+
+    , decltype(_impl_.active_class_slot_) { 0u }
+
+    , decltype(_impl_.sex_) { 0 }
+
+    , decltype(_impl_.hair_style_) { 0u }
+
+    , decltype(_impl_.hair_color_) { 0u }
+
+    , decltype(_impl_.face_) { 0u }
 
   };
   _impl_.id_.InitDefault();
@@ -2032,6 +3045,7 @@ Character::~Character() {
 
 inline void Character::SharedDtor() {
   ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_classes()->~RepeatedPtrField();
   _impl_.id_.Destroy();
   _impl_.name_.Destroy();
   if (this != internal_default_instance()) delete _impl_.stats_;
@@ -2048,6 +3062,7 @@ void Character::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
+  _internal_mutable_classes()->Clear();
   _impl_.id_.ClearToEmpty();
   _impl_.name_.ClearToEmpty();
   cached_has_bits = _impl_._has_bits_[0];
@@ -2062,8 +3077,8 @@ void Character::Clear() {
     }
   }
   ::memset(&_impl_.race_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.level_) -
-      reinterpret_cast<char*>(&_impl_.race_)) + sizeof(_impl_.level_));
+      reinterpret_cast<char*>(&_impl_.face_) -
+      reinterpret_cast<char*>(&_impl_.race_)) + sizeof(_impl_.face_));
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -2129,6 +3144,84 @@ const char* Character::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx
       case 6:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
           ptr = ctx->ParseMessage(_internal_mutable_position(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 class_id = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 base_class_id = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.base_class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 active_class_slot = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.active_class_slot_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.ClassProgress classes = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 82)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_classes(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<82>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.Sex sex = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 88)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_sex(static_cast<::nightfall::v1::Sex>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hair_style = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 96)) {
+          _impl_.hair_style_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hair_color = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 104)) {
+          _impl_.hair_color_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 face = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 112)) {
+          _impl_.face_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -2209,6 +3302,63 @@ failure:
         _Internal::position(this).GetCachedSize(), target, stream);
   }
 
+  // uint32 class_id = 7;
+  if (this->_internal_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_class_id(), target);
+  }
+
+  // uint32 base_class_id = 8;
+  if (this->_internal_base_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_base_class_id(), target);
+  }
+
+  // uint32 active_class_slot = 9;
+  if (this->_internal_active_class_slot() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        9, this->_internal_active_class_slot(), target);
+  }
+
+  // repeated .nightfall.v1.ClassProgress classes = 10;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_classes_size()); i < n; i++) {
+    const auto& repfield = this->_internal_classes(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(10, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // .nightfall.v1.Sex sex = 11;
+  if (this->_internal_sex() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        11, this->_internal_sex(), target);
+  }
+
+  // uint32 hair_style = 12;
+  if (this->_internal_hair_style() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        12, this->_internal_hair_style(), target);
+  }
+
+  // uint32 hair_color = 13;
+  if (this->_internal_hair_color() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        13, this->_internal_hair_color(), target);
+  }
+
+  // uint32 face = 14;
+  if (this->_internal_face() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        14, this->_internal_face(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2224,6 +3374,13 @@ failure:
   ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
+
+  // repeated .nightfall.v1.ClassProgress classes = 10;
+  total_size += 1UL * this->_internal_classes_size();
+  for (const auto& msg : this->_internal_classes()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
 
   // string id = 1;
   if (!this->_internal_id().empty()) {
@@ -2266,6 +3423,48 @@ failure:
         this->_internal_level());
   }
 
+  // uint32 class_id = 7;
+  if (this->_internal_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_class_id());
+  }
+
+  // uint32 base_class_id = 8;
+  if (this->_internal_base_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_base_class_id());
+  }
+
+  // uint32 active_class_slot = 9;
+  if (this->_internal_active_class_slot() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_active_class_slot());
+  }
+
+  // .nightfall.v1.Sex sex = 11;
+  if (this->_internal_sex() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_sex());
+  }
+
+  // uint32 hair_style = 12;
+  if (this->_internal_hair_style() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hair_style());
+  }
+
+  // uint32 hair_color = 13;
+  if (this->_internal_hair_color() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hair_color());
+  }
+
+  // uint32 face = 14;
+  if (this->_internal_face() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_face());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -2284,6 +3483,7 @@ void Character::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROT
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
+  _this->_internal_mutable_classes()->MergeFrom(from._internal_classes());
   if (!from._internal_id().empty()) {
     _this->_internal_set_id(from._internal_id());
   }
@@ -2307,6 +3507,27 @@ void Character::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROT
   if (from._internal_level() != 0) {
     _this->_internal_set_level(from._internal_level());
   }
+  if (from._internal_class_id() != 0) {
+    _this->_internal_set_class_id(from._internal_class_id());
+  }
+  if (from._internal_base_class_id() != 0) {
+    _this->_internal_set_base_class_id(from._internal_base_class_id());
+  }
+  if (from._internal_active_class_slot() != 0) {
+    _this->_internal_set_active_class_slot(from._internal_active_class_slot());
+  }
+  if (from._internal_sex() != 0) {
+    _this->_internal_set_sex(from._internal_sex());
+  }
+  if (from._internal_hair_style() != 0) {
+    _this->_internal_set_hair_style(from._internal_hair_style());
+  }
+  if (from._internal_hair_color() != 0) {
+    _this->_internal_set_hair_color(from._internal_hair_color());
+  }
+  if (from._internal_face() != 0) {
+    _this->_internal_set_face(from._internal_face());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -2327,13 +3548,14 @@ void Character::InternalSwap(Character* other) {
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_classes()->InternalSwap(other->_internal_mutable_classes());
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.id_, lhs_arena,
                                        &other->_impl_.id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, lhs_arena,
                                        &other->_impl_.name_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(Character, _impl_.level_)
-      + sizeof(Character::_impl_.level_)
+      PROTOBUF_FIELD_OFFSET(Character, _impl_.face_)
+      + sizeof(Character::_impl_.face_)
       - PROTOBUF_FIELD_OFFSET(Character, _impl_.stats_)>(
           reinterpret_cast<char*>(&_impl_.stats_),
           reinterpret_cast<char*>(&other->_impl_.stats_));
@@ -2573,6 +3795,5031 @@ void Position::InternalSwap(Position* other) {
       &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
       file_level_metadata_nightfall_2fv1_2fgame_2eproto[8]);
 }
+// ===================================================================
+
+class ClassProgress::_Internal {
+ public:
+};
+
+ClassProgress::ClassProgress(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ClassProgress)
+}
+ClassProgress::ClassProgress(const ClassProgress& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _impl_(from._impl_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(
+      from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ClassProgress)
+}
+
+inline void ClassProgress::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.slot_) { 0u }
+
+    , decltype(_impl_.class_id_) { 0u }
+
+    , decltype(_impl_.exp_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.sp_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.level_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+ClassProgress::~ClassProgress() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ClassProgress)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ClassProgress::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void ClassProgress::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ClassProgress::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ClassProgress)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  ::memset(&_impl_.slot_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.level_) -
+      reinterpret_cast<char*>(&_impl_.slot_)) + sizeof(_impl_.level_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ClassProgress::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 slot = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.slot_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 class_id = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 level = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 exp = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.exp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 sp = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.sp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ClassProgress::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ClassProgress)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 slot = 1;
+  if (this->_internal_slot() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_slot(), target);
+  }
+
+  // uint32 class_id = 2;
+  if (this->_internal_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_class_id(), target);
+  }
+
+  // uint32 level = 3;
+  if (this->_internal_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_level(), target);
+  }
+
+  // uint64 exp = 4;
+  if (this->_internal_exp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_exp(), target);
+  }
+
+  // uint64 sp = 5;
+  if (this->_internal_sp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        5, this->_internal_sp(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ClassProgress)
+  return target;
+}
+
+::size_t ClassProgress::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ClassProgress)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // uint32 slot = 1;
+  if (this->_internal_slot() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_slot());
+  }
+
+  // uint32 class_id = 2;
+  if (this->_internal_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_class_id());
+  }
+
+  // uint64 exp = 4;
+  if (this->_internal_exp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_exp());
+  }
+
+  // uint64 sp = 5;
+  if (this->_internal_sp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_sp());
+  }
+
+  // uint32 level = 3;
+  if (this->_internal_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_level());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ClassProgress::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ClassProgress::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ClassProgress::GetClassData() const { return &_class_data_; }
+
+
+void ClassProgress::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ClassProgress*>(&to_msg);
+  auto& from = static_cast<const ClassProgress&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ClassProgress)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from._internal_slot() != 0) {
+    _this->_internal_set_slot(from._internal_slot());
+  }
+  if (from._internal_class_id() != 0) {
+    _this->_internal_set_class_id(from._internal_class_id());
+  }
+  if (from._internal_exp() != 0) {
+    _this->_internal_set_exp(from._internal_exp());
+  }
+  if (from._internal_sp() != 0) {
+    _this->_internal_set_sp(from._internal_sp());
+  }
+  if (from._internal_level() != 0) {
+    _this->_internal_set_level(from._internal_level());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ClassProgress::CopyFrom(const ClassProgress& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ClassProgress)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ClassProgress::IsInitialized() const {
+  return true;
+}
+
+void ClassProgress::InternalSwap(ClassProgress* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ClassProgress, _impl_.level_)
+      + sizeof(ClassProgress::_impl_.level_)
+      - PROTOBUF_FIELD_OFFSET(ClassProgress, _impl_.slot_)>(
+          reinterpret_cast<char*>(&_impl_.slot_),
+          reinterpret_cast<char*>(&other->_impl_.slot_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ClassProgress::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[9]);
+}
+// ===================================================================
+
+class SkillLearnInfo::_Internal {
+ public:
+};
+
+SkillLearnInfo::SkillLearnInfo(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillLearnInfo)
+}
+SkillLearnInfo::SkillLearnInfo(const SkillLearnInfo& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillLearnInfo* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.required_items_){from._impl_.required_items_}
+    , decltype(_impl_.key_) {}
+
+    , decltype(_impl_.l2_ref_) {}
+
+    , decltype(_impl_.skill_level_) {}
+
+    , decltype(_impl_.required_level_) {}
+
+    , decltype(_impl_.sp_cost_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.auto_get_) {}
+
+    , decltype(_impl_.learned_by_npc_) {}
+
+    , decltype(_impl_.effect_implemented_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_key().empty()) {
+    _this->_impl_.key_.Set(from._internal_key(), _this->GetArenaForAllocation());
+  }
+  _impl_.l2_ref_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.l2_ref_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_l2_ref().empty()) {
+    _this->_impl_.l2_ref_.Set(from._internal_l2_ref(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.skill_level_, &from._impl_.skill_level_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.effect_implemented_) -
+    reinterpret_cast<char*>(&_impl_.skill_level_)) + sizeof(_impl_.effect_implemented_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillLearnInfo)
+}
+
+inline void SkillLearnInfo::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.required_items_){arena}
+    , decltype(_impl_.key_) {}
+
+    , decltype(_impl_.l2_ref_) {}
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , decltype(_impl_.required_level_) { 0u }
+
+    , decltype(_impl_.sp_cost_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.auto_get_) { false }
+
+    , decltype(_impl_.learned_by_npc_) { false }
+
+    , decltype(_impl_.effect_implemented_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.l2_ref_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.l2_ref_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillLearnInfo::~SkillLearnInfo() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillLearnInfo)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillLearnInfo::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_required_items()->~RepeatedPtrField();
+  _impl_.key_.Destroy();
+  _impl_.l2_ref_.Destroy();
+}
+
+void SkillLearnInfo::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillLearnInfo::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillLearnInfo)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_required_items()->Clear();
+  _impl_.key_.ClearToEmpty();
+  _impl_.l2_ref_.ClearToEmpty();
+  ::memset(&_impl_.skill_level_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.effect_implemented_) -
+      reinterpret_cast<char*>(&_impl_.skill_level_)) + sizeof(_impl_.effect_implemented_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillLearnInfo::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string key = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillLearnInfo.key"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 required_level = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.required_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 sp_cost = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.sp_cost_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool auto_get = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.auto_get_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.SkillItemRequirement required_items = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_required_items(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<50>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_id = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string l2_ref = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 66)) {
+          auto str = _internal_mutable_l2_ref();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillLearnInfo.l2_ref"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool learned_by_npc = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.learned_by_npc_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool effect_implemented = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.effect_implemented_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillLearnInfo::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillLearnInfo)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string key = 1;
+  if (!this->_internal_key().empty()) {
+    const std::string& _s = this->_internal_key();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillLearnInfo.key");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 skill_level = 2;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_skill_level(), target);
+  }
+
+  // uint32 required_level = 3;
+  if (this->_internal_required_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_required_level(), target);
+  }
+
+  // uint64 sp_cost = 4;
+  if (this->_internal_sp_cost() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_sp_cost(), target);
+  }
+
+  // bool auto_get = 5;
+  if (this->_internal_auto_get() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        5, this->_internal_auto_get(), target);
+  }
+
+  // repeated .nightfall.v1.SkillItemRequirement required_items = 6;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_required_items_size()); i < n; i++) {
+    const auto& repfield = this->_internal_required_items(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(6, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // uint32 skill_id = 7;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_skill_id(), target);
+  }
+
+  // string l2_ref = 8;
+  if (!this->_internal_l2_ref().empty()) {
+    const std::string& _s = this->_internal_l2_ref();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillLearnInfo.l2_ref");
+    target = stream->WriteStringMaybeAliased(8, _s, target);
+  }
+
+  // bool learned_by_npc = 9;
+  if (this->_internal_learned_by_npc() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        9, this->_internal_learned_by_npc(), target);
+  }
+
+  // bool effect_implemented = 10;
+  if (this->_internal_effect_implemented() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        10, this->_internal_effect_implemented(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillLearnInfo)
+  return target;
+}
+
+::size_t SkillLearnInfo::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillLearnInfo)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.SkillItemRequirement required_items = 6;
+  total_size += 1UL * this->_internal_required_items_size();
+  for (const auto& msg : this->_internal_required_items()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // string key = 1;
+  if (!this->_internal_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_key());
+  }
+
+  // string l2_ref = 8;
+  if (!this->_internal_l2_ref().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_l2_ref());
+  }
+
+  // uint32 skill_level = 2;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  // uint32 required_level = 3;
+  if (this->_internal_required_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_required_level());
+  }
+
+  // uint64 sp_cost = 4;
+  if (this->_internal_sp_cost() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_sp_cost());
+  }
+
+  // uint32 skill_id = 7;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // bool auto_get = 5;
+  if (this->_internal_auto_get() != 0) {
+    total_size += 2;
+  }
+
+  // bool learned_by_npc = 9;
+  if (this->_internal_learned_by_npc() != 0) {
+    total_size += 2;
+  }
+
+  // bool effect_implemented = 10;
+  if (this->_internal_effect_implemented() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillLearnInfo::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillLearnInfo::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillLearnInfo::GetClassData() const { return &_class_data_; }
+
+
+void SkillLearnInfo::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillLearnInfo*>(&to_msg);
+  auto& from = static_cast<const SkillLearnInfo&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillLearnInfo)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_required_items()->MergeFrom(from._internal_required_items());
+  if (!from._internal_key().empty()) {
+    _this->_internal_set_key(from._internal_key());
+  }
+  if (!from._internal_l2_ref().empty()) {
+    _this->_internal_set_l2_ref(from._internal_l2_ref());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  if (from._internal_required_level() != 0) {
+    _this->_internal_set_required_level(from._internal_required_level());
+  }
+  if (from._internal_sp_cost() != 0) {
+    _this->_internal_set_sp_cost(from._internal_sp_cost());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_auto_get() != 0) {
+    _this->_internal_set_auto_get(from._internal_auto_get());
+  }
+  if (from._internal_learned_by_npc() != 0) {
+    _this->_internal_set_learned_by_npc(from._internal_learned_by_npc());
+  }
+  if (from._internal_effect_implemented() != 0) {
+    _this->_internal_set_effect_implemented(from._internal_effect_implemented());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillLearnInfo::CopyFrom(const SkillLearnInfo& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillLearnInfo)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillLearnInfo::IsInitialized() const {
+  return true;
+}
+
+void SkillLearnInfo::InternalSwap(SkillLearnInfo* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _internal_mutable_required_items()->InternalSwap(other->_internal_mutable_required_items());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.key_, lhs_arena,
+                                       &other->_impl_.key_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.l2_ref_, lhs_arena,
+                                       &other->_impl_.l2_ref_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillLearnInfo, _impl_.effect_implemented_)
+      + sizeof(SkillLearnInfo::_impl_.effect_implemented_)
+      - PROTOBUF_FIELD_OFFSET(SkillLearnInfo, _impl_.skill_level_)>(
+          reinterpret_cast<char*>(&_impl_.skill_level_),
+          reinterpret_cast<char*>(&other->_impl_.skill_level_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillLearnInfo::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[10]);
+}
+// ===================================================================
+
+class SkillItemRequirement::_Internal {
+ public:
+};
+
+SkillItemRequirement::SkillItemRequirement(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillItemRequirement)
+}
+SkillItemRequirement::SkillItemRequirement(const SkillItemRequirement& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillItemRequirement* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.item_) {}
+
+    , decltype(_impl_.count_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.item_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.item_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_item().empty()) {
+    _this->_impl_.item_.Set(from._internal_item(), _this->GetArenaForAllocation());
+  }
+  _this->_impl_.count_ = from._impl_.count_;
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillItemRequirement)
+}
+
+inline void SkillItemRequirement::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.item_) {}
+
+    , decltype(_impl_.count_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.item_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.item_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillItemRequirement::~SkillItemRequirement() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillItemRequirement)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillItemRequirement::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.item_.Destroy();
+}
+
+void SkillItemRequirement::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillItemRequirement::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillItemRequirement)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.item_.ClearToEmpty();
+  _impl_.count_ = 0u;
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillItemRequirement::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string item = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_item();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillItemRequirement.item"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 count = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillItemRequirement::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillItemRequirement)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string item = 1;
+  if (!this->_internal_item().empty()) {
+    const std::string& _s = this->_internal_item();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillItemRequirement.item");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 count = 2;
+  if (this->_internal_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_count(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillItemRequirement)
+  return target;
+}
+
+::size_t SkillItemRequirement::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillItemRequirement)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string item = 1;
+  if (!this->_internal_item().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_item());
+  }
+
+  // uint32 count = 2;
+  if (this->_internal_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_count());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillItemRequirement::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillItemRequirement::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillItemRequirement::GetClassData() const { return &_class_data_; }
+
+
+void SkillItemRequirement::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillItemRequirement*>(&to_msg);
+  auto& from = static_cast<const SkillItemRequirement&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillItemRequirement)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_item().empty()) {
+    _this->_internal_set_item(from._internal_item());
+  }
+  if (from._internal_count() != 0) {
+    _this->_internal_set_count(from._internal_count());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillItemRequirement::CopyFrom(const SkillItemRequirement& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillItemRequirement)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillItemRequirement::IsInitialized() const {
+  return true;
+}
+
+void SkillItemRequirement::InternalSwap(SkillItemRequirement* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.item_, lhs_arena,
+                                       &other->_impl_.item_, rhs_arena);
+
+  swap(_impl_.count_, other->_impl_.count_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillItemRequirement::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[11]);
+}
+// ===================================================================
+
+class ProficiencyInfo::_Internal {
+ public:
+};
+
+ProficiencyInfo::ProficiencyInfo(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ProficiencyInfo)
+}
+ProficiencyInfo::ProficiencyInfo(const ProficiencyInfo& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ProficiencyInfo* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.key_) {}
+
+    , decltype(_impl_.l2_ref_) {}
+
+    , decltype(_impl_.min_level_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.skill_level_) {}
+
+    , decltype(_impl_.effect_implemented_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_key().empty()) {
+    _this->_impl_.key_.Set(from._internal_key(), _this->GetArenaForAllocation());
+  }
+  _impl_.l2_ref_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.l2_ref_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_l2_ref().empty()) {
+    _this->_impl_.l2_ref_.Set(from._internal_l2_ref(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.min_level_, &from._impl_.min_level_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.effect_implemented_) -
+    reinterpret_cast<char*>(&_impl_.min_level_)) + sizeof(_impl_.effect_implemented_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ProficiencyInfo)
+}
+
+inline void ProficiencyInfo::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.key_) {}
+
+    , decltype(_impl_.l2_ref_) {}
+
+    , decltype(_impl_.min_level_) { 0u }
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , decltype(_impl_.effect_implemented_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.l2_ref_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.l2_ref_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ProficiencyInfo::~ProficiencyInfo() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ProficiencyInfo)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ProficiencyInfo::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.key_.Destroy();
+  _impl_.l2_ref_.Destroy();
+}
+
+void ProficiencyInfo::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ProficiencyInfo::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ProficiencyInfo)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.key_.ClearToEmpty();
+  _impl_.l2_ref_.ClearToEmpty();
+  ::memset(&_impl_.min_level_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.effect_implemented_) -
+      reinterpret_cast<char*>(&_impl_.min_level_)) + sizeof(_impl_.effect_implemented_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ProficiencyInfo::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string key = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ProficiencyInfo.key"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 min_level = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.min_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_id = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string l2_ref = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
+          auto str = _internal_mutable_l2_ref();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ProficiencyInfo.l2_ref"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool effect_implemented = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.effect_implemented_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ProficiencyInfo::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ProficiencyInfo)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string key = 1;
+  if (!this->_internal_key().empty()) {
+    const std::string& _s = this->_internal_key();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ProficiencyInfo.key");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 min_level = 2;
+  if (this->_internal_min_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_min_level(), target);
+  }
+
+  // uint32 skill_id = 3;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 4;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_skill_level(), target);
+  }
+
+  // string l2_ref = 5;
+  if (!this->_internal_l2_ref().empty()) {
+    const std::string& _s = this->_internal_l2_ref();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ProficiencyInfo.l2_ref");
+    target = stream->WriteStringMaybeAliased(5, _s, target);
+  }
+
+  // bool effect_implemented = 6;
+  if (this->_internal_effect_implemented() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        6, this->_internal_effect_implemented(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ProficiencyInfo)
+  return target;
+}
+
+::size_t ProficiencyInfo::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ProficiencyInfo)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string key = 1;
+  if (!this->_internal_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_key());
+  }
+
+  // string l2_ref = 5;
+  if (!this->_internal_l2_ref().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_l2_ref());
+  }
+
+  // uint32 min_level = 2;
+  if (this->_internal_min_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_min_level());
+  }
+
+  // uint32 skill_id = 3;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 skill_level = 4;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  // bool effect_implemented = 6;
+  if (this->_internal_effect_implemented() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ProficiencyInfo::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ProficiencyInfo::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ProficiencyInfo::GetClassData() const { return &_class_data_; }
+
+
+void ProficiencyInfo::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ProficiencyInfo*>(&to_msg);
+  auto& from = static_cast<const ProficiencyInfo&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ProficiencyInfo)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_key().empty()) {
+    _this->_internal_set_key(from._internal_key());
+  }
+  if (!from._internal_l2_ref().empty()) {
+    _this->_internal_set_l2_ref(from._internal_l2_ref());
+  }
+  if (from._internal_min_level() != 0) {
+    _this->_internal_set_min_level(from._internal_min_level());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  if (from._internal_effect_implemented() != 0) {
+    _this->_internal_set_effect_implemented(from._internal_effect_implemented());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ProficiencyInfo::CopyFrom(const ProficiencyInfo& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ProficiencyInfo)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ProficiencyInfo::IsInitialized() const {
+  return true;
+}
+
+void ProficiencyInfo::InternalSwap(ProficiencyInfo* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.key_, lhs_arena,
+                                       &other->_impl_.key_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.l2_ref_, lhs_arena,
+                                       &other->_impl_.l2_ref_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ProficiencyInfo, _impl_.effect_implemented_)
+      + sizeof(ProficiencyInfo::_impl_.effect_implemented_)
+      - PROTOBUF_FIELD_OFFSET(ProficiencyInfo, _impl_.min_level_)>(
+          reinterpret_cast<char*>(&_impl_.min_level_),
+          reinterpret_cast<char*>(&other->_impl_.min_level_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ProficiencyInfo::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[12]);
+}
+// ===================================================================
+
+class ClassInfo::_Internal {
+ public:
+  using HasBits = decltype(std::declval<ClassInfo>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ClassInfo, _impl_._has_bits_);
+  static const ::nightfall::v1::BaseStats& base_stats(const ClassInfo* msg);
+  static void set_has_base_stats(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+const ::nightfall::v1::BaseStats&
+ClassInfo::_Internal::base_stats(const ClassInfo* msg) {
+  return *msg->_impl_.base_stats_;
+}
+ClassInfo::ClassInfo(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ClassInfo)
+}
+ClassInfo::ClassInfo(const ClassInfo& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ClassInfo* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.subclass_equivalents_) { from._impl_.subclass_equivalents_ }
+    ,/* _impl_._subclass_equivalents_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.skill_tree_){from._impl_.skill_tree_}
+    , decltype(_impl_.proficiencies_){from._impl_.proficiencies_}
+    , decltype(_impl_.key_) {}
+
+    , decltype(_impl_.display_name_) {}
+
+    , decltype(_impl_.base_stats_){nullptr}
+    , decltype(_impl_.class_id_) {}
+
+    , decltype(_impl_.race_) {}
+
+    , decltype(_impl_.tier_) {}
+
+    , decltype(_impl_.parent_class_id_) {}
+
+    , decltype(_impl_.min_level_) {}
+
+    , decltype(_impl_.archetype_) {}
+
+    , decltype(_impl_.subclass_allowed_) {}
+
+    , decltype(_impl_.skill_tree_populated_) {}
+
+    , decltype(_impl_.walk_speed_) {}
+
+    , decltype(_impl_.run_speed_) {}
+
+    , decltype(_impl_.swim_speed_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_key().empty()) {
+    _this->_impl_.key_.Set(from._internal_key(), _this->GetArenaForAllocation());
+  }
+  _impl_.display_name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.display_name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_display_name().empty()) {
+    _this->_impl_.display_name_.Set(from._internal_display_name(), _this->GetArenaForAllocation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.base_stats_ = new ::nightfall::v1::BaseStats(*from._impl_.base_stats_);
+  }
+  ::memcpy(&_impl_.class_id_, &from._impl_.class_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.swim_speed_) -
+    reinterpret_cast<char*>(&_impl_.class_id_)) + sizeof(_impl_.swim_speed_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ClassInfo)
+}
+
+inline void ClassInfo::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.subclass_equivalents_) { arena }
+    ,/* _impl_._subclass_equivalents_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.skill_tree_){arena}
+    , decltype(_impl_.proficiencies_){arena}
+    , decltype(_impl_.key_) {}
+
+    , decltype(_impl_.display_name_) {}
+
+    , decltype(_impl_.base_stats_){nullptr}
+    , decltype(_impl_.class_id_) { 0u }
+
+    , decltype(_impl_.race_) { 0 }
+
+    , decltype(_impl_.tier_) { 0u }
+
+    , decltype(_impl_.parent_class_id_) { 0u }
+
+    , decltype(_impl_.min_level_) { 0u }
+
+    , decltype(_impl_.archetype_) { 0 }
+
+    , decltype(_impl_.subclass_allowed_) { false }
+
+    , decltype(_impl_.skill_tree_populated_) { false }
+
+    , decltype(_impl_.walk_speed_) { 0u }
+
+    , decltype(_impl_.run_speed_) { 0u }
+
+    , decltype(_impl_.swim_speed_) { 0u }
+
+  };
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.display_name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.display_name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ClassInfo::~ClassInfo() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ClassInfo)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ClassInfo::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.subclass_equivalents_.~RepeatedField();
+  _internal_mutable_skill_tree()->~RepeatedPtrField();
+  _internal_mutable_proficiencies()->~RepeatedPtrField();
+  _impl_.key_.Destroy();
+  _impl_.display_name_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.base_stats_;
+}
+
+void ClassInfo::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ClassInfo::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ClassInfo)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_subclass_equivalents()->Clear();
+  _internal_mutable_skill_tree()->Clear();
+  _internal_mutable_proficiencies()->Clear();
+  _impl_.key_.ClearToEmpty();
+  _impl_.display_name_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.base_stats_ != nullptr);
+    _impl_.base_stats_->Clear();
+  }
+  ::memset(&_impl_.class_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.swim_speed_) -
+      reinterpret_cast<char*>(&_impl_.class_id_)) + sizeof(_impl_.swim_speed_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ClassInfo::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 class_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string key = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ClassInfo.key"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string display_name = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          auto str = _internal_mutable_display_name();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ClassInfo.display_name"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.Race race = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_race(static_cast<::nightfall::v1::Race>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 tier = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.tier_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 parent_class_id = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.parent_class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 min_level = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.min_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.Archetype archetype = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_archetype(static_cast<::nightfall::v1::Archetype>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.BaseStats base_stats = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
+          ptr = ctx->ParseMessage(_internal_mutable_base_stats(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool subclass_allowed = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.subclass_allowed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated uint32 subclass_equivalents = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt32Parser(_internal_mutable_subclass_equivalents(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 88) {
+          _internal_add_subclass_equivalents(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.SkillLearnInfo skill_tree = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 98)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_skill_tree(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<98>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.ProficiencyInfo proficiencies = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 106)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_proficiencies(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<106>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 walk_speed = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 112)) {
+          _impl_.walk_speed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 run_speed = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 120)) {
+          _impl_.run_speed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 swim_speed = 16;
+      case 16:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 128)) {
+          _impl_.swim_speed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool skill_tree_populated = 17;
+      case 17:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 136)) {
+          _impl_.skill_tree_populated_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ClassInfo::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ClassInfo)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 class_id = 1;
+  if (this->_internal_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_class_id(), target);
+  }
+
+  // string key = 2;
+  if (!this->_internal_key().empty()) {
+    const std::string& _s = this->_internal_key();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ClassInfo.key");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  // string display_name = 3;
+  if (!this->_internal_display_name().empty()) {
+    const std::string& _s = this->_internal_display_name();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ClassInfo.display_name");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
+  }
+
+  // .nightfall.v1.Race race = 4;
+  if (this->_internal_race() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        4, this->_internal_race(), target);
+  }
+
+  // uint32 tier = 5;
+  if (this->_internal_tier() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_tier(), target);
+  }
+
+  // uint32 parent_class_id = 6;
+  if (this->_internal_parent_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_parent_class_id(), target);
+  }
+
+  // uint32 min_level = 7;
+  if (this->_internal_min_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_min_level(), target);
+  }
+
+  // .nightfall.v1.Archetype archetype = 8;
+  if (this->_internal_archetype() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        8, this->_internal_archetype(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .nightfall.v1.BaseStats base_stats = 9;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(9, _Internal::base_stats(this),
+        _Internal::base_stats(this).GetCachedSize(), target, stream);
+  }
+
+  // bool subclass_allowed = 10;
+  if (this->_internal_subclass_allowed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        10, this->_internal_subclass_allowed(), target);
+  }
+
+  // repeated uint32 subclass_equivalents = 11;
+  {
+    int byte_size = _impl_._subclass_equivalents_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt32Packed(11, _internal_subclass_equivalents(),
+                                                 byte_size, target);
+    }
+  }
+
+  // repeated .nightfall.v1.SkillLearnInfo skill_tree = 12;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_skill_tree_size()); i < n; i++) {
+    const auto& repfield = this->_internal_skill_tree(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(12, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // repeated .nightfall.v1.ProficiencyInfo proficiencies = 13;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_proficiencies_size()); i < n; i++) {
+    const auto& repfield = this->_internal_proficiencies(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(13, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // uint32 walk_speed = 14;
+  if (this->_internal_walk_speed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        14, this->_internal_walk_speed(), target);
+  }
+
+  // uint32 run_speed = 15;
+  if (this->_internal_run_speed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        15, this->_internal_run_speed(), target);
+  }
+
+  // uint32 swim_speed = 16;
+  if (this->_internal_swim_speed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        16, this->_internal_swim_speed(), target);
+  }
+
+  // bool skill_tree_populated = 17;
+  if (this->_internal_skill_tree_populated() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        17, this->_internal_skill_tree_populated(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ClassInfo)
+  return target;
+}
+
+::size_t ClassInfo::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ClassInfo)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated uint32 subclass_equivalents = 11;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt32Size(
+        this->_internal_subclass_equivalents())
+    ;
+    _impl_._subclass_equivalents_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  // repeated .nightfall.v1.SkillLearnInfo skill_tree = 12;
+  total_size += 1UL * this->_internal_skill_tree_size();
+  for (const auto& msg : this->_internal_skill_tree()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // repeated .nightfall.v1.ProficiencyInfo proficiencies = 13;
+  total_size += 1UL * this->_internal_proficiencies_size();
+  for (const auto& msg : this->_internal_proficiencies()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // string key = 2;
+  if (!this->_internal_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_key());
+  }
+
+  // string display_name = 3;
+  if (!this->_internal_display_name().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_display_name());
+  }
+
+  // .nightfall.v1.BaseStats base_stats = 9;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.base_stats_);
+  }
+
+  // uint32 class_id = 1;
+  if (this->_internal_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_class_id());
+  }
+
+  // .nightfall.v1.Race race = 4;
+  if (this->_internal_race() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_race());
+  }
+
+  // uint32 tier = 5;
+  if (this->_internal_tier() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_tier());
+  }
+
+  // uint32 parent_class_id = 6;
+  if (this->_internal_parent_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_parent_class_id());
+  }
+
+  // uint32 min_level = 7;
+  if (this->_internal_min_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_min_level());
+  }
+
+  // .nightfall.v1.Archetype archetype = 8;
+  if (this->_internal_archetype() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_archetype());
+  }
+
+  // bool subclass_allowed = 10;
+  if (this->_internal_subclass_allowed() != 0) {
+    total_size += 2;
+  }
+
+  // bool skill_tree_populated = 17;
+  if (this->_internal_skill_tree_populated() != 0) {
+    total_size += 3;
+  }
+
+  // uint32 walk_speed = 14;
+  if (this->_internal_walk_speed() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_walk_speed());
+  }
+
+  // uint32 run_speed = 15;
+  if (this->_internal_run_speed() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_run_speed());
+  }
+
+  // uint32 swim_speed = 16;
+  if (this->_internal_swim_speed() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt32Size(
+                                    this->_internal_swim_speed());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ClassInfo::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ClassInfo::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ClassInfo::GetClassData() const { return &_class_data_; }
+
+
+void ClassInfo::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ClassInfo*>(&to_msg);
+  auto& from = static_cast<const ClassInfo&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ClassInfo)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_impl_.subclass_equivalents_.MergeFrom(from._impl_.subclass_equivalents_);
+  _this->_internal_mutable_skill_tree()->MergeFrom(from._internal_skill_tree());
+  _this->_internal_mutable_proficiencies()->MergeFrom(from._internal_proficiencies());
+  if (!from._internal_key().empty()) {
+    _this->_internal_set_key(from._internal_key());
+  }
+  if (!from._internal_display_name().empty()) {
+    _this->_internal_set_display_name(from._internal_display_name());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_base_stats()->::nightfall::v1::BaseStats::MergeFrom(
+        from._internal_base_stats());
+  }
+  if (from._internal_class_id() != 0) {
+    _this->_internal_set_class_id(from._internal_class_id());
+  }
+  if (from._internal_race() != 0) {
+    _this->_internal_set_race(from._internal_race());
+  }
+  if (from._internal_tier() != 0) {
+    _this->_internal_set_tier(from._internal_tier());
+  }
+  if (from._internal_parent_class_id() != 0) {
+    _this->_internal_set_parent_class_id(from._internal_parent_class_id());
+  }
+  if (from._internal_min_level() != 0) {
+    _this->_internal_set_min_level(from._internal_min_level());
+  }
+  if (from._internal_archetype() != 0) {
+    _this->_internal_set_archetype(from._internal_archetype());
+  }
+  if (from._internal_subclass_allowed() != 0) {
+    _this->_internal_set_subclass_allowed(from._internal_subclass_allowed());
+  }
+  if (from._internal_skill_tree_populated() != 0) {
+    _this->_internal_set_skill_tree_populated(from._internal_skill_tree_populated());
+  }
+  if (from._internal_walk_speed() != 0) {
+    _this->_internal_set_walk_speed(from._internal_walk_speed());
+  }
+  if (from._internal_run_speed() != 0) {
+    _this->_internal_set_run_speed(from._internal_run_speed());
+  }
+  if (from._internal_swim_speed() != 0) {
+    _this->_internal_set_swim_speed(from._internal_swim_speed());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ClassInfo::CopyFrom(const ClassInfo& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ClassInfo)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ClassInfo::IsInitialized() const {
+  return true;
+}
+
+void ClassInfo::InternalSwap(ClassInfo* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.subclass_equivalents_.InternalSwap(&other->_impl_.subclass_equivalents_);
+  _internal_mutable_skill_tree()->InternalSwap(other->_internal_mutable_skill_tree());
+  _internal_mutable_proficiencies()->InternalSwap(other->_internal_mutable_proficiencies());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.key_, lhs_arena,
+                                       &other->_impl_.key_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.display_name_, lhs_arena,
+                                       &other->_impl_.display_name_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ClassInfo, _impl_.swim_speed_)
+      + sizeof(ClassInfo::_impl_.swim_speed_)
+      - PROTOBUF_FIELD_OFFSET(ClassInfo, _impl_.base_stats_)>(
+          reinterpret_cast<char*>(&_impl_.base_stats_),
+          reinterpret_cast<char*>(&other->_impl_.base_stats_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ClassInfo::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[13]);
+}
+// ===================================================================
+
+class PassiveInfo::_Internal {
+ public:
+};
+
+PassiveInfo::PassiveInfo(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.PassiveInfo)
+}
+PassiveInfo::PassiveInfo(const PassiveInfo& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  PassiveInfo* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.key_) {}
+
+    , decltype(_impl_.display_name_) {}
+
+    , decltype(_impl_.description_) {}
+
+    , decltype(_impl_.implemented_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_key().empty()) {
+    _this->_impl_.key_.Set(from._internal_key(), _this->GetArenaForAllocation());
+  }
+  _impl_.display_name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.display_name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_display_name().empty()) {
+    _this->_impl_.display_name_.Set(from._internal_display_name(), _this->GetArenaForAllocation());
+  }
+  _impl_.description_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.description_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_description().empty()) {
+    _this->_impl_.description_.Set(from._internal_description(), _this->GetArenaForAllocation());
+  }
+  _this->_impl_.implemented_ = from._impl_.implemented_;
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.PassiveInfo)
+}
+
+inline void PassiveInfo::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.key_) {}
+
+    , decltype(_impl_.display_name_) {}
+
+    , decltype(_impl_.description_) {}
+
+    , decltype(_impl_.implemented_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.display_name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.display_name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.description_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.description_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+PassiveInfo::~PassiveInfo() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.PassiveInfo)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void PassiveInfo::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.key_.Destroy();
+  _impl_.display_name_.Destroy();
+  _impl_.description_.Destroy();
+}
+
+void PassiveInfo::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void PassiveInfo::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.PassiveInfo)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.key_.ClearToEmpty();
+  _impl_.display_name_.ClearToEmpty();
+  _impl_.description_.ClearToEmpty();
+  _impl_.implemented_ = false;
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* PassiveInfo::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string key = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.PassiveInfo.key"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string display_name = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_display_name();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.PassiveInfo.display_name"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string description = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          auto str = _internal_mutable_description();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.PassiveInfo.description"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool implemented = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.implemented_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* PassiveInfo::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.PassiveInfo)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string key = 1;
+  if (!this->_internal_key().empty()) {
+    const std::string& _s = this->_internal_key();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.PassiveInfo.key");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // string display_name = 2;
+  if (!this->_internal_display_name().empty()) {
+    const std::string& _s = this->_internal_display_name();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.PassiveInfo.display_name");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  // string description = 3;
+  if (!this->_internal_description().empty()) {
+    const std::string& _s = this->_internal_description();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.PassiveInfo.description");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
+  }
+
+  // bool implemented = 4;
+  if (this->_internal_implemented() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        4, this->_internal_implemented(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.PassiveInfo)
+  return target;
+}
+
+::size_t PassiveInfo::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.PassiveInfo)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string key = 1;
+  if (!this->_internal_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_key());
+  }
+
+  // string display_name = 2;
+  if (!this->_internal_display_name().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_display_name());
+  }
+
+  // string description = 3;
+  if (!this->_internal_description().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_description());
+  }
+
+  // bool implemented = 4;
+  if (this->_internal_implemented() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData PassiveInfo::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    PassiveInfo::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*PassiveInfo::GetClassData() const { return &_class_data_; }
+
+
+void PassiveInfo::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<PassiveInfo*>(&to_msg);
+  auto& from = static_cast<const PassiveInfo&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.PassiveInfo)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_key().empty()) {
+    _this->_internal_set_key(from._internal_key());
+  }
+  if (!from._internal_display_name().empty()) {
+    _this->_internal_set_display_name(from._internal_display_name());
+  }
+  if (!from._internal_description().empty()) {
+    _this->_internal_set_description(from._internal_description());
+  }
+  if (from._internal_implemented() != 0) {
+    _this->_internal_set_implemented(from._internal_implemented());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void PassiveInfo::CopyFrom(const PassiveInfo& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.PassiveInfo)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool PassiveInfo::IsInitialized() const {
+  return true;
+}
+
+void PassiveInfo::InternalSwap(PassiveInfo* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.key_, lhs_arena,
+                                       &other->_impl_.key_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.display_name_, lhs_arena,
+                                       &other->_impl_.display_name_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.description_, lhs_arena,
+                                       &other->_impl_.description_, rhs_arena);
+
+  swap(_impl_.implemented_, other->_impl_.implemented_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata PassiveInfo::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[14]);
+}
+// ===================================================================
+
+class RaceInfo::_Internal {
+ public:
+};
+
+RaceInfo::RaceInfo(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.RaceInfo)
+}
+RaceInfo::RaceInfo(const RaceInfo& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  RaceInfo* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.base_class_ids_) { from._impl_.base_class_ids_ }
+    ,/* _impl_._base_class_ids_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.passive_skill_keys_){from._impl_.passive_skill_keys_}
+    , decltype(_impl_.passives_){from._impl_.passives_}
+    , decltype(_impl_.display_name_) {}
+
+    , decltype(_impl_.race_) {}
+
+    , decltype(_impl_.mystic_path_) {}
+
+    , decltype(_impl_.walk_speed_) {}
+
+    , decltype(_impl_.run_speed_) {}
+
+    , decltype(_impl_.hair_style_count_) {}
+
+    , decltype(_impl_.hair_color_count_) {}
+
+    , decltype(_impl_.face_count_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.display_name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.display_name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_display_name().empty()) {
+    _this->_impl_.display_name_.Set(from._internal_display_name(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.race_, &from._impl_.race_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.face_count_) -
+    reinterpret_cast<char*>(&_impl_.race_)) + sizeof(_impl_.face_count_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.RaceInfo)
+}
+
+inline void RaceInfo::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.base_class_ids_) { arena }
+    ,/* _impl_._base_class_ids_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.passive_skill_keys_){arena}
+    , decltype(_impl_.passives_){arena}
+    , decltype(_impl_.display_name_) {}
+
+    , decltype(_impl_.race_) { 0 }
+
+    , decltype(_impl_.mystic_path_) { false }
+
+    , decltype(_impl_.walk_speed_) { 0u }
+
+    , decltype(_impl_.run_speed_) { 0u }
+
+    , decltype(_impl_.hair_style_count_) { 0u }
+
+    , decltype(_impl_.hair_color_count_) { 0u }
+
+    , decltype(_impl_.face_count_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.display_name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.display_name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+RaceInfo::~RaceInfo() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.RaceInfo)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void RaceInfo::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.base_class_ids_.~RepeatedField();
+  _internal_mutable_passive_skill_keys()->~RepeatedPtrField();
+  _internal_mutable_passives()->~RepeatedPtrField();
+  _impl_.display_name_.Destroy();
+}
+
+void RaceInfo::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void RaceInfo::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.RaceInfo)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_base_class_ids()->Clear();
+  _internal_mutable_passive_skill_keys()->Clear();
+  _internal_mutable_passives()->Clear();
+  _impl_.display_name_.ClearToEmpty();
+  ::memset(&_impl_.race_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.face_count_) -
+      reinterpret_cast<char*>(&_impl_.race_)) + sizeof(_impl_.face_count_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* RaceInfo::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // .nightfall.v1.Race race = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_race(static_cast<::nightfall::v1::Race>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string display_name = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_display_name();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.RaceInfo.display_name"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool mystic_path = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.mystic_path_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 walk_speed = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.walk_speed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 run_speed = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.run_speed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated uint32 base_class_ids = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt32Parser(_internal_mutable_base_class_ids(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 48) {
+          _internal_add_base_class_ids(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated string passive_skill_keys = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_passive_skill_keys();
+            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(ptr);
+            CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.RaceInfo.passive_skill_keys"));
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<58>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hair_style_count = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.hair_style_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hair_color_count = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.hair_color_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 face_count = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.face_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.PassiveInfo passives = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_passives(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<90>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* RaceInfo::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.RaceInfo)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // .nightfall.v1.Race race = 1;
+  if (this->_internal_race() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        1, this->_internal_race(), target);
+  }
+
+  // string display_name = 2;
+  if (!this->_internal_display_name().empty()) {
+    const std::string& _s = this->_internal_display_name();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.RaceInfo.display_name");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  // bool mystic_path = 3;
+  if (this->_internal_mystic_path() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        3, this->_internal_mystic_path(), target);
+  }
+
+  // uint32 walk_speed = 4;
+  if (this->_internal_walk_speed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_walk_speed(), target);
+  }
+
+  // uint32 run_speed = 5;
+  if (this->_internal_run_speed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_run_speed(), target);
+  }
+
+  // repeated uint32 base_class_ids = 6;
+  {
+    int byte_size = _impl_._base_class_ids_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt32Packed(6, _internal_base_class_ids(),
+                                                 byte_size, target);
+    }
+  }
+
+  // repeated string passive_skill_keys = 7;
+  for (int i = 0, n = this->_internal_passive_skill_keys_size(); i < n; ++i) {
+    const auto& s = this->_internal_passive_skill_keys(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        s.data(), static_cast<int>(s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.RaceInfo.passive_skill_keys");
+    target = stream->WriteString(7, s, target);
+  }
+
+  // uint32 hair_style_count = 8;
+  if (this->_internal_hair_style_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_hair_style_count(), target);
+  }
+
+  // uint32 hair_color_count = 9;
+  if (this->_internal_hair_color_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        9, this->_internal_hair_color_count(), target);
+  }
+
+  // uint32 face_count = 10;
+  if (this->_internal_face_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        10, this->_internal_face_count(), target);
+  }
+
+  // repeated .nightfall.v1.PassiveInfo passives = 11;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_passives_size()); i < n; i++) {
+    const auto& repfield = this->_internal_passives(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(11, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.RaceInfo)
+  return target;
+}
+
+::size_t RaceInfo::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.RaceInfo)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated uint32 base_class_ids = 6;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt32Size(
+        this->_internal_base_class_ids())
+    ;
+    _impl_._base_class_ids_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  // repeated string passive_skill_keys = 7;
+  total_size += 1 * ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_internal_passive_skill_keys().size());
+  for (int i = 0, n = _internal_passive_skill_keys().size(); i < n; ++i) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        _internal_passive_skill_keys().Get(i));
+  }
+
+  // repeated .nightfall.v1.PassiveInfo passives = 11;
+  total_size += 1UL * this->_internal_passives_size();
+  for (const auto& msg : this->_internal_passives()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // string display_name = 2;
+  if (!this->_internal_display_name().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_display_name());
+  }
+
+  // .nightfall.v1.Race race = 1;
+  if (this->_internal_race() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_race());
+  }
+
+  // bool mystic_path = 3;
+  if (this->_internal_mystic_path() != 0) {
+    total_size += 2;
+  }
+
+  // uint32 walk_speed = 4;
+  if (this->_internal_walk_speed() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_walk_speed());
+  }
+
+  // uint32 run_speed = 5;
+  if (this->_internal_run_speed() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_run_speed());
+  }
+
+  // uint32 hair_style_count = 8;
+  if (this->_internal_hair_style_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hair_style_count());
+  }
+
+  // uint32 hair_color_count = 9;
+  if (this->_internal_hair_color_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hair_color_count());
+  }
+
+  // uint32 face_count = 10;
+  if (this->_internal_face_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_face_count());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData RaceInfo::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    RaceInfo::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*RaceInfo::GetClassData() const { return &_class_data_; }
+
+
+void RaceInfo::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<RaceInfo*>(&to_msg);
+  auto& from = static_cast<const RaceInfo&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.RaceInfo)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_impl_.base_class_ids_.MergeFrom(from._impl_.base_class_ids_);
+  _this->_internal_mutable_passive_skill_keys()->MergeFrom(from._internal_passive_skill_keys());
+  _this->_internal_mutable_passives()->MergeFrom(from._internal_passives());
+  if (!from._internal_display_name().empty()) {
+    _this->_internal_set_display_name(from._internal_display_name());
+  }
+  if (from._internal_race() != 0) {
+    _this->_internal_set_race(from._internal_race());
+  }
+  if (from._internal_mystic_path() != 0) {
+    _this->_internal_set_mystic_path(from._internal_mystic_path());
+  }
+  if (from._internal_walk_speed() != 0) {
+    _this->_internal_set_walk_speed(from._internal_walk_speed());
+  }
+  if (from._internal_run_speed() != 0) {
+    _this->_internal_set_run_speed(from._internal_run_speed());
+  }
+  if (from._internal_hair_style_count() != 0) {
+    _this->_internal_set_hair_style_count(from._internal_hair_style_count());
+  }
+  if (from._internal_hair_color_count() != 0) {
+    _this->_internal_set_hair_color_count(from._internal_hair_color_count());
+  }
+  if (from._internal_face_count() != 0) {
+    _this->_internal_set_face_count(from._internal_face_count());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void RaceInfo::CopyFrom(const RaceInfo& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.RaceInfo)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool RaceInfo::IsInitialized() const {
+  return true;
+}
+
+void RaceInfo::InternalSwap(RaceInfo* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _impl_.base_class_ids_.InternalSwap(&other->_impl_.base_class_ids_);
+  _internal_mutable_passive_skill_keys()->InternalSwap(
+      other->_internal_mutable_passive_skill_keys());
+  _internal_mutable_passives()->InternalSwap(other->_internal_mutable_passives());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.display_name_, lhs_arena,
+                                       &other->_impl_.display_name_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(RaceInfo, _impl_.face_count_)
+      + sizeof(RaceInfo::_impl_.face_count_)
+      - PROTOBUF_FIELD_OFFSET(RaceInfo, _impl_.race_)>(
+          reinterpret_cast<char*>(&_impl_.race_),
+          reinterpret_cast<char*>(&other->_impl_.race_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata RaceInfo::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[15]);
+}
+// ===================================================================
+
+class ClassMasterInfo::_Internal {
+ public:
+  using HasBits = decltype(std::declval<ClassMasterInfo>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ClassMasterInfo, _impl_._has_bits_);
+  static const ::nightfall::v1::Position& position(const ClassMasterInfo* msg);
+  static void set_has_position(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+const ::nightfall::v1::Position&
+ClassMasterInfo::_Internal::position(const ClassMasterInfo* msg) {
+  return *msg->_impl_.position_;
+}
+ClassMasterInfo::ClassMasterInfo(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ClassMasterInfo)
+}
+ClassMasterInfo::ClassMasterInfo(const ClassMasterInfo& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ClassMasterInfo* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.name_) {}
+
+    , decltype(_impl_.position_){nullptr}
+    , decltype(_impl_.interaction_radius_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_name().empty()) {
+    _this->_impl_.name_.Set(from._internal_name(), _this->GetArenaForAllocation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.position_ = new ::nightfall::v1::Position(*from._impl_.position_);
+  }
+  _this->_impl_.interaction_radius_ = from._impl_.interaction_radius_;
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ClassMasterInfo)
+}
+
+inline void ClassMasterInfo::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.name_) {}
+
+    , decltype(_impl_.position_){nullptr}
+    , decltype(_impl_.interaction_radius_) { 0 }
+
+  };
+  _impl_.name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ClassMasterInfo::~ClassMasterInfo() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ClassMasterInfo)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ClassMasterInfo::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.name_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.position_;
+}
+
+void ClassMasterInfo::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ClassMasterInfo::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ClassMasterInfo)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.name_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.position_ != nullptr);
+    _impl_.position_->Clear();
+  }
+  _impl_.interaction_radius_ = 0;
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ClassMasterInfo::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string name = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_name();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ClassMasterInfo.name"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.Position position = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr = ctx->ParseMessage(_internal_mutable_position(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // float interaction_radius = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 29)) {
+          _impl_.interaction_radius_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<float>(ptr);
+          ptr += sizeof(float);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ClassMasterInfo::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ClassMasterInfo)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string name = 1;
+  if (!this->_internal_name().empty()) {
+    const std::string& _s = this->_internal_name();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ClassMasterInfo.name");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .nightfall.v1.Position position = 2;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(2, _Internal::position(this),
+        _Internal::position(this).GetCachedSize(), target, stream);
+  }
+
+  // float interaction_radius = 3;
+  static_assert(sizeof(::uint32_t) == sizeof(float), "Code assumes ::uint32_t and float are the same size.");
+  float tmp_interaction_radius = this->_internal_interaction_radius();
+  ::uint32_t raw_interaction_radius;
+  memcpy(&raw_interaction_radius, &tmp_interaction_radius, sizeof(tmp_interaction_radius));
+  if (raw_interaction_radius != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteFloatToArray(
+        3, this->_internal_interaction_radius(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ClassMasterInfo)
+  return target;
+}
+
+::size_t ClassMasterInfo::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ClassMasterInfo)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string name = 1;
+  if (!this->_internal_name().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_name());
+  }
+
+  // .nightfall.v1.Position position = 2;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.position_);
+  }
+
+  // float interaction_radius = 3;
+  static_assert(sizeof(::uint32_t) == sizeof(float), "Code assumes ::uint32_t and float are the same size.");
+  float tmp_interaction_radius = this->_internal_interaction_radius();
+  ::uint32_t raw_interaction_radius;
+  memcpy(&raw_interaction_radius, &tmp_interaction_radius, sizeof(tmp_interaction_radius));
+  if (raw_interaction_radius != 0) {
+    total_size += 5;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ClassMasterInfo::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ClassMasterInfo::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ClassMasterInfo::GetClassData() const { return &_class_data_; }
+
+
+void ClassMasterInfo::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ClassMasterInfo*>(&to_msg);
+  auto& from = static_cast<const ClassMasterInfo&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ClassMasterInfo)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_name().empty()) {
+    _this->_internal_set_name(from._internal_name());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_position()->::nightfall::v1::Position::MergeFrom(
+        from._internal_position());
+  }
+  static_assert(sizeof(::uint32_t) == sizeof(float), "Code assumes ::uint32_t and float are the same size.");
+  float tmp_interaction_radius = from._internal_interaction_radius();
+  ::uint32_t raw_interaction_radius;
+  memcpy(&raw_interaction_radius, &tmp_interaction_radius, sizeof(tmp_interaction_radius));
+  if (raw_interaction_radius != 0) {
+    _this->_internal_set_interaction_radius(from._internal_interaction_radius());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ClassMasterInfo::CopyFrom(const ClassMasterInfo& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ClassMasterInfo)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ClassMasterInfo::IsInitialized() const {
+  return true;
+}
+
+void ClassMasterInfo::InternalSwap(ClassMasterInfo* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, lhs_arena,
+                                       &other->_impl_.name_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ClassMasterInfo, _impl_.interaction_radius_)
+      + sizeof(ClassMasterInfo::_impl_.interaction_radius_)
+      - PROTOBUF_FIELD_OFFSET(ClassMasterInfo, _impl_.position_)>(
+          reinterpret_cast<char*>(&_impl_.position_),
+          reinterpret_cast<char*>(&other->_impl_.position_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ClassMasterInfo::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[16]);
+}
+// ===================================================================
+
+class ListClassesRequest::_Internal {
+ public:
+};
+
+ListClassesRequest::ListClassesRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase(arena) {
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ListClassesRequest)
+}
+ListClassesRequest::ListClassesRequest(const ListClassesRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase() {
+  ListClassesRequest* const _this = this; (void)_this;
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ListClassesRequest)
+}
+
+
+
+
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ListClassesRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl,
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl,
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ListClassesRequest::GetClassData() const { return &_class_data_; }
+
+
+
+
+
+
+
+::PROTOBUF_NAMESPACE_ID::Metadata ListClassesRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[17]);
+}
+// ===================================================================
+
+class ListClassesResponse::_Internal {
+ public:
+  using HasBits = decltype(std::declval<ListClassesResponse>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ListClassesResponse, _impl_._has_bits_);
+  static const ::nightfall::v1::ClassMasterInfo& class_master(const ListClassesResponse* msg);
+  static void set_has_class_master(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+const ::nightfall::v1::ClassMasterInfo&
+ListClassesResponse::_Internal::class_master(const ListClassesResponse* msg) {
+  return *msg->_impl_.class_master_;
+}
+ListClassesResponse::ListClassesResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ListClassesResponse)
+}
+ListClassesResponse::ListClassesResponse(const ListClassesResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ListClassesResponse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.races_){from._impl_.races_}
+    , decltype(_impl_.classes_){from._impl_.classes_}
+    , decltype(_impl_.data_version_) {}
+
+    , decltype(_impl_.class_master_){nullptr}
+    , decltype(_impl_.playable_level_cap_) {}
+
+    , decltype(_impl_.max_transfer_tier_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.data_version_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.data_version_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_data_version().empty()) {
+    _this->_impl_.data_version_.Set(from._internal_data_version(), _this->GetArenaForAllocation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.class_master_ = new ::nightfall::v1::ClassMasterInfo(*from._impl_.class_master_);
+  }
+  ::memcpy(&_impl_.playable_level_cap_, &from._impl_.playable_level_cap_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.max_transfer_tier_) -
+    reinterpret_cast<char*>(&_impl_.playable_level_cap_)) + sizeof(_impl_.max_transfer_tier_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ListClassesResponse)
+}
+
+inline void ListClassesResponse::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.races_){arena}
+    , decltype(_impl_.classes_){arena}
+    , decltype(_impl_.data_version_) {}
+
+    , decltype(_impl_.class_master_){nullptr}
+    , decltype(_impl_.playable_level_cap_) { 0u }
+
+    , decltype(_impl_.max_transfer_tier_) { 0u }
+
+  };
+  _impl_.data_version_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.data_version_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ListClassesResponse::~ListClassesResponse() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ListClassesResponse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ListClassesResponse::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_races()->~RepeatedPtrField();
+  _internal_mutable_classes()->~RepeatedPtrField();
+  _impl_.data_version_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.class_master_;
+}
+
+void ListClassesResponse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ListClassesResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ListClassesResponse)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_races()->Clear();
+  _internal_mutable_classes()->Clear();
+  _impl_.data_version_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.class_master_ != nullptr);
+    _impl_.class_master_->Clear();
+  }
+  ::memset(&_impl_.playable_level_cap_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.max_transfer_tier_) -
+      reinterpret_cast<char*>(&_impl_.playable_level_cap_)) + sizeof(_impl_.max_transfer_tier_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ListClassesResponse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string data_version = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_data_version();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ListClassesResponse.data_version"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.RaceInfo races = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_races(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.ClassInfo classes = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_classes(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 playable_level_cap = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.playable_level_cap_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 max_transfer_tier = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.max_transfer_tier_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ClassMasterInfo class_master = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          ptr = ctx->ParseMessage(_internal_mutable_class_master(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ListClassesResponse::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ListClassesResponse)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string data_version = 1;
+  if (!this->_internal_data_version().empty()) {
+    const std::string& _s = this->_internal_data_version();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ListClassesResponse.data_version");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // repeated .nightfall.v1.RaceInfo races = 2;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_races_size()); i < n; i++) {
+    const auto& repfield = this->_internal_races(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(2, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // repeated .nightfall.v1.ClassInfo classes = 3;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_classes_size()); i < n; i++) {
+    const auto& repfield = this->_internal_classes(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(3, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // uint32 playable_level_cap = 4;
+  if (this->_internal_playable_level_cap() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_playable_level_cap(), target);
+  }
+
+  // uint32 max_transfer_tier = 5;
+  if (this->_internal_max_transfer_tier() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_max_transfer_tier(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .nightfall.v1.ClassMasterInfo class_master = 6;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(6, _Internal::class_master(this),
+        _Internal::class_master(this).GetCachedSize(), target, stream);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ListClassesResponse)
+  return target;
+}
+
+::size_t ListClassesResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ListClassesResponse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.RaceInfo races = 2;
+  total_size += 1UL * this->_internal_races_size();
+  for (const auto& msg : this->_internal_races()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // repeated .nightfall.v1.ClassInfo classes = 3;
+  total_size += 1UL * this->_internal_classes_size();
+  for (const auto& msg : this->_internal_classes()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // string data_version = 1;
+  if (!this->_internal_data_version().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_data_version());
+  }
+
+  // .nightfall.v1.ClassMasterInfo class_master = 6;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.class_master_);
+  }
+
+  // uint32 playable_level_cap = 4;
+  if (this->_internal_playable_level_cap() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_playable_level_cap());
+  }
+
+  // uint32 max_transfer_tier = 5;
+  if (this->_internal_max_transfer_tier() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_max_transfer_tier());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ListClassesResponse::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ListClassesResponse::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ListClassesResponse::GetClassData() const { return &_class_data_; }
+
+
+void ListClassesResponse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ListClassesResponse*>(&to_msg);
+  auto& from = static_cast<const ListClassesResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ListClassesResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_races()->MergeFrom(from._internal_races());
+  _this->_internal_mutable_classes()->MergeFrom(from._internal_classes());
+  if (!from._internal_data_version().empty()) {
+    _this->_internal_set_data_version(from._internal_data_version());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_class_master()->::nightfall::v1::ClassMasterInfo::MergeFrom(
+        from._internal_class_master());
+  }
+  if (from._internal_playable_level_cap() != 0) {
+    _this->_internal_set_playable_level_cap(from._internal_playable_level_cap());
+  }
+  if (from._internal_max_transfer_tier() != 0) {
+    _this->_internal_set_max_transfer_tier(from._internal_max_transfer_tier());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ListClassesResponse::CopyFrom(const ListClassesResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ListClassesResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ListClassesResponse::IsInitialized() const {
+  return true;
+}
+
+void ListClassesResponse::InternalSwap(ListClassesResponse* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_races()->InternalSwap(other->_internal_mutable_races());
+  _internal_mutable_classes()->InternalSwap(other->_internal_mutable_classes());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.data_version_, lhs_arena,
+                                       &other->_impl_.data_version_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ListClassesResponse, _impl_.max_transfer_tier_)
+      + sizeof(ListClassesResponse::_impl_.max_transfer_tier_)
+      - PROTOBUF_FIELD_OFFSET(ListClassesResponse, _impl_.class_master_)>(
+          reinterpret_cast<char*>(&_impl_.class_master_),
+          reinterpret_cast<char*>(&other->_impl_.class_master_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ListClassesResponse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[18]);
+}
+// ===================================================================
+
+class TransferOptionsRequest::_Internal {
+ public:
+};
+
+TransferOptionsRequest::TransferOptionsRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.TransferOptionsRequest)
+}
+TransferOptionsRequest::TransferOptionsRequest(const TransferOptionsRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  TransferOptionsRequest* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.character_id_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_character_id().empty()) {
+    _this->_impl_.character_id_.Set(from._internal_character_id(), _this->GetArenaForAllocation());
+  }
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.TransferOptionsRequest)
+}
+
+inline void TransferOptionsRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.character_id_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+TransferOptionsRequest::~TransferOptionsRequest() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.TransferOptionsRequest)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void TransferOptionsRequest::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.character_id_.Destroy();
+}
+
+void TransferOptionsRequest::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void TransferOptionsRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.TransferOptionsRequest)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.character_id_.ClearToEmpty();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* TransferOptionsRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string character_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_character_id();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.TransferOptionsRequest.character_id"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* TransferOptionsRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.TransferOptionsRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string character_id = 1;
+  if (!this->_internal_character_id().empty()) {
+    const std::string& _s = this->_internal_character_id();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.TransferOptionsRequest.character_id");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.TransferOptionsRequest)
+  return target;
+}
+
+::size_t TransferOptionsRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.TransferOptionsRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string character_id = 1;
+  if (!this->_internal_character_id().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_character_id());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData TransferOptionsRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    TransferOptionsRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*TransferOptionsRequest::GetClassData() const { return &_class_data_; }
+
+
+void TransferOptionsRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<TransferOptionsRequest*>(&to_msg);
+  auto& from = static_cast<const TransferOptionsRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.TransferOptionsRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_character_id().empty()) {
+    _this->_internal_set_character_id(from._internal_character_id());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void TransferOptionsRequest::CopyFrom(const TransferOptionsRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.TransferOptionsRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool TransferOptionsRequest::IsInitialized() const {
+  return true;
+}
+
+void TransferOptionsRequest::InternalSwap(TransferOptionsRequest* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.character_id_, lhs_arena,
+                                       &other->_impl_.character_id_, rhs_arena);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata TransferOptionsRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[19]);
+}
+// ===================================================================
+
+class TransferOption::_Internal {
+ public:
+};
+
+TransferOption::TransferOption(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.TransferOption)
+}
+TransferOption::TransferOption(const TransferOption& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  TransferOption* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.unmet_){from._impl_.unmet_}
+    , decltype(_impl_.class_id_) {}
+
+    , decltype(_impl_.eligible_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  ::memcpy(&_impl_.class_id_, &from._impl_.class_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.eligible_) -
+    reinterpret_cast<char*>(&_impl_.class_id_)) + sizeof(_impl_.eligible_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.TransferOption)
+}
+
+inline void TransferOption::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.unmet_){arena}
+    , decltype(_impl_.class_id_) { 0u }
+
+    , decltype(_impl_.eligible_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+TransferOption::~TransferOption() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.TransferOption)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void TransferOption::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_unmet()->~RepeatedPtrField();
+}
+
+void TransferOption::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void TransferOption::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.TransferOption)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_unmet()->Clear();
+  ::memset(&_impl_.class_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.eligible_) -
+      reinterpret_cast<char*>(&_impl_.class_id_)) + sizeof(_impl_.eligible_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* TransferOption::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 class_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool eligible = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.eligible_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated string unmet = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_unmet();
+            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(ptr);
+            CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.TransferOption.unmet"));
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* TransferOption::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.TransferOption)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 class_id = 1;
+  if (this->_internal_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_class_id(), target);
+  }
+
+  // bool eligible = 2;
+  if (this->_internal_eligible() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        2, this->_internal_eligible(), target);
+  }
+
+  // repeated string unmet = 3;
+  for (int i = 0, n = this->_internal_unmet_size(); i < n; ++i) {
+    const auto& s = this->_internal_unmet(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        s.data(), static_cast<int>(s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.TransferOption.unmet");
+    target = stream->WriteString(3, s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.TransferOption)
+  return target;
+}
+
+::size_t TransferOption::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.TransferOption)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated string unmet = 3;
+  total_size += 1 * ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_internal_unmet().size());
+  for (int i = 0, n = _internal_unmet().size(); i < n; ++i) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        _internal_unmet().Get(i));
+  }
+
+  // uint32 class_id = 1;
+  if (this->_internal_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_class_id());
+  }
+
+  // bool eligible = 2;
+  if (this->_internal_eligible() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData TransferOption::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    TransferOption::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*TransferOption::GetClassData() const { return &_class_data_; }
+
+
+void TransferOption::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<TransferOption*>(&to_msg);
+  auto& from = static_cast<const TransferOption&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.TransferOption)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_unmet()->MergeFrom(from._internal_unmet());
+  if (from._internal_class_id() != 0) {
+    _this->_internal_set_class_id(from._internal_class_id());
+  }
+  if (from._internal_eligible() != 0) {
+    _this->_internal_set_eligible(from._internal_eligible());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void TransferOption::CopyFrom(const TransferOption& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.TransferOption)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool TransferOption::IsInitialized() const {
+  return true;
+}
+
+void TransferOption::InternalSwap(TransferOption* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _internal_mutable_unmet()->InternalSwap(
+      other->_internal_mutable_unmet());
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(TransferOption, _impl_.eligible_)
+      + sizeof(TransferOption::_impl_.eligible_)
+      - PROTOBUF_FIELD_OFFSET(TransferOption, _impl_.class_id_)>(
+          reinterpret_cast<char*>(&_impl_.class_id_),
+          reinterpret_cast<char*>(&other->_impl_.class_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata TransferOption::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[20]);
+}
+// ===================================================================
+
+class TransferOptionsResponse::_Internal {
+ public:
+};
+
+TransferOptionsResponse::TransferOptionsResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.TransferOptionsResponse)
+}
+TransferOptionsResponse::TransferOptionsResponse(const TransferOptionsResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  TransferOptionsResponse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.options_){from._impl_.options_}
+    , decltype(_impl_.current_class_id_) {}
+
+    , decltype(_impl_.token_tier_1_count_) {}
+
+    , decltype(_impl_.token_tier_2_count_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  ::memcpy(&_impl_.current_class_id_, &from._impl_.current_class_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.token_tier_2_count_) -
+    reinterpret_cast<char*>(&_impl_.current_class_id_)) + sizeof(_impl_.token_tier_2_count_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.TransferOptionsResponse)
+}
+
+inline void TransferOptionsResponse::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.options_){arena}
+    , decltype(_impl_.current_class_id_) { 0u }
+
+    , decltype(_impl_.token_tier_1_count_) { 0u }
+
+    , decltype(_impl_.token_tier_2_count_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+TransferOptionsResponse::~TransferOptionsResponse() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.TransferOptionsResponse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void TransferOptionsResponse::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_options()->~RepeatedPtrField();
+}
+
+void TransferOptionsResponse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void TransferOptionsResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.TransferOptionsResponse)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_options()->Clear();
+  ::memset(&_impl_.current_class_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.token_tier_2_count_) -
+      reinterpret_cast<char*>(&_impl_.current_class_id_)) + sizeof(_impl_.token_tier_2_count_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* TransferOptionsResponse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // repeated .nightfall.v1.TransferOption options = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_options(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 current_class_id = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.current_class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 token_tier_1_count = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.token_tier_1_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 token_tier_2_count = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.token_tier_2_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* TransferOptionsResponse::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.TransferOptionsResponse)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.TransferOption options = 1;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_options_size()); i < n; i++) {
+    const auto& repfield = this->_internal_options(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // uint32 current_class_id = 2;
+  if (this->_internal_current_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_current_class_id(), target);
+  }
+
+  // uint32 token_tier_1_count = 3;
+  if (this->_internal_token_tier_1_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_token_tier_1_count(), target);
+  }
+
+  // uint32 token_tier_2_count = 4;
+  if (this->_internal_token_tier_2_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_token_tier_2_count(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.TransferOptionsResponse)
+  return target;
+}
+
+::size_t TransferOptionsResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.TransferOptionsResponse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.TransferOption options = 1;
+  total_size += 1UL * this->_internal_options_size();
+  for (const auto& msg : this->_internal_options()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // uint32 current_class_id = 2;
+  if (this->_internal_current_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_current_class_id());
+  }
+
+  // uint32 token_tier_1_count = 3;
+  if (this->_internal_token_tier_1_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_token_tier_1_count());
+  }
+
+  // uint32 token_tier_2_count = 4;
+  if (this->_internal_token_tier_2_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_token_tier_2_count());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData TransferOptionsResponse::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    TransferOptionsResponse::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*TransferOptionsResponse::GetClassData() const { return &_class_data_; }
+
+
+void TransferOptionsResponse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<TransferOptionsResponse*>(&to_msg);
+  auto& from = static_cast<const TransferOptionsResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.TransferOptionsResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_options()->MergeFrom(from._internal_options());
+  if (from._internal_current_class_id() != 0) {
+    _this->_internal_set_current_class_id(from._internal_current_class_id());
+  }
+  if (from._internal_token_tier_1_count() != 0) {
+    _this->_internal_set_token_tier_1_count(from._internal_token_tier_1_count());
+  }
+  if (from._internal_token_tier_2_count() != 0) {
+    _this->_internal_set_token_tier_2_count(from._internal_token_tier_2_count());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void TransferOptionsResponse::CopyFrom(const TransferOptionsResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.TransferOptionsResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool TransferOptionsResponse::IsInitialized() const {
+  return true;
+}
+
+void TransferOptionsResponse::InternalSwap(TransferOptionsResponse* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _internal_mutable_options()->InternalSwap(other->_internal_mutable_options());
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(TransferOptionsResponse, _impl_.token_tier_2_count_)
+      + sizeof(TransferOptionsResponse::_impl_.token_tier_2_count_)
+      - PROTOBUF_FIELD_OFFSET(TransferOptionsResponse, _impl_.current_class_id_)>(
+          reinterpret_cast<char*>(&_impl_.current_class_id_),
+          reinterpret_cast<char*>(&other->_impl_.current_class_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata TransferOptionsResponse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[21]);
+}
+// ===================================================================
+
+class ChangeClassRequest::_Internal {
+ public:
+};
+
+ChangeClassRequest::ChangeClassRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ChangeClassRequest)
+}
+ChangeClassRequest::ChangeClassRequest(const ChangeClassRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ChangeClassRequest* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.character_id_) {}
+
+    , decltype(_impl_.idempotency_key_) {}
+
+    , decltype(_impl_.target_class_id_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_character_id().empty()) {
+    _this->_impl_.character_id_.Set(from._internal_character_id(), _this->GetArenaForAllocation());
+  }
+  _impl_.idempotency_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.idempotency_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_idempotency_key().empty()) {
+    _this->_impl_.idempotency_key_.Set(from._internal_idempotency_key(), _this->GetArenaForAllocation());
+  }
+  _this->_impl_.target_class_id_ = from._impl_.target_class_id_;
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ChangeClassRequest)
+}
+
+inline void ChangeClassRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.character_id_) {}
+
+    , decltype(_impl_.idempotency_key_) {}
+
+    , decltype(_impl_.target_class_id_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.character_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.character_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.idempotency_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.idempotency_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ChangeClassRequest::~ChangeClassRequest() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ChangeClassRequest)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ChangeClassRequest::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.character_id_.Destroy();
+  _impl_.idempotency_key_.Destroy();
+}
+
+void ChangeClassRequest::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ChangeClassRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ChangeClassRequest)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.character_id_.ClearToEmpty();
+  _impl_.idempotency_key_.ClearToEmpty();
+  _impl_.target_class_id_ = 0u;
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ChangeClassRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string character_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_character_id();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ChangeClassRequest.character_id"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 target_class_id = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.target_class_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string idempotency_key = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          auto str = _internal_mutable_idempotency_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ChangeClassRequest.idempotency_key"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ChangeClassRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ChangeClassRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string character_id = 1;
+  if (!this->_internal_character_id().empty()) {
+    const std::string& _s = this->_internal_character_id();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ChangeClassRequest.character_id");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 target_class_id = 2;
+  if (this->_internal_target_class_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_target_class_id(), target);
+  }
+
+  // string idempotency_key = 3;
+  if (!this->_internal_idempotency_key().empty()) {
+    const std::string& _s = this->_internal_idempotency_key();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ChangeClassRequest.idempotency_key");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ChangeClassRequest)
+  return target;
+}
+
+::size_t ChangeClassRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ChangeClassRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string character_id = 1;
+  if (!this->_internal_character_id().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_character_id());
+  }
+
+  // string idempotency_key = 3;
+  if (!this->_internal_idempotency_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_idempotency_key());
+  }
+
+  // uint32 target_class_id = 2;
+  if (this->_internal_target_class_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_class_id());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ChangeClassRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ChangeClassRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ChangeClassRequest::GetClassData() const { return &_class_data_; }
+
+
+void ChangeClassRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ChangeClassRequest*>(&to_msg);
+  auto& from = static_cast<const ChangeClassRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ChangeClassRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_character_id().empty()) {
+    _this->_internal_set_character_id(from._internal_character_id());
+  }
+  if (!from._internal_idempotency_key().empty()) {
+    _this->_internal_set_idempotency_key(from._internal_idempotency_key());
+  }
+  if (from._internal_target_class_id() != 0) {
+    _this->_internal_set_target_class_id(from._internal_target_class_id());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ChangeClassRequest::CopyFrom(const ChangeClassRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ChangeClassRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ChangeClassRequest::IsInitialized() const {
+  return true;
+}
+
+void ChangeClassRequest::InternalSwap(ChangeClassRequest* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.character_id_, lhs_arena,
+                                       &other->_impl_.character_id_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.idempotency_key_, lhs_arena,
+                                       &other->_impl_.idempotency_key_, rhs_arena);
+
+  swap(_impl_.target_class_id_, other->_impl_.target_class_id_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ChangeClassRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[22]);
+}
+// ===================================================================
+
+class ChangeClassResponse::_Internal {
+ public:
+  using HasBits = decltype(std::declval<ChangeClassResponse>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ChangeClassResponse, _impl_._has_bits_);
+  static const ::nightfall::v1::Character& character(const ChangeClassResponse* msg);
+  static void set_has_character(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+const ::nightfall::v1::Character&
+ChangeClassResponse::_Internal::character(const ChangeClassResponse* msg) {
+  return *msg->_impl_.character_;
+}
+ChangeClassResponse::ChangeClassResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ChangeClassResponse)
+}
+ChangeClassResponse::ChangeClassResponse(const ChangeClassResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ChangeClassResponse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.granted_skill_keys_){from._impl_.granted_skill_keys_}
+    , decltype(_impl_.character_){nullptr}
+    , decltype(_impl_.token_tier_1_count_) {}
+
+    , decltype(_impl_.token_tier_2_count_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.character_ = new ::nightfall::v1::Character(*from._impl_.character_);
+  }
+  ::memcpy(&_impl_.token_tier_1_count_, &from._impl_.token_tier_1_count_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.token_tier_2_count_) -
+    reinterpret_cast<char*>(&_impl_.token_tier_1_count_)) + sizeof(_impl_.token_tier_2_count_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ChangeClassResponse)
+}
+
+inline void ChangeClassResponse::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.granted_skill_keys_){arena}
+    , decltype(_impl_.character_){nullptr}
+    , decltype(_impl_.token_tier_1_count_) { 0u }
+
+    , decltype(_impl_.token_tier_2_count_) { 0u }
+
+  };
+}
+
+ChangeClassResponse::~ChangeClassResponse() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ChangeClassResponse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ChangeClassResponse::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_granted_skill_keys()->~RepeatedPtrField();
+  if (this != internal_default_instance()) delete _impl_.character_;
+}
+
+void ChangeClassResponse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ChangeClassResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ChangeClassResponse)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_granted_skill_keys()->Clear();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.character_ != nullptr);
+    _impl_.character_->Clear();
+  }
+  ::memset(&_impl_.token_tier_1_count_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.token_tier_2_count_) -
+      reinterpret_cast<char*>(&_impl_.token_tier_1_count_)) + sizeof(_impl_.token_tier_2_count_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ChangeClassResponse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // .nightfall.v1.Character character = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr = ctx->ParseMessage(_internal_mutable_character(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated string granted_skill_keys = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_granted_skill_keys();
+            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(ptr);
+            CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ChangeClassResponse.granted_skill_keys"));
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 token_tier_1_count = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.token_tier_1_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 token_tier_2_count = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.token_tier_2_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ChangeClassResponse::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ChangeClassResponse)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .nightfall.v1.Character character = 1;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(1, _Internal::character(this),
+        _Internal::character(this).GetCachedSize(), target, stream);
+  }
+
+  // repeated string granted_skill_keys = 2;
+  for (int i = 0, n = this->_internal_granted_skill_keys_size(); i < n; ++i) {
+    const auto& s = this->_internal_granted_skill_keys(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        s.data(), static_cast<int>(s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ChangeClassResponse.granted_skill_keys");
+    target = stream->WriteString(2, s, target);
+  }
+
+  // uint32 token_tier_1_count = 3;
+  if (this->_internal_token_tier_1_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_token_tier_1_count(), target);
+  }
+
+  // uint32 token_tier_2_count = 4;
+  if (this->_internal_token_tier_2_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_token_tier_2_count(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ChangeClassResponse)
+  return target;
+}
+
+::size_t ChangeClassResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ChangeClassResponse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated string granted_skill_keys = 2;
+  total_size += 1 * ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_internal_granted_skill_keys().size());
+  for (int i = 0, n = _internal_granted_skill_keys().size(); i < n; ++i) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        _internal_granted_skill_keys().Get(i));
+  }
+
+  // .nightfall.v1.Character character = 1;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.character_);
+  }
+
+  // uint32 token_tier_1_count = 3;
+  if (this->_internal_token_tier_1_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_token_tier_1_count());
+  }
+
+  // uint32 token_tier_2_count = 4;
+  if (this->_internal_token_tier_2_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_token_tier_2_count());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ChangeClassResponse::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ChangeClassResponse::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ChangeClassResponse::GetClassData() const { return &_class_data_; }
+
+
+void ChangeClassResponse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ChangeClassResponse*>(&to_msg);
+  auto& from = static_cast<const ChangeClassResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ChangeClassResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_granted_skill_keys()->MergeFrom(from._internal_granted_skill_keys());
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_character()->::nightfall::v1::Character::MergeFrom(
+        from._internal_character());
+  }
+  if (from._internal_token_tier_1_count() != 0) {
+    _this->_internal_set_token_tier_1_count(from._internal_token_tier_1_count());
+  }
+  if (from._internal_token_tier_2_count() != 0) {
+    _this->_internal_set_token_tier_2_count(from._internal_token_tier_2_count());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ChangeClassResponse::CopyFrom(const ChangeClassResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ChangeClassResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ChangeClassResponse::IsInitialized() const {
+  return true;
+}
+
+void ChangeClassResponse::InternalSwap(ChangeClassResponse* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_granted_skill_keys()->InternalSwap(
+      other->_internal_mutable_granted_skill_keys());
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ChangeClassResponse, _impl_.token_tier_2_count_)
+      + sizeof(ChangeClassResponse::_impl_.token_tier_2_count_)
+      - PROTOBUF_FIELD_OFFSET(ChangeClassResponse, _impl_.character_)>(
+          reinterpret_cast<char*>(&_impl_.character_),
+          reinterpret_cast<char*>(&other->_impl_.character_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ChangeClassResponse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fgame_2eproto_getter, &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fgame_2eproto[23]);
+}
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace v1
 }  // namespace nightfall
@@ -2612,6 +8859,66 @@ Arena::CreateMaybeMessage< ::nightfall::v1::Character >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::nightfall::v1::Position*
 Arena::CreateMaybeMessage< ::nightfall::v1::Position >(Arena* arena) {
   return Arena::CreateMessageInternal< ::nightfall::v1::Position >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ClassProgress*
+Arena::CreateMaybeMessage< ::nightfall::v1::ClassProgress >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ClassProgress >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillLearnInfo*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillLearnInfo >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillLearnInfo >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillItemRequirement*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillItemRequirement >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillItemRequirement >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ProficiencyInfo*
+Arena::CreateMaybeMessage< ::nightfall::v1::ProficiencyInfo >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ProficiencyInfo >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ClassInfo*
+Arena::CreateMaybeMessage< ::nightfall::v1::ClassInfo >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ClassInfo >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::PassiveInfo*
+Arena::CreateMaybeMessage< ::nightfall::v1::PassiveInfo >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::PassiveInfo >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::RaceInfo*
+Arena::CreateMaybeMessage< ::nightfall::v1::RaceInfo >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::RaceInfo >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ClassMasterInfo*
+Arena::CreateMaybeMessage< ::nightfall::v1::ClassMasterInfo >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ClassMasterInfo >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ListClassesRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::ListClassesRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ListClassesRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ListClassesResponse*
+Arena::CreateMaybeMessage< ::nightfall::v1::ListClassesResponse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ListClassesResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::TransferOptionsRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::TransferOptionsRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::TransferOptionsRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::TransferOption*
+Arena::CreateMaybeMessage< ::nightfall::v1::TransferOption >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::TransferOption >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::TransferOptionsResponse*
+Arena::CreateMaybeMessage< ::nightfall::v1::TransferOptionsResponse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::TransferOptionsResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ChangeClassRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::ChangeClassRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ChangeClassRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ChangeClassResponse*
+Arena::CreateMaybeMessage< ::nightfall::v1::ChangeClassResponse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ChangeClassResponse >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 // @@protoc_insertion_point(global_scope)

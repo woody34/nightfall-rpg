@@ -1,5 +1,6 @@
 #include "LoginFlowSubsystem.h"
 #include "Bot/BotCharacterName.h"
+#include "Character/ClassStateSubsystem.h"
 #include "Nightfall.h"
 #include "Auth/AuthSubsystem.h"
 #include "Net/NetSettings.h"
@@ -97,6 +98,13 @@ void ULoginFlowSubsystem::CreateCharacter(const FString& Name, EGrpcNightfallV1R
 	Request.IdempotencyKey = NewIdempotencyKey();   // one per attempt
 	Request.Name = Name;
 	Request.Race = Race;
+	CreateCharacter(Request, MoveTemp(Callback));
+}
+
+void ULoginFlowSubsystem::CreateCharacter(const FGrpcNightfallV1CreateCharacterRequest& InRequest, USessionClient::FCharacterCallback Callback)
+{
+	FGrpcNightfallV1CreateCharacterRequest Request = InRequest;
+	Request.IdempotencyKey = NewIdempotencyKey();
 	WithFreshToken(
 		[Weak = TWeakObjectPtr<ULoginFlowSubsystem>(this), Request, Callback]()
 		{
@@ -188,6 +196,10 @@ void ULoginFlowSubsystem::EnterWorld(const FString& CharacterId, FResultCallback
 
 void ULoginFlowSubsystem::LeaveWorld()
 {
+	if (GetGameInstance())
+	{
+		if (auto* Classes = GetGameInstance()->GetSubsystem<UClassStateSubsystem>()) Classes->ResetAccount();
+	}
 	SelectedCharacterId.Empty();
 	if (Net != nullptr)
 	{
@@ -345,3 +357,39 @@ namespace
 		}));
 }
 #endif
+
+void ULoginFlowSubsystem::ListClasses(USessionClient::FCatalogueCallback Callback)
+{
+	WithFreshToken([Weak = TWeakObjectPtr<ULoginFlowSubsystem>(this), Callback]()
+	{
+		if (Weak.IsValid() && Weak->Session) Weak->Session->ListClasses(Callback);
+	}, [Callback](const FNetResult& R) { Callback(R, FGrpcNightfallV1ListClassesResponse()); });
+}
+
+void ULoginFlowSubsystem::TransferOptions(const FString& CharacterId, USessionClient::FTransferOptionsCallback Callback)
+{
+	WithFreshToken([Weak = TWeakObjectPtr<ULoginFlowSubsystem>(this), CharacterId, Callback]()
+	{
+		if (Weak.IsValid() && Weak->Session) Weak->Session->TransferOptions(CharacterId, Callback);
+	}, [Callback](const FNetResult& R) { Callback(R, FGrpcNightfallV1TransferOptionsResponse()); });
+}
+
+void ULoginFlowSubsystem::ChangeClass(const FString& CharacterId, uint32 TargetClassId, USessionClient::FChangeClassCallback Callback)
+{
+	FGrpcNightfallV1ChangeClassRequest Request;
+	Request.CharacterId = CharacterId;
+	Request.TargetClassId = TargetClassId;
+	Request.IdempotencyKey = NewIdempotencyKey();
+	WithFreshToken([Weak = TWeakObjectPtr<ULoginFlowSubsystem>(this), Request, Callback]()
+	{
+		if (Weak.IsValid() && Weak->Session) Weak->Session->ChangeClass(Request, Callback);
+	}, [Callback](const FNetResult& R) { Callback(R, FGrpcNightfallV1ChangeClassResponse()); });
+}
+
+void ULoginFlowSubsystem::GetCharacter(const FString& CharacterId, USessionClient::FCharacterCallback Callback)
+{
+	WithFreshToken([Weak = TWeakObjectPtr<ULoginFlowSubsystem>(this), CharacterId, Callback]()
+	{
+		if (Weak.IsValid() && Weak->Session) Weak->Session->GetCharacter(CharacterId, Callback);
+	}, [Callback](const FNetResult& R) { Callback(R, FGrpcNightfallV1Character()); });
+}

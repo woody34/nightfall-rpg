@@ -309,6 +309,14 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::WorldEvent* in, FGrpcNightfallV1Wo
         out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::AttackCancelled;
     }
         break;
+    case ::nightfall::v1::WorldEvent::kClassChanged:
+    {
+        FGrpcNightfallV1ClassChanged field;
+        GRPC_TO_TURBOLINK(&(in->class_changed()), &field);
+        out->Event.ClassChanged=MakeShareable(new FGrpcNightfallV1ClassChanged(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::ClassChanged;
+    }
+        break;
     }
 }
 
@@ -352,6 +360,9 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1WorldEvent* in, ::nightfall::v1::Wo
     case EGrpcNightfallV1WorldEventEvent::AttackCancelled:
         TURBOLINK_TO_GRPC(in->Event.AttackCancelled.Get(), out->mutable_attack_cancelled());
         break;
+    case EGrpcNightfallV1WorldEventEvent::ClassChanged:
+        TURBOLINK_TO_GRPC(in->Event.ClassChanged.Get(), out->mutable_class_changed());
+        break;
     }
 }
 
@@ -375,6 +386,13 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntitySpawn* in, FGrpcNightfallV1E
         GRPC_TO_TURBOLINK(&(in->pending_swing()), &field);
         out->PendingSwing = MakeShareable(new FGrpcNightfallV1AttackStarted(field));
     }
+    out->Race=StaticCast<EGrpcNightfallV1Race>(in->race());
+    out->ClassId=in->class_id();
+    out->Sex=StaticCast<EGrpcNightfallV1Sex>(in->sex());
+    out->HairStyle=in->hair_style();
+    out->HairColor=in->hair_color();
+    out->Face=in->face();
+    out->StateTick=in->state_tick();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::EntitySpawn* out)
@@ -393,6 +411,13 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::E
     out->set_max_hp(in->MaxHp);
     out->set_level(in->Level);
     TURBOLINK_TO_GRPC(in->PendingSwing.Get(), out->mutable_pending_swing());
+    out->set_race(::nightfall::v1::Race(static_cast<uint8>(in->Race)));
+    out->set_class_id(in->ClassId);
+    out->set_sex(::nightfall::v1::Sex(static_cast<uint8>(in->Sex)));
+    out->set_hair_style(in->HairStyle);
+    out->set_hair_color(in->HairColor);
+    out->set_face(in->Face);
+    out->set_state_tick(in->StateTick);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityMove* in, FGrpcNightfallV1EntityMove* out)
@@ -526,6 +551,13 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::StatsChanged* in, FGrpcNightfallV1
     out->MaxMp=in->max_mp();
     out->Level=in->level();
     out->Xp=in->xp();
+    out->Cp=in->cp();
+    out->MaxCp=in->max_cp();
+    out->ClassId=in->class_id();
+    out->Sp=in->sp();
+    out->TokenTier1Count=in->token_tier_1_count();
+    out->TokenTier2Count=in->token_tier_2_count();
+    out->Tick=in->tick();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::StatsChanged* out)
@@ -537,6 +569,13 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::
     out->set_max_mp(in->MaxMp);
     out->set_level(in->Level);
     out->set_xp(in->Xp);
+    out->set_cp(in->Cp);
+    out->set_max_cp(in->MaxCp);
+    out->set_class_id(in->ClassId);
+    out->set_sp(in->Sp);
+    out->set_token_tier_1_count(in->TokenTier1Count);
+    out->set_token_tier_2_count(in->TokenTier2Count);
+    out->set_tick(in->Tick);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::XpGained* in, FGrpcNightfallV1XpGained* out)
@@ -575,5 +614,21 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1TargetChanged* in, ::nightfall::v1:
 {
     out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
     out->set_target((const char*)StringCast<UTF8CHAR>(*(in->Target)).Get());
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassChanged* in, FGrpcNightfallV1ClassChanged* out)
+{
+    out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
+    out->ClassId=in->class_id();
+    out->Tick=in->tick();
+    out->SessionGeneration=in->session_generation();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassChanged* in, ::nightfall::v1::ClassChanged* out)
+{
+    out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
+    out->set_class_id(in->ClassId);
+    out->set_tick(in->Tick);
+    out->set_session_generation(in->SessionGeneration);
 }
 

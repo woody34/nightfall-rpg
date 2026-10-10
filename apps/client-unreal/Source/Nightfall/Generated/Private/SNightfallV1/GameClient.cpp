@@ -29,7 +29,7 @@ void UGameServiceClient::Ping(FGrpcContextHandle Handle, const FGrpcNightfallV1P
 
 		if (DeadLineSeconds > 0.f)
 		{
-			std::chrono::time_point deadLine = std::chrono::system_clock::now() + 
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
 				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
 			contextPing->RpcContext->set_deadline(deadLine);
 		}
@@ -61,7 +61,7 @@ void UGameServiceClient::GetCharacter(FGrpcContextHandle Handle, const FGrpcNigh
 
 		if (DeadLineSeconds > 0.f)
 		{
-			std::chrono::time_point deadLine = std::chrono::system_clock::now() + 
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
 				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
 			contextGetCharacter->RpcContext->set_deadline(deadLine);
 		}
@@ -93,7 +93,7 @@ void UGameServiceClient::CreateCharacter(FGrpcContextHandle Handle, const FGrpcN
 
 		if (DeadLineSeconds > 0.f)
 		{
-			std::chrono::time_point deadLine = std::chrono::system_clock::now() + 
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
 				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
 			contextCreateCharacter->RpcContext->set_deadline(deadLine);
 		}
@@ -125,11 +125,107 @@ void UGameServiceClient::ListMyCharacters(FGrpcContextHandle Handle, const FGrpc
 
 		if (DeadLineSeconds > 0.f)
 		{
-			std::chrono::time_point deadLine = std::chrono::system_clock::now() + 
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
 				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
 			contextListMyCharacters->RpcContext->set_deadline(deadLine);
 		}
 		contextListMyCharacters->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitListClasses()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_ListClasses>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::ListClasses(FGrpcContextHandle Handle, const FGrpcNightfallV1ListClassesRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextListClasses = StaticCastSharedPtr<GrpcContext_GameService_ListClasses>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextListClasses->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextListClasses->RpcContext->set_deadline(deadLine);
+		}
+		contextListClasses->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitTransferOptions()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_TransferOptions>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::TransferOptions(FGrpcContextHandle Handle, const FGrpcNightfallV1TransferOptionsRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextTransferOptions = StaticCastSharedPtr<GrpcContext_GameService_TransferOptions>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextTransferOptions->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextTransferOptions->RpcContext->set_deadline(deadLine);
+		}
+		contextTransferOptions->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitChangeClass()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_ChangeClass>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::ChangeClass(FGrpcContextHandle Handle, const FGrpcNightfallV1ChangeClassRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextChangeClass = StaticCastSharedPtr<GrpcContext_GameService_ChangeClass>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextChangeClass->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextChangeClass->RpcContext->set_deadline(deadLine);
+		}
+		contextChangeClass->Call(Request);
 	}
 }
 
@@ -148,6 +244,9 @@ void UGameServiceClient::Shutdown()
 	OnGetCharacterResponse.Clear();
 	OnCreateCharacterResponse.Clear();
 	OnListMyCharactersResponse.Clear();
+	OnListClassesResponse.Clear();
+	OnTransferOptionsResponse.Clear();
+	OnChangeClassResponse.Clear();
 	Super::Shutdown();
 }
 

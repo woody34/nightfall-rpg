@@ -18,6 +18,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnIntentRejected, const FIntentRejected&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAttackResult, const FAttackResult&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntityDied, const FEntityDied&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntityRespawned, const FEntityRespawned&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnClassChanged, const FClassChanged&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnStatsChanged, const FStatsChanged&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnXpGained, const FXpGained&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelUp, const FLevelUp&);
@@ -176,6 +177,7 @@ public:
 	FOnAttackResult OnAttackResult;
 	FOnEntityDied OnEntityDied;
 	FOnEntityRespawned OnEntityRespawned;
+	FOnClassChanged OnClassChanged;
 	FOnStatsChanged OnStatsChanged;
 	FOnXpGained OnXpGained;
 	FOnLevelUp OnLevelUp;

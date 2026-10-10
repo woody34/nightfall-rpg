@@ -76,12 +76,18 @@ public:
 	using FPingCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1PingResponse&)>;
 	using FCharacterCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1Character&)>;
 	using FCharacterListCallback = TFunction<void(const FNetResult&, const TArray<FGrpcNightfallV1Character>&)>;
+	using FCatalogueCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListClassesResponse&)>;
+	using FTransferOptionsCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1TransferOptionsResponse&)>;
+	using FChangeClassCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ChangeClassResponse&)>;
 	using FPlayTicketCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1IssuePlayTicketResponse&)>;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
 	void Ping(FPingCallback Callback);
+	void ListClasses(FCatalogueCallback Callback);
+	void TransferOptions(const FString& CharacterId, FTransferOptionsCallback Callback);
+	void ChangeClass(const FGrpcNightfallV1ChangeClassRequest& Request, FChangeClassCallback Callback);
 	void GetCharacter(const FString& CharacterId, FCharacterCallback Callback);
 	void CreateCharacter(const FGrpcNightfallV1CreateCharacterRequest& Request, FCharacterCallback Callback);
 	void ListMyCharacters(FCharacterListCallback Callback);
@@ -140,6 +146,10 @@ private:
 	UFUNCTION()
 	void HandleIssuePlayTicket(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1IssuePlayTicketResponse& Response);
 
+	UFUNCTION() void HandleListClasses(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListClassesResponse& Response);
+	UFUNCTION() void HandleTransferOptions(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1TransferOptionsResponse& Response);
+	UFUNCTION() void HandleChangeClass(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ChangeClassResponse& Response);
+
 	UPROPERTY()
 	TObjectPtr<UTurboLinkGrpcManager> Manager;
 
@@ -159,6 +169,9 @@ private:
 	float CallTimeoutSeconds = 5.f;
 	FString BearerToken;
 
+	TMap<uint32, FCatalogueCallback> PendingListClasses;
+	TMap<uint32, FTransferOptionsCallback> PendingTransferOptions;
+	TMap<uint32, FChangeClassCallback> PendingChangeClass;
 	TMap<uint32, FPingCallback> PendingPing;
 	TMap<uint32, FCharacterCallback> PendingGetCharacter;
 	TMap<uint32, FCharacterCallback> PendingCreateCharacter;

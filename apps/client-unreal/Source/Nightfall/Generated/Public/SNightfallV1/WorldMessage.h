@@ -86,6 +86,7 @@ enum class EGrpcNightfallV1WorldEventEvent : uint8
     TargetChanged=9,
     AttackStarted=10,
     AttackCancelled=11,
+    ClassChanged=12,
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClientMessage.Intent",
@@ -261,6 +262,8 @@ struct FGrpcNightfallV1WorldEventEvent : public FGrpcMessage
     TSharedPtr<FGrpcNightfallV1AttackStarted> AttackStarted;
 
     TSharedPtr<FGrpcNightfallV1AttackCancelled> AttackCancelled;
+
+    TSharedPtr<FGrpcNightfallV1ClassChanged> ClassChanged;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.WorldEvent"))
@@ -321,6 +324,27 @@ struct FGrpcNightfallV1EntitySpawn : public FGrpcMessage
     FUInt32 Level = 0;
 
     TSharedPtr<FGrpcNightfallV1AttackStarted> PendingSwing;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1Race Race = static_cast<EGrpcNightfallV1Race>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1Sex Sex = static_cast<EGrpcNightfallV1Sex>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HairStyle = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 HairColor = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Face = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 StateTick = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EntityMove"))
@@ -497,6 +521,27 @@ struct FGrpcNightfallV1StatsChanged : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt64 Xp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 Cp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 MaxCp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Sp = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TokenTier1Count = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TokenTier2Count = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.XpGained"))
@@ -541,21 +586,40 @@ struct FGrpcNightfallV1TargetChanged : public FGrpcMessage
     FString Target = "";
 };
 
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClassChanged"))
+struct FGrpcNightfallV1ClassChanged : public FGrpcMessage
+{
+    GENERATED_BODY()
+    DECLARE_JSON_FUNCTIONS()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString Entity = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 ClassId = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 SessionGeneration = 0;
+};
+
 UCLASS()
 class UGrpcNightfallV1ClientMessageIntentHelperLibrary : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
 public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static FGrpcNightfallV1ClientMessageIntent MakeIntent(EGrpcNightfallV1ClientMessageIntent IntentCase, 
-        FGrpcNightfallV1MoveToRequest MoveTo, FGrpcNightfallV1StopMoveRequest StopMove, FGrpcNightfallV1SetTargetRequest SetTarget, 
-        FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn 
+    static FGrpcNightfallV1ClientMessageIntent MakeIntent(EGrpcNightfallV1ClientMessageIntent IntentCase,
+        FGrpcNightfallV1MoveToRequest MoveTo, FGrpcNightfallV1StopMoveRequest StopMove, FGrpcNightfallV1SetTargetRequest SetTarget,
+        FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static void BreakIntent(const FGrpcNightfallV1ClientMessageIntent& Intent, EGrpcNightfallV1ClientMessageIntent& IntentCase, 
-        FGrpcNightfallV1MoveToRequest& MoveTo, FGrpcNightfallV1StopMoveRequest& StopMove, FGrpcNightfallV1SetTargetRequest& SetTarget, 
-        FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn 
+    static void BreakIntent(const FGrpcNightfallV1ClientMessageIntent& Intent, EGrpcNightfallV1ClientMessageIntent& IntentCase,
+        FGrpcNightfallV1MoveToRequest& MoveTo, FGrpcNightfallV1StopMoveRequest& StopMove, FGrpcNightfallV1SetTargetRequest& SetTarget,
+        FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn
     );
 };
 
@@ -565,13 +629,13 @@ class UGrpcNightfallV1ServerMessagePayloadHelperLibrary : public UBlueprintFunct
     GENERATED_BODY()
 public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static FGrpcNightfallV1ServerMessagePayload MakePayload(EGrpcNightfallV1ServerMessagePayload PayloadCase, 
-        FGrpcNightfallV1Ack Ack, FGrpcNightfallV1WorldEvent Event, FGrpcNightfallV1IntentRejected Rejected 
+    static FGrpcNightfallV1ServerMessagePayload MakePayload(EGrpcNightfallV1ServerMessagePayload PayloadCase,
+        FGrpcNightfallV1Ack Ack, FGrpcNightfallV1WorldEvent Event, FGrpcNightfallV1IntentRejected Rejected
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static void BreakPayload(const FGrpcNightfallV1ServerMessagePayload& Payload, EGrpcNightfallV1ServerMessagePayload& PayloadCase, 
-        FGrpcNightfallV1Ack& Ack, FGrpcNightfallV1WorldEvent& Event, FGrpcNightfallV1IntentRejected& Rejected 
+    static void BreakPayload(const FGrpcNightfallV1ServerMessagePayload& Payload, EGrpcNightfallV1ServerMessagePayload& PayloadCase,
+        FGrpcNightfallV1Ack& Ack, FGrpcNightfallV1WorldEvent& Event, FGrpcNightfallV1IntentRejected& Rejected
     );
 };
 
@@ -581,19 +645,21 @@ class UGrpcNightfallV1WorldEventEventHelperLibrary : public UBlueprintFunctionLi
     GENERATED_BODY()
 public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static FGrpcNightfallV1WorldEventEvent MakeEvent(EGrpcNightfallV1WorldEventEvent EventCase, 
-        FGrpcNightfallV1EntitySpawn Spawn, FGrpcNightfallV1EntityMove Move, FGrpcNightfallV1EntityDespawn Despawn, 
-        FGrpcNightfallV1AttackResult AttackResult, FGrpcNightfallV1EntityDied EntityDied, FGrpcNightfallV1EntityRespawned EntityRespawned, 
-        FGrpcNightfallV1StatsChanged StatsChanged, FGrpcNightfallV1XpGained XpGained, FGrpcNightfallV1LevelUp LevelUp, 
-        FGrpcNightfallV1TargetChanged TargetChanged, FGrpcNightfallV1AttackStarted AttackStarted, FGrpcNightfallV1AttackCancelled AttackCancelled 
+    static FGrpcNightfallV1WorldEventEvent MakeEvent(EGrpcNightfallV1WorldEventEvent EventCase,
+        FGrpcNightfallV1EntitySpawn Spawn, FGrpcNightfallV1EntityMove Move, FGrpcNightfallV1EntityDespawn Despawn,
+        FGrpcNightfallV1AttackResult AttackResult, FGrpcNightfallV1EntityDied EntityDied, FGrpcNightfallV1EntityRespawned EntityRespawned,
+        FGrpcNightfallV1StatsChanged StatsChanged, FGrpcNightfallV1XpGained XpGained, FGrpcNightfallV1LevelUp LevelUp,
+        FGrpcNightfallV1TargetChanged TargetChanged, FGrpcNightfallV1AttackStarted AttackStarted, FGrpcNightfallV1AttackCancelled AttackCancelled,
+        FGrpcNightfallV1ClassChanged ClassChanged
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static void BreakEvent(const FGrpcNightfallV1WorldEventEvent& Event, EGrpcNightfallV1WorldEventEvent& EventCase, 
-        FGrpcNightfallV1EntitySpawn& Spawn, FGrpcNightfallV1EntityMove& Move, FGrpcNightfallV1EntityDespawn& Despawn, 
-        FGrpcNightfallV1AttackResult& AttackResult, FGrpcNightfallV1EntityDied& EntityDied, FGrpcNightfallV1EntityRespawned& EntityRespawned, 
-        FGrpcNightfallV1StatsChanged& StatsChanged, FGrpcNightfallV1XpGained& XpGained, FGrpcNightfallV1LevelUp& LevelUp, 
-        FGrpcNightfallV1TargetChanged& TargetChanged, FGrpcNightfallV1AttackStarted& AttackStarted, FGrpcNightfallV1AttackCancelled& AttackCancelled 
+    static void BreakEvent(const FGrpcNightfallV1WorldEventEvent& Event, EGrpcNightfallV1WorldEventEvent& EventCase,
+        FGrpcNightfallV1EntitySpawn& Spawn, FGrpcNightfallV1EntityMove& Move, FGrpcNightfallV1EntityDespawn& Despawn,
+        FGrpcNightfallV1AttackResult& AttackResult, FGrpcNightfallV1EntityDied& EntityDied, FGrpcNightfallV1EntityRespawned& EntityRespawned,
+        FGrpcNightfallV1StatsChanged& StatsChanged, FGrpcNightfallV1XpGained& XpGained, FGrpcNightfallV1LevelUp& LevelUp,
+        FGrpcNightfallV1TargetChanged& TargetChanged, FGrpcNightfallV1AttackStarted& AttackStarted, FGrpcNightfallV1AttackCancelled& AttackCancelled,
+        FGrpcNightfallV1ClassChanged& ClassChanged
     );
 };
 
@@ -603,20 +669,24 @@ class UGrpcNightfallV1EntitySpawnHelperLibrary : public UBlueprintFunctionLibrar
     GENERATED_BODY()
 public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static FGrpcNightfallV1EntitySpawn MakeEntitySpawn( 
-        FString EntityId, FString Name, FGrpcNightfallV1Position Position, 
-        EGrpcNightfallV1EntityKind Kind, FUInt32 SessionGeneration, bool Combatant, 
-        FString TemplateId, FUInt32 LifeIncarnation, bool Dead, 
-        bool Attackable, FUInt32 Hp, FUInt32 MaxHp, 
-        FUInt32 Level, FGrpcNightfallV1AttackStarted PendingSwing 
+    static FGrpcNightfallV1EntitySpawn MakeEntitySpawn(
+        FString EntityId, FString Name, FGrpcNightfallV1Position Position,
+        EGrpcNightfallV1EntityKind Kind, FUInt32 SessionGeneration, bool Combatant,
+        FString TemplateId, FUInt32 LifeIncarnation, bool Dead,
+        bool Attackable, FUInt32 Hp, FUInt32 MaxHp,
+        FUInt32 Level, FGrpcNightfallV1AttackStarted PendingSwing, EGrpcNightfallV1Race Race,
+        FUInt32 ClassId, EGrpcNightfallV1Sex Sex, FUInt32 HairStyle,
+        FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
-    static void BreakEntitySpawn(const FGrpcNightfallV1EntitySpawn& EntitySpawn,  
-        FString& EntityId, FString& Name, FGrpcNightfallV1Position& Position, 
-        EGrpcNightfallV1EntityKind& Kind, FUInt32& SessionGeneration, bool& Combatant, 
-        FString& TemplateId, FUInt32& LifeIncarnation, bool& Dead, 
-        bool& Attackable, FUInt32& Hp, FUInt32& MaxHp, 
-        FUInt32& Level, FGrpcNightfallV1AttackStarted& PendingSwing 
+    static void BreakEntitySpawn(const FGrpcNightfallV1EntitySpawn& EntitySpawn,
+        FString& EntityId, FString& Name, FGrpcNightfallV1Position& Position,
+        EGrpcNightfallV1EntityKind& Kind, FUInt32& SessionGeneration, bool& Combatant,
+        FString& TemplateId, FUInt32& LifeIncarnation, bool& Dead,
+        bool& Attackable, FUInt32& Hp, FUInt32& MaxHp,
+        FUInt32& Level, FGrpcNightfallV1AttackStarted& PendingSwing, EGrpcNightfallV1Race& Race,
+        FUInt32& ClassId, EGrpcNightfallV1Sex& Sex, FUInt32& HairStyle,
+        FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick
     );
 };

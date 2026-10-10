@@ -1,0 +1,1 @@
+LogTurboLink | CallRpcError: InvalidArgument | These four malformed creation requests intentionally exercise server validation; every canonical result is asserted by the scenario.

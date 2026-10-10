@@ -32,6 +32,7 @@ void UCombatStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Handles.Add(N->OnTargetChanged.AddUObject(this, &UCombatStateSubsystem::ApplyTargetChanged));
 	Handles.Add(N->OnIntentAck.AddUObject(this, &UCombatStateSubsystem::ApplyAck));
 	Handles.Add(N->OnIntentRejected.AddUObject(this, &UCombatStateSubsystem::ApplyRejected));
+	Handles.Add(N->OnClassChanged.AddUObject(this, &UCombatStateSubsystem::ApplyClassChanged));
 	// The server re-sends every spawn (and the owner's stats) on a new connection, so the old
 	// projection is dropped on both edges: nothing from the previous session can leak into the next.
 	N->OnConnected.AddDynamic(this, &UCombatStateSubsystem::Reset);
@@ -53,6 +54,7 @@ void UCombatStateSubsystem::Deinitialize()
 		N->OnTargetChanged.Remove(Handles[8]);
 		N->OnIntentAck.Remove(Handles[9]);
 		N->OnIntentRejected.Remove(Handles[10]);
+		N->OnClassChanged.Remove(Handles[11]);
 		N->OnConnected.RemoveDynamic(this, &UCombatStateSubsystem::Reset);
 		N->OnDisconnected.RemoveDynamic(this, &UCombatStateSubsystem::HandleNetDisconnected);
 	}
@@ -272,7 +274,7 @@ void UCombatStateSubsystem::ApplyRespawned(const FEntityRespawned& Respawned)
 
 void UCombatStateSubsystem::ApplyStats(const FStatsChanged& Stats)
 {
-	if (!IsOwn(Stats.Entity)) return;   // owner-only: MP is private
+	if (!IsOwn(Stats.Entity) || Stats.Tick < Own.LastStatsTick) return;   // owner-only and monotonic
 	FCombatEntity& E = FindOrAdd(Stats.Entity);
 	E.bCombatant = true;
 	E.Hp = Stats.Hp;
@@ -283,6 +285,14 @@ void UCombatStateSubsystem::ApplyStats(const FStatsChanged& Stats)
 	Own.bMpKnown = true;
 	Own.Mp = Stats.Mp;
 	Own.MaxMp = Stats.MaxMp;
+	Own.bCpKnown = true;
+	Own.Cp = Stats.Cp;
+	Own.MaxCp = Stats.MaxCp;
+	Own.ClassId = Stats.ClassId;
+	Own.Sp = Stats.Sp;
+	Own.TokenTier1Count = Stats.TokenTier1Count;
+	Own.TokenTier2Count = Stats.TokenTier2Count;
+	Own.LastStatsTick = Stats.Tick;
 	OnChanged.Broadcast();
 }
 
@@ -484,6 +494,8 @@ FCombatHudModel UCombatStateSubsystem::BuildHudModel() const
 	{
 		M.OwnMpText = TEXT("MP --");
 	}
+	M.OwnCpText = Own.bCpKnown ? FString::Printf(TEXT("CP %u / %u"), Own.Cp, Own.MaxCp) : FString(TEXT("CP --"));
+	M.OwnCpFraction = Own.bCpKnown ? Fraction(Own.Cp, Own.MaxCp) : 0.f;
 	M.XpText = Own.bXpKnown ? FString::Printf(TEXT("XP %llu"), Own.Xp) : FString(TEXT("XP --"));
 	M.bRespawnPending = RespawnSeq != 0;
 	M.AttackState = AttackState;
@@ -501,4 +513,13 @@ FCombatHudModel UCombatStateSubsystem::BuildHudModel() const
 		}
 	}
 	return M;
+}
+
+void UCombatStateSubsystem::ApplyClassChanged(const FClassChanged& Changed)
+{
+	FCombatEntity* E = Entities.Find(Key(Changed.Entity));
+	if (!E || Changed.SessionGeneration != E->Spawn.SessionGeneration || Changed.Tick < E->Spawn.StateTick) return;
+	E->Spawn.ClassId = Changed.ClassId;
+	E->Spawn.StateTick = Changed.Tick;
+	OnChanged.Broadcast();
 }

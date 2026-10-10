@@ -1,5 +1,7 @@
 #include "NightfallLoginScreen.h"
 #include "Nightfall.h"
+#include "Character/ClassStateSubsystem.h"
+#include "Character/CharacterCreation.h"
 #include "Auth/AuthSubsystem.h"
 #include "Game/LoginFlowSubsystem.h"
 #include "Blueprint/WidgetTree.h"
@@ -9,6 +11,8 @@
 #include "Components/EditableTextBox.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/ProgressBar.h"
+#include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -20,28 +24,6 @@
 
 namespace
 {
-	struct FRaceOption
-	{
-		const TCHAR* Label;
-		EGrpcNightfallV1Race Race;
-	};
-
-	const FRaceOption RaceOptions[] = {
-		{ TEXT("Human"), EGrpcNightfallV1Race::RACE_HUMAN },
-		{ TEXT("Elf"), EGrpcNightfallV1Race::RACE_ELF },
-		{ TEXT("Dark Elf"), EGrpcNightfallV1Race::RACE_DARK_ELF },
-		{ TEXT("Orc"), EGrpcNightfallV1Race::RACE_ORC },
-		{ TEXT("Dwarf"), EGrpcNightfallV1Race::RACE_DWARF },
-	};
-
-	FString RaceLabel(EGrpcNightfallV1Race Race)
-	{
-		for (const FRaceOption& Option : RaceOptions)
-		{
-			if (Option.Race == Race) return Option.Label;
-		}
-		return TEXT("?");
-	}
 
 	template <typename TSubsystem>
 	TSubsystem* GetSubsystemFrom(const UUserWidget* Widget)
@@ -49,6 +31,11 @@ namespace
 		const UGameInstance* GameInstance = Widget->GetGameInstance();
 		return GameInstance != nullptr ? GameInstance->GetSubsystem<TSubsystem>() : nullptr;
 	}
+}
+
+void UNightfallRaceCardHandler::HandleClicked()
+{
+	if (Screen.IsValid()) Screen->SelectRace(RaceId);
 }
 
 void UNightfallCharacterRowHandler::HandleClicked()
@@ -64,23 +51,14 @@ void UNightfallLoginScreen::NativeOnInitialized()
 	Super::NativeOnInitialized();
 	// A Blueprint that lays out its own widgets binds at least LoginButton; otherwise (an empty
 	// or placeholder tree) the screen replaces the tree with the default layout.
-	if (WidgetTree != nullptr && LoginButton == nullptr)
-	{
-		BuildDefaultLayout();
-	}
+	EnsureLayout();
 
 	if (LoginButton) LoginButton->OnClicked.AddUniqueDynamic(this, &UNightfallLoginScreen::HandleLoginClicked);
 	if (CopyUrlButton) CopyUrlButton->OnClicked.AddUniqueDynamic(this, &UNightfallLoginScreen::HandleCopyUrlClicked);
 	if (OpenUrlButton) OpenUrlButton->OnClicked.AddUniqueDynamic(this, &UNightfallLoginScreen::HandleOpenUrlClicked);
 	if (CreateButton) CreateButton->OnClicked.AddUniqueDynamic(this, &UNightfallLoginScreen::HandleCreateClicked);
-	if (RaceInput && RaceInput->GetOptionCount() == 0)
-	{
-		for (const FRaceOption& Option : RaceOptions)
-		{
-			RaceInput->AddOption(Option.Label);
-		}
-		RaceInput->SetSelectedIndex(0);
-	}
+	if (ClassInput) ClassInput->OnSelectionChanged.AddUniqueDynamic(this, &UNightfallLoginScreen::HandleClassSelected);
+	if (RaceInput) RaceInput->OnSelectionChanged.AddUniqueDynamic(this, &UNightfallLoginScreen::HandleRaceSelected);
 
 	if (UAuthSubsystem* Auth = GetSubsystemFrom<UAuthSubsystem>(this))
 	{
@@ -90,6 +68,7 @@ void UNightfallLoginScreen::NativeOnInitialized()
 		if (Auth->IsLoggedIn())
 		{
 			ShowLoggedIn();
+			LoadCatalogue();
 			RefreshCharacters();
 		}
 		else
@@ -127,7 +106,9 @@ TOptional<FUIInputConfig> UNightfallLoginScreen::GetDesiredInputConfig() const
 UButton* UNightfallLoginScreen::MakeButton(UPanelWidget* Parent, const FText& Label)
 {
 	UButton* Button = WidgetTree->ConstructWidget<UButton>();
-	Button->AddChild(MakeText(nullptr, Label, 18));
+	UTextBlock* ButtonLabel = MakeText(nullptr, Label, 18);
+	ButtonLabel->SetColorAndOpacity(FSlateColor(FLinearColor(0.015f, 0.02f, 0.03f)));
+	Button->AddChild(ButtonLabel);
 	if (Parent != nullptr)
 	{
 		Parent->AddChild(Button);
@@ -153,11 +134,13 @@ void UNightfallLoginScreen::BuildDefaultLayout()
 {
 	UBorder* Root = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Root"));
 	Root->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.04f, 1.f));
-	Root->SetPadding(FMargin(64.f));
+	Root->SetPadding(FMargin(32.f));
 	WidgetTree->RootWidget = Root;
 
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
-	Root->SetContent(Column);
+	UScrollBox* Scroll = WidgetTree->ConstructWidget<UScrollBox>();
+	Root->SetContent(Scroll);
+	Scroll->AddChild(Column);
 	auto Pad = [](UWidget* Widget, float Bottom)
 	{
 		if (UVerticalBoxSlot* BoxSlot = Cast<UVerticalBoxSlot>(Widget->Slot))
@@ -203,10 +186,40 @@ void UNightfallLoginScreen::BuildDefaultLayout()
 	NameInput->SetHintText(LOCTEXT("NameHint", "Name (3-16 letters)"));
 	NameInput->SetMinDesiredWidth(240.f);
 	Form->AddChild(NameInput);
-	RaceInput = WidgetTree->ConstructWidget<UComboBoxString>();
-	Form->AddChild(RaceInput);
+	RaceCards = WidgetTree->ConstructWidget<UHorizontalBox>();
+	Characters->AddChild(RaceCards);
+	ClassInput = WidgetTree->ConstructWidget<UComboBoxString>();
+	Form->AddChild(ClassInput);
+	SexInput = WidgetTree->ConstructWidget<UComboBoxString>();
+	SexInput->AddOption(TEXT("Male"));
+	SexInput->AddOption(TEXT("Female"));
+	SexInput->SetSelectedIndex(0);
+	Form->AddChild(SexInput);
+	UHorizontalBox* Appearance = WidgetTree->ConstructWidget<UHorizontalBox>();
+	Characters->AddChild(Appearance);
+	MakeText(Appearance, LOCTEXT("Appearance", "Prototype appearance: "), 14);
+	HairStyleInput = WidgetTree->ConstructWidget<UComboBoxString>();
+	HairColorInput = WidgetTree->ConstructWidget<UComboBoxString>();
+	FaceInput = WidgetTree->ConstructWidget<UComboBoxString>();
+	Appearance->AddChild(HairStyleInput);
+	Appearance->AddChild(HairColorInput);
+	Appearance->AddChild(FaceInput);
+	MakeText(Characters, LOCTEXT("PrototypeArt", "Existing mannequin body is shared by races and sexes during this prototype."), 12);
+	TraitText = MakeText(Characters, FText::GetEmpty(), 14);
+	TraitText->SetAutoWrapText(true);
+	PreviewLabel = MakeText(Characters, LOCTEXT("CataloguePending", "Loading the character catalogue..."), 14);
+	for (int32 I = 0; I < 6; ++I)
+	{
+		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+		Characters->AddChild(Row);
+		StatLabels.Add(MakeText(Row, FText::GetEmpty(), 12));
+		UProgressBar* Bar = WidgetTree->ConstructWidget<UProgressBar>();
+		Row->AddChild(Bar);
+		if (UHorizontalBoxSlot* Slot = Cast<UHorizontalBoxSlot>(Bar->Slot)) Slot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		StatBars.Add(Bar);
+	}
 	CreateButton = MakeButton(Form, LOCTEXT("Create", "Create"));
-	for (UWidget* Child : { static_cast<UWidget*>(NameInput), static_cast<UWidget*>(RaceInput) })
+	for (UWidget* Child : { static_cast<UWidget*>(NameInput), static_cast<UWidget*>(ClassInput) })
 	{
 		if (UHorizontalBoxSlot* BoxSlot = Cast<UHorizontalBoxSlot>(Child->Slot))
 		{
@@ -262,6 +275,7 @@ void UNightfallLoginScreen::HandleLoggedIn()
 	VerificationUrl.Empty();
 	if (LoginButton) LoginButton->SetIsEnabled(true);
 	ShowLoggedIn();
+	LoadCatalogue();
 	RefreshCharacters();
 }
 
@@ -328,8 +342,10 @@ void UNightfallLoginScreen::RefreshCharacters()
 		Self->RowButtons.Reset();
 		for (const FGrpcNightfallV1Character& Character : Characters)
 		{
+			const UClassStateSubsystem* Classes = GetSubsystemFrom<UClassStateSubsystem>(Self);
+			const FGrpcNightfallV1ClassInfo* Class = Classes ? Classes->FindClass(Character.ClassId.Value) : nullptr;
 			const FText Label = FText::FromString(FString::Printf(TEXT("%s  -  %s  -  level %u"),
-				*Character.Name, *RaceLabel(Character.Race), Character.Level.Value));
+				*Character.Name, Class ? *Class->DisplayName : TEXT("Character"), Character.Level.Value));
 			UButton* Row = Self->MakeButton(Self->CharacterList, Label);
 			if (UVerticalBoxSlot* BoxSlot = Cast<UVerticalBoxSlot>(Row->Slot))
 			{
@@ -357,11 +373,16 @@ void UNightfallLoginScreen::HandleCreateClicked()
 		return;
 	}
 	const FString Name = NameInput->GetText().ToString().TrimStartAndEnd();
-	const int32 RaceIndex = RaceInput ? RaceInput->GetSelectedIndex() : 0;
-	const EGrpcNightfallV1Race Race = RaceOptions[FMath::Clamp(RaceIndex, 0, int32(UE_ARRAY_COUNT(RaceOptions)) - 1)].Race;
+	UClassStateSubsystem* Classes = GetSubsystemFrom<UClassStateSubsystem>(this);
+	const int32 ClassIndex = ClassInput ? ClassInput->GetSelectedIndex() : INDEX_NONE;
+	if (!Classes || Classes->IsBusy() || !Classes->HasCatalogue() || !SelectedClassIds.IsValidIndex(ClassIndex)) return;
+	FGrpcNightfallV1CreateCharacterRequest Request = NightfallCreation::Request(Name, SelectedRace, SelectedClassIds[ClassIndex], SexInput && SexInput->GetSelectedIndex() == 1 ? 2u : 1u,
+		HairStyleInput ? HairStyleInput->GetSelectedIndex() : 0,
+		HairColorInput ? HairColorInput->GetSelectedIndex() : 0,
+		FaceInput ? FaceInput->GetSelectedIndex() : 0);
 	if (CreateButton) CreateButton->SetIsEnabled(false);
 	SetStatus(FString::Printf(TEXT("Creating %s..."), *Name));
-	Flow->CreateCharacter(Name, Race, [Weak = TWeakObjectPtr<UNightfallLoginScreen>(this)](const FNetResult& Result, const FGrpcNightfallV1Character& Character)
+	Classes->Create(Request, [Weak = TWeakObjectPtr<UNightfallLoginScreen>(this)](const FNetResult& Result)
 	{
 		UNightfallLoginScreen* Self = Weak.Get();
 		if (Self == nullptr)
@@ -404,4 +425,124 @@ void UNightfallLoginScreen::SetCharacterRowsEnabled(bool bEnabled)
 	}
 }
 
+void UNightfallLoginScreen::EnsureLayout()
+{
+	if (!WidgetTree) WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"), RF_Transient);
+	if (!LoginButton) BuildDefaultLayout();
+}
+
+void UNightfallLoginScreen::LoadCatalogue()
+{
+	if (CreateButton) CreateButton->SetIsEnabled(false);
+	if (UClassStateSubsystem* Classes = GetSubsystemFrom<UClassStateSubsystem>(this))
+	{
+		Classes->LoadCatalogue([Weak = TWeakObjectPtr<UNightfallLoginScreen>(this)](const FNetResult& R)
+		{
+			if (!Weak.IsValid()) return;
+			if (R.IsOk()) Weak->ApplyCatalogue();
+			else Weak->SetStatus(FString::Printf(TEXT("Could not load character choices: %s"), *R.Message));
+		});
+	}
+}
+
+void UNightfallLoginScreen::ApplyCatalogue()
+{
+	const UClassStateSubsystem* Classes = GetSubsystemFrom<UClassStateSubsystem>(this);
+	if (!Classes) return;
+	if (RaceCards) RaceCards->ClearChildren();
+	if (RaceInput) RaceInput->ClearOptions();
+	RaceCardHandlers.Reset();
+	RaceCardButtons.Reset();
+	CatalogueRaceIds.Reset();
+	for (const auto& Race : Classes->GetCatalogue().Races)
+	{
+		CatalogueRaceIds.Add(static_cast<uint32>(Race.Race));
+		if (RaceInput) RaceInput->AddOption(Race.DisplayName);
+		if (RaceCards)
+		{
+			UButton* Card = MakeButton(RaceCards, FText::FromString(Race.DisplayName));
+			UNightfallRaceCardHandler* Handler = NewObject<UNightfallRaceCardHandler>(this);
+			Handler->RaceId = static_cast<uint32>(Race.Race);
+			Handler->Screen = this;
+			Card->OnClicked.AddDynamic(Handler, &UNightfallRaceCardHandler::HandleClicked);
+			RaceCardHandlers.Add(Handler);
+			RaceCardButtons.Add(Card);
+		}
+	}
+	if (!CatalogueRaceIds.IsEmpty()) SelectRace(CatalogueRaceIds[0]);
+}
+
+void UNightfallLoginScreen::SelectRace(uint32 RaceId)
+{
+	const UClassStateSubsystem* Classes = GetSubsystemFrom<UClassStateSubsystem>(this);
+	const FGrpcNightfallV1RaceInfo* Race = Classes ? Classes->FindRace(RaceId) : nullptr;
+	if (!Race || !ClassInput) return;
+	SelectedRace = RaceId;
+	for (int32 I = 0; I < RaceCardHandlers.Num(); ++I)
+	{
+		if (!RaceCardButtons.IsValidIndex(I)) continue;
+		const bool bSelected = RaceCardHandlers[I]->RaceId == RaceId;
+		UButton* Card = RaceCardButtons[I];
+		Card->SetBackgroundColor(bSelected ? FLinearColor(0.12f, 0.28f, 0.38f) : FLinearColor::White);
+		if (UTextBlock* Label = Cast<UTextBlock>(Card->GetChildAt(0)))
+		{
+			const auto* Info = Classes->FindRace(RaceCardHandlers[I]->RaceId);
+			Label->SetText(FText::FromString((bSelected ? TEXT("Selected: ") : TEXT("")) + (Info ? Info->DisplayName : FString())));
+			Label->SetColorAndOpacity(FSlateColor(bSelected ? FLinearColor::White : FLinearColor(0.015f, 0.02f, 0.03f)));
+		}
+	}
+	ClassInput->ClearOptions();
+	SelectedClassIds.Reset();
+	for (const FUInt32 Id : Race->BaseClassIds)
+	{
+		const FGrpcNightfallV1ClassInfo* C = Classes->FindClass(Id.Value);
+		if (!C || C->Tier.Value != 0) continue;
+		SelectedClassIds.Add(Id.Value);
+		ClassInput->AddOption(C->DisplayName);
+	}
+	ClassInput->SetSelectedIndex(0);
+	auto Fill = [](UComboBoxString* Input, uint32 Count, const FString& Label)
+	{
+		if (!Input) return;
+		Input->ClearOptions();
+		for (uint32 I = 0; I < Count; ++I) Input->AddOption(Count == 1 ? Label + TEXT(" default") : FString::Printf(TEXT("%s %u"), *Label, I + 1));
+		Input->SetSelectedIndex(0);
+	};
+	Fill(HairStyleInput, Race->HairStyleCount.Value, TEXT("Hair"));
+	Fill(HairColorInput, Race->HairColorCount.Value, TEXT("Color"));
+	Fill(FaceInput, Race->FaceCount.Value, TEXT("Face"));
+	TArray<FString> Traits;
+	for (const auto& Passive : Race->Passives) Traits.Add(Passive.DisplayName + TEXT(": ") + Passive.Description + (Passive.Implemented ? TEXT("") : TEXT(" (planned)")));
+	if (TraitText) TraitText->SetText(FText::FromString(FString::Join(Traits, TEXT("  |  "))));
+	if (CreateButton) CreateButton->SetIsEnabled(!SelectedClassIds.IsEmpty() && !Classes->IsBusy());
+	UpdatePreview();
+}
+
+void UNightfallLoginScreen::HandleRaceSelected(FString Selected, ESelectInfo::Type Type)
+{
+	if (RaceInput && CatalogueRaceIds.IsValidIndex(RaceInput->GetSelectedIndex())) SelectRace(CatalogueRaceIds[RaceInput->GetSelectedIndex()]);
+}
+
+void UNightfallLoginScreen::HandleClassSelected(FString Selected, ESelectInfo::Type Type) { UpdatePreview(); }
+
+void UNightfallLoginScreen::UpdatePreview()
+{
+	const UClassStateSubsystem* Classes = GetSubsystemFrom<UClassStateSubsystem>(this);
+	const int32 Index = ClassInput ? ClassInput->GetSelectedIndex() : INDEX_NONE;
+	const FGrpcNightfallV1ClassInfo* C = Classes && SelectedClassIds.IsValidIndex(Index) ? Classes->FindClass(SelectedClassIds[Index]) : nullptr;
+	if (!C) return;
+	const uint32 Values[] = { C->BaseStats.Str.Value, C->BaseStats.Dex.Value, C->BaseStats.Con.Value, C->BaseStats.Int.Value, C->BaseStats.Wit.Value, C->BaseStats.Men.Value };
+	const TCHAR* Labels[] = { TEXT("STR"), TEXT("DEX"), TEXT("CON"), TEXT("INT"), TEXT("WIT"), TEXT("MEN") };
+	uint32 Total = 0;
+	for (int32 I = 0; I < 6; ++I)
+	{
+		Total += Values[I];
+		if (StatLabels.IsValidIndex(I)) StatLabels[I]->SetText(FText::FromString(FString::Printf(TEXT("%s %u  "), Labels[I], Values[I])));
+		if (StatBars.IsValidIndex(I)) StatBars[I]->SetPercent(static_cast<float>(Values[I]) / 170.f);
+	}
+	if (PreviewLabel) PreviewLabel->SetText(FText::FromString(FString::Printf(TEXT("%s — Base stat budget %u / 170"), *C->DisplayName, Total)));
+}
+
 #undef LOCTEXT_NAMESPACE
+
+bool UNightfallLoginScreen::CanCreate() const { return CreateButton && CreateButton->GetIsEnabled(); }

@@ -77,6 +77,7 @@ private:
 
 	UFUNCTION() void HandleStatus(const FString& Status);
 	UFUNCTION() void HandleRespawnClicked();
+	UFUNCTION() void HandleClassesClicked();
 
 	UPROPERTY() TObjectPtr<UCanvasPanel> Root;
 	UPROPERTY() TObjectPtr<UCanvasPanel> FloatLayer;
@@ -86,6 +87,9 @@ private:
 	UPROPERTY() TObjectPtr<UTextBlock> OwnHpText;
 	UPROPERTY() TObjectPtr<UProgressBar> OwnMpBar;
 	UPROPERTY() TObjectPtr<UTextBlock> OwnMpText;
+	UPROPERTY() TObjectPtr<UProgressBar> OwnCpBar;
+	UPROPERTY() TObjectPtr<UTextBlock> OwnCpText;
+	UPROPERTY() TObjectPtr<UTextBlock> ClassText;
 	UPROPERTY() TObjectPtr<UTextBlock> XpText;
 	UPROPERTY() TObjectPtr<UTextBlock> AttackText;
 	UPROPERTY() TObjectPtr<UVerticalBox> TargetPanel;

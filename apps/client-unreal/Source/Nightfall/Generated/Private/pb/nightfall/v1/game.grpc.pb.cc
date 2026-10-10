@@ -27,6 +27,9 @@ static const char* GameService_method_names[] = {
   "/nightfall.v1.GameService/GetCharacter",
   "/nightfall.v1.GameService/CreateCharacter",
   "/nightfall.v1.GameService/ListMyCharacters",
+  "/nightfall.v1.GameService/ListClasses",
+  "/nightfall.v1.GameService/TransferOptions",
+  "/nightfall.v1.GameService/ChangeClass",
 };
 
 std::unique_ptr< GameService::Stub> GameService::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -40,6 +43,9 @@ GameService::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channe
   , rpcmethod_GetCharacter_(GameService_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_CreateCharacter_(GameService_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_ListMyCharacters_(GameService_method_names[3], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ListClasses_(GameService_method_names[4], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_TransferOptions_(GameService_method_names[5], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ChangeClass_(GameService_method_names[6], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status GameService::Stub::Ping(::grpc::ClientContext* context, const ::nightfall::v1::PingRequest& request, ::nightfall::v1::PingResponse* response) {
@@ -134,6 +140,75 @@ void GameService::Stub::async::ListMyCharacters(::grpc::ClientContext* context, 
   return result;
 }
 
+::grpc::Status GameService::Stub::ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::nightfall::v1::ListClassesResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::ListClassesRequest, ::nightfall::v1::ListClassesResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ListClasses_, context, request, response);
+}
+
+void GameService::Stub::async::ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::ListClassesRequest, ::nightfall::v1::ListClassesResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListClasses_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListClasses_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListClassesResponse>* GameService::Stub::PrepareAsyncListClassesRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::ListClassesResponse, ::nightfall::v1::ListClassesRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ListClasses_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListClassesResponse>* GameService::Stub::AsyncListClassesRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncListClassesRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::nightfall::v1::TransferOptionsResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::TransferOptionsRequest, ::nightfall::v1::TransferOptionsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_TransferOptions_, context, request, response);
+}
+
+void GameService::Stub::async::TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::TransferOptionsRequest, ::nightfall::v1::TransferOptionsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_TransferOptions_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_TransferOptions_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>* GameService::Stub::PrepareAsyncTransferOptionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::TransferOptionsResponse, ::nightfall::v1::TransferOptionsRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_TransferOptions_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>* GameService::Stub::AsyncTransferOptionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncTransferOptionsRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::nightfall::v1::ChangeClassResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::ChangeClassRequest, ::nightfall::v1::ChangeClassResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ChangeClass_, context, request, response);
+}
+
+void GameService::Stub::async::ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::ChangeClassRequest, ::nightfall::v1::ChangeClassResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ChangeClass_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ChangeClass_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>* GameService::Stub::PrepareAsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::ChangeClassResponse, ::nightfall::v1::ChangeClassRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ChangeClass_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>* GameService::Stub::AsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncChangeClassRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 GameService::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       GameService_method_names[0],
@@ -175,6 +250,36 @@ GameService::Service::Service() {
              ::nightfall::v1::ListMyCharactersResponse* resp) {
                return service->ListMyCharacters(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[4],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::ListClassesRequest, ::nightfall::v1::ListClassesResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::ListClassesRequest* req,
+             ::nightfall::v1::ListClassesResponse* resp) {
+               return service->ListClasses(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[5],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::TransferOptionsRequest, ::nightfall::v1::TransferOptionsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::TransferOptionsRequest* req,
+             ::nightfall::v1::TransferOptionsResponse* resp) {
+               return service->TransferOptions(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[6],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::ChangeClassRequest, ::nightfall::v1::ChangeClassResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::ChangeClassRequest* req,
+             ::nightfall::v1::ChangeClassResponse* resp) {
+               return service->ChangeClass(ctx, req, resp);
+             }, this)));
 }
 
 GameService::Service::~Service() {
@@ -202,6 +307,27 @@ GameService::Service::~Service() {
 }
 
 ::grpc::Status GameService::Service::ListMyCharacters(::grpc::ServerContext* context, const ::nightfall::v1::ListMyCharactersRequest* request, ::nightfall::v1::ListMyCharactersResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::ListClasses(::grpc::ServerContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::TransferOptions(::grpc::ServerContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::ChangeClass(::grpc::ServerContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response) {
   (void) context;
   (void) request;
   (void) response;

@@ -4,6 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "WorldProxySubsystem.generated.h"
 
+struct FClassChanged;
 struct FEntitySpawn;
 struct FEntityDespawn;
 
@@ -36,6 +37,8 @@ public:
 	const TMap<FString, TObjectPtr<class ARemoteEntityActor>>& GetProxies() const { return Entities; }
 
 private:
+	void HandleClassChanged(const FClassChanged& Changed);
+	void UpdateClassPresentation(ARemoteEntityActor* Actor, uint32 ClassId, bool bTransferred);
 	void HandleSpawn(const FEntitySpawn& Spawn);
 	void HandleDespawn(const FEntityDespawn& Despawn);
 
@@ -44,4 +47,7 @@ private:
 
 	FDelegateHandle SpawnHandle;
 	FDelegateHandle DespawnHandle;
+	FDelegateHandle ClassHandle;
+	FDelegateHandle CatalogueHandle;
+	void RefreshClassTitles();
 };

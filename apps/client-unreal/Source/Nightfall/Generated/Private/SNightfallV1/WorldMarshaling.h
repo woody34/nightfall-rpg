@@ -73,3 +73,6 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1LevelUp* in, ::nightfall::v1::Level
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::TargetChanged* in, FGrpcNightfallV1TargetChanged* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1TargetChanged* in, ::nightfall::v1::TargetChanged* out);
 
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassChanged* in, FGrpcNightfallV1ClassChanged* out);
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassChanged* in, ::nightfall::v1::ClassChanged* out);
+

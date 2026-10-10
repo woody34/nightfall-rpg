@@ -29,7 +29,7 @@ void USessionServiceClient::IssuePlayTicket(FGrpcContextHandle Handle, const FGr
 
 		if (DeadLineSeconds > 0.f)
 		{
-			std::chrono::time_point deadLine = std::chrono::system_clock::now() + 
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
 				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
 			contextIssuePlayTicket->RpcContext->set_deadline(deadLine);
 		}

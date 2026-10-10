@@ -70,7 +70,7 @@ class GameService final {
     // returns the character created the first time and performs no second side effect.
     // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad key, name, or unspecified race),
     // ALREADY_EXISTS (name taken by a different request), FAILED_PRECONDITION (key reused with
-    // a different body).
+    // a different body), RESOURCE_EXHAUSTED (seven character slots occupied).
     virtual ::grpc::Status CreateCharacter(::grpc::ClientContext* context, const ::nightfall::v1::CreateCharacterRequest& request, ::nightfall::v1::Character* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::Character>> AsyncCreateCharacter(::grpc::ClientContext* context, const ::nightfall::v1::CreateCharacterRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::Character>>(AsyncCreateCharacterRaw(context, request, cq));
@@ -89,6 +89,35 @@ class GameService final {
     }
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMyCharactersResponse>> PrepareAsyncListMyCharacters(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMyCharactersResponse>>(PrepareAsyncListMyCharactersRaw(context, request, cq));
+    }
+    // Authenticated, naturally idempotent catalogue read. Errors: UNAUTHENTICATED.
+    virtual ::grpc::Status ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::nightfall::v1::ListClassesResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListClassesResponse>> AsyncListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListClassesResponse>>(AsyncListClassesRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListClassesResponse>> PrepareAsyncListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListClassesResponse>>(PrepareAsyncListClassesRaw(context, request, cq));
+    }
+    // Naturally idempotent read of live transfer eligibility for an owned character.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+    // FAILED_PRECONDITION (no live session), UNAVAILABLE (zone unavailable).
+    virtual ::grpc::Status TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::nightfall::v1::TransferOptionsResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::TransferOptionsResponse>> AsyncTransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::TransferOptionsResponse>>(AsyncTransferOptionsRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::TransferOptionsResponse>> PrepareAsyncTransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::TransferOptionsResponse>>(PrepareAsyncTransferOptionsRaw(context, request, cq));
+    }
+    // Applies a transfer through the live zone actor. A successful key replays the frozen
+    // original response, including after disconnect. Failed requests do not consume keys.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+    // FAILED_PRECONDITION (unmet requirements or key reused), UNAVAILABLE.
+    virtual ::grpc::Status ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::nightfall::v1::ChangeClassResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>> AsyncChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>>(AsyncChangeClassRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>> PrepareAsyncChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>>(PrepareAsyncChangeClassRaw(context, request, cq));
     }
     class async_interface {
      public:
@@ -110,7 +139,7 @@ class GameService final {
       // returns the character created the first time and performs no second side effect.
       // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad key, name, or unspecified race),
       // ALREADY_EXISTS (name taken by a different request), FAILED_PRECONDITION (key reused with
-      // a different body).
+      // a different body), RESOURCE_EXHAUSTED (seven character slots occupied).
       virtual void CreateCharacter(::grpc::ClientContext* context, const ::nightfall::v1::CreateCharacterRequest* request, ::nightfall::v1::Character* response, std::function<void(::grpc::Status)>) = 0;
       virtual void CreateCharacter(::grpc::ClientContext* context, const ::nightfall::v1::CreateCharacterRequest* request, ::nightfall::v1::Character* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       // Lists the characters owned by the account identified by the verified bearer token, in
@@ -120,6 +149,20 @@ class GameService final {
       // Errors: UNAUTHENTICATED (missing or invalid bearer token).
       virtual void ListMyCharacters(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest* request, ::nightfall::v1::ListMyCharactersResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void ListMyCharacters(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest* request, ::nightfall::v1::ListMyCharactersResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Authenticated, naturally idempotent catalogue read. Errors: UNAUTHENTICATED.
+      virtual void ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Naturally idempotent read of live transfer eligibility for an owned character.
+      // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+      // FAILED_PRECONDITION (no live session), UNAVAILABLE (zone unavailable).
+      virtual void TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Applies a transfer through the live zone actor. A successful key replays the frozen
+      // original response, including after disconnect. Failed requests do not consume keys.
+      // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+      // FAILED_PRECONDITION (unmet requirements or key reused), UNAVAILABLE.
+      virtual void ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -133,6 +176,12 @@ class GameService final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::Character>* PrepareAsyncCreateCharacterRaw(::grpc::ClientContext* context, const ::nightfall::v1::CreateCharacterRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMyCharactersResponse>* AsyncListMyCharactersRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMyCharactersResponse>* PrepareAsyncListMyCharactersRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListClassesResponse>* AsyncListClassesRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListClassesResponse>* PrepareAsyncListClassesRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::TransferOptionsResponse>* AsyncTransferOptionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::TransferOptionsResponse>* PrepareAsyncTransferOptionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>* AsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>* PrepareAsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -165,6 +214,27 @@ class GameService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMyCharactersResponse>> PrepareAsyncListMyCharacters(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMyCharactersResponse>>(PrepareAsyncListMyCharactersRaw(context, request, cq));
     }
+    ::grpc::Status ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::nightfall::v1::ListClassesResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListClassesResponse>> AsyncListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListClassesResponse>>(AsyncListClassesRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListClassesResponse>> PrepareAsyncListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListClassesResponse>>(PrepareAsyncListClassesRaw(context, request, cq));
+    }
+    ::grpc::Status TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::nightfall::v1::TransferOptionsResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>> AsyncTransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>>(AsyncTransferOptionsRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>> PrepareAsyncTransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>>(PrepareAsyncTransferOptionsRaw(context, request, cq));
+    }
+    ::grpc::Status ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::nightfall::v1::ChangeClassResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>> AsyncChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>>(AsyncChangeClassRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>> PrepareAsyncChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>>(PrepareAsyncChangeClassRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -176,6 +246,12 @@ class GameService final {
       void CreateCharacter(::grpc::ClientContext* context, const ::nightfall::v1::CreateCharacterRequest* request, ::nightfall::v1::Character* response, ::grpc::ClientUnaryReactor* reactor) override;
       void ListMyCharacters(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest* request, ::nightfall::v1::ListMyCharactersResponse* response, std::function<void(::grpc::Status)>) override;
       void ListMyCharacters(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest* request, ::nightfall::v1::ListMyCharactersResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response, std::function<void(::grpc::Status)>) override;
+      void ListClasses(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response, std::function<void(::grpc::Status)>) override;
+      void TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, std::function<void(::grpc::Status)>) override;
+      void ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -195,10 +271,19 @@ class GameService final {
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::Character>* PrepareAsyncCreateCharacterRaw(::grpc::ClientContext* context, const ::nightfall::v1::CreateCharacterRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMyCharactersResponse>* AsyncListMyCharactersRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMyCharactersResponse>* PrepareAsyncListMyCharactersRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMyCharactersRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListClassesResponse>* AsyncListClassesRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListClassesResponse>* PrepareAsyncListClassesRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListClassesRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>* AsyncTransferOptionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>* PrepareAsyncTransferOptionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>* AsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>* PrepareAsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_Ping_;
     const ::grpc::internal::RpcMethod rpcmethod_GetCharacter_;
     const ::grpc::internal::RpcMethod rpcmethod_CreateCharacter_;
     const ::grpc::internal::RpcMethod rpcmethod_ListMyCharacters_;
+    const ::grpc::internal::RpcMethod rpcmethod_ListClasses_;
+    const ::grpc::internal::RpcMethod rpcmethod_TransferOptions_;
+    const ::grpc::internal::RpcMethod rpcmethod_ChangeClass_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -221,7 +306,7 @@ class GameService final {
     // returns the character created the first time and performs no second side effect.
     // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad key, name, or unspecified race),
     // ALREADY_EXISTS (name taken by a different request), FAILED_PRECONDITION (key reused with
-    // a different body).
+    // a different body), RESOURCE_EXHAUSTED (seven character slots occupied).
     virtual ::grpc::Status CreateCharacter(::grpc::ServerContext* context, const ::nightfall::v1::CreateCharacterRequest* request, ::nightfall::v1::Character* response);
     // Lists the characters owned by the account identified by the verified bearer token, in
     // creation order. An account with no characters gets an empty list, not an error.
@@ -229,6 +314,17 @@ class GameService final {
     // Idempotency: read-only, naturally idempotent, no key.
     // Errors: UNAUTHENTICATED (missing or invalid bearer token).
     virtual ::grpc::Status ListMyCharacters(::grpc::ServerContext* context, const ::nightfall::v1::ListMyCharactersRequest* request, ::nightfall::v1::ListMyCharactersResponse* response);
+    // Authenticated, naturally idempotent catalogue read. Errors: UNAUTHENTICATED.
+    virtual ::grpc::Status ListClasses(::grpc::ServerContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response);
+    // Naturally idempotent read of live transfer eligibility for an owned character.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+    // FAILED_PRECONDITION (no live session), UNAVAILABLE (zone unavailable).
+    virtual ::grpc::Status TransferOptions(::grpc::ServerContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response);
+    // Applies a transfer through the live zone actor. A successful key replays the frozen
+    // original response, including after disconnect. Failed requests do not consume keys.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+    // FAILED_PRECONDITION (unmet requirements or key reused), UNAVAILABLE.
+    virtual ::grpc::Status ChangeClass(::grpc::ServerContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_Ping : public BaseClass {
@@ -310,7 +406,67 @@ class GameService final {
       ::grpc::Service::RequestAsyncUnary(3, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_Ping<WithAsyncMethod_GetCharacter<WithAsyncMethod_CreateCharacter<WithAsyncMethod_ListMyCharacters<Service > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_ListClasses : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ListClasses() {
+      ::grpc::Service::MarkMethodAsync(4);
+    }
+    ~WithAsyncMethod_ListClasses() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListClasses(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListClassesRequest* /*request*/, ::nightfall::v1::ListClassesResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListClasses(::grpc::ServerContext* context, ::nightfall::v1::ListClassesRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::ListClassesResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_TransferOptions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_TransferOptions() {
+      ::grpc::Service::MarkMethodAsync(5);
+    }
+    ~WithAsyncMethod_TransferOptions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status TransferOptions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::TransferOptionsRequest* /*request*/, ::nightfall::v1::TransferOptionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestTransferOptions(::grpc::ServerContext* context, ::nightfall::v1::TransferOptionsRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::TransferOptionsResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(5, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_ChangeClass : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ChangeClass() {
+      ::grpc::Service::MarkMethodAsync(6);
+    }
+    ~WithAsyncMethod_ChangeClass() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ChangeClass(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestChangeClass(::grpc::ServerContext* context, ::nightfall::v1::ChangeClassRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::ChangeClassResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_Ping<WithAsyncMethod_GetCharacter<WithAsyncMethod_CreateCharacter<WithAsyncMethod_ListMyCharacters<WithAsyncMethod_ListClasses<WithAsyncMethod_TransferOptions<WithAsyncMethod_ChangeClass<Service > > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_Ping : public BaseClass {
    private:
@@ -419,7 +575,88 @@ class GameService final {
     virtual ::grpc::ServerUnaryReactor* ListMyCharacters(
       ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ListMyCharactersRequest* /*request*/, ::nightfall::v1::ListMyCharactersResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_Ping<WithCallbackMethod_GetCharacter<WithCallbackMethod_CreateCharacter<WithCallbackMethod_ListMyCharacters<Service > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_ListClasses : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ListClasses() {
+      ::grpc::Service::MarkMethodCallback(4,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListClassesRequest, ::nightfall::v1::ListClassesResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::ListClassesRequest* request, ::nightfall::v1::ListClassesResponse* response) { return this->ListClasses(context, request, response); }));}
+    void SetMessageAllocatorFor_ListClasses(
+        ::grpc::MessageAllocator< ::nightfall::v1::ListClassesRequest, ::nightfall::v1::ListClassesResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(4);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListClassesRequest, ::nightfall::v1::ListClassesResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ListClasses() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListClasses(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListClassesRequest* /*request*/, ::nightfall::v1::ListClassesResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListClasses(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ListClassesRequest* /*request*/, ::nightfall::v1::ListClassesResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_TransferOptions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_TransferOptions() {
+      ::grpc::Service::MarkMethodCallback(5,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::TransferOptionsRequest, ::nightfall::v1::TransferOptionsResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response) { return this->TransferOptions(context, request, response); }));}
+    void SetMessageAllocatorFor_TransferOptions(
+        ::grpc::MessageAllocator< ::nightfall::v1::TransferOptionsRequest, ::nightfall::v1::TransferOptionsResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(5);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::TransferOptionsRequest, ::nightfall::v1::TransferOptionsResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_TransferOptions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status TransferOptions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::TransferOptionsRequest* /*request*/, ::nightfall::v1::TransferOptionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* TransferOptions(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::TransferOptionsRequest* /*request*/, ::nightfall::v1::TransferOptionsResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_ChangeClass : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ChangeClass() {
+      ::grpc::Service::MarkMethodCallback(6,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ChangeClassRequest, ::nightfall::v1::ChangeClassResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response) { return this->ChangeClass(context, request, response); }));}
+    void SetMessageAllocatorFor_ChangeClass(
+        ::grpc::MessageAllocator< ::nightfall::v1::ChangeClassRequest, ::nightfall::v1::ChangeClassResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(6);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ChangeClassRequest, ::nightfall::v1::ChangeClassResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ChangeClass() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ChangeClass(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ChangeClass(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_Ping<WithCallbackMethod_GetCharacter<WithCallbackMethod_CreateCharacter<WithCallbackMethod_ListMyCharacters<WithCallbackMethod_ListClasses<WithCallbackMethod_TransferOptions<WithCallbackMethod_ChangeClass<Service > > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_Ping : public BaseClass {
@@ -485,6 +722,57 @@ class GameService final {
     }
     // disable synchronous version of this method
     ::grpc::Status ListMyCharacters(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListMyCharactersRequest* /*request*/, ::nightfall::v1::ListMyCharactersResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ListClasses : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ListClasses() {
+      ::grpc::Service::MarkMethodGeneric(4);
+    }
+    ~WithGenericMethod_ListClasses() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListClasses(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListClassesRequest* /*request*/, ::nightfall::v1::ListClassesResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_TransferOptions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_TransferOptions() {
+      ::grpc::Service::MarkMethodGeneric(5);
+    }
+    ~WithGenericMethod_TransferOptions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status TransferOptions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::TransferOptionsRequest* /*request*/, ::nightfall::v1::TransferOptionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ChangeClass : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ChangeClass() {
+      ::grpc::Service::MarkMethodGeneric(6);
+    }
+    ~WithGenericMethod_ChangeClass() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ChangeClass(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -567,6 +855,66 @@ class GameService final {
     }
     void RequestListMyCharacters(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(3, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ListClasses : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ListClasses() {
+      ::grpc::Service::MarkMethodRaw(4);
+    }
+    ~WithRawMethod_ListClasses() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListClasses(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListClassesRequest* /*request*/, ::nightfall::v1::ListClassesResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListClasses(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_TransferOptions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_TransferOptions() {
+      ::grpc::Service::MarkMethodRaw(5);
+    }
+    ~WithRawMethod_TransferOptions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status TransferOptions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::TransferOptionsRequest* /*request*/, ::nightfall::v1::TransferOptionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestTransferOptions(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(5, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ChangeClass : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ChangeClass() {
+      ::grpc::Service::MarkMethodRaw(6);
+    }
+    ~WithRawMethod_ChangeClass() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ChangeClass(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestChangeClass(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -655,6 +1003,72 @@ class GameService final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* ListMyCharacters(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ListClasses : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ListClasses() {
+      ::grpc::Service::MarkMethodRawCallback(4,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ListClasses(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ListClasses() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListClasses(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListClassesRequest* /*request*/, ::nightfall::v1::ListClassesResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListClasses(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_TransferOptions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_TransferOptions() {
+      ::grpc::Service::MarkMethodRawCallback(5,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->TransferOptions(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_TransferOptions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status TransferOptions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::TransferOptionsRequest* /*request*/, ::nightfall::v1::TransferOptionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* TransferOptions(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ChangeClass : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ChangeClass() {
+      ::grpc::Service::MarkMethodRawCallback(6,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ChangeClass(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ChangeClass() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ChangeClass(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ChangeClass(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -765,9 +1179,90 @@ class GameService final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedListMyCharacters(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ListMyCharactersRequest,::nightfall::v1::ListMyCharactersResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<Service > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ListClasses : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ListClasses() {
+      ::grpc::Service::MarkMethodStreamed(4,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::ListClassesRequest, ::nightfall::v1::ListClassesResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::ListClassesRequest, ::nightfall::v1::ListClassesResponse>* streamer) {
+                       return this->StreamedListClasses(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ListClasses() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ListClasses(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListClassesRequest* /*request*/, ::nightfall::v1::ListClassesResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedListClasses(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ListClassesRequest,::nightfall::v1::ListClassesResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_TransferOptions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_TransferOptions() {
+      ::grpc::Service::MarkMethodStreamed(5,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::TransferOptionsRequest, ::nightfall::v1::TransferOptionsResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::TransferOptionsRequest, ::nightfall::v1::TransferOptionsResponse>* streamer) {
+                       return this->StreamedTransferOptions(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_TransferOptions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status TransferOptions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::TransferOptionsRequest* /*request*/, ::nightfall::v1::TransferOptionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedTransferOptions(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::TransferOptionsRequest,::nightfall::v1::TransferOptionsResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ChangeClass : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ChangeClass() {
+      ::grpc::Service::MarkMethodStreamed(6,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::ChangeClassRequest, ::nightfall::v1::ChangeClassResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::ChangeClassRequest, ::nightfall::v1::ChangeClassResponse>* streamer) {
+                       return this->StreamedChangeClass(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ChangeClass() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ChangeClass(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedChangeClass(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ChangeClassRequest,::nightfall::v1::ChangeClassResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<Service > > > > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<Service > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<Service > > > > > > > StreamedService;
 };
 
 }  // namespace v1

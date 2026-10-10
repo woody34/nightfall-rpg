@@ -31,7 +31,7 @@ Source/Nightfall/
   Net/ProtoCodec.{h,cpp}     WebSocket envelope structs (FNet*) <-> generated messages
   Net/NetSettings.h          UNetSettings: gRPC endpoint, call deadline, OIDC issuer/client/audience/scope, WorldMap
   Net/SessionClientSubsystem.* USessionClient: GameService + SessionService over gRPC (Ping, GetCharacter,
-                             CreateCharacter, ListMyCharacters, IssuePlayTicket); bearer on all but Ping
+                             CreateCharacter, ListMyCharacters, ListClasses, TransferOptions, ChangeClass, IssuePlayTicket); bearer on all but Ping
   Net/SnapshotBuffer.{h,cpp} Per-entity position ring with time-delayed interpolation
   Net/NetClientSubsystem.*   GameInstance subsystem: WebSocket (ticket in the upgrade header), reconnect with a
                              fresh ticket per attempt, seq/ack, clock offset, idle keep-alive
@@ -70,6 +70,62 @@ Scripts/
   import-vendor.sh, import_vendor.py  Imports vendor art into Content/Vendor headless (moon: import-vendor)
   playtest.sh                Two scripted game clients against a running API (moon: playtest)
 ```
+
+## Race and class (Phase 2)
+
+The creation screen loads the authenticated `ListClasses` catalogue before enabling Create.
+Its race cards, base-class choices, six base-stat bars, passive descriptions, and appearance bounds
+come from that response. The preview only adds the six server values to show their 170-point budget.
+Sex and appearance are persisted by the server. The available prototype has one hair, color, and
+face option (index 0); the existing mannequin body is shared by races and sexes. No additional art
+is required to exercise identity, class trees, or transfer rules.
+
+The HUD's **Class path / Master** button opens the catalogue tree, highlights the current lineage,
+and shows the master location and radius. The admitted noncombat master uses one dedicated existing-shape proxy; clicking it opens the same
+dialog. Each option displays the server's unmet requirements. Selecting an eligible class offers a
+separate confirmation before calling authenticated, idempotent `ChangeClass`. The server checks
+position, level, branch, availability, and tokens again. Class names and the tier availability cap
+come from the catalogue; movement follows authoritative `EntityMove` rather than race preview data.
+
+`ClassChanged` updates only an admitted entity in the same session generation, at or after its
+latest class-state tick. Owner CP, SP, token counts, and class id arrive in `StatsChanged`; older
+resource ticks and other owners' private data are ignored. Disconnect clears world identity and
+resources; admission spawns and owner stats rebuild them. The catalogue survives reconnect.
+
+`Scripts/fix-proto-optionals.py` repairs TurboLink 1.4.2's synthetic proto3 optional scalar handling
+as part of generation. A default creation request omits `base_class_id`; explicit class 0 remains
+present. `Nightfall.Class.Creation.OptionalPresence` checks the real protobuf bytes for omission,
+zero, and a nonzero id. The other class automation tests exercise wire decoding, stale-session
+fences, owner privacy, reconnect, catalogue paths, bounded malformed cycles, and native layouts.
+
+| Scope | Scenario / automation evidence |
+|---|---|
+| Five races, nine starting classes, sex, appearance, exact stat preview | `2-create-each-race-class-01.nfs`, `2-create-each-race-class-02.nfs`, `2-create-each-race-class-03.nfs` (three fresh accounts; 01 also fills seven slots and rejects the eighth) |
+| Invalid race/class, transfer-class creation, sex, appearance | `2-create-invalid.nfs` |
+| Current lineage, unmet level/range, permanent transfer confirmation | `Nightfall.Class.UI.CatalogueAndLayouts`, `2-class-transfer-rejected.nfs` |
+| Two transfers, token consumption, no downgrade, persisted lineage, reconnect | `2-class-transfer.nfs` |
+| Exact Elf movement/Human XP and source learning availability | `2-racial-traits.nfs` |
+| Public observer class/title and owner resource privacy | `2-class-transfer-observer-a.nfs`, `2-class-transfer-observer-b.nfs` (paired) |
+| Reconstruct class/token state between successive transfers | `2-class-transfer-reconnect.nfs` |
+| Late callbacks after logout/account switch and pending-mutation exclusion | `Nightfall.Class.State.AccountAndRequestLifetimes` |
+| Missing claimed token and reconnect preservation | `2-class-transfer-missing-token.nfs` |
+| Additive optional wire contract / typed identity and resource projection | `Nightfall.Class.Creation.OptionalPresence`, `Nightfall.Class.State.WireAndFences` |
+
+The transfer, reconnect, observer-pair and missing-token scenarios require the Phase 2 harness to seed their disposable account **before
+admission**: positive is a level-40 Human base class 0 with tokens 1/1 at (126,126), and missing-token
+is level 20 with its tier-1 milestone claimed and token count 0 at that position. They use the real
+Unreal scenario runner and durable replay checks. The fixture must never edit a live character. The ordinary runners read `# fixture:` declarations
+(`phase2-transfer`, `phase2-transfer-observer`, `phase2-transfer-missing-token`) and provision before admission;
+the observer pair uses different accounts. Independent creation matrices use numeric suffixes to avoid pair discovery.
+Ordinary creation retains (0,0); the range-denial scenario walks around the monster homes using
+segments below the server's 64-tile move limit.
+
+Development commands `nf.ClassCatalogue`, `nf.CreateClass <race> <base class> <sex> [hair] [color]
+[face]`, `nf.EnterCreated`, `nf.TransferOptions`, `nf.ChangeClass <target>`, `nf.Character`, and
+`nf.MoveMaster` are compiled only outside shipping. They call the same authenticated flow as the
+widgets. Class predicates are listed by the existing predicate registry and report server results;
+`class_rpc_error` never matches an outstanding operation. Negative scenarios have narrow reasoned
+allow-list entries for their asserted canonical gRPC failures.
 
 ## Movement
 

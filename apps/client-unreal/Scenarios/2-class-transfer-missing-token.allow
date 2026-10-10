@@ -1,0 +1,1 @@
+LogTurboLink | CallRpcError: FailedPrecondition | A fixture with a claimed but absent tier1 token must fail transfer and preserve the empty ledger after reconnect.

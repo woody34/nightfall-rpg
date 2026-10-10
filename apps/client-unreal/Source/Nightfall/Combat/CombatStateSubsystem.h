@@ -27,6 +27,14 @@ struct FOwnCombatState
 	bool bMpKnown = false;
 	uint32 Mp = 0;
 	uint32 MaxMp = 0;
+	bool bCpKnown = false;
+	uint32 Cp = 0;
+	uint32 MaxCp = 0;
+	uint32 ClassId = 0;
+	uint64 Sp = 0;
+	uint32 TokenTier1Count = 0;
+	uint32 TokenTier2Count = 0;
+	uint64 LastStatsTick = 0;
 	bool bXpKnown = false;       // XP total arrives with StatsChanged and XpGained; unknown until the first of them after a reconnect
 	uint64 Xp = 0;
 	uint64 LastXpGain = 0;
@@ -67,6 +75,8 @@ struct FCombatHudModel
 	FString OwnHpText;           // "120 / 300"
 	float OwnMpFraction = 0.f;
 	FString OwnMpText;           // "MP —" until the owner stats arrive
+	float OwnCpFraction = 0.f;
+	FString OwnCpText;
 	FString XpText;              // "XP --" until the owner stats arrive
 
 	bool bDeadOverlay = false;
@@ -107,6 +117,7 @@ public:
 	virtual void Deinitialize() override;
 
 	// --- Projection inputs: bound to UNetClientSubsystem, public so tests can replay events. ---
+	void ApplyClassChanged(const FClassChanged& Changed);
 	void ApplySpawn(const FEntitySpawn& Spawn);
 	void ApplyDespawn(const FEntityDespawn& Despawn);
 	void ApplyAttackResult(const FAttackResult& Result);

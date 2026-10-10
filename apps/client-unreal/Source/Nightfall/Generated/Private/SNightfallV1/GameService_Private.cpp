@@ -33,3 +33,27 @@ void UGameServiceListMyCharactersLambdaWrapper::OnResponse(FGrpcContextHandle _H
 	InnerClient->OnListMyCharactersResponse.RemoveDynamic(this, &UGameServiceListMyCharactersLambdaWrapper::OnResponse);
 }
 
+void UGameServiceListClassesLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListClassesResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnListClassesResponse.RemoveDynamic(this, &UGameServiceListClassesLambdaWrapper::OnResponse);
+}
+
+void UGameServiceTransferOptionsLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1TransferOptionsResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnTransferOptionsResponse.RemoveDynamic(this, &UGameServiceTransferOptionsLambdaWrapper::OnResponse);
+}
+
+void UGameServiceChangeClassLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ChangeClassResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnChangeClassResponse.RemoveDynamic(this, &UGameServiceChangeClassLambdaWrapper::OnResponse);
+}
+

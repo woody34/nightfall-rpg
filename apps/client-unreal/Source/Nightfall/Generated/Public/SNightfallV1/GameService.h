@@ -13,7 +13,7 @@ class TURBOLINKGRPC_API UGameService : public UGrpcService
 public:
 	UFUNCTION(BlueprintCallable, Category = TurboLink)
 	virtual void Connect() override;
-	
+
 	UFUNCTION(BlueprintCallable, Category = TurboLink)
 	virtual EGrpcServiceState GetServiceState() const override;
 
@@ -24,7 +24,7 @@ private:
 	virtual void Shutdown() override;
 
 	UPROPERTY()
-	UGameServiceClient* InnerClient; 
+	UGameServiceClient* InnerClient;
 public:
 	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1PingResponse& Response)> FPingResponseLambda;
 	void CallPing(const FGrpcNightfallV1PingRequest& Request, FPingResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
@@ -37,6 +37,15 @@ public:
 
 	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListMyCharactersResponse& Response)> FListMyCharactersResponseLambda;
 	void CallListMyCharacters(const FGrpcNightfallV1ListMyCharactersRequest& Request, FListMyCharactersResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListClassesResponse& Response)> FListClassesResponseLambda;
+	void CallListClasses(const FGrpcNightfallV1ListClassesRequest& Request, FListClassesResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1TransferOptionsResponse& Response)> FTransferOptionsResponseLambda;
+	void CallTransferOptions(const FGrpcNightfallV1TransferOptionsRequest& Request, FTransferOptionsResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ChangeClassResponse& Response)> FChangeClassResponseLambda;
+	void CallChangeClass(const FGrpcNightfallV1ChangeClassRequest& Request, FChangeClassResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
 
 public:
 	class Private;

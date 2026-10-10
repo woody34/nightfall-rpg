@@ -1,0 +1,52 @@
+# covers: 2 E2.1, 2 E2.4, 2 E2.5, 2 E5.1, 2 E5.4, 2 E5.5
+# Three fresh-account runs cover all nine base classes without exceeding the seven-slot limit.
+# Uses the same authenticated form request, real gRPC, real Unreal world and replay gate.
+nf.Login
+nf.WaitFor connected 15
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.Expect catalogue_races == 5
+nf.Expect catalogue_base_classes == 9
+nf.CreateClass 4 44 1
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 1
+nf.Expect creation_race == 4
+nf.Expect creation_class == 44
+nf.Expect creation_sex == 1
+nf.Expect creation_budget == 170
+nf.Expect creation_matches_catalogue
+nf.Expect creation_default_appearance
+nf.CreateClass 4 49 2
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 2
+nf.Expect creation_race == 4
+nf.Expect creation_class == 49
+nf.Expect creation_sex == 2
+nf.Expect creation_budget == 170
+nf.Expect creation_matches_catalogue
+nf.Expect creation_default_appearance
+nf.CreateClass 5 53 2
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 3
+nf.Expect creation_race == 5
+nf.Expect creation_class == 53
+nf.Expect creation_sex == 2
+nf.Expect creation_budget == 170
+nf.Expect creation_matches_catalogue
+nf.Expect creation_default_appearance
+nf.EnterCreated
+nf.WaitFor in_world 15
+nf.Expect world_class == 53
+nf.WaitFor own_max_cp > 0 3
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_class == 53
+nf.Expect character_matches_world
+nf.DropSocket
+nf.WaitFor reconnects >= 1 15
+nf.WaitFor own_spawns >= 2 15
+nf.WaitFor world_class == 53 3
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_matches_world
+nf.Within 90

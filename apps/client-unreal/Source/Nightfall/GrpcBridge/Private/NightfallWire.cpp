@@ -1,5 +1,6 @@
 #include "NightfallWire.h"
 #include "SNightfallV1/WorldMarshaling.h"
+#include "SNightfallV1/GameMarshaling.h"
 
 namespace NightfallWire
 {
@@ -28,6 +29,22 @@ namespace NightfallWire
 
 		Out.SetNumUninitialized(static_cast<int32>(Msg.ByteSizeLong()));
 		Msg.SerializeWithCachedSizesToArray(Out.GetData());
+	}
+
+	void EncodeCreateCharacterRequest(const FGrpcNightfallV1CreateCharacterRequest& In, TArray<uint8>& Out)
+	{
+		::nightfall::v1::CreateCharacterRequest Msg;
+		TURBOLINK_TO_GRPC(&In, &Msg);
+		Out.SetNumUninitialized(static_cast<int32>(Msg.ByteSizeLong()));
+		Msg.SerializeWithCachedSizesToArray(Out.GetData());
+	}
+
+	bool DecodeCreateCharacterRequest(const uint8* Data, int32 Size, FGrpcNightfallV1CreateCharacterRequest& Out)
+	{
+		::nightfall::v1::CreateCharacterRequest Msg;
+		if (Size < 0 || (Size > 0 && !Data) || !Msg.ParseFromArray(Data, Size)) return false;
+		GRPC_TO_TURBOLINK(&Msg, &Out);
+		return true;
 	}
 
 	bool DecodeServerMessage(const uint8* Data, int32 Size, FGrpcNightfallV1ServerMessage& Out)

@@ -1,5 +1,7 @@
 #include "NightfallHud.h"
 #include "Nightfall.h"
+#include "Character/ClassStateSubsystem.h"
+#include "NightfallPlayerController.h"
 #include "Game/LoginFlowSubsystem.h"
 #include "World/RemoteEntityActor.h"
 #include "World/WorldProxySubsystem.h"
@@ -78,16 +80,28 @@ void UNightfallHud::BuildLayout()
 	OwnPanel = WidgetTree->ConstructWidget<UVerticalBox>();
 	OwnPanel->SetVisibility(ESlateVisibility::HitTestInvisible);
 	OwnLabel = MakeText(OwnPanel, TEXT(""), 16);
+	OwnCpBar = MakeBar(OwnPanel, FLinearColor(0.9f, 0.7f, 0.15f), 260.f, 10.f);
+	OwnCpText = MakeText(OwnPanel, TEXT(""), 12);
 	OwnHpBar = MakeBar(OwnPanel, HpColor, 260.f, 18.f);
 	OwnHpText = MakeText(OwnPanel, TEXT(""), 12);
 	OwnMpBar = MakeBar(OwnPanel, MpColor, 260.f, 12.f);
 	OwnMpText = MakeText(OwnPanel, TEXT(""), 12);
+	ClassText = MakeText(OwnPanel, TEXT(""), 12);
 	XpText = MakeText(OwnPanel, TEXT(""), 12);
 	AttackText = MakeText(OwnPanel, TEXT(""), 12);
 	if (UCanvasPanelSlot* Slot = Root->AddChildToCanvas(OwnPanel))
 	{
 		Slot->SetPosition(FVector2D(16.f, 16.f));
-		Slot->SetSize(FVector2D(260.f, 130.f));
+		Slot->SetSize(FVector2D(260.f, 185.f));
+	}
+
+	UButton* ClassesButton = WidgetTree->ConstructWidget<UButton>();
+	ClassesButton->AddChild(MakeText(nullptr, TEXT("Class path / Master"), 14));
+	ClassesButton->OnClicked.AddDynamic(this, &UNightfallHud::HandleClassesClicked);
+	if (UCanvasPanelSlot* Slot = Root->AddChildToCanvas(ClassesButton))
+	{
+		Slot->SetPosition(FVector2D(16.f, 210.f));
+		Slot->SetSize(FVector2D(260.f, 28.f));
 	}
 
 	// Target frame, top-centre.
@@ -202,6 +216,21 @@ void UNightfallHud::ApplyModel(const FCombatHudModel& M)
 	OwnHpText->SetText(FText::FromString(M.OwnHpText));
 	OwnMpBar->SetPercent(M.OwnMpFraction);
 	OwnMpText->SetText(FText::FromString(M.OwnMpText));
+	OwnCpBar->SetPercent(M.OwnCpFraction);
+	OwnCpText->SetText(FText::FromString(M.OwnCpText));
+	if (const UGameInstance* GI = GetGameInstance())
+	{
+		if (const UClassStateSubsystem* Classes = GI->GetSubsystem<UClassStateSubsystem>())
+		{
+			FString Label = Classes->OwnClassLabel();
+			if (const auto* Combat = GI->GetSubsystem<UCombatStateSubsystem>(); Combat && Combat->GetOwn().bCpKnown)
+			{
+				const auto& Own = Combat->GetOwn();
+				Label += FString::Printf(TEXT("  SP %llu  Tokens %u / %u"), Own.Sp, Own.TokenTier1Count, Own.TokenTier2Count);
+			}
+			ClassText->SetText(FText::FromString(Label));
+		}
+	}
 	XpText->SetText(FText::FromString(M.XpText));
 	AttackText->SetText(FText::FromString(M.AttackText));
 
@@ -260,7 +289,8 @@ void UNightfallHud::UpdateFloatingBars()
 			BarBoxes.Add(K, New.Box);
 			Bar = &Bars.Add(K, New);
 		}
-		Bar->Name->SetText(FText::FromString(E->Spawn.Name));
+		Bar->Name->SetText(FText::FromString(Actor->GetNameplate()));
+		Bar->Name->SetColorAndOpacity(FSlateColor(Actor->HasTransferCue() ? FLinearColor(1.f, 0.8f, 0.2f) : FLinearColor::White));
 		Bar->Bar->SetPercent(E->MaxHp == 0 ? 0.f : FMath::Clamp(static_cast<float>(E->Hp) / static_cast<float>(E->MaxHp), 0.f, 1.f));
 		Bar->Bar->SetFillColorAndOpacity(E->Spawn.Kind == 1 ? FLinearColor(0.2f, 0.7f, 0.25f) : NpcHpColor);
 		if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Bar->Box->Slot)) Slot->SetPosition(Screen);
@@ -360,4 +390,9 @@ void UNightfallHud::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		StatusAge += InDeltaTime;
 		if (StatusAge > StatusSeconds) StatusText->SetText(FText::GetEmpty());
 	}
+}
+
+void UNightfallHud::HandleClassesClicked()
+{
+	if (ANightfallPlayerController* PC = Cast<ANightfallPlayerController>(GetOwningPlayer())) PC->OpenClassDialog();
 }

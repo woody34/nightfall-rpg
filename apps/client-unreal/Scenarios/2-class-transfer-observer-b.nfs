@@ -1,0 +1,17 @@
+# covers: 2 E3.3, 2 E3.6, 2 E5.4, 2 E5.5
+# fixture: phase2-transfer-observer
+# Paired with observer-a; B separate account at126126 has no private access to A.
+# Check actual world proxies, public event count and absence of another owner's resources.
+nf.Login
+nf.WaitFor connected 15
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor other_players >= 1 45
+nf.WaitFor other_player_class == 1 45
+nf.WaitFor other_player_class == 2 30
+nf.Expect observed_class_transfers == 2
+nf.Expect private_stats_leaks == 0
+nf.Expect proxy_actors_in_sync
+nf.Within 120

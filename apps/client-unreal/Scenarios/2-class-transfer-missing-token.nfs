@@ -1,0 +1,31 @@
+# covers: 2 E3.1, 2 E3.6, 2 E4.2, 2 E5.3, 2 E5.5
+# fixture: phase2-transfer-missing-token
+# Requires before-admission DB fixture Humanbase0 level20 position126126, tier1claimed mask1,
+# tier1tokens0. Models a consumed milestone token without granting it twice on admission/reconnect.
+nf.Login
+nf.WaitFor connected 15
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.Expect own_level == 20
+nf.Expect at_class_master
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 0
+nf.Expect transfer_option 1 blocked
+nf.ChangeClass 1
+nf.WaitFor class_rpc_error == failedprecondition 15
+nf.Expect transfer_count == 0
+nf.Expect world_class == 0
+nf.DropSocket
+nf.WaitFor own_spawns >= 2 15
+nf.TransferOptions
+nf.WaitFor class_rpc_error == none 15
+nf.Expect options_tier1_tokens == 0
+nf.Expect transfer_option 1 blocked
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_class == 0
+nf.Expect character_matches_world
+nf.Within 90

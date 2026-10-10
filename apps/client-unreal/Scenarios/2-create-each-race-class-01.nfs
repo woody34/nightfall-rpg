@@ -1,0 +1,70 @@
+# covers: 2 E2.1, 2 E2.2, 2 E2.3, 2 E2.4, 2 E2.5, 2 E5.1, 2 E5.4, 2 E5.5
+# Three fresh-account runs cover all nine base classes without exceeding the seven-slot limit.
+# Uses the same authenticated form request, real gRPC, real Unreal world and replay gate.
+nf.Login
+nf.WaitFor connected 15
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.Expect catalogue_races == 5
+nf.Expect catalogue_base_classes == 9
+nf.CreateClass 1 0 1
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 1
+nf.Expect creation_race == 1
+nf.Expect creation_class == 0
+nf.Expect creation_sex == 1
+nf.Expect creation_budget == 170
+nf.Expect creation_matches_catalogue
+nf.Expect creation_default_appearance
+nf.CreateClass 1 10 2
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 2
+nf.Expect creation_race == 1
+nf.Expect creation_class == 10
+nf.Expect creation_sex == 2
+nf.Expect creation_budget == 170
+nf.Expect creation_matches_catalogue
+nf.Expect creation_default_appearance
+nf.CreateClass 2 18 1
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 3
+nf.Expect creation_race == 2
+nf.Expect creation_class == 18
+nf.Expect creation_sex == 1
+nf.Expect creation_budget == 170
+nf.Expect creation_matches_catalogue
+nf.Expect creation_default_appearance
+# Four additional valid creations fill the existing seven account slots.
+nf.CreateClass 2 18 1
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 4
+nf.CreateClass 2 18 1
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 5
+nf.CreateClass 2 18 1
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 6
+nf.CreateClass 2 18 1
+nf.WaitFor class_rpc_error == none 15
+nf.Expect creation_count == 7
+# The eighth attempt must fail without replacing the successful creation snapshot.
+nf.CreateClass 2 18 1
+nf.WaitFor class_rpc_error == resourceexhausted 15
+nf.Expect creation_count == 7
+nf.Expect creation_class == 18
+nf.EnterCreated
+nf.WaitFor in_world 15
+nf.Expect world_class == 18
+nf.WaitFor own_max_cp > 0 3
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_class == 18
+nf.Expect character_matches_world
+nf.DropSocket
+nf.WaitFor reconnects >= 1 15
+nf.WaitFor own_spawns >= 2 15
+nf.WaitFor world_class == 18 3
+nf.Character
+nf.WaitFor class_rpc_error == none 15
+nf.Expect character_matches_world
+nf.Within 120

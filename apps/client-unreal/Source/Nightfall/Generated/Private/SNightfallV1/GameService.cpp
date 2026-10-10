@@ -114,3 +114,45 @@ void UGameService::CallListMyCharacters(const FGrpcNightfallV1ListMyCharactersRe
 	InnerClient->OnListMyCharactersResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceListMyCharactersLambdaWrapper::OnResponse);
 	InnerClient->ListMyCharacters(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
 }
+
+void UGameService::CallListClasses(const FGrpcNightfallV1ListClassesRequest& Request, FListClassesResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceListClassesLambdaWrapper* lambdaWrapper = NewObject<UGameServiceListClassesLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitListClasses();
+	InnerClient->OnListClassesResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceListClassesLambdaWrapper::OnResponse);
+	InnerClient->ListClasses(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallTransferOptions(const FGrpcNightfallV1TransferOptionsRequest& Request, FTransferOptionsResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceTransferOptionsLambdaWrapper* lambdaWrapper = NewObject<UGameServiceTransferOptionsLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitTransferOptions();
+	InnerClient->OnTransferOptionsResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceTransferOptionsLambdaWrapper::OnResponse);
+	InnerClient->TransferOptions(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallChangeClass(const FGrpcNightfallV1ChangeClassRequest& Request, FChangeClassResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceChangeClassLambdaWrapper* lambdaWrapper = NewObject<UGameServiceChangeClassLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitChangeClass();
+	InnerClient->OnChangeClassResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceChangeClassLambdaWrapper::OnResponse);
+	InnerClient->ChangeClass(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}

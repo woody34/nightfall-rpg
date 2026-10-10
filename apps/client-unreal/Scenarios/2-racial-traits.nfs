@@ -1,0 +1,36 @@
+# covers: 2 E1.3, 2 E1.5, 2 E1.6, 2 E2.1, 2 E5.2, 2 E5.4, 2 E5.5
+# Fresh account. Exact external oracle: Elf fighter125+racial3 =>4.000 wire tiles/s;
+# Human keltir28 XP with5%bonus floors to29. No gameplay formula runs in the client.
+# Evasion/critical-damage numeric effects require the server's independent vector tests.
+nf.Login
+nf.WaitFor connected 15
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.Expect catalogue_learning_metadata
+nf.CreateClass 2 18 1
+nf.WaitFor class_rpc_error == none 15
+nf.EnterCreated
+nf.WaitFor in_world 15
+nf.ClickMove 12 9
+nf.WaitFor own_move_milli_speed == 4000 5
+nf.WaitFor own_at 12 9 1 15
+nf.WaitFor own_max_cp > 0 3
+nf.CreateClass 1 0 1
+nf.WaitFor class_rpc_error == none 15
+nf.EnterCreated
+nf.WaitFor world_class == 0 15
+nf.ClickMove 40 40
+nf.WaitFor own_move_milli_speed == 3590 5
+nf.WaitFor own_at 40 40 1 35
+nf.ClickMove 80 85
+nf.WaitFor own_at 80 85 1 35
+nf.ClickMove 97 100
+nf.WaitFor own_at 97 100 1 15
+nf.Target nearest_attackable
+nf.WaitFor target != none 3
+nf.Attack
+nf.WaitFor target_hp == 0 30
+nf.WaitFor own_xp == 29 3
+nf.Expect own_level_matches_xp
+nf.Expect own_max_cp > 0
+nf.Within 150

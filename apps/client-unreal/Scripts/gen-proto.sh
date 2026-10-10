@@ -48,6 +48,9 @@ mkdir -p "$OUT/Private/pb"
     "${PROTOS[@]}"
 )
 
+# TurboLink 1.4.2 treats proto3 optional scalars as real C++ oneofs. Keep the fix repeatable.
+python3 "$HERE/fix-proto-optionals.py" "$OUT"
+
 # Same post-processing as TurboLink's generate_code.cmd: prepend its MSVC warning suppressions to
 # protoc's output so Windows builds stay quiet. No-ops under clang.
 while IFS= read -r -d '' f; do

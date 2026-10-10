@@ -65,3 +65,17 @@ void ARemoteEntityActor::Tick(float DeltaSeconds)
 		SetActorLocation(Target);
 	}
 }
+
+void ARemoteEntityActor::SetClassPresentation(uint32 InClassId, const FString& Title, bool bTransferred)
+{
+	ClassId = InClassId;
+	ClassTitle = Title;
+	if (bTransferred) TransferCueUntil = FPlatformTime::Seconds() + 2.0;
+}
+
+FString ARemoteEntityActor::GetNameplate() const
+{
+	return DisplayName + (ClassTitle.IsEmpty() ? FString() : TEXT(" — ") + ClassTitle) + (HasTransferCue() ? TEXT(" [Class advanced]") : TEXT(""));
+}
+
+bool ARemoteEntityActor::HasTransferCue() const { return FPlatformTime::Seconds() < TransferCueUntil; }

@@ -27,6 +27,13 @@ namespace
 		Out.Hp = S.Hp;
 		Out.MaxHp = S.MaxHp;
 		Out.Level = S.Level;
+		Out.Race = static_cast<uint32>(S.Race);
+		Out.ClassId = S.ClassId;
+		Out.Sex = static_cast<uint32>(S.Sex);
+		Out.HairStyle = S.HairStyle;
+		Out.HairColor = S.HairColor;
+		Out.Face = S.Face;
+		Out.StateTick = S.StateTick;
 		return Out;
 	}
 
@@ -91,7 +98,7 @@ namespace
 		case EGrpcNightfallV1WorldEventEvent::StatsChanged:
 			if (const FGrpcNightfallV1StatsChanged* S = Ev.StatsChanged.Get())
 			{
-				Out.StatsChanged = FStatsChanged{ S->Entity, S->Hp, S->MaxHp, S->Mp, S->MaxMp, S->Level, S->Xp };
+				Out.StatsChanged = FStatsChanged{ S->Entity, S->Hp, S->MaxHp, S->Mp, S->MaxMp, S->Level, S->Xp, S->Cp, S->MaxCp, S->ClassId, S->Sp, S->TokenTier1Count, S->TokenTier2Count, S->Tick };
 			}
 			break;
 		case EGrpcNightfallV1WorldEventEvent::XpGained:
@@ -104,6 +111,12 @@ namespace
 			if (const FGrpcNightfallV1LevelUp* L = Ev.LevelUp.Get())
 			{
 				Out.LevelUp = FLevelUp{ L->Entity, L->Level };
+			}
+			break;
+		case EGrpcNightfallV1WorldEventEvent::ClassChanged:
+			if (const FGrpcNightfallV1ClassChanged* C = Ev.ClassChanged.Get())
+			{
+				Out.ClassChanged = FClassChanged{ C->Entity, C->ClassId, C->Tick, C->SessionGeneration };
 			}
 			break;
 		case EGrpcNightfallV1WorldEventEvent::TargetChanged:
@@ -124,6 +137,7 @@ namespace NightfallProto
 	bool IsStaleSpawn(const FEntitySpawn& Known, const FEntitySpawn& New)
 	{
 		if (New.SessionGeneration < Known.SessionGeneration) return true;
+		if (New.SessionGeneration == Known.SessionGeneration && New.StateTick < Known.StateTick) return true;
 		return New.SessionGeneration == Known.SessionGeneration
 			&& Known.LifeIncarnation != 0 && New.LifeIncarnation != 0 && New.LifeIncarnation < Known.LifeIncarnation;
 	}

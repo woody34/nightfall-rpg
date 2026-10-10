@@ -9,11 +9,18 @@
 
 #include "CoreMinimal.h"
 #include "SNightfallV1/WorldMessage.h"
+#include "SNightfallV1/GameMessage.h"
 
 namespace NightfallWire
 {
 	/** Serialises nightfall.v1.ClientMessage. An Intent whose active case has no payload is omitted. */
 	TURBOLINKGRPC_API void EncodeClientMessage(const FGrpcNightfallV1ClientMessage& In, TArray<uint8>& Out);
+
+	/** Encodes creation for wire-contract tests, including optional base-class presence. */
+	TURBOLINKGRPC_API void EncodeCreateCharacterRequest(const FGrpcNightfallV1CreateCharacterRequest& In, TArray<uint8>& Out);
+
+	/** Parses creation through the generated optional-presence marshaler; preserves unknown enums. */
+	TURBOLINKGRPC_API bool DecodeCreateCharacterRequest(const uint8* Data, int32 Size, FGrpcNightfallV1CreateCharacterRequest& Out);
 
 	/** Parses nightfall.v1.ServerMessage. Returns false on malformed input; Out is reset first. */
 	TURBOLINKGRPC_API bool DecodeServerMessage(const uint8* Data, int32 Size, FGrpcNightfallV1ServerMessage& Out);

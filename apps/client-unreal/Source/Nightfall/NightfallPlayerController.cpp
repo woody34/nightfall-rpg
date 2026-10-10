@@ -1,4 +1,7 @@
 #include "NightfallPlayerController.h"
+#include "Character/ClassStateSubsystem.h"
+#include "World/ClassMasterActor.h"
+#include "UI/NightfallClassDialog.h"
 #include "Net/NetClientSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -37,6 +40,7 @@ void ANightfallPlayerController::BeginPlay()
 		Hud = CreateWidget<UNightfallHud>(this, HudClass);
 		if (Hud) Hud->AddToViewport(0);
 	}
+	LoadClassCatalogue();
 	UE_LOG(LogNightfall, Log, TEXT("click-to-move ready: mapping context %s, action %s"),
 		*GetNameSafe(DefaultMappingContext), *GetNameSafe(ClickMoveAction));
 	if (ULocalPlayer* LP = GetLocalPlayer())
@@ -59,6 +63,7 @@ void ANightfallPlayerController::SetupInputComponent()
 
 void ANightfallPlayerController::OnClickMove()
 {
+	if (ClassDialog && ClassDialog->IsInViewport()) return;
 	UE_LOG(LogNightfall, Log, TEXT("click"));
 	UCombatStateSubsystem* Combat = GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();
 	if (Combat && Combat->IsOwnDead()) return;   // the dead overlay owns the screen
@@ -71,6 +76,7 @@ void ANightfallPlayerController::OnClickMove()
 	GetWorld()->LineTraceMultiByChannel(Hits, Origin, Origin + Direction * 200000.0, ECC_Visibility);
 	for (const FHitResult& Hit : Hits)
 	{
+		if (Cast<AClassMasterActor>(Hit.GetActor())) { ShowClassMaster(); return; }
 		const ARemoteEntityActor* Proxy = Cast<ARemoteEntityActor>(Hit.GetActor());
 		if (Proxy && Combat && Combat->ClickEntity(Proxy->EntityId))
 		{
@@ -166,3 +172,16 @@ namespace
 		}));
 }
 #endif
+
+void ANightfallPlayerController::LoadClassCatalogue()
+{
+	UClassStateSubsystem* Classes = GetGameInstance()->GetSubsystem<UClassStateSubsystem>();
+	if (Classes && !Classes->HasCatalogue()) Classes->LoadCatalogue();
+}
+
+void ANightfallPlayerController::ShowClassMaster()
+{
+	if (ClassDialog && ClassDialog->IsInViewport()) return;
+	ClassDialog = CreateWidget<UNightfallClassDialog>(this, UNightfallClassDialog::StaticClass());
+	if (ClassDialog) { ClassDialog->AddToViewport(20); ClassDialog->ActivateWidget(); }
+}
