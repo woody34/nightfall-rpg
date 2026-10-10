@@ -183,7 +183,8 @@ Provenance and reproduction for the Phase 2 race, profession, and growth catalog
 
 | Repository | Revision | Role |
 |---|---|---|
-| <https://bitbucket.org/l2jserver/l2j-server-datapack> (`develop`) | `3ca488dd2bd0bfaca43e378886a3c2e37968153a` (2026-09-13) | Class definitions, static attributes, and per-level resource growth |
+| <https://bitbucket.org/l2jserver/l2j-server-datapack> (`develop`) | `3ca488dd2bd0bfaca43e378886a3c2e37968153a` (2026-09-13) | Class definitions, static attributes, skill trees, and per-level resource growth |
+| <https://bitbucket.org/l2jserver/l2j-server-game> (`develop`) | `abfde0490ac52a2106e884b7242c0276c44cdf76` (2026-09-13) | CP CON-multiplier (`FuncMaxCpMul`) and integer floor (`PcStat.getMaxCp`) |
 
 Datapack files read (prefix `src/main/resources/data/stats/chars/`):
 - `classList.xml`: class IDs, parent links, and retail class names.
@@ -210,7 +211,7 @@ python3 packages/data/scripts/gen_classes.py --datapack /tmp/phase2-l2j-dp --che
 ```
 
 The generation script `packages/data/scripts/gen_classes.py`:
-- Validates that the datapack clone is checked out to exact pinned revision `3ca488dd2bd0bfaca43e378886a3c2e37968153a`.
+- Validates the exact pinned revision `3ca488dd2bd0bfaca43e378886a3c2e37968153a` and refuses modified, untracked, or ignored files in the character, skill-definition, and learning-tree source paths.
 - Extracts XML source strings verbatim, formatting plain decimals without floating-point conversion.
 - Generates all 5 race files, 89 profession files, 89 growth CSV files and the targeted skill reference catalog.
 - Refuses unknown skill IDs, source levels outside their definition range, duplicate learning/proficiency rows and unexpected files in generated directories during `--check`.
@@ -246,11 +247,14 @@ The generation script `packages/data/scripts/gen_classes.py`:
 - **Naming identity**:
   - `l2_ref`: Retains exact, unmodified retail names (e.g. "Human Fighter", "Warrior", "Gladiator", "Duelist").
   - `display_name`: Curated original draft mutable metadata for Nightfall (e.g. "Human Armsbearer", "Steel Initiate", "Twinblade Champion", "Blade Paragon").
-  - Disclaimer: The 89 original Nightfall labels and fixture starting positions are design metadata, separate from the cited retail values.
+  - The 89 original Nightfall labels and fixture starting positions are design metadata, separate from the cited retail values.
 
 ### Deferred hooks and future phase boundaries
 
-- **Class skill tree and proficiencies**: `SkillLearnDef` (`skill_tree`) contains the complete source learning rows for all 9 base classes, 18 first classes, and the 12 second-class MVP professions (6,927 entries). The 50 other direct trees are marked `deferred`, while inherited entries remain queryable. `ProficiencyDef` records 3,521 source equipment mastery and Expertise unlock rows across all 89 classes. Skill execution/effects and manual learning flows are deferred to Phase 3; equipment/mastery effects are deferred to Phase 4.
+- **Class skill tree and proficiencies**: `SkillLearnDef` (`skill_tree`) contains the complete source learning rows for all 9 base classes, 18 first classes, and the 12 second-class MVP professions (`[2, 5, 8, 9, 12, 16, 17, 27, 33, 46, 52, 55]`, 6,927 entries total). The 50 other direct trees are marked `deferred`, while ancestor entries remain queryable. `ProficiencyDef` records 3,521 source equipment mastery and Expertise unlock rows across all 89 classes. Source-exact learning level gates (`required_level` / `getLevel`) govern learning availability, not active class skill effects.
+- **Automatic metadata grants**: Sourced `autoGet` entries grant persisted metadata on character creation, transfer, or level-up (max level per key at zero SP charge). Manual learning flows, SP expenditures, and skill effects are Phase 3 excluded.
+- **Item requirement hooks**: 48 learning entries require items; keys use canonical `l2.item.<id>` with a positive unsigned 32-bit ID, pointing to future inventory item definitions.
+- **Known skill reference catalog**: `packages/data/skill_catalog.toml` defines 378 targeted skill entries with known IDs, maximum levels, and source XML paths; runtime status is strictly `Deferred` (runtime engine absent).
 - **Racial passive keys**: `passive_skill_keys` in `races/*.toml` (e.g. `racial.adaptable`, `racial.forest_step`, `racial.shadow_precision`, `racial.iron_constitution`, `racial.pack_mule`) are descriptor strings gated behind the future Phase 3 skill registry. Server runtime effects are defined by progression and combat rules.
 - **Reserved Kamael IDs**: Classic catalog IDs include 0..=57 and 88..=118; Kamael IDs 123..=136 are absent (Nightfall has no Kamael race).
 
@@ -275,9 +279,20 @@ The generation script `packages/data/scripts/gen_classes.py`:
 
 ### Registry validation, canonical hashing, and Phase 1 preservation
 
-- **Startup loader and deserialization validation**: `infrastructure::class_data::load_classes` loads all catalog files at startup. `ClassRegistry` serde deserialization (`try_from = "RegistryParts"`) re-executes `validate()`, guaranteeing that deserializing saved snapshots revalidates all catalog invariants (IDs, stat totals, tier gates, parent links, non-decreasing growth, and subclass configurations, collision positivity, strict nested fields and known skill ID/level bounds).
+- **Startup loader and deserialization validation**: `infrastructure::class_data::load_classes` loads all catalog files at startup. `ClassRegistry` serde deserialization (`try_from = "RegistryParts"`) re-executes `validate()`, guaranteeing that deserializing saved snapshots revalidates all catalog invariants (IDs, stat totals, tier gates, parent links, non-decreasing growth, subclass configurations, collision positivity, strict nested fields, and known skill ID/level bounds).
 - **Canonical config hash**: `ResolvedClasses.config_hash` is a SHA-256 digest over the canonical JSON encoding of `(&registry, &provenance)`. It tracks all resolved metadata, source provenance, and growth tables, while remaining insensitive to TOML whitespace/comments and equivalent accepted decimal representations. CSV headers and contiguous four-column rows remain strict; comments and whitespace outside plain decimal cells are rejected.
-- **Phase 1 preservation**: Phase 1 stat tables (`tables/*.toml`), starter classes (`classes/*.toml`), formula tests (`formula_fidelity`), and independent verification fixtures (`oracle.py`, `oracle.json`, `rounding-audit.json`) remain completely intact and unchanged.
+- **Phase 1 preservation**: Phase 1 stat tables (`tables/*.toml`), starter classes (`classes/*.toml`), formula tests (`formula_fidelity`), and independent verification fixtures (`oracle.py`, `oracle.json`, `rounding-audit.json`) remain completely intact and unchanged. The 89 original curated draft Nightfall display names are separate mutable design metadata, while retail names remain in `l2_ref`. Fixture start positions remain `[0, 0]`.
+
+### Independent reviews, verification boundaries, and catalog size
+
+- **Independent read-only review v1**: Review of `53be185` verified all 89 classes, 5 races, 7,565 rows and 22,695 exact resource values. It identified three admission bugs:
+  1. *Class collision dimensions*: `validate_class` checked movement but omitted positive collision dimensions.
+  2. *Nested unknown fields*: nested `BaseStats`, `RaceDef`, and `GrowthRow` lacked `deny_unknown_fields`.
+  3. *Generator `--check`*: verified expected files without comparing directory inventories (orphan file miss).
+  Commit `e02ee69` resolved all three (12 catalog tests, all-targets clippy `-D warnings`, fmt, tests, and gen check passing).
+- **Independent field-tuple audit v2**: Audited `e02ee69`, independently extracting and verifying all 6,927 learning rows (SP costs, default bools, NPC learning, 48 item requirements), 3,521 proficiency rows, 378 known source definitions (runtime status `Deferred`), 89 classes, and 7,565 growth rows (22,695 scalars).
+- **Review findings and disposition**: The second audit found two admission gaps: a pinned Git HEAD permitted modified source inputs, and nonempty item references could contain invalid retail IDs. Follow-up validation now rejects dirty source input paths and accepts only canonical positive `l2.item.<u32>` IDs for learning requirements. Tests cover source revision/working-tree admission and malformed learning references in both startup loading and snapshot deserialization. The follow-up passed 13 Rust catalog tests, 3 Python provenance tests, all-targets clippy with warnings denied, formatting, and source regeneration checks. The independent audit verified the shipped tuples before these fixes; the fixes have separate regression coverage.
+- **Catalog size and snapshot integration**: Independent Python compact JSON reconstruction across all resolved catalog fields yields 2,048,521 raw bytes (~2.05 MB; zlib fast 207,161 bytes, default 156,512 bytes). This is an independent approximate-equivalent measurement of the catalog encoding, rather than a full zone checkpoint, and motivates compressed checkpoint storage.
 
 
 ### CP maximum multiplier

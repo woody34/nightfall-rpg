@@ -526,7 +526,7 @@ impl ClassRegistry {
                 || skill
                     .required_items
                     .iter()
-                    .any(|item| item.item.is_empty() || item.count == 0)
+                    .any(|item| !valid_learning_item(&item.item) || item.count == 0)
         }) || c
             .proficiencies
             .iter()
@@ -742,4 +742,11 @@ mod base_stats_serde {
             men: value.men,
         })
     }
+}
+
+// Learning books use retail identities; transfer requirements retain named Nightfall tokens.
+fn valid_learning_item(key: &str) -> bool {
+    key.strip_prefix("l2.item.")
+        .and_then(|id| id.parse::<u32>().ok().map(|number| (id, number)))
+        .is_some_and(|(id, number)| number > 0 && id == number.to_string())
 }

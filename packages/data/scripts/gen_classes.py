@@ -292,6 +292,14 @@ class Datapack:
 
         if head != DATAPACK_REVISION:
             raise SourceError(f"datapack clone is at {head}, expected pinned {DATAPACK_REVISION}")
+        # The provenance revision describes every input byte, not merely the HEAD label.
+        dirty = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all", "--ignored=matching", "--",
+             DATA_STATS_CHARS, DATA_STATS_SKILLS, LEARNING_SOURCE],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        if dirty:
+            raise SourceError(f"datapack source inputs are dirty at pinned revision: {dirty}")
         self.root = root
 
     def rel(self, subpath: str) -> str:

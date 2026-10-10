@@ -341,3 +341,37 @@ fn unreferenced_growth_is_rejected_in_external_catalogs() {
         .insert("growth/obsolete.csv".to_owned(), source.0["growth/human_fighter.csv"].clone());
     assert!(load_classes(&source).is_err());
 }
+
+#[test]
+fn learning_item_ids_are_canonical_positive_ids_at_load_and_restore() {
+    for invalid in [
+        "l2.item.0",
+        "l2.item.typo",
+        "class_transfer_token_1",
+        "l2.item.08618",
+        "l2.item.+8618",
+        "l2.itme.8618",
+        "l2.item.4294967296",
+    ] {
+        let mut source = ClassSource::embedded();
+        let text = source.0.get_mut("professions/rogue.toml").unwrap();
+        assert!(text.contains("l2.item.8618"));
+        *text = text.replacen("l2.item.8618", invalid, 1);
+        assert!(load_classes(&source).is_err());
+        let mut value = serde_json::to_value(&*load().registry).unwrap();
+        let class = value["classes"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|c| c["id"] == 7)
+            .unwrap();
+        let entry = class["skill_tree"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|s| s["skill_id"] == 1405 && s["skill_level"] == 1)
+            .unwrap();
+        entry["required_items"][0]["item"] = invalid.into();
+        assert!(serde_json::from_value::<ClassRegistry>(value).is_err());
+    }
+}
