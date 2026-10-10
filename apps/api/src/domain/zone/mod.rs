@@ -41,11 +41,13 @@ mod scaled;
 pub mod skill;
 pub mod skill_math;
 pub mod skill_rules;
+pub mod stat_functions;
 mod stat_rules;
 mod stat_sheet;
 #[cfg(test)]
 mod stat_tests;
 mod state;
+pub mod state_regen;
 
 pub use ai::{
     Intention, MemberState, NpcAi, NpcBrain, SlotMember, SpawnSlotSpec, MAX_ATTACK_TIMEOUT_TICKS,
@@ -99,7 +101,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 30] = [
+    const SOURCES: [(&str, &str); 32] = [
         ("mod.rs", include_str!("mod.rs")),
         ("effects.rs", include_str!("effects.rs")),
         ("skill.rs", include_str!("skill.rs")),
@@ -123,9 +125,11 @@ mod tests {
         ("npc_template.rs", include_str!("npc_template.rs")),
         ("progression.rs", include_str!("progression.rs")),
         ("scaled.rs", include_str!("scaled.rs")),
+        ("stat_functions.rs", include_str!("stat_functions.rs")),
         ("stat_rules.rs", include_str!("stat_rules.rs")),
         ("stat_sheet.rs", include_str!("stat_sheet.rs")),
         ("stat_tests.rs", include_str!("stat_tests.rs")),
+        ("state_regen.rs", include_str!("state_regen.rs")),
         ("state.rs", include_str!("state.rs")),
         ("state_digest.rs", include_str!("state_digest.rs")),
         ("state_combat.rs", include_str!("state_combat.rs")),
