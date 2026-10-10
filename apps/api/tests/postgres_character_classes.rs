@@ -1,4 +1,4 @@
-//! Phase 2 adapter atomicity/concurrency. Each test gets a private schema in DATABASE_URL.
+//! Phase 2 adapter atomicity/concurrency. Each test gets a private schema in `DATABASE_URL`.
 #![allow(
     missing_docs,
     unreachable_pub,

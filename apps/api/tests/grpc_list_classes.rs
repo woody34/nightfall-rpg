@@ -8,9 +8,11 @@
 mod common;
 use common::TestApp;
 use nightfall_api::interface::grpc::pb;
+use prost::Message;
 use tonic::Code;
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)] // The catalogue endpoint has one complete wire-contract oracle.
 async fn catalogue_contains_all_races_professions_limits_and_appearance_hooks() {
     let mut app = TestApp::spawn().await;
     let response = app
@@ -31,9 +33,7 @@ async fn catalogue_contains_all_races_professions_limits_and_appearance_hooks() 
             interaction_radius: 3.0
         })
     );
-    use prost::Message;
     let encoded_len = response.encoded_len();
-    println!("ListClassesResponse encoded_len={encoded_len} bytes; tonic limit=4194304 bytes");
     assert!(
         encoded_len < 4 * 1024 * 1024,
         "catalogue exceeds tonic default message limit: {encoded_len}"

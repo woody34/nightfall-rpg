@@ -180,7 +180,7 @@ async fn phase_two_backfill_preserves_all_existing_progression_and_exact_race_pa
         let id = uuid::Uuid::now_v7();
         ids.push(id);
         let name = format!("Hero{}", char::from(b'a' + u8::try_from(index).unwrap()));
-        sqlx::query("INSERT INTO characters(id,account_id,name,name_normalized,race,level,str,dex,con,\"int\",wit,men,pos_x,pos_y,xp,hp,mp,alive,class_profile,revision) VALUES($1,$2,$3,$4,$5,85,40,30,43,21,11,25,12.5,15.25,16890558727,17,11,false,$6,9)")
+        sqlx::query("INSERT INTO characters(id,account_id,name,name_normalized,race,level,str,dex,con,\"int\",wit,men,pos_x,pos_y,xp,hp,mp,alive,class_profile,revision) VALUES($1,$2,$3,$4,$5,85,40,30,43,21,11,25,12.5,15.25,16_890_558_727,17,11,false,$6,9)")
             .bind(id).bind(uuid::Uuid::nil()).bind(&name).bind(name.to_ascii_lowercase()).bind(*race).bind(*profile).execute(&pool).await.unwrap();
     }
     Migrator::up(&db, None).await.unwrap();
@@ -195,7 +195,7 @@ async fn phase_two_backfill_preserves_all_existing_progression_and_exact_race_pa
                 class_id,
                 class_id,
                 85,
-                16890558727,
+                16_890_558_727,
                 Some(17),
                 Some(11),
                 false,
@@ -216,7 +216,7 @@ async fn phase_two_backfill_refuses_unknown_or_wrong_race_profiles_without_rewri
         };
         let db = connection_from_pool(&pool);
         Migrator::up(&db, Some(6)).await.unwrap();
-        sqlx::query("INSERT INTO characters(id,account_id,name,name_normalized,race,level,str,dex,con,\"int\",wit,men,xp,hp,mp,class_profile) VALUES($1,$2,'Hero','hero','human',85,40,30,43,21,11,25,16890558727,17,11,$3)")
+        sqlx::query("INSERT INTO characters(id,account_id,name,name_normalized,race,level,str,dex,con,\"int\",wit,men,xp,hp,mp,class_profile) VALUES($1,$2,'Hero','hero','human',85,40,30,43,21,11,25,16_890_558_727,17,11,$3)")
             .bind(uuid::Uuid::now_v7()).bind(uuid::Uuid::nil()).bind(profile).execute(&pool).await.unwrap();
         let error = Migrator::up(&db, None).await.unwrap_err();
         assert!(error.to_string().contains("unknown or wrong-race"), "{error}");
@@ -225,6 +225,6 @@ async fn phase_two_backfill_refuses_unknown_or_wrong_race_profiles_without_rewri
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(values, (profile.into(), 85, 16890558727, Some(17), Some(11)));
+        assert_eq!(values, (profile.into(), 85, 16_890_558_727, Some(17), Some(11)));
     }
 }

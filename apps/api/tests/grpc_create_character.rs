@@ -418,7 +418,7 @@ async fn seven_character_slots_refuse_new_keys_and_replay_old_keys() {
 async fn configured_curated_blocklist_rejects_a_name_without_writes() {
     let mut app = TestApp::spawn_with(|deps| {
         deps.blocked_character_names =
-            Arc::new(std::collections::BTreeSet::from(["blockedhero".into()]))
+            Arc::new(std::collections::BTreeSet::from(["blockedhero".into()]));
     })
     .await;
     assert_eq!(

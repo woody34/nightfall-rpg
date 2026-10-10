@@ -282,6 +282,7 @@ fn changed(message: &pb::ServerMessage, player: &common::ws::Player, target: u32
 }
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)] // One connected two-tier flow proves historical retry across the later mutation.
 async fn live_transfers_checkpoint_before_response_notify_observer_and_replay_both_frozen_results()
 {
     let app = TestApp::spawn_with_zone(
@@ -474,15 +475,36 @@ async fn live_ineligible_options_and_transfers_leave_tokens_and_receipts_unchang
         .all(|e| !matches!(e, nightfall_api::domain::DomainEvent::CharacterClassChanged { .. })));
 }
 
-struct FailingRuntime(tonic::Code);
+#[derive(Clone, Copy)]
+enum RuntimeFailure {
+    Requirements,
+    Capacity,
+    Offline,
+    Storage,
+}
+impl RuntimeFailure {
+    fn code(self) -> Code {
+        match self {
+            Self::Requirements => Code::FailedPrecondition,
+            Self::Capacity => Code::ResourceExhausted,
+            Self::Offline => Code::Unavailable,
+            Self::Storage => Code::Internal,
+        }
+    }
+}
+struct FailingRuntime(RuntimeFailure);
 impl FailingRuntime {
     fn error(&self) -> nightfall_api::application::AppError {
         use nightfall_api::application::AppError;
         match self.0 {
-            Code::FailedPrecondition => AppError::FailedPrecondition("requirements changed".into()),
-            Code::ResourceExhausted => AppError::ResourceExhausted("command queue full".into()),
-            Code::Unavailable => AppError::Unavailable("zone recovering".into()),
-            _ => AppError::Infrastructure(anyhow::anyhow!("private database diagnostic")),
+            RuntimeFailure::Requirements => {
+                AppError::FailedPrecondition("requirements changed".into())
+            },
+            RuntimeFailure::Capacity => AppError::ResourceExhausted("command queue full".into()),
+            RuntimeFailure::Offline => AppError::Unavailable("zone recovering".into()),
+            RuntimeFailure::Storage => {
+                AppError::Infrastructure(anyhow::anyhow!("private database diagnostic"))
+            },
         }
     }
 }
@@ -511,14 +533,15 @@ impl nightfall_api::application::ports::ClassTransferRuntime for FailingRuntime 
 
 #[tokio::test]
 async fn runtime_failures_map_through_real_grpc_without_claiming_success_or_exposing_diagnostics() {
-    for code in [
-        Code::FailedPrecondition,
-        Code::ResourceExhausted,
-        Code::Unavailable,
-        Code::Internal,
+    for failure in [
+        RuntimeFailure::Requirements,
+        RuntimeFailure::Capacity,
+        RuntimeFailure::Offline,
+        RuntimeFailure::Storage,
     ] {
+        let code = failure.code();
         let mut app = TestApp::spawn_with(|deps| {
-            deps.class_transfers = Some(std::sync::Arc::new(FailingRuntime(code)))
+            deps.class_transfers = Some(std::sync::Arc::new(FailingRuntime(failure)));
         })
         .await;
         let c = fixture();
