@@ -61,6 +61,9 @@ public:
 	UNightfallClassDialog* GetClassDialog() const { return ClassDialog; }
 
 	void OpenSkillDialog();
+	/** Production mouse-hit resolver and key-binding setup, also exercised headlessly. */
+	bool ClickEntityProxy(const FString& EntityId);
+	void BindSkillKeys();
 	uint32 ClickGroundLocation(const FVector& Target);
 
 	/**

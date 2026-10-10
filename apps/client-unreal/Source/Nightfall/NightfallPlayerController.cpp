@@ -60,6 +60,15 @@ void ANightfallPlayerController::BeginPlay()
 void ANightfallPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+ BindSkillKeys();
+	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
+	{
+		if (ClickMoveAction) EIC->BindAction(ClickMoveAction, ETriggerEvent::Started, this, &ANightfallPlayerController::OnClickMove);
+	}
+}
+
+void ANightfallPlayerController::BindSkillKeys()
+{
  const FKey Keys[]={EKeys::One,EKeys::Two,EKeys::Three,EKeys::Four,EKeys::Five,EKeys::Six,EKeys::Seven,EKeys::Eight,EKeys::Nine};
  if(InputComponent)for(int32 Index=0;Index<9;++Index)
  {
@@ -72,10 +81,19 @@ void ANightfallPlayerController::SetupInputComponent()
   });
   InputComponent->KeyBindings.Add(Binding);
  }
-	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
-	{
-		if (ClickMoveAction) EIC->BindAction(ClickMoveAction, ETriggerEvent::Started, this, &ANightfallPlayerController::OnClickMove);
-	}
+}
+
+bool ANightfallPlayerController::ClickEntityProxy(const FString& EntityId)
+{
+ auto* Combat = GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();
+ if (!Combat || Combat->IsOwnDead()) return false;
+ if (auto* Skills = GetGameInstance()->GetSubsystem<USkillStateSubsystem>())
+ {
+  // PC_BODY uses a local identity-fenced selection, never the live auto-attack path.
+  if (Skills->SelectCorpse(EntityId)) return true;
+  Skills->ClearCorpseSelection();
+ }
+ return Combat->ClickEntity(EntityId);
 }
 
 void ANightfallPlayerController::OnClickMove()
@@ -95,7 +113,7 @@ void ANightfallPlayerController::OnClickMove()
 	{
 		if (Cast<AClassMasterActor>(Hit.GetActor())) { ShowClassMaster(); return; }
 		const ARemoteEntityActor* Proxy = Cast<ARemoteEntityActor>(Hit.GetActor());
-		if (Proxy && Combat && Combat->ClickEntity(Proxy->EntityId))
+		if (Proxy && ClickEntityProxy(Proxy->EntityId))
 		{
 			UE_LOG(LogNightfall, Log, TEXT("click: target %s"), *Proxy->EntityId);
 			return;
@@ -123,6 +141,7 @@ void ANightfallPlayerController::OnClickMove()
 
 uint32 ANightfallPlayerController::ClickGroundLocation(const FVector& Target)
 {
+	if (auto* Skills = GetGameInstance()->GetSubsystem<USkillStateSubsystem>()) Skills->ClearCorpseSelection();
 	// A move ends the attack on the server; say so explicitly first so the order is unambiguous.
 	if (UCombatStateSubsystem* Combat = GetGameInstance()->GetSubsystem<UCombatStateSubsystem>())
 	{

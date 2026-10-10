@@ -1190,3 +1190,5 @@ SoakScenarioSeconds + 60` for boot and a final complete scenario; Gauntlet adds
 30 seconds for collection. Both process and Gauntlet deadlines use this allowance.
 Manifest paths, casting mode, role order/count and private token permissions are
 validated before launching. A manifest/build pass does not prove a casting soak.
+
+Round 3 UI corrections: clicking a visible player corpse selects its received identity locally; a hotbar click or number key sends that corpse explicitly in CastSkill. Despawn, replacement generation, revival/new incarnation, a live selection, ground click, or transport reset clears it. This selection does not issue auto-attack. Catalogue replies survive owner admission and use an independent request lifetime; a transport reset still discards outdated callbacks. Native automation exercises the production mouse-hit resolver and key delegate, HUD cast progress/terminal state, effect countdown/pool/expiry, PvP colours and the actual accept/decline button delegates. These are headless state/input checks, not rendered screenshots or live gameplay proof.

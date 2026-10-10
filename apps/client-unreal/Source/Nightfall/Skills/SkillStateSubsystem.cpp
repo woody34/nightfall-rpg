@@ -40,16 +40,18 @@ void USkillStateSubsystem::Deinitialize()
 bool USkillStateSubsystem::IsOwn(const FString& Id) const { return Net && Net->IsOwnEntity(Id); }
 void USkillStateSubsystem::ClearOwner()
 {
+	SelectedCorpse.Reset();
 	++OperationSerial; bBusy = false; bRpcDone = false; FirstReceipts.Reset(); bReceiptMatches.Reset(); Counts.Reset(); bLearnDone = false; bLearnableKnown = false; Learnable = {}; LearnReceipt = {};
 	InitialHp.Reset(); InitialMp.Reset(); InitialCp.Reset(); ObservedCancel.Reset();
  LastOfferId=0; Learned.Reset(); Reuse.Reset(); Sp.Reset(); Offer.Reset(); LearnedEvents.Reset(); SpGainEvents.Reset(); OwnerTick = 0;
 	SyncTick = StatsTick = SpTick = LastSpGainTick = OfferTick = SpGainedTotal = 0; DeathPenalty = 0;
 	bOwnerKnown = bSyncKnown = bStatsKnown = bSpGainKnown = false;
 }
-void USkillStateSubsystem::Reset() { Fence.Reset(); Pvp.Reset(); Casts.Reset(); Swings.Reset(); ClearOwner(); CastTransitions = 0; OnChanged.Broadcast(); }
+void USkillStateSubsystem::Reset() { ++CatalogSerial; bCatalogBusy = false; Fence.Reset(); Pvp.Reset(); Casts.Reset(); Swings.Reset(); ClearOwner(); CastTransitions = 0; OnChanged.Broadcast(); }
 void USkillStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 {
 	if (!Fence.Spawn(S)) return;
+	if (SelectedCorpse.IsSet() && SelectedCorpse->EntityId.Equals(S.EntityId, ESearchCase::IgnoreCase)) SelectedCorpse.Reset();
 	Casts.Remove(S.EntityId.ToLower()); Swings.Remove(S.EntityId.ToLower());
 	if (IsOwn(S.EntityId)) { ClearOwner(); InitialHp=S.Hp; }
 	FPvpStateChanged P; P.Entity = S.EntityId; P.Incarnation = S.LifeIncarnation; P.Karma = S.Karma; P.PkCount = S.PkCount; P.PvpCount = S.PvpCount; P.FlagUntilTick = S.FlagUntilTick; P.Tick = S.StateTick;
@@ -60,6 +62,7 @@ void USkillStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 }
 void USkillStateSubsystem::ApplyDespawn(const FEntityDespawn& D)
 {
+	if (SelectedCorpse.IsSet() && SelectedCorpse->EntityId.Equals(D.EntityId, ESearchCase::IgnoreCase)) SelectedCorpse.Reset();
 	Fence.Despawn(D.EntityId); Casts.Remove(D.EntityId.ToLower()); Swings.Remove(D.EntityId.ToLower()); Pvp.Remove(D.EntityId.ToLower()); if (IsOwn(D.EntityId)) ClearOwner(); OnChanged.Broadcast();
 }
 void USkillStateSubsystem::ApplyDied(const FEntityDied& D)
@@ -69,6 +72,7 @@ void USkillStateSubsystem::ApplyDied(const FEntityDied& D)
 void USkillStateSubsystem::ApplyRespawn(const FEntityRespawned& R)
 {
 	if (!Fence.Respawn(R)) return;
+	if (SelectedCorpse.IsSet() && SelectedCorpse->EntityId.Equals(R.Entity, ESearchCase::IgnoreCase)) SelectedCorpse.Reset();
 	Casts.Remove(R.Entity.ToLower()); Swings.Remove(R.Entity.ToLower()); if (auto* P = Pvp.Find(R.Entity.ToLower())) { P->Incarnation = R.Incarnation; P->Tick = R.Tick; }
 	if (IsOwn(R.Entity)) { Offer.Reset(); OfferTick = R.Tick; }
 	OnChanged.Broadcast();
@@ -178,13 +182,20 @@ void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogRes
 void USkillStateSubsystem::ApplyLearnable(const FGrpcNightfallV1ListLearnableSkillsResponse& R) { Learnable = R; bLearnableKnown = true; OnChanged.Broadcast(); }
 void USkillStateSubsystem::LoadCatalog(FDone Done)
 {
-	if (!Session || bBusy) return;
-	bBusy = true; bRpcDone = false; bCatalogKnown = false; const uint64 Serial = ++OperationSerial;
-	Session->GetSkillCatalog({}, [Weak = TWeakObjectPtr<USkillStateSubsystem>(this), Serial, Done](const FNetResult& Result, const FGrpcNightfallV1GetSkillCatalogResponse& R)
-	{
-		if (!Weak.IsValid() || Serial != Weak->OperationSerial) return;
-		Weak->bBusy = false; Weak->bRpcDone = true; Weak->LastResult = Result; if (Result.IsOk()) Weak->ApplyCatalog(R); Weak->OnChanged.Broadcast(); if (Done) Done(Result);
-	});
+ if ((!Session && !CatalogProvider) || bCatalogBusy) return;
+ bCatalogBusy = true; bRpcDone = false; bCatalogKnown = false;
+ const uint64 Serial = ++CatalogSerial, OwnerOperation = OperationSerial;
+ USessionClient::FSkillCatalogCallback Callback = [Weak = TWeakObjectPtr<USkillStateSubsystem>(this), Serial, OwnerOperation, Done](const FNetResult& Result, const FGrpcNightfallV1GetSkillCatalogResponse& R)
+ {
+  if (!Weak.IsValid() || Serial != Weak->CatalogSerial) return;
+  Weak->bCatalogBusy = false; Weak->bRpcDone = true;
+  if (OwnerOperation == Weak->OperationSerial) Weak->LastResult = Result;
+  // Immutable catalogue is independent of owner admission/learning operations.
+  if (Result.IsOk()) Weak->ApplyCatalog(R);
+  Weak->OnChanged.Broadcast(); if (Done) Done(Result);
+ };
+ if (CatalogProvider) CatalogProvider(MoveTemp(Callback));
+ else Session->GetSkillCatalog({}, MoveTemp(Callback));
 }
 void USkillStateSubsystem::LoadLearnable(FDone Done)
 {
@@ -233,7 +244,7 @@ TArray<uint32> USkillStateSubsystem::Hotbar() const
 uint32 USkillStateSubsystem::CastSlot(int32 Index)
 {
 	const auto Slots = Hotbar(); if (!Net || !Slots.IsValidIndex(Index)) return 0;
-	return Net->SendCastSkill(Slots[Index]);
+	return Net->SendCastSkill(Slots[Index], CorpseTarget());
 }
 
 TOptional<uint64> USkillStateSubsystem::History(const FString& Name) const { return bOwnerKnown ? TOptional<uint64>(Counts.FindRef(Name)) : TOptional<uint64>(); }
@@ -257,4 +268,18 @@ float USkillStateSubsystem::CooldownFraction(uint32 Id) const
 {
  const auto* R=Reuse.Find(Id);if(!R || R->ReadyTick<=R->Tick || GetTick()>=R->ReadyTick)return 0.f;
  return FMath::Clamp(float(R->ReadyTick-GetTick())/float(R->ReadyTick-R->Tick),0.f,1.f);
+}
+
+bool USkillStateSubsystem::SelectCorpse(const FString& Entity)
+{
+ const auto* S = Fence.Identities.Find(Entity.ToLower());
+ if (!S || S->Kind != 1 || !S->bDead || IsOwn(Entity)) return false;
+ SelectedCorpse = *S; OnChanged.Broadcast(); return true;
+}
+TOptional<FString> USkillStateSubsystem::CorpseTarget() const
+{
+ if (!SelectedCorpse.IsSet()) return {};
+ const auto* S = Fence.Identities.Find(SelectedCorpse->EntityId.ToLower());
+ return S && S->bDead && S->Kind == 1 && S->LifeIncarnation == SelectedCorpse->LifeIncarnation && S->SessionGeneration == SelectedCorpse->SessionGeneration
+  ? TOptional<FString>(S->EntityId) : TOptional<FString>();
 }

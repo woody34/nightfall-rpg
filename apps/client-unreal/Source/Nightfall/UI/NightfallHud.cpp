@@ -413,12 +413,7 @@ void UNightfallHud::UpdateNumbers(float DeltaSeconds)
 void UNightfallHud::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	const UGameInstance* GI = GetGameInstance();
-	if (const UCombatStateSubsystem* Combat = GI ? GI->GetSubsystem<UCombatStateSubsystem>() : nullptr)
-	{
-		ApplyModel(Combat->BuildHudModel());
-	}
-	UpdateSkills();
+	RefreshPresentation();
 	UpdateFloatingBars();
 	UpdateNumbers(InDeltaTime);
 	if (StatusText)
@@ -484,8 +479,29 @@ void UNightfallHud::UpdateSkills()
  }
  EffectsText->SetText(FText::FromString(FString::Join(Effects,TEXT(" • "))));
  OwnLabel->SetColorAndOpacity(FSlateColor(NightfallSkillHud::FlagColor(S->Flag(N->GetOwnEntityId()))));
- TargetLabel->SetColorAndOpacity(FSlateColor(NightfallSkillHud::FlagColor(S->Flag(C->GetTargetId()))));
- if(const auto* P=S->FindPvp(C->GetTargetId());P && !C->GetTargetId().IsEmpty())TargetLabel->SetText(FText::FromString(TargetLabel->GetText().ToString()+FString::Printf(TEXT("   Karma %u"),P->Karma)));
+ const FString DisplayTarget = S->CorpseTarget().Get(C->GetTargetId());
+ if (S->CorpseTarget().IsSet())
+ {
+  const auto* Corpse = C->FindEntity(DisplayTarget);
+  TargetPanel->SetVisibility(ESlateVisibility::Visible);
+  TargetLabel->SetText(FText::FromString(FString::Printf(TEXT("%s [corpse]"), Corpse ? *Corpse->Spawn.Name : *DisplayTarget)));
+  TargetHpBar->SetPercent(0.f); TargetHpText->SetText(FText::FromString(TEXT("Dead")));
+ }
+ TargetLabel->SetColorAndOpacity(FSlateColor(NightfallSkillHud::FlagColor(S->Flag(DisplayTarget))));
+ if(const auto* P=S->FindPvp(DisplayTarget);P && !DisplayTarget.IsEmpty())TargetLabel->SetText(FText::FromString(TargetLabel->GetText().ToString()+FString::Printf(TEXT("   Karma %u"),P->Karma)));
  const bool Pending=S->OfferPending();AcceptOffer->SetVisibility(Pending?ESlateVisibility::Visible:ESlateVisibility::Collapsed);DeclineOffer->SetVisibility(Pending?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
  OfferLabel->SetText(FText::FromString(Pending?FString::Printf(TEXT("Resurrection offered — recovery %.2f%%, recoverable XP %llu, expires in %llu ticks"),double(S->GetOffer()->RestorePercentQ)/1000000.0,S->GetOffer()->RecoverableXp,S->GetOffer()->ExpiryTick-S->GetTick()):FString(TEXT(""))));
 }
+
+void UNightfallHud::RefreshPresentation()
+{
+ EnsureLayout();
+ const auto* GI = GetGameInstance();
+ if (const auto* Combat = GI ? GI->GetSubsystem<UCombatStateSubsystem>() : nullptr) ApplyModel(Combat->BuildHudModel());
+ UpdateSkills();
+}
+float UNightfallHud::CastProgress() const { return CastBar ? CastBar->GetPercent() : 0.f; }
+FString UNightfallHud::EffectLabel() const { return EffectsText ? EffectsText->GetText().ToString() : FString(); }
+FString UNightfallHud::CastStatus() const { return CastLabel ? CastLabel->GetText().ToString() : FString(); }
+FLinearColor UNightfallHud::OwnFlagColor() const { return OwnLabel ? OwnLabel->GetColorAndOpacity().GetSpecifiedColor() : FLinearColor::White; }
+FLinearColor UNightfallHud::TargetFlagColor() const { return TargetLabel ? TargetLabel->GetColorAndOpacity().GetSpecifiedColor() : FLinearColor::White; }

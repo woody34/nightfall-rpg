@@ -46,7 +46,7 @@ public:
  const TOptional<uint32>& GetInitialCp() const { return InitialCp; }
  const TOptional<FSkillCastCancelled>& GetObservedCancel() const { return ObservedCancel; }
  uint64 GetOperationSerial() const { return OperationSerial; }
- bool RpcDone() const { return bRpcDone && !bBusy; }
+ bool RpcDone() const { return bRpcDone && !IsBusy(); }
 	uint64 GetTick() const;
 	bool IsHydrated(const FString& Entity) const { return Fence.Hydrated(Entity, GetTick()); }
 	bool HasOwnerState() const { return bOwnerKnown; }
@@ -65,6 +65,8 @@ public:
  uint64 GetLastOfferId() const { return LastOfferId; }
 	int32 GetCastTransitions() const { return CastTransitions; }
 	using FDone = TFunction<void(const FNetResult&)>;
+	using FCatalogProvider = TFunction<void(USessionClient::FSkillCatalogCallback)>;
+	void SetCatalogProviderForTesting(FCatalogProvider Provider) { CatalogProvider = MoveTemp(Provider); }
 	void LoadCatalog(FDone Done = nullptr);
 	void LoadLearnable(FDone Done = nullptr);
 	void Learn(uint32 Id, uint32 Rank, FDone Done = nullptr, const FString& Key = FString());
@@ -75,13 +77,16 @@ public:
 	const FGrpcNightfallV1LearnSkillResponse& GetLearnReceipt() const { return LearnReceipt; }
 	const FNetResult& GetLastResult() const { return LastResult; }
 	const FNetResult& GetLearnResult() const { return LearnResult; }
-	bool IsBusy() const { return bBusy; }
+	bool IsBusy() const { return bBusy || bCatalogBusy; }
 	bool HasCatalog() const { return bCatalogKnown; }
 	bool HasLearnable() const { return bLearnableKnown; }
 	bool HasLearnResult() const { return bLearnDone && !bBusy; }
 	const FGrpcNightfallV1SkillCatalogEntry* FindSkill(uint32 Id) const;
 	TArray<uint32> Hotbar() const;
 	uint32 CastSlot(int32 Index);
+	bool SelectCorpse(const FString& Entity);
+	void ClearCorpseSelection() { SelectedCorpse.Reset(); }
+	TOptional<FString> CorpseTarget() const;
 	const FString& GetLastLearnKey() const { return LastLearnKey; }
 	void CompleteLearn(uint64 Serial, const FNetResult& Result, const FGrpcNightfallV1LearnSkillResponse& R, FDone Done);
 	FOnSkillStateChanged OnChanged;
@@ -92,6 +97,10 @@ private:
 	UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
 	UPROPERTY() TObjectPtr<USessionClient> Session;
 	uint64 OperationSerial = 0;
+	uint64 CatalogSerial = 0;
+	bool bCatalogBusy = false;
+	FCatalogProvider CatalogProvider;
+	TOptional<FEntitySpawn> SelectedCorpse;
  bool bRpcDone = false;
  TMap<FString,FString> FirstReceipts;
  TOptional<bool> bReceiptMatches;

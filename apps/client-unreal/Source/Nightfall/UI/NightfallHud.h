@@ -44,6 +44,15 @@ public:
 	/** Builds the code layout if no Blueprint supplied one. NativeOnInitialized calls it; tests call it without a player. */
 	void EnsureLayout();
 
+	void RefreshPresentation();
+	float CastProgress() const;
+	FString EffectLabel() const;
+	FString CastStatus() const;
+	FLinearColor OwnFlagColor() const;
+	FLinearColor TargetFlagColor() const;
+	UButton* AcceptControl() const { return AcceptOffer; }
+	UButton* DeclineControl() const { return DeclineOffer; }
+	UButton* HotbarControl(int32 Slot) const { return HotbarButtons.IsValidIndex(Slot) ? HotbarButtons[Slot] : nullptr; }
 	int32 NumDamageNumbers() const { return Numbers.Num(); }
 	int32 NumFloatingBars() const { return Bars.Num(); }
 
