@@ -366,8 +366,8 @@ Files read:
   - Skill 5076 (`Death Penalty`, passive).
   - 9 transitive referenced skills discovered through effect parameters (`997, 5603, 5604, 5676, 5677, 5678, 6090, 6687, 6920`).
   - Skill 286 (`Provoke`, sample-only reference, marked `sample_only = true`).
-  - Classification: **220 executable**, **169 deferred** overall (**211 executable**, **167 deferred** among the 378 catalogue skills).
-  - Executability evaluated per Tier B capability rules (zone-design-v2 §1.1). `TargetMe` is explicitly deferred with `effect:TargetMe`.
+  - Classification: **208 executable**, **181 deferred** overall (**199 executable**, **179 deferred** among the 378 catalogue skills).
+  - Executability evaluated per Tier B capability rules (zone-design-v3 §1.1). `TargetMe` is explicitly deferred with `effect:TargetMe`.
 - `packages/data/skill_catalog.toml`: Regenerated with computed `runtime_status` (`"executable"` or `"deferred"`) matching each skill's blocker analysis.
 
 ### Tables and NPC updates

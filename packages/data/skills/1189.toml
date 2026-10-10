@@ -2,56 +2,46 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01100-01199.xml", skill_id = 1189 }
-
 id = 1189
 key = "l2.skill.1189"
 l2_ref = "Resist Wind"
 max_level = 3
 operate_type = "A2"
 is_magic = 1
-
 target_type = "TARGET"
 affect_scope = "SINGLE"
-
 cast_range = 400
 effect_range = 900
 hit_time_ms = 4000
 cool_time_ms = 0
 reuse_ms = 2000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [6, 7, 8]
 mp_consume_end = [24, 28, 31]
 hp_consume = [0, 0, 0]
 magic_level = [35, 40, 44]
 effect_point = [331, 379, 418]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "ARMOR_WIND"
-level = [1, 2, 3]
-time_s = [1200, 1200, 1200]
-is_debuff = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "ARMOR_WIND", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "ARMOR_WIND", affectScope = "SINGLE", castRange = "400", effectPoint = ["331", "379", "418"], effectRange = "900", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1189", isMagic = "1", magicLvl = ["35", "40", "44"], mpConsume1 = ["6", "7", "8"], mpConsume2 = ["24", "28", "31"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "windRes", value = ["10", "15", "20"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "windRes"
+value = ["10", "15", "20"]

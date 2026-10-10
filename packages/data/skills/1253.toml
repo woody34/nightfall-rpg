@@ -2,58 +2,48 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01200-01299.xml", skill_id = 1253 }
-
 id = 1253
 key = "l2.skill.1253"
 l2_ref = "Chant of Rage"
 max_level = 3
 operate_type = "A2"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = 1000
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 2500
 cool_time_ms = 0
 reuse_ms = 5000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [31, 38, 41]
 mp_consume_end = [123, 150, 163]
 hp_consume = [0, 0, 0]
 magic_level = [44, 52, 56]
 effect_point = [418, 495, 532]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["scope:PARTY"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "CRITICAL_DMG_UP"
-level = [1, 2, 3]
-time_s = [1200, 1200, 1200]
-is_debuff = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "CRITICAL_DMG_UP", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "CRITICAL_DMG_UP", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["418", "495", "532"], hitCancelTime = "500", hitTime = "2500", icon = "icon.skill1253", isMagic = "1", magicLvl = ["44", "52", "56"], mpConsume1 = ["31", "38", "41"], mpConsume2 = ["123", "150", "163"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "critDmg", value = ["1.25", "1.3", "1.35"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "critDmg"
+value = ["1.25", "1.3", "1.35"]

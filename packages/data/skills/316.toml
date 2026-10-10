@@ -2,50 +2,45 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00300-00399.xml", skill_id = 316 }
-
 id = 316
 key = "l2.skill.316"
 l2_ref = "Aegis"
 max_level = 1
 operate_type = "P"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "unset"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 0
 cool_time_ms = 0
 reuse_ms = 0
 hit_cancel_ms = 0
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0]
 mp_consume_end = [0]
 hp_consume = [0]
 magic_level = [60]
 effect_point = [0]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
-blockers = ["stat:shieldDefAngle"]
-
-[attribute]
-type = "NONE"
-power = 0
+blockers = ["op:set", "stat:shieldDefAngle"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { blockedInOlympiad = "true", icon = "icon.skill0316", magicLvl = "60", operateType = "P", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "set", stat = "shieldDefAngle", value = ["360"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "set"
+stat = "shieldDefAngle"
+value = ["360"]

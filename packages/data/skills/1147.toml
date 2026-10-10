@@ -2,45 +2,38 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01100-01199.xml", skill_id = 1147 }
-
 id = 1147
 key = "l2.skill.1147"
 l2_ref = "Vampiric Touch"
 max_level = 6
 operate_type = "A1"
 is_magic = 1
-
 target_type = "ENEMY"
 affect_scope = "SINGLE"
-
 cast_range = 600
 effect_range = 1100
 hit_time_ms = 4000
 cool_time_ms = 0
 reuse_ms = 3000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [5, 6, 7, 7, 8, 8]
 mp_consume_end = [20, 22, 25, 28, 30, 32]
 hp_consume = [0, 0, 0, 0, 0, 0]
 magic_level = [11, 14, 17, 20, 23, 25]
 effect_point = [-143, -162, -182, -204, -227, -243]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["effect:HpDrain"]
-
-[attribute]
-type = "UNHOLY"
-power = 20
+attribute = { type = "UNHOLY", power = 20 }
+source_sets = { affectScope = "SINGLE", attributePower = "20", attributeType = "UNHOLY", castRange = "600", effectPoint = ["-143", "-162", "-182", "-204", "-227", "-243"], effectRange = "1100", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1147", isMagic = "1", magicLvl = ["11", "14", "17", "20", "23", "25"], mpConsume1 = ["5", "6", "7", "7", "8", "8"], mpConsume2 = ["20", "22", "25", "28", "30", "32"], operateType = "A1", reuseDelay = "3000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }
 
 [[effects]]
 section = "effects"

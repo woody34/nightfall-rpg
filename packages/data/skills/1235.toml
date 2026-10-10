@@ -2,45 +2,38 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01200-01299.xml", skill_id = 1235 }
-
 id = 1235
 key = "l2.skill.1235"
 l2_ref = "Hydro Blast"
 max_level = 28
 operate_type = "A1"
 is_magic = 1
-
 target_type = "ENEMY"
 affect_scope = "SINGLE"
-
 cast_range = 900
 effect_range = 1400
 hit_time_ms = 4000
 cool_time_ms = 0
 reuse_ms = 1200
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [7, 7, 8, 8, 9, 9, 9, 10, 10, 11, 11, 11, 11, 11, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 14, 14, 14, 14]
 mp_consume_end = [27, 28, 30, 31, 33, 35, 36, 38, 39, 41, 42, 43, 44, 44, 45, 46, 47, 48, 48, 49, 50, 51, 51, 52, 53, 53, 54, 55]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
 effect_point = [-360, -379, -399, -418, -438, -457, -477, -495, -514, -532, -541, -549, -558, -566, -574, -582, -590, -597, -604, -611, -617, -624, -630, -635, -641, -646, -650, -655]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "WATER"
-power = 20
+attribute = { type = "WATER", power = 20 }
+source_sets = { affectScope = "SINGLE", attributePower = "20", attributeType = "WATER", castRange = "900", effectPoint = ["-360", "-379", "-399", "-418", "-438", "-457", "-477", "-495", "-514", "-532", "-541", "-549", "-558", "-566", "-574", "-582", "-590", "-597", "-604", "-611", "-617", "-624", "-630", "-635", "-641", "-646", "-650", "-655"], effectRange = "1400", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1235", isMagic = "1", magicLvl = ["38", "40", "42", "44", "46", "48", "50", "52", "54", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume1 = ["7", "7", "8", "8", "9", "9", "9", "10", "10", "11", "11", "11", "11", "11", "12", "12", "12", "12", "12", "13", "13", "13", "13", "13", "14", "14", "14", "14"], mpConsume2 = ["27", "28", "30", "31", "33", "35", "36", "38", "39", "41", "42", "43", "44", "44", "45", "46", "47", "48", "48", "49", "50", "51", "51", "52", "53", "53", "54", "55"], operateType = "A1", reuseDelay = "1200", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }
 
 [[effects]]
 section = "effects"

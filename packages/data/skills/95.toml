@@ -2,64 +2,51 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00000-00099.xml", skill_id = 95 }
-
 id = 95
 key = "l2.skill.95"
 l2_ref = "Cripple"
 max_level = 20
 operate_type = "A2"
 is_magic = 0
-
 target_type = "ENEMY_ONLY"
 affect_scope = "SINGLE"
-
 cast_range = 40
 effect_range = 400
 hit_time_ms = 1604
 cool_time_ms = 296
 reuse_ms = 2000
 hit_cancel_ms = 0
-
+activate_rate = 80
+level_bonus_rate = 2
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [10, 11, 13, 14, 16, 18, 19, 21, 22, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 34]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [20, 24, 28, 32, 36, 40, 43, 46, 49, 52, 55, 58, 60, 62, 64, 66, 68, 70, 72, 74]
 effect_point = [-204, -235, -268, -303, -341, -379, -408, -438, -467, -495, -523, -549, -566, -582, -597, -611, -624, -635, -646, -655]
-
-activate_rate = 80
 basic_property = "MEN"
-level_bonus_rate = 2
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"DUALFIST\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "SPEED_DOWN", level = [2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], time_s = [60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60], is_debuff = true }
+source_sets = { abnormalLvl = ["2", "2", "2", "2", "2", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3"], abnormalTime = "60", abnormalType = "SPEED_DOWN", activateRate = "80", affectScope = "SINGLE", basicProperty = "MEN", castRange = "40", coolTime = "296", effectPoint = ["-204", "-235", "-268", "-303", "-341", "-379", "-408", "-438", "-467", "-495", "-523", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], effectRange = "400", hitTime = "1604", icon = "icon.skill0095", isDebuff = "true", lvlBonusRate = "2", magicLvl = ["20", "24", "28", "32", "36", "40", "43", "46", "49", "52", "55", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume2 = ["10", "11", "13", "14", "16", "18", "19", "21", "22", "24", "25", "27", "28", "29", "30", "31", "32", "33", "34", "34"], operateType = "A2", reuseDelay = "2000", rideState = "NONE", targetType = "ENEMY_ONLY" }
 
-conditions = [
-  { kind = "using_kind", weapon_kinds = ["DUALFIST"] }
-]
-
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><using kind=\"DUALFIST\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "SPEED_DOWN"
-level = [2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-time_s = [60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60]
-is_debuff = true
+[[conditions]]
+kind = "using_kind"
+weapon_kinds = ["DUALFIST"]
 
 [[effects]]
 section = "effects"
 name = "Debuff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "runSpd", value = ["0.8", "0.8", "0.8", "0.8", "0.8", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "runSpd"
+value = ["0.8", "0.8", "0.8", "0.8", "0.8", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7"]

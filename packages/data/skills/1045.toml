@@ -2,51 +2,39 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01000-01099.xml", skill_id = 1045 }
-
 id = 1045
 key = "l2.skill.1045"
 l2_ref = "Bless the Body"
 max_level = 6
 operate_type = "A2"
 is_magic = 1
-
 target_type = "TARGET"
 affect_scope = "SINGLE"
-
 cast_range = 400
 effect_range = 900
 hit_time_ms = 4000
 cool_time_ms = 0
 reuse_ms = 2000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [8, 9, 10, 11, 12, 14]
 mp_consume_end = [31, 35, 38, 41, 48, 53]
 hp_consume = [0, 0, 0, 0, 0, 0]
 magic_level = [44, 48, 52, 56, 64, 72]
 effect_point = [418, 457, 495, 532, 597, 646]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "MAX_HP_UP"
-level = [1, 2, 3, 4, 5, 6]
-time_s = [1200, 1200, 1200, 1200, 1200, 1200]
-is_debuff = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "MAX_HP_UP", level = [1, 2, 3, 4, 5, 6], time_s = [1200, 1200, 1200, 1200, 1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3", "4", "5", "6"], abnormalTime = "1200", abnormalType = "MAX_HP_UP", affectScope = "SINGLE", castRange = "400", effectPoint = ["418", "457", "495", "532", "597", "646"], effectRange = "900", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1045", isMagic = "1", magicLvl = ["44", "48", "52", "56", "64", "72"], mpConsume1 = ["8", "9", "10", "11", "12", "14"], mpConsume2 = ["31", "35", "38", "41", "48", "53"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }
 
 [[effects]]
 section = "effects"

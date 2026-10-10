@@ -2,45 +2,38 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01000-01099.xml", skill_id = 1012 }
-
 id = 1012
 key = "l2.skill.1012"
 l2_ref = "Cure Poison"
 max_level = 3
 operate_type = "A1"
 is_magic = 1
-
 target_type = "TARGET"
 affect_scope = "SINGLE"
-
 cast_range = 600
 effect_range = 1100
 hit_time_ms = 4000
 cool_time_ms = 0
 reuse_ms = 4000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [2, 6, 11]
 mp_consume_end = [8, 24, 44]
 hp_consume = [0, 0, 0]
 magic_level = [7, 35, 58]
 effect_point = [121, 331, 566]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", castRange = "600", effectPoint = ["121", "331", "566"], effectRange = "1100", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1012", isMagic = "1", magicLvl = ["7", "35", "58"], mpConsume1 = ["2", "6", "11"], mpConsume2 = ["8", "24", "44"], operateType = "A1", reuseDelay = "4000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }
 
 [[effects]]
 section = "effects"

@@ -2,58 +2,48 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01200-01299.xml", skill_id = 1284 }
-
 id = 1284
 key = "l2.skill.1284"
 l2_ref = "Chant of Revenge"
 max_level = 3
 operate_type = "A2"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = 1000
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 2500
 cool_time_ms = 0
 reuse_ms = 5000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [46, 51, 55]
 mp_consume_end = [183, 201, 217]
 hp_consume = [0, 0, 0]
 magic_level = [62, 68, 74]
 effect_point = [582, 624, 655]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["scope:PARTY", "stat:reflectDam"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "DMG_SHIELD"
-level = [1, 2, 3]
-time_s = [1200, 1200, 1200]
-is_debuff = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "DMG_SHIELD", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "DMG_SHIELD", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["582", "624", "655"], hitCancelTime = "500", hitTime = "2500", icon = "icon.skill1284", isMagic = "1", magicLvl = ["62", "68", "74"], mpConsume1 = ["46", "51", "55"], mpConsume2 = ["183", "201", "217"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "reflectDam", value = ["10", "15", "20"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "reflectDam"
+value = ["10", "15", "20"]

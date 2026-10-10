@@ -2,57 +2,44 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01400-01499.xml", skill_id = 1418 }
-
 id = 1418
 key = "l2.skill.1418"
 l2_ref = "Celestial Shield"
 max_level = 1
 operate_type = "A2"
 is_magic = 1
-
 target_type = "TARGET"
 affect_scope = "SINGLE"
-
 cast_range = 400
 effect_range = 900
 hit_time_ms = 4000
 cool_time_ms = 0
 reuse_ms = 600000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = true
 mp_consume_start = [12]
 mp_consume_end = [48]
 hp_consume = [0]
 magic_level = [64]
 effect_point = [1]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["effect:BlockDamage", "effect:BlockDebuff"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "INVINCIBILITY"
-level = [1]
-time_s = [10]
-is_debuff = false
-visual = "INVINCIBILITY"
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "INVINCIBILITY", level = [1], time_s = [10], is_debuff = false, visual = "INVINCIBILITY" }
+source_sets = { abnormalLvl = "1", abnormalTime = "10", abnormalType = "INVINCIBILITY", abnormalVisualEffect = "INVINCIBILITY", affectScope = "SINGLE", castRange = "400", effectPoint = "1", effectRange = "900", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1418", isMagic = "1", magicLvl = "64", mpConsume1 = "12", mpConsume2 = "48", operateType = "A2", reuseDelay = "600000", reuseDelayLock = "true", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }
 
 [[effects]]
 section = "effects"
 name = "BlockDebuff"
-params = {}
+params = {  }
 stat_children = []
 
 [[effects]]
@@ -70,7 +57,9 @@ stat_children = []
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "cancelVuln", value = ["0"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "cancelVuln"
+value = ["0"]

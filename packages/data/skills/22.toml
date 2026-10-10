@@ -2,45 +2,38 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00000-00099.xml", skill_id = 22 }
-
 id = 22
 key = "l2.skill.22"
 l2_ref = "Summon Vampiric Cubic"
 max_level = 7
 operate_type = "A1"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 6000
 cool_time_ms = 0
 reuse_ms = 5000
 hit_cancel_ms = 0
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [8, 9, 10, 11, 12, 13, 14]
 mp_consume_end = [30, 35, 40, 44, 48, 51, 53]
 hp_consume = [0, 0, 0, 0, 0, 0, 0]
 magic_level = [43, 49, 55, 60, 64, 68, 72]
 effect_point = [0, 0, 0, 0, 0, 0, 0]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:SummonCubic", "item_consume"]
-
-[attribute]
-type = "NONE"
-power = 0
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", hitTime = "6000", icon = "icon.skill0022", isMagic = "1", itemConsumeCount = ["5", "6", "7", "7", "9", "10", "11"], itemConsumeId = "3031", magicLvl = ["43", "49", "55", "60", "64", "68", "72"], mpConsume1 = ["8", "9", "10", "11", "12", "13", "14"], mpConsume2 = ["30", "35", "40", "44", "48", "51", "53"], operateType = "A1", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[item_consume]]
 item_id = 3031

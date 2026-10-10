@@ -2,58 +2,47 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01000-01099.xml", skill_id = 1013 }
-
 id = 1013
 key = "l2.skill.1013"
 l2_ref = "Recharge"
 max_level = 32
 operate_type = "A1"
 is_magic = 1
-
 target_type = "TARGET"
 affect_scope = "SINGLE"
-
 cast_range = 400
 effect_range = 900
 hit_time_ms = 6000
 cool_time_ms = 0
 reuse_ms = 3000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [10, 11, 12, 12, 14, 14, 15, 16, 17, 18, 18, 19, 20, 21, 21, 22, 22, 22, 23, 23, 24, 24, 24, 25, 25, 26, 26, 26, 27, 27, 27, 28]
 mp_consume_end = [39, 42, 45, 48, 53, 56, 59, 62, 65, 69, 72, 75, 78, 82, 83, 85, 87, 88, 90, 92, 93, 95, 96, 98, 99, 101, 102, 104, 105, 106, 108, 109]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [28, 30, 33, 35, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
 effect_point = [268, 285, 313, 331, 360, 379, 399, 418, 438, 457, 477, 495, 514, 532, 541, 549, 558, 566, 574, 582, 590, 597, 604, 611, 617, 624, 630, 635, 641, 646, 650, 655]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:target:active_skill_id", "effect:ManaHealByLevel"]
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><not><target active_skill_id=\"1013\" /></not></cond>"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", castRange = "400", effectPoint = ["268", "285", "313", "331", "360", "379", "399", "418", "438", "457", "477", "495", "514", "532", "541", "549", "558", "566", "574", "582", "590", "597", "604", "611", "617", "624", "630", "635", "641", "646", "650", "655"], effectRange = "900", hitCancelTime = "500", hitTime = "6000", icon = "icon.skill1013", isMagic = "1", magicLvl = ["28", "30", "33", "35", "38", "40", "42", "44", "46", "48", "50", "52", "54", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume1 = ["10", "11", "12", "12", "14", "14", "15", "16", "17", "18", "18", "19", "20", "21", "21", "22", "22", "22", "23", "23", "24", "24", "24", "25", "25", "26", "26", "26", "27", "27", "27", "28"], mpConsume2 = ["39", "42", "45", "48", "53", "56", "59", "62", "65", "69", "72", "75", "78", "82", "83", "85", "87", "88", "90", "92", "93", "95", "96", "98", "99", "101", "102", "104", "105", "106", "108", "109"], operateType = "A1", reuseDelay = "3000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }
 
-conditions = [
-  {
-    kind = "not",
-    conditions = [
-    { kind = "unsupported", tag = "target", attrs = {"active_skill_id": "1013"} }
-    ]
-  }
-]
+[[conditions]]
+kind = "not"
 
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><not><target active_skill_id=\"1013\" /></not></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
+[[conditions.conditions]]
+kind = "unsupported"
+tag = "target"
+attrs = { active_skill_id = "1013" }
 
 [[effects]]
 section = "effects"

@@ -2,59 +2,49 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/05600-05699.xml", skill_id = 5604 }
-
 id = 5604
 key = "l2.skill.5604"
 l2_ref = "Blunt Mastery"
 max_level = 1
 operate_type = "A2"
 is_magic = 4
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 0
 cool_time_ms = 0
 reuse_ms = 8000
 hit_cancel_ms = 0
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0]
 mp_consume_end = [0]
 hp_consume = [0]
 magic_level = [40]
 effect_point = [0]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "WEAPON_MASTERY"
-level = [1]
-time_s = [5]
-is_debuff = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "WEAPON_MASTERY", level = [1], time_s = [5], is_debuff = false }
+source_sets = { abnormalLvl = "1", abnormalTime = "5", abnormalType = "WEAPON_MASTERY", affectScope = "SINGLE", icon = "icon.skill0217", isMagic = "4", magicLvl = "40", operateType = "A2", reuseDelay = "8000", rideState = "NONE", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "physicalMpConsumeRate", value = ["0.4"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "physicalMpConsumeRate"
+value = ["0.4"]
 
 [[effects]]
 section = "effects"

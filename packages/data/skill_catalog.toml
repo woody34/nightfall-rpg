@@ -417,7 +417,7 @@ key = "l2.skill.94"
 max_level = 2
 l2_ref = "Rage"
 source_file = "src/main/resources/data/stats/skills/00000-00099.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 95
@@ -441,7 +441,7 @@ key = "l2.skill.97"
 max_level = 11
 l2_ref = "Sanctuary"
 source_file = "src/main/resources/data/stats/skills/00000-00099.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 99
@@ -673,7 +673,7 @@ key = "l2.skill.148"
 max_level = 8
 l2_ref = "Vital Force"
 source_file = "src/main/resources/data/stats/skills/00100-00199.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 150
@@ -729,7 +729,7 @@ key = "l2.skill.171"
 max_level = 8
 l2_ref = "Esprit"
 source_file = "src/main/resources/data/stats/skills/00100-00199.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 172
@@ -921,7 +921,7 @@ key = "l2.skill.225"
 max_level = 3
 l2_ref = "Acrobatic Move"
 source_file = "src/main/resources/data/stats/skills/00200-00299.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 226
@@ -1225,7 +1225,7 @@ key = "l2.skill.290"
 max_level = 14
 l2_ref = "Final Frenzy"
 source_file = "src/main/resources/data/stats/skills/00200-00299.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 291
@@ -1233,7 +1233,7 @@ key = "l2.skill.291"
 max_level = 11
 l2_ref = "Final Fortress"
 source_file = "src/main/resources/data/stats/skills/00200-00299.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 293
@@ -1241,7 +1241,7 @@ key = "l2.skill.293"
 max_level = 20
 l2_ref = "Two-handed Weapon Mastery"
 source_file = "src/main/resources/data/stats/skills/00200-00299.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 294
@@ -1249,7 +1249,7 @@ key = "l2.skill.294"
 max_level = 1
 l2_ref = "Shadow Sense"
 source_file = "src/main/resources/data/stats/skills/00200-00299.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 295
@@ -1617,7 +1617,7 @@ key = "l2.skill.933"
 max_level = 1
 l2_ref = "Detection"
 source_file = "src/main/resources/data/stats/skills/00900-00999.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 934
@@ -1913,7 +1913,7 @@ key = "l2.skill.1049"
 max_level = 14
 l2_ref = "Requiem"
 source_file = "src/main/resources/data/stats/skills/01000-01099.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 1050
@@ -2801,7 +2801,7 @@ key = "l2.skill.1297"
 max_level = 6
 l2_ref = "Clear Mind"
 source_file = "src/main/resources/data/stats/skills/01200-01299.xml"
-runtime_status = "executable"
+runtime_status = "deferred"
 
 [[skills]]
 id = 1307

@@ -2,50 +2,45 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00200-00299.xml", skill_id = 244 }
-
 id = 244
 key = "l2.skill.244"
 l2_ref = "Armor Mastery"
 max_level = 3
 operate_type = "P"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "unset"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 0
 cool_time_ms = 0
 reuse_ms = 0
 hit_cancel_ms = 0
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0]
 mp_consume_end = [0, 0, 0]
 hp_consume = [0, 0, 0]
 magic_level = [7, 11, 14]
 effect_point = [0, 0, 0]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
+attribute = { type = "NONE", power = 0 }
+source_sets = { icon = "icon.skill0244", magicLvl = ["7", "11", "14"], operateType = "P", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "pDef", value = ["6.7", "8", "9.2"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "pDef"
+value = ["6.7", "8", "9.2"]

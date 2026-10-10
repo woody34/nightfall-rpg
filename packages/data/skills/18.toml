@@ -2,63 +2,51 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00000-00099.xml", skill_id = 18 }
-
 id = 18
 key = "l2.skill.18"
 l2_ref = "Aura of Hate"
 max_level = 37
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "POINT_BLANK"
 affect_range = 200
-affect_limit = { offset = 10, width = 10 }
 affect_object = "NOT_FRIEND"
-
-cast_range = 0
-effect_range = 0
+affect_limit = { offset = 10, width = 10 }
+cast_range = -1
+effect_range = -1
 hit_time_ms = 1000
 cool_time_ms = 0
 reuse_ms = 40000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = true
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [50, 51, 53, 54, 55, 57, 58, 60, 61, 63, 64, 66, 67, 69, 70, 72, 74, 75, 77, 78, 80, 81, 83, 85, 86, 87, 89, 90, 92, 93, 95, 96, 97, 99, 100, 101, 102]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
 effect_point = [-4312, -4427, -4544, -4661, -4778, -4895, -5013, -5131, -5248, -5365, -5481, -5597, -5713, -5827, -5939, -6051, -6161, -6271, -6379, -6483, -6587, -6688, -6788, -6884, -6977, -7069, -7157, -7243, -7324, -7403, -7478, -7550, -7618, -7682, -7742, -7798, -7850]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:TargetMe"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "TARGET_LOCK"
-level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-time_s = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-is_debuff = true
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "TARGET_LOCK", level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], time_s = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], is_debuff = true }
+source_sets = { abnormalLvl = "1", abnormalTime = "3", abnormalType = "TARGET_LOCK", affectLimit = "10-10", affectObject = "NOT_FRIEND", affectRange = "200", affectScope = "POINT_BLANK", effectPoint = ["-4312", "-4427", "-4544", "-4661", "-4778", "-4895", "-5013", "-5131", "-5248", "-5365", "-5481", "-5597", "-5713", "-5827", "-5939", "-6051", "-6161", "-6271", "-6379", "-6483", "-6587", "-6688", "-6788", "-6884", "-6977", "-7069", "-7157", "-7243", "-7324", "-7403", "-7478", "-7550", "-7618", "-7682", "-7742", "-7798", "-7850"], hitCancelTime = "500", hitTime = "1000", icon = "icon.skill0018", isDebuff = "true", magicLvl = ["38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume2 = ["50", "51", "53", "54", "55", "57", "58", "60", "61", "63", "64", "66", "67", "69", "70", "72", "74", "75", "77", "78", "80", "81", "83", "85", "86", "87", "89", "90", "92", "93", "95", "96", "97", "99", "100", "101", "102"], operateType = "A2", reuseDelay = "40000", reuseDelayLock = "true", rideState = "NONE", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "GetAgro"
-params = {}
+params = {  }
 stat_children = []
 
 [[effects]]
 section = "effects"
 name = "TargetMe"
-params = {}
+params = {  }
 stat_children = []

@@ -2,53 +2,43 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01000-01099.xml", skill_id = 1016 }
-
 id = 1016
 key = "l2.skill.1016"
 l2_ref = "Resurrection"
 max_level = 9
 operate_type = "A1"
 is_magic = 1
-
 target_type = "PC_BODY"
 affect_scope = "SINGLE"
-
 cast_range = 400
 effect_range = 900
 hit_time_ms = 6000
 cool_time_ms = 0
 reuse_ms = 30000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [12, 18, 25, 31, 36, 39, 42, 46, 48]
 mp_consume_end = [47, 70, 97, 121, 144, 156, 165, 182, 191]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [20, 30, 40, 48, 56, 60, 64, 70, 74]
 effect_point = [121, 196, 290, 374, 460, 502, 542, 595, 624]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
+raw_conditions = ["<cond><player canResurrect=\"true\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", blockedInOlympiad = "true", castRange = "400", effectPoint = ["121", "196", "290", "374", "460", "502", "542", "595", "624"], effectRange = "900", hitCancelTime = "500", hitTime = "6000", icon = "icon.skill1016", isMagic = "1", magicLvl = ["20", "30", "40", "48", "56", "60", "64", "70", "74"], mpConsume1 = ["12", "18", "25", "31", "36", "39", "42", "46", "48"], mpConsume2 = ["47", "70", "97", "121", "144", "156", "165", "182", "191"], operateType = "A1", reuseDelay = "30000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "PC_BODY" }
 
-conditions = [
-  { kind = "player_can_resurrect" }
-]
-
-raw_conditions = [
-  "<cond><player canResurrect=\"true\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
+[[conditions]]
+kind = "player_can_resurrect"
+value = true
 
 [[effects]]
 section = "effects"

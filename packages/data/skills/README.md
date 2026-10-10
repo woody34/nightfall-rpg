@@ -79,7 +79,7 @@ effect_point = [-52, -54, -57, -64, -67, -70, -79, -83, -86]
 - `cast_range` (integer or per-level array): Maximum range in world units to initiate cast.
 - `effect_range` (integer or per-level array): Maximum range in world units at cast completion.
 - `hit_time_ms` (integer or per-level array): Base cast animation time in milliseconds before attack/cast speed scaling.
-- `cool_time_ms` (integer or per-level array): Post-cast recovery time in milliseconds.
+- `cool_time_ms` (integer or per-level array): Imported `coolTime` in milliseconds; unused by the pinned execution path (Skill.java:633; L2Character.java:4666,4690).
 - `reuse_ms` (integer or per-level array): Base reuse cooldown delay in milliseconds.
 - `hit_cancel_ms` (integer): Damage interruption window attribute from source (imported, unused by engine per D-R2).
 - `mp_consume_start` (array of integers, length `max_level`): MP deducted at cast initiation (`mpConsume1`).
@@ -94,8 +94,8 @@ activate_rate = -1
 basic_property = "NONE"
 level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
+min_chance = 10
+max_chance = 90
 
 next_action_attack = true
 has_enchant_routes = false
@@ -106,7 +106,7 @@ blockers = []
 - `basic_property` (string): Saving throw base attribute (`"STR"`, `"CON"`, `"DEX"`, `"INT"`, `"MEN"`, `"WIT"`, `"NONE"`).
 - `level_bonus_rate` (integer): Multiplier for level-difference modifier in `calcEffectSuccess`.
 - `trait` (string): Trait classification (`"SHOCK"`, `"SLEEP"`, `"HOLD"`, `"PARALYZE"`, `"POISON"`, `"BLEED"`, `"DERANGEMENT"`, `"NONE"`).
-- `min_chance` / `max_chance` (integer): Lower and upper clamps for debuff land rate (source defaults 1 and 99).
+- `min_chance` / `max_chance` (integer): Lower and upper clamps for debuff land rate (pinned character.properties:277–278 defaults 10 and 90, read by Skill.java:276–277).
 - `next_action_attack` (boolean): Whether player automatically transitions to auto-attack after landing the skill.
 - `has_enchant_routes` (boolean): Indicates whether enchant skill routes exist in source data (enchant data omitted from Phase 3 runtime).
 - `runtime_status` (string): `"executable"` if `blockers` is empty; otherwise `"deferred"`.
@@ -140,19 +140,24 @@ visual = "STUN"
 ### 3.8 Conditions Tree
 Conditions are structured as a normalized recursive tree (`conditions`) alongside verbatim source `<cond>` XML nodes (`raw_conditions`):
 ```toml
-conditions = [
-  { kind = "using_kind", weapon_kinds = ["SWORD", "BLUNT"] }
-]
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><using kind=\"SWORD,BLUNT\" /></cond>"
-]
+raw_conditions = ["<cond><using kind=\"SWORD,BLUNT\" /></cond>"]
+
+[[conditions]]
+kind = "and"
+
+[[conditions.conditions]]
+kind = "using_kind"
+weapon_kinds = ["SWORD", "BLUNT"]
 ```
+
 Supported condition kinds:
 - `{ kind = "using_kind", weapon_kinds = ["SWORD", "BLUNT"] }`: Validated against equipped weapon.
-- `{ kind = "player_can_resurrect" }`: State check for valid dead target resurrection.
-- Logical operators: `{ op = "and", conditions = [...] }`, `{ op = "or", conditions = [...] }`, `{ op = "not", conditions = [...] }`.
-- Verbatim unsupported: `{ kind = "unsupported", tag = "player", attributes = { Charges = "3" } }`.
-- `raw_conditions` (array of strings, optional): Preserves the raw XML `<cond>` nodes verbatim, retaining attributes like `msgId` and `addName`.
+- `{ kind = "player_can_resurrect", value = true }`: State check for valid dead target resurrection.
+- Logical operators: `{ kind = "and", conditions = [...] }`, `{ kind = "or", conditions = [...] }`, `{ kind = "not", conditions = [...] }`.
+- Verbatim unsupported: `{ kind = "unsupported", tag = "player", attrs = { Charges = "3" } }`.
+- Recursive conditions serialize as TOML arrays of tables (`[[conditions]]`, `[[conditions.conditions]]`, etc.). Unsupported `attrs` use TOML `=` and retain attribute strings verbatim.
+- The same `conditions` / `raw_conditions` fields occur on effects and stat children. Stat conditions may be bare `<using>`, `<player>`, or boolean nodes (DocumentBase.java:246), as well as `<cond>` wrappers. Section attachment conditions use `section_conditions` / `section_raw_conditions` on each effect (DocumentBase.java:201–223).
+- `raw_conditions` preserves parsed XML nodes including attributes like `msgId` and `addName`; XML indentation is normalized, and ElementTree may normalize entity spelling. This is XML semantic preservation, not original file bytes.
 
 ### 3.9 Item Consumption
 ```toml
@@ -195,7 +200,7 @@ stat_children = []
   - Mode: `DIFF` scales power by `getTicksMultiplier()`; `PER` reads dynamic current HP/MP at each pulse and scales by `current × power × getTicksMultiplier()`.
   - `TickHp` non-lethal clamp: DoT damage is clamped to `currentHp - 1` (`TickHp.java:75-76`), leaving at least 1 HP (zero damage if `currentHp <= 1`).
 - `stat_children` (array of tables): Modifier functions installed by the effect:
-  - `op` (string): `"mul"`, `"add"`, `"sub"`, `"set"`.
+  - `op` (string): `"mul"`, `"add"`, `"sub"` are executable; all other imported operations are deferred.
   - `stat` (string): Target stat identifier (e.g. `"pDef"`, `"runSpd"`).
   - `value` (array of exact decimal strings, length `max_level`): Per-level modifier values.
   - `order` (integer, optional): Explicit priority order override (default: SET=0, base=1, MUL/DIV=20, ADD/SUB=30). Note: `MaxHp`, `MaxMp`, and `MaxCp` handlers install at order 1 per source.
@@ -217,7 +222,7 @@ A skill is marked `runtime_status = "executable"` if and only if **all** of the 
    *- `GetAgro` is executable: represents a forced NPC intention, not hate, per `GetAgro.java:49-51` (`info.getEffected().getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, info.getEffector())`).)*
 8. **Stat Modifiers Whitelist:**
    `pAtk`, `pDef`, `mAtk`, `mDef`, `pAtkSpd`, `mAtkSpd`, `runSpd`, `maxHp`, `maxMp`, `maxCp`, `accCombat`, `rEvas`, `critRate`, `critDmg`, `critDmgAdd`, `regHp`, `regMp`, `regCp`, `physicalMpConsumeRate`, `magicalMpConsumeRate`, `danceMpConsumeRate`, `pReuse`, `mReuse`, `pSkillEvas`, `darkRes`, `darkPower`, `earthRes`, `earthPower`, `fireRes`, `firePower`, `holyRes`, `holyPower`, `waterRes`, `waterPower`, `windRes`, `windPower`, `debuffVuln`, `cancelVuln`.
-   Any unwhitelisted stat child produces blocker `stat:<name>`.
+   Any unwhitelisted stat child produces blocker `stat:<name>`; unsupported operations produce `op:<name>`.
 9. **Transitive References:** Any referenced skill (e.g. via `skillId`) must itself be executable.
 
 ## 5. Sample Skills
@@ -233,3 +238,28 @@ The following 10 sample skills are generated as reference implementations of the
 - `1015.toml` — Battle Heal (Instant HP restoration)
 - `5076.toml` — Death Penalty (Passive mult-stat penalty across 15 levels)
 - `286.toml` — Provoke (AoE pole trait debuff, marked `sample_only = true`)
+
+## 6. Admission and source defaults
+
+All XML table references in skill sets, effect parameters, and stat values expand to exactly `max_level` rows. Numeric fields remain scalars when literal and become rank arrays when table-backed; resources and abnormal level/time always use rank arrays. Missing/short tables and malformed integers are generator errors, never zero substitutions. `source_sets` retains every source `<set>` as exact strings or expanded rank arrays, including fields outside the executable slice.
+
+Source defaults: `magic_level = [0,…]` (Skill.java:273), `cast_range = -1`, `effect_range = -1` (212–213), abnormal `level = [0,…]` (214). `reuse_delay_lock` (boolean or rank array) is imported from `reuseDelayLock` (204); locked reuse bypasses reuse modifiers at cast start (L2Character.java:1517–1530). `hit_cancel_ms` and `cool_time_ms` are imported but unused.
+
+The generator admits only known parameter names and values, expanding table-backed values before validation. Unknown names or values produce `param:<effect>.<name>`. The manifest follows the pinned datapack handler constructors:
+
+| Handler | Parameters / admitted values | Source lines |
+|---|---|---|
+| PhysicalAttack | power (decimal), criticalChance (integer), ignoreShieldDefence (true/false) | instant/PhysicalAttack.java:44–46 |
+| MagicalAttack / MagicalAttackRange | power (decimal); range also shieldDefensePercent (decimal) | instant/MagicalAttack.java:43; MagicalAttackRange.java:50–52 |
+| TickHp / TickMp | power (decimal), ticks (positive integer), mode (DIFF/PER) | ticks/TickHp.java:43–45; TickMp.java:40–42 |
+| Heal / HpPerMax / Resurrection / AddHate | power (decimal for Heal/AddHate, integer for HpPerMax/Resurrection) | instant/Heal.java:46; HpPerMax.java:40; Resurrection.java:40; AddHate.java:37 |
+| MaxHp / MaxMp | power (decimal), type (DIFF/PER), heal (true/false) | pump/MaxHp.java:50–60; MaxMp.java:51–61 |
+| Mp / Cp | amount (decimal), mode (DIFF/PER) | instant/Mp.java:44–45; Cp.java:43–44 |
+| DispelByCategory | slot (ALL/BUFF/DEBUFF), rate/max (integer) | instant/DispelByCategory.java:43–45; game enums/DispelCategory.java:25–27 |
+| DispelBySlot | dispel (`slot[,integer]` entries separated by `;`); supported slots BLEEDING/POISON/PARALYZE/ROOT_PHYSICALLY/TURN_STONE | instant/DispelBySlot.java:47–60 |
+| DefenceTrait / AttackTrait | TraitType names, finite decimal values | pump/DefenceTrait.java:52–55; AttackTrait.java:51–54; game model/stats/TraitType.java:26–74 |
+| Buff / Debuff / Passive / Stun / Sleep / Root / GetAgro | no parameters | respective pinned handler constructors |
+
+Scope filters admit FRIEND and NOT_FRIEND. INVISIBLE (stealth requirement), UNDEAD_REAL_ENEMY (race requirement), and unknown filters produce `filter:<name>` and defer the skill. Unknown condition leaves anywhere defer with `cond:<tag>:<attribute names>`. `div/set/share` are preserved but deferred. Referenced-skill blockers propagate to a fixed point.
+
+Every generated skill is parsed with `tomllib` and checked for structural equality before write or `--check`. Corpus tests load all 389 committed definitions, verify all table-backed source sets, and recheck every executable effect/stat condition against the manifest.

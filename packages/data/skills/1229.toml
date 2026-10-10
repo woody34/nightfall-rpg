@@ -2,53 +2,41 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01200-01299.xml", skill_id = 1229 }
-
 id = 1229
 key = "l2.skill.1229"
 l2_ref = "Chant of Life"
 max_level = 18
 operate_type = "A2"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = 1000
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 7000
 cool_time_ms = 0
 reuse_ms = 5000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [12, 15, 18, 21, 25, 27, 31, 33, 36, 38, 39, 40, 42, 43, 45, 46, 47, 48]
 mp_consume_end = [47, 57, 70, 82, 97, 107, 121, 131, 144, 151, 156, 159, 165, 171, 177, 182, 186, 191]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [20, 25, 30, 35, 40, 44, 48, 52, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74]
 effect_point = [204, 243, 285, 331, 379, 418, 457, 495, 532, 549, 566, 582, 597, 611, 624, 635, 646, 655]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["scope:PARTY"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "LIFE_FORCE_ORC"
-level = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
-time_s = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15]
-is_debuff = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "LIFE_FORCE_ORC", level = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], time_s = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"], abnormalTime = "15", abnormalType = "LIFE_FORCE_ORC", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["204", "243", "285", "331", "379", "418", "457", "495", "532", "549", "566", "582", "597", "611", "624", "635", "646", "655"], hitCancelTime = "500", hitTime = "7000", icon = "icon.skill1229", isMagic = "1", magicLvl = ["20", "25", "30", "35", "40", "44", "48", "52", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["12", "15", "18", "21", "25", "27", "31", "33", "36", "38", "39", "40", "42", "43", "45", "46", "47", "48"], mpConsume2 = ["47", "57", "70", "82", "97", "107", "121", "131", "144", "151", "156", "159", "165", "171", "177", "182", "186", "191"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[effects]]
 section = "effects"

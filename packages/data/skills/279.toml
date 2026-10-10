@@ -2,51 +2,39 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00200-00299.xml", skill_id = 279 }
-
 id = 279
 key = "l2.skill.279"
 l2_ref = "Lightning Strike"
 max_level = 5
 operate_type = "A2"
 is_magic = 1
-
 target_type = "ENEMY"
 affect_scope = "SINGLE"
-
 cast_range = 400
 effect_range = 900
 hit_time_ms = 3000
 cool_time_ms = 0
 reuse_ms = 15000
 hit_cancel_ms = 500
-
+activate_rate = 40
+level_bonus_rate = 1
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [16, 18, 19, 20, 21]
 mp_consume_end = [64, 69, 74, 78, 82]
 hp_consume = [0, 0, 0, 0, 0]
 magic_level = [58, 62, 66, 70, 74]
 effect_point = [-828, -877, -921, -958, -987]
-
-activate_rate = 40
 basic_property = "MEN"
-level_bonus_rate = 1
 trait = "PARALYZE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = true
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:CallSkill", "section:endEffects"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "PARALYZE"
-level = [1, 1, 1, 1, 1]
-time_s = [15, 15, 15, 15, 15]
-is_debuff = true
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "PARALYZE", level = [1, 1, 1, 1, 1], time_s = [15, 15, 15, 15, 15], is_debuff = true }
+source_sets = { abnormalLvl = "1", abnormalTime = "15", abnormalType = "PARALYZE", activateRate = "40", affectScope = "SINGLE", basicProperty = "MEN", castRange = "400", effectPoint = ["-828", "-877", "-921", "-958", "-987"], effectRange = "900", hitCancelTime = "500", hitTime = "3000", icon = "icon.skill0279", isDebuff = "true", isMagic = "1", lvlBonusRate = "1", magicLvl = ["58", "62", "66", "70", "74"], mpConsume1 = ["16", "18", "19", "20", "21"], mpConsume2 = ["64", "69", "74", "78", "82"], nextActionAttack = "true", operateType = "A2", reuseDelay = "15000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY", trait = "PARALYZE" }
 
 [[effects]]
 section = "effects"
@@ -57,10 +45,12 @@ stat_children = []
 [[effects]]
 section = "effects"
 name = "Debuff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pAtkSpd", value = ["0.5", "0.5", "0.5", "0.5", "0.5"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["0.5", "0.5", "0.5", "0.5", "0.5"]
 
 [[effects]]
 section = "effects"
@@ -71,18 +61,22 @@ stat_children = []
 [[effects]]
 section = "effects"
 name = "Debuff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "mAtkSpd", value = ["0.5", "0.5", "0.5", "0.5", "0.5"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "mAtkSpd"
+value = ["0.5", "0.5", "0.5", "0.5", "0.5"]
 
 [[effects]]
 section = "effects"
 name = "Debuff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "runSpd", value = ["0.5", "0.5", "0.5", "0.5", "0.5"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "runSpd"
+value = ["0.5", "0.5", "0.5", "0.5", "0.5"]
 
 [[effects]]
 section = "endEffects"

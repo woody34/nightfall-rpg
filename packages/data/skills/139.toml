@@ -2,64 +2,52 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00100-00199.xml", skill_id = 139 }
-
 id = 139
 key = "l2.skill.139"
 l2_ref = "Guts"
 max_level = 3
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 1500
 cool_time_ms = 0
 reuse_ms = 600000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0]
 mp_consume_end = [16, 19, 24]
 hp_consume = [0, 0, 0]
 magic_level = [36, 43, 52]
 effect_point = [341, 408, 495]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["cond:player:hp"]
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player hp=\"30\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "PINCH", level = [1, 2, 3], time_s = [90, 90, 90], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "90", abnormalType = "PINCH", affectScope = "SINGLE", effectPoint = ["341", "408", "495"], hitCancelTime = "500", hitTime = "1500", icon = "icon.skill0139", magicLvl = ["36", "43", "52"], mpConsume2 = ["16", "19", "24"], operateType = "A2", reuseDelay = "600000", rideState = "NONE", targetType = "SELF" }
 
-conditions = [
-  { kind = "unsupported", tag = "player", attrs = {"hp": "30"} }
-]
-
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><player hp=\"30\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "PINCH"
-level = [1, 2, 3]
-time_s = [90, 90, 90]
-is_debuff = false
+[[conditions]]
+kind = "unsupported"
+tag = "player"
+attrs = { hp = "30" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pDef", value = ["2", "2.5", "3"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pDef"
+value = ["2", "2.5", "3"]

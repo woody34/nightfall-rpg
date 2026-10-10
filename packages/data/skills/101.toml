@@ -2,60 +2,44 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00100-00199.xml", skill_id = 101 }
-
 id = 101
 key = "l2.skill.101"
 l2_ref = "Stun Shot"
 max_level = 40
 operate_type = "A2"
 is_magic = 0
-
 target_type = "ENEMY"
 affect_scope = "SINGLE"
-
 cast_range = 900
 effect_range = 1400
 hit_time_ms = 3000
 cool_time_ms = 1000
 reuse_ms = 3000
 hit_cancel_ms = 500
-
+activate_rate = 50
+level_bonus_rate = 1
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [46, 48, 49, 52, 54, 56, 56, 58, 59, 61, 63, 65, 66, 68, 70, 72, 72, 74, 76, 78, 80, 81, 83, 85, 87, 88, 89, 91, 92, 94, 96, 97, 99, 100, 102, 103, 105, 106, 108, 109]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [34, 35, 36, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
 effect_point = [-327, -337, -346, -366, -375, -385, -395, -405, -415, -425, -435, -445, -455, -465, -474, -484, -494, -503, -513, -522, -532, -541, -550, -558, -567, -575, -583, -591, -599, -607, -614, -621, -627, -634, -640, -646, -651, -656, -661, -665]
-
-activate_rate = 50
 basic_property = "CON"
-level_bonus_rate = 1
 trait = "SHOCK"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:TargetCancel"]
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"BOW\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "STUN", level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], time_s = [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9], is_debuff = true, visual = "STUN" }
+source_sets = { abnormalLvl = "1", abnormalTime = "9", abnormalType = "STUN", abnormalVisualEffect = "STUN", activateRate = "50", affectScope = "SINGLE", basicProperty = "CON", castRange = "900", coolTime = "1000", effectPoint = ["-327", "-337", "-346", "-366", "-375", "-385", "-395", "-405", "-415", "-425", "-435", "-445", "-455", "-465", "-474", "-484", "-494", "-503", "-513", "-522", "-532", "-541", "-550", "-558", "-567", "-575", "-583", "-591", "-599", "-607", "-614", "-621", "-627", "-634", "-640", "-646", "-651", "-656", "-661", "-665"], effectRange = "1400", hitCancelTime = "500", hitTime = "3000", icon = "icon.skill0101", isDebuff = "true", lvlBonusRate = "1", magicLvl = ["34", "35", "36", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume2 = ["46", "48", "49", "52", "54", "56", "56", "58", "59", "61", "63", "65", "66", "68", "70", "72", "72", "74", "76", "78", "80", "81", "83", "85", "87", "88", "89", "91", "92", "94", "96", "97", "99", "100", "102", "103", "105", "106", "108", "109"], operateType = "A2", overHit = "true", reuseDelay = "3000", rideState = "NONE", targetType = "ENEMY", trait = "SHOCK" }
 
-conditions = [
-  { kind = "using_kind", weapon_kinds = ["BOW"] }
-]
-
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><using kind=\"BOW\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "STUN"
-level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-time_s = [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
-is_debuff = true
-visual = "STUN"
+[[conditions]]
+kind = "using_kind"
+weapon_kinds = ["BOW"]
 
 [[effects]]
 section = "effects"
@@ -72,5 +56,5 @@ stat_children = []
 [[effects]]
 section = "effects"
 name = "Stun"
-params = {}
+params = {  }
 stat_children = []

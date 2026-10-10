@@ -2,59 +2,49 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00000-00099.xml", skill_id = 97 }
-
 id = 97
 key = "l2.skill.97"
 l2_ref = "Sanctuary"
 max_level = 11
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "POINT_BLANK"
 affect_range = 200
-affect_limit = { offset = 10, width = 10 }
 affect_object = "UNDEAD_REAL_ENEMY"
-
-cast_range = 0
-effect_range = 0
+affect_limit = { offset = 10, width = 10 }
+cast_range = -1
+effect_range = -1
 hit_time_ms = 1500
 cool_time_ms = 0
 reuse_ms = 2000
 hit_cancel_ms = 500
-
+activate_rate = 40
+level_bonus_rate = 2
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [35, 38, 40, 42, 43, 45, 46, 48, 49, 50, 51]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [52, 55, 58, 60, 62, 64, 66, 68, 70, 72, 74]
 effect_point = [-495, -523, -549, -566, -582, -597, -611, -624, -635, -646, -655]
-
-activate_rate = 40
 basic_property = "MEN"
-level_bonus_rate = 2
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
-runtime_status = "executable"
-blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "PA_DOWN"
-level = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-time_s = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
-is_debuff = true
+runtime_status = "deferred"
+blockers = ["filter:UNDEAD_REAL_ENEMY"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "PA_DOWN", level = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], time_s = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30], is_debuff = true }
+source_sets = { abnormalLvl = "3", abnormalTime = "30", abnormalType = "PA_DOWN", activateRate = "40", affectLimit = "10-10", affectObject = "UNDEAD_REAL_ENEMY", affectRange = "200", affectScope = "POINT_BLANK", basicProperty = "MEN", effectPoint = ["-495", "-523", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], hitCancelTime = "500", hitTime = "1500", icon = "icon.skill0097", isDebuff = "true", lvlBonusRate = "2", magicLvl = ["52", "55", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume2 = ["35", "38", "40", "42", "43", "45", "46", "48", "49", "50", "51"], operateType = "A2", reuseDelay = "2000", rideState = "NONE", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Debuff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pAtk", value = ["0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pAtk"
+value = ["0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77", "0.77"]

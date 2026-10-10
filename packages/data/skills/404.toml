@@ -2,60 +2,47 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00400-00499.xml", skill_id = 404 }
-
 id = 404
 key = "l2.skill.404"
 l2_ref = "Mass Shackling"
 max_level = 5
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "POINT_BLANK"
 affect_range = 150
-affect_limit = { offset = 10, width = 10 }
 affect_object = "NOT_FRIEND"
-
-cast_range = 0
-effect_range = 0
+affect_limit = { offset = 10, width = 10 }
+cast_range = -1
+effect_range = -1
 hit_time_ms = 3000
 cool_time_ms = 0
 reuse_ms = 8000
 hit_cancel_ms = 500
-
+activate_rate = 40
+level_bonus_rate = 1
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0]
 mp_consume_end = [40, 43, 46, 49, 51]
 hp_consume = [0, 0, 0, 0, 0]
 magic_level = [58, 62, 66, 70, 74]
 effect_point = [-1098, -1163, -1221, -1270, -1309]
-
-activate_rate = 40
 basic_property = "MEN"
-level_bonus_rate = 1
 trait = "HOLD"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "ROOT_PHYSICALLY"
-level = [1, 1, 1, 1, 1]
-time_s = [10, 10, 10, 10, 10]
-is_debuff = true
-visual = "ROOT"
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "ROOT_PHYSICALLY", level = [1, 1, 1, 1, 1], time_s = [10, 10, 10, 10, 10], is_debuff = true, visual = "ROOT" }
+source_sets = { abnormalLvl = "1", abnormalTime = "10", abnormalType = "ROOT_PHYSICALLY", abnormalVisualEffect = "ROOT", activateRate = "40", affectLimit = "10-10", affectObject = "NOT_FRIEND", affectRange = "150", affectScope = "POINT_BLANK", basicProperty = "MEN", effectPoint = ["-1098", "-1163", "-1221", "-1270", "-1309"], hitCancelTime = "500", hitTime = "3000", icon = "icon.skill0404", isDebuff = "true", lvlBonusRate = "1", magicLvl = ["58", "62", "66", "70", "74"], mpConsume2 = ["40", "43", "46", "49", "51"], operateType = "A2", reuseDelay = "8000", rideState = "NONE", targetType = "SELF", trait = "HOLD" }
 
 [[effects]]
 section = "effects"
 name = "Root"
-params = {}
+params = {  }
 stat_children = []
 
 [[effects]]

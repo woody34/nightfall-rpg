@@ -2,57 +2,46 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00100-00199.xml", skill_id = 196 }
-
 id = 196
 key = "l2.skill.196"
 l2_ref = "Divine Blade"
 max_level = 1
 operate_type = "T"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "unset"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 0
 cool_time_ms = 0
 reuse_ms = 0
 hit_cancel_ms = 0
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [8]
 mp_consume_end = [0]
 hp_consume = [0]
 magic_level = [43]
 effect_point = [0]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["operate:T"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "NONE"
-level = [1]
-time_s = [0]
-is_debuff = false
-visual = "NONE"
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "NONE", level = [0], time_s = [0], is_debuff = false, visual = "NONE" }
+source_sets = { abnormalVisualEffect = "NONE", icon = "icon.skill0196", magicLvl = "43", mpConsume1 = "8", operateType = "T", rideState = "NONE", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "holyPower", value = ["10"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "holyPower"
+value = ["10"]

@@ -2,58 +2,48 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/01200-01299.xml", skill_id = 1251 }
-
 id = 1251
 key = "l2.skill.1251"
 l2_ref = "Chant of Fury"
 max_level = 2
 operate_type = "A2"
 is_magic = 1
-
 target_type = "SELF"
 affect_scope = "PARTY"
 affect_range = 1000
 affect_object = "FRIEND"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 2500
 cool_time_ms = 0
 reuse_ms = 5000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [35, 41]
 mp_consume_end = [137, 163]
 hp_consume = [0, 0]
 magic_level = [48, 56]
 effect_point = [457, 532]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["scope:PARTY"]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "ATTACK_TIME_DOWN"
-level = [1, 2]
-time_s = [1200, 1200]
-is_debuff = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "ATTACK_TIME_DOWN", level = [1, 2], time_s = [1200, 1200], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2"], abnormalTime = "1200", abnormalType = "ATTACK_TIME_DOWN", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["457", "532"], hitCancelTime = "500", hitTime = "2500", icon = "icon.skill1251", isMagic = "1", magicLvl = ["48", "56"], mpConsume1 = ["35", "41"], mpConsume2 = ["137", "163"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pAtkSpd", value = ["1.15", "1.33"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.15", "1.33"]

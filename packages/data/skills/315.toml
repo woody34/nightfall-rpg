@@ -2,59 +2,51 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00300-00399.xml", skill_id = 315 }
-
 id = 315
 key = "l2.skill.315"
 l2_ref = "Crush of Doom"
 max_level = 16
 operate_type = "A1"
 is_magic = 0
-
 target_type = "ENEMY"
 affect_scope = "SINGLE"
-
 cast_range = 40
 effect_range = 400
 hit_time_ms = 1620
 cool_time_ms = 1080
 reuse_ms = 7000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 hp_consume = [208, 212, 212, 217, 221, 225, 229, 233, 237, 240, 244, 248, 251, 255, 258, 261]
 magic_level = [59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
 effect_point = [-425, -431, -438, -444, -449, -455, -460, -466, -471, -475, -480, -484, -488, -492, -496, -499]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = true
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:using:slot"]
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><and><using kind=\"SWORD,BLUNT\" /><using slot=\"lrhand\" /></and></cond>"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", castRange = "40", coolTime = "1080", effectPoint = ["-425", "-431", "-438", "-444", "-449", "-455", "-460", "-466", "-471", "-475", "-480", "-484", "-488", "-492", "-496", "-499"], effectRange = "400", hitCancelTime = "500", hitTime = "1620", hpConsume = ["208", "212", "212", "217", "221", "225", "229", "233", "237", "240", "244", "248", "251", "255", "258", "261"], icon = "icon.skill0315", magicLvl = ["59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], nextActionAttack = "true", operateType = "A1", overHit = "true", reuseDelay = "7000", rideState = "NONE", targetType = "ENEMY" }
 
-conditions = [
-  {
-    kind = "and",
-    conditions = [
-    { kind = "using_kind", weapon_kinds = ["SWORD", "BLUNT"] },
-    { kind = "unsupported", tag = "using", attrs = {"slot": "lrhand"} }
-    ]
-  }
-]
+[[conditions]]
+kind = "and"
 
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><and><using kind=\"SWORD,BLUNT\" /><using slot=\"lrhand\" /></and></cond>",
-]
+[[conditions.conditions]]
+kind = "using_kind"
+weapon_kinds = ["SWORD", "BLUNT"]
 
-[attribute]
-type = "NONE"
-power = 0
+[[conditions.conditions]]
+kind = "unsupported"
+tag = "using"
+attrs = { slot = "lrhand" }
 
 [[effects]]
 section = "effects"

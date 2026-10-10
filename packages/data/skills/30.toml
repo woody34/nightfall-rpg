@@ -2,53 +2,43 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00000-00099.xml", skill_id = 30 }
-
 id = 30
 key = "l2.skill.30"
 l2_ref = "Backstab"
 max_level = 37
 operate_type = "A1"
 is_magic = 0
-
 target_type = "ENEMY"
 affect_scope = "SINGLE"
-
 cast_range = 40
 effect_range = 400
 hit_time_ms = 1080
 cool_time_ms = 720
 reuse_ms = 3000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 mp_consume_end = [54, 56, 57, 57, 59, 61, 63, 65, 66, 68, 70, 72, 74, 74, 76, 78, 80, 82, 84, 86, 87, 89, 91, 91, 93, 95, 97, 98, 100, 102, 103, 105, 106, 108, 109, 111, 112]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
 effect_point = [-305, -313, -321, -329, -338, -346, -354, -363, -371, -379, -387, -395, -404, -412, -420, -428, -435, -443, -451, -458, -465, -472, -479, -486, -493, -499, -506, -512, -517, -523, -528, -533, -538, -543, -547, -551, -554]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = true
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:Backstab", "effect:Lethal"]
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"DAGGER,DUALDAGGER\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+source_sets = { affectScope = "SINGLE", castRange = "40", coolTime = "720", effectPoint = ["-305", "-313", "-321", "-329", "-338", "-346", "-354", "-363", "-371", "-379", "-387", "-395", "-404", "-412", "-420", "-428", "-435", "-443", "-451", "-458", "-465", "-472", "-479", "-486", "-493", "-499", "-506", "-512", "-517", "-523", "-528", "-533", "-538", "-543", "-547", "-551", "-554"], effectRange = "400", hitCancelTime = "500", hitTime = "1080", icon = "icon.skill0030", magicLvl = ["38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume2 = ["54", "56", "57", "57", "59", "61", "63", "65", "66", "68", "70", "72", "74", "74", "76", "78", "80", "82", "84", "86", "87", "89", "91", "91", "93", "95", "97", "98", "100", "102", "103", "105", "106", "108", "109", "111", "112"], nextActionAttack = "true", operateType = "A1", overHit = "true", reuseDelay = "3000", rideState = "NONE", targetType = "ENEMY" }
 
-conditions = [
-  { kind = "using_kind", weapon_kinds = ["DAGGER", "DUALDAGGER"] }
-]
-
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><using kind=\"DAGGER,DUALDAGGER\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
+[[conditions]]
+kind = "using_kind"
+weapon_kinds = ["DAGGER", "DUALDAGGER"]
 
 [[effects]]
 section = "effects"

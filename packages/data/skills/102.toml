@@ -2,56 +2,46 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00100-00199.xml", skill_id = 102 }
-
 id = 102
 key = "l2.skill.102"
 l2_ref = "Entangle"
 max_level = 16
 operate_type = "A2"
 is_magic = 1
-
 target_type = "ENEMY_ONLY"
 affect_scope = "SINGLE"
-
 cast_range = 600
 effect_range = 1100
 hit_time_ms = 3000
 cool_time_ms = 0
 reuse_ms = 2000
 hit_cancel_ms = 0
-
+activate_rate = 80
+level_bonus_rate = 2
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7]
 mp_consume_end = [13, 14, 15, 17, 18, 19, 20, 22, 22, 23, 24, 25, 26, 26, 27, 28]
 hp_consume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 magic_level = [36, 40, 43, 46, 49, 52, 55, 58, 60, 62, 64, 66, 68, 70, 72, 74]
 effect_point = [-341, -379, -408, -438, -467, -495, -523, -549, -566, -582, -597, -611, -624, -635, -646, -655]
-
-activate_rate = 80
 basic_property = "MEN"
-level_bonus_rate = 2
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "SPEED_DOWN"
-level = [2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-time_s = [60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60]
-is_debuff = true
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "SPEED_DOWN", level = [2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], time_s = [60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60], is_debuff = true }
+source_sets = { abnormalLvl = ["2", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3", "3"], abnormalTime = "60", abnormalType = "SPEED_DOWN", activateRate = "80", affectScope = "SINGLE", basicProperty = "MEN", castRange = "600", effectPoint = ["-341", "-379", "-408", "-438", "-467", "-495", "-523", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], effectRange = "1100", hitTime = "3000", icon = "icon.skill0102", isDebuff = "true", isMagic = "1", lvlBonusRate = "2", magicLvl = ["36", "40", "43", "46", "49", "52", "55", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["4", "4", "4", "5", "5", "5", "5", "6", "6", "6", "6", "7", "7", "7", "7", "7"], mpConsume2 = ["13", "14", "15", "17", "18", "19", "20", "22", "22", "23", "24", "25", "26", "26", "27", "28"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY_ONLY" }
 
 [[effects]]
 section = "effects"
 name = "Debuff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "runSpd", value = ["0.8", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "runSpd"
+value = ["0.8", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7", "0.7"]

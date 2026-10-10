@@ -2,128 +2,152 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00400-00499.xml", skill_id = 420 }
-
 id = 420
 key = "l2.skill.420"
 l2_ref = "Zealot"
 max_level = 3
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 2000
 cool_time_ms = 0
 reuse_ms = 300000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0, 0, 0]
 mp_consume_end = [106, 122, 136]
 hp_consume = [159, 183, 204]
 magic_level = [58, 66, 74]
 effect_point = [549, 611, 655]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:player:hp", "stat:healEffect"]
+raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player hp=\"30\" /></cond>"]
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "PD_UP_SPECIAL", level = [1, 2, 3], time_s = [60, 60, 60], is_debuff = false }
+source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "60", abnormalType = "PD_UP_SPECIAL", affectScope = "SINGLE", effectPoint = ["549", "611", "655"], hitCancelTime = "500", hitTime = "2000", hpConsume = ["159", "183", "204"], icon = "icon.skill0420", magicLvl = ["58", "66", "74"], mpConsume2 = ["106", "122", "136"], operateType = "A2", reuseDelay = "300000", rideState = "NONE", targetType = "SELF" }
 
-conditions = [
-  { kind = "unsupported", tag = "player", attrs = {"hp": "30"} }
-]
-
-raw_conditions = [
-  "<cond msgId=\"113\" addName=\"1\"><player hp=\"30\" /></cond>",
-]
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "PD_UP_SPECIAL"
-level = [1, 2, 3]
-time_s = [60, 60, 60]
-is_debuff = false
+[[conditions]]
+kind = "unsupported"
+tag = "player"
+attrs = { hp = "30" }
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "pAtkSpd", value = ["1.1", "1.2", "1.3"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "pAtkSpd"
+value = ["1.1", "1.2", "1.3"]
+raw_conditions = ["<using kind=\"SWORD,BLUNT,POLE,DUALFIST\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["SWORD", "BLUNT", "POLE", "DUALFIST"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "critDmg", value = ["1.33", "1.66", "2"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "critDmg"
+value = ["1.33", "1.66", "2"]
+raw_conditions = ["<using kind=\"BLUNT,DUALFIST\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["BLUNT", "DUALFIST"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "critRate", value = ["33", "66", "100"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "critRate"
+value = ["33", "66", "100"]
+raw_conditions = ["<using kind=\"SWORD,POLE\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["SWORD", "POLE"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "healEffect", value = ["0.5", "0.5", "0.5"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "healEffect"
+value = ["0.5", "0.5", "0.5"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "accCombat", value = ["6", "6", "6"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "accCombat"
+value = ["6", "6", "6"]
+raw_conditions = ["<using kind=\"SWORD,BLUNT,POLE,DUALFIST\" />"]
+
+[[effects.stat_children.conditions]]
+kind = "using_kind"
+weapon_kinds = ["SWORD", "BLUNT", "POLE", "DUALFIST"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "physicalMpConsumeRate", value = ["0.5", "0.5", "0.5"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "physicalMpConsumeRate"
+value = ["0.5", "0.5", "0.5"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "debuffVuln", value = ["0.2", "0.2", "0.2"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "debuffVuln"
+value = ["0.2", "0.2", "0.2"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "mul", stat = "cancelVuln", value = ["0.6", "0.6", "0.6"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "mul"
+stat = "cancelVuln"
+value = ["0.6", "0.6", "0.6"]
 
 [[effects]]
 section = "effects"
 name = "Buff"
-params = {}
-stat_children = [
-  { op = "add", stat = "runSpd", value = ["10", "20", "30"] },
-]
+params = {  }
+
+[[effects.stat_children]]
+op = "add"
+stat = "runSpd"
+value = ["10", "20", "30"]

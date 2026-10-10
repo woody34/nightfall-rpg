@@ -2,51 +2,39 @@
 # (packages/data/SOURCES.md). Do not edit by hand; regenerate instead.
 
 provenance = { repository = "https://bitbucket.org/l2jserver/l2j-server-datapack", revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a", file = "src/main/resources/data/stats/skills/00000-00099.xml", skill_id = 87 }
-
 id = 87
 key = "l2.skill.87"
 l2_ref = "Detect Animal Weakness"
 max_level = 1
 operate_type = "A2"
 is_magic = 0
-
 target_type = "SELF"
 affect_scope = "SINGLE"
-
-cast_range = 0
-effect_range = 0
+cast_range = -1
+effect_range = -1
 hit_time_ms = 1500
 cool_time_ms = 0
 reuse_ms = 3000
 hit_cancel_ms = 500
-
+activate_rate = -1
+level_bonus_rate = 0
+min_chance = 10
+max_chance = 90
+reuse_delay_lock = false
 mp_consume_start = [0]
 mp_consume_end = [18]
 hp_consume = [0]
 magic_level = [40]
 effect_point = [379]
-
-activate_rate = -1
 basic_property = "NONE"
-level_bonus_rate = 0
 trait = "NONE"
-min_chance = 1
-max_chance = 99
-
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
-
-[attribute]
-type = "NONE"
-power = 0
-
-[abnormal]
-type = "DETECT_WEAKNESS"
-level = [1]
-time_s = [600]
-is_debuff = false
+attribute = { type = "NONE", power = 0 }
+abnormal = { type = "DETECT_WEAKNESS", level = [1], time_s = [600], is_debuff = false }
+source_sets = { abnormalLvl = "1", abnormalTime = "600", abnormalType = "DETECT_WEAKNESS", affectScope = "SINGLE", effectPoint = "379", hitCancelTime = "500", hitTime = "1500", icon = "icon.skill0087", magicLvl = "40", mpConsume2 = "18", operateType = "A2", reuseDelay = "3000", rideState = "NONE", targetType = "SELF" }
 
 [[effects]]
 section = "effects"
