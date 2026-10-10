@@ -33,7 +33,13 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
-blockers = ["scope:PARTY"]
+blockers = ["scope:PARTY", "scope_filter:FRIEND"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["66", "76", "86", "97", "108", "121", "141", "148", "156", "179", "188", "196", "222", "231", "241"], hitCancelTime = "500", hitTime = "7000", icon = "icon.skill1027", isMagic = "1", magicLvl = ["10", "12", "14", "16", "18", "20", "23", "24", "25", "28", "29", "30", "33", "34", "35"], mpConsume1 = ["7", "8", "9", "10", "11", "12", "13", "14", "15", "17", "18", "18", "19", "20", "21"], mpConsume2 = ["26", "30", "34", "38", "42", "47", "52", "55", "57", "66", "69", "70", "76", "79", "82"], operateType = "A1", reuseDelay = "6000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 

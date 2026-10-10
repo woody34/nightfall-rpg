@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "WATER", power = 20 }
 abnormal = { type = "SPEED_DOWN", level = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], time_s = [60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60], is_debuff = true }
 source_sets = { abnormalLvl = "2", abnormalTime = "60", abnormalType = "SPEED_DOWN", activateRate = "60", affectScope = "SINGLE", attributePower = "20", attributeType = "WATER", basicProperty = "MEN", castRange = "600", effectPoint = ["-322", "-341", "-360", "-379", "-399", "-408", "-428", "-438", "-457", "-467", "-486", "-495", "-514", "-523", "-541", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], effectRange = "1100", hitCancelTime = "500", hitTime = "3000", icon = "icon.skill0105", isDebuff = "true", isMagic = "1", lvlBonusRate = "1", magicLvl = ["34", "36", "38", "40", "42", "43", "45", "46", "48", "49", "51", "52", "54", "55", "57", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["6", "7", "7", "7", "8", "8", "8", "9", "9", "9", "10", "10", "10", "10", "11", "11", "11", "12", "12", "13", "13", "13", "14", "14"], mpConsume2 = ["24", "25", "27", "28", "30", "30", "32", "33", "35", "35", "37", "38", "39", "40", "42", "43", "44", "46", "48", "49", "51", "52", "53", "55"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }

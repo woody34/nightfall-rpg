@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "900", effectPoint = "-4200", effectRange = "1400", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1288", isMagic = "1", magicLvl = "68", mpConsume1 = "50", mpConsume2 = "200", operateType = "A1", reuseDelay = "300000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }
 

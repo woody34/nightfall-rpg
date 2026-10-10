@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = true
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "FORCE_MEDITATION", level = [1, 1, 1, 1, 1], time_s = [30, 30, 30, 30, 30], is_debuff = false }
 source_sets = { abnormalLvl = "1", abnormalTime = "30", abnormalType = "FORCE_MEDITATION", affectScope = "SINGLE", blockedInOlympiad = "true", effectPoint = "1", hitCancelTime = "500", hitTime = "2000", icon = "icon.skill1430", isMagic = "1", magicLvl = ["56", "60", "64", "68", "72"], mpConsume1 = ["6", "6", "6", "7", "7"], mpConsume2 = ["21", "22", "24", "26", "27"], operateType = "A2", reuseDelay = "900000", reuseDelayLock = "true", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }

@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "SPEED_UP_SPECIAL", level = [1, 2], time_s = [15, 15], is_debuff = false }
 source_sets = { abnormalLvl = ["1", "2"], abnormalTime = "15", abnormalType = "SPEED_UP_SPECIAL", affectScope = "SINGLE", effectPoint = ["204", "438"], hitCancelTime = "500", hitTime = "1000", icon = "icon.skill0004", magicLvl = ["20", "46"], mpConsume2 = ["10", "21"], operateType = "A2", reuseDelay = "30000", rideState = "NONE", targetType = "SELF" }

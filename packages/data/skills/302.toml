@@ -35,6 +35,12 @@ next_action_attack = true
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:Spoil"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectLimit = "9-10", affectObject = "NOT_FRIEND", affectRange = "200", affectScope = "RANGE", castRange = "40", effectPoint = ["-268", "-341", "-408", "-467", "-523", "-582", "-611", "-635", "-655"], effectRange = "400", hitCancelTime = "500", hitTime = "1800", icon = "icon.skill0302", magicLvl = ["28", "36", "43", "49", "55", "62", "66", "70", "74"], mpConsume2 = ["73", "93", "113", "131", "150", "172", "183", "194", "204"], nextActionAttack = "true", operateType = "A1", reuseDelay = "3000", rideState = "NONE", targetType = "ENEMY_ONLY" }
 

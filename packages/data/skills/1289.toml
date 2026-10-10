@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "FIRE", power = 20 }
 abnormal = { type = "DOT_ATTR", level = [10], time_s = [15], is_debuff = true, visual = "DOT_BLEEDING" }
 source_sets = { abnormalLvl = "10", abnormalTime = "15", abnormalType = "DOT_ATTR", abnormalVisualEffect = "DOT_BLEEDING", affectScope = "SINGLE", attributePower = "20", attributeType = "FIRE", castRange = "900", effectPoint = "-4200", effectRange = "1400", hitTime = "4000", icon = "icon.skill1289", isDebuff = "true", isMagic = "1", magicLvl = "70", mpConsume1 = "50", mpConsume2 = "200", operateType = "A2", reuseDelay = "300000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }

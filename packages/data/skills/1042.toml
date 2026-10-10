@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:target:race"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><target race=\"UNDEAD\" /></cond>"]
 attribute = { type = "HOLY", power = 20 }
 abnormal = { type = "PARALYZE", level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], time_s = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30], is_debuff = true, visual = "PARALYZE" }

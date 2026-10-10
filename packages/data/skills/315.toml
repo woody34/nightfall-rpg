@@ -32,6 +32,12 @@ next_action_attack = true
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:using:slot"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><and><using kind=\"SWORD,BLUNT\" /><using slot=\"lrhand\" /></and></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "40", coolTime = "1080", effectPoint = ["-425", "-431", "-438", "-444", "-449", "-455", "-460", "-466", "-471", "-475", "-480", "-484", "-488", "-492", "-496", "-499"], effectRange = "400", hitCancelTime = "500", hitTime = "1620", hpConsume = ["208", "212", "212", "217", "221", "225", "229", "233", "237", "240", "244", "248", "251", "255", "258", "261"], icon = "icon.skill0315", magicLvl = ["59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], nextActionAttack = "true", operateType = "A1", overHit = "true", reuseDelay = "7000", rideState = "NONE", targetType = "ENEMY" }

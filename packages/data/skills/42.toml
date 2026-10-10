@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:player:canSweep", "effect:ConsumeBody", "effect:Sweeper", "target:NPC_BODY"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond><player canSweep=\"true\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "20", effectRange = "400", hitCancelTime = "500", hitTime = "500", icon = "icon.skill0042", isMagic = "2", magicLvl = "10", mpConsume2 = "3", operateType = "A1", reuseDelay = "500", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "NPC_BODY" }

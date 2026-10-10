@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:target:race", "effect:Lethal", "effect:RunAway", "item_consume"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><target race=\"DIVINE\" /></cond>"]
 attribute = { type = "UNHOLY", power = 20 }
 source_sets = { affectScope = "SINGLE", attributePower = "20", attributeType = "UNHOLY", castRange = "150", effectPoint = ["-523", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], effectRange = "650", hitTime = "2000", icon = "icon.skill0450", itemConsumeCount = ["5", "6", "7", "7", "8", "8", "9", "9", "10", "10"], itemConsumeId = "1785", magicLvl = ["55", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume2 = ["50", "53", "55", "58", "59", "61", "63", "65", "67", "68"], operateType = "A1", reuseDelay = "4000", rideState = "NONE", targetType = "ENEMY" }

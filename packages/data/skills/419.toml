@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["cond:player:invSize", "cond:player:weight", "effect:RestorationRandom", "item_consume"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"129\"><and><player invSize=\"10\" /><player weight=\"80\" /></and></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", capsuled_items_skill = ["21746,1,100", "21746,1,50;21746,2,50", "21746,1,34;21746,2,33;21746,3,33", "21746,1,25;21746,2,25;21746,3,25;21746,4,25"], hitTime = "3000", icon = "icon.skill0419", itemConsumeCount = "2", itemConsumeId = "1661", magicLvl = ["46", "58", "66", "74"], mpConsume2 = ["122", "159", "183", "204"], operateType = "A1", reuseDelay = "600000", rideState = "NONE", targetType = "SELF" }

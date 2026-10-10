@@ -32,6 +32,12 @@ next_action_attack = true
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"DAGGER,DUALDAGGER\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "BLEEDING", level = [3, 4, 5, 6, 7, 8], time_s = [20, 20, 20, 20, 20, 20], is_debuff = true, visual = "DOT_BLEEDING" }

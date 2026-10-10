@@ -34,7 +34,13 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["filter:UNDEAD_REAL_ENEMY"]
+blockers = ["scope_filter:UNDEAD_REAL_ENEMY"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "PA_DOWN", level = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], time_s = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30], is_debuff = true }
 source_sets = { abnormalLvl = "3", abnormalTime = "30", abnormalType = "PA_DOWN", activateRate = "40", affectLimit = "10-10", affectObject = "UNDEAD_REAL_ENEMY", affectRange = "200", affectScope = "POINT_BLANK", basicProperty = "MEN", effectPoint = ["-495", "-523", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], hitCancelTime = "500", hitTime = "1500", icon = "icon.skill0097", isDebuff = "true", lvlBonusRate = "2", magicLvl = ["52", "55", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume2 = ["35", "38", "40", "42", "43", "45", "46", "48", "49", "50", "51"], operateType = "A2", reuseDelay = "2000", rideState = "NONE", targetType = "SELF" }

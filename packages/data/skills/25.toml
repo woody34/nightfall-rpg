@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:player:canSummon", "effect:Summon", "item_consume"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond><player canSummon=\"true\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", hitTime = "15000", icon = "icon.skill0025", itemConsumeCount = ["7", "11", "3", "1", "3", "2", "4", "3", "5"], itemConsumeId = ["1458", "1458", "1459", "1459", "1459", "1459", "1459", "1459", "1459"], magicLvl = ["28", "36", "43", "49", "55", "60", "64", "68", "72"], mpConsume2 = ["49", "62", "75", "88", "100", "110", "119", "126", "133"], operateType = "A1", reuseDelay = "5000", rideState = "NONE", targetType = "SELF" }

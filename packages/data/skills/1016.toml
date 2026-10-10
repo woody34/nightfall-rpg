@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond><player canResurrect=\"true\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", blockedInOlympiad = "true", castRange = "400", effectPoint = ["121", "196", "290", "374", "460", "502", "542", "595", "624"], effectRange = "900", hitCancelTime = "500", hitTime = "6000", icon = "icon.skill1016", isMagic = "1", magicLvl = ["20", "30", "40", "48", "56", "60", "64", "70", "74"], mpConsume1 = ["12", "18", "25", "31", "36", "39", "42", "46", "48"], mpConsume2 = ["47", "70", "97", "121", "144", "156", "165", "182", "191"], operateType = "A1", reuseDelay = "30000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "PC_BODY" }

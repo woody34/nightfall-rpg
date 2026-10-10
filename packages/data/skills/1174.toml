@@ -34,6 +34,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["scope:FAN"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "WATER", power = 20 }
 source_sets = { affectLimit = "5-12", affectObject = "NOT_FRIEND", affectScope = "FAN", attributePower = "20", attributeType = "WATER", castRange = "40", effectPoint = ["-286", "-297", "-309", "-319", "-325", "-330", "-335", "-340", "-345", "-349", "-354", "-358", "-363", "-367", "-371", "-374", "-378", "-381", "-385", "-388", "-390", "-393"], effectRange = "400", fanRange = "0,0,200,180", hitCancelTime = "500", hitTime = "3000", icon = "icon.skill1174", isMagic = "1", magicLvl = ["50", "52", "54", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume1 = ["14", "14", "15", "16", "16", "16", "17", "17", "17", "18", "18", "18", "18", "19", "19", "19", "20", "20", "20", "20", "21", "21"], mpConsume2 = ["54", "56", "59", "61", "63", "64", "65", "66", "68", "69", "70", "71", "72", "74", "75", "76", "77", "78", "79", "80", "81", "82"], operateType = "A1", reuseDelay = "4000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }
 

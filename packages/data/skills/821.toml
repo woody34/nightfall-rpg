@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["effect:TargetCancel", "effect:TeleportToTarget"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "600", coolTime = "200", effectPoint = "-1", effectRange = "1100", hitTime = "100", icon = "icon.skill0821", magicLvl = "40", mpConsume2 = "50", operateType = "A1", reuseDelay = "75000", rideState = "NONE", targetType = "ENEMY" }
 

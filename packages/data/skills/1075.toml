@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["effect:DeleteHate"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "600", effectRange = "1100", hitTime = "4000", icon = "icon.skill1075", isMagic = "1", mpConsume2 = ["24", "28", "31", "35", "38", "41", "43", "44", "46", "48", "49", "51", "52", "53", "55"], operateType = "A1", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY_ONLY", trait = "DERANGEMENT" }
 

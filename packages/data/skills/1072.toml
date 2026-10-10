@@ -35,6 +35,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = true
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "SLEEP", level = [1, 1, 1, 1, 1], time_s = [30, 30, 30, 30, 30], is_debuff = true, visual = "SLEEP" }
 source_sets = { abnormalLvl = "1", abnormalTime = "30", abnormalType = "SLEEP", abnormalVisualEffect = "SLEEP", activateRate = "40", affectLimit = "9-10", affectObject = "NOT_FRIEND", affectRange = "200", affectScope = "RANGE", basicProperty = "MEN", castRange = "500", effectPoint = ["-418", "-532", "-582", "-611", "-635"], effectRange = "1000", hitCancelTime = "500", hitTime = "15000", icon = "icon.skill1072", isDebuff = "true", isMagic = "1", lvlBonusRate = "2", magicLvl = ["44", "56", "62", "66", "70"], mpConsume1 = ["12", "16", "18", "19", "20"], mpConsume2 = ["47", "61", "69", "74", "78"], operateType = "A2", reuseDelay = "8000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY_ONLY", trait = "SLEEP" }

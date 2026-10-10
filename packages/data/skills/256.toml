@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:ConsumeMpByLevel", "operate:T"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "NONE", level = [0], time_s = [0], is_debuff = false, visual = "NONE" }
 source_sets = { abnormalVisualEffect = "NONE", icon = "icon.skill0256", magicLvl = "24", mpConsume1 = "5", operateType = "T", rideState = "NONE", targetType = "SELF" }

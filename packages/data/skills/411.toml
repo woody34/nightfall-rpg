@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:SilentMove"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "STEALTH", level = [1, 2, 3], time_s = [120, 120, 120], is_debuff = false, visual = "STEALTH" }
 source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "120", abnormalType = "STEALTH", abnormalVisualEffect = "STEALTH", affectScope = "SINGLE", effectPoint = ["549", "611", "655"], hitTime = "2000", icon = "icon.skill0411", magicLvl = ["58", "66", "74"], mpConsume2 = ["27", "31", "34"], operateType = "A2", reuseDelay = "4000", rideState = "NONE", targetType = "SELF" }

@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:player:canSummon", "effect:Summon", "item_consume"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond><player canSummon=\"true\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", hitCancelTime = "500", hitTime = ["15000", "15000", "15000", "15000", "6000", "6000", "6000", "6000", "6000", "6000", "6000", "6000", "6000", "6000", "6000", "6000", "6000", "6000"], icon = "icon.skill1227", isMagic = "1", itemConsumeCount = "1", itemConsumeId = "3031", magicLvl = ["20", "25", "30", "35", "40", "44", "48", "52", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["8", "9", "11", "12", "14", "16", "18", "19", "21", "22", "22", "23", "24", "25", "26", "26", "27", "28"], mpConsume2 = ["31", "35", "42", "48", "56", "62", "69", "75", "82", "85", "88", "92", "95", "98", "101", "104", "106", "109"], operateType = "A1", reuseDelay = ["5400000", "5400000", "5400000", "5400000", "5000", "5000", "5000", "5000", "5000", "5000", "5000", "5000", "5000", "5000", "5000", "5000", "5000", "5000"], rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }

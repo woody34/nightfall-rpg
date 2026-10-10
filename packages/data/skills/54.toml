@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:EnergyAttack"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"DUALFIST\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "600", chargeConsume = "1", effectPoint = ["-130", "-134", "-139", "-149", "-154", "-159", "-169", "-175", "-180", "-191", "-197", "-202", "-213", "-219", "-225", "-231", "-237", "-242", "-248", "-254", "-260", "-265", "-271", "-277", "-283", "-288", "-294", "-299", "-305", "-310", "-316", "-321", "-326", "-331", "-336", "-340", "-345", "-350", "-354", "-358", "-362", "-366", "-370", "-373", "-377", "-380", "-383", "-386", "-388"], effectRange = "1100", hitCancelTime = "500", hitTime = "1900", icon = "icon.skill0054", magicLvl = ["22", "23", "24", "26", "27", "28", "30", "31", "32", "34", "35", "36", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume2 = ["17", "18", "19", "20", "21", "22", "23", "23", "24", "26", "27", "28", "30", "31", "31", "31", "32", "33", "34", "35", "36", "37", "38", "40", "41", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "50", "51", "52", "53", "54", "55", "56", "56", "57", "58", "59", "60", "61", "61"], operateType = "A1", overHit = "true", reuseDelay = "4000", rideState = "NONE", targetType = "ENEMY" }

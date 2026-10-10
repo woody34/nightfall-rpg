@@ -35,6 +35,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "FIRE", power = 20 }
 source_sets = { affectLimit = "6-12", affectObject = "NOT_FRIEND", affectRange = "200", affectScope = "POINT_BLANK", attributePower = "20", attributeType = "FIRE", effectPoint = ["-180", "-190", "-200", "-209", "-219", "-229", "-239", "-248", "-257", "-266", "-275", "-283", "-291", "-299", "-306", "-312", "-318", "-323", "-328"], hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1171", isMagic = "1", magicLvl = ["38", "40", "42", "44", "46", "48", "50", "52", "54", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["10", "11", "11", "12", "13", "13", "14", "14", "15", "16", "16", "17", "18", "18", "19", "19", "20", "20", "21"], mpConsume2 = ["40", "42", "44", "47", "49", "52", "54", "56", "59", "61", "64", "66", "69", "71", "74", "76", "78", "80", "82"], operateType = "A1", reuseDelay = "4000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 

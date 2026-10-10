@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["effect:MagicalAttackMp"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "DOT_MP", level = [3, 4, 5, 6, 7, 8], time_s = [15, 15, 15, 15, 15, 15], is_debuff = true, visual = "DOT_BLEEDING" }
 source_sets = { abnormalLvl = ["3", "4", "5", "6", "7", "8"], abnormalTime = "15", abnormalType = "DOT_MP", abnormalVisualEffect = "DOT_BLEEDING", activateRate = "80", affectScope = "SINGLE", basicProperty = "MEN", castRange = "600", effectPoint = ["-243", "-331", "-418", "-495", "-597", "-635"], effectRange = "1100", hitTime = "4000", icon = "icon.skill1102", isDebuff = "true", isMagic = "1", lvlBonusRate = "2", magicLvl = ["25", "35", "44", "52", "64", "70"], mpConsume1 = ["7", "9", "12", "15", "18", "20"], mpConsume2 = ["27", "36", "47", "55", "71", "78"], operateType = "A2", reuseDelay = "3000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY_ONLY" }

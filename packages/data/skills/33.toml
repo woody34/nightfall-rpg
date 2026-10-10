@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:SummonCubic", "item_consume"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", hitCancelTime = "500", hitTime = "6000", icon = "icon.skill0033", isMagic = "1", itemConsumeCount = ["2", "2", "3", "3", "4", "5", "5", "6"], itemConsumeId = "3031", magicLvl = ["40", "46", "52", "58", "62", "66", "70", "74"], mpConsume1 = ["7", "9", "10", "11", "12", "13", "13", "14"], mpConsume2 = ["28", "33", "38", "43", "46", "49", "52", "55"], operateType = "A1", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 

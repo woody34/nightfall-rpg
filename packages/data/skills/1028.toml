@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:target:race"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><target race=\"UNDEAD\" /></cond>"]
 attribute = { type = "HOLY", power = 20 }
 source_sets = { affectScope = "SINGLE", attributePower = "20", attributeType = "HOLY", castRange = "400", effectPoint = ["-360", "-379", "-399", "-418", "-438", "-457", "-477", "-495", "-514", "-532", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], effectRange = "900", hitCancelTime = "500", hitTime = "2500", icon = "icon.skill1028", isMagic = "1", magicLvl = ["38", "40", "42", "44", "46", "48", "50", "52", "54", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["7", "7", "8", "8", "9", "9", "9", "10", "10", "11", "11", "11", "12", "12", "13", "13", "13", "14", "14"], mpConsume2 = ["27", "28", "30", "31", "33", "35", "36", "38", "39", "41", "43", "44", "46", "48", "49", "51", "52", "53", "55"], operateType = "A1", reuseDelay = "1000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }

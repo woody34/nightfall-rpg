@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["stat:vengeanceMdam"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"SHIELD\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "REFLECT_MAGIC_DD", level = [1, 1, 1, 1], time_s = [8, 8, 8, 8], is_debuff = false }

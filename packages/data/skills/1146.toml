@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["target:SUMMON"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "PA_UP", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
 source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "PA_UP", affectScope = "SINGLE", castRange = "400", effectPoint = ["331", "457", "532"], effectRange = "900", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1146", isMagic = "1", magicLvl = ["35", "48", "56"], mpConsume1 = ["6", "10", "12"], mpConsume2 = ["24", "36", "42"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SUMMON" }

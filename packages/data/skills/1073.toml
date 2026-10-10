@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["stat:breath"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "MAX_BREATH_UP", level = [2, 3], time_s = [1200, 1200], is_debuff = false }
 source_sets = { abnormalLvl = ["2", "3"], abnormalTime = "1200", abnormalType = "MAX_BREATH_UP", affectScope = "SINGLE", castRange = "400", effectPoint = ["121", "417"], effectRange = "900", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1073", isMagic = "1", magicLvl = ["20", "52"], mpConsume1 = ["4", "10"], mpConsume2 = ["16", "38"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }

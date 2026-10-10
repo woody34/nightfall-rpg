@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "ROOT_PHYSICALLY", level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], time_s = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10], is_debuff = true, visual = "ROOT" }
 source_sets = { abnormalLvl = "1", abnormalTime = "10", abnormalType = "ROOT_PHYSICALLY", abnormalVisualEffect = "ROOT", activateRate = "80", affectScope = "SINGLE", basicProperty = "MEN", castRange = "150", effectPoint = ["-1046", "-1098", "-1132", "-1163", "-1193", "-1221", "-1247", "-1270", "-1291", "-1309"], effectRange = "650", hitTime = "2000", icon = "icon.skill0402", isDebuff = "true", lvlBonusRate = "2", magicLvl = ["55", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume2 = ["25", "27", "28", "29", "30", "31", "32", "33", "34", "34"], operateType = "A2", reuseDelay = "4000", rideState = "NONE", targetType = "ENEMY_ONLY", trait = "HOLD" }

@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["item_consume"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "600", effectPoint = ["403", "421", "439", "457", "474", "490", "506", "520", "534", "546", "546"], effectRange = "1100", hitCancelTime = "500", hitTime = "5000", icon = "icon.skill1401", isMagic = "1", itemConsumeCount = "1", itemConsumeId = "3031", magicLvl = ["56", "58", "60", "62", "64", "66", "68", "70", "72", "74", "75"], mpConsume1 = ["12", "13", "13", "14", "14", "15", "15", "16", "16", "16", "16"], mpConsume2 = ["48", "51", "52", "53", "55", "57", "59", "61", "62", "64", "64"], operateType = "A1", reuseDelay = "1000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }
 

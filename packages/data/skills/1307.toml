@@ -33,7 +33,13 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["scope:PARTY", "stat:healEffect"]
+blockers = ["scope:PARTY", "scope_filter:FRIEND", "stat:healEffect"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "HEAL_EFFECT_UP", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
 source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "HEAL_EFFECT_UP", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["611", "635", "655"], hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1307", isMagic = "1", magicLvl = ["66", "70", "74"], mpConsume1 = ["49", "52", "55"], mpConsume2 = ["195", "207", "217"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }

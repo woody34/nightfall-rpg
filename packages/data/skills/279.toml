@@ -32,6 +32,12 @@ next_action_attack = true
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:CallSkill", "section:endEffects"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "PARALYZE", level = [1, 1, 1, 1, 1], time_s = [15, 15, 15, 15, 15], is_debuff = true }
 source_sets = { abnormalLvl = "1", abnormalTime = "15", abnormalType = "PARALYZE", activateRate = "40", affectScope = "SINGLE", basicProperty = "MEN", castRange = "400", effectPoint = ["-828", "-877", "-921", "-958", "-987"], effectRange = "900", hitCancelTime = "500", hitTime = "3000", icon = "icon.skill0279", isDebuff = "true", isMagic = "1", lvlBonusRate = "1", magicLvl = ["58", "62", "66", "70", "74"], mpConsume1 = ["16", "18", "19", "20", "21"], mpConsume2 = ["64", "69", "74", "78", "82"], nextActionAttack = "true", operateType = "A2", reuseDelay = "15000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY", trait = "PARALYZE" }

@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:MagicalAttackMp"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "900", effectPoint = ["-532", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], effectRange = "1400", hitTime = "4000", icon = "icon.skill1398", isMagic = "1", magicLvl = ["56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume2 = ["77", "80", "83", "87", "89", "93", "95", "98", "100", "103"], operateType = "A1", reuseDelay = "8000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY_ONLY" }
 

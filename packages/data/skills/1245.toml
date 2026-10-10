@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:HpDrain"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "900", effectPoint = ["-379", "-418", "-457", "-495", "-532", "-549", "-566", "-582", "-597", "-611", "-624", "-635", "-646", "-655"], effectRange = "1400", hitTime = "4000", icon = "icon.skill1245", isMagic = "1", magicLvl = ["40", "44", "48", "52", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["18", "20", "22", "24", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35"], mpConsume2 = ["74", "80", "90", "98", "107", "111", "116", "120", "124", "128", "132", "136", "139", "142"], operateType = "A1", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }
 

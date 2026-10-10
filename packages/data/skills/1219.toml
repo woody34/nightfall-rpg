@@ -33,7 +33,13 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["scope:PARTY"]
+blockers = ["scope:PARTY", "scope_filter:FRIEND"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "LIFE_FORCE_OTHERS", level = [1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5], time_s = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15], is_debuff = false }
 source_sets = { abnormalLvl = ["1", "1", "1", "2", "2", "2", "2", "2", "3", "3", "3", "3", "3", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "4", "5", "5", "5", "5", "5", "5", "5"], abnormalTime = "15", abnormalType = "LIFE_FORCE_OTHERS", activateRate = "0", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["202", "210", "217", "233", "241", "248", "264", "272", "281", "297", "305", "313", "329", "337", "345", "353", "361", "369", "377", "384", "392", "399", "406", "413", "420", "427", "434", "440", "446", "452", "458", "463", "468"], hitCancelTime = "500", hitTime = "7000", icon = "icon.skill1219", isMagic = "1", magicLvl = ["38", "39", "40", "42", "43", "44", "46", "47", "48", "50", "51", "52", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume1 = ["23", "24", "25", "26", "26", "27", "29", "30", "31", "32", "32", "33", "35", "36", "36", "37", "38", "39", "39", "39", "40", "41", "42", "42", "43", "44", "45", "45", "46", "46", "47", "48", "48"], mpConsume2 = ["92", "95", "97", "101", "104", "107", "114", "118", "121", "127", "127", "131", "138", "141", "144", "148", "151", "154", "156", "156", "159", "162", "165", "168", "171", "174", "177", "179", "182", "184", "186", "189", "191"], operateType = "A2", reuseDelay = "6000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }

@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:player:hp", "stat:healEffect"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><player hp=\"30\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "PD_UP_SPECIAL", level = [1, 2, 3], time_s = [60, 60, 60], is_debuff = false }

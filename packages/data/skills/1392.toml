@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "ARMOR_HOLY", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
 source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "ARMOR_HOLY", affectScope = "SINGLE", castRange = "400", effectPoint = ["549", "611", "655"], effectRange = "900", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1392", isMagic = "1", magicLvl = ["58", "66", "74"], mpConsume1 = ["11", "13", "14"], mpConsume2 = ["43", "49", "55"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }

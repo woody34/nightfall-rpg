@@ -14,7 +14,7 @@ All skill definitions are extracted by `packages/data/scripts/gen_skills.py` fro
 ## 2. Design Principles & Numeric Representation
 
 - **One file per skill:** Located at `packages/data/skills/<id>.toml` where `<id>` is the integer skill ID.
-- **Strictly No Floats:** All numbers in skill definitions are integers or exact decimal strings (e.g. `"1.08"`, `"0.91"`, `"0.772184315"`). No binary floating point types are permitted, eliminating float rounding ambiguities.
+- **Strictly No Floats:** All numbers in skill definitions are integers or exact decimal strings (e.g. `"1.08"`, `"0.91"`, `"0.772184315"`). No binary floating point types are serialized; source IEEE rounding sites are explicitly modeled in the independent oracle.
 - **Deterministic Array Length:** Per-level arrays (`mp_consume_start`, `mp_consume_end`, `hp_consume`, `magic_level`, `effect_point`, abnormal `level`, abnormal `time_s`, and stat child `value`) always have length exactly equal to `max_level`.
 - **Computed Runtime Status:** `runtime_status` is strictly computed by the generator, never hand-edited. A skill is `"executable"` if and only if its `blockers` array is empty. Otherwise, `runtime_status` is `"deferred"` and all blocking capabilities are recorded in `blockers`.
 
@@ -203,7 +203,7 @@ stat_children = []
   - `op` (string): `"mul"`, `"add"`, `"sub"` are executable; all other imported operations are deferred.
   - `stat` (string): Target stat identifier (e.g. `"pDef"`, `"runSpd"`).
   - `value` (array of exact decimal strings, length `max_level`): Per-level modifier values.
-  - `order` (integer, optional): Explicit priority order override (default: SET=0, base=1, MUL/DIV=20, ADD/SUB=30). Note: `MaxHp`, `MaxMp`, and `MaxCp` handlers install at order 1 per source.
+  - `order` (integer or per-level integer array, optional): Explicit priority order override (default: SET=0, base=1, MUL/DIV=20, ADD/SUB=30). Note: `MaxHp`, `MaxMp`, and `MaxCp` handlers install at order 1 per source.
 
 ## 4. Capability Rules & Executability Whitelist
 
@@ -260,6 +260,10 @@ The generator admits only known parameter names and values, expanding table-back
 | DefenceTrait / AttackTrait | TraitType names, finite decimal values | pump/DefenceTrait.java:52–55; AttackTrait.java:51–54; game model/stats/TraitType.java:26–74 |
 | Buff / Debuff / Passive / Stun / Sleep / Root / GetAgro | no parameters | respective pinned handler constructors |
 
-Scope filters admit FRIEND and NOT_FRIEND. INVISIBLE (stealth requirement), UNDEAD_REAL_ENEMY (race requirement), and unknown filters produce `filter:<name>` and defer the skill. Unknown condition leaves anywhere defer with `cond:<tag>:<attribute names>`. `div/set/share` are preserved but deferred. Referenced-skill blockers propagate to a fixed point.
+Scope filters admit ALL (also the source default when absent) and NOT_FRIEND. FRIEND stays deferred until the engine implements its predicate. INVISIBLE (stealth requirement), UNDEAD_REAL_ENEMY (race requirement), and unknown filters produce `scope_filter:<name>` and defer the skill. Unknown condition leaves anywhere defer with `cond:<tag>:<attribute names>`. `div/set/share` are preserved but deferred. Referenced-skill blockers propagate to a fixed point.
 
 Every generated skill is parsed with `tomllib` and checked for structural equality before write or `--check`. Corpus tests load all 389 committed definitions, verify all table-backed source sets, and recheck every executable effect/stat condition against the manifest.
+
+Lifecycle fields use pinned Skill.java semantics: `stay_after_death=false` (231), `stay_on_subclass_change=true` (232), `irreplaceable_buff=false` (300), and `abnormal_instant=false` (228) unless overridden by XML. `removed_on_damage` is derived from abnormal types SLEEP/FORCE_MEDITATION/HIDE (486–487); `removed_on_action_except_move` from INVINCIBILITY/HIDE (479–480). These are scalars or rank arrays when table-backed. Complete source sets remain available for auditing execution-affecting fields; consumers must not treat an unimplemented source requirement as implemented merely because it was retained.
+
+TickHp oracle evidence explicitly separates `source_fractional_result` (pinned binary64 state arithmetic) from `rounded_result` and `pulse_trace` (D-R12 whole damage and Q restoration). Binary32 multiplier rounding uses an integer nearest/ties-even significand adapter, independently checked against Python's standard-library `struct` IEEE encoding in tests. For ticks=5 the exact multiplier is `1745879/524288`; power100 restores332 whole HP with999992 Q remainder. DoT whole conversion occurs before CP/HP subtraction; restoration/regen fractions persist until death or full clamp.

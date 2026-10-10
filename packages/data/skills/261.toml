@@ -32,6 +32,12 @@ next_action_attack = true
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:player:Charges", "effect:EnergyAttack"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><and><using kind=\"DUAL\" /><player Charges=\"4\" /></and></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "40", chargeConsume = "4", coolTime = "133", effectPoint = ["-598", "-609", "-620", "-631", "-641", "-651", "-661", "-671", "-680", "-690", "-699", "-708", "-716", "-724", "-732", "-739", "-746", "-753", "-759", "-765", "-771", "-776"], effectRange = "400", hitCancelTime = "500", hitTime = "1667", icon = "icon.skill0261", magicLvl = ["53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume2 = ["103", "105", "108", "110", "113", "115", "118", "120", "121", "123", "125", "128", "130", "132", "134", "136", "139", "141", "143", "145", "146", "148"], nextActionAttack = "true", operateType = "A1", overHit = "true", reuseDelay = "5000", rideState = "NONE", targetType = "ENEMY" }

@@ -130,7 +130,7 @@ def get_referenced_skills(skill_elem: ET.Element, tables: dict[str, list[str]]) 
 
 def is_cond_allowed(elem: ET.Element) -> bool:
     if elem.tag in ("and", "or", "not"):
-        return all(is_cond_allowed(child) for child in elem)
+        return not elem.attrib and all(is_cond_allowed(child) for child in elem)
     if elem.tag == "using":
         return set(elem.attrib.keys()) == {"kind"}
     if elem.tag == "player":
@@ -163,6 +163,8 @@ def get_cond_blockers(cond_elem: ET.Element) -> set[str]:
 
     def walk(e: ET.Element) -> None:
         if e.tag in ("and", "or", "not", "cond"):
+            if e.tag != "cond" and e.attrib:
+                blockers.add(f"cond:{cond_sig(e)}")
             for c in e:
                 walk(c)
         elif not is_cond_allowed(e):
@@ -179,7 +181,10 @@ def parse_cond_node(elem: ET.Element) -> dict:
     elif elem.tag == "player" and is_cond_allowed(elem):
         return {"kind": "player_can_resurrect", "value": elem.attrib["canResurrect"] == "true"}
     elif elem.tag in ("and", "or", "not"):
-        return {"kind": elem.tag, "conditions": [parse_cond_node(c) for c in elem]}
+        node = {"kind": elem.tag, "conditions": [parse_cond_node(c) for c in elem]}
+        if elem.attrib:
+            node["attrs"] = dict(elem.attrib)
+        return node
     else:
         return {"kind": "unsupported", "tag": elem.tag, "attrs": dict(elem.attrib)}
 
@@ -240,7 +245,7 @@ def effect_params(eff: ET.Element) -> dict[str, str]:
 # Capability manifest, based on the pinned handler constructors (see README).
 ALLOWED_STAT_OPS = {"mul", "add", "sub"}
 ALL_STAT_OPS = ALLOWED_STAT_OPS | {"div", "set", "share"}
-ALLOWED_AFFECT_OBJECTS = {"FRIEND", "NOT_FRIEND"}
+ALLOWED_AFFECT_OBJECTS = {"ALL", "NOT_FRIEND"}
 TRAITS = set("NONE SWORD BLUNT DAGGER POLE FIST BOW ETC UNK_8 POISON HOLD BLEED SLEEP SHOCK DERANGEMENT BUG_WEAKNESS ANIMAL_WEAKNESS PLANT_WEAKNESS BEAST_WEAKNESS DRAGON_WEAKNESS PARALYZE DUAL DUALFIST BOSS GIANT_WEAKNESS CONSTRUCT_WEAKNESS DEATH VALAKAS ANESTHESIA CRITICAL_POISON ROOT_PHYSICALLY ROOT_MAGICALLY RAPIER CROSSBOW ANCIENTSWORD TURN_STONE GUST PHYSICAL_BLOCKADE TARGET PHYSICAL_WEAKNESS MAGICAL_WEAKNESS DUALDAGGER DEMONIC_WEAKNESS DIVINE_WEAKNESS ELEMENTAL_WEAKNESS FAIRY_WEAKNESS HUMAN_WEAKNESS HUMANOID_WEAKNESS UNDEAD_WEAKNESS".split())
 EFFECT_PARAMS = {
     "PhysicalAttack": {"power": "number", "criticalChance": "int", "ignoreShieldDefence": "bool"},
@@ -272,7 +277,7 @@ def param_allowed(value: str, rule) -> bool:
         return bool(re.fullmatch(r"[+-]?\d+", value)) and (rule != "positive_int" or int(value) > 0)
     if rule == "number":
         try:
-            return Decimal(value).is_finite()
+            return bool(re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", value)) and Decimal(value).is_finite()
         except InvalidOperation:
             return False
     if rule == "dispel":
@@ -362,7 +367,7 @@ def compute_all_blockers(
         if affect_object is not None:
             for value in affect_object if isinstance(affect_object, list) else [affect_object]:
                 if value not in ALLOWED_AFFECT_OBJECTS:
-                    blockers.add(f"filter:{value}")
+                    blockers.add(f"scope_filter:{value}")
 
         for child in s:
             if child.tag.endswith("ffects") and not child.tag.startswith("enchant"):
@@ -482,6 +487,17 @@ def generate_skill_toml(
                  "next_action_attack": field("nextActionAttack", "false", boolean),
                  "has_enchant_routes": any(k.startswith("enchantGroup") for k in s.attrib),
                  "runtime_status": "deferred" if blockers else "executable", "blockers": sorted(blockers)})
+    # Skill.java:231-232,300 and 479-487. Damage/action flags are derived
+    # from abnormalType, not XML bool attributes. Keep source rank semantics.
+    for source_key, output_key, default in [
+        ("stayAfterDeath", "stay_after_death", "false"),
+        ("stayOnSubclassChange", "stay_on_subclass_change", "true"),
+        ("irreplaceableBuff", "irreplaceable_buff", "false"),
+        ("abnormalInstant", "abnormal_instant", "false"),
+    ]:
+        data[output_key] = field(source_key, default, boolean)
+    data["removed_on_damage"] = field("abnormalType", "NONE", lambda v: v in {"SLEEP", "FORCE_MEDITATION", "HIDE"})
+    data["removed_on_action_except_move"] = field("abnormalType", "NONE", lambda v: v in {"INVINCIBILITY", "HIDE"})
     if is_sample_only:
         data["sample_only"] = True
     data.update(conditions(s))
@@ -513,7 +529,7 @@ def generate_skill_toml(
                     if ch.tag in ALL_STAT_OPS:
                         stat = {"op": ch.tag, "stat": ch.get("stat", ""), "value": resolved(ch.get("val", ""), force_array=True)}
                         if "order" in ch.attrib:
-                            stat["order"] = int(ch.attrib["order"])
+                            stat["order"] = resolved(ch.attrib["order"], int)
                         stat.update(conditions(ch))
                         stats.append(stat)
                 entry["stat_children"] = stats
@@ -648,4 +664,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SourceError as err:
+        print(f"gen_skills: {err}", file=sys.stderr)
+        sys.exit(2)

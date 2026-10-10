@@ -77,6 +77,18 @@ class GeneratedCorpusTests(unittest.TestCase):
         self.assertEqual(skill['effect_range'], [900] * 12 + [1100] * 21 + [1300] * 16)
         self.assertEqual(skill['runtime_status'], 'deferred')
 
+    def test_lifecycle_flags_match_pinned_source_defaults(self):
+        for sid, parsed in self.files.items():
+            sets = parsed['source_sets']
+            for source_key, key, default in [('stayAfterDeath', 'stay_after_death', False),
+                                              ('stayOnSubclassChange', 'stay_on_subclass_change', True),
+                                              ('irreplaceableBuff', 'irreplaceable_buff', False),
+                                              ('abnormalInstant', 'abnormal_instant', False)]:
+                self.assertEqual(parsed[key], sets[source_key].lower() == 'true' if source_key in sets else default, (sid, key))
+            abnormal = sets.get('abnormalType', 'NONE')
+            self.assertEqual(parsed['removed_on_damage'], abnormal in {'SLEEP', 'FORCE_MEDITATION', 'HIDE'})
+            self.assertEqual(parsed['removed_on_action_except_move'], abnormal in {'INVINCIBILITY', 'HIDE'})
+
     def test_source_defaults_and_locked_reuse(self):
         skill = self.files[1430]
         self.assertTrue(skill['reuse_delay_lock'])
@@ -110,6 +122,13 @@ class SyntheticAdmissionTests(unittest.TestCase):
         self.assertIn('[[conditions.conditions.conditions.conditions]]', out)
         self.assertIn('cond:player:hp,mystery', parsed['blockers'])
 
+    def test_boolean_wrapper_attributes_are_preserved_and_deferred(self):
+        elem = self.skill('<cond><and mystery="1"><using kind="SWORD"/></and></cond>')
+        blockers = self.blockers(elem)
+        self.assertIn('cond:and:mystery', blockers)
+        out = tomllib.loads(GEN.generate_skill_toml(9999, 'probe.xml', elem, blockers))
+        self.assertEqual(out['conditions'][0]['attrs'], {'mystery': '1'})
+
     def test_effect_stat_and_section_conditions_all_block(self):
         for body in ['<effects><effect name="Buff"><cond><player moving="true"/></cond></effect></effects>',
                      '<effects><effect name="Buff"><add stat="regMp" val="1"><cond><player moving="true"/>'
@@ -124,13 +143,28 @@ class SyntheticAdmissionTests(unittest.TestCase):
         elem = self.skill('<set name="affectObject" val="MYSTERY"/><effects><effect name="TickHp">'
                           '<param power="not-a-number" ticks="0" mode="BROKEN" mystery="1"/></effect>'
                           '<effect name="Buff"><div stat="pAtk" val="2"/></effect></effects>')
-        self.assertEqual(self.blockers(elem), {'filter:MYSTERY', 'param:TickHp.mode', 'param:TickHp.mystery',
+        self.assertEqual(self.blockers(elem), {'scope_filter:MYSTERY', 'param:TickHp.mode', 'param:TickHp.mystery',
                                               'param:TickHp.power', 'param:TickHp.ticks', 'op:div'})
         for op in ['set', 'share']:
             self.assertIn('op:' + op, self.blockers(self.skill(f'<effects><effect name="Buff"><{op} stat="pAtk" val="1"/>'
                                                             '</effect></effects>')))
         elem = self.skill('<effects><effect name="PhysicalAttack"><param ignoreShieldDefence="MAYBE"/></effect></effects>')
         self.assertIn('param:PhysicalAttack.ignoreShieldDefence', self.blockers(elem))
+        for value in ['NaN', 'Infinity', '1_0']:
+            self.assertFalse(GEN.param_allowed(value, 'number'))
+
+    def test_scope_filter_admission_is_explicit(self):
+        for value in ['NOT_FRIEND', 'ALL']:
+            self.assertNotIn('scope_filter:' + value, self.blockers(self.skill(f'<set name="affectObject" val="{value}"/>')))
+        for value in ['FRIEND', 'INVISIBLE', 'UNDEAD_REAL_ENEMY', 'MYSTERY']:
+            self.assertIn('scope_filter:' + value, self.blockers(self.skill(f'<set name="affectObject" val="{value}"/>')))
+
+    def test_explicit_order_can_be_rank_table_or_literal(self):
+        for value, expected in [('#orders', [20, 64]), ('64', 64)]:
+            elem = self.skill(f'<table name="#orders">20 64</table><effects><effect name="Buff">'
+                              f'<add stat="pAtk" val="1" order="{value}"/></effect></effects>')
+            parsed = tomllib.loads(GEN.generate_skill_toml(9999, 'probe.xml', elem, self.blockers(elem)))
+            self.assertEqual(parsed['effects'][0]['stat_children'][0]['order'], expected)
 
     def test_every_numeric_and_string_table_expands(self):
         numeric = ['castRange', 'effectRange', 'affectRange', 'hitTime', 'coolTime', 'reuseDelay', 'hitCancelTime',

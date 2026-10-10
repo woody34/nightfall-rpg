@@ -33,7 +33,13 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["scope:PARTY"]
+blockers = ["scope:PARTY", "scope_filter:FRIEND"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "LIFE_FORCE_ORC", level = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], time_s = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15], is_debuff = false }
 source_sets = { abnormalLvl = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"], abnormalTime = "15", abnormalType = "LIFE_FORCE_ORC", affectObject = "FRIEND", affectRange = "1000", affectScope = "PARTY", effectPoint = ["204", "243", "285", "331", "379", "418", "457", "495", "532", "549", "566", "582", "597", "611", "624", "635", "646", "655"], hitCancelTime = "500", hitTime = "7000", icon = "icon.skill1229", isMagic = "1", magicLvl = ["20", "25", "30", "35", "40", "44", "48", "52", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["12", "15", "18", "21", "25", "27", "31", "33", "36", "38", "39", "40", "42", "43", "45", "46", "47", "48"], mpConsume2 = ["47", "57", "70", "82", "97", "107", "121", "131", "144", "151", "156", "159", "165", "171", "177", "182", "186", "191"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }

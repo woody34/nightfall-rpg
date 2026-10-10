@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "WATER", power = 20 }
 abnormal = { type = "SPEED_DOWN", level = [3], time_s = [30], is_debuff = true }
 source_sets = { abnormalLvl = "3", abnormalTime = "30", abnormalType = "SPEED_DOWN", activateRate = "40", affectScope = "SINGLE", attributePower = "20", attributeType = "WATER", basicProperty = "MEN", castRange = "900", effectPoint = "-4200", effectRange = "1400", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1290", isDebuff = "true", isMagic = "1", lvlBonusRate = "1", magicLvl = "70", mpConsume1 = "50", mpConsume2 = "200", operateType = "A2", reuseDelay = "300000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }

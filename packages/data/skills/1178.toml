@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "WIND", power = 20 }
 source_sets = { affectScope = "SINGLE", attributePower = "20", attributeType = "WIND", castRange = "750", effectPoint = ["-182", "-204", "-227", "-243", "-268", "-285", "-313", "-331"], effectRange = "1250", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1178", isMagic = "1", magicLvl = ["17", "20", "23", "25", "28", "30", "33", "35"], mpConsume1 = ["4", "4", "5", "5", "5", "6", "6", "6"], mpConsume2 = ["14", "16", "17", "18", "20", "21", "23", "24"], operateType = "A1", reuseDelay = "1200", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }
 

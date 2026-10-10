@@ -34,6 +34,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["scope:FAN"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"POLE\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectLimit = "5-12", affectObject = "NOT_FRIEND", affectScope = "FAN", castRange = "40", coolTime = "720", effectPoint = ["-307", "-311", "-314", "-317", "-320", "-323", "-326", "-328", "-331", "-333"], effectRange = "400", fanRange = "0,0,80,150", hitCancelTime = "500", hitTime = "1080", icon = "icon.skill0320", magicLvl = ["65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume2 = ["66", "67", "68", "69", "70", "71", "72", "73", "74", "75"], operateType = "A1", reuseDelay = "30000", rideState = "NONE", targetType = "ENEMY" }

@@ -32,6 +32,12 @@ next_action_attack = true
 has_enchant_routes = false
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"SWORD,BLUNT\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "40", coolTime = "720", effectPoint = ["-52", "-54", "-57", "-64", "-67", "-70", "-79", "-83", "-86"], effectRange = "400", hitCancelTime = "500", hitTime = "1080", icon = "icon.skill0003", magicLvl = ["3", "4", "5", "8", "9", "10", "13", "14", "15"], mpConsume2 = ["9", "9", "10", "11", "12", "13", "16", "16", "17"], nextActionAttack = "true", operateType = "A1", overHit = "true", reuseDelay = "3000", rideState = "NONE", targetType = "ENEMY" }

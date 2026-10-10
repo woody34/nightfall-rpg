@@ -35,6 +35,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "WATER", power = 20 }
 source_sets = { affectLimit = "5-12", affectObject = "NOT_FRIEND", affectRange = "200", affectScope = "RANGE", attributePower = "20", attributeType = "WATER", castRange = "500", effectPoint = ["-275", "-283", "-291", "-299", "-306", "-312", "-318", "-323", "-328"], effectRange = "1000", hitCancelTime = "500", hitTime = "5000", icon = "icon.skill1295", isMagic = "1", magicLvl = ["58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["16", "17", "18", "18", "19", "19", "20", "20", "21"], mpConsume2 = ["64", "66", "69", "71", "74", "76", "78", "80", "82"], operateType = "A1", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY" }
 

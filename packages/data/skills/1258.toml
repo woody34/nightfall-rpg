@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["cond:target:npcType", "target:ENEMY_NOT"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><not><target npcType=\"L2Attackable\" /></not></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "600", effectPoint = ["500", "666", "833", "1000"], effectRange = "1100", hitTime = "8000", icon = "icon.skill1258", isMagic = "1", magicLvl = ["44", "48", "52", "56"], mpConsume1 = ["16", "22", "27", "32"], mpConsume2 = ["64", "85", "106", "127"], operateType = "A1", reuseDelay = "30000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "ENEMY_NOT" }

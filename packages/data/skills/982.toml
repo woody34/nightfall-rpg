@@ -33,7 +33,13 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
-blockers = ["scope:PARTY"]
+blockers = ["scope:PARTY", "scope_filter:FRIEND"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "KNIGHT_AURA", level = [1, 2, 3], time_s = [1200, 1200, 1200], is_debuff = false }
 source_sets = { abnormalLvl = ["1", "2", "3"], abnormalTime = "1200", abnormalType = "KNIGHT_AURA", affectObject = "FRIEND", affectRange = ["300", "400", "500"], affectScope = "PARTY", effectPoint = "1", hitCancelTime = "500", hitTime = "1500", icon = "icon.skill0982", magicLvl = ["52", "64", "70"], mpConsume2 = ["38", "48", "52"], operateType = "A2", reuseDelay = "2000", rideState = "NONE", targetType = "SELF" }

@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"BOW\" /></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "900", coolTime = "1000", effectPoint = ["-366", "-375", "-385", "-395", "-405", "-415", "-425", "-435", "-445", "-455", "-465", "-474", "-484", "-494", "-503", "-513", "-522", "-532", "-541", "-550", "-558", "-567", "-575", "-583", "-591", "-599", "-607", "-614", "-621", "-627", "-634", "-640", "-646", "-651", "-656", "-661", "-665"], effectRange = "1400", hitCancelTime = "500", hitTime = "3000", icon = "icon.skill0019", magicLvl = ["38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74"], mpConsume2 = ["72", "74", "76", "76", "79", "81", "83", "86", "88", "91", "93", "96", "99", "99", "101", "104", "106", "109", "111", "114", "116", "119", "121", "122", "124", "126", "129", "131", "133", "135", "138", "140", "142", "144", "146", "148", "150"], operateType = "A1", overHit = "true", reuseDelay = "3000", rideState = "NONE", targetType = "ENEMY" }

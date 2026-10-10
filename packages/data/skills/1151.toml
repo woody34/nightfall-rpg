@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
 blockers = ["effect:ConsumeBody", "effect:InstantHpByLevelSelf", "target:NPC_BODY"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "400", effectRange = "900", hitCancelTime = "500", hitTime = "1500", icon = "icon.skill1151", isMagic = "1", magicLvl = ["30", "35", "40", "44", "48", "52", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["3", "3", "4", "4", "5", "5", "6", "6", "6", "6", "6", "7", "7", "7", "7", "7"], mpConsume2 = ["11", "12", "14", "16", "18", "19", "21", "22", "22", "23", "24", "25", "26", "26", "27", "28"], operateType = "A1", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "NPC_BODY" }
 

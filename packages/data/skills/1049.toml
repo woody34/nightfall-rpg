@@ -34,7 +34,13 @@ trait = "DERANGEMENT"
 next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
-blockers = ["filter:UNDEAD_REAL_ENEMY"]
+blockers = ["scope_filter:UNDEAD_REAL_ENEMY"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "TURN_PASSIVE", level = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], time_s = [120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120], is_debuff = true }
 source_sets = { abnormalLvl = "1", abnormalTime = "120", abnormalType = "TURN_PASSIVE", activateRate = "35", affectLimit = "10-10", affectObject = "UNDEAD_REAL_ENEMY", affectRange = "1000", affectScope = "POINT_BLANK", basicProperty = "MEN", hitCancelTime = "500", hitTime = "7000", icon = "icon.skill1049", isDebuff = "true", isMagic = "1", lvlBonusRate = "1", magicLvl = ["40", "44", "48", "52", "56", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume1 = ["11", "12", "13", "14", "16", "16", "17", "18", "18", "19", "19", "20", "20", "21"], mpConsume2 = ["42", "47", "52", "56", "61", "64", "66", "69", "71", "74", "76", "78", "80", "82"], operateType = "A2", reuseDelay = "5000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF", trait = "DERANGEMENT" }

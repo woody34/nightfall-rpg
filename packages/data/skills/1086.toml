@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = true
 runtime_status = "executable"
 blockers = []
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 abnormal = { type = "ATTACK_TIME_DOWN", level = [1, 2], time_s = [1200, 1200], is_debuff = false }
 source_sets = { abnormalLvl = ["1", "2"], abnormalTime = "1200", abnormalType = "ATTACK_TIME_DOWN", affectScope = "SINGLE", castRange = "400", effectPoint = ["418", "495"], effectRange = "900", hitCancelTime = "500", hitTime = "4000", icon = "icon.skill1086", isMagic = "1", magicLvl = ["44", "52"], mpConsume1 = ["8", "10"], mpConsume2 = ["31", "38"], operateType = "A2", reuseDelay = "2000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "TARGET" }

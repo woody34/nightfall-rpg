@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["cond:player:Charges", "effect:FocusEnergy"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 raw_conditions = ["<cond msgId=\"113\" addName=\"1\"><using kind=\"DUAL,SWORD,BLUNT\" /></cond>", "<cond msgId=\"324\"><not><player Charges=\"#focusEnergyCharge\" /></not></cond>"]
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", effectPoint = "200", hitCancelTime = "500", hitTime = "900", hpConsume = "25", icon = "icon.skill0008", magicLvl = ["40", "43", "49", "55", "60", "66", "70", "79"], mpConsume2 = "5", operateType = "A1", rideState = "NONE", targetType = "SELF" }

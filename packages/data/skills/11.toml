@@ -32,6 +32,12 @@ next_action_attack = false
 has_enchant_routes = false
 runtime_status = "deferred"
 blockers = ["effect:DeleteHateOfMe", "effect:TargetCancel"]
+stay_after_death = false
+stay_on_subclass_change = true
+irreplaceable_buff = false
+abnormal_instant = false
+removed_on_damage = false
+removed_on_action_except_move = false
 attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", castRange = "400", effectPoint = ["-119", "-126", "-133", "-140", "-144", "-148", "-152", "-156", "-159", "-162", "-164", "-167"], effectRange = "900", hitCancelTime = "500", hitTime = "1200", icon = "icon.skill0011", magicLvl = ["49", "52", "55", "58", "60", "62", "64", "66", "68", "70", "72", "74"], mpConsume2 = ["22", "24", "25", "27", "28", "29", "30", "31", "32", "33", "34", "34"], operateType = "A1", reuseDelay = "5000", rideState = "NONE", targetType = "ENEMY_ONLY", trait = "DERANGEMENT" }
 
