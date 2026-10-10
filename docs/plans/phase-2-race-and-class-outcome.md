@@ -1,84 +1,98 @@
 # Phase 2 race and class: verification outcome
 
-Status: integration and acceptance in progress, based on candidate `9f3927d`, with coordinated follow-ups through `c74f4b2` on 2026-10-09.
-The data/server implementation has passed its scoped reviews and functional checks. Client and
-harness follow-ups, live acceptance, and the required token-supply decision remain open.
-See the [executable plan](phase-2-race-and-class.md) and
-[reference design](../planning/02-race-and-class.md).
+Status: implementation and ordinary native acceptance verified through integration `b8a7151` on 2026-10-09.
+Three gates remain open:
+the packaged combat soak, the user's token supply/backfill decision, and root checkout main
+rebuild. Whole Phase 2 completion and full normal progression are not claimed.
+See the [executable plan](phase-2-race-and-class.md), [reference design](../planning/02-race-and-class.md),
+and [class transfer observability](../engineering/class-transfer-observability.md).
 
 ## Implemented contracts
 
-Five races and 89 classes retain the 9/18/31/31 base/first/second/third distribution and a
-170-point base-stat budget. The authoritative level cap remains **85**; playable transfers are
-at levels **20/40**, with a maximum tier of **2**. Third classes are metadata only, even at 85.
-Production creation starts at **(0,0)**. Players reach the noncombat Class Master at
-**(126,128)**, radius **3**, through ordinary movement.
+Five races and 89 classes retain the 9/18/31/31 distribution and 170-point base-stat budget.
+Authoritative level cap is **85**; playable transfers stop at tier **2** (levels **20/40**). Third classes
+are metadata only, even at 85. Production creation starts at **(0,0)**. Players reach Class Master at
+**(126,128)**, radius **3**, by normal movement. Testing fixtures seed at **(126,126)** before admission;
+fixtures never mutate an admitted character.
 
-Pinned L2J datapack `3ca488dd2bd0bfaca43e378886a3c2e37968153a` supplies 7,565 exact growth
-rows (22,695 HP/MP/CP values), 39 direct learning trees with 6,927 entries, 3,521 proficiency
-rows, and 378 known skill references. Fifty other direct trees are deferred; ancestor metadata
-remains available. Inherited auto-get metadata persists at the maximum learned rank without SP
-charges and survives deleveling. Skill execution/manual learning and equipment effects remain
-future work. See [data provenance](../../packages/data/SOURCES.md).
+Pinned L2J datapack `3ca488dd2bd0bfaca43e378886a3c2e37968153a` supplies 7,565 growth rows
+(22,695 HP/MP/CP values), 39 direct learning trees with 6,927 entries, 3,521 proficiency rows, and
+378 known skill references. Fifty other direct trees are deferred with ancestor metadata inherited.
+Auto-get metadata persists at max learned rank without SP charges and survives deleveling.
+Skill execution, manual SP learning, and equipment effects remain future work. Subclass eligibility
+rules and models are defined; runtime switching, acquisition, and certification effects are deferred.
+See [data provenance](../../packages/data/SOURCES.md).
 
-Transfers consume an existing typed token, preserve resource percentages with one floor, and
-retain at least one HP for a living character. CP starts at zero, remains owner-private, and
-does not absorb damage. The durability order is **log acknowledgement → atomic class/token/
-receipt/outbox checkpoint → RPC success and world output**. At most two successful receipts
-per character retain the original full response, including offline retries.
+Transfers consume an existing typed token, preserve resource percentages with floor rounding, and
+retain at least one HP for living characters. CP starts at zero, remains owner-private, and does
+not absorb damage. Durability order is **log acknowledgement → atomic class/token/receipt/outbox checkpoint →
+RPC success and world output**. At most two successful receipts per character retain the original full
+response, including offline retries.
 
 ## Verified evidence
 
 | Gate | Result and scope |
 |---|---|
-| Data and eligibility | 13 Rust catalogue tests and 3 Python provenance tests passed. Independent source audits matched every growth, learning and proficiency tuple; final admission review passed at `4adde1e`. Subclass eligibility/reserved data passed; runtime acquisition, switching and certification effects are absent. |
-| Server functional checks | 38 suites reported **642 passed, 0 failed, 3 ignored**, using real isolated PostgreSQL on 26432 and NATS on 25422. The external Keycloak case returned early without its service; this count does **not** establish a Keycloak run. A separate real-provider run at the same server source is recorded below. |
-| Creation/migration | Nine base paths, explicit class 0 versus omission, appearance/sex/name validation, seven-slot concurrency and retry behavior passed. Migration fixtures for all nine legacy profiles preserved level/XP/resources/position/revision and rejected invalid profiles. No token backfill. |
-| Transfer/progression | All 18 first and 31 second branches passed; all 31 third branches were refused at 85. Exact resource/CP arithmetic, racial XP/run/evasion/critical-damage vectors, learned metadata, immutable retries, privacy, fencing and failure/recovery tests passed. Scoped final runtime review passed at `8edffd1`. |
-| Replay and size | Snapshot 7 / record 5 / BinaryV3 retain old snapshot 4/5/6 and record 3/4 support. The old 467-tick v4 recording retained exact replay bytes/digests. Codec/hash review `a8ac679` and outer NFR review `5b6861b` passed. Full catalogue plus one player measured **2,060,904 raw → 152,362 compressed bytes**, below the 1 MiB minus 1 KiB snapshot budget. Catalogue protobuf measured **455,324 / 4,194,304 bytes**. |
-| Real Keycloak authentication | At server source `7ceb323`, the existing device-flow/authenticated character-and-ticket RPC test passed **1 / 0 / 0** in **4.06 s**, with explicit `KEYCLOAK_URL` against isolated pinned Keycloak **26.8.0** on **28080**. The provider and port were cleaned up after the run. |
-| Static checks | Strict all-target Rust Clippy, formatting, generated entity drift check, protobuf build and breaking checks passed. Four pre-existing Buf lint findings remain; lint is not claimed clean. |
-| Client builds and limited native evidence | Initial client `151ba16` + `1e09335` Game/Editor builds and **62 editor tests** passed with **4 offline cases skipped**. Later client `889af68` required-live automation passed **62/62 with zero skips** against server `7ceb323`. Rendered transfer **12.48 s** and persisted second launch **10.39 s** also passed. Additional historical-retry/catalogue-promotion cases are being built; final automation count and ordinary wrapper/full scenario acceptance remain pending. |
+| Data and eligibility | 13 Rust catalogue tests and 3 Python provenance tests passed. Independent audits matched every growth, learning, and proficiency tuple; admission review passed at `4adde1e`. Subclass eligibility and reserved types passed; runtime switching and certification effects absent. |
+| Server functional checks | 38 suites reported **642 passed, 0 failed, 3 ignored**, using real isolated PostgreSQL on 26432 and NATS on 25422. The external Keycloak case conditionally returned early without its service; that count did not establish Keycloak. A separate real-provider run is recorded below. |
+| Creation and migration | Nine base paths, explicit class 0 versus omission, appearance/sex/name validation, 7-slot concurrency, and retries passed. Migration fixtures for nine legacy profiles preserved level/XP/vitals/position/revision and rejected invalid profiles. No token backfill. |
+| Transfer and progression | All 18 first and 31 second branches passed; 31 third branches refused at 85. Resource/CP arithmetic, racial XP/run/evasion/crit vectors, learned metadata, immutable retries, privacy, fencing, and recovery passed. Runtime review `8edffd1` passed. |
+| Replay and size | Snapshot 7 / record 5 / BinaryV3 retain snapshot 4/5/6 and record 3/4. 467-tick v4 recording retained exact replay bytes/digests. Codec review `a8ac679` and outer NFR review `5b6861b` passed. Snapshot measured **2,060,904 raw → 152,362 compressed bytes** (< 1 MiB − 1 KiB budget). Protobuf catalogue: **455,324 / 4,194,304 bytes**. |
+| Real Keycloak authentication | At server `7ceb323`, device-flow test passed **1 / 0 / 0** in **4.06 s** with explicit `KEYCLOAK_URL` against pinned Keycloak **26.8.0** on **28080**. Provider and port cleaned up (`/tmp/nightfall-phase2/api-keycloak-metadata.json`). |
+| Release combat performance | At server `7ceb323`, release `combat_tick_p99_simulation` passed on quiescent host (`/tmp/nightfall-phase2/api-combat-perf-metadata.json`): 200 players + 200 Keltirs over 500 ticks measured p50 **211 µs**, p99 **670 µs** (1,000 attacks); 50 pairs measured p50 **31 µs**, p99 **125 µs** (253 attacks), both below the **20 ms** budget. |
+| Static checks | Strict all-target Rust Clippy, formatting, entity drift check, protobuf build, and breaking checks passed. Four pre-existing Buf lint findings remain; lint is not claimed clean. |
+| Required-live client automation | Client `6820c62` automation passed **62/62 with zero skips** against API `7ceb323`. Rendered transfer (12.48 s) and persisted second launch (10.39 s) verified wire decoding, stale-session fences, owner privacy, and reconnect. |
+| Ordinary native scenario suite | Coordinator suite (`/tmp/phase2-client-full-suite-01/summary.md`, `suite.xml`) at client `92b34d2` (with `1a9c5cb` and API `7ceb323`) measured **1,193.284 s (19m 53.284s)**, exit **0**, across **30 scenario files / 25 logical units** (19 Phase 1a + 11 Phase 2): **25 PASS, 0 FAIL, 0 quarantine**, with 35 recordings, 35 replay logs, and 35 trace HTML files retained; all owned stacks cleaned. |
+| Telemetry and diagrams | Phase 2 telemetry imports (`b50dbc4` / `b8a7151`) add five Grafana transfer panels to `nightfall-api` (`docs/engineering/class-transfer-observability.md`). Prometheus exporter validation verified scrape counts (0→1=1, 1→2=1, success=2) with fixed `otel_scope_name="nightfall-api"`. Offline class tree (`docs/diagrams/phase-2-class-tree.html`, 89 nodes / 80 edges) and transfer diagram (`docs/diagrams/phase-2-class-transfer.html`) passed integrity checks, corruption probes, and 1440/390px renders. |
 
-The three ignored server tests are distinct from the conditional Keycloak case:
-`full_registry_tick_and_digest_measurement` was separately measured with 200 players;
-`combat_tick_p99_simulation` awaits the release `api:perf-check` gate; the optional JetStream
-ack-latency benchmark was not run. The 200-player debug idle tick plus snapshot projection had
-p99 **2.600 ms**; it is idle overhead evidence, rather than a combat soak.
+## Ignored tests, benchmark results, and diagnostic failures
 
-The all-target Cargo command **failed** when its standalone debug `zone_step` benchmark reached
-NPC mean **3.090733 ms** (p99 **4.030963 ms**) against the unchanged **2 ms** budget.
-A separate quiescent run of the documented optimized
+The three ignored server tests in the 642-pass suite are distinct from Keycloak:
+`full_registry_tick_and_digest_measurement` separately measured 200-player idle p99 at **2.600 ms**;
+`combat_tick_p99_simulation` separately passed in the release performance gate above (p99 670 µs);
+only the optional JetStream ack-latency benchmark remains unrun.
+
+The Cargo all-target debug command **failed** when standalone debug `zone_step` reached
+NPC mean **3.090733 ms** (p99 **4.030963 ms**) against the unchanged **2 ms** budget. A separate quiescent run of the documented optimized
 `cargo bench -p nightfall-api --bench zone_step` **passed** at server source `7ceb323`:
 
-| Unchanged optimized budget | Mean | p99 |
+| Optimized quiescent budget | Mean | p99 |
 |---|---:|---:|
 | 1,000 moving NPCs: mean < 2 ms | 0.143480 ms | 0.170123 ms |
 | 1,000 moving players with all observers: mean < 10 ms | 5.087414 ms | 7.913913 ms |
 
-The optimized result and 642 functional passes are separate from the debug command failure.
+The optimized benchmark results and 642 functional passes are separate from the debug command failure.
+
+Native `diagnostic-01` **failed**: its test expected a nonzero second-transfer grant, and the coverage reader accepted schema 1 only rather than emitted schema 2. Replay and cleanup passed. Corrected `retry-02` **passed** (65 steps in 2.94 s, wrapper 12 s), including replay, trace, contracts, schema 2 coverage, and cleanup; the subsequent 25-unit suite passed.
+
+Direct pinned XML oracle verification of inherited Human fighter progression at level 40 confirms identical
+ranks across classes 0, 1, and 2: skills 1320 (rank 4), 1322 (rank 1), 194 (rank 1), and 239 (rank 2).
+The pre-admission fixture provisions a sparse ledger containing only `racial.adaptable 1` without L2
+auto-get entries. Consequently, the first transfer catches up four omitted metadata keys and the second
+zero; these are catch-up reconciliations rather than class-specific new unlocks. A fully learned class 0
+ledger at 40 would show zero delta on both transfers.
+
+`2-class-transfer-reconnect.nfs` replays keyA after keyB and reconnect: the frozen RPC returns class 1 while live state remains class 2, without another event or token mutation. This extends an existing file.
+
+Aggregate suite coverage is informational:
+contract events **13/13**, payloads **3/3**, intents **5/6** (missing `stop_move`), reject reasons **3/13**
+(10 unhit), close codes **1/4** (missing 4400, 4408, 4429), reachable NPC transitions **7/10**, and
+player attack states **3/4**. Informational gaps are not gate failures; 100% contract coverage is
+neither claimed nor required.
 
 ## Open acceptance and limits
 
-- **Token supply/backfill requires the user's decision.** Ledger consumption is implemented;
-  production grants/backfill are absent. Pre-admission fixture balances prove consumption only.
-- Final automation follow-ups, ordinary wrapper execution of the Phase 2 scenarios, fresh live
-  coverage of all 19 Phase 1a cases, and a current-source packaged **8-client / 20-minute combat
-  soak** remain pending. Eleven Phase 2 scenario files existed at `9f3927d`; an explicit-key
-  historical retry case is being added to prove that an old frozen RPC response cannot roll a
-  newer live world/UI back. Final scenario count and results await client handoff. Harness
-  endpoint/private-token fixes landed at `758e43f`; their ordinary native acceptance remains pending.
-- The release combat p99 gate remains pending. Optional JetStream ack-latency timing is unmeasured.
-- Original curated Nightfall display names are mutable design metadata; retail names remain in
-  `l2_ref`. All races/sexes share the existing Manny prototype body and index-zero appearance.
-  Distinct racial/sex art is unavailable. Client `889af68` shows the authoritative Master name
-  as a readable gold screen-space label, without an HP bar or additional actor. Only Human XP, Elf run/evasion, and Dark Elf critical
-  damage modifiers are active; SP/regen/stun/weight/spoil/craft hooks remain deferred.
-- Subclass runtime, playable third classes, manual skill purchase/effects and equipment effects
-  are outside this implementation. The [fixture guide](../../apps/client-unreal/Scripts/phase2-fixtures.md)
-  describes isolated seeded accounts; fixtures never mutate an admitted character.
-- After reviewed main integration, rebuild **Game and Editor in the root checkout** before
-  cleanup, and preserve native artifacts and review/test evidence outside disposable worktrees.
-  Main integration and this rebuild are not yet claimed.
-- The unregistered Linux CI runner and existing two-week reliability programme are separate
-  operational follow-ups, rather than a new 14-day wait before reviewed feature integration.
+- **Token supply/backfill requires the user's decision.** Ledger consumption is verified; production
+  grants and backfill are absent. Pre-admission fixture balances prove consumption only. Milestones
+  remain conditional on that choice.
+- **Packaged combat soak is running; its result remains pending.** Current Game BuildCookRun staging passed in **49.25 s**. The staged binary SHA-256 is `3af752926c8ca3a384c736509bf18217d66fbb3cf27555b7fe002bc47b7eff99`, matching the built Game. Client `4f61f0a` has no production/native/API/data difference from tested `92b34d2`. All eight clients admitted and started combat lanes in the fresh **8 × 1,200 s** soak against frozen release API/replay artifacts (`/tmp/phase2-client-final-soak-01`); admission is not a soak pass.
+- **Root main integration and rebuild.** Following main branch integration, builds of Game
+  and Editor in the root checkout must be completed and native artifacts archived outside disposable
+  worktrees.
+- **External CI runner and reliability programme.** The Linux self-hosted runner remains unregistered.
+  The existing two-week reliability programme is pending as a separate operational follow-up and does
+  not impose a new 14-day delay on reviewed feature integration.
+- **Explicit prototype limitations.** Original curated Nightfall display names are design metadata;
+  retail names remain in `l2_ref`. Race, sex, and index-zero appearance metadata controls work with shared prototype/placeholder bodies. `SKM_Manny_Simple` is not imported or cooked in this checkout; remote-player fallback logs and the rendered world smoke show cylinders. Distinct racial/sex 3D art is unavailable. The Class Master has a readable gold screen-space name without an HP bar or extra actor. Only Human XP, Elf run/evasion,
+  and Dark Elf critical damage traits are active. Subclass runtime, playable third classes, manual SP
+  learning, and equipment effects are excluded.

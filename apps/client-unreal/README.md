@@ -77,7 +77,7 @@ The creation screen loads the authenticated `ListClasses` catalogue before enabl
 Its race cards, base-class choices, six base-stat bars, passive descriptions, and appearance bounds
 come from that response. The preview only adds the six server values to show their 170-point budget.
 Sex and appearance are persisted by the server. The available prototype has one hair, color, and
-face option (index 0); the existing mannequin body is shared by races and sexes. No additional art
+face option (index 0); shared prototype/placeholder bodies are used. No additional art
 is required to exercise identity, class trees, or transfer rules (distinct racial and sex art is an
 explicit prototype limitation).
 
@@ -102,10 +102,20 @@ present (Human Fighter, rejected for other races). `Nightfall.Class.Creation.Opt
 zero, and a nonzero id. The other class automation tests exercise wire decoding, stale-session
 fences, owner privacy, reconnect, catalogue paths, bounded malformed cycles, and native layouts.
 
-The table records authored coverage. Required-live automation passed 62/62 at `889af68`;
-additional cases, ordinary wrapper execution, and the current packaged combat soak remain pending.
-See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.md).
-An explicit-key historical retry scenario is being added before the final scenario handoff.
+Race, sex, and index-zero appearance controls are functional metadata. The current staged world uses shared
+prototype/placeholder bodies: `SKM_Manny_Simple` is not imported or cooked in this checkout, and remote-player
+fallbacks render cylinders. Distinct racial/sex 3D art is unavailable.
+
+The table records authored coverage. Required-live automation passed 62/62 with zero skips at `6820c62`
+against API `7ceb323`. The full ordinary native suite passed 30 scenario files / 25 logical units (19 Phase 1a +
+11 Phase 2 files; 25 PASS, 0 FAIL, 0 quarantine in 1,193.284 s / ~19m 53s) under root coordinator execution
+at client `92b34d2` (incorporating `1a9c5cb` and API `7ceb323`). Historical retry verification was delivered
+by extending `2-class-transfer-reconnect.nfs` to replay historical keyA after keyB + reconnect, proving an old
+frozen receipt cannot roll back live world state or replay newer progression (no 12th Phase 2 scenario file was
+introduced). Current Game BuildCookRun staging passed in 49.25 s with a matching binary hash; all eight clients
+admitted and began combat lanes in the fresh current-source 20-minute soak, whose result remains pending. See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.md),
+[class transfer observability](../../docs/engineering/class-transfer-observability.md), and
+[class tree diagram](../../docs/diagrams/phase-2-class-tree.html).
 
 | Scope | Authored scenario / automation coverage |
 |---|---|
@@ -115,21 +125,25 @@ An explicit-key historical retry scenario is being added before the final scenar
 | Two transfers, token consumption, no downgrade, persisted lineage, reconnect | `2-class-transfer.nfs` |
 | Exact Elf movement/Human XP and source learning availability | `2-racial-traits.nfs` |
 | Public observer class/title and owner resource privacy | `2-class-transfer-observer-a.nfs`, `2-class-transfer-observer-b.nfs` (paired) |
-| Reconstruct class/token state between successive transfers | `2-class-transfer-reconnect.nfs` |
+| Reconstruct class/token state between successive transfers and historical retry | `2-class-transfer-reconnect.nfs` (reconstructs state and replays historical keyA after keyB + reconnect) |
 | Late callbacks after logout/account switch and pending-mutation exclusion | `Nightfall.Class.State.AccountAndRequestLifetimes` |
 | Missing claimed token and reconnect preservation | `2-class-transfer-missing-token.nfs` |
 | Additive optional wire contract / typed identity and resource projection | `Nightfall.Class.Creation.OptionalPresence`, `Nightfall.Class.State.WireAndFences` |
 
 The transfer, reconnect, observer-pair and missing-token scenarios require the Phase 2 harness to seed their disposable account **before
-admission**: positive is a level-40 Human base class 0 with tokens 1/1 at (126,126), and missing-token
+admission**: positive is a level-40 Human base class 0 with tokens 1/1 at `(126,126)`, and missing-token
 is level 20 with its tier-1 milestone claimed and token count 0 at that position. These seeded
 balances exercise consumption only. Production token supply/backfill remains an unresolved
 product decision; automatic grants and backfill are absent. Fixtures are provisioned before admission
-and never modify a live character. The ordinary runners read `# fixture:` declarations
-(`phase2-transfer`, `phase2-transfer-observer`, `phase2-transfer-missing-token`) and provision before admission;
-the observer pair uses different accounts. Independent creation matrices use numeric suffixes (`-01`, `-02`, `-03`) to avoid pair discovery.
-Ordinary creation starts at `(0,0)`. The range-denial scenario travels around monster homes in
-segments below the server's 64-tile move limit.
+and never modify a live character. The consumption fixture provisions a sparse learned ledger containing only
+`racial.adaptable 1` without L2 auto-get entries. Direct pinned XML oracle verification of inherited Human 0/1/2
+at level 40 confirms identical baseline ranks (1320 rank 4, 1322 rank 1, 194 rank 1, 239 rank 2); the first
+transfer catches up four omitted metadata keys and the second catches up zero (not class-specific new unlocks),
+whereas a fully learned class 0 ledger at 40 would show zero delta on both transfers. The ordinary runners
+read `# fixture:` declarations (`phase2-transfer`, `phase2-transfer-observer`, `phase2-transfer-missing-token`)
+and provision before admission; the observer pair uses different accounts. Independent creation matrices use
+numeric suffixes (`-01`, `-02`, `-03`) to avoid pair discovery. Ordinary creation starts at `(0,0)`. The
+range-denial scenario travels around monster homes in segments below the server's 64-tile move limit.
 
 Run a seeded transfer through the ordinary wrapper, choosing a fresh artifact directory:
 
@@ -143,8 +157,10 @@ API startup, and supplies the supported `GrpcEndpoint` configuration override. E
 private mode-0600 `DevTokenFile`; complete tokens stay out of bot command-line arguments.
 Phase 2 CI uses `--fresh-stack`. Host `psql` is unnecessary. Use the generated configuration;
 custom endpoint or token overrides are refused. See the [fixture guide](Scripts/phase2-fixtures.md)
-for ownership, cleanup, and paired scenarios. These harness fixes landed at `758e43f`; ordinary
-native acceptance remains pending.
+for ownership, cleanup, and paired scenarios. Harness endpoint and private-token fixes landed at `758e43f`.
+An initial diagnostic run (`diagnostic-01`) failed because the test mistakenly expected a nonzero grant on the
+second transfer and the coverage reader accepted schema 1 only instead of emitted schema 2; corrected `retry-02` passed (65 steps in 2.94 s, wrapper
+12 s), and full ordinary native acceptance passed across all 30 scenario files / 25 logical units.
 
 Development commands `nf.ClassCatalogue`, `nf.CreateClass <race> <base class> <sex> [hair] [color]
 [face]`, `nf.EnterCreated`, `nf.TransferOptions`, `nf.ChangeClass <target>`, `nf.Character`, and

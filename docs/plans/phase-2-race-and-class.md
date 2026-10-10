@@ -1,6 +1,6 @@
 # Phase 2 Plan: Race and Class
 
-**Status:** delivery plan 2026-10-09; data/server implementation verified; client and harness follow-ups, final live acceptance, and required token-supply choice pending (reconciled in outcome summary [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md)). **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Model/effort assignments below.
+**Status:** delivery plan 2026-10-09; data/server implementation and ordinary native acceptance verified through integration `b8a7151`; current packaged combat soak, required token-supply choice, and root main integration/rebuild pending (reconciled in outcome summary [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md)). **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Model/effort assignments below.
 
 ## 1. Goal and locked decisions
 
@@ -12,7 +12,7 @@ Deliver creation/racial identity/exact growth/learned metadata/durable transfers
 - CP **u32/uint32**, owner-private/reserved, no absorption; initial0/derived known max, zero never full. Transfer preserves CP/HP/MP percentages with floor/alive HP min1.
 - **Token SUPPLY REQUIRED USER CHOICE PENDING** (milestones/admin/other). Generic typed ledger/consumption independent; no automatic grants/backfill before choice; E4 milestones conditional.
 - Proceed with curated original Nightfall display names; IDs/keys/l2_ref remain stable.
-- Use existing Manny prototype bodies with one hair style/color/face at index0 and both sexes as metadata. Distinct racial/sex bodies remain an explicit art limitation, not an approval blocker.
+- Use shared prototype/placeholder bodies with one hair style/color/face at index0 and both sexes as metadata. `SKM_Manny_Simple` is not imported/cooked in this checkout; staged remote players use cylinder fallbacks. Distinct racial/sex bodies remain an explicit art limitation, not an approval blocker.
 
 ## 2. Source authority and contracts
 
@@ -137,7 +137,7 @@ Models: **D = agy gemini-3.8-flash-high**, **C = Codex gpt-6.1-sol / high**, **Z
 
 | Story | Work / Done When | Model |
 |---|---|---|
-| 5.1 Creation UI [client-visible] | Race/root/sex metadata, index-zero appearance/stat preview/truthful Manny; widget/payload/error/cook checks pass, prototype art limitation is documented. | C |
+| 5.1 Creation UI [client-visible] | Race/root/sex metadata, index-zero appearance/stat preview/truthful placeholder bodies; widget/payload/error/cook checks pass, prototype art limitation is documented. | C |
 | 5.2 Catalogue/tree [client-visible] | Auth/cache/hierarchy/skills/proficiencies/unavailable effects/tier3; parent/current/available/unmet projections verified. | C |
 | 5.3 Master workflow [client-visible] | Location/range/ordinary travel/options/confirm/retry; errors/delayed/offline replies and commit-gated success verified. | C |
 | 5.4 HUD/projection [client-visible] | CP/SP/tokens/class/title/cue and tick/generation fences; zero CP/binary frames/stale/late-AOI/duplicate RPC yield correct single presentation. | C |
@@ -206,8 +206,8 @@ Waves gate dependencies: foundations -> independent creation/schema, zone and UE
 - Snapshot growth: measure actual JetStream payload; coordinate versioned compression, retain all data.
 - Legacy drift: golden bytes/fingerprints and None checkpoint preserve migrated ledger.
 - Token exploits/pending policy: required supply/backfill choice and conditional durable once-ever bits.
-- Art/effect overstatement: truthful index-zero Manny/sex metadata and unavailable skills; no claim of distinct racial/sex art assets.
-- External gates: CI runner **unregistered**, **two-week reliability gate pending** separately from local Phase2 acceptance; no fresh 14-day wait is required to integrate reviewed features. Existing Phase1a eight-client 20-minute soak evidence completed; Phase2 needs new actual local regression measurements.
+- Art/effect overstatement: truthful index-zero appearance/sex metadata and shared placeholder bodies and unavailable skills; no claim of distinct racial/sex art assets.
+- External gates: CI runner **unregistered**, **two-week reliability gate pending** separately from local Phase2 acceptance; no fresh 14-day wait is required to integrate reviewed features. Current packaged 8-client 20-minute combat soak in progress/pending against current source.
 
 ## 7. Out of scope
 
@@ -216,15 +216,15 @@ Manual SP purchase/skill execution/buffs Phase3; inventory/equipment/mastery eff
 ## 8. Outcome reconciliation
 
 - [x] Catalogue/growth/39 real trees/count/refs/source provenance verified (13 Rust + 3 Python tests pass, independent admission reviews APPROVE `4adde1e`).
-- [ ] Required token supply/backfill choice recorded; no premature grants. Curated names and prototype art are documented implementation assumptions. (Token choice STILL PENDING; consumption verified).
+- [ ] Required token supply/backfill choice recorded; no premature grants. Curated names and prototype art are documented implementation assumptions. (Token choice STILL PENDING; generic consumption verified, production grants/backfill absent).
 - [x] Production `(0,0)` and fixture `(126,126)` spawn, cap 85, tier 2 playable, Master `(126,128)` radius 3 verified in contracts and test gates.
 - [x] Creation/concurrency/legacy retries/migration preservation/normalized learning verified (`grpc_create_character15`, Postgres concurrent bounded 7, all 9 profiles preserved at 85/XP/position).
 - [x] Independent racial/class/CP vectors and actual learned keys verified (397 lib tests, exact CON max CP floor, living HP min 1, Human XP, Elf run/evasion, DE crit).
 - [x] Actor/account-key/permanent frozen receipts/log->DB->output/fail-closed recovery proven (38 functional suites / 642 pass with real DB 26432 & NATS 25422; runtime review `8edffd1` PASS).
 - [x] Old/new snapshots/records/digests/fingerprints and payload limits verified (BinaryV3 snapshot 2,060,904 -> 152,362 bytes; prost catalogue 455,324 bytes; codec `a8ac679` & outer NFR `5b6861b` PASS).
-- [ ] E1..E5 simulations: 11 Phase 2 `.nfs` files authored at candidate `9f3927d`; an explicit-key historical retry scenario is being added. Initial client Game/Editor builds and 62 editor tests passed (4 offline cases skipped); later required-live automation passed 62/62 without skips at `889af68`. Additional automation cases and ordinary wrapper execution remain pending.
-- [ ] All 19 Phase 1a baseline intents retained; intentional Human XP expectations updated; fresh live verification across all 19 cases PENDING.
-- [ ] Performance & soak: release combat p99 gate remains pending; documented optimized cargo bench on quiescent host PASS (NPC mean 0.143ms < 2ms, 1000 observers mean 5.087ms < 10ms); debug all-target run failed NPC mean 3.091ms; final packaged 8-client 20-min combat soak PENDING.
-- [ ] External gates: CI runner unregistered; external two-week reliability programme separate; final root checkout Game/Editor rebuild required post-merge.
+- [x] E1..E5 simulations and ordinary native acceptance verified: root coordinator suite passed 30 scenario files / 25 logical units (19 Phase 1a + 11 Phase 2 files; 25 PASS, 0 FAIL, 0 quarantine in 1,193.284 s / 19m 53.284s, 35 recordings, 35 replay logs, and 35 trace HTML files retained; all owned stacks cleaned). Required-live automation passed 62/62 without skips at `6820c62`. Historical retry verified in `2-class-transfer-reconnect.nfs` (keyA replayed after keyB + reconnect). Diagnostic-01 failure and corrected retry-02 pass documented.
+- [x] All 19 Phase 1a baseline scenario files retained and verified in full coordinator suite; updated Human XP expectations matched. Informational contract coverage logged: events 13/13, payloads 3/3, intents 5/6 (missing `stop_move`), reasons 3/13, close codes 1/4, NPC transitions 7/10, player attack states 3/4.
+- [x] Release combat performance gate verified: release quiescent 200 players + 200 Keltirs over 500 ticks measured p50 211 µs, p99 670 µs; 50 pairs measured p50 31 µs, p99 125 µs (both below the 20 ms budget). Documented optimized cargo bench on quiescent host passed (NPC mean 0.143ms < 2ms, 1000 observers mean 5.087ms < 10ms). Standalone debug all-target run failure retained (NPC mean 3.091ms > 2ms). Real Keycloak test passed 1/0/0 in 4.06s with pinned Keycloak 26.8.0.
+- [ ] Packaged combat soak and external gates: Current Game BuildCookRun staging passed in 49.25 s with a matching binary hash; all eight clients admitted and began combat lanes in the fresh 8-client 20-minute current-source soak, whose result remains PENDING. External self-hosted runner unregistered; existing two-week reliability programme pending separate operational follow-ups; root checkout Game/Editor rebuild required post-merge. Whole Phase 2 not marked complete.
 
-Detailed verification metrics, evidence receipts, and open gates are documented in [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md). Final acceptance remains pending until the product decision and required live gates are resolved.
+Detailed verification metrics, evidence receipts, and open gates are documented in [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md). See also [class transfer observability](../engineering/class-transfer-observability.md) and offline diagrams [class tree](../diagrams/phase-2-class-tree.html) / [class transfer](../diagrams/phase-2-class-transfer.html). Final acceptance remains pending until the product decision and required live gates are resolved.

@@ -1,6 +1,6 @@
 # Phase 2: Race and class
 
-Status: reference design. The [executable plan](../plans/phase-2-race-and-class.md) and [verification outcome](../plans/phase-2-race-and-class-outcome.md) record the current implementation and open acceptance gates. The reference's suggested Nightfall cap of 60 is superseded by the implemented Phase 1 cap of 85; playable transfers stop at tier 2 (levels 20/40), with tier 3 metadata only. Depends on Phase 1; feeds Phases 3 and 4.
+Status: reference design. The [executable plan](../plans/phase-2-race-and-class.md) and [verification outcome](../plans/phase-2-race-and-class-outcome.md) record the verified implementation and ordinary native acceptance through integration `b8a7151`, alongside pending acceptance gates (packaged combat soak, required token-supply choice, root rebuild). The reference's suggested Nightfall cap of 60 is superseded by the implemented Phase 1 cap of 85; playable transfers stop at tier 2 (levels 20/40), with tier 3 metadata only. Production creation starts at (0,0); Class Master is at (126,128) radius 3. Depends on Phase 1; feeds Phases 3 and 4.
 
 ## 1. Purpose and scope
 
