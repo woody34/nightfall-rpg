@@ -78,27 +78,36 @@ Its race cards, base-class choices, six base-stat bars, passive descriptions, an
 come from that response. The preview only adds the six server values to show their 170-point budget.
 Sex and appearance are persisted by the server. The available prototype has one hair, color, and
 face option (index 0); the existing mannequin body is shared by races and sexes. No additional art
-is required to exercise identity, class trees, or transfer rules.
+is required to exercise identity, class trees, or transfer rules (distinct racial and sex art is an
+explicit prototype limitation).
 
 The HUD's **Class path / Master** button opens the catalogue tree, highlights the current lineage,
-and shows the master location and radius. The admitted noncombat master uses one dedicated existing-shape proxy; clicking it opens the same
-dialog. Each option displays the server's unmet requirements. Selecting an eligible class offers a
+and shows the master location and radius. Clicking the noncombat Class Master NPC at
+`(126,128)` opens the same dialog; its interaction radius is 3 tiles. Its authoritative name
+appears as a gold screen-space label without an HP bar or extra actor. Each option displays
+the server's unmet requirements. Selecting an eligible class offers a
 separate confirmation before calling authenticated, idempotent `ChangeClass`. The server checks
-position, level, branch, availability, and tokens again. Class names and the tier availability cap
-come from the catalogue; movement follows authoritative `EntityMove` rather than race preview data.
+position, level, branch, availability, and tokens again. Class names and availability
+come from the catalogue. The level cap is 85; transfers stop at tier 2, and third classes remain
+metadata only. Movement follows authoritative `EntityMove` rather than race preview data.
 
 `ClassChanged` updates only an admitted entity in the same session generation, at or after its
 latest class-state tick. Owner CP, SP, token counts, and class id arrive in `StatsChanged`; older
-resource ticks and other owners' private data are ignored. Disconnect clears world identity and
-resources; admission spawns and owner stats rebuild them. The catalogue survives reconnect.
+resource ticks and other owners' private data are ignored. CP is reserved and does not absorb damage.
+Disconnect clears world identity and resources; admission spawns and owner stats rebuild them. The catalogue survives reconnect.
 
 `Scripts/fix-proto-optionals.py` repairs TurboLink 1.4.2's synthetic proto3 optional scalar handling
-as part of generation. A default creation request omits `base_class_id`; explicit class 0 remains
-present. `Nightfall.Class.Creation.OptionalPresence` checks the real protobuf bytes for omission,
+as part of generation. A default creation request omits `base_class_id` (resolving to the race fighter); explicit class 0 remains
+present (Human Fighter, rejected for other races). `Nightfall.Class.Creation.OptionalPresence` checks the real protobuf bytes for omission,
 zero, and a nonzero id. The other class automation tests exercise wire decoding, stale-session
 fences, owner privacy, reconnect, catalogue paths, bounded malformed cycles, and native layouts.
 
-| Scope | Scenario / automation evidence |
+The table records authored coverage. Required-live automation passed 62/62 at `889af68`;
+additional cases, ordinary wrapper execution, and the current packaged combat soak remain pending.
+See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.md).
+An explicit-key historical retry scenario is being added before the final scenario handoff.
+
+| Scope | Authored scenario / automation coverage |
 |---|---|
 | Five races, nine starting classes, sex, appearance, exact stat preview | `2-create-each-race-class-01.nfs`, `2-create-each-race-class-02.nfs`, `2-create-each-race-class-03.nfs` (three fresh accounts; 01 also fills seven slots and rejects the eighth) |
 | Invalid race/class, transfer-class creation, sex, appearance | `2-create-invalid.nfs` |
@@ -113,19 +122,38 @@ fences, owner privacy, reconnect, catalogue paths, bounded malformed cycles, and
 
 The transfer, reconnect, observer-pair and missing-token scenarios require the Phase 2 harness to seed their disposable account **before
 admission**: positive is a level-40 Human base class 0 with tokens 1/1 at (126,126), and missing-token
-is level 20 with its tier-1 milestone claimed and token count 0 at that position. They use the real
-Unreal scenario runner and durable replay checks. The fixture must never edit a live character. The ordinary runners read `# fixture:` declarations
+is level 20 with its tier-1 milestone claimed and token count 0 at that position. These seeded
+balances exercise consumption only. Production token supply/backfill remains an unresolved
+product decision; automatic grants and backfill are absent. Fixtures are provisioned before admission
+and never modify a live character. The ordinary runners read `# fixture:` declarations
 (`phase2-transfer`, `phase2-transfer-observer`, `phase2-transfer-missing-token`) and provision before admission;
-the observer pair uses different accounts. Independent creation matrices use numeric suffixes to avoid pair discovery.
-Ordinary creation retains (0,0); the range-denial scenario walks around the monster homes using
+the observer pair uses different accounts. Independent creation matrices use numeric suffixes (`-01`, `-02`, `-03`) to avoid pair discovery.
+Ordinary creation starts at `(0,0)`. The range-denial scenario travels around monster homes in
 segments below the server's 64-tile move limit.
+
+Run a seeded transfer through the ordinary wrapper, choosing a fresh artifact directory:
+
+```bash
+bash Scripts/run-sim.sh --api start --artifacts Saved/Phase2TransferAttempt \
+  Scenarios/2-class-transfer.nfs
+```
+
+The wrapper provisions isolated dynamic ports, runs the migration and guarded seeder before
+API startup, and supplies the supported `GrpcEndpoint` configuration override. Each role gets a
+private mode-0600 `DevTokenFile`; complete tokens stay out of bot command-line arguments.
+Phase 2 CI uses `--fresh-stack`. Host `psql` is unnecessary. Use the generated configuration;
+custom endpoint or token overrides are refused. See the [fixture guide](Scripts/phase2-fixtures.md)
+for ownership, cleanup, and paired scenarios. These harness fixes landed at `758e43f`; ordinary
+native acceptance remains pending.
 
 Development commands `nf.ClassCatalogue`, `nf.CreateClass <race> <base class> <sex> [hair] [color]
 [face]`, `nf.EnterCreated`, `nf.TransferOptions`, `nf.ChangeClass <target>`, `nf.Character`, and
 `nf.MoveMaster` are compiled only outside shipping. They call the same authenticated flow as the
-widgets. Class predicates are listed by the existing predicate registry and report server results;
+widgets. For local authentication, use `-DevTokenFile=<path>` as documented below.
+Class predicates are listed by the existing predicate registry and report server results;
 `class_rpc_error` never matches an outstanding operation. Negative scenarios have narrow reasoned
-allow-list entries for their asserted canonical gRPC failures.
+allow-list entries for their asserted canonical gRPC failures. See the
+[fixture guide](Scripts/phase2-fixtures.md) for isolated seeding and wrapper options.
 
 ## Movement
 

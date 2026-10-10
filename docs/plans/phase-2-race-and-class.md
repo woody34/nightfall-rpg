@@ -1,6 +1,6 @@
 # Phase 2 Plan: Race and Class
 
-**Status:** delivery plan 2026-10-09; acceptance and required token-supply choice pending. **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Model/effort assignments below.
+**Status:** delivery plan 2026-10-09; data/server implementation verified; client and harness follow-ups, final live acceptance, and required token-supply choice pending (reconciled in outcome summary [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md)). **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Model/effort assignments below.
 
 ## 1. Goal and locked decisions
 
@@ -90,7 +90,7 @@ Actual `subclass::eligible(registry, context, candidate)` requires main75+ and c
 
 ## 3. Epics, stories, models and Done When
 
-Models: **D = agy gemini-3.8-flash-high**, **C = Codex gpt-6.1-sol / high**, **Z = Codex gpt-6-astra / high**; Z reviews critical contracts independently. Rows specify work/Done When; evidence pending.
+Models: **D = agy gemini-3.8-flash-high**, **C = Codex gpt-6.1-sol / high**, **Z = Codex gpt-6-astra / high**; Z reviews critical contracts independently. Rows specify work and acceptance conditions; verified and pending gates are recorded in the outcome summary.
 
 ### E1 — Race/class data and traits
 
@@ -213,17 +213,18 @@ Waves gate dependencies: foundations -> independent creation/schema, zone and UE
 
 Manual SP purchase/skill execution/buffs Phase3; inventory/equipment/mastery effects Phase4; economy Phase5; quests Phase6; playable tier3/subclass runtime/certification effects/UI; Kamael/multiple-zone/geodata/swimming. Real autoGet/proficiency metadata/racial modifiers in scope. No teleport/mutable progression RPC/fake results.
 
-## 8. Outcome — all pending
+## 8. Outcome reconciliation
 
-- [ ] Catalogue/growth/39 real trees/count/refs/source provenance verified.
-- [ ] Required token supply/backfill choice recorded; no premature grants. Curated names and prototype art are documented implementation assumptions.
-- [ ] Production/fixture spawn, cap/tier/Master locks verified.
-- [ ] Creation/concurrency/legacy retries/migration preservation/normalized learning verified.
-- [ ] Independent racial/class/CP vectors and actual learned keys verified.
-- [ ] Actor/account-key/permanent frozen receipts/log->DB->output/fail-closed recovery proven.
-- [ ] Old/new snapshots/records/digests/fingerprints and payload limits verified.
-- [ ] E1..E5 simulations: nine files/observer pair/native assertions/recordings pass.
-- [ ] All19 Phase1a cases/intentional racial oracle revision, required checks/review pass.
-- [ ] Phase2 local measurements published; CI runner registration/two-week reliability gate external pending.
+- [x] Catalogue/growth/39 real trees/count/refs/source provenance verified (13 Rust + 3 Python tests pass, independent admission reviews APPROVE `4adde1e`).
+- [ ] Required token supply/backfill choice recorded; no premature grants. Curated names and prototype art are documented implementation assumptions. (Token choice STILL PENDING; consumption verified).
+- [x] Production `(0,0)` and fixture `(126,126)` spawn, cap 85, tier 2 playable, Master `(126,128)` radius 3 verified in contracts and test gates.
+- [x] Creation/concurrency/legacy retries/migration preservation/normalized learning verified (`grpc_create_character15`, Postgres concurrent bounded 7, all 9 profiles preserved at 85/XP/position).
+- [x] Independent racial/class/CP vectors and actual learned keys verified (397 lib tests, exact CON max CP floor, living HP min 1, Human XP, Elf run/evasion, DE crit).
+- [x] Actor/account-key/permanent frozen receipts/log->DB->output/fail-closed recovery proven (38 functional suites / 642 pass with real DB 26432 & NATS 25422; runtime review `8edffd1` PASS).
+- [x] Old/new snapshots/records/digests/fingerprints and payload limits verified (BinaryV3 snapshot 2,060,904 -> 152,362 bytes; prost catalogue 455,324 bytes; codec `a8ac679` & outer NFR `5b6861b` PASS).
+- [ ] E1..E5 simulations: 11 Phase 2 `.nfs` files authored at candidate `9f3927d`; an explicit-key historical retry scenario is being added. Initial client Game/Editor builds and 62 editor tests passed (4 offline cases skipped); later required-live automation passed 62/62 without skips at `889af68`. Additional automation cases and ordinary wrapper execution remain pending.
+- [ ] All 19 Phase 1a baseline intents retained; intentional Human XP expectations updated; fresh live verification across all 19 cases PENDING.
+- [ ] Performance & soak: release combat p99 gate remains pending; documented optimized cargo bench on quiescent host PASS (NPC mean 0.143ms < 2ms, 1000 observers mean 5.087ms < 10ms); debug all-target run failed NPC mean 3.091ms; final packaged 8-client 20-min combat soak PENDING.
+- [ ] External gates: CI runner unregistered; external two-week reliability programme separate; final root checkout Game/Editor rebuild required post-merge.
 
-Plan only; no implementation, test, native, choice or gate completion claimed.
+Detailed verification metrics, evidence receipts, and open gates are documented in [`phase-2-race-and-class-outcome.md`](phase-2-race-and-class-outcome.md). Final acceptance remains pending until the product decision and required live gates are resolved.

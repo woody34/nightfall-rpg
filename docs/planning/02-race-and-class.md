@@ -1,6 +1,6 @@
 # Phase 2: Race and class
 
-Status: planning reference. Depends on Phase 1 (stat formulas). Feeds Phase 3 (combat/skills) and Phase 4 (equipment proficiency).
+Status: reference design. The [executable plan](../plans/phase-2-race-and-class.md) and [verification outcome](../plans/phase-2-race-and-class-outcome.md) record the current implementation and open acceptance gates. The reference's suggested Nightfall cap of 60 is superseded by the implemented Phase 1 cap of 85; playable transfers stop at tier 2 (levels 20/40), with tier 3 metadata only. Depends on Phase 1; feeds Phases 3 and 4.
 
 ## 1. Purpose and scope
 
