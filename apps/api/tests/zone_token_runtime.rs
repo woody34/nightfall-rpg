@@ -1,5 +1,6 @@
 //! Production composition fences with a real isolated PostgreSQL schema and `JetStream`.
-//! External-service cases require `DATABASE_URL` (and `NATS_URL` for the successful startup).
+//! Requires `DATABASE_URL` for every case and `NATS_URL` for successful startup.
+//! Missing dependencies fail explicitly; these acceptance checks never silently skip.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -55,9 +56,9 @@ fn isolated_zone() -> (ZoneFile, ZoneId, ZoneRuntimeConfig) {
 
 #[tokio::test]
 async fn persistent_startup_without_nats_creates_no_epoch() {
-    let Some(pool) = pg::migrated_pool().await else {
-        return;
-    };
+    let pool = pg::migrated_pool()
+        .await
+        .expect("DATABASE_URL is required for persistent runtime acceptance");
     let db = connection_from_pool(&pool);
     let store = PgZoneSnapshotStore::new(db.clone());
     let (_dir, zone, cfg) = isolated_zone();
@@ -74,9 +75,9 @@ async fn persistent_startup_without_nats_creates_no_epoch() {
 
 #[tokio::test]
 async fn persistent_startup_with_unreachable_broker_creates_no_epoch() {
-    let Some(pool) = pg::migrated_pool().await else {
-        return;
-    };
+    let pool = pg::migrated_pool()
+        .await
+        .expect("DATABASE_URL is required for persistent runtime acceptance");
     let db = connection_from_pool(&pool);
     let store = PgZoneSnapshotStore::new(db.clone());
     let (_dir, zone, cfg) = isolated_zone();
@@ -97,12 +98,11 @@ async fn persistent_startup_with_unreachable_broker_creates_no_epoch() {
 
 #[tokio::test]
 async fn persistent_startup_with_real_broker_persists_current_policy_before_returning() {
-    let Ok(url) = std::env::var("NATS_URL") else {
-        return;
-    };
-    let Some(pool) = pg::migrated_pool().await else {
-        return;
-    };
+    let url = std::env::var("NATS_URL")
+        .expect("NATS_URL is required for successful persistent runtime acceptance");
+    let pool = pg::migrated_pool()
+        .await
+        .expect("DATABASE_URL is required for persistent runtime acceptance");
     let db = connection_from_pool(&pool);
     let store = PgZoneSnapshotStore::new(db.clone());
     let (_dir, zone, cfg) = isolated_zone();
