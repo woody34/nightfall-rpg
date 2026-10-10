@@ -4,7 +4,7 @@
 Python 3.11+, standard library only, no floating-point arithmetic in golden outputs.
 Uses exact Fraction arithmetic and rational root intervals certified by isqrt.
 
-Covers all 18 required skill formula groups (23 formula keys):
+Covers skill formula groups, including periodic adaptation and affect-limit semantics:
 1. calcSkillPhysDam (+ skill crit)
 2. calcMagicDam (+ magic crit, spiritshot absent)
 3. calcMagicSuccess
@@ -92,6 +92,39 @@ def binary_nearest(x: F, bits: int) -> F:
     r = a - k
     k += r > F(1, 2) or (r == F(1, 2) and k % 2 == 1)
     return k * unit
+
+
+def ieee_normal(x: F, bits: int) -> F:
+    """Integer-only IEEE nearest/ties-even adapter for bounded normal values.
+
+    bits=24 models binary32; bits=53 models binary64. Sign and zero are exact.
+    No struct, numpy, or host float arithmetic; all significand rounding uses
+    integer quotient/remainder. Subnormals/overflow are outside these fixtures.
+    """
+    return F(0) if x == 0 else (binary_nearest(x, bits) if x > 0 else -binary_nearest(-x, bits))
+
+
+def ticks_multiplier(ticks: int, ratio: int = 666) -> F:
+    # AbstractEffect.java:149: int product converted to binary32, divided by
+    # binary32 1000f, rounded in binary32, then widened exactly to binary64.
+    return ieee_normal(ieee_normal(F(ticks * ratio), 24) / F(1000), 24)
+
+
+def accumulation_trace(rate_q: int, maximum: int = 10**9, current: int = 0,
+                       remainder_q: int = 0, pulses: int = 3) -> list[dict]:
+    """D-R12: Q restoration credit, carry between pulses, clear at full clamp."""
+    trace = []
+    cumulative = 0
+    for pulse in range(1, pulses + 1):
+        whole, remainder_q = divmod(remainder_q + rate_q, Q)
+        granted = min(whole, max(0, maximum - current))
+        current += granted
+        cumulative += granted
+        if current >= maximum:
+            remainder_q = 0
+        trace.append({"pulse": pulse, "tick": pulse * 30, "whole_granted": granted,
+                      "cumulative_whole": cumulative, "current": current, "remainder_q": remainder_q})
+    return trace
 
 
 def format_fraction(x: F) -> str:
@@ -393,35 +426,35 @@ def make_calc_effect_success_vectors() -> list[dict]:
     # Systematics covering all branches and boundaries
     configs = [
         # (magic_lvl, target_lvl, act_rate, lvl_bonus, target_stat, prop, is_magic, m_atk, m_def, trait_mod, elem_mod, buff_mod, min_c, max_c, desc)
-        (0, 1, -1, 0, 20, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 1, 99, "activateRate == -1 unconditional success"),
-        (0, 1, 50, 1, 20, "NONE", False, 0, 1, F(1), F(1), F(101, 100), 1, 99, "basicProperty == NONE unconditional success"),
-        (-1, 20, 50, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 1, 99, "magicLevel <= -1 defaults to targetLvl + 3"),
-        (0, 20, 50, 0, 25, "MEN", False, 0, 1, F(0), F(1), F(101, 100), 1, 99, "traitMod == 0 (trait immunity yields 0%)"),
-        (0, 50, 10, 1, 99, "CON", False, 0, 1, F(1), F(1), F(101, 100), 1, 99, "Extreme high stat MEN=99 hitting minChance clamp"),
-        (50, 1, 90, 5, 10, "INT", False, 0, 1, F(1), F(1), F(101, 100), 1, 99, "Over-leveled high rate hitting maxChance clamp"),
-        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 1, 99, "Physical debuff default DEBUFF_VULN 1.01"),
-        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(1), 1, 99, "Physical debuff DEBUFF_VULN 1.00"),
-        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(12, 10), 1, 99, "Physical debuff DEBUFF_VULN 1.20"),
-        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(8, 10), F(1), F(101, 100), 1, 99, "Physical debuff trait resistance 0.8"),
-        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(11, 10), F(101, 100), 1, 99, "Physical debuff element mod 1.1"),
-        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, "Custom clamp range [10, 90]"),
+        (0, 1, -1, 0, 20, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, "activateRate == -1 unconditional success"),
+        (0, 1, 50, 1, 20, "NONE", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, "basicProperty == NONE unconditional success"),
+        (-1, 20, 50, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, "magicLevel <= -1 defaults to targetLvl + 3"),
+        (0, 20, 50, 0, 25, "MEN", False, 0, 1, F(0), F(1), F(101, 100), 10, 90, "traitMod == 0 (trait immunity yields 0%)"),
+        (0, 50, 10, 1, 99, "CON", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, "Extreme high stat MEN=99 hitting minChance clamp"),
+        (50, 1, 90, 5, 10, "INT", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, "Over-leveled high rate hitting maxChance clamp"),
+        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(1), 10, 90, "Physical debuff default DEBUFF_VULN 1.00"),
+        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(1), 10, 90, "Physical debuff DEBUFF_VULN 1.00"),
+        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(12, 10), 10, 90, "Physical debuff DEBUFF_VULN 1.20"),
+        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(8, 10), F(1), F(101, 100), 10, 90, "Physical debuff trait resistance 0.8"),
+        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(11, 10), F(101, 100), 10, 90, "Physical debuff element mod 1.1"),
+        (20, 20, 40, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, "Pinned default clamp range [10, 90]"),
         # Magic debuffs: mAtkMod = (sqrt(mAtk) / mDef) * 11
-        (20, 20, 40, 2, 25, "MEN", True, 100, 50, F(1), F(1), F(101, 100), 1, 99, "Magic debuff: mAtk=100 (sqrt=10), mDef=50"),
-        (20, 20, 40, 2, 25, "MEN", True, 25, 50, F(1), F(1), F(101, 100), 1, 99, "Magic debuff: mAtk=25 (sqrt=5), mDef=50"),
-        (20, 20, 40, 2, 25, "MEN", True, 400, 100, F(1), F(1), F(101, 100), 1, 99, "Magic debuff: mAtk=400 (sqrt=20), mDef=100"),
-        (20, 20, 40, 2, 25, "MEN", True, 900, 150, F(1), F(1), F(101, 100), 1, 99, "Magic debuff: mAtk=900 (sqrt=30), mDef=150"),
+        (20, 20, 40, 2, 25, "MEN", True, 100, 50, F(1), F(1), F(101, 100), 10, 90, "Magic debuff: mAtk=100 (sqrt=10), mDef=50"),
+        (20, 20, 40, 2, 25, "MEN", True, 25, 50, F(1), F(1), F(101, 100), 10, 90, "Magic debuff: mAtk=25 (sqrt=5), mDef=50"),
+        (20, 20, 40, 2, 25, "MEN", True, 400, 100, F(1), F(1), F(101, 100), 10, 90, "Magic debuff: mAtk=400 (sqrt=20), mDef=100"),
+        (20, 20, 40, 2, 25, "MEN", True, 900, 150, F(1), F(1), F(101, 100), 10, 90, "Magic debuff: mAtk=900 (sqrt=30), mDef=150"),
     ]
 
     # Add level difference sweep
     for diff in [-10, -5, -2, 0, 2, 5, 10]:
         for act in [20, 50, 80]:
             if len(configs) < 50:
-                configs.append((20 + diff, 20, act, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 1, 99, f"Level diff {diff}, actRate {act}"))
+                configs.append((20 + diff, 20, act, 2, 25, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, f"Level diff {diff}, actRate {act}"))
 
     # Add stat variations
     for stat in [10, 20, 30, 40, 50, 60, 70, 80]:
         if len(configs) < 50:
-            configs.append((25, 25, 50, 2, stat, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 1, 99, f"Target stat MEN={stat}"))
+            configs.append((25, 25, 50, 2, stat, "MEN", False, 0, 1, F(1), F(1), F(101, 100), 10, 90, f"Target stat MEN={stat}"))
 
     out = []
     for mlvl, tlvl, act, lbr, tstat, prop, is_mag, matk, mdef, trt, elem, buff, min_c, max_c, desc in configs:
@@ -944,6 +977,7 @@ def make_calc_regen_vectors(bonuses: dict) -> dict[str, list[dict]]:
                 "q_result": q_scale(rate),
                 "rounded_result": floor(rate),
                 "pulse_30_ticks_whole": floor(rate),
+                "pulse_trace": accumulation_trace(q_scale(rate)),
                 "rounding_rule": "Math.max(1, init) floor clamp; Q fractions accumulated; whole integer emitted per 30-tick pulse",
             })
         return res
@@ -1012,6 +1046,7 @@ def make_calculate_karma_vectors(multipliers: list[F]) -> tuple[list[dict], list
         (85, 1000000),
         (85, 10000000),
         (85, 2**31 - 1),
+        (2, 6208133913),  # DATA review: rational/Java binary64 counterexample
     ])
 
     lost_out = []
@@ -1019,7 +1054,12 @@ def make_calculate_karma_vectors(multipliers: list[F]) -> tuple[list[dict], list
         mul = multipliers[lvl - 1]
         # (int) ((Math.abs(exp) / karmaLooseMul) / 30)
         exact = (F(abs(exp)) / mul) / F(30)
-        rounded_res = floor(exact)
+        # Java: decimal literal -> double; long exp -> double; each division
+        # rounds separately, then narrowing double->int truncates/saturates.
+        java_mul = ieee_normal(mul, 53)
+        java_first = ieee_normal(ieee_normal(F(abs(exp)), 53) / java_mul, 53)
+        java_final = ieee_normal(java_first / F(30), 53)
+        rounded_res = min(2**31 - 1, floor(java_final))
 
         lost_out.append({
             "description": f"Karma lost level {lvl}, exp {exp}",
@@ -1030,8 +1070,12 @@ def make_calculate_karma_vectors(multipliers: list[F]) -> tuple[list[dict], list
                 "karma_multiplier": format_fraction(mul),
             },
             "exact_rational": format_fraction(exact),
+            "intermediate": {"binary64_multiplier": format_fraction(java_mul),
+                             "binary64_first_division": format_fraction(java_first),
+                             "binary64_final_division": format_fraction(java_final),
+                             "rational_truncation": floor(exact)},
             "rounded_result": rounded_res,
-            "rounding_rule": "(int) truncation at Formulas.java:1820",
+            "rounding_rule": "binary64 conversion and two separately rounded divisions, then (int) truncation/saturation at Formulas.java:1820; RateKarmaLost=1",
         })
 
     assert len(lost_out) >= 40, f"Expected >= 40 lost vectors, got {len(lost_out)}"
@@ -1378,16 +1422,16 @@ def make_m_stat_derivation_vectors(bonuses: dict) -> dict[str, list[dict]]:
                     "rounding_rule": "Exact Q quantity at CharStat.java:284; floor for whole display",
                 })
 
-    # FuncMAtkSpeed: 333 * WIT.bonus, capped at maxMAtkSpeed (2000)
+    # FuncMAtkSpeed: 333 * WIT.bonus, capped at pinned MaxMAtkSpeed (1999, character.properties:268)
     for wit_stat in range(1, 99, 2):
         if len(matkspd_vectors) < 45:
             wit_b = bonuses["wit"][wit_stat]
             exact = F(333) * wit_b
-            clamped = min(F(2000), exact)
+            clamped = min(F(1999), exact)
             matkspd_vectors.append({
                 "description": f"FuncMAtkSpeed base=333, WIT={wit_stat}",
                 "source_lines": matkspd_source,
-                "inputs": {"init_val": 333, "wit_stat": wit_stat, "max_m_atk_speed": 2000},
+                "inputs": {"init_val": 333, "wit_stat": wit_stat, "max_m_atk_speed": 1999},
                 "intermediate": {
                     "wit_bonus": format_fraction(wit_b),
                     "raw_speed": format_fraction(exact),
@@ -1453,59 +1497,91 @@ def make_tick_hp_vectors() -> list[dict]:
                 configs.append((p_val, 1, "DIFF", hp_val, 2000, f"Grid DoT p={p_val}, hp={hp_val}"))
 
     for p, ticks, mode, cur_hp, max_hp, desc in configs:
-        ticks_mult = F(ticks * 666, 1000)
-        power_frac = F(p)
-        if mode == "DIFF":
-            raw_amount = power_frac * ticks_mult
-        else:
-            raw_amount = F(cur_hp) * power_frac * ticks_mult
+        out.append(tick_hp_vector(p, ticks, mode, cur_hp, max_hp, desc))
 
-        if raw_amount < 0:
-            raw_dmg = abs(raw_amount)
-            non_lethal_cap = max(F(0), F(cur_hp) - 1)
-            clamped_by_nl = (raw_dmg >= non_lethal_cap)
-            effective_amount = non_lethal_cap if clamped_by_nl else raw_dmg
-            final_hp = F(cur_hp) - effective_amount
-            rounded_amount = int(floor(effective_amount))
-            rounded_hp = int(floor(final_hp))
-            non_lethal_cap_str = format_fraction(non_lethal_cap)
-        else:
-            recoverable = max(F(0), F(max_hp) - F(cur_hp))
-            effective_amount = min(raw_amount, recoverable)
-            clamped_by_nl = False
-            non_lethal_cap_str = None
-            final_hp = F(cur_hp) + effective_amount
-            rounded_amount = int(floor(effective_amount))
-            rounded_hp = int(floor(final_hp))
-
-        out.append({
-            "description": desc,
-            "source_lines": source_lines,
-            "inputs": {
-                "power": format_fraction(power_frac),
-                "ticks": ticks,
-                "mode": mode,
-                "current_hp": cur_hp,
-                "max_hp": max_hp,
-                "effect_tick_ratio": 666,
-            },
-            "intermediate": {
-                "ticks_multiplier": format_fraction(ticks_mult),
-                "interval_ms": ticks * 666,
-                "raw_amount": format_fraction(raw_amount),
-                "non_lethal_cap": non_lethal_cap_str,
-                "clamped_by_non_lethal": clamped_by_nl,
-            },
-            "exact_rational": format_fraction(effective_amount),
-            "rounded_result": {
-                "amount": rounded_amount,
-                "final_hp": rounded_hp,
-            },
-            "rounding_rule": "Non-lethal clamp power=min(power, currentHp-1) at TickHp.java:75-76; (int) floor damage",
-        })
+    # CP absorption follows the HP-1 clamp, not a cap on total HP+CP.
+    for power, hp, cp, player_source in [(-100, 50, 100, True), (-100, 50, 10, True),
+                                        (-100, 50, 49, True), (-50, 1, 100, True),
+                                        (-10, 100, 5, True), (-10, 100, 6, True),
+                                        (-100, 50, 100, False), (-100, 2, 1, True)]:
+        out.append(tick_hp_vector(power, 1, "DIFF", hp, 200, "CP absorption after non-lethal clamp",
+                                  cp, player_source))
 
     assert len(out) >= 40
     return out
+
+
+def tick_hp_vector(power, ticks: int, mode: str, cur_hp: int, max_hp: int,
+                   desc: str, current_cp: int = 0, player_source: bool = False) -> dict:
+    mult = ticks_multiplier(ticks)
+    # _power is parsed as Java double. PER multiplies hp*power first, then the
+    # widened binary32 multiplier (TickHp.java:62-71). DIFF freezes this amount.
+    java_power = ieee_normal(F(power), 53)
+    product = java_power if mode == "DIFF" else ieee_normal(F(cur_hp) * java_power, 53)
+    raw = ieee_normal(product * mult, 53)
+    cap = max(0, cur_hp - 1)
+    nonlethal = raw < 0 and abs(raw) >= cap
+    effective = min(abs(raw), F(cap)) if raw < 0 else min(raw, F(max(0, max_hp - cur_hp)))
+    amount = floor(effective)
+    cp_removed = min(current_cp, amount) if raw < 0 and player_source else 0
+    hp_removed = amount - cp_removed if raw < 0 else 0
+    final_hp = cur_hp - hp_removed if raw < 0 else cur_hp + amount
+    remainder = 0 if raw < 0 or final_hp >= max_hp else q_scale(effective) % Q
+    # Preserve Java fractional evidence separately from Nightfall's whole
+    # damage/Q restoration adaptation; neither is mislabeled as the other.
+    source_cp = min(F(current_cp), effective) if raw < 0 and player_source else F(0)
+    source_hp_removed = ieee_normal(effective - source_cp, 53) if raw < 0 else F(0)
+    source_hp = ieee_normal(F(cur_hp) - source_hp_removed, 53) if raw < 0 else (
+        F(cur_hp) if cur_hp > max_hp else min(ieee_normal(F(cur_hp) + raw, 53), F(max_hp)))
+    source_cp_after = ieee_normal(F(current_cp) - source_cp, 53)
+    # A three-pulse trace proves frozen DIFF / dynamic PER and Q restoration.
+    trace = []
+    hp, cp, rem = cur_hp, current_cp, 0
+    for pulse in range(1, 4):
+        prod = java_power if mode == "DIFF" else ieee_normal(F(hp) * java_power, 53)
+        pulse_raw = ieee_normal(prod * mult, 53)
+        if pulse_raw < 0:
+            dmg = floor(min(abs(pulse_raw), F(max(0, hp - 1))))
+            cp_dmg = min(cp, dmg) if player_source else 0
+            cp -= cp_dmg
+            hp -= dmg - cp_dmg
+            granted = 0
+        else:
+            credit_q = q_scale(min(pulse_raw, F(max(0, max_hp - hp))))
+            grant, rem = divmod(rem + credit_q, Q)
+            granted = min(grant, max(0, max_hp - hp))
+            hp += granted
+            if hp >= max_hp:
+                rem = 0
+            dmg, cp_dmg = 0, 0
+        trace.append({"pulse": pulse, "ideal_offset_ms": pulse * ticks * 666,
+                      "tick_offset": ceil(F(pulse * ticks * 666, 100)),
+                      "hp_before": cur_hp if pulse == 1 else trace[-1]["final_hp"],
+                      "raw_amount": format_fraction(pulse_raw), "whole_damage": dmg,
+                      "cp_removed": cp_dmg, "whole_restored": granted,
+                      "final_hp": hp, "final_cp": cp, "restoration_remainder_q": rem})
+    return {
+        "description": desc,
+        "source_lines": "AbstractEffect.java:148-149; TickHp.java:62-89; PcStatus.java:185-194; architecture-decisions D-R12",
+        "inputs": {"power": format_fraction(F(power)), "ticks": ticks, "mode": mode,
+                   "current_hp": cur_hp, "max_hp": max_hp, "current_cp": current_cp,
+                   "player_source": player_source, "target_is_player": True, "effect_tick_ratio": 666},
+        "intermediate": {"ticks_multiplier": format_fraction(mult), "interval_ms": ticks * 666,
+                         "binary64_power": format_fraction(java_power), "raw_amount": format_fraction(raw),
+                         "non_lethal_cap": str(cap) if raw < 0 else None,
+                         "clamped_by_non_lethal": nonlethal},
+        "exact_rational": format_fraction(effective),
+        "source_fractional_result": {"amount": format_fraction(effective),
+                                     "cp_removed": format_fraction(source_cp),
+                                     "hp_removed": format_fraction(source_hp_removed),
+                                     "final_hp": format_fraction(source_hp),
+                                     "final_cp": format_fraction(source_cp_after)},
+        "rounded_result": {"amount": amount, "cp_removed": cp_removed, "hp_removed": hp_removed,
+                           "final_hp": final_hp, "final_cp": current_cp - cp_removed,
+                           "restoration_remainder_q": remainder},
+        "pulse_trace": trace,
+        "rounding_rule": "binary32 multiplier widened exactly; binary64 power/products; HP-1 cap before whole-damage conversion and CP-first subtraction; restoration accumulates Q, clears at full clamp (D-R12)",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1532,8 +1608,8 @@ def make_cast_staging_vectors() -> list[dict]:
         # Short casts (design review F3/F4 citations)
         (500, 333, False, False, 100, "500 ms cast: cutoff=3, launch=100 ms, impact=500 ms"),
         (550, 333, False, False, 100, "550 ms cast: cutoff=3 (floor(5.5)-2), launch=150 ms, impact=550 ms"),
-        (500, 333, True, False, 100, "Continuous 500 ms: cutoff=3, launch=-200 ms, impact=200 ms"),
-        (550, 333, True, False, 100, "Continuous 550 ms: cutoff=3, launch=-150 ms, impact=250 ms"),
+        (500, 333, True, False, 100, "Continuous 500 ms: cutoff=3, immediate launch, impact=400 ms"),
+        (550, 333, True, False, 100, "Continuous 550 ms: cutoff=3, immediate launch, impact=400 ms"),
         # Long casts
         (6000, 333, False, False, 100, "Long 6000 ms cast: cutoff=58, launch=5600 ms, impact=6000 ms"),
         (8000, 333, False, False, 100, "Long 8000 ms cast: cutoff=78, launch=7600 ms, impact=8000 ms"),
@@ -1548,6 +1624,13 @@ def make_cast_staging_vectors() -> list[dict]:
         (1000, 333, True, True, 100, "Static continuous 1000 ms: cutoff=8, launch=300 ms, impact=700 ms"),
     ]
 
+    # Task skillTime == trunc(original animation); short positive animations
+    # with nonzero skillTime still schedule the 400 ms impact stage.
+    for animation in [F(0), F(1, 2), F(1), F(50), F(100), F(1200)]:
+        for continuous in [False, True]:
+            configs.append((animation, 333, continuous, True, 100,
+                            f"Short/boundary animation {format_fraction(animation)} ms, continuous={continuous}"))
+
     for ht in [1200, 1800, 2400, 3500]:
         for spd in [333, 450, 600]:
             for cont in [False, True]:
@@ -1556,21 +1639,22 @@ def make_cast_staging_vectors() -> list[dict]:
 
     for ht, spd, cont, stat, st_tick, desc in configs:
         raw_anim = F(ht) if stat else (F(ht) / F(spd)) * F(333)
-        anim_ms = floor(raw_anim)
-        if not stat and anim_ms < 500 and ht > 500:
-            anim_ms = 500
+        animation = raw_anim
+        if not stat and animation < 500 and ht > 500:
+            animation = F(500)
+        anim_ms = int(animation)
 
         # Interrupt cutoff based on original anim_ms per L2Character.java:1508
         cutoff_offset_ticks = (anim_ms // 100) - 2
-        cutoff_tick = st_tick + cutoff_offset_ticks
+        cutoff_tick = st_tick + max(0, cutoff_offset_ticks)
 
         # Continuous adjustment per L2Character.java:1627
-        effective_anim_ms = anim_ms - 300 if cont else anim_ms
-        launch_offset_ms = effective_anim_ms - 400
+        effective_anim_ms = int(animation - 300) if cont else anim_ms
+        launch_offset_ms = max(0, effective_anim_ms - 400)
         launch_offset_ticks = ceil(F(launch_offset_ms, 100))
         launch_tick = st_tick + launch_offset_ticks
 
-        impact_offset_ms = effective_anim_ms
+        impact_offset_ms = launch_offset_ms + (400 if anim_ms != 0 else 0)
         impact_offset_ticks = max(1, ceil(F(impact_offset_ms, 100)))
         impact_tick = st_tick + impact_offset_ticks
 
@@ -1578,7 +1662,7 @@ def make_cast_staging_vectors() -> list[dict]:
             "description": desc,
             "source_lines": source_lines,
             "inputs": {
-                "hit_time_ms": ht,
+                "hit_time_ms": int(ht) if F(ht).denominator == 1 else format_fraction(F(ht)),
                 "cast_speed": spd,
                 "is_continuous": cont,
                 "is_static": stat,
@@ -1594,12 +1678,13 @@ def make_cast_staging_vectors() -> list[dict]:
             "rounded_result": {
                 "interrupt_cutoff_offset_ticks": cutoff_offset_ticks,
                 "interrupt_cutoff_tick": cutoff_tick,
+                "interrupt_window_empty": cutoff_offset_ticks <= 0,
                 "launch_offset_ticks": launch_offset_ticks,
                 "launch_tick": launch_tick,
                 "impact_offset_ticks": impact_offset_ticks,
                 "impact_tick": impact_tick,
             },
-            "rounding_rule": "Cutoff = floor(trunc(anim_ms)/100) - 2; continuous anim -= 300 ms; launch = anim - 400 ms; impact = launch + 400 ms; tick = ceil(ms / 100)",
+            "rounding_rule": "Cutoff = floor(trunc(original animation)/100)-2 (nonpositive is empty); launch=max(0,trunc(animation-continuous*300)-400); impact=launch+(trunc(original animation)==0?0:400); ceil each offset once, complete at least start+1",
         })
 
     assert len(out) >= 40
@@ -2048,8 +2133,8 @@ def generate() -> tuple[dict, str]:
             "FuncMAtkMod": "Exact Q initVal * (INT.bonus)^2 * (levelMod)^2 at FuncMAtkMod.java:42-47",
             "FuncMDefMod": "Exact Q value * MEN.bonus * levelMod at FuncMDefMod.java:58-61",
             "FuncMAtkSpeed": "(int) truncation after cap at CharStat.java:252; 333 * WIT.bonus at FuncMAtkSpeed.java:42-45",
-            "TickHp": "Non-lethal clamp power=min(power, currentHp-1) at TickHp.java:75-76; ticksMultiplier=(ticks * EffectTickRatio)/1000f at AbstractEffect.java:148-149 with EffectTickRatio=666 from character.properties:145; DIFF vs PER calculation at TickHp.java:62-71",
-            "cast_staging": "Cast timing staging at L2Character.java:1508, 1625-1643, 4577-4581: base animation time, continuous-skill -300 ms, launch at anim - 400 ms, impact at launch + 400 ms, interrupt cutoff deadline floor(trunc(animation_ms)/100) - 2 ticks",
+            "TickHp": "Binary32 amount multiplier at AbstractEffect.java:149; DIFF/PER binary64 products at TickHp.java:62-71; HP-1 cap at75-76 before whole damage/CP absorption (PcStatus.java:185-194); Q restoration remainder per D-R12. See pulse traces.",
+            "cast_staging": "Cast timing staging at L2Character.java:1508, 1625-1643, 4577-4581: base animation time, continuous-skill -300 ms, launch=max(0,trunc(adjusted animation)-400), impact=launch+(trunc(original animation)==0?0:400), interrupt cutoff deadline floor(trunc(animation_ms)/100) - 2 ticks",
             "Heal": "Heal.java:84-102: weapon grade multiplier (S84=4, S80=2, other=1), no-shot dynamic bonus (+1), sqrt(mAtkMul * mAtk) added unless static, recipient HEAL_EFFECT, x3 magic crit, and [0, maxRecoverableHp - currentHp] overheal clamp",
             "FuncAtkEvasion": "FuncAtkEvasion.java:37,61: order 1 built-in func truncates (int) value before later stat modifiers; CharStat.java:171-174 rounds the final completed stat",
             "stun_removal_condition": "PcStatus.java:83-96 and CharStatus.java:142-146: stun removal roll condition (!isDOT && !isHPConsumption && isStunned) triggering Rnd.get(10) == 0 (10% chance) on eligible direct damage",
@@ -2059,10 +2144,11 @@ def generate() -> tuple[dict, str]:
             "calcMagicSuccess_float_cast": "Formulas.java:1301 explicitly casts the double result to (float) before Math.round. In IEEE 754 binary32, precision is 24 bits. The oracle models this with binary_nearest(x, 24) to guarantee exact equivalence with the Java JVM.",
             "calcMagicDam_sqrt": "Formulas.java:845 uses Math.sqrt(mAtk). The oracle uses rational interval bounds [lo, hi] certified by integer square root (isqrt) to prove that the whole-number damage is invariant to floating-point vs exact square root.",
             "calcAtkBreak_sqrt": "Formulas.java:1010 uses Math.sqrt(13 * dmg). The oracle similarly certifies integer interval agreement for all vectors.",
-            "calculateKarmaLost_division": "Formulas.java:1820 divides integer exp by double multiplier then 30. All 85 multipliers in pcKarmaIncrease.xml have finite decimal expansions with up to 9 fractional digits. Rational arithmetic exp / F(mul) / 30 truncated matches Java double division for all game exp values.",
+            "calculateKarmaLost_division": "Formulas.java:1820 rounds the multiplier conversion and both divisions in binary64 before int truncation. Exact rational truncation is NOT universally equivalent: level2, XP6208133913, multiplier2.069377971 gives rational100000000 vs Java99999999. All supplied vectors model the binary64 sites with integer-only nearest/ties-even significand rounding; RateKarmaLost=1.",
             "resurrect_quirk_boundary": "Formulas.java:1377 uses strictly greater comparison (restorePercent - baseRestorePercent > 20.0). Floating point round-off near boundary could flip this condition; rational arithmetic guarantees exactness at the 20.0 boundary.",
             "FuncAtkEvasion_intermediate_cast": "FuncAtkEvasion.java:61 truncates intermediate evasion to (int) before modifiers. Without this intermediate truncation, rounding after modifiers produces different integer values (e.g. lvl 1 DEX 20 player yields 27 with cast vs 28 without; adding +4 modifier yields 31 vs 32; buff 1.1x yields 30 vs 31).",
             "Heal_nongrade_shot_multiplier": "In Phase 3 with no spiritshots, nongrade weapon or unarmed yields mAtkMul = 1 + 1 = 2 per Heal.java:89. Static healing bypasses mAtk, heal_effect and crit.",
+            "TickHp_binary32_multiplier": "AbstractEffect.java:149 converts integer ticks*666 to binary32, divides by 1000f in binary32, then widens to double. ticks5 multiplier=1745879/524288, not333/100. Integer-only binary_nearest(...,24) emulates nearest/ties-even without struct/numpy/host floats; subsequent power parsing and products use binary_nearest(...,53). HoT100 yields332 whole plus999992 Q remainder; DoT truncates before whole HP subtraction (D-R12).",
             "TickHp_nonlethal_clamp": "TickHp.java:75-76 caps negative DoT power at currentHp - 1, preventing death from DoT. Clamped power is non-negative and zero if currentHp <= 1.",
             "getAffectLimit_unlimited_zero": "Skill.java:638 returns 0 when width==0. AffectScope treats 0 as unlimited targets (affectLimit > 0 guard and .limit(affectLimit > 0 ? affectLimit : Integer.MAX_VALUE)). Fixed-limit skills require width > 0 in retail datapack.",
         },
