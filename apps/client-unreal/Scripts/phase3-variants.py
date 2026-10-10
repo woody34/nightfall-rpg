@@ -60,9 +60,16 @@ def read_contract(root=SCENARIOS):
                 if case.get('layer') != 'actor-adapter' or not case.get('setup') or not case.get('owner') or not case.get('requested_test'):
                     raise ValueError('precision variant missing owner/setup/test link')
                 roll = case.get('deterministic_roll_fixture')
-                if roll and (type(roll.get('value')) is not int or roll['value'] not in (0, 99)
-                             or roll.get('range_exclusive') != 100 or roll.get('require_full_ordered_draw_trace') is not True):
-                    raise ValueError('invalid deterministic draw fixture')
+                if roll:
+                    bounds = (0, 99) if roll.get('site') in ('calcEffectSuccess', 'death_penalty') else None
+                    if (bounds is None or (roll.get('minimum'), roll.get('maximum')) != bounds
+                            or type(roll.get('value')) is not int or roll['value'] not in bounds
+                            or roll.get('require_full_ordered_draw_trace') is not True):
+                        raise ValueError('invalid deterministic draw fixture')
+                if case.get('input_fixture'):
+                    path = Path(case['input_fixture'])
+                    if path.is_absolute() or '..' in path.parts or hashlib.sha256((root / path).read_bytes()).hexdigest() != case.get('input_fixture_sha256'):
+                        raise ValueError('precision input fixture missing or changed')
     files = {str(p.relative_to(root)) for p in (root / 'variants').glob('3-*.nfs')}
     if roles != files:
         raise ValueError('orphan/unlisted runtime variant')
@@ -95,7 +102,7 @@ def evidence_errors(data, directory):
             roll = case.get('deterministic_roll_fixture')
             if roll:
                 draws = report.get('ordered_draw_trace')
-                if not isinstance(draws, list) or not draws or not any(d.get('site') == roll['site'] and d.get('value') == roll['value'] and d.get('range_exclusive') == roll['range_exclusive'] for d in draws):
+                if not isinstance(draws, list) or not draws or not any(d.get('site') == roll['site'] and d.get('value') == roll['value'] and d.get('minimum') == roll['minimum'] and d.get('maximum') == roll['maximum'] for d in draws):
                     raise ValueError('missing actual ordered injected RNG trace')
         except (OSError, ValueError, KeyError, TypeError) as exc:
             errors.append(case['id'] + ': ' + str(exc))

@@ -60,6 +60,8 @@ def quarantine(path, names, today=None):
 def units(scenarios):
     """A/B roles are one unit; an orphan is a configuration failure, never a single run."""
     paths = {path.stem: path for path in scenarios}
+    if len(paths) != len(scenarios):
+        raise ValueError('duplicate scenario names across directories would overwrite role evidence')
     result = []
     directories = {path.parent for path in scenarios}
     declared = {name: [directory / role for role in roles] for directory in directories
