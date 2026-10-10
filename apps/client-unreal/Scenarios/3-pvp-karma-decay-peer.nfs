@@ -1,0 +1,16 @@
+# covers: 3 E4.2, 3 E4.6, 3 E6.7
+# fixture: phase3-pvp
+# Companion role; reports retained separately; coordination through received state only.
+# A1 tick100ms; actor allowance30s *3=90s; delivery1s *3=3s.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor own_sp >= 0 3
+nf.WaitFor own_dead 90
+nf.Expect own_flag == none
+nf.Expect own_karma == 0
+nf.Expect cp_absorption_matches_received
+nf.Expect death_record_matches_fixture
+# Total budget >= sum of the derived per-step timeouts plus30s exit grace.
+nf.Within 153

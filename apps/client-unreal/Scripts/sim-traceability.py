@@ -86,11 +86,11 @@ def read_exceptions(manifest, stories, covered, scenarios, errors):
     return result
 
 
-def check(plans, scenarios, manifest=None):
+def check(plans, scenarios, manifest=None, extra_plans=()):
     stories = {}
     errors = []
     covered = {}
-    for plan in sorted(plans.glob("phase-*.md")):
+    for plan in sorted(set(plans.glob("phase-*.md")) | set(extra_plans)):
         phase = re.match(r"phase-([0-9]+[a-z]?)-", plan.name)
         if not phase:
             continue
@@ -158,10 +158,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plans", type=Path, default=project.parents[1] / "docs/plans")
     parser.add_argument("--scenarios", type=Path, default=project / "Scenarios")
+    parser.add_argument("--extra-plan", action="append", type=Path, default=[],
+                        help="Explicit additional plan under review; never changes completion semantics")
     parser.add_argument("--manifest", type=Path,
                         default=project / "Scenarios/traceability-exceptions.json")
     args = parser.parse_args()
-    output, failed = check(args.plans, args.scenarios, args.manifest)
+    output, failed = check(args.plans, args.scenarios, args.manifest, args.extra_plan)
     print("\n".join(output))
     return failed
 

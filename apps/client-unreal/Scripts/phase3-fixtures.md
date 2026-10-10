@@ -51,11 +51,12 @@ Existing A/B units remain atomic. Coordination uses received server state only.
 Run the first scenario with `Scripts/run-sim.sh --api start --artifacts <new-dir>
 Scenarios/3-cast-skill.nfs`. Run cooperating roles with `run-sim-multi.sh` and
 both paths. Source-duration waits remain full length: Might1200s →3600s timeout;
-regen30ticks×100ms×3→9s/pulse; flag1200ticks×100ms×3→360s. Wrappers/CI extend
+regen30ticks×100ms×3→9s/pulse; flag1200ticks×100ms×3→360s. Each scenario's global
+budget contains the sum of its per-step waits plus exit grace. Wrappers/CI extend
 process budgets to at least `nf.Within +30s`, retaining all final evidence gates.
 No duration or cost is recomputed from client combat stats in Python/Bash.
 
-The following is a **requested client contract**, pending publication of M3 in
+**REQUIRED HANDOFFS:** The following is a requested client contract, pending publication of M3 in
 client-progress.md. All predicates must return UNKNOWN before valid received
 scope evidence, reset on transport/entity/generation changes, and fence tick,
 incarnation, cast/effect/offer IDs. Owner bootstrap/revival exceptions follow
@@ -74,20 +75,25 @@ Unsupported predicates must fail parsing; do not skip assertions.
 | own_mp_cost_matches, skill_damage/effect_matches_oracle, stat_matches_oracle, regen_matches_oracle, moving_regen_matches_oracle | Received resources/effective stats/results/regen with external independent fixture vectors. **MP costs currently missing from wire; stays UNKNOWN**, per client report. No runtime/client formula as expectation. |
 | own_flag/karma/pk/pvp, target_flag, player_cp_damage_total, cp_absorption_matches_received | Public PvP/spawn and private owner stats; CP damage from result field, absolute resources from owner stats. Public data never exposes peer CP/MP/SP totals. |
 | own_flag_deadline_matches_received, victim_flag_not_refreshed, pvp_private_stats_coherent | Received flag deadline/state history per incarnation, max-deadline refresh, victim copy, owner-only field scope. |
+| initial_hp/mp/cp, own_cp_damage_total | First owner bootstrap resource sample (frozen per admission), received AttackResult/SkillCastResult rows whose target is the owner. Never pass from zero-initialized state. |
+| entity_at <UUID> <x> <y> <tolerance>, entity_casting <UUID> <skill> | Newest authoritative position sample and non-baseline active SkillCastStarted; no animation/interpolation as evidence. |
+| cast_cancel_reason/observed_cast_cancel_reason, peace_impact_has_no_damage | Received correlated SkillCastCancelled PEACE_ZONE and target HP/effect history; started outside, target moved inside, no later result/HP loss for that cast. |
+| target_flag_remaining, target/own_flag_expired_at_last_impact, impact_counter_uses_received_flag, flagged_kill_matches_received | Compare received deadline with Started/start_tick and impact/result/death ticks and committed counters. Expiry predicate requires a witnessed start-before/impact-at-or-after deadline; a cast after expiry cannot pass. No cast-time/counter formula in client. |
 | last_reject, cancelled_cast_costs_retained, cast_dispositions_once, peace_rejection_has_no_start | Correlated intent seq/reason, start/result/cancel tick and received resource/reuse history. Cancel has no late IntentRejected. |
 | owner/observer_skill_baseline_coherent, spawn_before_skill_references, observer_private_stats, public_vitals_coherent | Identity-first and reference hydration trace, no duplicate lifecycle count, exact IDs/incarnations/deadlines and owner-only stats routing. |
 | buff_replacements, replacement_remove_before_apply, effect_identity_coherent, effect_remove_reason | Applied/Removed stable IDs and causal order/reason; replacement installs new ID. |
 | retained_effect_identity_coherent, restore_did_not_reapply_hooks | Received restored skill/pool/source/install-order/remainder fields and fixture oracle; offline pause, no replayed heal/instant hook. Admission may allocate fresh zone effect IDs. |
 | entity_in_view/dead/alive <UUID>, players_attacking_me, npc_target_is_owner, skill_hate_outcome_coherent | Received spawn/lifecycle/AttackStarted/target/AI projections. Ledger arithmetic belongs to engine oracles. |
 | own_death_penalty_matches_seed, death_record_matches_fixture/before_disconnect, death_xp_matches_fixture, town_respawn_vitals_match_fixture | Private sync/death/stats, deterministic seed/vector and actual recorded loss; not an assumed20% success. |
+| death_penalty_matches_before_disconnect | Exact received private penalty saved before socket loss and compared with the next owner bootstrap. Probability/cap branches need independent server vectors; no random roll is assumed to succeed. |
 | resurrect_offer_matches_death, resurrection_vitals_match_fixture, resurrect_refund_matches_oracle, resurrection_refunds, public_revival_vitals_coherent | Private offer/loss/id/expiry, death incarnation, Respawned then final VitalsChanged, owner vitals and independent refund vector; rank1 power0 is a valid zero-refund case. |
 | karma_gain/decay_matches_oracle | Committed PvP/stats/XP events, pre-kill PK count/pre-award level and external source vectors. |
 
 Current files cover core flows, **not the entire matrix's variants**. Pending
 client/engine integration includes exact 50/51 and100/101 checkpoint boundaries,
 seeded resist/status/stun/physical-skill fixtures, stronger/lower/overflow/dispel
-branches, nonlethal player/NPC DoT, real regen dead/full/NPC variants, PvP flagged
-kill/PK/CP/peace-impact/expiry-impact cross-products, learning cap/competing-kill
+branches, nonlethal player/NPC DoT, real regen dead/full/NPC variants, full PvP
+endpoint/AoE/pulse cross-products, learning cap/competing-kill
 and historical-receipt variants, resurrection decline/expiry/replacement/town
 race/crash matrix, and AddHate/heal/GetAgro/tie variants. These require published
 runtime/data/vector/DSL contracts; source files and covers headers are not pass
@@ -102,7 +108,15 @@ coverage.rs. Synthetic schema3 test fixtures are not native replay evidence.
 
 Host checks: `TMPDIR=/tmp python3 Scripts/test/phase3-fixture.test.py`,
 `python3 Scripts/test/proto-optionals.test.py`, `python3 Scripts/test/transition-v3.test.py`.
-These use command stubs and do not launch Unreal/API/Compose.
+These use command stubs and do not launch Unreal/API/Compose. While the plan owner
+reviews Phase 3, run `python3 Scripts/sim-traceability.py --extra-plan
+<phase3-plan-worktree>/docs/plans/phase-3-combat-and-skills.md`. The default checker
+still rejects unknown Phase3 tags until that plan is integrated; the regression
+test uses an explicit stable-title/matrix snapshot, without marking any row complete.
+Peace checks additionally require the engine's published inclusive square configuration;
+the current legacy zone loader has no peace fields. Reconcile that overlay when its
+schema lands. Resist/penalty branches require published seed/vector controls; they
+are not deterministic from a client login's wall-clock timing.
 
 Casting soak defaults to eight clients and1200s, all roles casting Wind Strike and
 long Might buffs. `soak-fixtures.py --casting` emits mode0600 tokens and an exact

@@ -1,0 +1,30 @@
+# covers: 3 E1.3, 3 E1.6, 3 E6.7
+# fixture: phase3-regen
+# Pending engine/client integration; declaration is not execution evidence.
+# Timeouts: received-state delivery 10 ticks *100ms *3 =3s (A1).
+# Login/RPC: existing runner allowance5s *3=15s; movement24 tiles/4 tiles per second *3=18s.
+# Fixture combat30s *3=90s; no damage calculation determines a wait.
+# Pinned dp3ca488dd src/main/resources/data/stats/skills/01100-01199.xml:1645,1846:
+# Wind Strike base hitTime4000ms *3=12s; Ice Bolt base3100ms *3 rounds up to12s.
+# 01000-01099.xml:554,1553,1560: Resurrection6000ms *3=18s, Might1200s *3=3600s.
+# A6: regen30ticks *100ms *3=9s; A16/R7: flag1200ticks *100ms *3=360s.
+# Boundaries are checked against received ticks/deadlines; source waits are conservative budgets.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor own_sp >= 0 3
+nf.Expect initial_hp == 1
+nf.Expect initial_mp == 1
+nf.Expect initial_cp == 1
+nf.WaitFor regen_pulses >= 3 27
+nf.Expect regen_matches_oracle
+nf.Expect own_hp > 1
+nf.Expect own_mp > 1
+nf.Expect own_cp > 1
+nf.ClickMove 150 128
+nf.WaitFor moving_regen_pulses >= 1 9
+nf.WaitFor own_at 150 128 1 18
+nf.Expect moving_regen_matches_oracle
+# Total budget >= sum of the derived per-step timeouts plus30s exit grace.
+nf.Within 117
