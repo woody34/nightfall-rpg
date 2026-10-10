@@ -1,9 +1,6 @@
 # Phase 2 race and class: verification outcome
 
-Status: implementation and ordinary native acceptance verified through integration `b8a7151` on 2026-10-09.
-Three gates remain open:
-the packaged combat soak, the user's token supply/backfill decision, and root checkout main
-rebuild. Whole Phase 2 completion and full normal progression are not claimed.
+Status: implementation, ordinary native acceptance, and current packaged combat soak verified on 2026-10-09. The token supply/backfill decision and root main merge / post-merge Game and Editor builds remain open. Whole Phase 2 completion and full normal progression are not claimed.
 See the [executable plan](phase-2-race-and-class.md), [reference design](../planning/02-race-and-class.md),
 and [class transfer observability](../engineering/class-transfer-observability.md).
 
@@ -40,6 +37,7 @@ response, including offline retries.
 | Replay and size | Snapshot 7 / record 5 / BinaryV3 retain snapshot 4/5/6 and record 3/4. 467-tick v4 recording retained exact replay bytes/digests. Codec review `a8ac679` and outer NFR review `5b6861b` passed. Snapshot measured **2,060,904 raw → 152,362 compressed bytes** (< 1 MiB − 1 KiB budget). Protobuf catalogue: **455,324 / 4,194,304 bytes**. |
 | Real Keycloak authentication | At server `7ceb323`, device-flow test passed **1 / 0 / 0** in **4.06 s** with explicit `KEYCLOAK_URL` against pinned Keycloak **26.8.0** on **28080**. Provider and port cleaned up (`/tmp/nightfall-phase2/api-keycloak-metadata.json`). |
 | Release combat performance | At server `7ceb323`, release `combat_tick_p99_simulation` passed on quiescent host (`/tmp/nightfall-phase2/api-combat-perf-metadata.json`): 200 players + 200 Keltirs over 500 ticks measured p50 **211 µs**, p99 **670 µs** (1,000 attacks); 50 pairs measured p50 **31 µs**, p99 **125 µs** (253 attacks), both below the **20 ms** budget. |
+| Packaged combat soak | `/tmp/phase2-client-final-soak-01/report.json`: **PASS**, wrapper exit 0, errors `[]`, cleanup exit 0. **8 clients × 1,200 s** requested; **23 cycles each / 184 total**, actual **1,231.441–1,250.215 s** per client. Combat p99 **16.087356 ms < 20 ms**. Histogram and complete recording: **12,612 ticks** each. Replay: **96,281 outputs / 22,662,346 bytes**, byte-identical, **0 digest-only**. Game staging passed **49.25 s**, SHA-256 `3af752926c8ca3a384c736509bf18217d66fbb3cf27555b7fe002bc47b7eff99` matches built Game. Client `4f61f0a` has no native/production/API/data difference from tested `92b34d2`; frozen release API/replay. |
 | Static checks | Strict all-target Rust Clippy, formatting, entity drift check, protobuf build, and breaking checks passed. Four pre-existing Buf lint findings remain; lint is not claimed clean. |
 | Required-live client automation | Client `6820c62` automation passed **62/62 with zero skips** against API `7ceb323`. Rendered transfer (12.48 s) and persisted second launch (10.39 s) verified wire decoding, stale-session fences, owner privacy, and reconnect. |
 | Ordinary native scenario suite | Coordinator suite (`/tmp/phase2-client-full-suite-01/summary.md`, `suite.xml`) at client `92b34d2` (with `1a9c5cb` and API `7ceb323`) measured **1,193.284 s (19m 53.284s)**, exit **0**, across **30 scenario files / 25 logical units** (19 Phase 1a + 11 Phase 2): **25 PASS, 0 FAIL, 0 quarantine**, with 35 recordings, 35 replay logs, and 35 trace HTML files retained; all owned stacks cleaned. |
@@ -85,7 +83,6 @@ neither claimed nor required.
 - **Token supply/backfill requires the user's decision.** Ledger consumption is verified; production
   grants and backfill are absent. Pre-admission fixture balances prove consumption only. Milestones
   remain conditional on that choice.
-- **Packaged combat soak is running; its result remains pending.** Current Game BuildCookRun staging passed in **49.25 s**. The staged binary SHA-256 is `3af752926c8ca3a384c736509bf18217d66fbb3cf27555b7fe002bc47b7eff99`, matching the built Game. Client `4f61f0a` has no production/native/API/data difference from tested `92b34d2`. All eight clients admitted and started combat lanes in the fresh **8 × 1,200 s** soak against frozen release API/replay artifacts (`/tmp/phase2-client-final-soak-01`); admission is not a soak pass.
 - **Root main integration and rebuild.** Following main branch integration, builds of Game
   and Editor in the root checkout must be completed and native artifacts archived outside disposable
   worktrees.

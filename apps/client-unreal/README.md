@@ -112,8 +112,14 @@ against API `7ceb323`. The full ordinary native suite passed 30 scenario files /
 at client `92b34d2` (incorporating `1a9c5cb` and API `7ceb323`). Historical retry verification was delivered
 by extending `2-class-transfer-reconnect.nfs` to replay historical keyA after keyB + reconnect, proving an old
 frozen receipt cannot roll back live world state or replay newer progression (no 12th Phase 2 scenario file was
-introduced). Current Game BuildCookRun staging passed in 49.25 s with a matching binary hash; all eight clients
-admitted and began combat lanes in the fresh current-source 20-minute soak, whose result remains pending. See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.md),
+introduced). Current Game BuildCookRun staging passed in 49.25 s with matching binary hash `3af752926c8ca3a384c736509bf18217d66fbb3cf27555b7fe002bc47b7eff99`
+at client `4f61f0a` (identical native/production/API/data to tested `92b34d2`). Packaged coordinator combat soak
+(`/tmp/phase2-client-final-soak-01/report.json`, exit code 0) passed: 8 clients requested 1,200 s across 23 cycles each
+(184 total cycles; observed per client 1,231.441–1,250.215 s), combat tick p99
+16.087356 ms (< 20 ms budget), observed histogram ticks 12,612 equaled recorded 12,612 ticks, and replay matched 96,281 outputs
+(22,662,346 bytes compared, 0 digest-only). Local data model, server, native suite, and soak are verified; required token
+supply/backfill decision and root main merge / post-merge Game and Editor rebuilds remain pending (entire Phase 2 is not marked complete).
+See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.md),
 [class transfer observability](../../docs/engineering/class-transfer-observability.md), and
 [class tree diagram](../../docs/diagrams/phase-2-class-tree.html).
 
