@@ -1,5 +1,9 @@
 #include "NightfallHud.h"
 #include "Nightfall.h"
+#include "Skills/SkillStateSubsystem.h"
+#include "Effects/EffectStateSubsystem.h"
+#include "Net/NetClientSubsystem.h"
+#include "Components/HorizontalBox.h"
 #include "Character/ClassStateSubsystem.h"
 #include "NightfallPlayerController.h"
 #include "Game/LoginFlowSubsystem.h"
@@ -105,7 +109,23 @@ void UNightfallHud::BuildLayout()
 		Slot->SetSize(FVector2D(260.f, 28.f));
 	}
 
-	// Target frame, top-centre.
+	UButton* SkillsButton=WidgetTree->ConstructWidget<UButton>();SkillsButton->AddChild(MakeText(nullptr,TEXT("Skill trainer"),14));
+ SkillsButton->OnClicked.AddDynamic(this,&UNightfallHud::HandleSkillsClicked);
+ if(auto* Slot=Root->AddChildToCanvas(SkillsButton)){Slot->SetPosition(FVector2D(16,242));Slot->SetSize(FVector2D(260,28));}
+ auto* SkillsPanel=WidgetTree->ConstructWidget<UVerticalBox>();
+ SkillResources=MakeText(SkillsPanel,TEXT("SP —"),14); EffectsText=MakeText(SkillsPanel,TEXT(""),12);EffectsText->SetAutoWrapText(true);
+ CastLabel=MakeText(SkillsPanel,TEXT(""),14);CastBar=MakeBar(SkillsPanel,FLinearColor(0.55f,0.3f,0.85f),700,8);
+ auto* Row=WidgetTree->ConstructWidget<UHorizontalBox>();SkillsPanel->AddChild(Row);
+ for(int32 I=0;I<9;++I)
+ {
+  auto* Col=WidgetTree->ConstructWidget<UVerticalBox>();Row->AddChild(Col);
+  auto* B=WidgetTree->ConstructWidget<UButton>();auto* Label=MakeText(nullptr,FString::FromInt(I+1),12);Label->SetColorAndOpacity(FSlateColor(FLinearColor::Black));Label->SetAutoWrapText(true);B->AddChild(Label);
+  auto* Size=WidgetTree->ConstructWidget<USizeBox>();Size->SetWidthOverride(78);Size->SetHeightOverride(54);Size->AddChild(B);Col->AddChild(Size);
+  auto* H=NewObject<UNightfallHotbarClick>(this);H->Index=I;HotbarClicks.Add(H);B->OnClicked.AddDynamic(H,&UNightfallHotbarClick::Click);
+  HotbarButtons.Add(B);HotbarLabels.Add(Label);Cooldowns.Add(MakeBar(Col,FLinearColor(0.2f,0.6f,1.f),78,5));
+ }
+ if(auto* Slot=Root->AddChildToCanvas(SkillsPanel)){Slot->SetAnchors(FAnchors(0.5f,1));Slot->SetAlignment(FVector2D(0.5f,1));Slot->SetPosition(FVector2D(0,-65));Slot->SetSize(FVector2D(720,150));}
+ // Target frame, top-centre.
 	TargetPanel = WidgetTree->ConstructWidget<UVerticalBox>();
 	TargetPanel->SetVisibility(ESlateVisibility::Collapsed);
 	TargetLabel = MakeText(TargetPanel, TEXT(""), 16);
@@ -147,7 +167,13 @@ void UNightfallHud::BuildLayout()
 	UVerticalBox* DeadColumn = WidgetTree->ConstructWidget<UVerticalBox>();
 	DeadOverlay->SetContent(DeadColumn);
 	MakeText(DeadColumn, TEXT("You have died"), 32);
-	RespawnButton = WidgetTree->ConstructWidget<UButton>();
+	OfferLabel=MakeText(DeadColumn,TEXT(""),16);
+ AcceptOffer=WidgetTree->ConstructWidget<UButton>();AcceptOffer->AddChild(MakeText(nullptr,TEXT("Accept resurrection"),18));DeadColumn->AddChild(AcceptOffer);
+ DeclineOffer=WidgetTree->ConstructWidget<UButton>();DeclineOffer->AddChild(MakeText(nullptr,TEXT("Decline resurrection"),18));DeadColumn->AddChild(DeclineOffer);
+ Cast<UTextBlock>(AcceptOffer->GetChildAt(0))->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+ Cast<UTextBlock>(DeclineOffer->GetChildAt(0))->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+ AcceptOffer->OnClicked.AddDynamic(this,&UNightfallHud::AcceptResurrect);DeclineOffer->OnClicked.AddDynamic(this,&UNightfallHud::DeclineResurrect);
+ RespawnButton = WidgetTree->ConstructWidget<UButton>();
 	RespawnLabel = MakeText(nullptr, TEXT("Respawn"), 20);
 	RespawnButton->AddChild(RespawnLabel);
 	DeadColumn->AddChild(RespawnButton);
@@ -227,7 +253,9 @@ void UNightfallHud::ApplyModel(const FCombatHudModel& M)
 			if (const auto* Combat = GI->GetSubsystem<UCombatStateSubsystem>(); Combat && Combat->GetOwn().bCpKnown)
 			{
 				const auto& Own = Combat->GetOwn();
-				Label += FString::Printf(TEXT("  SP %llu  Tokens %u / %u"), Own.Sp, Own.TokenTier1Count, Own.TokenTier2Count);
+				const auto* Skills=GI->GetSubsystem<USkillStateSubsystem>();
+    const uint64 Sp=Skills && Skills->GetSp().IsSet()?*Skills->GetSp():Own.Sp;
+    Label += FString::Printf(TEXT("  SP %llu  Tokens %u / %u"), Sp, Own.TokenTier1Count, Own.TokenTier2Count);
 			}
 			ClassText->SetText(FText::FromString(Label));
 		}
@@ -390,6 +418,7 @@ void UNightfallHud::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	{
 		ApplyModel(Combat->BuildHudModel());
 	}
+	UpdateSkills();
 	UpdateFloatingBars();
 	UpdateNumbers(InDeltaTime);
 	if (StatusText)
@@ -402,4 +431,61 @@ void UNightfallHud::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 void UNightfallHud::HandleClassesClicked()
 {
 	if (ANightfallPlayerController* PC = Cast<ANightfallPlayerController>(GetOwningPlayer())) PC->OpenClassDialog();
+}
+
+namespace NightfallSkillHud
+{
+ FLinearColor FlagColor(const FString& Flag){return Flag==TEXT("chaotic")?FLinearColor::Red:Flag==TEXT("pvp")?FLinearColor(0.7f,0.25f,1.f):FLinearColor::White;}
+}
+void UNightfallHotbarClick::Click()
+{
+ auto* Hud=Cast<UNightfallHud>(GetOuter());auto* GI=Hud?Hud->GetGameInstance():nullptr;if(!GI)return;
+ auto* C=GI->GetSubsystem<UCombatStateSubsystem>();if(C && C->IsOwnDead())return;
+ if(auto* S=GI->GetSubsystem<USkillStateSubsystem>())S->CastSlot(Index);
+}
+void UNightfallHud::HandleSkillsClicked(){if(auto* PC=Cast<ANightfallPlayerController>(GetOwningPlayer()))PC->OpenSkillDialog();}
+void UNightfallHud::AcceptResurrect()
+{
+ auto* GI=GetGameInstance();auto* S=GI?GI->GetSubsystem<USkillStateSubsystem>():nullptr;
+ if(S && S->OfferPending())GI->GetSubsystem<UNetClientSubsystem>()->SendAcceptResurrect(S->GetOffer()->OfferId,true);
+}
+void UNightfallHud::DeclineResurrect()
+{
+ auto* GI=GetGameInstance();auto* S=GI?GI->GetSubsystem<USkillStateSubsystem>():nullptr;
+ if(S && S->OfferPending())GI->GetSubsystem<UNetClientSubsystem>()->SendAcceptResurrect(S->GetOffer()->OfferId,false);
+}
+void UNightfallHud::UpdateSkills()
+{
+ auto* GI=GetGameInstance();auto* S=GI?GI->GetSubsystem<USkillStateSubsystem>():nullptr;auto* N=GI?GI->GetSubsystem<UNetClientSubsystem>():nullptr;
+ auto* C=GI?GI->GetSubsystem<UCombatStateSubsystem>():nullptr;if(!S || !N || !C || !SkillResources)return;
+ SkillResources->SetText(FText::FromString(S->GetSp().IsSet()?FString::Printf(TEXT("SP %llu   Death penalty %u"),*S->GetSp(),S->GetDeathPenalty()):FString(TEXT("SP —"))));
+ const auto Slots=S->Hotbar();
+ for(int32 I=0;I<HotbarButtons.Num();++I)
+ {
+  const bool Valid=Slots.IsValidIndex(I);const auto Remaining=Valid?S->ReuseRemaining(Slots[I]):TOptional<uint64>();
+  const auto* Skill=Valid?S->FindSkill(Slots[I]):nullptr;
+  HotbarLabels[I]->SetText(FText::FromString(Valid?FString::Printf(TEXT("%d %s\nr%u%s"),I+1,Skill?*Skill->DisplayName:TEXT("Skill"),S->GetLearned().FindRef(Slots[I]),Remaining.IsSet() && *Remaining?*FString::Printf(TEXT(" [%llu ticks]"),*Remaining):TEXT("")):FString::Printf(TEXT("%d —"),I+1)));
+  HotbarButtons[I]->SetIsEnabled(Valid && Remaining.IsSet() && *Remaining==0 && !C->IsOwnDead());
+  Cooldowns[I]->SetPercent(Valid?S->CooldownFraction(Slots[I]):0.f);
+ }
+ const auto* V=S->FindCast(N->GetOwnEntityId());
+ if(V && V->Cast.IsSet())
+ {
+  const auto& Cast=*V->Cast;const auto* Skill=S->FindSkill(Cast.SkillId);
+  CastLabel->SetText(FText::FromString(FString::Printf(TEXT("Casting %s [%llu ticks]"),Skill?*Skill->DisplayName:TEXT("skill"),Cast.CompleteTick>S->GetTick()?Cast.CompleteTick-S->GetTick():0)));
+  const uint64 Duration=Cast.CompleteTick>Cast.StartTick?Cast.CompleteTick-Cast.StartTick:0;
+  CastBar->SetPercent(Duration?FMath::Clamp(float(S->GetTick()>Cast.StartTick?S->GetTick()-Cast.StartTick:0)/float(Duration),0.f,1.f):1.f);
+ }else{CastLabel->SetText(FText::FromString(V && V->TerminalId?(V->CancelReason?TEXT("Cast cancelled"):TEXT("Cast completed")):TEXT("")));CastBar->SetPercent(0);}
+ TArray<FString> Effects;
+ if(auto* E=GI->GetSubsystem<UEffectStateSubsystem>())for(const auto& Effect:E->Active(N->GetOwnEntityId()))
+ {
+  const auto* Skill=S->FindSkill(Effect.SkillId);const TCHAR* Pool=Effect.Pool==3?TEXT("Debuff"):Effect.Pool==2?TEXT("Song/dance"):TEXT("Buff");
+  Effects.Add(FString::Printf(TEXT("%s: %s r%u [%s]"),Pool,Skill?*Skill->DisplayName:*FString::FromInt(Effect.SkillId),Effect.SkillLevel,Effect.EndTick?*FString::Printf(TEXT("%llu ticks"),Effect.EndTick>S->GetTick()?Effect.EndTick-S->GetTick():0):TEXT("permanent")));
+ }
+ EffectsText->SetText(FText::FromString(FString::Join(Effects,TEXT(" • "))));
+ OwnLabel->SetColorAndOpacity(FSlateColor(NightfallSkillHud::FlagColor(S->Flag(N->GetOwnEntityId()))));
+ TargetLabel->SetColorAndOpacity(FSlateColor(NightfallSkillHud::FlagColor(S->Flag(C->GetTargetId()))));
+ if(const auto* P=S->FindPvp(C->GetTargetId());P && !C->GetTargetId().IsEmpty())TargetLabel->SetText(FText::FromString(TargetLabel->GetText().ToString()+FString::Printf(TEXT("   Karma %u"),P->Karma)));
+ const bool Pending=S->OfferPending();AcceptOffer->SetVisibility(Pending?ESlateVisibility::Visible:ESlateVisibility::Collapsed);DeclineOffer->SetVisibility(Pending?ESlateVisibility::Visible:ESlateVisibility::Collapsed);
+ OfferLabel->SetText(FText::FromString(Pending?FString::Printf(TEXT("Resurrection offered — recovery %.2f%%, recoverable XP %llu, expires in %llu ticks"),double(S->GetOffer()->RestorePercentQ)/1000000.0,S->GetOffer()->RecoverableXp,S->GetOffer()->ExpiryTick-S->GetTick()):FString(TEXT(""))));
 }

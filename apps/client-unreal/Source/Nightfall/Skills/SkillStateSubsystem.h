@@ -45,6 +45,7 @@ public:
  bool RpcDone() const { return bRpcDone && !bBusy; }
 	uint64 GetTick() const;
 	bool HasOwnerState() const { return bOwnerKnown; }
+ bool HasSkillBaseline() const { return bSyncKnown; }
 	const TMap<uint32, uint32>& GetLearned() const { return Learned; }
 	const TOptional<uint64>& GetSp() const { return Sp; }
 	uint64 GetSpGainedTotal() const { return SpGainedTotal; }

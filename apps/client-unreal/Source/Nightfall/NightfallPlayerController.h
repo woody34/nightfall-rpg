@@ -8,6 +8,7 @@ class UInputMappingContext;
 class UInputAction;
 class UNightfallHud;
 class UNightfallClassDialog;
+class UNightfallSkillDialog;
 class AClassMasterActor;
 
 /**
@@ -59,6 +60,7 @@ public:
 	void OpenClassDialog() { ShowClassMaster(); }
 	UNightfallClassDialog* GetClassDialog() const { return ClassDialog; }
 
+	void OpenSkillDialog();
 	uint32 ClickGroundLocation(const FVector& Target);
 
 	/**
@@ -69,6 +71,7 @@ public:
 
 private:
 	void OnClickMove();
+	UPROPERTY(Transient) TObjectPtr<UNightfallSkillDialog> SkillDialog;
 	void ShowClassMaster();
 	void LoadClassCatalogue();
 	UPROPERTY(Transient) TObjectPtr<UNightfallClassDialog> ClassDialog;

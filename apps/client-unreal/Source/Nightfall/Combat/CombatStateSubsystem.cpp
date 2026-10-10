@@ -555,6 +555,8 @@ void UCombatStateSubsystem::ApplyVitals(const FVitalsChanged& V)
 }
 void UCombatStateSubsystem::ApplySkillResult(const FSkillCastResult& R)
 {
+ const auto* Caster=FindEntity(R.Caster);
+ if(!Caster || R.CasterIncarnation!=Caster->Incarnation || R.Tick<=Caster->IdentityBaselineTick)return;
 	for (const auto& Hit : R.Targets)
 	{
 		auto* E = Entities.Find(Key(Hit.Target));

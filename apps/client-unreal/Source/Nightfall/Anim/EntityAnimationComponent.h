@@ -118,6 +118,7 @@ public:
 	void ApplySpawn(const FEntitySpawn& Spawn);
 	void ApplyMove(const FEntityMove& Move);
 	void ApplyAttackResult(const FAttackResult& Result);
+ void ApplySkillResult(const FSkillCastResult& Result);
 	void ApplyDied(const FEntityDied& Died);
 	void ApplyRespawned(const FEntityRespawned& Respawned);
 
@@ -141,7 +142,9 @@ private:
 
 	FProxyAnimStateMachine Machine;
 	uint32 Incarnation = 0;     // newest NPC life seen (0 = unknown / player); older lives' facts are dropped
-	uint64 LastLifeTick = 0;    // newest EntityDied / EntityRespawned tick applied
+	uint64 IdentityBaselineTick = 0;
+ uint32 SessionGeneration = 0;
+ uint64 LastLifeTick = 0;    // newest EntityDied / EntityRespawned tick applied
 	FProxyAnimPose LastPose;
 	FString EntityId;
 	TWeakObjectPtr<UNetClientSubsystem> Net;

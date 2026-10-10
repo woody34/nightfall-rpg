@@ -57,13 +57,13 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 	using namespace SkillBotDetail;
 	auto ValidId = [](const TArray<FString>& A) { uint32 I; return Id(A[0],I); };
 	Number(R,TEXT("skill_reuse_remaining"),1,[](const FBotContext& C,const TArray<FString>& A)->TOptional<uint64> { const auto* S=State(C); return S ? S->ReuseRemaining(uint32(FCString::Strtoui64(*A[0],nullptr,10))) : TOptional<uint64>(); },ValidId);
-	Number(R,TEXT("learned_rank"),1,[](const FBotContext& C,const TArray<FString>& A)->TOptional<uint64> { const auto* S=State(C); return S && S->HasOwnerState() ? TOptional<uint64>(S->GetLearned().FindRef(uint32(FCString::Strtoui64(*A[0],nullptr,10)))) : TOptional<uint64>(); },ValidId);
+	Number(R,TEXT("learned_rank"),1,[](const FBotContext& C,const TArray<FString>& A)->TOptional<uint64> { const auto* S=State(C); return S && S->HasSkillBaseline() ? TOptional<uint64>(S->GetLearned().FindRef(uint32(FCString::Strtoui64(*A[0],nullptr,10)))) : TOptional<uint64>(); },ValidId);
 	for (const FString& Name : {FString(TEXT("own_karma")),FString(TEXT("own_pk")),FString(TEXT("own_pvp"))})
 		Number(R,Name,0,[Name](const FBotContext& C,const auto&)->TOptional<uint64> { const auto* S=State(C); const auto* P=S && C.Net() ? S->FindPvp(C.Net()->GetOwnEntityId()) : nullptr; return P ? TOptional<uint64>(Name==TEXT("own_karma") ? P->Karma : Name==TEXT("own_pk") ? P->PkCount : P->PvpCount) : TOptional<uint64>(); });
 	Number(R,TEXT("own_sp"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=State(C); return S ? S->GetSp() : TOptional<uint64>(); });
 	Number(R,TEXT("sp_gained_total"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=State(C); return S && S->HasOwnerState() ? TOptional<uint64>(S->GetSpGainedTotal()) : TOptional<uint64>(); });
 	Number(R,TEXT("own_death_penalty"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=State(C); return S && S->HasOwnerState() ? TOptional<uint64>(S->GetDeathPenalty()) : TOptional<uint64>(); });
-	Number(R,TEXT("effect_count"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=Effects(C); const auto* N=C.Net(); return S && N && N->GetKnownEntities().Contains(N->GetOwnEntityId()) ? TOptional<uint64>(S->Active(N->GetOwnEntityId()).Num()) : TOptional<uint64>(); });
+	Number(R,TEXT("effect_count"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=Effects(C); const auto* N=C.Net(); return S && N && S->IsKnown(N->GetOwnEntityId()) ? TOptional<uint64>(S->Active(N->GetOwnEntityId()).Num()) : TOptional<uint64>(); });
 	Number(R,TEXT("vitals_max_hp"),1,[](const FBotContext& C,const TArray<FString>& A)->TOptional<uint64>{ const auto* E=C.Combat() ? C.Combat()->FindEntity(Entity(C,A[0])) : nullptr; return E ? TOptional<uint64>(E->MaxHp) : TOptional<uint64>(); },[](const auto& A){return EntityArg(A[0]);});
 	for (const FString& Name : {FString(TEXT("skill_ready")),FString(TEXT("buff_active")),FString(TEXT("buff_inactive")),FString(TEXT("debuff_active")),FString(TEXT("own_mp_cost_matches"))})
 		R.Register({Name,Name+TEXT(" <skill_id>"),TEXT("Received skill/effect state"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
@@ -73,7 +73,7 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 			{
 				if(Name==TEXT("own_mp_cost_matches")) return {false,TEXT("unknown: catalogue/SkillStateSync contract has no per-rank MP costs")};
 				if(Name==TEXT("skill_ready")){ const auto* S=State(C); const auto V=S ? S->ReuseRemaining(Skill) : TOptional<uint64>(); return {V.IsSet() && *V==0,V.IsSet()?FString::Printf(TEXT("remaining %llu ticks"),*V):FString(TEXT("unknown"))}; }
-				const auto* S=Effects(C); const auto* N=C.Net(); const bool Known=N && N->GetKnownEntities().Contains(N->GetOwnEntityId()); const auto Rows=S && N ? S->Active(N->GetOwnEntityId()) : TArray<FEffectApplied>(); bool Active=false;
+				const auto* S=Effects(C); const auto* N=C.Net(); const bool Known=S && N && S->IsKnown(N->GetOwnEntityId()); const auto Rows=S && N ? S->Active(N->GetOwnEntityId()) : TArray<FEffectApplied>(); bool Active=false;
 				for(const auto& E:Rows) if(E.SkillId==Skill && (Name==TEXT("debuff_active") ? E.Pool==3 : E.Pool==1 || E.Pool==2)) Active=true;
 				return {Known && (Name==TEXT("buff_inactive")?!Active:Active),Known?(Active?FString(TEXT("active")):FString(TEXT("absent"))):FString(TEXT("unknown"))};
 			};
@@ -82,7 +82,7 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 		R.Register({Name,Name+TEXT(" <own|target|uuid> <skill_id>"),TEXT("Visible entity effects"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
 		{
 			uint32 Skill; if(A.Num()!=2 || !EntityArg(A[0]) || !Id(A[1],Skill)){Error=TEXT("needs entity and positive skill id");return nullptr;}
-			return [Arg=A[0],Skill,Name](const FBotContext& C)->FBotPredicateValue { const auto* S=Effects(C); const FString Id=Entity(C,Arg); const bool Known=C.Combat() && C.Combat()->FindEntity(Id); const bool Active=S && S->Has(Id,Skill); return {Known && (Name==TEXT("entity_effect_active") ? Active : !Active), !Known?FString(TEXT("unknown")):Active?FString(TEXT("active")):FString(TEXT("absent"))}; };
+			return [Arg=A[0],Skill,Name](const FBotContext& C)->FBotPredicateValue { const auto* S=Effects(C); const FString Id=Entity(C,Arg); const bool Known=S && S->IsKnown(Id) && C.Combat() && C.Combat()->FindEntity(Id); const bool Active=S && S->Has(Id,Skill); return {Known && (Name==TEXT("entity_effect_active") ? Active : !Active), !Known?FString(TEXT("unknown")):Active?FString(TEXT("active")):FString(TEXT("absent"))}; };
 		}});
 	R.Register({TEXT("learnable_contains"),TEXT("learnable_contains <id> <rank>"),TEXT("Actual ListLearnableSkills row"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
 	{
@@ -131,8 +131,10 @@ namespace SkillBotCommands
 	}));
 	FAutoConsoleCommandWithWorldAndArgs Cancel(TEXT("nf.CancelCast"),TEXT("Cancel current cast"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.CancelCast"),A))return;if(auto* N=Net(W))N->SendCancelCast();}));
 	FAutoConsoleCommandWithWorldAndArgs Learn(TEXT("nf.Learn"),TEXT("nf.Learn <id> <rank> [idempotency_uuid]"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.Learn"),A))return;if(auto* S=State(W))S->Learn(uint32(FCString::Strtoui64(*A[0],nullptr,10)),uint32(FCString::Strtoui64(*A[1],nullptr,10)),RpcLog,A.Num()==3?A[2]:FString());}));
-	FAutoConsoleCommandWithWorldAndArgs Learnable(TEXT("nf.LearnableSkills"),TEXT("List received learnable rows"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.LearnableSkills"),A))return;if(auto* S=State(W))S->LoadLearnable(RpcLog);}));
-	FAutoConsoleCommandWithWorldAndArgs Catalog(TEXT("nf.SkillCatalog"),TEXT("Load skill catalogue"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.SkillCatalog"),A))return;if(auto* S=State(W))S->LoadCatalog(RpcLog);}));
+	FAutoConsoleCommandWithWorldAndArgs Learnable(TEXT("nf.LearnableSkills"),TEXT("List received learnable rows"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.LearnableSkills"),A))return;if(auto* S=State(W))S->LoadLearnable([Weak=TWeakObjectPtr<USkillStateSubsystem>(S)](const FNetResult& R)
+ {RpcLog(R);if(R.IsOk() && Weak.IsValid())for(const auto& Row:Weak->GetLearnable().Skills)UE_LOG(LogNightfallBot,Display,TEXT("skill %u rank %u SP %llu eligible=%d trainer=%d %s"),Row.Skill.SkillId.Value,Row.Skill.SkillLevel.Value,Row.Skill.SpCost.Value,Row.Eligible,Row.TrainerRequired,*FString::Join(Row.Unmet,TEXT(", ")));});}));
+	FAutoConsoleCommandWithWorldAndArgs Catalog(TEXT("nf.SkillCatalog"),TEXT("Load skill catalogue"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.SkillCatalog"),A))return;if(auto* S=State(W))S->LoadCatalog([Weak=TWeakObjectPtr<USkillStateSubsystem>(S)](const FNetResult& R)
+ {RpcLog(R);if(R.IsOk() && Weak.IsValid())for(const auto& Row:Weak->GetCatalog().Skills)UE_LOG(LogNightfallBot,Display,TEXT("skill %u %s %s %s"),Row.SkillId.Value,*Row.DisplayName,Row.EffectImplemented?TEXT("executable"):TEXT("deferred"),*FString::Join(Row.DeferredReasons,TEXT(", ")));});}));
 	FAutoConsoleCommandWithWorldAndArgs Resurrect(TEXT("nf.AcceptResurrect"),TEXT("nf.AcceptResurrect [offer_id|latest] [accept|decline]"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W)
 	{
 		if(!Args(TEXT("nf.AcceptResurrect"),A))return;auto* S=State(W);auto* N=Net(W);if(!S || !N)return;uint64 Offer=0;

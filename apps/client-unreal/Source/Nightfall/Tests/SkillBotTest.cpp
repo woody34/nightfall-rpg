@@ -25,6 +25,11 @@ bool FSkillPredicatesTest::RunTest(const FString& Parameters)
  FBotScenario Scenario;TArray<FString> Errors;
  TestFalse(TEXT("invalid rank fails scenario parse"),BotScenario::Parse(TEXT("bad"),TEXT("nf.Learn 3 1.2"),R,[](const FString&){return true;},Scenario,Errors));
  Errors.Reset();TestTrue(TEXT("retry key and explicit corpse accepted"),BotScenario::Parse(TEXT("good"),TEXT("nf.Learn 3 2 01970000-0000-7000-8000-000000000030\nnf.Cast 1016 01970000-0000-7000-8000-000000000031\nnf.AcceptResurrect latest decline"),R,[](const FString&){return true;},Scenario,Errors));
+ auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<USkillStateSubsystem>();
+ N->SetOwnEntityId(TEXT("own"));FEntitySpawn Spawn;Spawn.EntityId=TEXT("own");Spawn.LifeIncarnation=1;Spawn.StateTick=10;S->ApplySpawn(Spawn);
+ FStatsChanged Stats;Stats.Entity=TEXT("own");Stats.Incarnation=1;Stats.Tick=Stats.BaselineTick=10;Stats.bBaseline=true;S->ApplyStats(Stats);
+ auto Rank=R.Parse({TEXT("learned_rank"),TEXT("3"),TEXT("=="),TEXT("0")},Error);
+ TestFalse(TEXT("stats alone cannot prove an unlearned rank"),Rank(C).bTrue);
  return true;
 }
 #endif

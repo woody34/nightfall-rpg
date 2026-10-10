@@ -23,6 +23,7 @@ public:
 	TArray<FEffectApplied> Active(const FString& Entity) const;
 	bool Has(const FString& Entity, uint32 SkillId, TOptional<uint32> Pool = {}) const;
 	uint64 GetTick() const;
+ bool IsKnown(const FString& Entity) const { return Fence.Identities.Contains(Entity.ToLower()); }
 	int32 GetTransitionCount() const { return TransitionCount; }
 private:
 	FPresentationFence Fence;
