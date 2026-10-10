@@ -344,6 +344,14 @@ message SkillCatalogEntry {
   bool effect_implemented = 5;
   repeated string deferred_reasons = 6;
   string l2_ref = 7;
+  // Validated base metadata, before actor stat modifiers. Each array has max_level
+  // elements in rank order (index = skill_level - 1), including explicit zero costs.
+  repeated uint32 mp_consume_start = 8;
+  repeated uint32 mp_consume_end = 9;
+  repeated uint32 hp_consume = 10;
+  // Source reuse/cast animation milliseconds, before stat scaling and tick conversion.
+  repeated uint32 reuse_ms = 11;
+  repeated uint32 hit_time_ms = 12;
 }
 
 message GetSkillCatalogResponse {
