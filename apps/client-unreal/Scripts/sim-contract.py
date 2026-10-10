@@ -74,10 +74,20 @@ def promote(candidate, previous=None):
             for name, count in entries.items():
                 if int(count) > 0:
                     counts[group][name] = '1'
+                else:
+                    counts[group].setdefault(name, '0')
+    numbers = candidate.get('wire_numbers')
+    if previous and previous.get('wire_numbers'):
+        numbers = json.loads(json.dumps(numbers or {}))
+        for group, entries in previous['wire_numbers'].items():
+            for name, number in entries.items():
+                if name in numbers.get(group, {}) and numbers[group][name] != number:
+                    raise ValueError(f'wire number changed for {group}.{name}')
+                numbers.setdefault(group, {})[name] = number
     scenarios = set(previous.get('observed_scenarios', [])) if previous else set()
     scenarios.update(Path(path).name.removesuffix('.coverage.contract.json') for path in candidate.get('sources', []))
     return {'schema_version': 1, 'baseline_kind': 'historical observed presence',
-            'counts': counts, 'wire_numbers': candidate.get('wire_numbers'), 'observed_scenarios': sorted(scenarios)}
+            'counts': counts, 'wire_numbers': numbers, 'observed_scenarios': sorted(scenarios)}
 
 
 def attach(report, coverage):

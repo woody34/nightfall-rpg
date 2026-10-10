@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Before-admission Phase2 fixture orchestration; never resolves the development Compose file."""
+"""Before-admission Phase2/3 fixtures; never resolves development Compose configuration."""
 import argparse
+from decimal import Decimal, ROUND_CEILING
 import json
 import hashlib
 import os
@@ -17,11 +18,32 @@ _tf_spec = importlib.util.spec_from_file_location('token_fixtures', Path(__file_
 token_fixtures = importlib.util.module_from_spec(_tf_spec)
 _tf_spec.loader.exec_module(token_fixtures)
 
+_p3_spec = importlib.util.spec_from_file_location('phase3_fixtures', Path(__file__).resolve().parent / 'phase3-fixtures.py')
+phase3 = importlib.util.module_from_spec(_p3_spec)
+_p3_spec.loader.exec_module(phase3)
+
 REPO = Path(__file__).resolve().parents[3]
 PHASE2 = token_fixtures.PHASE2
-SUPPORTED = PHASE2 | {'default', 'phase1a-social-aggro', 'phase1a-late-entry'}
+PHASE3 = phase3.PHASE3
+ISOLATED = PHASE2 | PHASE3
+SUPPORTED = ISOLATED | {'default', 'phase1a-social-aggro', 'phase1a-late-entry'}
 OWNER = token_fixtures.OWNER
 OBSERVER = token_fixtures.OBSERVER
+
+
+def scenario_budget(batch):
+    budgets = []
+    for path in batch:
+        directives = [line.split('#', 1)[0].strip() for line in path.read_text().splitlines()]
+        directives = [line for line in directives if line.startswith('nf.Within')]
+        if len(directives) > 1:
+            raise ValueError(f'duplicate scenario budget: {path.name}')
+        for line in directives:
+            match = re.fullmatch(r'nf\.Within ([0-9]+(?:\.[0-9]+)?)', line)
+            if not match or Decimal(match[1]) <= 0:
+                raise ValueError(f'invalid scenario budget: {path.name}')
+            budgets.append(int(Decimal(match[1]).to_integral_value(rounding=ROUND_CEILING)) + 30)
+    return max(budgets, default=0)
 
 
 def fixture(batch):
@@ -38,17 +60,19 @@ def fixture(batch):
         value = match[1] if match else 'default'
         if value not in SUPPORTED:
             raise ValueError(f'unsupported fixture {value}: {path.name}')
-        if value in PHASE2 and lines[0] != '# fixture: ' + value:
-            raise ValueError(f'Phase2 requires exact fixture header: {path.name}')
+        if value in ISOLATED and lines[0] != '# fixture: ' + value:
+            raise ValueError(f'isolated pack requires exact fixture header: {path.name}')
         values.append(value)
     if len(set(values)) != 1:
         raise ValueError('scenario roles must request the same fixture')
     selected = values[0]
-    if selected == 'phase2-transfer-observer':
+    if selected == 'phase2-transfer-observer' or selected in PHASE3 and len(batch) == 2:
         names = sorted(path.stem for path in batch)
-        if len(names) != 2 or not names[0].endswith('-a') or names[1] != names[0][:-2] + '-b':
+        if (len(names) != 2 or not names[0].endswith('-a') or names[1] != names[0][:-2] + '-b') and not (selected in PHASE3 and phase3.declared_pair(batch)):
             raise ValueError('observer fixture requires exactly matching -a/-b roles (use run-sim-multi.sh)')
-    elif selected in PHASE2 and len(batch) != 1:
+    elif selected in phase3.PAIRED:
+        raise ValueError('Phase3 pack requires matching cooperating -a/-b roles')
+    elif selected in ISOLATED and len(batch) != 1:
         raise ValueError('solo Phase2 fixture requires one scenario per fresh unit')
     return selected
 
@@ -204,7 +228,7 @@ def private_json(path, value):
 
 def state(folder):
     value = json.loads((folder / 'state.json').read_text())
-    if not re.fullmatch(r'nightfall-sim-phase2-[0-9a-f]{32}', value['project']):
+    if not re.fullmatch(r'nightfall-(?:sim-phase2|phase3-harness)-[0-9a-f]{32}', value['project']):
         raise ValueError('invalid owned fixture project')
     return value
 
@@ -220,34 +244,44 @@ def logged(command, folder, name, env, seconds=180):
                        check=True, timeout=seconds)
 
 
-def published_seeder():
-    seeder = Path(os.environ.get('SIM_PHASE2_SEEDER', REPO / 'infra/scripts/seed-phase2-transfer-fixture.py')).resolve()
+def published_seeder(selected="phase2-transfer"):
+    packs = PHASE3 if selected in PHASE3 else PHASE2
+    version = "3" if selected in PHASE3 else "2"
+    seeder = Path(os.environ.get(f'SIM_PHASE{version}_SEEDER', REPO / ('infra/scripts/seed-phase3-fixture.py' if version == '3' else 'infra/scripts/seed-phase2-transfer-fixture.py'))).resolve()
     # Verify the published pack interface before creating any infrastructure. Old pair-only
     # seeders must fail here, rather than provisioning the wrong solo/missing-token ledger.
     contract = subprocess.run([sys.executable, str(seeder), '--help'], env=clean_env(),
                               text=True, capture_output=True, check=True, timeout=10)
-    if '--fixture' not in contract.stdout or any(pack not in contract.stdout for pack in PHASE2):
+    if '--fixture' not in contract.stdout or any(pack not in contract.stdout for pack in packs):
         raise ValueError('published seeder lacks the Phase2 fixture pack contract')
     return seeder
 
 
 def provision(folder, batch):
     selected = fixture(batch)
-    if selected not in PHASE2:
-        raise ValueError('provision requires a Phase2 fixture')
+    if selected not in ISOLATED:
+        raise ValueError('provision requires an isolated fixture')
     safe_bot_args(json.loads(os.environ.get('SIM_BOT_ARGS_JSON', '[]')))
     folder.mkdir(mode=0o700, parents=True, exist_ok=False)
     api, migrate = candidate_binaries(folder)
-    seeder = published_seeder()
+    seeder = published_seeder(selected)
     identity = uuid.uuid4().hex
-    db, project = 'nf_phase2_fixture_' + identity, 'nightfall-sim-phase2-' + identity
+    version = '3' if selected in PHASE3 else '2'
+    db = f'nf_phase{version}_fixture_' + identity
+    project = ('nightfall-phase3-harness-' if version == '3' else 'nightfall-sim-phase2-') + identity
+    paired = selected == 'phase2-transfer-observer' or selected in PHASE3 and len(batch) == 2
     owner, observer = str(uuid.uuid4()), str(uuid.uuid4())
     password = uuid.uuid4().hex
     reserved = reserve_ports(4)
     try:
         ports = [sock.getsockname()[1] for sock in reserved]
         pg, nats, http, grpc = ports
-        if selected in token_fixtures.TOKEN_CROSSING:
+        if selected in PHASE3:
+            overlay_data = folder / "data"
+            phase3.create_overlay(overlay_data, REPO)
+            zone_file = overlay_data / "zones/test_zone.toml"
+            rules_dir = overlay_data
+        elif selected in token_fixtures.TOKEN_CROSSING:
             overlay_data = folder / 'data'
             token_fixtures.create_overlay(overlay_data, selected, REPO)
             zone_file = overlay_data / 'zones/test_zone.toml'
@@ -259,19 +293,24 @@ def provision(folder, batch):
             'DATABASE_URL': f'postgres://nightfall:{password}@127.0.0.1:{pg}/{db}',
             'NATS_URL': f'nats://127.0.0.1:{nats}', 'HTTP_ADDR': f'127.0.0.1:{http}',
             'GRPC_ADDR': f'127.0.0.1:{grpc}', 'WS_PUBLIC_URL': f'ws://127.0.0.1:{http}/ws',
-            'AUTH_DEV_TOKENS': '1', 'NIGHTFALL_PHASE2_FIXTURE': '1',
+            'AUTH_DEV_TOKENS': '1', f'NIGHTFALL_PHASE{version}_FIXTURE': '1',
             'ZONE_FILE': str(zone_file),
             'RULES_DIR': str(rules_dir)}
-        roles = {path.stem: {'account_id': observer if selected == 'phase2-transfer-observer' and path.stem.endswith('-b') else owner,
-                            'character_id': OBSERVER if selected == 'phase2-transfer-observer' and path.stem.endswith('-b') else OWNER} for path in batch}
+        roles = {path.stem: {'account_id': observer if paired and phase3.observer_role(path) else owner,
+                            'character_id': (phase3.OBSERVER if paired and phase3.observer_role(path) else phase3.OWNER) if selected in PHASE3 else (OBSERVER if paired and phase3.observer_role(path) else OWNER)} for path in batch}
         role_token_files(folder, roles, owner)
         manifest = {'schema_version': 1, 'fixture': selected, 'project': project, 'database': db,
                     'ports': dict(postgres=pg, nats=nats, http=http, grpc=grpc), 'roles': roles,
                     'api_binary': api, 'migrate_binary': migrate, 'seeder': str(seeder),
                     'data_sources': {'rules_dir': str(rules_dir), 'zone_file': str(zone_file),
-                                     'is_overlay': selected in token_fixtures.TOKEN_CROSSING},
+                                     'is_overlay': selected in token_fixtures.TOKEN_CROSSING or selected in PHASE3},
                     'sha256': {'api': digest(api), 'migrate': digest(migrate), 'seeder': digest(seeder),
                                'zone': digest(zone_file)}}
+        if selected in PHASE3:
+            manifest['schema_status'] = 'reconciled-000008-0a37fb3'
+            manifest['data_sha256'] = phase3.data_hashes(REPO)
+            manifest['overlay_data_sha256'] = phase3.tree_hashes(overlay_data)
+            manifest['seed_inputs'] = phase3.profiles(selected, REPO, paired)
         if selected in token_fixtures.TOKEN_CROSSING:
             manifest['sha256']['oracle_template'] = digest(overlay_data / 'npcs/token_oracle.toml')
             manifest['sha256']['sentinel_template'] = digest(overlay_data / 'npcs/token_sentinel.toml')
@@ -292,9 +331,9 @@ def provision(folder, batch):
     logged(compose(folder, manifest) + ['up', '-d', '--wait'], folder, 'infra-start.log', clean_env())
     logged([migrate, 'up'], folder, 'migrate.log', env)
     command = [sys.executable, str(seeder), '--fixture', selected, '--owner-account', owner]
-    if selected == 'phase2-transfer-observer':
+    if paired:
         command += ['--observer-account', observer]
-    seed_env = env | {'PATH': install_psql(folder) + os.pathsep + env.get('PATH', os.defpath)}
+    seed_env = env | {'NIGHTFALL_FIXTURE_PSQL_SHIM': '1', 'PATH': install_psql(folder) + os.pathsep + env.get('PATH', os.defpath)}
     logged(command, folder, 'seed.log', seed_env)
     validate_seed(folder, selected, owner, observer)
     # Only a complete seed allows API execution, including after a failed migration/seed.
@@ -307,7 +346,12 @@ def validate_seed(folder, selected, owner, observer):
     if not records:
         raise ValueError('seeder did not publish its fixture manifest')
     seed = records[-1]
-    token_fixtures.validate_seed_manifest(seed, selected, owner, observer)
+    if selected in PHASE3:
+        phase3.validate_seed_manifest(seed, selected, owner, observer, REPO, 'observer' in state(folder)['seed_inputs'])
+        if seed.get('data_sha256') != state(folder)['data_sha256']:
+            raise ValueError('Phase3 seed data hashes changed')
+    else:
+        token_fixtures.validate_seed_manifest(seed, selected, owner, observer)
     (folder / 'seed-manifest.json').write_text(json.dumps(seed, indent=2) + '\n')
 
 
@@ -334,10 +378,13 @@ def cleanup(folder):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('detect', 'provision', 'exec-api', 'endpoint', 'args', 'cleanup'))
+    parser.add_argument('command', choices=('detect', 'budget', 'provision', 'exec-api', 'endpoint', 'args', 'cleanup'))
     parser.add_argument('--folder', type=Path)
     parser.add_argument('scenarios', type=Path, nargs='*')
     args = parser.parse_intermixed_args()
+    if args.command == 'budget':
+        print(scenario_budget(args.scenarios))
+        return
     if args.command == 'detect':
         print(fixture(args.scenarios))
         return

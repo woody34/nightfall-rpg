@@ -3,6 +3,8 @@
 import argparse
 import base64
 import json
+import hashlib
+import importlib.util
 import math
 import os
 import re
@@ -13,7 +15,8 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 
-def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit: int, metrics_at: int | None = None) -> int:
+def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit: int, metrics_at: int | None = None,
+           require_casting: bool = False) -> int:
     errors = []
     metrics_at = metrics_at or end
     runner_errors = out / 'runner-errors.txt'
@@ -41,6 +44,37 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
             roles.append({'client': name, 'iterations': iterations, 'seconds': elapsed})
         except (OSError, ValueError, KeyError, ET.ParseError) as exc:
             errors.append(f'{name}: missing or invalid JUnit: {exc}')
+    casting_manifest = out / 'fixtures/roles.json'
+    casting = require_casting or casting_manifest.is_file()
+    if casting:
+        try:
+            manifest = json.loads(casting_manifest.read_text())
+            if (manifest.get('schema_version') != 1 or manifest.get('casting') is not True
+                    or len(manifest['roles']) != clients
+                    or [r['name'] for r in manifest['roles']] != [f'client-{i:02}' for i in range(1, clients + 1)]):
+                raise ValueError('casting role manifest mismatch')
+            spec = importlib.util.spec_from_file_location('soak_contract', Path(__file__).with_name('sim-contract.py'))
+            contract = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(contract)
+            for index in range(1, clients + 1):
+                role = out / f'client-{index:02}'
+                data = contract.read(role / '1-kill-one-monster.coverage.contract.json')
+                for group, name in (('intents', 'cast_skill'), ('events', 'skill_cast_result'), ('events', 'effect_applied')):
+                    if int(data['counts'][group].get(name, '0')) <= 0:
+                        raise ValueError(f'{role.name}: missing received casting/effect coverage {name}')
+            spec = importlib.util.spec_from_file_location('soak_gates', Path(__file__).with_name('sim-gates.py'))
+            gates = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(gates)
+            coverage = gates.read_transitions(out / 'coverage.transitions.json')
+            if coverage['schema_version'] != 3:
+                raise ValueError('casting soak requires native schema3 coverage')
+            if coverage.get('recording_sha256') != hashlib.sha256((out / 'soak.nfr').read_bytes()).hexdigest():
+                raise ValueError('casting coverage does not identify this replay-verified recording')
+            for table, pair in (('player_cast_states', ('Idle', 'Casting')), ('effect_states', ('Absent', 'Active'))):
+                if not any((r['from'], r['to']) == pair and r['count'] > 0 for r in coverage[table]):
+                    raise ValueError('casting soak lacks committed ' + table + ' transition')
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            errors.append(f'casting evidence unavailable: {exc}')
     grafana = os.environ.get('SOAK_GRAFANA_URL', 'http://localhost:3300').rstrip('/')
     dashboard = f'{grafana}/d/nightfall-api?from={start * 1000}&to={metrics_at * 1000}'
     # This Compose namespace is fresh: cumulative buckets include every tick, including
@@ -91,7 +125,10 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
     if errors:
         ET.SubElement(case, 'failure', message='; '.join(errors)).text = '\n'.join(errors)
     ET.ElementTree(suites).write(out / 'soak.xml', encoding='utf-8', xml_declaration=True)
-    result = {'passed': not errors, 'clients': clients, 'requested_seconds': seconds,
+    result = {'passed': not errors, 'workload': 'casting' if casting else 'legacy-attacks',
+              'phase3_acceptance': False,
+              'phase3_evidence_passed': not errors and casting and clients == 8 and seconds >= 1200,
+              'clients': clients, 'requested_seconds': seconds,
               'start_unix': start, 'end_unix': end, 'metrics_end_unix': metrics_at, 'tick_p99_ms': p99 * 1000 if p99 is not None else None,
               'grafana': dashboard, 'roles': roles, 'errors': errors,
               'observed_ticks': observed_ticks, 'recorded_ticks': recorded_ticks,
@@ -114,6 +151,10 @@ def teardown(out: Path, exit_code: int) -> int:
         return int(bool(exit_code))
     result = json.loads(path.read_text())
     result['cleanup_exit_code'] = exit_code
+    # Accept only the final verdict, including mandatory owned cleanup. Also
+    # clear an old report's acceptance bit when teardown fails.
+    evidence = result.get('phase3_evidence_passed', result.get('phase3_acceptance', False))
+    result['phase3_acceptance'] = bool(evidence and result['passed'] and not result['errors'] and not exit_code)
     if exit_code:
         error = f'Compose teardown failed or timed out (exit {exit_code}); inspect cleanup.log'
         result['errors'].append(error)
@@ -140,5 +181,6 @@ if __name__ == '__main__':
     for name in ('clients', 'seconds', 'start', 'end', 'uat_exit'):
         p.add_argument(name, type=int)
     p.add_argument('--metrics-at', type=int)
+    p.add_argument('--require-casting', action='store_true')
     a = p.parse_args()
-    raise SystemExit(report(a.out, a.clients, a.seconds, a.start, a.end, a.uat_exit, a.metrics_at))
+    raise SystemExit(report(a.out, a.clients, a.seconds, a.start, a.end, a.uat_exit, a.metrics_at, a.require_casting))

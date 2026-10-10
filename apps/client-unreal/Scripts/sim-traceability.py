@@ -86,25 +86,25 @@ def read_exceptions(manifest, stories, covered, scenarios, errors):
     return result
 
 
-def check(plans, scenarios, manifest=None):
+def check(plans, scenarios, manifest=None, extra_plans=()):
     stories = {}
     errors = []
     covered = {}
-    for plan in sorted(plans.glob("phase-*.md")):
+    for plan in sorted(set(plans.glob("phase-*.md")) | set(extra_plans)):
         phase = re.match(r"phase-([0-9]+[a-z]?)-", plan.name)
         if not phase:
             continue
         in_stories = False
         for lineno, line in enumerate(plan.read_text().splitlines(), 1):
             if line.startswith("## "):
-                in_stories = bool(re.match(r"## 4\. Epics", line))
+                in_stories = bool(re.match(r"##\s+\d+\.\s+Epics\b", line))
             if not in_stories:
                 continue
             row = re.match(r"\|\s*(✅\s*)?([0-9]+\.[0-9]+[a-z]?)\s+([^|]+)\|", line)
             if not row:
                 continue
             key = (phase[1], row[2])
-            stories[key] = {"complete": bool(row[1]), "visible": "[client-visible]" in line,
+            stories[key] = {"complete": bool(row[1]), "visible": "[client-visible]" in row[3],
                             "path": plan, "line": lineno, "title": row[3].strip()}
     for scenario in sorted(scenarios.glob("*.nfs")):
         lines = scenario.read_text().splitlines()
@@ -126,6 +126,12 @@ def check(plans, scenarios, manifest=None):
     missing = sorted(set(required) - full - exempt)
     output = [f"Simulation traceability: {len(required)} completed client-visible stories: "
               f"{len(full)} covered, {len(exempt)} exception, {len(missing)} missing."]
+    for phase in sorted({key[0] for key in stories}):
+        keys = {key for key in stories if key[0] == phase}
+        output.append(f"PHASE {phase}: {len(keys & set(required))} completed client-visible: "
+                      f"{len(keys & full)} covered, {len(keys & exempt)} exception, "
+                      f"{len(keys & set(missing))} missing; "
+                      f"{sum(not stories[key]['complete'] for key in keys)} not-complete stories.")
     for key, entry in sorted(exceptions.items()):
         suffix = "" if key in required else " (outside completed client-visible totals)"
         output.append(f"EXCEPTION {key[0]} E{key[1]}{suffix}: {entry['reason'].strip()}")
@@ -152,10 +158,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plans", type=Path, default=project.parents[1] / "docs/plans")
     parser.add_argument("--scenarios", type=Path, default=project / "Scenarios")
+    parser.add_argument("--extra-plan", action="append", type=Path, default=[],
+                        help="Explicit additional plan under review; never changes completion semantics")
     parser.add_argument("--manifest", type=Path,
                         default=project / "Scenarios/traceability-exceptions.json")
     args = parser.parse_args()
-    output, failed = check(args.plans, args.scenarios, args.manifest)
+    output, failed = check(args.plans, args.scenarios, args.manifest, args.extra_plan)
     print("\n".join(output))
     return failed
 

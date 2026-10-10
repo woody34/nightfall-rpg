@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render retained JUnit failure details and available coverage reports into a job summary."""
 import json
+import importlib.util
 from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
@@ -26,5 +27,16 @@ for name in ("coverage.contract.json", "coverage.transitions.json"):
     print(f"\n{name}: {len(paths)} report(s) retained.\n")
     for path in paths:
         data = json.loads(path.read_text())
+        if name == 'coverage.transitions.json':
+            spec = importlib.util.spec_from_file_location('summary_gates', Path(__file__).with_name('sim-gates.py'))
+            gates = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(gates)
+            data = gates.read_transitions(path)
+            print(f"Transition schema {data['schema_version']}")
+            for table, summary in gates.transition_summary(data).items():
+                print(f"- {table}: {summary['covered']}/{summary['total']} reachable; never seen: "
+                      + (', '.join(summary['never_seen']) or '(none)'))
+            if data['schema_version'] == 3:
+                print('Schema3 committed facts: ' + json.dumps({key: data[key] for key in gates.V3_COUNTERS}, sort_keys=True))
         print(f"`{path.relative_to(artifacts)}`\n")
         print("```json\n" + json.dumps(data, indent=2)[:12000] + "\n```\n")

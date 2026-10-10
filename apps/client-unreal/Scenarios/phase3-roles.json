@@ -1,0 +1,4 @@
+{"schema_version":1,"units":{
+  "3-pvp-karma-decay":["3-pvp-karma-decay.nfs","3-pvp-karma-decay-peer.nfs"],
+  "3-aggro-skill-hate":["3-aggro-skill-hate.nfs","3-aggro-skill-hate-peer.nfs"]
+}}

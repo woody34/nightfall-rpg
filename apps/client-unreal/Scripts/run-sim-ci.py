@@ -61,7 +61,17 @@ def units(scenarios):
     """A/B roles are one unit; an orphan is a configuration failure, never a single run."""
     paths = {path.stem: path for path in scenarios}
     result = []
+    directories = {path.parent for path in scenarios}
+    declared = {name: [directory / role for role in roles] for directory in directories
+                for name, roles in phase2.phase3.declared_units(directory).items()}
+    managed = {path.stem for roles in declared.values() for path in roles}
     for name, path in sorted(paths.items()):
+        if name in managed:
+            if name in declared:
+                if any(role.stem not in paths for role in declared[name]):
+                    raise ValueError('orphan declared Phase3 role')
+                result.append(declared[name])
+            continue
         if name.endswith("-b"):
             if name[:-2] + "-a" not in paths:
                 raise ValueError(f"orphan scenario role: {name}")
@@ -177,7 +187,7 @@ def suite_coverage(artifacts, batches, baseline):
     """Aggregate current named inputs exactly once; missing evidence cannot be quarantined."""
     contract_inputs, transition_inputs = [], []
     for batch in batches:
-        unit = batch[0].stem[:-2] if len(batch) > 1 else batch[0].stem
+        unit = batch[0].stem[:-2] if len(batch) > 1 and batch[0].stem.endswith('-a') else batch[0].stem
         for scenario in batch:
             dest = artifacts / unit / scenario.stem
             contract_inputs.append(dest / f'{scenario.stem}.coverage.contract.json')
@@ -186,7 +196,7 @@ def suite_coverage(artifacts, batches, baseline):
     transitions, contract = None, None
     try:
         for batch in batches:
-            unit = batch[0].stem[:-2] if len(batch) > 1 else batch[0].stem
+            unit = batch[0].stem[:-2] if len(batch) > 1 and batch[0].stem.endswith('-a') else batch[0].stem
             for scenario in batch:
                 gates.read_transitions(artifacts / unit / scenario.stem / 'coverage.transitions.json')
         transitions = gates.merge_transitions(transition_inputs)
@@ -248,13 +258,13 @@ def main():
             raise ValueError("scenario fixture selection requires --fresh-stack; an attached API cannot switch fixtures")
     except (ValueError, OSError) as error:
         parser.error(str(error))
-    if (args.fresh_stack and any(value not in phase2.PHASE2 for value in fixtures)
+    if (args.fresh_stack and any(value not in phase2.ISOLATED for value in fixtures)
             and not os.environ.get("COMPOSE_PROJECT_NAME", "").startswith("nightfall-sim-")):
         parser.error("--fresh-stack requires an isolated COMPOSE_PROJECT_NAME=nightfall-sim-...")
     artifacts = args.artifacts.resolve()
     # Retain the published path layout, but never reuse evidence from an earlier invocation.
     # Do not delete artifacts: callers must select a new destination for each CI attempt.
-    unit_names = [batch[0].stem[:-2] if len(batch) > 1 else batch[0].stem for batch in batches]
+    unit_names = [batch[0].stem[:-2] if len(batch) > 1 and batch[0].stem.endswith('-a') else batch[0].stem for batch in batches]
     if len(set(unit_names)) != len(unit_names):
         parser.error("scenario/group artifact directory names collide")
     try:
@@ -270,13 +280,14 @@ def main():
     aggregate = ET.Element("testsuite", name="sim orchestration")
     for batch, fixture_name in zip(batches, fixtures):
         names = [p.stem for p in batch]
-        name = names[0][:-2] if len(batch) > 1 else names[0]
+        name = names[0][:-2] if len(batch) > 1 and names[0].endswith('-a') else names[0]
         dest = artifacts / name
         dest.mkdir()
         start = time.monotonic()
         script = "run-sim-multi.sh" if len(batch) > 1 else "run-sim.sh"
+        budget = max(args.timeout, phase2.scenario_budget(batch))
         command = ["bash", str(PROJECT / "Scripts" / script), "--api", "start" if args.fresh_stack else "attach",
-                   "--artifacts", str(dest), "--timeout", str(args.timeout)]
+                   "--artifacts", str(dest), "--timeout", str(budget)]
         if args.video and len(batch) == 1:
             command.append("--video")
         command += list(map(str, batch))
@@ -291,19 +302,19 @@ def main():
         env.pop("ZONE_FILE", None)
         if fixture_name == "phase1a-late-entry":
             env["ZONE_FILE"] = str(REPO / "apps/api/fixtures/phase1a-late-entry/zones/late_entry.toml")
-        elif fixture_name != "default" and fixture_name not in phase2.PHASE2:
+        elif fixture_name != "default" and fixture_name not in phase2.ISOLATED:
             env["ZONE_SIM_FIXTURE"] = fixture_name
         orchestration_errors = []
         with (dest / "orchestration.log").open("w") as log:
             try:
-                if args.fresh_stack and fixture_name not in phase2.PHASE2:
+                if args.fresh_stack and fixture_name not in phase2.ISOLATED:
                     subprocess.run(["docker", "compose", "down", "--volumes", "--remove-orphans"], cwd=REPO,
                                    stdout=log, stderr=subprocess.STDOUT, check=True, timeout=120)
-                code = run_clients(command, log, args.timeout + 600, env=env)
+                code = run_clients(command, log, budget + 600, env=env)
             except (OSError, subprocess.SubprocessError) as error:
                 log.write(f"orchestration failed: {error}\n")
                 orchestration_errors.append(str(error))
-        if args.fresh_stack and fixture_name not in phase2.PHASE2:
+        if args.fresh_stack and fixture_name not in phase2.ISOLATED:
             with (dest / "compose.log").open("w") as log:
                 try:
                     subprocess.run(["docker", "compose", "logs", "--no-color"], cwd=REPO,
@@ -311,7 +322,7 @@ def main():
                 except (OSError, subprocess.SubprocessError) as error:
                     log.write(f"compose log collection failed: {error}\n")
                     orchestration_errors.append(str(error))
-        if fixture_name in phase2.PHASE2:
+        if fixture_name in phase2.ISOLATED:
             # A forced wrapper/process-group timeout may interrupt its EXIT trap. Retry only
             # generated owned fixture resources, never the root Compose project.
             for state_path in dest.glob('*/fixture/state.json'):

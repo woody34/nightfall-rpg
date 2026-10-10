@@ -3,6 +3,7 @@
 import argparse
 import copy
 import json
+import re
 from pathlib import Path
 
 
@@ -27,5 +28,11 @@ if __name__ == '__main__':
     parser.add_argument('source', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('offset', type=int)
+    parser.add_argument('--database')
     args = parser.parse_args()
-    args.output.write_text(json.dumps(isolate(json.loads(args.source.read_text()), args.offset), indent=2) + '\n')
+    config = isolate(json.loads(args.source.read_text()), args.offset)
+    if args.database:
+        if not re.fullmatch(r'nf_phase3_fixture_[a-z0-9_]+', args.database):
+            parser.error('casting soak requires an isolated Phase3 fixture database')
+        config['services']['postgres']['environment']['POSTGRES_DB'] = args.database
+    args.output.write_text(json.dumps(config, indent=2) + '\n')
