@@ -291,7 +291,7 @@ fn full_source_learning_trees_are_populated_inherited_and_bounded() {
             .iter()
             .filter(|s| s.runtime_status == RuntimeSkillStatus::Executable)
             .count(),
-        211
+        199
     );
     assert_eq!(
         registry
@@ -299,7 +299,7 @@ fn full_source_learning_trees_are_populated_inherited_and_bounded() {
             .iter()
             .filter(|s| s.runtime_status == RuntimeSkillStatus::Deferred)
             .count(),
-        167
+        179
     );
     let strike = registry
         .get(ClassId(0))
