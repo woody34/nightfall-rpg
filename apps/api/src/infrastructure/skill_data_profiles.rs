@@ -10,6 +10,10 @@ include!("skill_data_profiles_embedded.rs");
 /// Complete explicit file set; never consult a filesystem while restoring a snapshot.
 #[derive(Debug, Clone)]
 pub struct ProfileDataSource {
+    /// Separately hashed tables-phase3/starter_weapon.toml.
+    pub starter_weapon: String,
+    /// Separately hashed tables-phase3/constants.toml.
+    pub limits: String,
     /// classes-phase3/<profession-key>.toml.
     pub classes: BTreeMap<String, String>,
     /// npcs/<template-key>.toml, containing the unchanged legacy prefix and typed suffix.
@@ -19,6 +23,11 @@ impl ProfileDataSource {
     /// Immutable repository input compiled into the executable.
     pub fn embedded() -> Self {
         Self {
+            starter_weapon: include_str!(
+                "../../../../packages/data/tables-phase3/starter_weapon.toml"
+            )
+            .into(),
+            limits: include_str!("../../../../packages/data/tables-phase3/constants.toml").into(),
             classes: EMBEDDED_PROFILES
                 .iter()
                 .map(|(p, s)| ((*p).into(), (*s).into()))
@@ -48,6 +57,10 @@ impl ProfileDataSource {
             Ok(entries)
         }
         Ok(Self {
+            starter_weapon: std::fs::read_to_string(
+                root.join("tables-phase3/starter_weapon.toml"),
+            )?,
+            limits: std::fs::read_to_string(root.join("tables-phase3/constants.toml"))?,
             classes: directory(root, "classes-phase3")?,
             npcs: directory(root, "npcs")?,
         })
@@ -63,6 +76,10 @@ pub(super) fn load_profiles(source: &ProfileDataSource) -> Result<SkillProfiles,
         phase3: NpcSkillTemplate,
     }
     let mut profiles = SkillProfiles {
+        starter_weapon: toml::from_str(&source.starter_weapon)
+            .map_err(|e| SkillDataError(vec![format!("tables-phase3/starter_weapon.toml: {e}")]))?,
+        limits: toml::from_str(&source.limits)
+            .map_err(|e| SkillDataError(vec![format!("tables-phase3/constants.toml: {e}")]))?,
         classes: BTreeMap::new(),
         npcs: BTreeMap::new(),
     };
@@ -180,5 +197,76 @@ mod tests {
         assert_eq!(old.config_hash, new.config_hash);
         let hidden = KELTIR_TOML.replace("[phase3]\n", "max_hp = 123\n[phase3]\n");
         assert_eq!(legacy_hash_source(&hidden), hidden);
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod equipment_tests {
+    use crate::infrastructure::skill_data::{load_phase3_rules, Phase3DataSource};
+
+    #[test]
+    fn equipped_sources_are_strict_required_and_hash_all_provenance() {
+        let source = Phase3DataSource::embedded();
+        let rules = load_phase3_rules(&source, &[]).unwrap();
+        let weapon = &rules.profiles().starter_weapon;
+        assert_eq!(weapon.item_id, 2369);
+        assert_eq!(
+            weapon
+                .functions
+                .iter()
+                .map(|f| (f.stat.as_str(), f.order, f.value_q))
+                .collect::<Vec<_>>(),
+            [
+                ("pAtk", 0, 6_000_000),
+                ("mAtk", 0, 5_000_000),
+                ("critRate", 0, 8_000_000),
+                ("pAtkSpd", 0, 379_000_000)
+            ]
+        );
+        assert_eq!(rules.profiles().limits.constants.max_magic_crit.value, 200);
+        assert_eq!(rules.profiles().limits.constants.max_run_speed.value, 250);
+        assert_eq!(rules.profiles().limits.constants.run_speed_boost.value, 0);
+        for (old, new) in [
+            ("stat = \"mAtk\"", "stat = \"unknown\""),
+            ("operation = \"SET\"", "operation = \"ADD\""),
+            ("order = 0", "order = 1"),
+            ("value_q = 5000000", "value_q = 6000000"),
+            ("xml_ordinal = 1", "xml_ordinal = 0"),
+            ("item_id = 2369", "item_id = 1"),
+        ] {
+            let mut changed = source.clone();
+            changed.profiles.starter_weapon = changed.profiles.starter_weapon.replace(old, new);
+            assert!(load_phase3_rules(&changed, &[]).is_err(), "{old}");
+        }
+        let mut changed = source.clone();
+        changed.profiles.limits = changed
+            .profiles
+            .limits
+            .replace("value = 200", "value = 201");
+        assert!(load_phase3_rules(&changed, &[]).is_err());
+        changed = source.clone();
+        changed.profiles.limits.push_str("\nUnexpected = 1\n");
+        assert!(load_phase3_rules(&changed, &[]).is_err());
+        changed = source.clone();
+        changed.profiles.starter_weapon.clear();
+        assert!(load_phase3_rules(&changed, &[]).is_err());
+        changed = source.clone();
+        changed.profiles.starter_weapon = changed
+            .profiles
+            .starter_weapon
+            .replace("symbol = \"item 2369\"", "symbol = \"item 2369 provenance edit\"");
+        assert_ne!(load_phase3_rules(&changed, &[]).unwrap().hash(), rules.hash());
+        changed = source.clone();
+        changed.profiles.limits = changed.profiles.limits.replace(
+            "symbol = \"remaining effective-stat limits\"",
+            "symbol = \"remaining effective-stat limits provenance edit\"",
+        );
+        assert_ne!(load_phase3_rules(&changed, &[]).unwrap().hash(), rules.hash());
+        let json = serde_json::to_vec(&rules).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<crate::domain::zone::Phase3Rules>(&json).unwrap(),
+            rules
+        );
     }
 }

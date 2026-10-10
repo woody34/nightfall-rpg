@@ -54,6 +54,109 @@ pub struct EffectiveStatLimits {
     pub run_speed_q: i64,
 }
 
+/// Fully assembled player getter inputs. This contains raw bases and declarative Funcs,
+/// not a previously rounded physical sheet; it is reconstructed rather than persisted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct PlayerStatInputs {
+    pub bases: EffectiveStatBases,
+    pub functions: Vec<StatFunction>,
+    pub limits: EffectiveStatLimits,
+}
+impl PlayerStatInputs {
+    /// Build from the current profession's growth and source templates plus the actually
+    /// equipped starter weapon. Order0 weapon SET replaces class6 with weapon5 for M.Atk.
+    pub fn from_class(
+        stats: &super::StatRules,
+        classes: &crate::domain::class::ClassRegistry,
+        rules: &Phase3Rules,
+        class_id: crate::domain::class::ClassId,
+        level: u32,
+    ) -> Result<Self, StatError> {
+        use crate::domain::character_progression::base_class_profile;
+        let class = classes.get(class_id).ok_or(StatError::Overflow)?;
+        let root = stats
+            .class(base_class_profile(class.base_class_id).ok_or(StatError::Overflow)?)
+            .ok_or(StatError::Overflow)?;
+        let profile = rules
+            .profiles()
+            .classes
+            .get(&class_id)
+            .ok_or(StatError::Overflow)?;
+        if class.tier > 2
+            || class.base_stats != root.base
+            || profile.base_stats.values() != class.base_stats
+        {
+            return Err(StatError::Overflow);
+        }
+        let growth = classes
+            .growth(class_id, level)
+            .map_err(|_| StatError::Overflow)?;
+        let weapon = &rules.profiles().starter_weapon;
+        weapon.validate_physical(stats.starter_weapon())?;
+        let constants = &rules.profiles().limits.constants;
+        let q = |n: u32| super::Scaled::from_int(i64::from(n)).map(super::Scaled::raw);
+        let bases = EffectiveStatBases {
+            level,
+            player: true,
+            max_hp_q: growth.hp.raw(),
+            max_mp_q: growth.mp.raw(),
+            max_cp_q: growth.cp.raw(),
+            p_atk_q: root.fist_p_atk.raw(),
+            p_def_q: root.p_def_unarmoured.raw(),
+            m_atk_q: q(profile.magical.base_m_atk)?,
+            m_def_q: q(profile.magical.base_m_def)?,
+            attack_speed_q: q(root.fist_attack_speed)?,
+            cast_speed_q: q(profile.magical.base_m_atk_speed)?,
+            run_speed_q: q(class.movement.run)?,
+            accuracy_q: q(profile.combat_getter_bases.accuracy)?,
+            evasion_q: q(profile.combat_getter_bases.evasion)?,
+            crit_q: q(root.fist_crit_rate)?,
+            magic_crit_q: q(profile.combat_getter_bases.magic_critical)?,
+            random_damage: weapon.random_damage,
+            elf: class.race == crate::domain::Race::Elf,
+            run_boost_q: q(constants.run_speed_boost.value)?,
+        };
+        let mut functions = super::stat_functions::standard_functions(
+            &class.base_stats,
+            stats.bonus(),
+            super::level_mod(stats.constants(), level)?,
+            level,
+            true,
+            true,
+        )?;
+        functions.extend(weapon.functions());
+        Ok(Self {
+            bases,
+            functions,
+            limits: EffectiveStatLimits {
+                physical_crit: stats.constants().crit_cap_permille,
+                magic_crit: constants.max_magic_crit.value,
+                run_speed_q: q(constants.max_run_speed.value)?,
+            },
+        })
+    }
+    /// Fold canonical passive/effect sources without running one-time hooks or healing.
+    pub fn derive(
+        &self,
+        entity: &Phase3Entity,
+        rules: &Phase3Rules,
+        can_resurrect: bool,
+    ) -> Result<EffectiveStats, StatError> {
+        derive_effective_stats(
+            &self.bases,
+            self.functions.clone(),
+            entity,
+            rules,
+            self.limits,
+            FunctionConditions {
+                weapon_kind: &rules.profiles().starter_weapon.weapon_type,
+                can_resurrect,
+            },
+        )
+    }
+}
+
 /// Derived trait state; counts distinguish no provider from a neutral-valued provider.
 /// Defence immunity is independent of a multiplicative provider (DefenceTrait.java:81-91).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,6 +199,20 @@ pub struct EffectiveStats {
     pub traits: BTreeMap<String, EffectiveTrait>,
     /// Retained for context-specific cost/reuse/regen/trait queries at the next read.
     pub calculator: StatCalculator,
+}
+
+impl EffectiveStats {
+    /// Source L2 units/second to zone milli-tiles/100ms, with one final floor. The current
+    /// effective speed changes movement; it never rescales existing swing/cast deadlines.
+    pub fn movement_speed(&self) -> Result<super::Speed, StatError> {
+        if self.run_speed_q < 0 {
+            return Err(StatError::Overflow);
+        }
+        let raw = mul(i128::from(self.run_speed_q), 1000)?
+            .checked_div(mul(i128::from(Q), 320)?)
+            .ok_or(StatError::Overflow)?;
+        Ok(super::Speed::from_milli_tiles_per_tick(narrow(raw)?))
+    }
 }
 
 /// Compile installed sources in shared sequence order. Each active handler was selected
@@ -686,5 +803,75 @@ mod tests {
         assert_eq!(fixture["formulas"].as_object().unwrap().len(), 6);
         assert_eq!(count, 290);
         assert!(rules.skills().get(SkillId(5076)).is_some());
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod equipped_tests {
+    use super::super::phase3_entity::tests::blank;
+    use super::*;
+    use crate::domain::class::ClassId;
+    use crate::infrastructure::{
+        class_data::{load_classes, ClassSource},
+        rules_data::{load_rules, RulesSource},
+        skill_data::{load_phase3_rules, Phase3DataSource},
+    };
+
+    #[test]
+    fn every_equipped_oracle_runs_through_complete_player_assembly_and_ordered_sets() {
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../../packages/data/fixtures/skill-oracle-starter-weapon-phase3.json"
+        ))
+        .unwrap();
+        let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
+        let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        let vectors = oracle["formulas"]["FuncMAtkMod"].as_array().unwrap();
+        assert_eq!(vectors.len(), 24);
+        for v in vectors {
+            let class = ClassId(u32::try_from(v["inputs"]["class_id"].as_u64().unwrap()).unwrap());
+            let level = u32::try_from(v["inputs"]["level"].as_u64().unwrap()).unwrap();
+            let input =
+                PlayerStatInputs::from_class(&stats, &classes, &rules, class, level).unwrap();
+            let entity = blank();
+            let sheet = input.derive(&entity, &rules, false).unwrap();
+            assert_eq!(input.bases.m_atk_q, 6 * Q);
+            assert_eq!(sheet.m_atk_q, v["q_result"].as_i64().unwrap(), "{v}");
+            assert_eq!(sheet.m_atk_q / Q, v["rounded_result"].as_i64().unwrap(), "{v}");
+            assert_eq!(input.limits.magic_crit, 200);
+            assert_eq!(input.limits.run_speed_q, 250 * Q);
+            assert!(sheet.movement_speed().is_ok());
+            let mut unarmed = input.clone();
+            unarmed
+                .functions
+                .retain(|f| !(f.key.stat == "mAtk" && f.key.priority == 0));
+            let unarmed_sheet = unarmed.derive(&entity, &rules, false).unwrap();
+            let expected =
+                ExactRatio::parse_literal(v["intermediate"]["unarmed_exact"].as_str().unwrap())
+                    .unwrap()
+                    .to_q()
+                    .unwrap();
+            assert_eq!(unarmed_sheet.m_atk_q, expected);
+            assert!(unarmed_sheet.m_atk_q > sheet.m_atk_q);
+            let mut additive = input.clone();
+            additive
+                .functions
+                .iter_mut()
+                .filter(|f| f.key.stat == "mAtk" && f.key.priority == 0)
+                .for_each(|f| f.operation = super::super::stat_functions::FunctionOp::Add(5 * Q));
+            let additive_sheet = additive.derive(&entity, &rules, false).unwrap();
+            assert_eq!(
+                additive_sheet.m_atk_q,
+                ExactRatio::parse_literal(
+                    v["intermediate"]["incorrect_additive_exact"]
+                        .as_str()
+                        .unwrap()
+                )
+                .unwrap()
+                .to_q()
+                .unwrap()
+            );
+        }
     }
 }

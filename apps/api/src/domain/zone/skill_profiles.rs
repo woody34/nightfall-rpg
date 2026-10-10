@@ -98,7 +98,155 @@ profile!(NpcSkillProfile {
     sp_reward: u64,
     template: NpcSkillTemplate
 });
-profile!(SkillProfiles { classes: BTreeMap<ClassId, ClassSkillProfile>, npcs: BTreeMap<String, NpcSkillProfile> });
+profile!(SkillProfiles { classes: BTreeMap<ClassId, ClassSkillProfile>, npcs: BTreeMap<String, NpcSkillProfile>, starter_weapon: StarterWeaponProfile, limits: EffectiveLimitProfile });
+/// Pinned source provenance for the weapon calculator's insertion/replacement semantics.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs, clippy::struct_field_names)] // Field names follow the generated input contract.
+pub struct WeaponOrdering {
+    pub default_source: ProfileSource,
+    pub override_source: ProfileSource,
+    pub set_source: ProfileSource,
+    pub fold_source: ProfileSource,
+}
+profile!(WeaponFunction {
+    stat: String,
+    operation: String,
+    order: i32,
+    xml_ordinal: u32,
+    value: String,
+    value_q: i64,
+    source: ProfileSource
+});
+profile!(StarterWeaponProfile { schema: u32, id: String, item_id: u32, name: String, source: ProfileSource, weapon_type: String, bodypart: String, random_damage: u32, attack_range: u32, ordering: WeaponOrdering, functions: Vec<WeaponFunction> });
+profile!(EffectiveLimitProfile {
+    schema: u32,
+    source: ProfileSource,
+    constants: EffectiveLimitConstants
+});
+/// Remaining separately sourced getter caps. All provenance participates in the rules hash.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct EffectiveLimitConstants {
+    #[serde(rename = "MaxMCritRate")]
+    pub max_magic_crit: super::skill_rules::SourceConstant,
+    #[serde(rename = "MaxRunSpeed")]
+    pub max_run_speed: super::skill_rules::SourceConstant,
+    #[serde(rename = "RunSpeedBoost")]
+    pub run_speed_boost: super::skill_rules::SourceConstant,
+}
+impl StarterWeaponProfile {
+    /// Admit the supported equipment's complete source Func block; partial weapon profiles
+    /// cannot silently fall back to class magic or the legacy physical projection.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != 1
+            || self.id != "squires_sword"
+            || self.item_id != 2369
+            || self.name != "Squire's Sword"
+            || self.weapon_type != "SWORD"
+            || self.bodypart != "rhand"
+            || self.random_damage != 10
+            || self.attack_range != 40
+            || !self.source.valid(true)
+            || self.source.file != "src/main/resources/data/stats/items/02300-02399.xml"
+            || self.functions.len() != 4
+            || [
+                &self.ordering.default_source,
+                &self.ordering.override_source,
+                &self.ordering.set_source,
+                &self.ordering.fold_source,
+            ]
+            .iter()
+            .any(|source| !source.valid(false))
+        {
+            return Err("invalid Phase3 starter weapon source/profile".into());
+        }
+        for (function, (stat, value, line)) in self.functions.iter().zip([
+            ("pAtk", 6, 862),
+            ("mAtk", 5, 863),
+            ("critRate", 8, 864),
+            ("pAtkSpd", 379, 865),
+        ]) {
+            if function.stat != stat
+                || function.operation != "SET"
+                || function.order != 0
+                || function.xml_ordinal.checked_add(862) != Some(line)
+                || function.value_q != i64::from(value).saturating_mul(super::Q)
+                || ExactRatio::parse_literal(&function.value).ok()
+                    != Some(ExactRatio::whole(i64::from(value)))
+                || !function.source.valid(true)
+                || function.source.file != self.source.file
+                || function.source.lines != line.to_string()
+            {
+                return Err(format!("invalid Phase3 weapon Func {stat}"));
+            }
+        }
+        Ok(())
+    }
+    /// Order0 SETs install before builtins without modifying their insertion identity.
+    pub fn functions(&self) -> Vec<super::stat_functions::StatFunction> {
+        self.functions
+            .iter()
+            .map(|f| super::stat_functions::StatFunction {
+                key: super::stat_functions::FunctionKey {
+                    stat: f.stat.clone(),
+                    priority: f.order,
+                    install_sequence: 0,
+                    handler_ordinal: 0,
+                    function_ordinal: f.xml_ordinal,
+                },
+                operation: super::stat_functions::FunctionOp::Set(f.value_q),
+                conditions: Vec::new(),
+            })
+            .collect()
+    }
+    /// Prove that shared physical equipment identity agrees with the legacy input bundle;
+    /// this does not put new magic data into the legacy hash or calculator.
+    pub fn validate_physical(&self, weapon: &super::WeaponBlock) -> Result<(), super::StatError> {
+        let matches = self.id == weapon.id
+            && self.random_damage == weapon.random_damage
+            && self.attack_range == weapon.attack_range_l2
+            && self.functions.iter().all(|f| match f.stat.as_str() {
+                "pAtk" => f.value_q == weapon.p_atk.raw(),
+                "critRate" => f.value_q == i64::from(weapon.crit_rate).saturating_mul(super::Q),
+                "pAtkSpd" => f.value_q == i64::from(weapon.attack_speed).saturating_mul(super::Q),
+                "mAtk" => true,
+                _ => false,
+            });
+        if matches {
+            Ok(())
+        } else {
+            Err(super::StatError::Overflow)
+        }
+    }
+}
+impl EffectiveLimitProfile {
+    /// Require the pinned remaining caps, including exact source assignments/locations.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != 1
+            || !self.source.valid(false)
+            || self.source.file != "src/main/resources/config/character.properties"
+        {
+            return Err("invalid Phase3 limit provenance".into());
+        }
+        for (constant, name, value, line) in [
+            (&self.constants.max_magic_crit, "MaxMCritRate", 200, 260),
+            (&self.constants.max_run_speed, "MaxRunSpeed", 250, 252),
+            (&self.constants.run_speed_boost, "RunSpeedBoost", 0, 31),
+        ] {
+            if constant.value != value
+                || constant.line != line
+                || constant.symbol != name
+                || constant.literal != format!("{name} = {value}")
+                || constant.file != self.source.file
+            {
+                return Err(format!("invalid Phase3 source limit {name}"));
+            }
+        }
+        Ok(())
+    }
+}
 
 impl ProfileBaseStats {
     /// Strictly decoded six source attributes, in the shared domain representation.
@@ -264,6 +412,8 @@ impl NpcSkillTemplate {
 impl SkillProfiles {
     /// Bound and validate the self-contained immutable bundle before hashing/restoring it.
     pub fn validate(&self) -> Result<(), String> {
+        self.starter_weapon.validate()?;
+        self.limits.validate()?;
         if self.classes.len() != 89 || self.npcs.is_empty() {
             return Err("missing Phase3 class/NPC profiles".into());
         }
