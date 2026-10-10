@@ -117,8 +117,9 @@ at client `4f61f0a` (identical native/production/API/data to tested `92b34d2`). 
 (`/tmp/phase2-client-final-soak-01/report.json`, exit code 0) passed: 8 clients requested 1,200 s across 23 cycles each
 (184 total cycles; observed per client 1,231.441–1,250.215 s), combat tick p99
 16.087356 ms (< 20 ms budget), observed histogram ticks 12,612 equaled recorded 12,612 ticks, and replay matched 96,281 outputs
-(22,662,346 bytes compared, 0 digest-only). Local data model, server, native suite, and soak are verified; required token
-supply/backfill decision and root main merge / post-merge Game and Editor rebuilds remain pending (entire Phase 2 is not marked complete).
+(22,662,346 bytes compared, 0 digest-only). Main `00b9ac1` merged and pushed; root Game (42.11 s), Editor
+(32.70 s), and focused class smoke (6/6, zero skips) passed with exit 0. The user trace was preserved.
+Required token supply/backfill remains undecided; whole Phase 2 completion is not claimed.
 See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.md),
 [class transfer observability](../../docs/engineering/class-transfer-observability.md), and
 [class tree diagram](../../docs/diagrams/phase-2-class-tree.html).

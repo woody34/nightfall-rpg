@@ -1,6 +1,6 @@
 # Phase 2 race and class: verification outcome
 
-Status: implementation, ordinary native acceptance, and current packaged combat soak verified on 2026-10-09. The token supply/backfill decision and root main merge / post-merge Game and Editor builds remain open. Whole Phase 2 completion and full normal progression are not claimed.
+Status: implementation, ordinary native acceptance, current packaged combat soak, and root main merge / post-merge Game and Editor builds verified on 2026-10-09. The token supply/backfill decision remains open. Whole Phase 2 completion and full normal progression are not claimed.
 See the [executable plan](phase-2-race-and-class.md), [reference design](../planning/02-race-and-class.md),
 and [class transfer observability](../engineering/class-transfer-observability.md).
 
@@ -42,6 +42,7 @@ response, including offline retries.
 | Required-live client automation | Client `6820c62` automation passed **62/62 with zero skips** against API `7ceb323`. Rendered transfer (12.48 s) and persisted second launch (10.39 s) verified wire decoding, stale-session fences, owner privacy, and reconnect. |
 | Ordinary native scenario suite | Coordinator suite (`/tmp/phase2-client-full-suite-01/summary.md`, `suite.xml`) at client `92b34d2` (with `1a9c5cb` and API `7ceb323`) measured **1,193.284 s (19m 53.284s)**, exit **0**, across **30 scenario files / 25 logical units** (19 Phase 1a + 11 Phase 2): **25 PASS, 0 FAIL, 0 quarantine**, with 35 recordings, 35 replay logs, and 35 trace HTML files retained; all owned stacks cleaned. |
 | Telemetry and diagrams | Phase 2 telemetry imports (`b50dbc4` / `b8a7151`) add five Grafana transfer panels to `nightfall-api` (`docs/engineering/class-transfer-observability.md`). Prometheus exporter validation verified scrape counts (0→1=1, 1→2=1, success=2) with fixed `otel_scope_name="nightfall-api"`. Offline class tree (`docs/diagrams/phase-2-class-tree.html`, 89 nodes / 80 edges) and transfer diagram (`docs/diagrams/phase-2-class-transfer.html`) passed integrity checks, corruption probes, and 1440/390px renders. |
+| Root main build receipt | Main `00b9ac168414b99513726903cef829d3bda9ea0c` merged and pushed. Root Game **PASS, 42.11 s**; Editor **PASS, 32.70 s**; focused class smoke **6/6 PASS, zero skips**, all exit 0. Public receipt: `~/.config/Claude/side-session-notes/phase2-codex-2026-10-09/client-evidence/root-build/receipt.json`. Tracked root clean, user trace preserved; generated bridge modules verified root-local. |
 
 ## Ignored tests, benchmark results, and diagnostic failures
 
@@ -83,9 +84,6 @@ neither claimed nor required.
 - **Token supply/backfill requires the user's decision.** Ledger consumption is verified; production
   grants and backfill are absent. Pre-admission fixture balances prove consumption only. Milestones
   remain conditional on that choice.
-- **Root main integration and rebuild.** Following main branch integration, builds of Game
-  and Editor in the root checkout must be completed and native artifacts archived outside disposable
-  worktrees.
 - **External CI runner and reliability programme.** The Linux self-hosted runner remains unregistered.
   The existing two-week reliability programme is pending as a separate operational follow-up and does
   not impose a new 14-day delay on reviewed feature integration.
