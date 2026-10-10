@@ -1053,7 +1053,7 @@ impl super::ports::ClassTransferRuntime for SessionContext {
                 .map(|(class_id, unmet)| super::ports::TransferEligibility {
                     class_id,
                     eligible: unmet.is_empty(),
-                    unmet: unmet.into_iter().map(|r| r.detail().to_owned()).collect(),
+                    unmet,
                 })
                 .collect(),
         })

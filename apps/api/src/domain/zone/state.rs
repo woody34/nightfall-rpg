@@ -35,11 +35,12 @@ use super::stat_sheet::StatSheet;
 pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 
 /// Version of the [`ZoneSnapshot`] layout. Bump on any change to the snapshot or to the
-/// meaning of a field; `from_snapshot` accepts 4, 5 and 6. 2: combat state, hate
+/// meaning of a field; `from_snapshot` accepts 4, 5, 6 and 7. 2: combat state, hate
 /// ledgers and the stat rules (Phase 1 E2.2). 3: NPC AI blocks, spawn slots and the respawn
 /// scheduler (Phase 1 E3.2–E3.4). 4: safe point and the player's `alive` load flag (E2.4).
 /// 5: application checkpoint lanes, excluded from the simulation digest.
 /// 6: explicit state digest version; older snapshots default to JSON v1.
+/// 7: resolved class registry, verified immutable hash, player identity and transfer ledger.
 pub const SNAPSHOT_SCHEMA_VERSION: u32 = 7;
 
 /// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.

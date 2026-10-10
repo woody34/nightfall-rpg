@@ -12,9 +12,10 @@
 //! * A record whose encoding would exceed what the log accepts per message (`JetStream`'s
 //!   `max_payload`) stores each player's output as its SHA-256 instead of the bytes
 //!   ([`OutputForm::Sha256`]); replay digests its re-run output and compares digests.
-//! * The snapshot and the watermark are canonical **JSON** (`serde_json` over types whose maps
-//!   are all ordered), written once per epoch and readable by a human during an incident. The
-//!   same snapshot bytes go to `JetStream` and to Postgres.
+//! * Legacy snapshots and watermarks are canonical **JSON** (`serde_json` over ordered maps).
+//!   Phase 2 snapshots retain that complete JSON inside a bounded, versioned zlib envelope:
+//!   8-byte `NFSNAP7\0`, little-endian u32 expanded length, one complete zlib stream.
+//!   The same bytes go to `JetStream`, Postgres and recordings; decode never loads current data.
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};

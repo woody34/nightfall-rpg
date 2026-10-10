@@ -134,9 +134,9 @@ async fn applied_records_are_readable_in_order_with_contiguous_ticks() {
     let all = records(rig.mem.as_ref(), epoch).await;
     let ticks: Vec<u64> = all.iter().map(|r| r.tick.0).collect();
     assert_eq!(ticks, (0..20).collect::<Vec<_>>(), "one record per tick, idle ones included");
-    // Tick 0 applied the fixture's two NPC spawns and the player, in that order.
+    // Tick 0 applied the fixture's three NPC spawns and the player, in that order.
     let first: Vec<u64> = all[0].commands.iter().map(|c| c.ordinal.0).collect();
-    assert_eq!(first, vec![0, 1, 2]);
+    assert_eq!(first, vec![0, 1, 2, 3]);
     assert!(matches!(all[0].commands[0].command, ZoneCommand::SpawnNpc { .. }));
     assert_eq!(all[0].server_time_ms, replay_support::ORIGIN_MS);
 

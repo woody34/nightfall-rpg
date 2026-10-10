@@ -1,3 +1,7 @@
+//! Binary v3 binds a cached SHA-256 of the complete resolved class registry, then the
+//! unchanged `BinaryV2` digest and ordered integer player identity/ledger/receipt fields.
+//! Registry hashing runs only on bootstrap and validated restore.
+//!
 //! Binary v2 digest layout. SHA-256 over `nightfall.state.2\0`, then tick, ordinal,
 //! RNG (32-byte key, stream, word position), entities, hate ledgers and spawn members.
 //! Integers use their declared fixed width, little endian; UUIDs use their 16 RFC bytes.

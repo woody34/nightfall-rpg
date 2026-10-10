@@ -70,6 +70,12 @@
 //!                      bytes frame = 5; }
 //! ```
 //!
+//! Record schema 5 selects `BinaryV3`. It adds command `bytes change_class = 15`,
+//! `PlayerLoad.bytes progression = 8`, and output `bytes phase2 = 18`. These bytes are
+//! canonical integer-only JSON of the new domain structs; `phase2` carries `ClassChanged`,
+//! private `ClassTransfer`, and `Spawn`/`StatsChanged` when they contain Phase 2 projections.
+//! Legacy variants continue through their original protobuf fields, byte for byte.
+//!
 //! Tag numbers and enum values are part of the log format: never renumber, only add.
 
 use bytes::Bytes;

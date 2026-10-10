@@ -229,8 +229,103 @@ impl ZoneState {
         unmet
     }
 
+    /// Concrete failed predicates for the catalogue UI; command refusal codes stay stable.
+    pub fn transfer_unmet_details(&self, entity: EntityId, target: ClassId) -> Vec<String> {
+        let Some(actor) = self.entities.get(&entity) else {
+            return vec!["Character is not online".into()];
+        };
+        let Some(combat) = actor.combat.as_ref() else {
+            return vec!["Character progression is unavailable".into()];
+        };
+        let Some(registry) = self.classes.as_deref() else {
+            return vec!["Class catalogue is unavailable".into()];
+        };
+        let Some(class) = registry.get(target) else {
+            return vec!["Unknown class".into()];
+        };
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &combat.role
+        else {
+            return vec!["Character progression is unavailable".into()];
+        };
+        let mut details = Vec::new();
+        for reason in self.transfer_unmet(entity, target) {
+            if reason == RejectReason::TransferIneligible {
+                if class.tier > 2 {
+                    details.push("Third transfers are not available".into());
+                }
+                if combat.sheet.level() < class.min_level {
+                    details.push(format!(
+                        "Requires level {} (current {})",
+                        class.min_level,
+                        combat.sheet.level()
+                    ));
+                }
+                if class.parent != Some(player.class_state.current_class_id) {
+                    let parent = class
+                        .parent
+                        .and_then(|id| registry.get(id))
+                        .map_or("a different base class", |c| c.display_name.as_str());
+                    details.push(format!("Requires current class {parent}"));
+                }
+                if class.race != player.identity.race {
+                    details.push("This class is unavailable for your race".into());
+                } else if class.base_class_id != player.identity.base_class_id {
+                    let base = registry
+                        .get(class.base_class_id)
+                        .map_or("another starting class", |c| c.display_name.as_str());
+                    details.push(format!("Requires starting class {base}"));
+                }
+            } else if reason == RejectReason::ClassMasterTooFar {
+                let distance = actor
+                    .pos
+                    .distance_sq(Vec2Fixed::from_tiles(126, 128))
+                    .isqrt();
+                details.push(format!(
+                    "Move within 3 tiles of Class Master (126, 128); currently {}.{:03} tiles away",
+                    distance / 1000,
+                    distance % 1000
+                ));
+            } else if reason == RejectReason::TransferRequirement && class.tier <= 2 {
+                let count = if class.tier == 1 {
+                    player.class_state.token_tier_1_count
+                } else {
+                    player.class_state.token_tier_2_count
+                };
+                if count == 0 {
+                    details.push(format!(
+                        "Requires 1 tier {} transfer token (current {count})",
+                        class.tier
+                    ));
+                }
+                if !class.transfer.quest_hooks.is_empty() {
+                    details.push("Required transfer quest is not available yet".into());
+                }
+                let expected = if class.tier == 1 {
+                    "class_transfer_token_1"
+                } else {
+                    "class_transfer_token_2"
+                };
+                if class.transfer.requires.len() != 1
+                    || class
+                        .transfer
+                        .requires
+                        .iter()
+                        .any(|r| r.item != expected || r.count != 1)
+                {
+                    details.push("Required transfer items are not available yet".into());
+                }
+            } else if reason != RejectReason::TransferRequirement {
+                details.push(reason.detail().to_owned());
+            }
+        }
+        details
+    }
+
     /// Ordered direct children, including locked third-tier metadata.
-    pub fn class_options(&self, entity: EntityId) -> Vec<(ClassId, Vec<RejectReason>)> {
+    pub fn class_options(&self, entity: EntityId) -> Vec<(ClassId, Vec<String>)> {
         let Some(CombatRole::Player {
             progression: Some(p),
             ..
@@ -247,7 +342,7 @@ impl ZoneState {
             .map(|r| {
                 r.children(p.class_state.current_class_id)
                     .into_iter()
-                    .map(|id| (id, self.transfer_unmet(entity, id)))
+                    .map(|id| (id, self.transfer_unmet_details(entity, id)))
                     .collect()
             })
             .unwrap_or_default()
@@ -969,5 +1064,110 @@ mod tests {
             assert_eq!(p.class_state.token_tier_2_count, 0);
             assert_eq!(p.class_state.milestone_claimed_mask, 0);
         }
+    }
+    #[test]
+    fn options_explain_only_failed_requirements_with_levels_tokens_and_master_distance() {
+        let (mut s, e, a) = fixture(1);
+        let actor = s.entities.get_mut(&e).unwrap();
+        actor.pos = Vec2Fixed::from_tiles(0, 0);
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut actor.combat.as_mut().unwrap().role
+        else {
+            panic!("player")
+        };
+        p.class_state.token_tier_1_count = 0;
+        assert_eq!(
+            s.transfer_unmet_details(e, ClassId(1)),
+            vec![
+                "Requires level 20 (current 1)",
+                "Move within 3 tiles of Class Master (126, 128); currently 179.610 tiles away",
+                "Requires 1 tier 1 transfer token (current 0)",
+            ]
+        );
+        assert!(s
+            .transfer_unmet_details(e, ClassId(2))
+            .iter()
+            .any(|detail| detail == "Requires current class Steel Initiate"));
+        let female = crate::domain::character_progression::CharacterIdentity {
+            appearance: CharacterAppearance {
+                sex: crate::domain::subclass::Sex::Female,
+                ..Default::default()
+            },
+            ..s.class_player(e, a, SessionGeneration(1))
+                .unwrap()
+                .identity
+                .clone()
+        };
+        assert_eq!(
+            profession_stats(
+                s.rules.as_ref().unwrap(),
+                s.classes.as_ref().unwrap(),
+                &female,
+                &ClassState::new(ClassId(0)),
+                1
+            )
+            .unwrap()
+            .3
+            .raw(),
+            250
+        );
+        let (ready, e, _) = fixture(20);
+        assert!(ready.transfer_unmet_details(e, ClassId(1)).is_empty());
+    }
+    #[test]
+    fn transfer_identity_is_public_owner_resources_are_private_and_late_aoi_gets_current_class() {
+        let (mut state, owner, account) = fixture(40);
+        let mut identity = state
+            .class_player(owner, account, SessionGeneration(1))
+            .unwrap()
+            .identity
+            .clone();
+        identity.account_id = AccountId::from_uuid(uuid::Uuid::from_u128(4));
+        let observer = EntityId::from_uuid(uuid::Uuid::from_u128(3));
+        let spawn = |entity, position| {
+            ZoneInput::system(ZoneCommand::SpawnPlayer {
+                entity,
+                name: "Observer".into(),
+                pos: position,
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                load: Some(Box::new(PlayerLoad {
+                    progression: Some(Box::new(PlayerProgression {
+                        identity: identity.clone(),
+                        class_state: ClassState::new(ClassId(0)),
+                        max_cp: 0,
+                    })),
+                    ..PlayerLoad::fresh("human_fighter")
+                })),
+            })
+        };
+        apply(&mut state, spawn(observer, Vec2Fixed::from_tiles(126, 126)));
+        let changed = apply(&mut state, command(owner, account, 1, 1));
+        assert!(changed.outputs[&observer].iter().any(|out| matches!(out,
+            ObserverOutput::Event(ZoneEvent::ClassChanged { entity, class_id: ClassId(1), .. }) if *entity == owner)));
+        assert!(!changed.outputs[&observer].iter().any(|out| matches!(out,
+            ObserverOutput::Event(ZoneEvent::StatsChanged { entity, .. }) if *entity == owner)));
+        assert!(changed.outputs[&owner].iter().any(|out| matches!(out,
+            ObserverOutput::Event(ZoneEvent::StatsChanged { class: Some(class), .. }) if class.class_id == ClassId(1) && class.token_tier_1_count == 0)));
+        assert!(changed
+            .outputs
+            .values()
+            .flatten()
+            .all(|out| !matches!(out, ObserverOutput::Event(ZoneEvent::ClassTransfer { .. }))));
+        let late = EntityId::from_uuid(uuid::Uuid::from_u128(5));
+        let entered = apply(&mut state, spawn(late, Vec2Fixed::from_tiles(126, 126)));
+        assert!(entered.outputs[&late].iter().any(|out| matches!(out,
+            ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, identity: Some(public), .. }) if *entity == owner && public.class_id == ClassId(1))));
+        let reconnected = apply(
+            &mut state,
+            ZoneInput::system(ZoneCommand::ReplaceSession {
+                entity: owner,
+                generation: SessionGeneration(2),
+            }),
+        );
+        assert!(reconnected.outputs[&owner].iter().any(|out| matches!(out,
+            ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, identity: Some(public), .. }) if *entity == owner && public.class_id == ClassId(1))));
     }
 }

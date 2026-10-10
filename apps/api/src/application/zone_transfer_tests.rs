@@ -37,6 +37,7 @@ struct Repo {
     inner: Arc<InMemoryCharacterRepository>,
     hold: AtomicBool,
     lost_reply: AtomicBool,
+    reject_constraint: AtomicBool,
     entered: Notify,
     release: Notify,
     requests: parking_lot::Mutex<Vec<(CharacterCheckpoint, Vec<DomainEvent>)>>,
@@ -47,6 +48,7 @@ impl Repo {
             inner: Arc::new(InMemoryCharacterRepository::default()),
             hold: AtomicBool::new(false),
             lost_reply: AtomicBool::new(false),
+            reject_constraint: AtomicBool::new(false),
             entered: Notify::new(),
             release: Notify::new(),
             requests: parking_lot::Mutex::new(Vec::new()),
@@ -84,6 +86,9 @@ impl CharacterRepository for Repo {
         self.entered.notify_one();
         while self.hold.load(Ordering::Acquire) {
             self.release.notified().await;
+        }
+        if self.reject_constraint.load(Ordering::Acquire) {
+            return Err(CheckpointError::Constraint("outbox_reject_transfers".into()));
         }
         let result = self.inner.checkpoint(cp, events).await?;
         if self.lost_reply.swap(false, Ordering::AcqRel) {
@@ -539,4 +544,148 @@ async fn full_registry_tick_and_digest_measurement() {
     ticks.sort_unstable();
     digests.sort_unstable();
     eprintln!("PHASE2_DEBUG_PERF players=200 samples=100 digest_p50_us={} digest_p99_us={} idle_tick_plus_checkpoint_projection_p50_us={} p99_us={}", digests[49], digests[98], ticks[49], ticks[98]);
+}
+
+#[derive(Default)]
+struct Index {
+    inner: crate::infrastructure::eventlog::InMemoryZoneSnapshotStore,
+    checkpointed: std::sync::atomic::AtomicUsize,
+    closed: std::sync::atomic::AtomicUsize,
+}
+use crate::application::replay_log::{RecoveryEpoch, Seq, ZoneSnapshotRow, ZoneSnapshotStore};
+#[async_trait::async_trait]
+impl ZoneSnapshotStore for Index {
+    async fn unresolved(&self, zone: ZoneId) -> anyhow::Result<Vec<RecoveryEpoch>> {
+        self.inner.unresolved(zone).await
+    }
+    async fn recording(&self, zone: ZoneId, epoch: u64, tick: Tick) -> anyhow::Result<()> {
+        self.inner.recording(zone, epoch, tick).await
+    }
+    async fn checkpointed(&self, zone: ZoneId, epoch: u64, tick: Tick) -> anyhow::Result<()> {
+        self.checkpointed.fetch_add(1, Ordering::AcqRel);
+        self.inner.checkpointed(zone, epoch, tick).await
+    }
+    async fn close(&self, zone: ZoneId, epoch: u64) -> anyhow::Result<()> {
+        self.closed.fetch_add(1, Ordering::AcqRel);
+        self.inner.close(zone, epoch).await
+    }
+    async fn insert(&self, row: &ZoneSnapshotRow) -> anyhow::Result<()> {
+        self.inner.insert(row).await
+    }
+    async fn set_first_seq(&self, zone: ZoneId, epoch: u64, seq: Seq) -> anyhow::Result<()> {
+        self.inner.set_first_seq(zone, epoch, seq).await
+    }
+    async fn get(&self, zone: ZoneId, epoch: u64) -> anyhow::Result<Option<ZoneSnapshotRow>> {
+        self.inner.get(zone, epoch).await
+    }
+    async fn latest_epoch(&self, zone: ZoneId) -> anyhow::Result<Option<u64>> {
+        self.inner.latest_epoch(zone).await
+    }
+}
+
+#[tokio::test]
+async fn permanent_checkpoint_constraint_fences_without_retry_success_or_index_completion() {
+    let h = Harness::new().await;
+    let snapshot = h.zone.snapshot().await.unwrap();
+    let index = Arc::new(Index::default());
+    let mut service = CheckpointService::new(
+        h.repo.clone(),
+        Arc::new(InMemorySessionAudit::default()),
+        Arc::new(Metrics::detached()),
+    )
+    .with_durability(Arc::new(InMemoryEventLog::default()), index.clone());
+    service.restore(&snapshot);
+    *h.zone.checkpoints.service().unwrap().lock().await = service;
+    h.repo.reject_constraint.store(true, Ordering::Release);
+    let mut outputs = h.zone.subscribe();
+    let reply = h.request(1, 1);
+    assert_eq!(h.driver.step().await.unwrap(), TickOutcome::Held(snapshot.tick));
+    assert!(reply.await.unwrap().is_err());
+    h.zone.stopped().await;
+    assert!(h.zone.persistence_failed());
+    assert_eq!(h.repo.requests.lock().len(), 1);
+    assert_eq!(index.checkpointed.load(Ordering::Acquire), 0);
+    assert_eq!(index.closed.load(Ordering::Acquire), 0);
+    assert_eq!(index.unresolved(ZoneId(77)).await.unwrap().len(), 1);
+    assert_eq!(h.event_count(), 0);
+    assert!(outputs.try_recv().is_err());
+    assert!(h.zone.final_snapshot().is_none());
+    let stored = h
+        .repo
+        .load_for_admission(h.character.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.class_state.current_class_id, ClassId(0));
+    assert_eq!(stored.class_state.token_tier_1_count, 1);
+}
+
+#[tokio::test]
+async fn recovery_permanent_failure_and_missing_log_leave_epoch_unresolved_then_rescue_once() {
+    let h = Harness::new().await;
+    let snapshot = h.zone.snapshot().await.unwrap();
+    let log = InMemoryEventLog::default();
+    let index = Index::default();
+    index.recording(ZoneId(77), 1, snapshot.tick).await.unwrap();
+    let mut recovery = CheckpointService::new(
+        h.repo.clone(),
+        Arc::new(InMemorySessionAudit::default()),
+        Arc::new(Metrics::detached()),
+    );
+    assert!(recovery
+        .recover_indexed(&log, &index, ZoneId(77))
+        .await
+        .is_err());
+    assert_eq!(index.closed.load(Ordering::Acquire), 0);
+    log.write_snapshot(&snapshot).await.unwrap();
+    // Baseline exists, but the attempted transfer's required record is still missing.
+    assert!(recovery
+        .recover_indexed(&log, &index, ZoneId(77))
+        .await
+        .is_err());
+    assert_eq!(index.checkpointed.load(Ordering::Acquire), 0);
+    let mut state = ZoneState::from_snapshot(snapshot).unwrap();
+    let entity = EntityId::from_uuid(h.character.id.as_uuid());
+    let transfer = state
+        .run_tick(state.draft(vec![ZoneInput {
+            source: CommandSource::Session {
+                entity,
+                generation: SessionGeneration(1),
+            },
+            seq: None,
+            command: ZoneCommand::ChangeClass {
+                entity,
+                account: h.character.account_id,
+                request_key: Uuid::from_u128(1),
+                target: ClassId(1),
+            },
+        }]))
+        .unwrap();
+    log.append_applied(&AppliedTickRecord::from_applied(ZoneId(77), &transfer))
+        .await
+        .unwrap();
+    h.repo.reject_constraint.store(true, Ordering::Release);
+    assert!(recovery
+        .recover_indexed(&log, &index, ZoneId(77))
+        .await
+        .is_err());
+    assert_eq!(h.repo.requests.lock().len(), 1);
+    assert_eq!(index.checkpointed.load(Ordering::Acquire), 0);
+    assert_eq!(index.closed.load(Ordering::Acquire), 0);
+    assert_eq!(h.event_count(), 0);
+    h.repo.reject_constraint.store(false, Ordering::Release);
+    recovery
+        .recover_indexed(&log, &index, ZoneId(77))
+        .await
+        .unwrap();
+    assert_eq!(index.checkpointed.load(Ordering::Acquire), 1);
+    assert_eq!(index.closed.load(Ordering::Acquire), 1);
+    assert_eq!(h.event_count(), 1);
+    assert!(index.unresolved(ZoneId(77)).await.unwrap().is_empty());
+    let requests = h.repo.requests.lock();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(
+        requests[0], requests[1],
+        "rescue retries immutable checkpoint, receipt and outbox"
+    );
 }

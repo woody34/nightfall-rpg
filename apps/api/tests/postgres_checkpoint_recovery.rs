@@ -115,7 +115,7 @@ async fn crash_before_or_after_transaction_and_missing_audit_ack_recovers_identi
                 .await
                 .unwrap();
             if commit_before_crash {
-                live.admitted(&applied, &state.snapshot()).await;
+                live.admitted(&applied, &state.snapshot()).await.unwrap();
             }
             if applied.progression().any(|p| !p.levels_gained.is_empty()) {
                 leveled = true;

@@ -131,7 +131,7 @@ async fn applied_records_round_trip_through_jetstream_in_order() {
     let records = read_all(log.as_ref(), zone, epoch).await;
     let ticks: Vec<u64> = records.iter().map(|r| r.tick.0).collect();
     assert_eq!(ticks, (0..25).collect::<Vec<_>>());
-    assert_eq!(records[0].commands.len(), 3, "two fixture NPCs and the player");
+    assert_eq!(records[0].commands.len(), 4, "three fixture NPCs and the player");
     assert!(!records[0].outputs.is_empty(), "the player saw the NPC spawns");
 
     let mut opened = open_epoch(log.as_ref(), ZoneId(zone), epoch).await.unwrap();

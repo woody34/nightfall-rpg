@@ -1131,16 +1131,39 @@ fn coverage_pins_both_fixtures_and_the_complete_json_schema() {
                 .map(String::as_str)
                 .collect::<Vec<_>>(),
             [
+                "class_changes",
+                "class_transfer_commands",
+                "class_transfer_effects",
                 "deaths",
                 "intent_rejected",
                 "life_incarnations",
                 "npc_intentions",
+                "owner_stats_updates",
                 "player_attack_states",
                 "respawns",
                 "schema_version"
             ]
         );
-        assert_eq!(json["schema_version"], 1);
+        assert_eq!(json["schema_version"], 2);
+        for field in [
+            "class_changes",
+            "class_transfer_commands",
+            "class_transfer_effects",
+        ] {
+            assert_eq!(
+                json[field],
+                serde_json::json!({}),
+                "legacy fixtures contain no class mutations"
+            );
+        }
+        let recorded = if fight { self::fight() } else { fixture() };
+        let owner_stats = recorded
+            .records
+            .iter()
+            .flat_map(events)
+            .filter(|event| matches!(event, ZoneEvent::StatsChanged { .. }))
+            .count();
+        assert_eq!(json["owner_stats_updates"], owner_stats);
         let npc = if fight {
             vec![
                 ("Idle", "Active", 4),
