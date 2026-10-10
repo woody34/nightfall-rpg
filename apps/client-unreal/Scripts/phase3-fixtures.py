@@ -11,7 +11,14 @@ from pathlib import Path
 import shutil
 import tomllib
 
-PHASE3 = frozenset(('phase3-trainer', 'phase3-pvp', 'phase3-resurrect', 'phase3-regen'))
+VARIANT_PACKS = {
+    'phase3-trainer-low-sp': 'phase3-trainer',
+    'phase3-trainer-low-level': 'phase3-trainer',
+    'phase3-trainer-low-mp': 'phase3-trainer',
+    'phase3-penalty-cap': 'phase3-trainer',
+    'phase3-sp-near-cap': 'phase3-trainer',
+}
+PHASE3 = frozenset(('phase3-trainer', 'phase3-pvp', 'phase3-resurrect', 'phase3-regen', *VARIANT_PACKS))
 OWNER = '01970000-0000-7000-8000-000000000030'
 OBSERVER = '01970000-0000-7000-8000-000000000031'
 PAIRED = frozenset(('phase3-pvp', 'phase3-resurrect'))
@@ -53,6 +60,8 @@ def profiles(pack, repo, paired=False):
         raise ValueError('unknown Phase3 pack')
     if pack in PAIRED and not paired:
         raise ValueError('Phase3 pack requires cooperating roles')
+    variant = pack
+    pack = VARIANT_PACKS.get(pack, pack)
     def role(character, profession, level, sp, pos, learned, hp=None, mp=None, cp=0):
         definition = tomllib.loads((repo / f'packages/data/professions/{profession}.toml').read_text())
         xp = next(r['xp'] for r in tomllib.loads((repo / 'packages/data/tables/experience.toml').read_text())['to_level'] if r['level'] == level)
@@ -74,6 +83,17 @@ def profiles(pack, repo, paired=False):
         owner = role(OWNER, 'cleric', 30, 10000, [110, 100], {1016: 1, 1069: 1, 1068: 1, 1216: 1})
     elif pack == 'phase3-regen':
         owner = role(OWNER, 'human_mystic', 14, 0, [126, 128], {1177: 1}, hp=1, mp=1, cp=1)
+    if variant == 'phase3-trainer-low-sp':
+        owner['sp'] = 0
+    elif variant == 'phase3-trainer-low-level':
+        owner = role(OWNER, 'human_mystic', 4, 10000, [126, 128], {1177: 1})
+    elif variant == 'phase3-trainer-low-mp':
+        owner.update(mp=0, position=[110, 100])
+    elif variant == 'phase3-penalty-cap':
+        owner.update(death_penalty_level=5, position=[110, 100])
+    elif variant == 'phase3-sp-near-cap':
+        # Design v3 §5.1/R13: signed-bigint cap. This is a boundary input.
+        owner.update(sp=9223372036854775806, position=[110, 100])
     result = {'owner': owner}
     if paired:
         result['observer'] = role(OBSERVER, 'human_mystic', 14, 0, [112, 100], {1177: 1}, hp=100, cp=10)

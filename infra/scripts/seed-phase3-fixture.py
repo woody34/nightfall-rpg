@@ -51,7 +51,9 @@ def seed_sql(roles):
                     f"{role['level']},{s['str']},{s['dex']},{s['con']},{s['int']},{s['wit']},{s['men']},"
                     f"{role['position'][0]},{role['position'][1]},{role['xp']},{number(role['hp'])},{number(role['mp'])},"
                     f"{number(role['cp'])},'{role['class_profile']}',true,0,{role['base_class_id']},{role['class_id']},"
-                    f"{role['sp']},'female',0,0,0,0,0,0,1)")
+                    f"{role['sp']},'female',{role['karma']},{role['pk_count']},{role['pvp_count']},"
+                    f"{role['flag_remaining_ticks']},{role['death_penalty_level']},"
+                    f"{role['recoverable_death_xp_loss']},{role['phase3_timer_policy_version']})")
         for skill, rank in sorted(role['learned_ranks'].items(), key=lambda item: int(item[0])):
             skills.append(f"('{role['character_id']}',0,'l2.skill.{skill}',{rank})")
     accounts = ','.join(f"('{r['account_id']}')" for r in roles.values())

@@ -1,0 +1,21 @@
+# covers: 3 E2.4, 3 E4.5, 3 E4.6, 3 E5.4, 3 E5.5, 3 E5.6, 3 E6.7
+# fixture: phase3-resurrect
+# variant: resurrect-decline-a
+# Source variant; engine execution and linked precision evidence remain REQUIRED.
+# A1: tick100ms, state delivery10ticks *3=3s; existing login/RPC5s *3=15s.
+# Movement<=37.5tiles /3.75tiles/s *3=30s (phase2.rs:109-112).
+# Wind Strike/Might base4000ms *3=12s (pinned dp skills/01100-01199.xml:1645,01000-01099.xml:1560).
+# A6 regen30ticks=3s; state guards wait for received resources; no assumed no-regen window.
+# Death/combat fixture30s *3=90s; R7 resurrection offer600ticks=60s *3=180s.
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor own_sp >= 0 3
+nf.WaitFor entity_dead 01970000-0000-7000-8000-000000000031 90
+nf.Cast 1016 01970000-0000-7000-8000-000000000031
+nf.WaitFor cast_results == 1 18
+nf.Expect entity_dead 01970000-0000-7000-8000-000000000031
+nf.Expect cast_results == 1
+# Total sum of waits plus30s exit grace.
+nf.Within 351
