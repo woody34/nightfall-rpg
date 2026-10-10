@@ -123,6 +123,7 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
             max_mp: 5,
             level: 2,
             xp: 100,
+            class: None,
         },
         ZoneEvent::TargetChanged {
             entity: player,
@@ -481,4 +482,65 @@ fn admitted_intention_changes_count_by_target_intention_only() {
             "{label}"
         );
     }
+}
+
+#[test]
+fn class_success_counts_internal_fact_once_and_latency_labels_have_no_identity() {
+    use crate::domain::character_progression::{FrozenTransferResult, SuccessfulTransferReceipt};
+    use crate::domain::class::ClassId;
+    use crate::domain::{AccountId, Character, CharacterName, Race};
+    let m = Metrics::detached();
+    let character = Character::create(
+        AccountId::from_uuid(uuid::Uuid::from_u128(9)),
+        CharacterName::new("PrivateHero").unwrap(),
+        Race::Human,
+    );
+    let receipt = SuccessfulTransferReceipt {
+        key: uuid::Uuid::from_u128(10),
+        target_class_id: ClassId(1),
+        result: FrozenTransferResult {
+            character_id: character.id,
+            identity: character.identity(),
+            name: character.name,
+            current_class_id: ClassId(1),
+            level: 20,
+            xp: 100,
+            sp: 0,
+            stats: character.stats,
+            position_millitiles: [126_000, 126_000],
+            hp: 10,
+            mp: 10,
+            cp: 0,
+            max_hp: 10,
+            max_mp: 10,
+            max_cp: 0,
+            token_tier_1_count: 0,
+            token_tier_2_count: 0,
+            granted_skill_keys: Vec::new(),
+        },
+    };
+    let mut zone = fresh();
+    let mut batch = zone.run_tick(zone.draft(Vec::new())).unwrap();
+    batch.events.push(ZoneEvent::ClassTransfer {
+        tick: Tick(1),
+        entity: EntityId::from_uuid(character.id.as_uuid()),
+        old_class_id: ClassId(0),
+        receipt: Box::new(receipt),
+    });
+    batch.events.extend((0..3).map(|_| ZoneEvent::ClassChanged {
+        tick: Tick(1),
+        entity: EntityId::from_uuid(character.id.as_uuid()),
+        class_id: ClassId(1),
+        generation: SessionGeneration(1),
+    }));
+    let mut consumer = m.consumer(&fresh().snapshot());
+    consumer.admitted(&batch);
+    assert_eq!(value(&m, "nightfall_class_transfers_total", "from=\"0\",to=\"1\""), 1.0);
+    m.record_class_transfer_latency(std::time::Duration::from_millis(3), true);
+    m.record_class_transfer_latency(std::time::Duration::from_millis(4), false);
+    let rendered = m.render().unwrap();
+    assert!(rendered.contains("outcome=\"success\""));
+    assert!(rendered.contains("outcome=\"error\""));
+    assert!(!rendered.contains("PrivateHero"));
+    assert!(!rendered.contains(&character.id.to_string()));
 }

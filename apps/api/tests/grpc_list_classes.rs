@@ -31,6 +31,7 @@ async fn catalogue_contains_all_races_professions_limits_and_appearance_hooks() 
     );
     use prost::Message;
     let encoded_len = response.encoded_len();
+    println!("ListClassesResponse encoded_len={encoded_len} bytes; tonic limit=4194304 bytes");
     assert!(
         encoded_len < 4 * 1024 * 1024,
         "catalogue exceeds tonic default message limit: {encoded_len}"
@@ -101,6 +102,17 @@ async fn catalogue_contains_all_races_professions_limits_and_appearance_hooks() 
             .passives
             .iter()
             .all(|p| !p.display_name.is_empty() && !p.description.is_empty()));
+        for passive in &race.passives {
+            assert_eq!(
+                passive.implemented,
+                matches!(
+                    passive.key.as_str(),
+                    "racial.adaptable" | "racial.forest_step" | "racial.shadow_precision"
+                ),
+                "{}",
+                passive.key
+            );
+        }
         for id in &race.base_class_ids {
             let class = response.classes.iter().find(|c| c.class_id == *id).unwrap();
             assert_eq!(

@@ -341,6 +341,7 @@ async fn progression_failed_commit_publishes_nothing_and_committed_retry_is_brok
         alive: false,
         position: Position { x: 1.0, y: 2.0 },
         idempotency: ("save_checkpoint".into(), IdempotencyKey::from_uuid(Uuid::now_v7())),
+        class_state: None,
     };
     sqlx::query("ALTER TABLE outbox ADD CONSTRAINT reject_checkpoint CHECK (false) NOT VALID")
         .execute(&pool)
