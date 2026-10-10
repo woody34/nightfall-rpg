@@ -24,3 +24,6 @@ pub use ping::{Ping, PingOutput};
 pub use change_class::ChangeClass;
 pub use list_classes::{ClassCatalogue, ListClasses};
 pub use transfer_options::TransferOptions;
+
+pub mod get_skill_catalog;
+pub use get_skill_catalog::{GetSkillCatalog, RegistrySkillCatalogue};
