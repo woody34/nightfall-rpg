@@ -6,6 +6,7 @@ class USkillStateSubsystem;
 class UVerticalBox;
 class UTextBlock;
 class UButton;
+class UComboBoxString;
 class UPanelWidget;
 class UNightfallSkillDialog;
 UCLASS()
@@ -28,6 +29,9 @@ public:
  void Render();
  void Select(uint32 Id, uint32 Rank);
  bool CanConfirm() const;
+ UComboBoxString* HotbarSkillControl() const { return HotbarSkillPicker; }
+ UComboBoxString* HotbarSlotControl() const { return HotbarSlotPicker; }
+ UButton* AssignControl() const { return AssignButton; }
  const FString& GetRetryKey() const { return RetryKey; }
 protected:
  virtual void NativeOnInitialized() override;
@@ -37,10 +41,16 @@ private:
  UTextBlock* Text(UPanelWidget* Parent, const FString& Label);
  UButton* Button(UPanelWidget* Parent, const FString& Label);
  UFUNCTION() void Refresh();
+ UFUNCTION() void AssignHotbar();
+ UFUNCTION() void ClearHotbar();
  UFUNCTION() void Confirm();
  UFUNCTION() void Close();
  UPROPERTY() TObjectPtr<USkillStateSubsystem> State;
  UPROPERTY() TObjectPtr<UVerticalBox> Rows;
+ UPROPERTY() TObjectPtr<UComboBoxString> HotbarSkillPicker;
+ UPROPERTY() TObjectPtr<UComboBoxString> HotbarSlotPicker;
+ UPROPERTY() TObjectPtr<UButton> AssignButton;
+ TArray<FString> HotbarOptions;
  UPROPERTY() TObjectPtr<UTextBlock> Status;
  UPROPERTY() TObjectPtr<UTextBlock> Selection;
  UPROPERTY() TObjectPtr<UButton> ConfirmButton;

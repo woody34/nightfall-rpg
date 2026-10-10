@@ -457,7 +457,7 @@ void UNightfallHud::UpdateSkills()
  const auto Slots=S->Hotbar();
  for(int32 I=0;I<HotbarButtons.Num();++I)
  {
-  const bool Valid=Slots.IsValidIndex(I);const auto Remaining=Valid?S->ReuseRemaining(Slots[I]):TOptional<uint64>();
+  const bool Valid=Slots.IsValidIndex(I) && Slots[I]!=0;const auto Remaining=Valid?S->ReuseRemaining(Slots[I]):TOptional<uint64>();
   const auto* Skill=Valid?S->FindSkill(Slots[I]):nullptr;
   HotbarLabels[I]->SetText(FText::FromString(Valid?FString::Printf(TEXT("%d %s\nr%u%s"),I+1,Skill?*Skill->DisplayName:TEXT("Skill"),S->GetLearned().FindRef(Slots[I]),Remaining.IsSet() && *Remaining?*FString::Printf(TEXT(" [%llu ticks]"),*Remaining):TEXT("")):FString::Printf(TEXT("%d —"),I+1)));
   HotbarButtons[I]->SetIsEnabled(Valid && Remaining.IsSet() && *Remaining==0 && !C->IsOwnDead());

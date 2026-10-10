@@ -3,6 +3,9 @@
 #include "Combat/CombatStateSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Misc/Guid.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 void USkillStateSubsystem::Initialize(FSubsystemCollectionBase& C)
 {
@@ -84,7 +87,7 @@ void USkillStateSubsystem::ApplySync(const FSkillStateSync& S)
 	for (const auto& R : S.Reuse) Reuse.Add(R.SkillId, { R.ReadyTick, S.Tick });
 	Sp = S.Sp; SpTick = S.Tick; DeathPenalty = S.DeathPenaltyLevel; SyncTick = S.Tick; OwnerTick = S.Tick; bSyncKnown = bOwnerKnown = true;
 	FPvpStateChanged P; P.Entity = S.Entity; P.Incarnation = S.Incarnation; P.Tick = S.Tick; P.Karma = S.Karma; P.PkCount = S.PkCount; P.PvpCount = S.PvpCount; P.FlagUntilTick = S.FlagUntilTick; P.bBaseline = S.bBaseline; P.BaselineTick = S.BaselineTick; ApplyPvp(P);
-	Fence.Tick = FMath::Max(Fence.Tick, S.Tick); OnChanged.Broadcast();
+	Fence.Tick = FMath::Max(Fence.Tick, S.Tick); EnsureHotbar(); OnChanged.Broadcast();
 }
 void USkillStateSubsystem::ApplyReuse(const FSkillReuse& R)
 {
@@ -99,7 +102,7 @@ void USkillStateSubsystem::ApplyLearned(const FSkillLearned& L)
 	if (LearnedEvents.Contains(Key)) return; LearnedEvents.Add(Key); ++Counts.FindOrAdd(TEXT("skill_learned_events")); OwnerTick = FMath::Max(OwnerTick, L.Tick);
 	Learned.FindOrAdd(L.SkillId) = FMath::Max(Learned.FindRef(L.SkillId), L.SkillLevel);
 	if (!Sp.IsSet() || L.Tick >= SpTick) { Sp = L.SpRemaining; SpTick = L.Tick; }
-	Fence.Tick = FMath::Max(Fence.Tick, L.Tick); OnChanged.Broadcast();
+	Fence.Tick = FMath::Max(Fence.Tick, L.Tick); EnsureHotbar(); OnChanged.Broadcast();
 }
 void USkillStateSubsystem::ApplyStats(const FStatsChanged& S)
 {
@@ -178,7 +181,7 @@ bool USkillStateSubsystem::OfferPending() const { return Net && Fence.Dead(Net->
 
 uint64 USkillStateSubsystem::GetTick() const { return FMath::Max(Fence.Tick, Net ? Net->GetLatestReceivedTick() : uint64(0)); }
 
-void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R) { Catalog = R; bCatalogKnown = true; OnChanged.Broadcast(); }
+void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R, const TMap<uint32,FString>& OperateTypes) { Catalog = R; CatalogOperateTypes = OperateTypes; bCatalogKnown = true; EnsureHotbar(); OnChanged.Broadcast(); }
 void USkillStateSubsystem::ApplyLearnable(const FGrpcNightfallV1ListLearnableSkillsResponse& R) { Learnable = R; bLearnableKnown = true; OnChanged.Broadcast(); }
 void USkillStateSubsystem::LoadCatalog(FDone Done)
 {
@@ -236,14 +239,62 @@ const FGrpcNightfallV1SkillCatalogEntry* USkillStateSubsystem::FindSkill(uint32 
 {
 	if (bCatalogKnown) for (const auto& Skill : Catalog.Skills) if (Skill.SkillId.Value == Id) return &Skill; return nullptr;
 }
+bool USkillStateSubsystem::IsCastable(uint32 Id) const
+{
+ const auto* Skill = FindSkill(Id); const auto* Type = CatalogOperateTypes.Find(Id);
+ if (!Skill || !Skill->EffectImplemented || !Type || !Learned.FindRef(Id)) return false;
+ // Pinned SkillOperateType.java:92-98 active types. P/T/unknown are not hotbar casts.
+ return *Type == TEXT("A1") || *Type == TEXT("A2") || *Type == TEXT("A3") || *Type == TEXT("A4") || *Type == TEXT("CA1") || *Type == TEXT("CA5") || *Type == TEXT("DA1") || *Type == TEXT("DA2");
+}
+TArray<uint32> USkillStateSubsystem::AvailableSkills() const
+{
+ TArray<uint32> Out; for (const auto& Pair : Learned) if (IsCastable(Pair.Key)) Out.Add(Pair.Key);
+ Out.Sort(); return Out;
+}
+FString USkillStateSubsystem::HotbarConfigFile() const { return HotbarConfigOverride.IsEmpty() ? FPaths::Combine(FPaths::GeneratedConfigDir(),TEXT("NightfallHotbar.ini")) : HotbarConfigOverride; }
+void USkillStateSubsystem::SaveHotbar()
+{
+ if (!Net) return;
+ const auto* Slots = SlotMaps.Find(Net->GetOwnEntityId().ToLower()); if (!Slots) return;
+ TArray<FString> Values; for (uint32 Id : *Slots) Values.Add(FString::Printf(TEXT("%u"), Id));
+ const FString File=HotbarConfigFile(); FConfigFile Config; Config.Read(File); Config.bCanSaveAllSections=true;
+ Config.SetArray(TEXT("Nightfall.Hotbar"), *Net->GetOwnEntityId().ToLower(), Values);
+ IFileManager::Get().MakeDirectory(*FPaths::GetPath(File),true); Config.Write(File);
+}
+void USkillStateSubsystem::EnsureHotbar()
+{
+ if (!Net || Net->GetOwnEntityId().IsEmpty() || !bSyncKnown || SlotMaps.Contains(Net->GetOwnEntityId().ToLower())) return;
+ TArray<FString> Saved;
+ FConfigFile Config; Config.Read(HotbarConfigFile()); Config.GetArray(TEXT("Nightfall.Hotbar"), *Net->GetOwnEntityId().ToLower(), Saved);
+ TArray<uint32> Slots; Slots.Init(0, 9);
+ if (Saved.Num() == 9)
+ {
+  for (int32 I=0; I<9; ++I) if (Saved[I].IsNumeric()) { const uint64 Id=FCString::Strtoui64(*Saved[I],nullptr,10); if (Id<=MAX_uint32) Slots[I]=uint32(Id); }
+ }
+ else
+ {
+  const auto Choices = AvailableSkills(); if (Choices.IsEmpty()) return;
+  for (int32 I=0; I<FMath::Min(9,Choices.Num()); ++I) Slots[I]=Choices[I];
+ }
+ SlotMaps.Add(Net->GetOwnEntityId().ToLower(),Slots); SaveHotbar();
+}
+bool USkillStateSubsystem::AssignSlot(int32 Index, uint32 Id)
+{
+ if (!Net || Index<0 || Index>=9 || !bSyncKnown || (Id && !IsCastable(Id))) return false;
+ EnsureHotbar(); auto& Slots=SlotMaps.FindOrAdd(Net->GetOwnEntityId().ToLower()); if (Slots.Num()!=9) Slots.Init(0,9);
+ if (Id) for (auto& Held : Slots) if (Held==Id) Held=0;
+ Slots[Index]=Id; SaveHotbar(); OnChanged.Broadcast(); return true;
+}
 TArray<uint32> USkillStateSubsystem::Hotbar() const
 {
-	TArray<uint32> Out; for (const auto& Pair : Learned) { const auto* Skill = FindSkill(Pair.Key); if (Skill && Skill->EffectImplemented) Out.Add(Pair.Key); }
-	Out.Sort(); if (Out.Num() > 9) Out.SetNum(9); return Out;
+ TArray<uint32> Out; Out.Init(0,9);
+ const auto* Slots=Net ? SlotMaps.Find(Net->GetOwnEntityId().ToLower()) : nullptr;
+ if (Slots) for (int32 I=0; I<FMath::Min(9,Slots->Num()); ++I) if (IsCastable((*Slots)[I])) Out[I]=(*Slots)[I];
+ return Out;
 }
 uint32 USkillStateSubsystem::CastSlot(int32 Index)
 {
-	const auto Slots = Hotbar(); if (!Net || !Slots.IsValidIndex(Index)) return 0;
+	const auto Slots = Hotbar(); if (!Net || !Slots.IsValidIndex(Index) || !Slots[Index]) return 0;
 	return Net->SendCastSkill(Slots[Index], CorpseTarget());
 }
 

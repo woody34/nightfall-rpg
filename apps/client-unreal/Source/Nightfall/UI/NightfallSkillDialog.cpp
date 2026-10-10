@@ -3,6 +3,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/ComboBoxString.h"
+#include "Components/HorizontalBox.h"
 #include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
@@ -26,8 +28,15 @@ void UNightfallSkillDialog::EnsureLayout()
  if (WidgetTree->RootWidget) return;
  auto* Root = WidgetTree->ConstructWidget<UBorder>(); Root->SetBrushColor(FLinearColor(0.02f,0.025f,0.04f,0.97f)); Root->SetPadding(FMargin(24));
  Root->SetHorizontalAlignment(HAlign_Center); Root->SetVerticalAlignment(VAlign_Center); WidgetTree->RootWidget = Root;
- auto* Size = WidgetTree->ConstructWidget<USizeBox>(); Size->SetWidthOverride(700); Size->SetHeightOverride(540); Root->SetContent(Size);
+ auto* Size = WidgetTree->ConstructWidget<USizeBox>(); Size->SetWidthOverride(700); Size->SetHeightOverride(650); Root->SetContent(Size);
  auto* Column = WidgetTree->ConstructWidget<UVerticalBox>(); Size->AddChild(Column);
+ Text(Column,TEXT("Hotbar — choose a learned skill and key slot"));
+ auto* AssignRow=WidgetTree->ConstructWidget<UHorizontalBox>(); Column->AddChild(AssignRow);
+ HotbarSkillPicker=WidgetTree->ConstructWidget<UComboBoxString>(); AssignRow->AddChild(HotbarSkillPicker);
+ HotbarSlotPicker=WidgetTree->ConstructWidget<UComboBoxString>(); AssignRow->AddChild(HotbarSlotPicker);
+ for(int32 I=1;I<=9;++I)HotbarSlotPicker->AddOption(FString::FromInt(I));HotbarSlotPicker->SetSelectedOption(TEXT("1"));
+ AssignButton=Button(AssignRow,TEXT("Assign"));AssignButton->OnClicked.AddDynamic(this,&UNightfallSkillDialog::AssignHotbar);
+ Button(AssignRow,TEXT("Clear slot"))->OnClicked.AddDynamic(this,&UNightfallSkillDialog::ClearHotbar);
  Text(Column,TEXT("Skill trainer")); Status=Text(Column,TEXT("Loading server choices..."));
  auto* ScrollSize=WidgetTree->ConstructWidget<USizeBox>(); ScrollSize->SetHeightOverride(350); Column->AddChild(ScrollSize);
  auto* Scroll=WidgetTree->ConstructWidget<UScrollBox>(); ScrollSize->AddChild(Scroll); Rows=WidgetTree->ConstructWidget<UVerticalBox>(); Scroll->AddChild(Rows);
@@ -57,6 +66,15 @@ void UNightfallSkillDialog::Refresh()
 void UNightfallSkillDialog::Render()
 {
  if(!Rows || !State)return; Rows->ClearChildren(); Choices.Reset();
+ TArray<FString> Options;
+ for(uint32 Id:State->AvailableSkills()){const auto* S=State->FindSkill(Id);Options.Add(FString::Printf(TEXT("%u: %s"),Id,S?*S->DisplayName:TEXT("Skill")));}
+ if(Options!=HotbarOptions)
+ {
+  const FString Selected=HotbarSkillPicker->GetSelectedOption();HotbarOptions=Options;HotbarSkillPicker->ClearOptions();
+  for(const auto& Option:Options)HotbarSkillPicker->AddOption(Option);
+  if(Options.Contains(Selected))HotbarSkillPicker->SetSelectedOption(Selected);else if(!Options.IsEmpty())HotbarSkillPicker->SetSelectedOption(Options[0]);
+ }
+ AssignButton->SetIsEnabled(!Options.IsEmpty());
  if(State->HasLearnable())for(const auto& R:State->GetLearnable().Skills)
  {
   const auto* Catalog=State->FindSkill(R.Skill.SkillId.Value);
@@ -90,3 +108,15 @@ void UNightfallSkillDialog::Confirm()
  },RetryKey);Render();
 }
 void UNightfallSkillDialog::Close(){RemoveFromParent();}
+
+void UNightfallSkillDialog::AssignHotbar()
+{
+ if(!State)return;FString Id,Name;
+ if(!HotbarSkillPicker->GetSelectedOption().Split(TEXT(":"),&Id,&Name))return;
+ const uint32 Skill=uint32(FCString::Strtoui64(*Id,nullptr,10));const int32 Slot=FCString::Atoi(*HotbarSlotPicker->GetSelectedOption())-1;
+ if(State->AssignSlot(Slot,Skill))Status->SetText(FText::FromString(TEXT("Hotbar assignment saved.")));
+}
+void UNightfallSkillDialog::ClearHotbar()
+{
+ if(State && State->AssignSlot(FCString::Atoi(*HotbarSlotPicker->GetSelectedOption())-1,0))Status->SetText(FText::FromString(TEXT("Hotbar slot cleared.")));
+}

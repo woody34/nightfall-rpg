@@ -70,7 +70,8 @@ public:
 	void LoadCatalog(FDone Done = nullptr);
 	void LoadLearnable(FDone Done = nullptr);
 	void Learn(uint32 Id, uint32 Rank, FDone Done = nullptr, const FString& Key = FString());
-	void ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R);
+	// OperateTypes must be decoded server catalogue metadata; missing types fail closed.
+	void ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R, const TMap<uint32,FString>& OperateTypes = {});
 	void ApplyLearnable(const FGrpcNightfallV1ListLearnableSkillsResponse& R);
 	const FGrpcNightfallV1GetSkillCatalogResponse& GetCatalog() const { return Catalog; }
 	const FGrpcNightfallV1ListLearnableSkillsResponse& GetLearnable() const { return Learnable; }
@@ -83,6 +84,10 @@ public:
 	bool HasLearnResult() const { return bLearnDone && !bBusy; }
 	const FGrpcNightfallV1SkillCatalogEntry* FindSkill(uint32 Id) const;
 	TArray<uint32> Hotbar() const;
+	TArray<uint32> AvailableSkills() const;
+	bool IsCastable(uint32 Id) const;
+	bool AssignSlot(int32 Index, uint32 Id);
+	void SetHotbarConfigForTesting(const FString& Path) { HotbarConfigOverride = Path; SlotMaps.Reset(); }
 	uint32 CastSlot(int32 Index);
 	bool SelectCorpse(const FString& Entity);
 	void ClearCorpseSelection() { SelectedCorpse.Reset(); }
@@ -93,6 +98,9 @@ public:
 private:
 	bool IsOwn(const FString& Id) const;
 	void ClearOwner();
+	void EnsureHotbar();
+	void SaveHotbar();
+	FString HotbarConfigFile() const;
 	void FinishCast(const FString& Caster, uint32 Inc, uint64 Id, uint64 Tick, uint32 Reason);
 	UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
 	UPROPERTY() TObjectPtr<USessionClient> Session;
@@ -110,6 +118,9 @@ private:
  TMap<FString,FSwingView> Swings;
 	bool bBusy = false, bCatalogKnown = false, bLearnableKnown = false, bLearnDone = false;
 	FGrpcNightfallV1GetSkillCatalogResponse Catalog;
+	TMap<uint32,FString> CatalogOperateTypes;
+	TMap<FString,TArray<uint32>> SlotMaps;
+	FString HotbarConfigOverride;
 	FGrpcNightfallV1ListLearnableSkillsResponse Learnable;
 	FGrpcNightfallV1LearnSkillResponse LearnReceipt;
 	FNetResult LastResult, LearnResult;
