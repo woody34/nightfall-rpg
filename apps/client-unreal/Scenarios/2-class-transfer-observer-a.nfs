@@ -1,5 +1,6 @@
 # covers: 2 E3.1, 2 E3.2, 2 E3.3, 2 E3.6, 2 E4.2, 2 E5.4, 2 E5.5
 # fixture: phase2-transfer-observer
+# Source oracle: pinned class trees0/1/2 at40 share four auto_get keys; empty fixture catches up4 once, then delta0.
 # Paired with observer-b: independently authenticated fixtures before admission.
 # A=Human0 level40 XPthreshold40 tokens1/1 at126126; B separate account at126126.
 nf.Login
@@ -13,12 +14,13 @@ nf.WaitFor at_class_master 3
 nf.ChangeClass 1
 nf.WaitFor class_rpc_error == none 15
 nf.WaitFor world_class == 1 3
-nf.Expect transfer_granted_skill_keys > 0
+nf.Expect transfer_granted_skill_keys == 4
+nf.Expect transfer_granted_keys l2.skill.1320 l2.skill.1322 l2.skill.194 l2.skill.239
 nf.Sleep 3
 nf.ChangeClass 2
 nf.WaitFor class_rpc_error == none 15
 nf.WaitFor world_class == 2 3
-nf.Expect transfer_granted_skill_keys > 0
+nf.Expect transfer_granted_skill_keys == 0
 nf.Expect transfer_count == 2
 nf.Expect private_stats_leaks == 0
 nf.Sleep 5

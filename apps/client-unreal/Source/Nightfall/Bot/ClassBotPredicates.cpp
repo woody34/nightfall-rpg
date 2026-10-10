@@ -67,6 +67,17 @@ void ClassBotPredicates::Register(FBotPredicateRegistry& R)
 	Number(TEXT("creation_sex"), TEXT("Sex id of most recent successful creation"), [](const auto& S) { return static_cast<uint32>(S.GetLastCreated().Sex); });
 	Number(TEXT("creation_budget"), TEXT("Base-stat sum returned by creation"), [](const auto& S) { return Budget(S.GetLastCreated().Stats); });
 	Number(TEXT("transfer_granted_skill_keys"), TEXT("Actual newly granted/upgraded keys returned by latest successful transfer"), [](const auto& S) { return S.GetLastGrantedSkillKeys().Num(); });
+	R.Register({ TEXT("transfer_granted_keys"), TEXT("transfer_granted_keys <key>..."), TEXT("Exact metadata key set in the latest successful transfer receipt"), [](const TArray<FString>& A, FString& E) -> FBotPredicateFn
+	{
+		TArray<FString> Expected = A; Expected.Sort();
+		if (Expected.IsEmpty()) { E = TEXT("needs at least one key; use transfer_granted_skill_keys == 0 for an empty delta"); return nullptr; }
+		for (int32 I = 1; I < Expected.Num(); ++I) if (Expected[I] == Expected[I - 1]) { E = TEXT("duplicate expected key"); return nullptr; }
+		return [Expected](const FBotContext& C) -> FBotPredicateValue
+		{
+			const auto* S = State(C); TArray<FString> Actual = S ? S->GetLastGrantedSkillKeys() : TArray<FString>(); Actual.Sort();
+			return { S && Actual == Expected, FString::Join(Actual, TEXT(", ")) };
+		};
+	} });
 	Number(TEXT("observed_class_transfers"), TEXT("Admitted public class changes received for other players"), [](const auto& S) { return S.GetObservedTransferCount(); });
 	Number(TEXT("own_class_events"), TEXT("Admitted owner ClassChanged advances since newest admission"), [](const auto& S) { return S.GetOwnClassEventCount(); });
 	R.RegisterNumber(TEXT("own_class_wire_events"), TEXT("Every received owner ClassChanged envelope, including stale/duplicate events before projection filtering"), [](const FBotContext& C) -> TOptional<double> { return C.Observations ? TOptional<double>(C.Observations->OwnClassWireEvents) : TOptional<double>(); });

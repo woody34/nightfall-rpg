@@ -214,6 +214,14 @@ bool FClassRequestLifecycleTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("historical balance cannot restore a consumed token"), Combat->GetOwn().TokenTier2Count, 0u);
 	TestEqual(TEXT("receipt cannot replace current CP"), Combat->GetOwn().Cp, 17u);
 	TestEqual(TEXT("receipt cannot invent an extra class event"), State->GetOwnClassEventCount(), 0);
+	FBotPredicateRegistry Registry; Registry.RegisterBuiltins(); FString PredicateError;
+	auto ExactGrants = Registry.Parse({ TEXT("transfer_granted_keys"), TEXT("frozen-original-grant") }, PredicateError);
+	FBotContext GrantContext{ I.GameInstance, nullptr };
+	TestTrue(TEXT("exact grant predicate reads the historical receipt"), ExactGrants && ExactGrants(GrantContext).bTrue);
+	State->LastGrantedSkillKeys = { TEXT("different-same-count-grant") };
+	TestFalse(TEXT("exact grant predicate rejects a different key with the same count"), ExactGrants(GrantContext).bTrue);
+	State->LastGrantedSkillKeys = { TEXT("frozen-original-grant"), TEXT("frozen-original-grant") };
+	TestFalse(TEXT("exact grant predicate rejects duplicate wire keys"), ExactGrants(GrantContext).bTrue);
 	State->ResetAccount();
 	State->CompleteTransfer(Retry, FNetResult(), Historical, nullptr);
 	TestTrue(TEXT("logout invalidates receipt callbacks and clears prior frozen data"), State->GetLastTransferResponse().GrantedSkillKeys.IsEmpty());
