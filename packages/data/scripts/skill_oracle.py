@@ -2173,13 +2173,126 @@ def generate() -> tuple[dict, str]:
     return golden, text
 
 
+def generate_class_phase3() -> tuple[dict, str]:
+    """Independent rational vectors driven by the new immutable template inputs.
+
+    Separate artifact: the existing formula vectors remain byte-for-byte identical.
+    No production/engine or generator formula functions are used for expectations.
+    """
+    keys = ("human_fighter", "human_mystic", "elven_mystic", "dark_fighter",
+            "orc_mystic", "dwarven_fighter")
+    levels = (1, 20, 40, 85)
+    bonuses = {s: list(map(F, read_toml("tables/stat_bonus.toml")[s]["bonus"]))
+               for s in ("int", "wit", "men", "con")}
+    cap = read_toml("tables/formulas.toml")["constants"]["MaxMAtkSpeed"]["value"]
+    config = read_toml("tables/regen.toml")
+    formulas = {k: [] for k in ("FuncMAtkMod", "FuncMDefMod", "FuncMAtkSpeed",
+                                "calcHpRegen", "calcMpRegen", "calcCpRegen")}
+    paths = [ROOT / f"classes-phase3/{key}.toml" for key in keys]
+
+    for key in keys:
+        profile = read_toml(f"classes-phase3/{key}.toml")
+        stats, magic = profile["base_stats"], profile["magical"]
+        for level in levels:
+            level_mod = F(level + 89, 100)  # L2Character.java:5007-5008
+            common = {"class_id": profile["id"], "class_key": key, "level": level,
+                      "template_file": f"classes-phase3/{key}.toml",
+                      "is_player": True, "equipment": "unarmed_empty_jewelry",
+                      "modifiers": [], "rolls": []}
+            for name, base_key, stat, exponent, use_level, lines in (
+                ("FuncMAtkMod", "base_m_atk", "int", 2, True, "42-46"),
+                ("FuncMDefMod", "base_m_def", "men", 1, True, "44-66"),
+                ("FuncMAtkSpeed", "base_m_atk_speed", "wit", 1, False, "42-43"),
+            ):
+                base = magic[base_key]
+                bonus = bonuses[stat][stats[stat]]
+                exact = F(base) * bonus**exponent * (level_mod**exponent if use_level else 1)
+                result = min(F(cap), exact) if name == "FuncMAtkSpeed" else exact
+                formulas[name].append({
+                    "description": f"{profile['l2_ref']} level {level}: {name} from class template",
+                    "source_lines": f"model/stats/functions/formulas/{name}.java:{lines}",
+                    "template_source": profile["source"],
+                    "inputs": {**common, "base": base, "stat_name": stat.upper(),
+                               "stat_value": stats[stat], **({"max_m_atk_speed": cap} if name == "FuncMAtkSpeed" else {})},
+                    "intermediate": {"stat_bonus": format_fraction(bonus),
+                                     "level_mod": format_fraction(level_mod),
+                                     "before_cap": format_fraction(exact),
+                                     "empty_jewelry_m_def_slots": magic["m_def_slots"] if name == "FuncMDefMod" else {}},
+                    "exact_rational": format_fraction(result), "q_result": q_scale(result),
+                    "rounded_result": floor(result),
+                    "rounding_rule": "MAtk/MDef retain Q (floor only for display); MAtkSpd truncates after cap (CharStat.java:237-262,284-293)",
+                })
+            row = profile["regen"]["levels"][level - 1]
+            assert row["level"] == level
+            for name, resource, stat, lines in (("calcHpRegen", "hp", "con", "263-349"),
+                                                ("calcMpRegen", "mp", "men", "357-434"),
+                                                ("calcCpRegen", "cp", "con", "442-453")):
+                literal = row[f"{resource}_regen"]
+                bonus = bonuses[stat][stats[stat]]
+                init = F(literal) * level_mod * bonus
+                clamped = max(F(1), init)
+                for posture, factor in (("standing", F(11, 10)), ("running", F(7, 10)),
+                                         ("walking", F(1))):
+                    config_mul = F(config["character_multipliers"][f"{resource}_regen_multiplier"])
+                    exact = clamped * config_mul * factor
+                    formulas[name].append({
+                        "description": f"{profile['l2_ref']} level {level}: {resource.upper()} {posture}",
+                        "source_lines": f"model/stats/Formulas.java:{lines}",
+                        "template_source": profile["regen"]["source"],
+                        "inputs": {**common, "base_regen": literal, "stat_name": stat.upper(),
+                                   "stat_value": stats[stat], "posture": posture,
+                                   "character_multiplier": format_fraction(config_mul),
+                                   "regen_stat_modifiers": [], "zone_bonus": 0},
+                        "intermediate": {"level_mod": format_fraction(level_mod),
+                                         "stat_bonus": format_fraction(bonus),
+                                         "init_before_clamp": format_fraction(init),
+                                         "init_after_clamp": format_fraction(clamped),
+                                         "posture_multiplier": format_fraction(factor)},
+                        "exact_rational": format_fraction(exact), "q_result": q_scale(exact),
+                        "rounded_result": floor(exact), "pulse_trace": accumulation_trace(q_scale(exact)),
+                        "rounding_rule": "Clamp init before stat funcs; exact literals to Q once after formula; retain Q remainder each 30-tick pulse (D-R12)",
+                    })
+
+    npc = read_toml("npcs/keltir.toml")["phase3"]
+    for name, resource, lines in (("calcHpRegen", "hp", "263-349"),
+                                 ("calcMpRegen", "mp", "357-434")):
+        base = F(npc["template"][f"{resource}_regen"])
+        rate = max(F(1), base)
+        formulas[name].append({
+            "description": f"Young Keltir 20545: scalar {resource.upper()} regen",
+            "source_lines": f"model/stats/Formulas.java:{lines}", "template_source": npc["source"],
+            "inputs": {"class_key": "keltir", "source_npc_id": 20545, "level": 1,
+                       "is_player": False, "base_regen": format_fraction(base),
+                       "xml_literal": npc["xml"][f"{resource}_regen"], "rolls": [],
+                       "regen_stat_modifiers": [], "raid": False, "champion": False},
+            "intermediate": {"level_mod": "1", "stat_bonus": "1", "posture_multiplier": "1",
+                             "init_before_clamp": format_fraction(base), "init_after_clamp": format_fraction(rate)},
+            "exact_rational": format_fraction(rate), "q_result": q_scale(rate),
+            "rounded_result": floor(rate), "pulse_trace": accumulation_trace(q_scale(rate)),
+            "rounding_rule": "Inherited binary32 scalar regen getter; clamp >=1 before stat funcs; no player multipliers; no NPC CP",
+        })
+    paths += [ROOT / rel for rel in ("npcs/keltir.toml", "tables/stat_bonus.toml", "tables/regen.toml",
+                                    "tables/formulas.toml", "scripts/skill_oracle.py")]
+    golden = {
+        "schema": 1, "source_revisions": {"l2j_game": L2J_GAME_REV, "l2j_datapack": L2J_DP_REV},
+        "policy": "Exact decimal/Fraction formula evidence with Q restoration adaptation; not a Java binary64 equivalence claim.",
+        "coverage": {"class_keys": list(keys), "levels": list(levels),
+                     "regen_postures": ["standing", "running", "walking"], "npc": "Young Keltir 20545"},
+        "inputs_sha256": {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)},
+        "formulas": formulas,
+        "vector_set_sha256": hashlib.sha256(json.dumps(formulas, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+    }
+    return golden, json.dumps(golden, indent=2) + "\n"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Verify fixtures/skill-oracle.json is up-to-date")
+    parser.add_argument("--class-phase3", action="store_true", help="Generate/check the separate class-template oracle fixture")
     args = parser.parse_args()
 
-    golden, text = generate()
-    out_path = ROOT / "fixtures/skill-oracle.json"
+    golden, text = generate_class_phase3() if args.class_phase3 else generate()
+    out_path = ROOT / ("fixtures/skill-oracle-class-phase3.json" if args.class_phase3 else "fixtures/skill-oracle.json")
 
     if args.check:
         if not out_path.exists():

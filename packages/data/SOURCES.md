@@ -395,3 +395,134 @@ Files read:
 - TickHp uses binary32 division before widening (`AbstractEffect.java:148–149`), then binary64 power/products (`TickHp.java:62–71`). Source fractional results are separate from D-R12 whole-damage/Q-restoration adaptations. Fixtures include CP absorption after HP-1 clamping (`TickHp.java:75–76`, `PcStatus.java:185–194`), dynamic PER reads, multi-pulse Q carry and full-clamp clearing; regen minimum standing traces yield cumulative 1/2/3 and Q remainder 100000/200000/300000.
 - Rational karma truncation is not universally Java-equivalent. Level 2, XP 6208133913, multiplier 2.069377971 yields rational 100000000 vs binary64 99,999,999. The oracle models literal/long conversion and each division's IEEE rounding separately (`Formulas.java:1814–1820`), with the pinned RateKarmaLost=1 input (`config/rates.properties:56`).
 - Additional source observations: skill 60 specifies `nextActionAttack="fake_death"` (`stats/skills/00000-00099.xml:1929`); the game reads a boolean (`Skill.java:279`, `StatsSet.java:112–121`), so the normalized value is false and the raw string is retained. `AbstractEffect.java:70–72` retains attachCond but comments out applyCond assignment, although `DocumentBase.java:270` parses it. DATA still preserves effect conditions and defers unsupported leaves per the binding capability rule; this observation does not silently change the execution contract.
+
+## Additive Phase 3 class magical and regeneration templates
+
+`classes-phase3/<profession-key>.toml` is a separate schema-1 V5 input for all 89
+classic classes. It does not replace `classes/`, `professions/`, `growth/`, or any
+historical stat-rule input. The existing `tables/regen.toml` `base_regen_source`
+pointer predates these profiles: **use `classes-phase3/` for V5 regen bases**.
+Keep this registry and the NPC `[phase3]` section in the Phase3Rules hash, outside
+the legacy class/stat hash. The engine owner must consume the new fields through
+its Phase 3 loader; the existing strict NPC loader does not yet admit them
+(`apps/api/src/infrastructure/npc_data.rs:59-84`).
+
+Generation reads only the pinned local datapack
+`3ca488dd2bd0bfaca43e378886a3c2e37968153a` and game
+`abfde0490ac52a2106e884b7242c0276c44cdf76`. Both revision and clean source inputs
+(including ignored/untracked inputs) are checked before writing. Reproduce:
+
+```bash
+python3 packages/data/scripts/gen_class_phase3.py \
+  --datapack /home/matt-woodruff/.cache/nightfall/l2j/l2j-dp \
+  --game /home/matt-woodruff/.cache/nightfall/l2j/l2j-game
+python3 packages/data/scripts/gen_class_phase3.py \
+  --datapack /home/matt-woodruff/.cache/nightfall/l2j/l2j-dp \
+  --game /home/matt-woodruff/.cache/nightfall/l2j/l2j-game --check
+python3 packages/data/scripts/skill_oracle.py --class-phase3
+python3 packages/data/scripts/skill_oracle.py --class-phase3 --check
+python3 -m unittest discover -s packages/data/scripts/tests
+```
+
+`--check` compares exact contents, detects extra files in `classes-phase3/`, and
+verifies the generated NPC suffix without rewriting it. Generation only appends
+or replaces its delimited `[phase3]` suffix in `npcs/keltir.toml`; all bytes before
+that suffix are preserved. Existing generated data and historical oracle vectors
+are preserved. The separate new fixture is `fixtures/skill-oracle-class-phase3.json`.
+
+Class profile fields:
+
+| Table/key | Meaning and pinned source |
+|---|---|
+| `id`, `key`, `parent`, `base_class_id`, `tier`, `min_level` | Same catalog identity and corrected graph as `gen_classes.py`. Own XML is selected by `classId`; no ancestor curve is substituted. The existing classList errata (34→32 and 104→28) remain those documented in the Phase 2 provenance above. |
+| `base_stats` | Exact six static XML attributes for that class; no effects or racial hooks applied. `HumanFighter.xml:5-10` is an example. |
+| `magical.base_m_atk` | Class template's XML `staticData/baseMAtk`, not an equipped weapon override (`HumanFighter.xml:24`; game `L2CharTemplate.java:108,332-333`, `CharStat.java:237-246`). |
+| `magical.base_m_def` | Loaded template total: rear + lear + **rfinger twice** + neck, preserving `PlayerTemplateData.java:106-108`. Example XML slots are `HumanFighter.xml:25-31`. |
+| `magical.m_def_slots_xml`, `magical.m_def_slots` | Literal slots plus the actual `getBaseDefBySlot` mapping. `L2PcTemplate.java:71-75` also uses RFINGER for LFINGER. `FuncMDefMod.java:44-66` subtracts occupied-slot bases before MEN/level multipliers. |
+| `magical.base_m_atk_speed` | Cast-speed base; missing in all 89 XML staticData sections, so sourced from `L2CharTemplate.java:112` default **333**. This is distinct from the physical `basePAtkSpd`. Getter uses this base at `CharStat.java:258` and caps/truncates at `:259-262`; pinned cap **1999** is in `character.properties:268`. |
+| `magical.base_m_critical` | Missing XML `baseMCritRate` defaults to **0**, `L2CharTemplate.java:119`. The actual magic-crit stat getter instead starts at **1**, `CharStat.java:270-275`; do not substitute this template field for that getter input. |
+| `combat_getter_bases.accuracy`, `.evasion`, `.magic_critical` | Stat-getter initial values **0**, **0**, **1** (`CharStat.java:108-109,171-174,270-275`). Accuracy/evasion are not staticData bases; their built-in Funcs provide derived additions. |
+| `regen.kind`, `regen.levels` | `kind="per_level"`, exactly 85 rows, each with integer `level` and original decimal strings `hp_regen`, `mp_regen`, `cp_regen`. Each value has its class XML path:line comment. There are 7,565 rows / 22,695 scalars. |
+
+**Player regen is per level, not a class scalar.** `PlayerTemplateData.java:111-123`
+loads every `lvlUpgainData/level/*Regen` node into `L2PcTemplate`'s three double
+arrays (`L2PcTemplate.java:41-43,59-61,96-103`). Its getters index those arrays by
+the current level (`:135-152`), and Formulas selects these getters
+(`Formulas.java:264,358,444`). Every class has its own complete rows, just like the
+HP/MP/CP growth inputs in `gen_classes.py`; in this pinned revision all 89 regen
+curves happen to agree. They still vary with level:
+
+| Level | HP base | MP base | CP base | Example `HumanFighter.xml` lines |
+|---|---|---|---|---|
+| 1 | `2.0` | `0.9` | `2.0` | 63-65 |
+| 20 | `3.4` | `1.2` | `2.5` | 215-217 |
+| 40 | `5.4` | `1.8` | `4.5` | 375-377 |
+| 85 | `9.9` | `3.0` | `8.5` | 735-737 |
+
+These are **pre-formula** values. Player HP/CP multiply by level modifier and CON,
+MP by level modifier and MEN; `Math.max(1,init)` is applied before regen-stat
+functions, followed by config and posture multipliers
+(`Formulas.java:334-349,419-434,442-453`). Level modifier is `(level+89)/100`
+(`L2Character.java:5007-5008`). Standing is 11/10, running 7/10, walking 1;
+sitting 3/2 is source behavior but outside Phase 3. Pinned character config
+multipliers are 1.00 (`character.properties:47-49`). No stat, posture, clamp, or
+bonus is pre-applied to the emitted class rows.
+
+### Young Keltir 20545 additive NPC inputs
+
+The new `npcs/keltir.toml` `[phase3]` section cites
+`stats/npcs/20500-20599.xml:3648-3661`. `[phase3.xml]` preserves **M.Atk 5.78704,
+M.Def 29.5916164000214, HP regen 2, MP regen 0.9, accuracy 4.75** as source
+decimal strings (`:3659-3661`); source attributes are at `:3658`.
+`NpcData.java:164-185` loads those values into StatsSet. The inherited template
+getters differ from the raw XML:
+
+- `[phase3.template]` has **M.Atk 5 / M.Def 29**, because `L2CharTemplate.java:108,110`
+  calls `getInt` on parsed Numbers and `StatsSet.java:241-247` uses `intValue()`.
+  Cast-speed base is **333** from the same `L2CharTemplate.java:112` default;
+  `hitTime=370` (`npc XML:3669`) is not a cast-speed base.
+- HP/MP regen are **scalar inherited getters**, not level arrays.
+  `L2NpcTemplate.java:100-101` calls the superclass constructor;
+  `L2CharTemplate.java:105-106,311-319` stores/returns binary32 values.
+  The new template table preserves the exact getter rationals: HP `2`,
+  MP `7549747/8388608` (binary32 conversion of decimal 0.9).
+  Retain that rational until the formula clamp; do not silently truncate it to Q.
+- Formulas uses scalar NPC regen without player CON/MEN/level/posture bonuses
+  (`Formulas.java:264,358,343-349,428-434`). MP's initial value below 1 is clamped
+  to 1. CP regeneration is player-only (`:442-453`), so the section explicitly
+  records `cp_regen_kind="not_applicable"` and supplies no invented CP scalar.
+- XML accuracy is an unused TODO in `NpcData.java:174`; evasion is likewise a
+  TODO at `:185`. The real getter inputs are zero (`CharStat.java:108-109,171-174`).
+  The section preserves the XML accuracy separately and does not apply it twice.
+  Existing `sp_reward=2` (`npc XML:3657`) and tunable physical/HP/MP/XP values stay
+  unchanged.
+
+### Template-driven oracle and validation
+
+`skill_oracle.py --class-phase3` emits **6 formula groups / 290 vectors** in the
+new fixture. All six requested starters (Human Fighter/Mystic, Elven Mystic,
+Dark Elf Fighter, Orc Mystic, Dwarven Fighter) occur at **1/20/40/85** for
+FuncMAtkMod, FuncMDefMod, FuncMAtkSpeed and all three regen functions, with
+standing/running/walking regen and NPC HP/MP cases. The six class names map to
+the existing profession keys; Dark Elf Fighter is `dark_fighter`.
+
+Expectations use independent Fraction arithmetic over emitted template values
+and literal stat-bonus tables. M.Atk uses base×INT²×levelMod²
+(`FuncMAtkMod.java:42-46`); M.Def uses the empty-jewelry base×MEN×levelMod
+(`FuncMDefMod.java:44-66`); speed uses base×WIT then getter cap/truncation
+(`FuncMAtkSpeed.java:42-43`, `CharStat.java:258-262`). Cases explicitly specify
+unarmed/empty jewelry, no modifiers, no injected RNG, config multipliers and
+no estate/zone bonus. The fixture records exact rationals, intermediates,
+rounding sites, Q values, three-pulse remainder traces, input SHA-256s and a
+canonical vector-set SHA-256. Q conversion floors only at the final formula
+boundary, as in the existing oracle; whole-resource transfer retains the
+remainder under D-R12. This is exact-decimal formula evidence, not a claim of
+universal Java binary64 equivalence. NPC binary32 getter conversion is modeled
+with the integer-only IEEE adapter and independently checked with `struct`.
+
+`test_gen_class_phase3.py` independently audits every class, graph mapping,
+static magic base/slot and every regen literal against pinned XML. It also tests
+missing levels/regen, source revision/dirty-input rejection, asymmetric rings
+(to catch accidental correction of the source's duplicated RFINGER), orphan
+and stale-file detection, NPC prefix preservation, getter conversions, requested
+oracle coverage, exact expectations and fractional carry.
