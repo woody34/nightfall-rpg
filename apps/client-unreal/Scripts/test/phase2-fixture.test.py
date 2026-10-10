@@ -120,18 +120,16 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
         return self.events.read_text().splitlines() if self.events.exists() else []
 
 
-    def committed_client(self, path):
-        result = subprocess.run(['git', 'show', f'7bb8e61:{path}'], cwd=fixture.REPO,
-                                text=True, capture_output=True, check=True, timeout=10)
-        return result.stdout
+    def checkout_client_source(self, path):
+        return (fixture.REPO / path).read_text(encoding='utf-8')
 
-    def test_argument_composition_matches_committed_client_contract(self):
+    def test_argument_composition_matches_checkout_client_contract(self):
         # Derive the consumed config section/property and FParse token keys from the
-        # committed client, rather than trusting the stand-in bot to know its interface.
-        settings = self.committed_client('apps/client-unreal/Source/Nightfall/Net/NetSettings.h')
-        session = self.committed_client('apps/client-unreal/Source/Nightfall/Net/SessionClientSubsystem.cpp')
-        auth = self.committed_client('apps/client-unreal/Source/Nightfall/Auth/AuthSubsystem.cpp')
-        runner = self.committed_client('apps/client-unreal/Source/Nightfall/Bot/BotScenarioRunner.cpp')
+        # current checkout, rather than trusting the stand-in bot to know its interface.
+        settings = self.checkout_client_source('apps/client-unreal/Source/Nightfall/Net/NetSettings.h')
+        session = self.checkout_client_source('apps/client-unreal/Source/Nightfall/Net/SessionClientSubsystem.cpp')
+        auth = self.checkout_client_source('apps/client-unreal/Source/Nightfall/Auth/AuthSubsystem.cpp')
+        runner = self.checkout_client_source('apps/client-unreal/Source/Nightfall/Bot/BotScenarioRunner.cpp')
         config = re.search(r'UCLASS\(Config = (\w+)', settings)[1]
         section = re.search(r'section (\[/Script/[^]]+\])', settings)[1]
         endpoint = re.search(r'Endpoint = Settings->(\w+);', session)[1]
