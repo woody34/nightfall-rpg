@@ -404,6 +404,7 @@ impl ZoneSnapshot {
             (9, BinaryV5, true) => {
                 self.rules.as_ref().zip(self.phase3.as_ref()).is_some_and(|(stats, phase3)| phase3.rules.profiles().starter_weapon.validate_physical(&stats.starter_weapon).is_ok())
                 && self.phase3.as_ref().is_some_and(super::Phase3Snapshot::validate)
+                && self.phase3.as_ref().is_some_and(|p| p.rules.geometry().peace_square(self.bounds).is_ok())
                 && self.classes.as_deref().zip(self.phase3.as_ref()).is_some_and(|(classes, phase3)| phase3.rules.validate_catalogue(classes).is_ok())
                 // The M1 boundary cannot restore unvalidated gameplay sidecars.
                 && self.entities.is_empty() && self.spawn_slots.is_empty()
@@ -507,6 +508,10 @@ impl ZoneState {
         phase3_rules
             .validate_catalogue(&classes)
             .map_err(SnapshotError::Rules)?;
+        phase3_rules
+            .geometry()
+            .peace_square(bounds)
+            .map_err(|error| SnapshotError::Rules(error.to_string()))?;
         phase3_rules
             .profiles()
             .starter_weapon

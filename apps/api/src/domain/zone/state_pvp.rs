@@ -2,12 +2,91 @@
 //! checks this at start, impact and each eligible pulse, before costs/rolls/flag changes.
 //! Counter precedence is architecture D-R4: flagged wins, chaotic-unflagged awards neither.
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::effects::TargetBinding;
 use super::skill_math::{karma_gain, karma_lost, ExactRatio};
 use super::skill_rules::PvpRules;
 use super::{EntityKind, Fixed, PvpState, StatError, Tick, Vec2Fixed, ZoneBounds};
+
+/// Additive `zones/test_zone_phase3.toml` policy, hashed separately from the legacy zone.
+/// It is architect-set configuration (R7/D-R11), not an inferred source constant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct Phase3Geometry {
+    pub schema_version: u32,
+    pub id: String,
+    pub peace_zone: PeaceZoneConfig,
+    pub provenance: GeometryProvenance,
+}
+
+/// Inclusive square in canonical input units. Only this shape is supported in Phase3.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct PeaceZoneConfig {
+    pub shape: String,
+    pub centre: [i32; 2],
+    pub half_width_millitiles: i32,
+    pub inclusive: bool,
+}
+
+/// Provenance remains part of the normalized rules hash, including the legacy safe point
+/// reference. This configuration has no fictitious L2J revision or source claim.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct GeometryProvenance {
+    pub kind: String,
+    pub decision: String,
+    pub safe_point: String,
+}
+
+impl Phase3Geometry {
+    /// Validate the supported schema and all coordinate operations without zone context.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema_version != 1
+            || self.id != "test_zone"
+            || self.peace_zone.shape != "square"
+            || !self.peace_zone.inclusive
+            || self.peace_zone.half_width_millitiles <= 0
+            || self.provenance.kind != "Nightfall configuration"
+            || self.provenance.decision != "architecture-decisions.md §6 R7 / §7 D-R11"
+            || self.provenance.safe_point != "packages/data/zones/test_zone.toml:33"
+        {
+            return Err("unsupported Phase3 peace geometry/schema/provenance".into());
+        }
+        let center = self.center().map_err(|e| e.to_string())?;
+        for coordinate in [center.x.raw(), center.y.raw()] {
+            coordinate
+                .checked_sub(self.peace_zone.half_width_millitiles)
+                .and_then(|_| coordinate.checked_add(self.peace_zone.half_width_millitiles))
+                .ok_or_else(|| "Phase3 peace geometry coordinate overflow".to_owned())?;
+        }
+        Ok(())
+    }
+    /// Checked whole-tile to milli-tile conversion, not saturating coordinate arithmetic.
+    pub fn center(&self) -> Result<Vec2Fixed, StatError> {
+        let [x, y] = self.peace_zone.centre;
+        let fixed = |n: i32| {
+            n.checked_mul(super::UNITS_PER_TILE)
+                .map(Fixed::from_raw)
+                .ok_or(StatError::Overflow)
+        };
+        Ok(Vec2Fixed::new(fixed(x)?, fixed(y)?))
+    }
+    /// The whole square must fit the epoch bounds, not merely its center.
+    pub fn peace_square(&self, bounds: ZoneBounds) -> Result<PeaceSquare, StatError> {
+        self.validate().map_err(|_| StatError::Overflow)?;
+        PeaceSquare::new(
+            self.center()?,
+            Fixed::from_raw(self.peace_zone.half_width_millitiles),
+            bounds,
+        )
+    }
+}
 
 /// Validated inclusive square; construction never assumes a default town or width.
 /// Geometry must be supplied from the immutable epoch policy, not a live config lookup.

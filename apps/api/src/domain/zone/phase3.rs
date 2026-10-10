@@ -18,6 +18,7 @@ pub struct Phase3Rules {
     regen: super::skill_rules::RegenRules,
     constants: super::skill_rules::Phase3Constants,
     profiles: super::skill_profiles::SkillProfiles,
+    geometry: super::state_pvp::Phase3Geometry,
     hash: [u8; 32],
 }
 
@@ -30,12 +31,14 @@ impl Phase3Rules {
         regen: super::skill_rules::RegenRules,
         constants: super::skill_rules::Phase3Constants,
         profiles: super::skill_profiles::SkillProfiles,
+        geometry: super::state_pvp::Phase3Geometry,
     ) -> Result<Self, Vec<String>> {
         let errors: Vec<_> = [
             pvp.validate(),
             regen.validate(),
             constants.validate(),
             profiles.validate(),
+            geometry.validate(),
         ]
         .into_iter()
         .filter_map(Result::err)
@@ -54,6 +57,7 @@ impl Phase3Rules {
             666_u32,
             &constants,
             &profiles,
+            &geometry,
             50_u64,
             100_u64,
             600_u64,
@@ -69,6 +73,7 @@ impl Phase3Rules {
             regen,
             constants,
             profiles,
+            geometry,
             hash: hash.finalize().into(),
         })
     }
@@ -128,6 +133,10 @@ impl Phase3Rules {
     pub const fn regen(&self) -> &super::skill_rules::RegenRules {
         &self.regen
     }
+    /// Explicit architect-configured peace geometry, included in the V5 policy hash.
+    pub const fn geometry(&self) -> &super::state_pvp::Phase3Geometry {
+        &self.geometry
+    }
 }
 
 impl<'de> Deserialize<'de> for Phase3Rules {
@@ -141,6 +150,7 @@ impl<'de> Deserialize<'de> for Phase3Rules {
             regen: super::skill_rules::RegenRules,
             constants: super::skill_rules::Phase3Constants,
             profiles: super::skill_profiles::SkillProfiles,
+            geometry: super::state_pvp::Phase3Geometry,
             hash: [u8; 32],
         }
         let snapshot = Snapshot::deserialize(deserializer)?;
@@ -150,6 +160,7 @@ impl<'de> Deserialize<'de> for Phase3Rules {
             snapshot.regen,
             snapshot.constants,
             snapshot.profiles,
+            snapshot.geometry,
         )
         .map_err(|errors| serde::de::Error::custom(errors.join("; ")))?;
         if snapshot.timer_policy_version != rules.timer_policy_version
