@@ -228,6 +228,7 @@ impl SessionCodec for ProstCodec {
         let msg = pb::ClientMessage::decode(frame).map_err(|_| Undecodable)?;
         let command = command_from_pb(entity, msg.intent.as_ref()).map_err(|e| {
             let reason = match e {
+                MappingError::Phase3Unavailable => SessionReject::NotYetImplemented,
                 MappingError::InvalidCoordinate => SessionReject::OutOfBounds,
                 MappingError::InvalidTarget
                 | MappingError::MissingIntent
@@ -243,6 +244,7 @@ impl SessionCodec for ProstCodec {
 
     fn rejected(&self, seq: u32, reason: SessionReject, detail: &str) -> Bytes {
         let reason = match reason {
+            SessionReject::NotYetImplemented => pb::RejectReason::NotYetImplemented,
             SessionReject::Invalid => pb::RejectReason::Invalid,
             SessionReject::OutOfBounds => pb::RejectReason::OutOfBounds,
             SessionReject::RateLimited => pb::RejectReason::RateLimited,
@@ -265,6 +267,7 @@ impl SessionCodec for ProstCodec {
 
 const fn mapping_detail(e: MappingError) -> &'static str {
     match e {
+        MappingError::Phase3Unavailable => "phase 3 runtime is not yet available",
         MappingError::InvalidTarget => "target must be a UUID or empty",
         MappingError::MissingIntent => "intent is required",
         MappingError::MissingDestination => "destination is required",

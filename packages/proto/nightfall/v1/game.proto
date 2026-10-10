@@ -50,6 +50,28 @@ service GameService {
   // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
   // FAILED_PRECONDITION (unmet requirements or key reused), UNAVAILABLE.
   rpc ChangeClass(ChangeClassRequest) returns (ChangeClassResponse);
+
+  // Authenticated read of next ranks in the current class lineage, required_level <= level.
+  // Returns learned/affordable/eligible flags, unmet reasons and trainer requirement.
+  // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad character UUID), NOT_FOUND,
+  // PERMISSION_DENIED, FAILED_PRECONDITION (no live session), UNAVAILABLE, INTERNAL.
+  rpc ListLearnableSkills(ListLearnableSkillsRequest) returns (ListLearnableSkillsResponse);
+
+  // Actor-serialized SP spend for an exact rank. Receipt lookup precedes online/eligibility
+  // checks. (Account, learn_skill, key, semantic fingerprint, frozen response) commit with
+  // the revision-fenced checkpoint AFTER durable log ack; only then is success visible.
+  // Same key/body returns the original reply after disconnect/later progression. Different
+  // character/skill/rank with that key: FAILED_PRECONDITION. Failures consume no key or SP.
+  // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad UUID/key, zero/unknown skill or rank),
+  // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
+  // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
+  // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
+  // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+  rpc LearnSkill(LearnSkillRequest) returns (LearnSkillResponse);
+
+  // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
+  // Errors: UNAUTHENTICATED, INTERNAL.
+  rpc GetSkillCatalog(GetSkillCatalogRequest) returns (GetSkillCatalogResponse);
 }
 
 message ListMyCharactersRequest {}
@@ -264,4 +286,81 @@ message ChangeClassResponse {
   repeated string granted_skill_keys = 2;
   uint32 token_tier_1_count = 3;
   uint32 token_tier_2_count = 4;
+}
+
+message ListLearnableSkillsRequest {
+  string character_id = 1;
+}
+
+message LearnableSkill {
+  SkillLearnInfo skill = 1;
+  bool learned = 2;
+  bool affordable = 3;
+  bool trainer_required = 4;
+  bool eligible = 5;
+  repeated string unmet = 6;
+}
+
+message ListLearnableSkillsResponse {
+  repeated LearnableSkill skills = 1;
+  uint32 current_class_id = 2;
+  uint64 sp = 3;
+}
+
+message LearnSkillRequest {
+  string character_id = 1;
+  uint32 skill_id = 2;
+  uint32 skill_level = 3; // exact target rank; never implicitly buys next rank on retry
+  string idempotency_key = 4; // required client UUID, scoped to account + learn_skill
+}
+
+// Frozen successful mutation; reconstructed from receipt, never current character state.
+message LearnSkillResponse {
+  uint32 skill_id = 1;
+  uint32 skill_level = 2;
+  uint64 sp_spent = 3;
+  uint64 sp_remaining = 4;
+  uint64 tick = 5;
+  // Stats uses the shared owner-only world projection; reply remains owner-only.
+  // Kept here as whole resources to avoid importing world.proto cyclically.
+  uint32 hp = 6;
+  uint32 max_hp = 7;
+  uint32 mp = 8;
+  uint32 max_mp = 9;
+  uint32 cp = 10;
+  uint32 max_cp = 11;
+  string character_id = 12;
+  EffectiveStats effective_stats = 13;
+  uint32 incarnation = 14;
+}
+
+message GetSkillCatalogRequest {}
+
+message SkillCatalogEntry {
+  uint32 skill_id = 1;
+  string key = 2;
+  string display_name = 3;
+  uint32 max_level = 4;
+  bool effect_implemented = 5;
+  repeated string deferred_reasons = 6;
+  string l2_ref = 7;
+}
+
+message GetSkillCatalogResponse {
+  string data_version = 1;
+  repeated SkillCatalogEntry skills = 2;
+}
+
+// Owner-only effective sheet. Q fields use scale 1,000,000; whole resource maxima stay above.
+message EffectiveStats {
+  int64 p_atk_q = 1;
+  int64 p_def_q = 2;
+  int64 m_atk_q = 3;
+  int64 m_def_q = 4;
+  uint32 attack_speed = 5;
+  uint32 cast_speed = 6;
+  int64 speed_q = 7;
+  int64 accuracy_q = 8;
+  int64 evasion_q = 9;
+  uint32 crit_permille = 10;
 }

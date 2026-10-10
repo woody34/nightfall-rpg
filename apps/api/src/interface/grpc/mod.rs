@@ -19,7 +19,7 @@ use crate::application::use_cases::{
     ChangeClass, CreateCharacter, CreateCharacterInput, GetCharacter, ListClasses,
     ListMyCharacters, Ping, TransferOptions,
 };
-use crate::application::IdempotencyKey;
+use crate::application::{AppError, IdempotencyKey};
 use status::to_status;
 
 /// Generated protobuf types.
@@ -88,6 +88,32 @@ impl GameServiceImpl {
 
 #[tonic::async_trait]
 impl GameService for GameServiceImpl {
+    async fn list_learnable_skills(
+        &self,
+        req: Request<pb::ListLearnableSkillsRequest>,
+    ) -> Result<Response<pb::ListLearnableSkillsResponse>, Status> {
+        auth::caller(&req)?;
+        Err(to_status(AppError::Unavailable("phase 3 runtime is not yet available".into())))
+    }
+
+    async fn learn_skill(
+        &self,
+        req: Request<pb::LearnSkillRequest>,
+    ) -> Result<Response<pb::LearnSkillResponse>, Status> {
+        auth::caller(&req)?;
+        Err(to_status(AppError::Unavailable("phase 3 runtime is not yet available".into())))
+    }
+
+    async fn get_skill_catalog(
+        &self,
+        req: Request<pb::GetSkillCatalogRequest>,
+    ) -> Result<Response<pb::GetSkillCatalogResponse>, Status> {
+        auth::caller(&req)?;
+        Err(to_status(AppError::Unavailable(
+            "phase 3 catalogue is not yet available".into(),
+        )))
+    }
+
     async fn list_classes(
         &self,
         req: Request<pb::ListClassesRequest>,
