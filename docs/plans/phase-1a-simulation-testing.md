@@ -1,6 +1,6 @@
 # Phase 1a Plan: Headless Simulation Testing
 
-**Status:** IMPLEMENTED 2026-10-09; local full-suite verification passed and projection fix verified, replacement 20-minute soak acceptance pending; CI acceptance pending (E4.1 registration, E4.5 two-week reliability, E6.3 CI-derived results). **Planning model:** Opus; implementation model and effort per story.
+**Status:** IMPLEMENTED 2026-10-09; local full-suite verification passed, projection fix verified, and replacement 20-minute soak locally verified (exit 0 pass); CI acceptance pending (E4.1 registration, E4.5 two-week reliability, E6.3 CI-derived results). **Planning model:** Opus; implementation model and effort per story.
 
 ## 1. Goal
 
@@ -277,7 +277,7 @@ All metrics, runtimes, and validation results below represent **locally measured
   - Cargo release profile API build (`nightfall-api v0.1.0`): **52.31 s** (optimized).
   - Unreal editor and staged standalone client via RunUAT BuildCookRun: **85.43 s** (stage command 2.02 s; build succeeded).
   - Final root editor/game rebuilds passed in 14.13 s / 29.19 s. Nightfall automation passed **54/54** with `-RequireLiveApi` and zero live skips (`LiveSkip`). Rust passed **341 library tests**, the integration and binary suites, and strict Clippy.
-- **Audited soak status**: The first full-duration attempt failed after 574 seconds on a missing damage cue. Fix `612acad` is reviewed and merged; the raw-decoder regression, eight combat-state tests, focused kill/late-entry runs and corrected eight-client smoke all passed. The replacement 20-minute run is in progress; §8.4 preserves the failed-run evidence and measured smoke results.
+- **Audited soak status**: The first full-duration attempt failed after 574 seconds on a missing damage cue. Fix `612acad` was reviewed and merged to `main` at `8147841`; the raw-decoder regression, eight combat-state tests, focused kill/late-entry runs and corrected eight-client smoke all passed. The replacement 20-minute run (`release-8x1200-damage-fixed`) has now passed locally (overall exit 0) across all 8 clients with cumulative combat tick p99 strictly below the 20 ms budget; §8.4 details the full execution metrics and preserves the historical failed-run evidence and measured smoke results.
 
 ### 8.2 Environment isolation and infrastructure configurations
 
@@ -327,6 +327,7 @@ The corrected reporter requires every cumulative tick observation to match the c
 | `release-2x120` | 7 | client01:4 iterations/156.072s; client02:3/120.562s | 166s | 4.983ms | 1,668 | API 0, Compose 0 | Prior intermediate smoke |
 | `release-8x120-fixed` | 30 | 120.926–158.977s across eight clients | 169s | 19.343ms | 1,697 | API 0, Compose 0 | Prior intermediate smoke |
 | `release-8x120-damage-fixed` | 30 | 121.145–158.163s across eight clients | 169s | 11.28125ms | 1,695 | API 0, Compose 0 | Corrected damage-fixed smoke |
+| `release-8x1200-damage-fixed` | 246 | 1201.004–1237.464s across eight clients | 1248s | 9.909452ms | 12,486 | API 0, Compose 0 | Locally verified full 20m soak pass |
 
 All smoke recordings matched byte-identically with no digest-only records. The prior intermediate two-client recording contained 7 players, 2,574 outputs and 161,652 bytes and replayed in 5.9 ms; the prior intermediate eight-client recording contained 30 players, 11,456 outputs and 2,797,183 bytes and replayed in 31.5 ms. The corrected 8×120 damage-fixed smoke run (`release-8x120-damage-fixed`) passed all 30 iterations across eight clients (elapsed 121.145–158.163 s, Gauntlet wall time 169 s) with combat tick p99 of 11.28125 ms (strict < 20 ms budget), 1,695 histogram ticks matching 1,695 recorded NFR ticks, and clean API 0 / Compose 0 teardown; its session recording replayed byte-identically across 30 players, 11,364 outputs, and 2,754,186 bytes with 0 digest-only records in 31.4 ms. These are measured smoke results, not final integrated-source acceptance.
 
@@ -341,9 +342,13 @@ The client projection cue suppression bug was resolved in fix commit `612acad`, 
 - **Focused fresh-stack live scenarios**: Single-client `1-kill-one-monster` (78.079 s) and paired `1-late-entry` (93.668 s) passed against fresh Compose stacks across all 3 client instances with unchanged assertions, replay checks, contract/transition coverage, and exit 0 cleanup.
 - **Packaging and binary provenance**: Staged client was rebuilt from source `8147841` via RunUAT BuildCookRun (whole command completed in 80.68 s). The release API and replay binaries from source `2e85d3f` had unchanged source files and were reused with verified SHA256 checksums.
 
-**Replacement 20-minute soak execution:**
+**Locally verified replacement 20-minute soak execution (release-8x1200-damage-fixed):**
 
-Following the passing corrected 8×120 smoke test, the full replacement 8-client × 1200-second soak against the full Compose stack (`Saved/Soak/release-8x1200-damage-fixed`) started at ~00:19 UTC 2026-10-10. The run remains in progress pending real metrics; no full 20-minute success is claimed until execution completes and metrics are verified.
+The replacement eight-client × 1200-second run against the full Compose stack (`Saved/Soak/release-8x1200-damage-fixed`) **passed with exit 0**. The native client was built from source `8147841`; the release API and replay binaries from `2e85d3f` were reused after verifying unchanged source files and SHA-256 hashes. All eight clients exited successfully, completing **246 iterations** (30–31 each) in 1201.004–1237.464 seconds per client. Gauntlet wall time was 1248 seconds (20m48s). No assertions, ensures or crashes failed the run.
+
+Complete cumulative combat tick p99 was **9.909452 ms**, strictly below the 20 ms budget. All **12,486 histogram observations matched the complete recording's 12,486 ticks** for zone 1, epoch 1. Replay matched byte-identically across 246 players, 94,729 outputs and 17,160,485 bytes, with zero digest-only records, in 249.5 ms. API exit and Compose cleanup both returned 0; the report contains no errors. Per-client JUnit contains 4,682 test cases with zero failures, errors or skips; aggregate `soak.xml` contains 4,683 cases including the performance gate.
+
+The report stores the [Grafana dashboard time range](http://localhost:13300/d/nightfall-api?from=1791591575000&to=1791592850000). The temporary local stack has been removed; the saved telemetry and recording are the durable evidence. Local 20-minute acceptance passed. CI runner registration (E4.1), two-week reliability and PR gating (E4.5), and CI-derived results (E6.3) remain pending.
 
 ### 8.5 Diagnostics and coverage tracking status
 
