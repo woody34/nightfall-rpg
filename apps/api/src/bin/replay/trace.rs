@@ -7,7 +7,8 @@ use nightfall_api::application::replay_log::{
     decode_events, decode_outputs, AppliedTickRecord, OutputForm,
 };
 use nightfall_api::domain::zone::{
-    AppliedTickDraft, AttackOutcome, EntityId, Vec2Fixed, ZoneEvent, ZoneState,
+    AppliedTickDraft, AttackOutcome, EntityId, ObserverOutput, Vec2Fixed, ZoneCommand, ZoneEvent,
+    ZoneState,
 };
 use nightfall_api::infrastructure::eventlog::Recording;
 use serde::Serialize;
@@ -36,11 +37,13 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
             AttackOutcome::Miss => ("miss", "○"),
             AttackOutcome::Crit => ("crit", "★"),
         }),
+        ZoneEvent::ClassChanged { .. } => Some(("class", "◆")),
         ZoneEvent::EntityDied { .. } => Some(("death", "×")),
         ZoneEvent::EntityRespawned { .. } => Some(("respawn", "↥")),
         ZoneEvent::NpcIntentionChanged { .. } => Some(("intention", "◇")),
         ZoneEvent::TargetChanged { .. } => Some(("target", "◎")),
-        ZoneEvent::AttackStarted { .. }
+        ZoneEvent::ClassTransfer { .. }
+        | ZoneEvent::AttackStarted { .. }
         | ZoneEvent::AttackCancelled { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::StatsChanged { .. }
@@ -106,7 +109,9 @@ impl Projection {
                 self.positions.remove(&entity);
                 self.break_path(entity);
             },
-            ZoneEvent::AttackResult { .. }
+            ZoneEvent::ClassChanged { .. }
+            | ZoneEvent::ClassTransfer { .. }
+            | ZoneEvent::AttackResult { .. }
             | ZoneEvent::EntityDied { .. }
             | ZoneEvent::AttackStarted { .. }
             | ZoneEvent::AttackCancelled { .. }
@@ -146,6 +151,103 @@ impl Projection {
     }
 }
 
+// Private state is shown only in the selected owner's recorded output, never in off-AOI facts.
+fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
+    match event {
+        ZoneEvent::ClassChanged {
+            entity,
+            class_id,
+            tick,
+            generation,
+        } => format!(
+            "ClassChanged: {entity} → class {} · tick {} · generation {}",
+            class_id.0, tick.0, generation.0
+        ),
+        ZoneEvent::ClassTransfer {
+            entity,
+            tick,
+            old_class_id,
+            receipt,
+        } => format!(
+            "ClassTransfer effect: {entity} · {} → {} · tick {} (private receipt hidden)",
+            old_class_id.0, receipt.target_class_id.0, tick.0
+        ),
+        ZoneEvent::StatsChanged { entity, tick, .. } | ZoneEvent::XpGained { entity, tick, .. }
+            if owner != Some(*entity) =>
+        {
+            format!("Owner update: {entity} · tick {} (owner-private fields hidden)", tick.0)
+        },
+        ZoneEvent::Progression(delta) => format!(
+            "Progression checkpoint: {} · tick {} (private state hidden)",
+            delta.entity, delta.tick.0
+        ),
+        ZoneEvent::AttackResult { .. }
+        | ZoneEvent::EntityDied { .. }
+        | ZoneEvent::AttackStarted { .. }
+        | ZoneEvent::AttackCancelled { .. }
+        | ZoneEvent::HateChanged { .. }
+        | ZoneEvent::NpcIntentionChanged { .. }
+        | ZoneEvent::EntityRespawned { .. }
+        | ZoneEvent::StatsChanged { .. }
+        | ZoneEvent::XpGained { .. }
+        | ZoneEvent::LevelUp { .. }
+        | ZoneEvent::TargetChanged { .. }
+        | ZoneEvent::EntitySpawn { .. }
+        | ZoneEvent::EntityMove { .. }
+        | ZoneEvent::EntityDespawn { .. } => format!("{event:#?}"),
+    }
+}
+
+fn command_details(record: &AppliedTickRecord) -> String {
+    let mut lines = Vec::new();
+    for applied in &record.commands {
+        let detail = match &applied.command {
+            ZoneCommand::SpawnPlayer { .. } => {
+                let mut command = applied.command.clone();
+                if let ZoneCommand::SpawnPlayer { load, .. } = &mut command {
+                    *load = None;
+                }
+                format!("{command:#?} (private admission load hidden)")
+            },
+            ZoneCommand::ChangeClass { entity, target, .. } => format!(
+                "ChangeClass actor command: {entity} → class {} (gRPC mutation; not a WebSocket intent)",
+                target.0
+            ),
+            ZoneCommand::SpawnNpc { .. }
+            | ZoneCommand::Despawn { .. }
+            | ZoneCommand::ReplaceSession { .. }
+            | ZoneCommand::MoveTo { .. }
+            | ZoneCommand::SetTarget { .. }
+            | ZoneCommand::Attack { .. }
+            | ZoneCommand::StopAttack { .. }
+            | ZoneCommand::Respawn { .. }
+            | ZoneCommand::StopMove { .. }
+            | ZoneCommand::AddAggro { .. } => format!("{:#?}", applied.command),
+        };
+        lines.push(format!(
+            "ordinal {} · source {:?} · seq {:?}\n{detail}",
+            applied.ordinal.0, applied.source, applied.seq
+        ));
+    }
+    format!("{}\n{:#?}", lines.join("\n"), record.dispositions)
+}
+
+fn output_details(
+    bytes: &[u8],
+    recipient: EntityId,
+    session: Option<EntityId>,
+) -> anyhow::Result<String> {
+    let owner = session.filter(|id| *id == recipient);
+    Ok(decode_outputs(bytes)?
+        .iter()
+        .map(|item| match item {
+            ObserverOutput::Event(event) => event_detail(event, owner),
+            ObserverOutput::Accepted { .. } | ObserverOutput::Rejected(_) => format!("{item:#?}"),
+        })
+        .collect::<Vec<_>>()
+        .join("\n"))
+}
+
 fn row(
     record: &AppliedTickRecord,
     session: Option<EntityId>,
@@ -156,11 +258,11 @@ fn row(
     let mut html = format!(
         "<tr id=\"tick-{tick}\" class=\"{}\"><th>{tick}</th><td><pre>{}</pre></td><td>",
         if fail == Some(tick) { "failure" } else { "" },
-        escape(&format!("{:#?}\n{:#?}", record.commands, record.dispositions))
+        escape(&command_details(record))
     );
     for output in &record.outputs {
         let decoded = match record.output_form {
-            OutputForm::Encoded => format!("{:#?}", decode_outputs(&output.bytes)?),
+            OutputForm::Encoded => output_details(&output.bytes, output.entity, session)?,
             OutputForm::Sha256 => {
                 format!("SHA-256 only (message bytes unavailable): {:02x?}", output.bytes)
             },
@@ -177,7 +279,12 @@ fn row(
             escape(&decoded)
         )?;
     }
-    write!(html, "</td><td><pre>{}</pre></td></tr>", escape(&format!("{events:#?}")))?;
+    let facts = events
+        .iter()
+        .map(|event| event_detail(event, None))
+        .collect::<Vec<_>>()
+        .join("\n");
+    write!(html, "</td><td><pre>{}</pre></td></tr>", escape(&facts))?;
     Ok(html)
 }
 
@@ -247,7 +354,7 @@ pub(super) fn render(
             }
             if let Some((kind, symbol)) = glyph(e) {
                 important.insert(e.entity());
-                p.marker(r.tick.0, Some(e.entity()), kind, symbol, &format!("{e:?}"))?;
+                p.marker(r.tick.0, Some(e.entity()), kind, symbol, &event_detail(e, None))?;
             }
         }
         for d in &r.dispositions {
@@ -284,7 +391,7 @@ pub(super) fn render(
     let data = serde_json::to_string(&data)?
         .replace('<', "\\u003c")
         .replace('&', "\\u0026");
-    let mut summary = format!("{} entities · ticks {first}–{last} · path sampling every {stride} ticks (event ticks and table window retained).", p.tracks.len());
+    let mut summary = format!("{} entities · ticks {first}–{last} · snapshot schema {} · state digest {:?} · path sampling every {stride} ticks (event ticks and table window retained).", p.tracks.len(), rec.snapshot.meta.schema_version, rec.snapshot.meta.digest_version);
     for (kind, count) in p.counts {
         write!(summary, " {kind}: {count}.")?;
     }
@@ -300,6 +407,89 @@ pub(super) fn render(
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn class_change_is_concise_and_private_stats_require_the_selected_recipient() {
+        use nightfall_api::application::replay_log::{encode_events, encode_outputs, PlayerOutput};
+        use nightfall_api::domain::class::ClassId;
+        use nightfall_api::domain::zone::{ClassStatsView, SessionGeneration, Tick};
+        let mut rec =
+            Recording::from_bytes(include_bytes!("../../../fixtures/sessions/two-players-v4.nfr"))
+                .unwrap();
+        rec.records.truncate(1);
+        let owner = EntityId::from_uuid(uuid::Uuid::from_u128(1));
+        let observer = EntityId::from_uuid(uuid::Uuid::from_u128(2));
+        let tick = rec.records[0].tick;
+        let changed = ZoneEvent::ClassChanged {
+            entity: owner,
+            class_id: ClassId(1),
+            tick,
+            generation: SessionGeneration(u64::MAX),
+        };
+        let stats = ZoneEvent::StatsChanged {
+            entity: owner,
+            tick,
+            hp: 1,
+            max_hp: 2,
+            mp: 0,
+            max_mp: 2,
+            level: 20,
+            xp: 0,
+            class: Some(ClassStatsView {
+                class_id: ClassId(1),
+                sp: 765_432,
+                cp: 987_654,
+                max_cp: 999_999,
+                token_tier_1_count: 17,
+                token_tier_2_count: 19,
+            }),
+        };
+        rec.records[0].events = encode_events(&[
+            changed.clone(),
+            stats.clone(),
+            crate::test_support::transfer_effect(owner, tick),
+        ]);
+        // A malformed observer stream must not make another player's resource values visible.
+        let bytes = encode_outputs(&[ObserverOutput::Event(changed), ObserverOutput::Event(stats)]);
+        rec.records[0].outputs = vec![
+            PlayerOutput {
+                entity: owner,
+                bytes: bytes.clone(),
+            },
+            PlayerOutput {
+                entity: observer,
+                bytes,
+            },
+        ];
+        let owner_page = render(&rec, Some(owner), None).unwrap();
+        assert_eq!(owner_page.matches("cp: 987654").count(), 1);
+        assert_eq!(owner_page.matches("sp: 765432").count(), 1);
+        for selected in [None, Some(observer)] {
+            let html = render(&rec, selected, None).unwrap();
+            assert!(!html.contains("987654"));
+            assert!(!html.contains("765432"));
+            assert!(!html.contains("PRIVATE_GRANTED_SKILL_SENTINEL"));
+            assert!(html.contains("ClassTransfer effect:"));
+            assert!(html.contains("private receipt hidden"));
+            assert!(html.contains("owner-private fields hidden"));
+            assert!(html.contains("ClassChanged:"));
+            assert!(html.contains("→ class 1"));
+            assert!(html.contains("generation 18446744073709551615"));
+            assert_eq!(html.matches("data-kind=\"class\"").count(), 1);
+        }
+        assert_eq!(
+            event_detail(
+                &ZoneEvent::ClassChanged {
+                    entity: owner,
+                    class_id: ClassId(0),
+                    tick: Tick(0),
+                    generation: SessionGeneration(0)
+                },
+                None
+            ),
+            format!("ClassChanged: {owner} → class 0 · tick 0 · generation 0")
+        );
+    }
 
     #[test]
     fn names_cannot_escape_html_or_script_and_digests_are_not_decoded_as_messages() {

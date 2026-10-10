@@ -377,3 +377,58 @@ async fn main() -> ExitCode {
         },
     }
 }
+
+#[cfg(test)]
+mod test_support {
+    use nightfall_api::domain::character_progression::{
+        CharacterAppearance, CharacterIdentity, FrozenTransferResult, SuccessfulTransferReceipt,
+    };
+    use nightfall_api::domain::class::ClassId;
+    use nightfall_api::domain::zone::{EntityId, Tick, ZoneEvent};
+    use nightfall_api::domain::{AccountId, BaseStats, CharacterId, CharacterName, Race};
+
+    #[allow(clippy::unwrap_used)]
+    pub(super) fn transfer_effect(entity: EntityId, tick: Tick) -> ZoneEvent {
+        ZoneEvent::ClassTransfer {
+            entity,
+            tick,
+            old_class_id: ClassId(0),
+            receipt: Box::new(SuccessfulTransferReceipt {
+                key: uuid::Uuid::from_u128(10),
+                target_class_id: ClassId(1),
+                result: FrozenTransferResult {
+                    character_id: CharacterId::from_uuid(entity.as_uuid()),
+                    identity: CharacterIdentity {
+                        account_id: AccountId::from_uuid(uuid::Uuid::nil()),
+                        race: Race::Human,
+                        base_class_id: ClassId(0),
+                        appearance: CharacterAppearance::default(),
+                    },
+                    name: CharacterName::new("Owner").unwrap(),
+                    current_class_id: ClassId(1),
+                    level: 20,
+                    xp: 0,
+                    sp: 765_432,
+                    stats: BaseStats {
+                        str: 20,
+                        dex: 20,
+                        con: 20,
+                        int: 20,
+                        wit: 20,
+                        men: 20,
+                    },
+                    position_millitiles: [126_000, 126_000],
+                    hp: 1,
+                    mp: 0,
+                    cp: 987_654,
+                    max_hp: 2,
+                    max_mp: 2,
+                    max_cp: 999_999,
+                    token_tier_1_count: 17,
+                    token_tier_2_count: 19,
+                    granted_skill_keys: vec!["PRIVATE_GRANTED_SKILL_SENTINEL".into()],
+                },
+            }),
+        }
+    }
+}

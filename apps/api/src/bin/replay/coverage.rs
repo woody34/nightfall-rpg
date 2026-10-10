@@ -25,6 +25,11 @@ pub(super) struct Coverage {
     deaths: BTreeMap<String, u64>,
     respawns: BTreeMap<String, u64>,
     intent_rejected: BTreeMap<String, u64>,
+    // Actor commands are not ClientMessage intents; a non-rejected retry need not create an effect.
+    class_transfer_commands: BTreeMap<String, u64>,
+    class_changes: BTreeMap<String, u64>,
+    class_transfer_effects: BTreeMap<String, u64>,
+    owner_stats_updates: u64,
 }
 
 fn table(states: &[&str], reachable: &[(&str, &str)]) -> Vec<Transition> {
@@ -58,7 +63,7 @@ fn transition(rows: &mut [Transition], from: &str, to: &str) {
 impl Coverage {
     fn new() -> Self {
         Self {
-            schema_version: 1,
+            schema_version: 2,
             npc_intentions: table(
                 &["Idle", "Active", "Attack", "ReturnHome", "Dead"],
                 &[
@@ -87,6 +92,10 @@ impl Coverage {
             deaths: BTreeMap::from([("player".into(), 0), ("npc".into(), 0)]),
             respawns: BTreeMap::from([("player".into(), 0), ("npc".into(), 0)]),
             intent_rejected: BTreeMap::new(),
+            class_transfer_commands: BTreeMap::new(),
+            class_changes: BTreeMap::new(),
+            class_transfer_effects: BTreeMap::new(),
+            owner_stats_updates: 0,
         }
     }
 
@@ -114,12 +123,19 @@ impl Coverage {
             ("Deaths", &self.deaths),
             ("Respawns", &self.respawns),
             ("IntentRejected", &self.intent_rejected),
+            (
+                "Class transfer actor commands (not WebSocket intents)",
+                &self.class_transfer_commands,
+            ),
+            ("Public class changes by destination", &self.class_changes),
+            ("Recorded class transfer effects", &self.class_transfer_effects),
         ] {
             println!("{name}");
             for (key, count) in counts {
                 println!("{key}\t{count}");
             }
         }
+        println!("Owner stats updates\t{}", self.owner_stats_updates);
     }
 }
 
@@ -169,7 +185,12 @@ pub(super) fn collect(rec: &Recording) -> anyhow::Result<Coverage> {
             commands: r.commands.clone(),
         })?;
         for d in &r.dispositions {
-            increment(&mut report.intent_rejected, format!("{:?}", d.reason));
+            let transfer = r.commands.iter().any(|c| {
+                c.ordinal == d.ordinal && matches!(c.command, ZoneCommand::ChangeClass { .. })
+            });
+            if !transfer {
+                increment(&mut report.intent_rejected, format!("{:?}", d.reason));
+            }
         }
         commands(&mut report, &mut attacks, &mut kinds, &mut targets, r);
         let events = match r.output_form {
@@ -245,6 +266,17 @@ fn commands(
                 }
             }
         }
+        if let ZoneCommand::ChangeClass { .. } = command.command {
+            let outcome = r
+                .dispositions
+                .iter()
+                .find(|d| d.ordinal == command.ordinal)
+                .map_or_else(
+                    || "applied_without_rejection".to_owned(),
+                    |d| format!("rejected:{:?}", d.reason),
+                );
+            increment(&mut report.class_transfer_commands, outcome);
+        }
         match command.command {
             ZoneCommand::Attack { entity } if attacks.get(&entity) == Some(&"idle") => {
                 transition(&mut report.player_attack_states, "idle", "pending");
@@ -263,7 +295,8 @@ fn commands(
                     *from = "idle";
                 }
             },
-            ZoneCommand::SpawnPlayer { .. }
+            ZoneCommand::ChangeClass { .. }
+            | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::ReplaceSession { .. }
@@ -286,6 +319,22 @@ fn facts(
 ) {
     for event in events {
         match event {
+            ZoneEvent::ClassChanged { class_id, .. } => {
+                increment(&mut report.class_changes, class_id.0.to_string());
+            },
+            ZoneEvent::ClassTransfer {
+                old_class_id,
+                receipt,
+                ..
+            } => {
+                increment(
+                    &mut report.class_transfer_effects,
+                    format!("{}->{}", old_class_id.0, receipt.target_class_id.0),
+                );
+            },
+            ZoneEvent::StatsChanged { .. } => {
+                report.owner_stats_updates = report.owner_stats_updates.saturating_add(1);
+            },
             ZoneEvent::NpcIntentionChanged { from, to, .. } => {
                 transition(&mut report.npc_intentions, &format!("{from:?}"), &format!("{to:?}"));
             },
@@ -319,7 +368,6 @@ fn facts(
             | ZoneEvent::AttackStarted { .. }
             | ZoneEvent::AttackCancelled { .. }
             | ZoneEvent::HateChanged { .. }
-            | ZoneEvent::StatsChanged { .. }
             | ZoneEvent::XpGained { .. }
             | ZoneEvent::LevelUp { .. }
             | ZoneEvent::TargetChanged { .. }
@@ -337,6 +385,72 @@ mod tests {
     use nightfall_api::domain::zone::{
         AppliedCommand, CommandSource, Disposition, Ordinal, RejectReason,
     };
+
+    #[test]
+    fn class_actor_commands_count_separately_from_public_facts_and_owner_stats() {
+        use nightfall_api::domain::zone::{SessionGeneration, Tick};
+        use nightfall_api::domain::{class::ClassId, AccountId};
+        let rec =
+            Recording::from_bytes(include_bytes!("../../../fixtures/sessions/two-players-v4.nfr"))
+                .unwrap();
+        let mut record = rec.records[0].clone();
+        let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
+        record.commands = (0..3)
+            .map(|ordinal| AppliedCommand {
+                ordinal: Ordinal(ordinal),
+                source: CommandSource::System,
+                seq: None,
+                command: ZoneCommand::ChangeClass {
+                    entity,
+                    account: AccountId::from_uuid(uuid::Uuid::nil()),
+                    request_key: uuid::Uuid::from_u128(10),
+                    target: ClassId(1),
+                },
+            })
+            .collect();
+        record.dispositions = vec![Disposition {
+            ordinal: Ordinal(2),
+            source: CommandSource::System,
+            seq: None,
+            tick_seen: record.tick,
+            reason: RejectReason::UnknownEntity,
+        }];
+        let mut report = Coverage::new();
+        let mut attacks = BTreeMap::from([(entity, "idle")]);
+        commands(&mut report, &mut attacks, &mut BTreeMap::new(), &mut BTreeMap::new(), &record);
+        facts(
+            &mut report,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            vec![
+                crate::test_support::transfer_effect(entity, Tick(1)),
+                ZoneEvent::ClassChanged {
+                    entity,
+                    tick: Tick(1),
+                    class_id: ClassId(1),
+                    generation: SessionGeneration(u64::MAX),
+                },
+                ZoneEvent::StatsChanged {
+                    entity,
+                    tick: Tick(1),
+                    class: None,
+                    hp: 1,
+                    max_hp: 2,
+                    mp: 0,
+                    max_mp: 2,
+                    level: 20,
+                    xp: 0,
+                },
+            ],
+        );
+        assert_eq!(report.class_transfer_commands["applied_without_rejection"], 2);
+        assert_eq!(report.class_transfer_commands["rejected:UnknownEntity"], 1);
+        assert_eq!(report.class_changes["1"], 1);
+        assert_eq!(report.class_transfer_effects["0->1"], 1);
+        assert_eq!(report.owner_stats_updates, 1);
+        assert_eq!(attacks[&entity], "idle");
+        assert!(report.player_attack_states.iter().all(|r| r.count == 0));
+    }
 
     #[test]
     fn request_projection_counts_rejections_and_same_tick_stop_without_repeat_inflation() {
