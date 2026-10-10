@@ -1,5 +1,6 @@
 #include "SkillBotPredicates.h"
 #include "BotPredicates.h"
+#include "SkillAuditSubsystem.h"
 #include "BotScenarioRunner.h"
 #include "Skills/SkillStateSubsystem.h"
 #include "Effects/EffectStateSubsystem.h"
@@ -55,6 +56,16 @@ bool SkillBotPredicates::ParseUnsigned(const FString& Text, uint64& Out)
 void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 {
 	using namespace SkillBotDetail;
+ for (const FString& Name : {FString(TEXT("cast_dispositions_once")),FString(TEXT("spawn_before_skill_references")),FString(TEXT("owner_skill_baseline_coherent")),FString(TEXT("observer_skill_baseline_coherent")),FString(TEXT("public_vitals_coherent")),FString(TEXT("public_revival_vitals_coherent")),FString(TEXT("pvp_private_stats_coherent")),FString(TEXT("cp_absorption_matches_received")),FString(TEXT("effect_identity_coherent")),FString(TEXT("death_penalty_matches_before_disconnect")),FString(TEXT("resurrect_offer_matches_death")),FString(TEXT("own_flag_deadline_matches_received")),FString(TEXT("npc_target_is_owner")),FString(TEXT("own_flag_expired_at_last_impact")),FString(TEXT("target_flag_expired_at_last_impact")),FString(TEXT("victim_flag_not_refreshed")),FString(TEXT("peace_rejection_has_no_start"))})
+  R.Register({Name,Name,TEXT("Witnessed authoritative event history; missing evidence fails closed"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+  {
+   if(!A.IsEmpty()){Error=TEXT("takes no arguments");return nullptr;}
+   return [Name](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->Check(Name):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("coherent")):FString(TEXT("incoherent"))):FString(TEXT("unknown: no correlated received evidence"))};};
+  }});
+ for (const FString& Name : {FString(TEXT("own_cp_damage_total")),FString(TEXT("player_cp_damage_total")),FString(TEXT("players_attacking_me")),FString(TEXT("resurrection_refunds"))})
+  Number(R,Name,0,[Name](const FBotContext& C,const auto&)->TOptional<uint64>{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;return S?S->Number(Name):TOptional<uint64>();});
+ R.RegisterEquality(TEXT("resurrect_offer_state"),TEXT("resurrect_offer_state == offered|declined|expired|accepted"),TEXT("Newest witnessed owner offer including terminal states"),[](const FString& V,FString& Error){if(V==TEXT("offered") || V==TEXT("declined") || V==TEXT("expired") || V==TEXT("accepted"))return true;Error=TEXT("invalid offer state");return false;},[](const FBotContext& C,const FString& V,FString& O){static const TCHAR* States[]={TEXT("unknown"),TEXT("offered"),TEXT("declined"),TEXT("expired"),TEXT("accepted")};const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto State=S?S->OfferState():TOptional<uint32>();O=State.IsSet() && *State<UE_ARRAY_COUNT(States)?States[*State]:TEXT("unknown");return O!=TEXT("unknown") && O==V;});
+
  for (const FString& Name : {FString(TEXT("initial_hp")),FString(TEXT("initial_mp")),FString(TEXT("initial_cp"))})
   Number(R,Name,0,[Name](const FBotContext& C,const auto&)->TOptional<uint64>{const auto* S=State(C);if(!S)return {};const auto V=Name==TEXT("initial_hp")?S->GetInitialHp():Name==TEXT("initial_mp")?S->GetInitialMp():S->GetInitialCp();return V.IsSet()?TOptional<uint64>(*V):TOptional<uint64>();});
  Number(R,TEXT("target_flag_remaining"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{const auto* S=State(C);const auto* P=S?S->FindPvp(Entity(C,TEXT("target"))):nullptr;return P?TOptional<uint64>(P->FlagUntilTick>S->GetTick()?P->FlagUntilTick-S->GetTick():0):TOptional<uint64>();});

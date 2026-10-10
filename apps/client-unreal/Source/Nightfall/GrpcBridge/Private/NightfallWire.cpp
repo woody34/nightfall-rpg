@@ -51,6 +51,15 @@ namespace NightfallWire
 		return true;
 	}
 
+	bool DecodeClientMessage(const uint8* Data, int32 Size, FGrpcNightfallV1ClientMessage& Out)
+	{
+		Out = {};
+		::nightfall::v1::ClientMessage Msg;
+		if (Size < 0 || (Size > 0 && !Data) || !Msg.ParseFromArray(Data, Size)) return false;
+		GRPC_TO_TURBOLINK(&Msg, &Out);
+		return true;
+	}
+
 	bool DecodeServerMessage(const uint8* Data, int32 Size, FGrpcNightfallV1ServerMessage& Out)
 	{
 		Out = FGrpcNightfallV1ServerMessage();

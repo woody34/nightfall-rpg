@@ -1,4 +1,5 @@
 #include "BotScenarioRunner.h"
+#include "SkillAuditSubsystem.h"
 #include "Combat/CombatStateSubsystem.h"
 #include "Net/NetClientSubsystem.h"
 #include "Engine/Engine.h"
@@ -236,6 +237,7 @@ bool UBotScenarioRunner::AdvanceLoop()
 		return false;
 	}
 	Observations.Reset();
+	if(auto* Audit=GetGameInstance()->GetSubsystem<USkillAuditSubsystem>())Audit->Reset();
 	if (Diagnostics) Diagnostics->ResetIteration();
 	// The fixture begins at the new-character spawn. Avoid carrying position/HP/XP across loops.
 	// Explicit user-supplied tokens are retained; generated disposable identities rotate.
