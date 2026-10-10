@@ -126,7 +126,8 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
         ET.SubElement(case, 'failure', message='; '.join(errors)).text = '\n'.join(errors)
     ET.ElementTree(suites).write(out / 'soak.xml', encoding='utf-8', xml_declaration=True)
     result = {'passed': not errors, 'workload': 'casting' if casting else 'legacy-attacks',
-              'phase3_acceptance': not errors and casting and clients == 8 and seconds >= 1200,
+              'phase3_acceptance': False,
+              'phase3_evidence_passed': not errors and casting and clients == 8 and seconds >= 1200,
               'clients': clients, 'requested_seconds': seconds,
               'start_unix': start, 'end_unix': end, 'metrics_end_unix': metrics_at, 'tick_p99_ms': p99 * 1000 if p99 is not None else None,
               'grafana': dashboard, 'roles': roles, 'errors': errors,
@@ -150,6 +151,10 @@ def teardown(out: Path, exit_code: int) -> int:
         return int(bool(exit_code))
     result = json.loads(path.read_text())
     result['cleanup_exit_code'] = exit_code
+    # Accept only the final verdict, including mandatory owned cleanup. Also
+    # clear an old report's acceptance bit when teardown fails.
+    evidence = result.get('phase3_evidence_passed', result.get('phase3_acceptance', False))
+    result['phase3_acceptance'] = bool(evidence and result['passed'] and not result['errors'] and not exit_code)
     if exit_code:
         error = f'Compose teardown failed or timed out (exit {exit_code}); inspect cleanup.log'
         result['errors'].append(error)
