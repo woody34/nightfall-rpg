@@ -106,7 +106,11 @@ class PolicyTests(unittest.TestCase):
 
     def test_real_scenario_catalogue_fixture_routing(self):
         batches = ci.units(sorted((ci.PROJECT / "Scenarios").glob("*.nfs")))
-        routes = {tuple(path.stem for path in batch): ci.fixture(batch) for batch in batches}
+        # Pair discovery covers the full catalogue; pin fixture routing for the 19
+        # legacy scenarios. Phase2 semantics are exercised in phase2-fixture.test.py.
+        routes = {tuple(path.stem for path in batch): ci.fixture(batch) for batch in batches
+                  if all(path.stem.startswith(('0b-', '1-')) for path in batch)}
+        self.assertEqual(sum(len(roles) for roles in routes), 19)
         dedicated = {
             ("1-social-aggro-a", "1-social-aggro-b"): "phase1a-social-aggro",
             ("1-late-entry-a", "1-late-entry-b"): "phase1a-late-entry",
