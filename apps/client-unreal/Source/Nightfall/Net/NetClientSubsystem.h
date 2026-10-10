@@ -209,6 +209,7 @@ private:
 	bool bReconnectPending = false;
 	/** Bumped by Connect and Disconnect; pending reconnects and ticket replies compare it. */
 	uint32 ConnectGeneration = 0;
+	uint64 SocketGeneration = 0;
 	int32 ReconnectAttempt = 0;
 	/** Bumped by ArmKeepAlive and CancelKeepAlive: only the newest keep-alive timer acts. */
 	uint32 KeepAliveGeneration = 0;

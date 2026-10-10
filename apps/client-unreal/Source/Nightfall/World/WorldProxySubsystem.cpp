@@ -17,6 +17,8 @@ void UWorldProxySubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	SpawnHandle = Net->OnEntitySpawn.AddUObject(this, &UWorldProxySubsystem::HandleSpawn);
 	ClassHandle = Net->OnClassChanged.AddUObject(this, &UWorldProxySubsystem::HandleClassChanged);
 	DespawnHandle = Net->OnEntityDespawn.AddUObject(this, &UWorldProxySubsystem::HandleDespawn);
+	Net->OnConnected.AddDynamic(this, &UWorldProxySubsystem::ResetProxies);
+	Net->OnDisconnected.AddDynamic(this, &UWorldProxySubsystem::HandleDisconnected);
 
 	// The socket connects before this map loads (login -> connect -> travel), so the spawns for
 	// everything already around us arrived while no world was listening.
@@ -38,10 +40,24 @@ void UWorldProxySubsystem::Deinitialize()
 				Net->OnEntitySpawn.Remove(SpawnHandle);
 				Net->OnEntityDespawn.Remove(DespawnHandle);
 				Net->OnClassChanged.Remove(ClassHandle);
+				Net->OnConnected.RemoveDynamic(this, &UWorldProxySubsystem::ResetProxies);
+				Net->OnDisconnected.RemoveDynamic(this, &UWorldProxySubsystem::HandleDisconnected);
 			}
 		}
 	}
 	Super::Deinitialize();
+}
+
+void UWorldProxySubsystem::ResetProxies()
+{
+	// Every new admission resends AOI state, possibly with IDs from a different zone epoch.
+	for (const auto& Pair : Entities) if (IsValid(Pair.Value.Get())) Pair.Value->Destroy();
+	Entities.Reset();
+}
+
+void UWorldProxySubsystem::HandleDisconnected(const FString& Reason)
+{
+	ResetProxies();
 }
 
 void UWorldProxySubsystem::HandleSpawn(const FEntitySpawn& Spawn)

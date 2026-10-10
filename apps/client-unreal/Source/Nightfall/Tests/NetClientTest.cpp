@@ -2,6 +2,9 @@
 #include "TestGameInstance.h"
 #include "IWebSocket.h"
 #include "Net/NetClientSubsystem.h"
+#include "Character/ClassStateSubsystem.h"
+#include "World/WorldProxySubsystem.h"
+#include "World/ClassMasterActor.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -79,6 +82,49 @@ namespace
 		NightfallProto::Encode(Msg, Bytes);
 		return Bytes;
 	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNetClientPriorSocketTest, "Nightfall.Net.NetClient.PriorSocketCannotClearCurrentEpoch", NetTestFlags)
+bool FNetClientPriorSocketTest::RunTest(const FString& Parameters)
+{
+	FScopedTestGameInstance Instance;
+	auto* Net = Instance.Get<UNetClientSubsystem>(); FSocketRecorder Recorder; Recorder.Install(Net);
+	auto* Classes = Instance.Get<UClassStateSubsystem>(); FGrpcNightfallV1ListClassesResponse Catalogue; Catalogue.DataVersion = TEXT("lifecycle-test"); Catalogue.ClassMaster.Name = TEXT("Guide"); Classes->ApplyCatalogue(Catalogue);
+	UWorld* World = Instance.GameInstance->GetWorld(); auto* Proxies = World->GetSubsystem<UWorldProxySubsystem>(); Proxies->OnWorldBeginPlay(*World);
+	Net->Connect(WsUrl, TEXT("first")); Recorder.Sockets[0]->Connected.Broadcast();
+	FEntitySpawn Master; Master.EntityId = TEXT("old-epoch-master"); Master.Name = TEXT("Guide"); Master.Kind = 2;
+	FServerMessage Message; FWorldEvent Event; Event.Spawn = Master; Message.Event = Event; Net->DispatchServerMessage(Message);
+	auto OldEntry = Proxies->GetProxies().Find(Master.EntityId);
+	if (!TestTrue(TEXT("old master was admitted"), OldEntry && Cast<AClassMasterActor>(OldEntry->Get()))) return false;
+	auto* OldMaster = OldEntry->Get();
+	// A callback can already be queued when the transport's delegate list is cleared.
+	const auto DelayedClosed = Recorder.Sockets[0]->Closed;
+	const auto DelayedConnected = Recorder.Sockets[0]->Connected;
+	const auto DelayedError = Recorder.Sockets[0]->ConnectionError;
+	const auto DelayedRaw = Recorder.Sockets[0]->RawMessage;
+	Net->Connect(WsUrl, TEXT("replacement")); Recorder.Sockets[1]->Connected.Broadcast();
+	TestTrue(TEXT("replacement admission destroys the old epoch actor"), OldMaster->IsActorBeingDestroyed());
+	Master.EntityId = TEXT("current-epoch-master"); Event.Spawn = Master; Message.Event = Event; Net->DispatchServerMessage(Message);
+	auto CurrentEntry = Proxies->GetProxies().Find(Master.EntityId);
+	if (!TestTrue(TEXT("current master was admitted"), CurrentEntry && Cast<AClassMasterActor>(CurrentEntry->Get()))) return false;
+	auto* CurrentMaster = CurrentEntry->Get();
+	const int32 TimerCount = Recorder.Timers.Num();
+	int32 WireFrames = 0;
+	const FDelegateHandle WireHandle = Net->OnWireReceived.AddLambda([&WireFrames](const TArray<uint8>&) { ++WireFrames; });
+	DelayedClosed.Broadcast(1006, TEXT("old transport loss"), false);
+	DelayedConnected.Broadcast(); DelayedError.Broadcast(TEXT("old transport failure"));
+	const uint8 InvalidFrame = 0xff; DelayedRaw.Broadcast(&InvalidFrame, 1, 0);
+	Net->OnWireReceived.Remove(WireHandle);
+	TestEqual(TEXT("old raw callback never reaches wire decoding or projection"), WireFrames, 0);
+	TestTrue(TEXT("old transport cannot disconnect replacement"), Net->IsConnected());
+	TestEqual(TEXT("old callbacks cannot schedule retries"), Recorder.Timers.Num(), TimerCount);
+	TestEqual(TEXT("exactly one current epoch proxy remains"), Proxies->GetProxies().Num(), 1);
+	TestFalse(TEXT("old close or connected callback cannot destroy current master"), CurrentMaster->IsActorBeingDestroyed());
+	TestTrue(TEXT("current epoch entity cache survives old callbacks"), Net->GetKnownEntities().Contains(Master.EntityId));
+	Net->Disconnect();
+	TestEqual(TEXT("explicit disconnect also clears admission proxies"), Proxies->GetProxies().Num(), 0);
+	TestTrue(TEXT("explicit disconnect destroys current master"), CurrentMaster->IsActorBeingDestroyed());
+	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNetClientUpgradeHeaderTest, "Nightfall.Net.NetClient.TicketInUpgradeHeader", NetTestFlags)

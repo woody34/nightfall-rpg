@@ -226,6 +226,19 @@ bool FClassObserverProjectionTest::RunTest(const FString& Parameters)
 	TestNotNull(TEXT("authoritative noncombat master gets dedicated interaction proxy"), Cast<AClassMasterActor>(Proxies->GetProxies()[TEXT("guide")].Get()));
 	TestEqual(TEXT("one server master creates one proxy"), Proxies->GetProxies().Num(), 2);
 	Net->DispatchServerMessage(M); TestEqual(TEXT("repeated master admission cannot duplicate marker"), Proxies->GetProxies().Num(), 2);
+	auto* OldMaster = Proxies->GetProxies()[TEXT("guide")].Get();
+	Net->OnDisconnected.Broadcast(TEXT("connection lost"));
+	TestEqual(TEXT("disconnect removes all prior admission proxies"), Proxies->GetProxies().Num(), 0);
+	TestTrue(TEXT("old master actor is destroyed and cannot remain clickable"), OldMaster->IsActorBeingDestroyed());
+	TestTrue(TEXT("old observer actor is destroyed"), Actor->IsActorBeingDestroyed());
+	Net->OnConnected.Broadcast();
+	Master.EntityId = TEXT("new-epoch-guide"); E.Spawn = Master; M.Event = E; Net->DispatchServerMessage(M);
+	TestEqual(TEXT("new epoch master admission creates exactly one proxy"), Proxies->GetProxies().Num(), 1);
+	TestNotNull(TEXT("new master uses its received epoch ID"), Cast<AClassMasterActor>(Proxies->GetProxies()[Master.EntityId].Get()));
+	auto* ReplacedMaster = Proxies->GetProxies()[Master.EntityId].Get();
+	Net->OnConnected.Broadcast();
+	TestTrue(TEXT("direct new admission also destroys prior proxies"), ReplacedMaster->IsActorBeingDestroyed());
+	TestEqual(TEXT("new admission begins with an empty AOI proxy map"), Proxies->GetProxies().Num(), 0);
 	return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FClassScenarioContractTest, "Nightfall.Class.Scenarios.NativeContracts", Flags)

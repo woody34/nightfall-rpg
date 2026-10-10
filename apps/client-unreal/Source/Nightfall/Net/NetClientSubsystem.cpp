@@ -51,14 +51,17 @@ void UNetClientSubsystem::Connect(const FString& WsUrl, const FString& PlayTicke
 
 void UNetClientSubsystem::Disconnect()
 {
+	const bool bHadSocket = Socket.IsValid();
 	++ConnectGeneration;   // cancels a pending reconnect and drops late ticket replies
 	bWantConnected = false;
 	bReconnectPending = false;
 	CloseSocket();
+	if (bHadSocket) OnDisconnected.Broadcast(TEXT("Disconnected"));
 }
 
 void UNetClientSubsystem::CloseSocket()
 {
+	++SocketGeneration; // invalidate callbacks already queued by the previous transport
 	if (Socket.IsValid())
 	{
 		Socket->OnRawMessage().Clear();
@@ -79,10 +82,12 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 	NewestTicketDigest = FMD5::HashAnsiString(*PlayTicket);
 	++TicketsPresented;
 	Socket = SocketFactory(MakeUpgradeRequest(WsUrl, PlayTicket));
+	const uint64 Generation = SocketGeneration;
 	UE_LOG(LogNightfall, Log, TEXT("ws connecting to %s"), *WsUrl);
 
-	Socket->OnConnected().AddLambda([this]()
+	Socket->OnConnected().AddWeakLambda(this, [this, Generation]()
 	{
+		if (Generation != SocketGeneration) return;
 		bConnected = true;
 		ReconnectAttempt = 0;
 		Frame.Reset();
@@ -94,16 +99,23 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 		UE_LOG(LogNightfall, Log, TEXT("ws connected"));
 		OnConnected.Broadcast();
 	});
-	Socket->OnConnectionError().AddLambda([this](const FString& Error)
+	Socket->OnConnectionError().AddWeakLambda(this, [this, Generation](const FString& Error)
 	{
+		if (Generation != SocketGeneration) return;
 		// A rejected ticket (HTTP 401/409 at the upgrade) also lands here.
 		UE_LOG(LogNightfall, Warning, TEXT("ws connection error: %s"), *Error);
 		bConnected = false;
 		CancelKeepAlive();
 		ScheduleReconnect();
 	});
-	Socket->OnClosed().AddUObject(this, &UNetClientSubsystem::HandleClosed);
-	Socket->OnRawMessage().AddUObject(this, &UNetClientSubsystem::HandleRawMessage);
+	Socket->OnClosed().AddWeakLambda(this, [this, Generation](int32 Code, const FString& Reason, bool bClean)
+	{
+		if (Generation == SocketGeneration) HandleClosed(Code, Reason, bClean);
+	});
+	Socket->OnRawMessage().AddWeakLambda(this, [this, Generation](const void* Data, SIZE_T Size, SIZE_T Remaining)
+	{
+		if (Generation == SocketGeneration) HandleRawMessage(Data, Size, Remaining);
+	});
 	Socket->Connect();
 }
 

@@ -49,5 +49,9 @@ private:
 	FDelegateHandle DespawnHandle;
 	FDelegateHandle ClassHandle;
 	FDelegateHandle CatalogueHandle;
+	UFUNCTION()
+	void ResetProxies();
+	UFUNCTION()
+	void HandleDisconnected(const FString& Reason);
 	void RefreshClassTitles();
 };
