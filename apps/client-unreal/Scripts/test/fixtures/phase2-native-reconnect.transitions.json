@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "npc_intentions": [
+    {
+      "from": "Idle",
+      "to": "Idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Idle",
+      "to": "Active",
+      "reachable": true,
+      "count": 3
+    },
+    {
+      "from": "Idle",
+      "to": "Attack",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Idle",
+      "to": "ReturnHome",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Idle",
+      "to": "Dead",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Idle",
+      "reachable": true,
+      "count": 1
+    },
+    {
+      "from": "Active",
+      "to": "Active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Attack",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "ReturnHome",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Dead",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "Idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "Active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "Attack",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "ReturnHome",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "Dead",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "Idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "Active",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "Attack",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "ReturnHome",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "Dead",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "Idle",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "Active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "Attack",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "ReturnHome",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "Dead",
+      "reachable": false,
+      "count": 0
+    }
+  ],
+  "player_attack_states": [
+    {
+      "from": "idle",
+      "to": "idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "idle",
+      "to": "pending",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "idle",
+      "to": "active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "pending",
+      "to": "idle",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "pending",
+      "to": "pending",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "pending",
+      "to": "active",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "active",
+      "to": "idle",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "active",
+      "to": "pending",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "active",
+      "to": "active",
+      "reachable": false,
+      "count": 0
+    }
+  ],
+  "life_incarnations": {},
+  "deaths": {
+    "npc": 0,
+    "player": 0
+  },
+  "respawns": {
+    "npc": 0,
+    "player": 0
+  },
+  "intent_rejected": {},
+  "class_transfer_commands": {
+    "applied_without_rejection": 2
+  },
+  "class_changes": {
+    "1": 1,
+    "2": 1
+  },
+  "class_transfer_effects": {
+    "0->1": 1,
+    "1->2": 1
+  },
+  "owner_stats_updates": 4
+}

@@ -17,6 +17,8 @@ import xml.etree.ElementTree as ET
 BOT_FAILURE_KINDS = frozenset({'bot_assertion', 'bot_expectation', 'bot_scenario'})
 TABLES = ('npc_intentions', 'player_attack_states')
 COUNTERS = ('life_incarnations', 'deaths', 'respawns', 'intent_rejected')
+V2_COUNTERS = ('class_transfer_commands', 'class_changes', 'class_transfer_effects')
+V2_SCALARS = ('owner_stats_updates',)
 
 
 def write_json(path, value):
@@ -253,9 +255,27 @@ def capture_role(folder, name):
             raise ValueError(f'{name}: canonical recording changed')
 
 
+def transition_object(pairs):
+    """Reject ambiguous JSON, including contradictory duplicate counter names."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f'duplicate transition JSON key: {key}')
+        result[key] = value
+    return result
+
+
+def transition_facts(data):
+    fields = ('schema_version', *TABLES, *COUNTERS)
+    if data['schema_version'] == 2:
+        fields += (*V2_COUNTERS, *V2_SCALARS)
+    return {key: data[key] for key in fields}
+
+
 def read_transitions(path):
-    data = json.loads(Path(path).read_text())
-    if not isinstance(data, dict) or type(data.get('schema_version')) is not int or data['schema_version'] != 1:
+    data = json.loads(Path(path).read_text(), object_pairs_hook=transition_object)
+    if (not isinstance(data, dict) or type(data.get('schema_version')) is not int
+            or data['schema_version'] not in (1, 2)):
         raise ValueError(f'{path}: unsupported transition schema')
     for key in TABLES:
         rows = data.get(key)
@@ -281,7 +301,10 @@ def read_transitions(path):
             raise ValueError('empty transition domain or no reachable transitions')
         if pairs != {(a, b) for a in states for b in states}:
             raise ValueError('incomplete transition catalogue')
-    for key in COUNTERS:
+    if data['schema_version'] == 1 and any(key in data for key in (*V2_COUNTERS, *V2_SCALARS)):
+        raise ValueError('schema 1 cannot carry schema 2 coverage facts')
+    counters = COUNTERS + (V2_COUNTERS if data['schema_version'] == 2 else ())
+    for key in counters:
         values = data.get(key)
         if not isinstance(values, dict):
             raise ValueError(f'missing counters {key}')
@@ -293,8 +316,27 @@ def read_transitions(path):
                 match = re.fullmatch(r'(player|npc):(\d+)->(\d+)', name)
                 if not match or int(match[3]) <= int(match[2]):
                     raise ValueError('invalid life-incarnation change')
+            if key == 'class_transfer_commands' and not (
+                    name == 'applied_without_rejection' or re.fullmatch(r'rejected:[A-Za-z][A-Za-z0-9_]*', name)):
+                raise ValueError('invalid class-transfer command outcome')
+            if key in ('class_changes', 'class_transfer_effects'):
+                pattern = r'(0|[1-9][0-9]*)' if key == 'class_changes' else r'(0|[1-9][0-9]*)->(0|[1-9][0-9]*)'
+                match = re.fullmatch(pattern, name)
+                if not match or any(int(part) > 2**32 - 1 for part in match.groups()):
+                    raise ValueError('invalid class coverage ID or transfer pair')
         if key in ('deaths', 'respawns') and set(values) != {'player', 'npc'}:
             raise ValueError('missing player/NPC lifecycle counters')
+    if data['schema_version'] == 2:
+        allowed = {'schema_version', *TABLES, *COUNTERS, *V2_COUNTERS, *V2_SCALARS,
+                   'recording_source', 'recording_sha256', 'group_capture',
+                   'sources', 'source_provenance', 'summary'}
+        if set(data) - allowed:
+            raise ValueError('unknown schema 2 transition fields cannot be merged without losing facts')
+        for key in V2_SCALARS:
+            count(data.get(key))
+    if 'recording_sha256' in data and (not isinstance(data['recording_sha256'], str)
+            or not re.fullmatch(r'[0-9a-f]{64}', data['recording_sha256'])):
+        raise ValueError('invalid recording identity for transition coverage')
     return data
 
 
@@ -311,29 +353,40 @@ def transition_summary(data):
 
 
 def merge_transitions(paths, unique_recordings=False):
+    """Merge one producer schema at a time; legacy reports have unknown v2 facts.
+
+    Mixed versions fail explicitly instead of treating absent legacy observations as
+    zeros or labelling partial v2 counts complete. Re-export recordings with one tool
+    version to combine them. Without dedup, identical recordings in distinct logical
+    units still count separately, but their reported facts must always agree.
+    """
     if not paths:
         raise ValueError('no current-run transition coverage inputs')
     output = None
     sources, seen, provenance = [], {}, {}
     for path in paths:
         data = read_transitions(path)
+        if output is not None and output['schema_version'] != data['schema_version']:
+            raise ValueError('cannot merge transition schema 1 and 2: legacy v2 facts are unknown; '
+                             're-export coverage with one producer version')
         provenance[str(path)] = {key: data[key] for key in
                                 ('recording_source', 'recording_sha256', 'group_capture',
                                  'sources', 'source_provenance')
                                 if key in data}
-        if unique_recordings:
-            digest = data.get('recording_sha256')
-            if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
-                raise ValueError('missing recording identity for unit coverage')
-            facts = {key: data[key] for key in ('schema_version', *TABLES, *COUNTERS)}
+        digest = data.get('recording_sha256')
+        if unique_recordings and digest is None:
+            raise ValueError('missing recording identity for unit coverage')
+        facts = transition_facts(data)
+        if digest is not None:
             if digest in seen:
                 if seen[digest] != facts:
                     raise ValueError('identical recordings have contradictory coverage')
-                continue
+                if unique_recordings:
+                    continue
             seen[digest] = json.loads(json.dumps(facts))
         sources.append(str(path))
         if output is None:
-            output = {key: data[key] for key in ('schema_version', *TABLES, *COUNTERS)}
+            output = json.loads(json.dumps(facts))
             continue
         for key in TABLES:
             signature = lambda rows: {(r['from'], r['to']): r['reachable'] for r in rows}
@@ -342,9 +395,13 @@ def merge_transitions(paths, unique_recordings=False):
             amounts = {(r['from'], r['to']): r['count'] for r in data[key]}
             for row in output[key]:
                 row['count'] += amounts[(row['from'], row['to'])]
-        for key in COUNTERS:
+        counters = COUNTERS + (V2_COUNTERS if data['schema_version'] == 2 else ())
+        for key in counters:
             for name, amount in data[key].items():
                 output[key][name] = output[key].get(name, 0) + amount
+        if data['schema_version'] == 2:
+            for key in V2_SCALARS:
+                output[key] += data[key]
     output['sources'] = sources
     output['source_provenance'] = provenance
     output['summary'] = transition_summary(output)
