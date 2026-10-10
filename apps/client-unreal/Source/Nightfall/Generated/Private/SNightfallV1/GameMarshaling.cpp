@@ -643,6 +643,26 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCatalogEntry* in, FGrpcNightf
         out->DeferredReasons.Add(StringCast<TCHAR>((const UTF8CHAR*)(in->deferred_reasons(i).c_str())).Get());
     }
     out->L2Ref=StringCast<TCHAR>((const UTF8CHAR*)(in->l2_ref().c_str())).Get();
+    out->MpConsumeStart.Empty();
+    for (int i=0; i<in->mp_consume_start_size(); ++i) {
+        out->MpConsumeStart.Add(in->mp_consume_start(i));
+    }
+    out->MpConsumeEnd.Empty();
+    for (int i=0; i<in->mp_consume_end_size(); ++i) {
+        out->MpConsumeEnd.Add(in->mp_consume_end(i));
+    }
+    out->HpConsume.Empty();
+    for (int i=0; i<in->hp_consume_size(); ++i) {
+        out->HpConsume.Add(in->hp_consume(i));
+    }
+    out->ReuseMs.Empty();
+    for (int i=0; i<in->reuse_ms_size(); ++i) {
+        out->ReuseMs.Add(in->reuse_ms(i));
+    }
+    out->HitTimeMs.Empty();
+    for (int i=0; i<in->hit_time_ms_size(); ++i) {
+        out->HitTimeMs.Add(in->hit_time_ms(i));
+    }
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCatalogEntry* in, ::nightfall::v1::SkillCatalogEntry* out)
@@ -656,6 +676,21 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCatalogEntry* in, ::nightfall:
         out->add_deferred_reasons((const char*)StringCast<UTF8CHAR>(*(value)).Get());
     }
     out->set_l2_ref((const char*)StringCast<UTF8CHAR>(*(in->L2Ref)).Get());
+    for(const auto& value : in->MpConsumeStart) {
+        out->add_mp_consume_start(value);
+    }
+    for(const auto& value : in->MpConsumeEnd) {
+        out->add_mp_consume_end(value);
+    }
+    for(const auto& value : in->HpConsume) {
+        out->add_hp_consume(value);
+    }
+    for(const auto& value : in->ReuseMs) {
+        out->add_reuse_ms(value);
+    }
+    for(const auto& value : in->HitTimeMs) {
+        out->add_hit_time_ms(value);
+    }
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::GetSkillCatalogResponse* in, FGrpcNightfallV1GetSkillCatalogResponse* out)

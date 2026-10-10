@@ -720,6 +720,21 @@ struct FGrpcNightfallV1SkillCatalogEntry : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FString L2Ref = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> MpConsumeStart;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> MpConsumeEnd;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> HpConsume;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> ReuseMs;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> HitTimeMs;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.GetSkillCatalogResponse"))
