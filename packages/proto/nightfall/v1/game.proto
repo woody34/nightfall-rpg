@@ -70,7 +70,7 @@ service GameService {
   rpc LearnSkill(LearnSkillRequest) returns (LearnSkillResponse);
 
   // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
-  // Errors: UNAUTHENTICATED, INTERNAL.
+  // Errors: UNAUTHENTICATED, UNAVAILABLE (catalogue unavailable, including rollout stub), INTERNAL.
   rpc GetSkillCatalog(GetSkillCatalogRequest) returns (GetSkillCatalogResponse);
 }
 
