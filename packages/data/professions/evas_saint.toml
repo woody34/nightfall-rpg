@@ -15,6 +15,9 @@ base_class_id = 25
 subclass_allowed = false
 subclass_equivalents = []
 growth = "evas_saint"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "deferred"
+skill_tree = []
 
 [movement]
 walk = 85
@@ -39,3 +42,10 @@ men = 40
 [transfer]
 requires = [{ item = "class_transfer_token_3", count = 1 }]
 quest_hooks = []
+
+[[proficiencies]]
+key = "l2.skill.926"
+min_level = 76
+skill_id = 926
+skill_level = 1
+l2_ref = "Sigil Mastery"

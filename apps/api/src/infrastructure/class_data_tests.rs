@@ -78,8 +78,9 @@ fn snapshot_round_trip_keeps_exact_catalog_and_rejects_invalid_state() {
     let json = serde_json::to_string(&*loaded.registry).unwrap();
     let restored: ClassRegistry = serde_json::from_str(&json).unwrap();
     assert_eq!(restored, *loaded.registry);
-    let broken = json.replacen("\"min_level\":20", "\"min_level\":19", 1);
-    assert!(serde_json::from_str::<ClassRegistry>(&broken).is_err());
+    let mut broken = serde_json::to_value(&restored).unwrap();
+    broken["classes"][1]["min_level"] = 19.into();
+    assert!(serde_json::from_value::<ClassRegistry>(broken).is_err());
 }
 
 #[test]
@@ -215,4 +216,128 @@ fn mystic_movement_and_collision_preserve_source_differences() {
         .races()
         .iter()
         .all(|race| race.start_points == vec![[0, 0]]));
+}
+
+#[test]
+fn zero_and_negative_class_collision_are_rejected_at_load_and_restore() {
+    for raw in [0, -1] {
+        let mut source = ClassSource::embedded();
+        let text = source.0.get_mut("professions/human_fighter.toml").unwrap();
+        *text = text.replacen("radius_male = 9000000", &format!("radius_male = {raw}"), 1);
+        assert!(load_classes(&source).is_err());
+        let mut value = serde_json::to_value(&*load().registry).unwrap();
+        value["classes"][0]["collision"]["radius_male"] = raw.into();
+        assert!(serde_json::from_value::<ClassRegistry>(value).is_err());
+    }
+}
+
+#[test]
+fn nested_unknown_fields_are_rejected_in_catalogs_and_snapshots() {
+    let mut source = ClassSource::embedded();
+    let text = source.0.get_mut("professions/human_fighter.toml").unwrap();
+    *text = text.replacen("[base_stats]", "[base_stats]\nbase_stat_typo = 1", 1);
+    assert!(load_classes(&source).is_err());
+    let original = serde_json::to_value(&*load().registry).unwrap();
+    let mut value = original.clone();
+    value["classes"][0]["base_stats"]["typo"] = true.into();
+    assert!(serde_json::from_value::<ClassRegistry>(value).is_err());
+    let mut value = original.clone();
+    value["races"][0]["typo"] = true.into();
+    assert!(serde_json::from_value::<ClassRegistry>(value).is_err());
+    let mut value = original;
+    value["growth"]["human_fighter"][0]["typo"] = true.into();
+    assert!(serde_json::from_value::<ClassRegistry>(value).is_err());
+}
+
+#[test]
+fn full_source_learning_trees_are_populated_inherited_and_bounded() {
+    use crate::domain::class::{RuntimeSkillStatus, SkillTreeStatus};
+    let registry = load().registry;
+    let populated: Vec<_> = registry
+        .classes()
+        .iter()
+        .filter(|c| c.skill_tree_status == SkillTreeStatus::Populated)
+        .map(|c| c.id.0)
+        .collect();
+    assert_eq!(
+        populated,
+        vec![
+            0, 1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 22, 25, 26, 27, 29, 31, 32, 33,
+            35, 38, 39, 42, 44, 45, 46, 47, 49, 50, 52, 53, 54, 55, 56
+        ]
+    );
+    assert_eq!(
+        registry
+            .classes()
+            .iter()
+            .map(|c| c.skill_tree.len())
+            .sum::<usize>(),
+        6927
+    );
+    assert_eq!(
+        registry
+            .classes()
+            .iter()
+            .map(|c| c.proficiencies.len())
+            .sum::<usize>(),
+        3521
+    );
+    assert_eq!(registry.known_skills().len(), 378);
+    assert!(registry
+        .known_skills()
+        .iter()
+        .all(|s| s.runtime_status == RuntimeSkillStatus::Deferred));
+    let strike = registry
+        .get(ClassId(0))
+        .unwrap()
+        .skill_tree
+        .iter()
+        .find(|s| s.skill_id == 3 && s.skill_level == 1)
+        .unwrap();
+    assert_eq!(
+        (strike.required_level, strike.sp_cost, strike.auto_get, strike.learned_by_npc),
+        (5, 50, false, true)
+    );
+    assert!(registry
+        .skill_tree(ClassId(2))
+        .unwrap()
+        .iter()
+        .any(|s| s.skill_id == 1322 && s.skill_level == 1 && s.auto_get));
+    for class in registry.classes().iter().filter(|c| c.tier == 0) {
+        let gates: Vec<_> = class
+            .proficiencies
+            .iter()
+            .filter(|p| p.skill_id == 239)
+            .map(|p| (p.skill_level, p.min_level))
+            .collect();
+        assert_eq!(
+            gates,
+            vec![
+                (1, 20),
+                (2, 40),
+                (3, 52),
+                (4, 61),
+                (5, 76),
+                (6, 80),
+                (7, 84)
+            ]
+        );
+    }
+    let mut source = ClassSource::embedded();
+    let text = source.0.get_mut("professions/human_fighter.toml").unwrap();
+    *text = text.replacen("key = \"l2.skill.194\"", "key = \"l2.skill.999999\"", 1);
+    assert!(load_classes(&source).is_err());
+    let mut source = ClassSource::embedded();
+    let text = source.0.get_mut("professions/human_fighter.toml").unwrap();
+    *text = text.replacen("skill_level = 1", "skill_level = 999999", 1);
+    assert!(load_classes(&source).is_err());
+}
+
+#[test]
+fn unreferenced_growth_is_rejected_in_external_catalogs() {
+    let mut source = ClassSource::embedded();
+    source
+        .0
+        .insert("growth/obsolete.csv".to_owned(), source.0["growth/human_fighter.csv"].clone());
+    assert!(load_classes(&source).is_err());
 }

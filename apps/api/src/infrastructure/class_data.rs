@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 
 use super::exact_decimal::parse_decimal;
 use crate::domain::class::{
-    ClassDef, ClassId, ClassRegistry, GrowthRow, RaceCollision, RaceDef, RaceMovement, RaceTraits,
-    RegistryError,
+    ClassDef, ClassId, ClassRegistry, GrowthRow, KnownSkillDef, RaceCollision, RaceDef,
+    RaceMovement, RaceTraits, RegistryError,
 };
 use crate::domain::Race;
 
@@ -37,6 +37,14 @@ impl ClassSource {
     pub fn from_dir(dir: &Path) -> anyhow::Result<Self> {
         use anyhow::Context as _;
         let mut files = BTreeMap::new();
+        let path = dir.join("skill_catalog.toml");
+        if path.exists() {
+            files.insert(
+                "skill_catalog.toml".to_owned(),
+                std::fs::read_to_string(&path)
+                    .with_context(|| format!("read {}", path.display()))?,
+            );
+        }
         for (folder, extension) in [
             ("races", "toml"),
             ("professions", "toml"),
@@ -120,6 +128,13 @@ struct RaceFile {
     traits: RaceTraits,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SkillCatalogFile {
+    source: SourceRef,
+    skills: Vec<KnownSkillDef>,
+}
+
 /// Loads all files, rejects malformed decimals, then validates the complete catalog.
 pub fn load_classes(source: &ClassSource) -> Result<ResolvedClasses, ClassDataError> {
     let mut errors = Vec::new();
@@ -127,8 +142,18 @@ pub fn load_classes(source: &ClassSource) -> Result<ResolvedClasses, ClassDataEr
     let mut races = Vec::new();
     let mut growth = BTreeMap::new();
     let mut provenance = BTreeMap::new();
+    let mut known_skills = Vec::new();
     for (path, text) in &source.0 {
-        if path.starts_with("professions/")
+        if path == "skill_catalog.toml" {
+            match toml::from_str::<SkillCatalogFile>(text) {
+                Ok(file) => {
+                    check_source(path, &file.source, &mut errors);
+                    provenance.insert(path.clone(), file.source);
+                    known_skills = file.skills;
+                },
+                Err(e) => errors.push(format!("{path}: {e}")),
+            }
+        } else if path.starts_with("professions/")
             && Path::new(path).extension().is_some_and(|e| e == "toml")
         {
             match toml::from_str::<ProfessionFile>(text) {
@@ -180,12 +205,14 @@ pub fn load_classes(source: &ClassSource) -> Result<ResolvedClasses, ClassDataEr
     if !errors.is_empty() {
         return Err(ClassDataError(errors));
     }
-    let registry = ClassRegistry::new(classes, races, growth).map_err(|e| match e {
-        RegistryError::Invalid(errors) => ClassDataError(errors),
-        other @ (RegistryError::UnknownClass(_) | RegistryError::LevelOutOfRange(_)) => {
-            ClassDataError(vec![other.to_string()])
+    let registry = ClassRegistry::new_with_skills(classes, races, growth, known_skills).map_err(
+        |e| match e {
+            RegistryError::Invalid(errors) => ClassDataError(errors),
+            other @ (RegistryError::UnknownClass(_) | RegistryError::LevelOutOfRange(_)) => {
+                ClassDataError(vec![other.to_string()])
+            },
         },
-    })?;
+    )?;
     let bytes = serde_json::to_vec(&(&registry, &provenance))
         .map_err(|e| ClassDataError(vec![format!("canonical catalog encoding: {e}")]))?;
     Ok(ResolvedClasses {
@@ -202,9 +229,13 @@ pub fn load_classes_dir(dir: &Path) -> anyhow::Result<ResolvedClasses> {
 fn check_source(path: &str, source: &SourceRef, errors: &mut Vec<String>) {
     if source.repository != "https://bitbucket.org/l2jserver/l2j-server-datapack"
         || source.revision != "3ca488dd2bd0bfaca43e378886a3c2e37968153a"
-        || !source
-            .file
-            .starts_with("src/main/resources/data/stats/chars/")
+        || !(if path == "skill_catalog.toml" {
+            source.file == "src/main/resources/data/skillTrees/classSkillTree.xml"
+        } else {
+            source
+                .file
+                .starts_with("src/main/resources/data/stats/chars/")
+        })
         || source.symbol.is_empty()
     {
         errors.push(format!("{path}: invalid pinned High Five provenance"));

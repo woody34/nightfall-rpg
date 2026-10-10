@@ -15,6 +15,8 @@ base_class_id = 0
 subclass_allowed = true
 subclass_equivalents = [24, 37]
 growth = "hawkeye"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 80
@@ -39,3 +41,3249 @@ men = 25
 [transfer]
 requires = [{ item = "class_transfer_token_2", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 1
+required_level = 52
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8618", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 2
+required_level = 61
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8619", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 3
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8620", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 4
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8621", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 16
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 17
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 18
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 12
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 13
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 4
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 5
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 6
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 1
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 2
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 3
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 6
+required_level = 40
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 3
+required_level = 40
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.113"
+skill_id = 113
+l2_ref = "Long Shot"
+skill_level = 2
+required_level = 40
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.131"
+skill_id = 131
+l2_ref = "Hawk Eye"
+skill_level = 1
+required_level = 40
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.303"
+skill_id = 303
+l2_ref = "Soul of Sagittarius"
+skill_level = 1
+required_level = 40
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 19
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 20
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 21
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 14
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 15
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 16
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 7
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 8
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 9
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 4
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 5
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 6
+required_level = 43
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 7
+required_level = 43
+sp_cost = 58000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.225"
+skill_id = 225
+l2_ref = "Acrobatic Move"
+skill_level = 2
+required_level = 43
+sp_cost = 58000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 2
+required_level = 43
+sp_cost = 58000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.169"
+skill_id = 169
+l2_ref = "Quick Step"
+skill_level = 2
+required_level = 43
+sp_cost = 58000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 22
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 23
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 24
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 17
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 18
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 19
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 10
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 11
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 12
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 7
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 8
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 9
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 1
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 2
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 3
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 8
+required_level = 46
+sp_cost = 75000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 4
+required_level = 46
+sp_cost = 75000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 3
+required_level = 46
+sp_cost = 75000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 25
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 26
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 27
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 20
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 21
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 22
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 13
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 14
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 15
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 10
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 11
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 12
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 4
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 5
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 6
+required_level = 49
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 9
+required_level = 49
+sp_cost = 123000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 4
+required_level = 49
+sp_cost = 123000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.131"
+skill_id = 131
+l2_ref = "Hawk Eye"
+skill_level = 2
+required_level = 49
+sp_cost = 123000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 28
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 29
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 30
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 23
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 24
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 25
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 16
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 17
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 18
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 13
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 14
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 15
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 7
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 8
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 9
+required_level = 52
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 10
+required_level = 52
+sp_cost = 188000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 5
+required_level = 52
+sp_cost = 188000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 5
+required_level = 52
+sp_cost = 188000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 31
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 32
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 33
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 26
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 27
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 28
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 19
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 20
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 21
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 16
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 17
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 18
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 10
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 11
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 12
+required_level = 55
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 11
+required_level = 55
+sp_cost = 213000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.225"
+skill_id = 225
+l2_ref = "Acrobatic Move"
+skill_level = 3
+required_level = 55
+sp_cost = 213000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.99"
+skill_id = 99
+l2_ref = "Rapid Shot"
+skill_level = 2
+required_level = 55
+sp_cost = 213000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 34
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 35
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 36
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 29
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 30
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 31
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 22
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 23
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 24
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 19
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 20
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 21
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 13
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 14
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 15
+required_level = 58
+sp_cost = 74000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 12
+required_level = 58
+sp_cost = 223000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 6
+required_level = 58
+sp_cost = 223000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.131"
+skill_id = 131
+l2_ref = "Hawk Eye"
+skill_level = 3
+required_level = 58
+sp_cost = 223000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.303"
+skill_id = 303
+l2_ref = "Soul of Sagittarius"
+skill_level = 2
+required_level = 58
+sp_cost = 223000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.415"
+skill_id = 415
+l2_ref = "Spirit of Sagittarius"
+skill_level = 1
+required_level = 58
+sp_cost = 223000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.416"
+skill_id = 416
+l2_ref = "Blessing of Sagittarius"
+skill_level = 1
+required_level = 58
+sp_cost = 223000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.417"
+skill_id = 417
+l2_ref = "Pain of Sagittarius"
+skill_level = 1
+required_level = 58
+sp_cost = 223000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.418"
+skill_id = 418
+l2_ref = "Quiver of Holding"
+skill_level = 1
+required_level = 58
+sp_cost = 223000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 32
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 33
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 37
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 38
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 25
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 26
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 22
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 23
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 16
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 17
+required_level = 60
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 13
+required_level = 60
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.323"
+skill_id = 323
+l2_ref = "Quiver of Arrow: A Grade"
+skill_level = 1
+required_level = 60
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.313"
+skill_id = 313
+l2_ref = "Snipe"
+skill_level = 1
+required_level = 60
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 34
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 35
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 39
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 40
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 27
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 28
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 24
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 25
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 18
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 19
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 14
+required_level = 62
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 6
+required_level = 62
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.313"
+skill_id = 313
+l2_ref = "Snipe"
+skill_level = 2
+required_level = 62
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.417"
+skill_id = 417
+l2_ref = "Pain of Sagittarius"
+skill_level = 2
+required_level = 62
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 36
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 37
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 41
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 42
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 29
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 30
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 26
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 27
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 20
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 21
+required_level = 64
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.303"
+skill_id = 303
+l2_ref = "Soul of Sagittarius"
+skill_level = 3
+required_level = 64
+sp_cost = 530000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 15
+required_level = 64
+sp_cost = 530000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 7
+required_level = 64
+sp_cost = 530000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.313"
+skill_id = 313
+l2_ref = "Snipe"
+skill_level = 3
+required_level = 64
+sp_cost = 530000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 38
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 39
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 43
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 44
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 31
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 32
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 28
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 29
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 22
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 23
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 16
+required_level = 66
+sp_cost = 640000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.313"
+skill_id = 313
+l2_ref = "Snipe"
+skill_level = 4
+required_level = 66
+sp_cost = 640000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.415"
+skill_id = 415
+l2_ref = "Spirit of Sagittarius"
+skill_level = 2
+required_level = 66
+sp_cost = 640000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.416"
+skill_id = 416
+l2_ref = "Blessing of Sagittarius"
+skill_level = 2
+required_level = 66
+sp_cost = 640000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.417"
+skill_id = 417
+l2_ref = "Pain of Sagittarius"
+skill_level = 3
+required_level = 66
+sp_cost = 640000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.418"
+skill_id = 418
+l2_ref = "Quiver of Holding"
+skill_level = 2
+required_level = 66
+sp_cost = 640000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 40
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 41
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 45
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 46
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 33
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 34
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 30
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 31
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 24
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 25
+required_level = 68
+sp_cost = 490000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 17
+required_level = 68
+sp_cost = 980000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 7
+required_level = 68
+sp_cost = 980000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.313"
+skill_id = 313
+l2_ref = "Snipe"
+skill_level = 5
+required_level = 68
+sp_cost = 980000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 42
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 43
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 47
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 48
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 35
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 36
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 32
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 33
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 26
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 27
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 18
+required_level = 70
+sp_cost = 1030000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.303"
+skill_id = 303
+l2_ref = "Soul of Sagittarius"
+skill_level = 4
+required_level = 70
+sp_cost = 1030000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.313"
+skill_id = 313
+l2_ref = "Snipe"
+skill_level = 6
+required_level = 70
+sp_cost = 1030000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.417"
+skill_id = 417
+l2_ref = "Pain of Sagittarius"
+skill_level = 4
+required_level = 70
+sp_cost = 1030000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 44
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 45
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 49
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 50
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 37
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 38
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 34
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 35
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 28
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 29
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 19
+required_level = 72
+sp_cost = 1330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 8
+required_level = 72
+sp_cost = 1330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.313"
+skill_id = 313
+l2_ref = "Snipe"
+skill_level = 7
+required_level = 72
+sp_cost = 1330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.324"
+skill_id = 324
+l2_ref = "Quiver of Arrow: S Grade"
+skill_level = 1
+required_level = 72
+sp_cost = 1330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 46
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 47
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 51
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.208"
+skill_id = 208
+l2_ref = "Bow Mastery"
+skill_level = 52
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 39
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.101"
+skill_id = 101
+l2_ref = "Stun Shot"
+skill_level = 40
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 36
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.19"
+skill_id = 19
+l2_ref = "Double Shot"
+skill_level = 37
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 30
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.24"
+skill_id = 24
+l2_ref = "Burst Shot"
+skill_level = 31
+required_level = 74
+sp_cost = 930000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 20
+required_level = 74
+sp_cost = 1900000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 8
+required_level = 74
+sp_cost = 1900000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.313"
+skill_id = 313
+l2_ref = "Snipe"
+skill_level = 8
+required_level = 74
+sp_cost = 1900000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.415"
+skill_id = 415
+l2_ref = "Spirit of Sagittarius"
+skill_level = 3
+required_level = 74
+sp_cost = 1900000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.416"
+skill_id = 416
+l2_ref = "Blessing of Sagittarius"
+skill_level = 3
+required_level = 74
+sp_cost = 1900000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.417"
+skill_id = 417
+l2_ref = "Pain of Sagittarius"
+skill_level = 5
+required_level = 74
+sp_cost = 1900000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.418"
+skill_id = 418
+l2_ref = "Quiver of Holding"
+skill_level = 3
+required_level = 74
+sp_cost = 1900000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.933"
+skill_id = 933
+l2_ref = "Detection"
+skill_level = 1
+required_level = 74
+sp_cost = 1900000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 40
+skill_id = 208
+skill_level = 16
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 40
+skill_id = 208
+skill_level = 17
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 40
+skill_id = 208
+skill_level = 18
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 40
+skill_id = 233
+skill_level = 11
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 40
+skill_id = 233
+skill_level = 12
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 40
+skill_id = 233
+skill_level = 13
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 43
+skill_id = 208
+skill_level = 19
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 43
+skill_id = 208
+skill_level = 20
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 43
+skill_id = 208
+skill_level = 21
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 43
+skill_id = 233
+skill_level = 14
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 43
+skill_id = 233
+skill_level = 15
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 43
+skill_id = 233
+skill_level = 16
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 46
+skill_id = 208
+skill_level = 22
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 46
+skill_id = 208
+skill_level = 23
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 46
+skill_id = 208
+skill_level = 24
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 46
+skill_id = 233
+skill_level = 17
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 46
+skill_id = 233
+skill_level = 18
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 46
+skill_id = 233
+skill_level = 19
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 49
+skill_id = 208
+skill_level = 25
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 49
+skill_id = 208
+skill_level = 26
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 49
+skill_id = 208
+skill_level = 27
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 49
+skill_id = 233
+skill_level = 20
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 49
+skill_id = 233
+skill_level = 21
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 49
+skill_id = 233
+skill_level = 22
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 52
+skill_id = 208
+skill_level = 28
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 52
+skill_id = 208
+skill_level = 29
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 52
+skill_id = 208
+skill_level = 30
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 52
+skill_id = 233
+skill_level = 23
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 52
+skill_id = 233
+skill_level = 24
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 52
+skill_id = 233
+skill_level = 25
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 55
+skill_id = 208
+skill_level = 31
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 55
+skill_id = 208
+skill_level = 32
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 55
+skill_id = 208
+skill_level = 33
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 55
+skill_id = 233
+skill_level = 26
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 55
+skill_id = 233
+skill_level = 27
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 55
+skill_id = 233
+skill_level = 28
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 58
+skill_id = 208
+skill_level = 34
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 58
+skill_id = 208
+skill_level = 35
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 58
+skill_id = 208
+skill_level = 36
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 58
+skill_id = 233
+skill_level = 29
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 58
+skill_id = 233
+skill_level = 30
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 58
+skill_id = 233
+skill_level = 31
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 60
+skill_id = 233
+skill_level = 32
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 60
+skill_id = 233
+skill_level = 33
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 60
+skill_id = 208
+skill_level = 37
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 60
+skill_id = 208
+skill_level = 38
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 62
+skill_id = 233
+skill_level = 34
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 62
+skill_id = 233
+skill_level = 35
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 62
+skill_id = 208
+skill_level = 39
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 62
+skill_id = 208
+skill_level = 40
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 64
+skill_id = 233
+skill_level = 36
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 64
+skill_id = 233
+skill_level = 37
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 64
+skill_id = 208
+skill_level = 41
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 64
+skill_id = 208
+skill_level = 42
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 66
+skill_id = 233
+skill_level = 38
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 66
+skill_id = 233
+skill_level = 39
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 66
+skill_id = 208
+skill_level = 43
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 66
+skill_id = 208
+skill_level = 44
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 68
+skill_id = 233
+skill_level = 40
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 68
+skill_id = 233
+skill_level = 41
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 68
+skill_id = 208
+skill_level = 45
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 68
+skill_id = 208
+skill_level = 46
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 70
+skill_id = 233
+skill_level = 42
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 70
+skill_id = 233
+skill_level = 43
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 70
+skill_id = 208
+skill_level = 47
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 70
+skill_id = 208
+skill_level = 48
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 72
+skill_id = 233
+skill_level = 44
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 72
+skill_id = 233
+skill_level = 45
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 72
+skill_id = 208
+skill_level = 49
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 72
+skill_id = 208
+skill_level = 50
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 74
+skill_id = 233
+skill_level = 46
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 74
+skill_id = 233
+skill_level = 47
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 74
+skill_id = 208
+skill_level = 51
+l2_ref = "Bow Mastery"
+
+[[proficiencies]]
+key = "l2.skill.208"
+min_level = 74
+skill_id = 208
+skill_level = 52
+l2_ref = "Bow Mastery"

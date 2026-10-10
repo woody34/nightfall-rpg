@@ -15,6 +15,8 @@ base_class_id = 0
 subclass_allowed = true
 subclass_equivalents = [6, 20, 33]
 growth = "paladin"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 80
@@ -39,3 +41,5056 @@ men = 25
 [transfer]
 requires = [{ item = "class_transfer_token_2", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 1
+required_level = 52
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8618", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 2
+required_level = 61
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8619", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 3
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8620", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 4
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8621", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 9
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 16
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 17
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 18
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 15
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 16
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 17
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 16
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 17
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 18
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 13
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 14
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 15
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 1
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 2
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 3
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 1
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 2
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 3
+required_level = 40
+sp_cost = 10000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.82"
+skill_id = 82
+l2_ref = "Majesty"
+skill_level = 2
+required_level = 40
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.153"
+skill_id = 153
+l2_ref = "Shield Mastery"
+skill_level = 3
+required_level = 40
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.197"
+skill_id = 197
+l2_ref = "Divine Armor"
+skill_level = 1
+required_level = 40
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.44"
+skill_id = 44
+l2_ref = "Remedy"
+skill_level = 1
+required_level = 40
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.810"
+skill_id = 810
+l2_ref = "Vanguard"
+skill_level = 1
+required_level = 40
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 12
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 13
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 14
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 19
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 20
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 21
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 18
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 19
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 20
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 19
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 20
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 21
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 16
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 17
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 18
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 4
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 5
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 6
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 4
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 5
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 6
+required_level = 43
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.112"
+skill_id = 112
+l2_ref = "Deflect Arrow"
+skill_level = 3
+required_level = 43
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.191"
+skill_id = 191
+l2_ref = "Focus Mind"
+skill_level = 2
+required_level = 43
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.72"
+skill_id = 72
+l2_ref = "Iron Will"
+skill_level = 1
+required_level = 43
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.196"
+skill_id = 196
+l2_ref = "Divine Blade"
+skill_level = 1
+required_level = 43
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 15
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 16
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 17
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 22
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 23
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 24
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 21
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 22
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 23
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 22
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 23
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 24
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 19
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 20
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 21
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 7
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 8
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 9
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 7
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 8
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 9
+required_level = 46
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 1
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 2
+required_level = 46
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.110"
+skill_id = 110
+l2_ref = "Ultimate Defense"
+skill_level = 2
+required_level = 46
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.197"
+skill_id = 197
+l2_ref = "Divine Armor"
+skill_level = 2
+required_level = 46
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.318"
+skill_id = 318
+l2_ref = "Aegis Stance"
+skill_level = 1
+required_level = 46
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 18
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 19
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 20
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 25
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 26
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 27
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 24
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 25
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 26
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 25
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 26
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 27
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 22
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 23
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 24
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 10
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 11
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 12
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 10
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 11
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 12
+required_level = 49
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 3
+required_level = 49
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 4
+required_level = 49
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.112"
+skill_id = 112
+l2_ref = "Deflect Arrow"
+skill_level = 4
+required_level = 49
+sp_cost = 76000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.191"
+skill_id = 191
+l2_ref = "Focus Mind"
+skill_level = 3
+required_level = 49
+sp_cost = 76000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.72"
+skill_id = 72
+l2_ref = "Iron Will"
+skill_level = 2
+required_level = 49
+sp_cost = 76000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.44"
+skill_id = 44
+l2_ref = "Remedy"
+skill_level = 2
+required_level = 49
+sp_cost = 76000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 21
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 22
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 23
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 28
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 29
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 30
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 27
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 28
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 29
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 28
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 29
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 30
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 25
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 26
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 27
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 13
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 14
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 15
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 13
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 14
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 15
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 5
+required_level = 52
+sp_cost = 54000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 6
+required_level = 52
+sp_cost = 54000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 1
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 2
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 3
+required_level = 52
+sp_cost = 36000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 1
+required_level = 52
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 1
+required_level = 52
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.153"
+skill_id = 153
+l2_ref = "Shield Mastery"
+skill_level = 4
+required_level = 52
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.982"
+skill_id = 982
+l2_ref = "Combat Aura"
+skill_level = 1
+required_level = 52
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 24
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 25
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 26
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 31
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 32
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 33
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 30
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 31
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 32
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 31
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 32
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 33
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 28
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 29
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 30
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 16
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 17
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 18
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 16
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 17
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 18
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 7
+required_level = 55
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 8
+required_level = 55
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 4
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 5
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 6
+required_level = 55
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 2
+required_level = 55
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 2
+required_level = 55
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.191"
+skill_id = 191
+l2_ref = "Focus Mind"
+skill_level = 4
+required_level = 55
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.72"
+skill_id = 72
+l2_ref = "Iron Will"
+skill_level = 3
+required_level = 55
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 1
+required_level = 55
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 1
+required_level = 55
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 1
+required_level = 55
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 27
+required_level = 58
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 28
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 29
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 34
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 35
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 36
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 33
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 34
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 35
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 34
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 35
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 36
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 31
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 32
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 33
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 19
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 20
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 21
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 19
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 20
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 21
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 9
+required_level = 58
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 10
+required_level = 58
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 7
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 8
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 9
+required_level = 58
+sp_cost = 67000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 3
+required_level = 58
+sp_cost = 141000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 3
+required_level = 58
+sp_cost = 141000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.82"
+skill_id = 82
+l2_ref = "Majesty"
+skill_level = 3
+required_level = 58
+sp_cost = 141000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 2
+required_level = 58
+sp_cost = 141000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 2
+required_level = 58
+sp_cost = 141000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.404"
+skill_id = 404
+l2_ref = "Mass Shackling"
+skill_level = 1
+required_level = 58
+sp_cost = 141000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 2
+required_level = 58
+sp_cost = 141000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.406"
+skill_id = 406
+l2_ref = "Angelic Icon"
+skill_level = 1
+required_level = 58
+sp_cost = 141000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 30
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 31
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 37
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 38
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 36
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 37
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 37
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 38
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 34
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 35
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 22
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 23
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 22
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 23
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 11
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 12
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 10
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 11
+required_level = 60
+sp_cost = 85000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 4
+required_level = 60
+sp_cost = 171000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 4
+required_level = 60
+sp_cost = 171000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 3
+required_level = 60
+sp_cost = 171000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 3
+required_level = 60
+sp_cost = 171000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 3
+required_level = 60
+sp_cost = 171000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.916"
+skill_id = 916
+l2_ref = "Shield Deflect Magic"
+skill_level = 1
+required_level = 60
+sp_cost = 171000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.983"
+skill_id = 983
+l2_ref = "Patience"
+skill_level = 1
+required_level = 60
+sp_cost = 171000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 32
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 33
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 39
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 40
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 38
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 39
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 39
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 40
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 36
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 37
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 24
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 25
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 24
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 25
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 13
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 14
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 12
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 13
+required_level = 62
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 5
+required_level = 62
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 5
+required_level = 62
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.44"
+skill_id = 44
+l2_ref = "Remedy"
+skill_level = 3
+required_level = 62
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 4
+required_level = 62
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 4
+required_level = 62
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.404"
+skill_id = 404
+l2_ref = "Mass Shackling"
+skill_level = 2
+required_level = 62
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 4
+required_level = 62
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 34
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 35
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 41
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 42
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 40
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 41
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 41
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 42
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 38
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 39
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 26
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 27
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 26
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 27
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 15
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 16
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 14
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 15
+required_level = 64
+sp_cost = 130000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 6
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 6
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.191"
+skill_id = 191
+l2_ref = "Focus Mind"
+skill_level = 5
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.322"
+skill_id = 322
+l2_ref = "Shield Fortress"
+skill_level = 1
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 5
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 5
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 5
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.916"
+skill_id = 916
+l2_ref = "Shield Deflect Magic"
+skill_level = 2
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.982"
+skill_id = 982
+l2_ref = "Combat Aura"
+skill_level = 2
+required_level = 64
+sp_cost = 250000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 36
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 37
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 43
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 44
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 42
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 43
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 43
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 44
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 40
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 41
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 28
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 29
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 28
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 29
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 17
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 18
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 16
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 17
+required_level = 66
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 7
+required_level = 66
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 7
+required_level = 66
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.322"
+skill_id = 322
+l2_ref = "Shield Fortress"
+skill_level = 2
+required_level = 66
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 6
+required_level = 66
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 6
+required_level = 66
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.404"
+skill_id = 404
+l2_ref = "Mass Shackling"
+skill_level = 3
+required_level = 66
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 6
+required_level = 66
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.406"
+skill_id = 406
+l2_ref = "Angelic Icon"
+skill_level = 2
+required_level = 66
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 38
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 39
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 45
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 46
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 44
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 45
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 45
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 46
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 42
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 43
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 30
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 31
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 30
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 31
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 19
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 20
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 18
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 19
+required_level = 68
+sp_cost = 230000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 8
+required_level = 68
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 8
+required_level = 68
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.322"
+skill_id = 322
+l2_ref = "Shield Fortress"
+skill_level = 3
+required_level = 68
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 7
+required_level = 68
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 7
+required_level = 68
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 7
+required_level = 68
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.916"
+skill_id = 916
+l2_ref = "Shield Deflect Magic"
+skill_level = 3
+required_level = 68
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 40
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 41
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 47
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 48
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 46
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 47
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 47
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 48
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 44
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 45
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 32
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 33
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 32
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 33
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 21
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 22
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 20
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 21
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 9
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 9
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.322"
+skill_id = 322
+l2_ref = "Shield Fortress"
+skill_level = 4
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 8
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 8
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.404"
+skill_id = 404
+l2_ref = "Mass Shackling"
+skill_level = 4
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 8
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.982"
+skill_id = 982
+l2_ref = "Combat Aura"
+skill_level = 3
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 42
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 43
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 49
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 50
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 48
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 49
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 49
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 50
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 46
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 47
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 34
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 35
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 34
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 35
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 23
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 24
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 22
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 23
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 10
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 10
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.191"
+skill_id = 191
+l2_ref = "Focus Mind"
+skill_level = 6
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.322"
+skill_id = 322
+l2_ref = "Shield Fortress"
+skill_level = 5
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 9
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 9
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 9
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.916"
+skill_id = 916
+l2_ref = "Shield Deflect Magic"
+skill_level = 4
+required_level = 72
+sp_cost = 670000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 44
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 45
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 51
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 52
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 50
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 51
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 51
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.92"
+skill_id = 92
+l2_ref = "Shield Stun"
+skill_level = 52
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 48
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 49
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 36
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.262"
+skill_id = 262
+l2_ref = "Divine Blessing"
+skill_level = 37
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 36
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.18"
+skill_id = 18
+l2_ref = "Aura of Hate"
+skill_level = 37
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 25
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.49"
+skill_id = 49
+l2_ref = "Divine Strike"
+skill_level = 26
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 24
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.69"
+skill_id = 69
+l2_ref = "Sacrifice"
+skill_level = 25
+required_level = 74
+sp_cost = 720000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.97"
+skill_id = 97
+l2_ref = "Sanctuary"
+skill_level = 11
+required_level = 74
+sp_cost = 1400000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.291"
+skill_id = 291
+l2_ref = "Final Fortress"
+skill_level = 11
+required_level = 74
+sp_cost = 1400000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.322"
+skill_id = 322
+l2_ref = "Shield Fortress"
+skill_level = 6
+required_level = 74
+sp_cost = 1400000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.400"
+skill_id = 400
+l2_ref = "Tribunal"
+skill_level = 10
+required_level = 74
+sp_cost = 1400000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.403"
+skill_id = 403
+l2_ref = "Shackle"
+skill_level = 10
+required_level = 74
+sp_cost = 1400000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.404"
+skill_id = 404
+l2_ref = "Mass Shackling"
+skill_level = 5
+required_level = 74
+sp_cost = 1400000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.405"
+skill_id = 405
+l2_ref = "Banish Undead"
+skill_level = 10
+required_level = 74
+sp_cost = 1400000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.406"
+skill_id = 406
+l2_ref = "Angelic Icon"
+skill_level = 3
+required_level = 74
+sp_cost = 1400000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 40
+skill_id = 217
+skill_level = 9
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 40
+skill_id = 217
+skill_level = 10
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 40
+skill_id = 217
+skill_level = 11
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 40
+skill_id = 232
+skill_level = 16
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 40
+skill_id = 232
+skill_level = 17
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 40
+skill_id = 232
+skill_level = 18
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.153"
+min_level = 40
+skill_id = 153
+skill_level = 3
+l2_ref = "Shield Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 43
+skill_id = 217
+skill_level = 12
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 43
+skill_id = 217
+skill_level = 13
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 43
+skill_id = 217
+skill_level = 14
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 43
+skill_id = 232
+skill_level = 19
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 43
+skill_id = 232
+skill_level = 20
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 43
+skill_id = 232
+skill_level = 21
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 46
+skill_id = 217
+skill_level = 15
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 46
+skill_id = 217
+skill_level = 16
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 46
+skill_id = 217
+skill_level = 17
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 46
+skill_id = 232
+skill_level = 22
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 46
+skill_id = 232
+skill_level = 23
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 46
+skill_id = 232
+skill_level = 24
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 49
+skill_id = 217
+skill_level = 18
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 49
+skill_id = 217
+skill_level = 19
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 49
+skill_id = 217
+skill_level = 20
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 49
+skill_id = 232
+skill_level = 25
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 49
+skill_id = 232
+skill_level = 26
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 49
+skill_id = 232
+skill_level = 27
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 52
+skill_id = 217
+skill_level = 21
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 52
+skill_id = 217
+skill_level = 22
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 52
+skill_id = 217
+skill_level = 23
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 52
+skill_id = 232
+skill_level = 28
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 52
+skill_id = 232
+skill_level = 29
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 52
+skill_id = 232
+skill_level = 30
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.153"
+min_level = 52
+skill_id = 153
+skill_level = 4
+l2_ref = "Shield Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 55
+skill_id = 217
+skill_level = 24
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 55
+skill_id = 217
+skill_level = 25
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 55
+skill_id = 217
+skill_level = 26
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 55
+skill_id = 232
+skill_level = 31
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 55
+skill_id = 232
+skill_level = 32
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 55
+skill_id = 232
+skill_level = 33
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 58
+skill_id = 217
+skill_level = 27
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 58
+skill_id = 217
+skill_level = 28
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 58
+skill_id = 217
+skill_level = 29
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 58
+skill_id = 232
+skill_level = 34
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 58
+skill_id = 232
+skill_level = 35
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 58
+skill_id = 232
+skill_level = 36
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 60
+skill_id = 217
+skill_level = 30
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 60
+skill_id = 217
+skill_level = 31
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 60
+skill_id = 232
+skill_level = 37
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 60
+skill_id = 232
+skill_level = 38
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 62
+skill_id = 217
+skill_level = 32
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 62
+skill_id = 217
+skill_level = 33
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 62
+skill_id = 232
+skill_level = 39
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 62
+skill_id = 232
+skill_level = 40
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 64
+skill_id = 217
+skill_level = 34
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 64
+skill_id = 217
+skill_level = 35
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 64
+skill_id = 232
+skill_level = 41
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 64
+skill_id = 232
+skill_level = 42
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 66
+skill_id = 217
+skill_level = 36
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 66
+skill_id = 217
+skill_level = 37
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 66
+skill_id = 232
+skill_level = 43
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 66
+skill_id = 232
+skill_level = 44
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 68
+skill_id = 217
+skill_level = 38
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 68
+skill_id = 217
+skill_level = 39
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 68
+skill_id = 232
+skill_level = 45
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 68
+skill_id = 232
+skill_level = 46
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 70
+skill_id = 217
+skill_level = 40
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 70
+skill_id = 217
+skill_level = 41
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 70
+skill_id = 232
+skill_level = 47
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 70
+skill_id = 232
+skill_level = 48
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 72
+skill_id = 217
+skill_level = 42
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 72
+skill_id = 217
+skill_level = 43
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 72
+skill_id = 232
+skill_level = 49
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 72
+skill_id = 232
+skill_level = 50
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 74
+skill_id = 217
+skill_level = 44
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 74
+skill_id = 217
+skill_level = 45
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 74
+skill_id = 232
+skill_level = 51
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 74
+skill_id = 232
+skill_level = 52
+l2_ref = "Heavy Armor Mastery"

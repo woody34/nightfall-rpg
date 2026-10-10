@@ -15,6 +15,8 @@ base_class_id = 25
 subclass_allowed = false
 subclass_equivalents = []
 growth = "elven_wizard"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 85
@@ -39,3 +41,1373 @@ men = 40
 [transfer]
 requires = [{ item = "class_transfer_token_1", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 3
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 1
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 2
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 5
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 6
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 1
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 2
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 1
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.164"
+skill_id = 164
+l2_ref = "Quick Recycle"
+skill_level = 1
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1184"
+skill_id = 1184
+l2_ref = "Ice Bolt"
+skill_level = 5
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1184"
+skill_id = 1184
+l2_ref = "Ice Bolt"
+skill_level = 6
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1175"
+skill_id = 1175
+l2_ref = "Aqua Swirl"
+skill_level = 1
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1175"
+skill_id = 1175
+l2_ref = "Aqua Swirl"
+skill_level = 2
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1172"
+skill_id = 1172
+l2_ref = "Aura Burn"
+skill_level = 1
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1172"
+skill_id = 1172
+l2_ref = "Aura Burn"
+skill_level = 2
+required_level = 20
+sp_cost = 1500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 1
+required_level = 20
+sp_cost = 1000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 2
+required_level = 20
+sp_cost = 1000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 3
+required_level = 20
+sp_cost = 1000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 2
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1181"
+skill_id = 1181
+l2_ref = "Flame Strike"
+skill_level = 1
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1274"
+skill_id = 1274
+l2_ref = "Energy Bolt"
+skill_level = 1
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1226"
+skill_id = 1226
+l2_ref = "Summon Boxer the Unicorn"
+skill_level = 1
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1227"
+skill_id = 1227
+l2_ref = "Summon Mirage the Unicorn"
+skill_level = 1
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1078"
+skill_id = 1078
+l2_ref = "Concentration"
+skill_level = 1
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1206"
+skill_id = 1206
+l2_ref = "Wind Shackle"
+skill_level = 2
+required_level = 20
+sp_cost = 3100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 4
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 5
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 3
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 4
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 7
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 8
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 3
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 4
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.228"
+skill_id = 228
+l2_ref = "Fast Spell Casting"
+skill_level = 1
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 1
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1175"
+skill_id = 1175
+l2_ref = "Aqua Swirl"
+skill_level = 3
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1175"
+skill_id = 1175
+l2_ref = "Aqua Swirl"
+skill_level = 4
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1172"
+skill_id = 1172
+l2_ref = "Aura Burn"
+skill_level = 3
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1172"
+skill_id = 1172
+l2_ref = "Aura Burn"
+skill_level = 4
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 4
+required_level = 25
+sp_cost = 1900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 5
+required_level = 25
+sp_cost = 1900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 6
+required_level = 25
+sp_cost = 1900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1126"
+skill_id = 1126
+l2_ref = "Servitor Recharge"
+skill_level = 1
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1126"
+skill_id = 1126
+l2_ref = "Servitor Recharge"
+skill_level = 2
+required_level = 25
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 1
+required_level = 25
+sp_cost = 1900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 2
+required_level = 25
+sp_cost = 1900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 3
+required_level = 25
+sp_cost = 1900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 3
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1181"
+skill_id = 1181
+l2_ref = "Flame Strike"
+skill_level = 2
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1274"
+skill_id = 1274
+l2_ref = "Energy Bolt"
+skill_level = 2
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1264"
+skill_id = 1264
+l2_ref = "Solar Spark"
+skill_level = 1
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1226"
+skill_id = 1226
+l2_ref = "Summon Boxer the Unicorn"
+skill_level = 2
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1227"
+skill_id = 1227
+l2_ref = "Summon Mirage the Unicorn"
+skill_level = 2
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1182"
+skill_id = 1182
+l2_ref = "Resist Aqua"
+skill_level = 1
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1206"
+skill_id = 1206
+l2_ref = "Wind Shackle"
+skill_level = 3
+required_level = 25
+sp_cost = 5800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 6
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 7
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 5
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 6
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 9
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 10
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 5
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 6
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 2
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.164"
+skill_id = 164
+l2_ref = "Quick Recycle"
+skill_level = 2
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1175"
+skill_id = 1175
+l2_ref = "Aqua Swirl"
+skill_level = 5
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1175"
+skill_id = 1175
+l2_ref = "Aqua Swirl"
+skill_level = 6
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1172"
+skill_id = 1172
+l2_ref = "Aura Burn"
+skill_level = 5
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1172"
+skill_id = 1172
+l2_ref = "Aura Burn"
+skill_level = 6
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 7
+required_level = 30
+sp_cost = 3700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 8
+required_level = 30
+sp_cost = 3700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 9
+required_level = 30
+sp_cost = 3700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1126"
+skill_id = 1126
+l2_ref = "Servitor Recharge"
+skill_level = 3
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1126"
+skill_id = 1126
+l2_ref = "Servitor Recharge"
+skill_level = 4
+required_level = 30
+sp_cost = 5500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 4
+required_level = 30
+sp_cost = 3700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 5
+required_level = 30
+sp_cost = 3700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 6
+required_level = 30
+sp_cost = 3700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 4
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1181"
+skill_id = 1181
+l2_ref = "Flame Strike"
+skill_level = 3
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1274"
+skill_id = 1274
+l2_ref = "Energy Bolt"
+skill_level = 3
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1264"
+skill_id = 1264
+l2_ref = "Solar Spark"
+skill_level = 2
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1226"
+skill_id = 1226
+l2_ref = "Summon Boxer the Unicorn"
+skill_level = 3
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1227"
+skill_id = 1227
+l2_ref = "Summon Mirage the Unicorn"
+skill_level = 3
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1078"
+skill_id = 1078
+l2_ref = "Concentration"
+skill_level = 2
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1206"
+skill_id = 1206
+l2_ref = "Wind Shackle"
+skill_level = 4
+required_level = 30
+sp_cost = 11100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 8
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 9
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 7
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 8
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 11
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 12
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 7
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 8
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 1
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 2
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1175"
+skill_id = 1175
+l2_ref = "Aqua Swirl"
+skill_level = 7
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1175"
+skill_id = 1175
+l2_ref = "Aqua Swirl"
+skill_level = 8
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1172"
+skill_id = 1172
+l2_ref = "Aura Burn"
+skill_level = 7
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1172"
+skill_id = 1172
+l2_ref = "Aura Burn"
+skill_level = 8
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 10
+required_level = 35
+sp_cost = 6500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 11
+required_level = 35
+sp_cost = 6500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1127"
+skill_id = 1127
+l2_ref = "Servitor Heal"
+skill_level = 12
+required_level = 35
+sp_cost = 6500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1126"
+skill_id = 1126
+l2_ref = "Servitor Recharge"
+skill_level = 5
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1126"
+skill_id = 1126
+l2_ref = "Servitor Recharge"
+skill_level = 6
+required_level = 35
+sp_cost = 9700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 7
+required_level = 35
+sp_cost = 6500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 8
+required_level = 35
+sp_cost = 6500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 9
+required_level = 35
+sp_cost = 6500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 5
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1274"
+skill_id = 1274
+l2_ref = "Energy Bolt"
+skill_level = 4
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 1
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1264"
+skill_id = 1264
+l2_ref = "Solar Spark"
+skill_level = 3
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1226"
+skill_id = 1226
+l2_ref = "Summon Boxer the Unicorn"
+skill_level = 4
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1227"
+skill_id = 1227
+l2_ref = "Summon Mirage the Unicorn"
+skill_level = 4
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1145"
+skill_id = 1145
+l2_ref = "Bright Servitor"
+skill_level = 1
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1206"
+skill_id = 1206
+l2_ref = "Wind Shackle"
+skill_level = 5
+required_level = 35
+sp_cost = 19500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 20
+skill_id = 249
+skill_level = 3
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 20
+skill_id = 234
+skill_level = 1
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 20
+skill_id = 234
+skill_level = 2
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 25
+skill_id = 249
+skill_level = 4
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 25
+skill_id = 249
+skill_level = 5
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 25
+skill_id = 234
+skill_level = 3
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 25
+skill_id = 234
+skill_level = 4
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 30
+skill_id = 249
+skill_level = 6
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 30
+skill_id = 249
+skill_level = 7
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 30
+skill_id = 234
+skill_level = 5
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 30
+skill_id = 234
+skill_level = 6
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 35
+skill_id = 249
+skill_level = 8
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 35
+skill_id = 249
+skill_level = 9
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 35
+skill_id = 234
+skill_level = 7
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 35
+skill_id = 234
+skill_level = 8
+l2_ref = "Robe Mastery"

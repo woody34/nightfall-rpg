@@ -14,6 +14,8 @@ base_class_id = 49
 subclass_allowed = false
 subclass_equivalents = []
 growth = "orc_mystic"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 70
@@ -38,3 +40,697 @@ men = 42
 [transfer]
 requires = []
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.194"
+skill_id = 194
+l2_ref = "Lucky"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.134"
+skill_id = 134
+l2_ref = "Toughness"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.163"
+skill_id = 163
+l2_ref = "Spellcraft"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.118"
+skill_id = 118
+l2_ref = "Magician's Movement"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.214"
+skill_id = 214
+l2_ref = "Mana Recovery"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise D"
+skill_level = 1
+required_level = 20
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise C"
+skill_level = 2
+required_level = 40
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise B"
+skill_level = 3
+required_level = 52
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise A"
+skill_level = 4
+required_level = 61
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S"
+skill_level = 5
+required_level = 76
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S80"
+skill_level = 6
+required_level = 80
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S84"
+skill_level = 7
+required_level = 84
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1322"
+skill_id = 1322
+l2_ref = "Common Craft"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 1
+required_level = 5
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 2
+required_level = 20
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 3
+required_level = 28
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 4
+required_level = 36
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 5
+required_level = 43
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 6
+required_level = 49
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 7
+required_level = 55
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 8
+required_level = 62
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 9
+required_level = 70
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1001"
+skill_id = 1001
+l2_ref = "Soul Cry"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.250"
+skill_id = 250
+l2_ref = "Weapon Mastery"
+skill_level = 1
+required_level = 7
+sp_cost = 520
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.251"
+skill_id = 251
+l2_ref = "Robe Mastery"
+skill_level = 1
+required_level = 7
+sp_cost = 260
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.251"
+skill_id = 251
+l2_ref = "Robe Mastery"
+skill_level = 2
+required_level = 7
+sp_cost = 260
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.252"
+skill_id = 252
+l2_ref = "Light Armor Mastery"
+skill_level = 1
+required_level = 7
+sp_cost = 260
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.252"
+skill_id = 252
+l2_ref = "Light Armor Mastery"
+skill_level = 2
+required_level = 7
+sp_cost = 260
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 1
+required_level = 7
+sp_cost = 260
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 2
+required_level = 7
+sp_cost = 260
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1090"
+skill_id = 1090
+l2_ref = "Life Drain"
+skill_level = 1
+required_level = 7
+sp_cost = 520
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1097"
+skill_id = 1097
+l2_ref = "Dreaming Spirit"
+skill_level = 1
+required_level = 7
+sp_cost = 520
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1100"
+skill_id = 1100
+l2_ref = "Chill Flame"
+skill_level = 1
+required_level = 7
+sp_cost = 520
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1010"
+skill_id = 1010
+l2_ref = "Soul Shield"
+skill_level = 1
+required_level = 7
+sp_cost = 520
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1095"
+skill_id = 1095
+l2_ref = "Venom"
+skill_level = 1
+required_level = 7
+sp_cost = 520
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.250"
+skill_id = 250
+l2_ref = "Weapon Mastery"
+skill_level = 2
+required_level = 14
+sp_cost = 1800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.251"
+skill_id = 251
+l2_ref = "Robe Mastery"
+skill_level = 3
+required_level = 14
+sp_cost = 880
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.251"
+skill_id = 251
+l2_ref = "Robe Mastery"
+skill_level = 4
+required_level = 14
+sp_cost = 880
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.252"
+skill_id = 252
+l2_ref = "Light Armor Mastery"
+skill_level = 3
+required_level = 14
+sp_cost = 880
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.252"
+skill_id = 252
+l2_ref = "Light Armor Mastery"
+skill_level = 4
+required_level = 14
+sp_cost = 880
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.253"
+skill_id = 253
+l2_ref = "Heavy Armor Mastery"
+skill_level = 1
+required_level = 14
+sp_cost = 880
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.253"
+skill_id = 253
+l2_ref = "Heavy Armor Mastery"
+skill_level = 2
+required_level = 14
+sp_cost = 880
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 3
+required_level = 14
+sp_cost = 880
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 4
+required_level = 14
+sp_cost = 880
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1090"
+skill_id = 1090
+l2_ref = "Life Drain"
+skill_level = 2
+required_level = 14
+sp_cost = 1800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1097"
+skill_id = 1097
+l2_ref = "Dreaming Spirit"
+skill_level = 2
+required_level = 14
+sp_cost = 1800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1001"
+skill_id = 1001
+l2_ref = "Soul Cry"
+skill_level = 2
+required_level = 14
+sp_cost = 1800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1092"
+skill_id = 1092
+l2_ref = "Fear"
+skill_level = 1
+required_level = 14
+sp_cost = 1800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1100"
+skill_id = 1100
+l2_ref = "Chill Flame"
+skill_level = 2
+required_level = 14
+sp_cost = 1800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1007"
+skill_id = 1007
+l2_ref = "Chant of Battle"
+skill_level = 1
+required_level = 14
+sp_cost = 1800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1095"
+skill_id = 1095
+l2_ref = "Venom"
+skill_level = 2
+required_level = 14
+sp_cost = 1800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 20
+skill_id = 239
+skill_level = 1
+l2_ref = "Expertise D"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 40
+skill_id = 239
+skill_level = 2
+l2_ref = "Expertise C"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 52
+skill_id = 239
+skill_level = 3
+l2_ref = "Expertise B"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 61
+skill_id = 239
+skill_level = 4
+l2_ref = "Expertise A"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 76
+skill_id = 239
+skill_level = 5
+l2_ref = "Expertise S"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 80
+skill_id = 239
+skill_level = 6
+l2_ref = "Expertise S80"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 84
+skill_id = 239
+skill_level = 7
+l2_ref = "Expertise S84"
+
+[[proficiencies]]
+key = "l2.skill.250"
+min_level = 7
+skill_id = 250
+skill_level = 1
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.251"
+min_level = 7
+skill_id = 251
+skill_level = 1
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.251"
+min_level = 7
+skill_id = 251
+skill_level = 2
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.252"
+min_level = 7
+skill_id = 252
+skill_level = 1
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.252"
+min_level = 7
+skill_id = 252
+skill_level = 2
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.250"
+min_level = 14
+skill_id = 250
+skill_level = 2
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.251"
+min_level = 14
+skill_id = 251
+skill_level = 3
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.251"
+min_level = 14
+skill_id = 251
+skill_level = 4
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.252"
+min_level = 14
+skill_id = 252
+skill_level = 3
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.252"
+min_level = 14
+skill_id = 252
+skill_level = 4
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.253"
+min_level = 14
+skill_id = 253
+skill_level = 1
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.253"
+min_level = 14
+skill_id = 253
+skill_level = 2
+l2_ref = "Heavy Armor Mastery"

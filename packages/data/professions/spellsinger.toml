@@ -15,6 +15,8 @@ base_class_id = 25
 subclass_allowed = true
 subclass_equivalents = [12, 40]
 growth = "spellsinger"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 85
@@ -39,3 +41,5151 @@ men = 40
 [transfer]
 requires = [{ item = "class_transfer_token_2", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 1
+required_level = 52
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8618", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 2
+required_level = 61
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8619", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 3
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8620", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 4
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8621", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 12
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 9
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 13
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 14
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 15
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 9
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 10
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 3
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.228"
+skill_id = 228
+l2_ref = "Fast Spell Casting"
+skill_level = 2
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 1
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 1
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 2
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 10
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 11
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 12
+required_level = 40
+sp_cost = 9000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 1
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 2
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 1
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 2
+required_level = 40
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 6
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 2
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 1
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 1
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 1
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1182"
+skill_id = 1182
+l2_ref = "Resist Aqua"
+skill_level = 2
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1238"
+skill_id = 1238
+l2_ref = "Freezing Skin"
+skill_level = 1
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1047"
+skill_id = 1047
+l2_ref = "Mana Regeneration"
+skill_level = 1
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 1
+required_level = 40
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 13
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 14
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 15
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 12
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 13
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 14
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 16
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 17
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 18
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 11
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 12
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 2
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 3
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 3
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 4
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 13
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 14
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 15
+required_level = 44
+sp_cost = 12000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 3
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 4
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 3
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 4
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 1
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 2
+required_level = 44
+sp_cost = 18000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 7
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 3
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 2
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 2
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 2
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1182"
+skill_id = 1182
+l2_ref = "Resist Aqua"
+skill_level = 3
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 1
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1183"
+skill_id = 1183
+l2_ref = "Freezing Shackle"
+skill_level = 1
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 2
+required_level = 44
+sp_cost = 35000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 16
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 17
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 18
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 15
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 16
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 17
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 19
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 20
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 21
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 13
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 14
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 4
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.164"
+skill_id = 164
+l2_ref = "Quick Recycle"
+skill_level = 3
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 2
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 5
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 6
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 16
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 17
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 18
+required_level = 48
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 5
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 6
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 5
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 6
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 3
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 4
+required_level = 48
+sp_cost = 29000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 8
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 4
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 3
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 3
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 3
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 1
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1238"
+skill_id = 1238
+l2_ref = "Freezing Skin"
+skill_level = 2
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1047"
+skill_id = 1047
+l2_ref = "Mana Regeneration"
+skill_level = 2
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 3
+required_level = 48
+sp_cost = 57000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 19
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 20
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 21
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 18
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 19
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 20
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 22
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 23
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 24
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 15
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 16
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 3
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 4
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 7
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 8
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 19
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 20
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 21
+required_level = 52
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 7
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 8
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 7
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 8
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 1
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 2
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 5
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 6
+required_level = 52
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 9
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 5
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 4
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 4
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 4
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 2
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1183"
+skill_id = 1183
+l2_ref = "Freezing Shackle"
+skill_level = 2
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 4
+required_level = 52
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 22
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 23
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 24
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 21
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 22
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 23
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 25
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 26
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 27
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 17
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 18
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 5
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.228"
+skill_id = 228
+l2_ref = "Fast Spell Casting"
+skill_level = 3
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 3
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 9
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 10
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 22
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 23
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 24
+required_level = 56
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 9
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 10
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 9
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 10
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 3
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 4
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 7
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 8
+required_level = 56
+sp_cost = 45000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 10
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 6
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 5
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 5
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 5
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 3
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1238"
+skill_id = 1238
+l2_ref = "Freezing Skin"
+skill_level = 3
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 2
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 5
+required_level = 56
+sp_cost = 91000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 25
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 26
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 24
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 25
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 28
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 29
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 19
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 4
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 11
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 12
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 25
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 26
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 11
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 12
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 11
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 5
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 6
+required_level = 58
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 9
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 11
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 7
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 6
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 6
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 6
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 4
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 1
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 6
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 1
+required_level = 58
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 27
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 28
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 26
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 27
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 30
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 31
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 20
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 6
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 5
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 13
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 14
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 27
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 28
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 13
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 14
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 12
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 7
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 8
+required_level = 60
+sp_cost = 71000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 10
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 12
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 8
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 7
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 7
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 7
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 5
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1047"
+skill_id = 1047
+l2_ref = "Mana Regeneration"
+skill_level = 3
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 2
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 7
+required_level = 60
+sp_cost = 143000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 29
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 30
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 28
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 29
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 32
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 33
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 21
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 4
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 15
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 16
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 29
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 30
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 15
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 16
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 13
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 9
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 10
+required_level = 62
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 11
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 13
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 9
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 8
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 8
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 8
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 6
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 3
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 3
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 8
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 2
+required_level = 62
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 31
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 32
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 30
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 31
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 34
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 35
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 22
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 5
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 17
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 18
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 31
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 32
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 17
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 18
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 14
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 11
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 12
+required_level = 64
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 12
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 14
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 10
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 9
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 9
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 9
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 7
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1183"
+skill_id = 1183
+l2_ref = "Freezing Shackle"
+skill_level = 3
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 4
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 9
+required_level = 64
+sp_cost = 240000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 33
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 34
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 32
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 33
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 36
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 37
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 23
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 7
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 19
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 20
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 33
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 34
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 19
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 20
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 15
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 13
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 14
+required_level = 66
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 13
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 15
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 11
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 10
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 10
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 10
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 8
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1286"
+skill_id = 1286
+l2_ref = "Seed of Water"
+skill_level = 1
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 4
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 5
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 10
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 3
+required_level = 66
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 35
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 36
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 34
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 35
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 38
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 39
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 24
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 6
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 5
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 21
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 22
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 35
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 36
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 21
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 22
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 16
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 15
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 16
+required_level = 68
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 14
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 16
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 12
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 11
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 11
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 11
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 9
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1288"
+skill_id = 1288
+l2_ref = "Aura Symphony"
+skill_level = 1
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 6
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 11
+required_level = 68
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 37
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 38
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 36
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 37
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 40
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 41
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 25
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 23
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 24
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 37
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 38
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 23
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 24
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 17
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 17
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 18
+required_level = 70
+sp_cost = 210000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 15
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 17
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 13
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 12
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 12
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 12
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 10
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1290"
+skill_id = 1290
+l2_ref = "Blizzard"
+skill_level = 1
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 5
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1047"
+skill_id = 1047
+l2_ref = "Mana Regeneration"
+skill_level = 4
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 7
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 12
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 4
+required_level = 70
+sp_cost = 430000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 39
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 40
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 38
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 39
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 42
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 43
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 26
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 8
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 25
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 26
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 39
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 40
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 25
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 26
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 18
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 19
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 20
+required_level = 72
+sp_cost = 380000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 16
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 18
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 14
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 13
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 13
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 13
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 11
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1293"
+skill_id = 1293
+l2_ref = "Elemental Symphony"
+skill_level = 1
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 8
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 13
+required_level = 72
+sp_cost = 750000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 41
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 42
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 40
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 41
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 44
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 45
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 27
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 6
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 7
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 6
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 27
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 28
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 41
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 42
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 27
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1235"
+skill_id = 1235
+l2_ref = "Hydro Blast"
+skill_level = 28
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1236"
+skill_id = 1236
+l2_ref = "Frost Bolt"
+skill_level = 19
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 21
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1174"
+skill_id = 1174
+l2_ref = "Frost Wall"
+skill_level = 22
+required_level = 74
+sp_cost = 500000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1237"
+skill_id = 1237
+l2_ref = "Ice Dagger"
+skill_level = 17
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 19
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1223"
+skill_id = 1223
+l2_ref = "Surrender To Earth"
+skill_level = 15
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1071"
+skill_id = 1071
+l2_ref = "Surrender To Water"
+skill_level = 14
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 14
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1265"
+skill_id = 1265
+l2_ref = "Solar Flare"
+skill_level = 14
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 12
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1183"
+skill_id = 1183
+l2_ref = "Freezing Shackle"
+skill_level = 4
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1295"
+skill_id = 1295
+l2_ref = "Aqua Splash"
+skill_level = 9
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 14
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 5
+required_level = 74
+sp_cost = 1000000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 10
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 11
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 12
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 9
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 10
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 11
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 13
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 14
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 15
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 12
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 13
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 14
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 16
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 17
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 18
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 15
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 16
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 17
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 19
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 20
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 21
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 18
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 19
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 20
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 22
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 23
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 24
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 21
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 22
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 23
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 58
+skill_id = 249
+skill_level = 25
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 58
+skill_id = 249
+skill_level = 26
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 58
+skill_id = 234
+skill_level = 24
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 58
+skill_id = 234
+skill_level = 25
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 60
+skill_id = 249
+skill_level = 27
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 60
+skill_id = 249
+skill_level = 28
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 60
+skill_id = 234
+skill_level = 26
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 60
+skill_id = 234
+skill_level = 27
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 62
+skill_id = 249
+skill_level = 29
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 62
+skill_id = 249
+skill_level = 30
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 62
+skill_id = 234
+skill_level = 28
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 62
+skill_id = 234
+skill_level = 29
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 64
+skill_id = 249
+skill_level = 31
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 64
+skill_id = 249
+skill_level = 32
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 64
+skill_id = 234
+skill_level = 30
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 64
+skill_id = 234
+skill_level = 31
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 66
+skill_id = 249
+skill_level = 33
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 66
+skill_id = 249
+skill_level = 34
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 66
+skill_id = 234
+skill_level = 32
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 66
+skill_id = 234
+skill_level = 33
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 68
+skill_id = 249
+skill_level = 35
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 68
+skill_id = 249
+skill_level = 36
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 68
+skill_id = 234
+skill_level = 34
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 68
+skill_id = 234
+skill_level = 35
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 70
+skill_id = 249
+skill_level = 37
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 70
+skill_id = 249
+skill_level = 38
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 70
+skill_id = 234
+skill_level = 36
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 70
+skill_id = 234
+skill_level = 37
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 72
+skill_id = 249
+skill_level = 39
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 72
+skill_id = 249
+skill_level = 40
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 72
+skill_id = 234
+skill_level = 38
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 72
+skill_id = 234
+skill_level = 39
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 74
+skill_id = 249
+skill_level = 41
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 74
+skill_id = 249
+skill_level = 42
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 74
+skill_id = 234
+skill_level = 40
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 74
+skill_id = 234
+skill_level = 41
+l2_ref = "Robe Mastery"

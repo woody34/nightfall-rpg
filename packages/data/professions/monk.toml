@@ -15,6 +15,8 @@ base_class_id = 44
 subclass_allowed = false
 subclass_equivalents = []
 growth = "monk"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 70
@@ -39,3 +41,943 @@ men = 27
 [transfer]
 requires = [{ item = "class_transfer_token_1", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.210"
+skill_id = 210
+l2_ref = "Fist Weapon Mastery"
+skill_level = 1
+required_level = 20
+sp_cost = 5300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 1
+required_level = 20
+sp_cost = 2600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 2
+required_level = 20
+sp_cost = 2600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 10
+required_level = 20
+sp_cost = 2600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 11
+required_level = 20
+sp_cost = 2600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 12
+required_level = 20
+sp_cost = 2600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 1
+required_level = 20
+sp_cost = 2600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 2
+required_level = 20
+sp_cost = 2600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 3
+required_level = 20
+sp_cost = 2600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.95"
+skill_id = 95
+l2_ref = "Cripple"
+skill_level = 1
+required_level = 20
+sp_cost = 5300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.83"
+skill_id = 83
+l2_ref = "Wolf Spirit Totem"
+skill_level = 1
+required_level = 20
+sp_cost = 5300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.319"
+skill_id = 319
+l2_ref = "Agile Movement"
+skill_level = 1
+required_level = 20
+sp_cost = 5300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.210"
+skill_id = 210
+l2_ref = "Fist Weapon Mastery"
+skill_level = 2
+required_level = 24
+sp_cost = 8800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 3
+required_level = 24
+sp_cost = 4300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 4
+required_level = 24
+sp_cost = 4300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 13
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 14
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 15
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 4
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 5
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 6
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 1
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 2
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 3
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.95"
+skill_id = 95
+l2_ref = "Cripple"
+skill_level = 2
+required_level = 24
+sp_cost = 8800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.50"
+skill_id = 50
+l2_ref = "Focused Force"
+skill_level = 1
+required_level = 24
+sp_cost = 8800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.210"
+skill_id = 210
+l2_ref = "Fist Weapon Mastery"
+skill_level = 3
+required_level = 28
+sp_cost = 8600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.210"
+skill_id = 210
+l2_ref = "Fist Weapon Mastery"
+skill_level = 4
+required_level = 28
+sp_cost = 8600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 5
+required_level = 28
+sp_cost = 8600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 6
+required_level = 28
+sp_cost = 8600
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 16
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 17
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 18
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 7
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 8
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 9
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 4
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 5
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 6
+required_level = 28
+sp_cost = 5700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.95"
+skill_id = 95
+l2_ref = "Cripple"
+skill_level = 3
+required_level = 28
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.76"
+skill_id = 76
+l2_ref = "Bear Spirit Totem"
+skill_level = 1
+required_level = 28
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.210"
+skill_id = 210
+l2_ref = "Fist Weapon Mastery"
+skill_level = 5
+required_level = 32
+sp_cost = 12500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.210"
+skill_id = 210
+l2_ref = "Fist Weapon Mastery"
+skill_level = 6
+required_level = 32
+sp_cost = 12500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 7
+required_level = 32
+sp_cost = 12500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 8
+required_level = 32
+sp_cost = 12500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 19
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 20
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 21
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 10
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 11
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 12
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 7
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 8
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 9
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.95"
+skill_id = 95
+l2_ref = "Cripple"
+skill_level = 4
+required_level = 32
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.50"
+skill_id = 50
+l2_ref = "Focused Force"
+skill_level = 2
+required_level = 32
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.210"
+skill_id = 210
+l2_ref = "Fist Weapon Mastery"
+skill_level = 7
+required_level = 36
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.210"
+skill_id = 210
+l2_ref = "Fist Weapon Mastery"
+skill_level = 8
+required_level = 36
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 9
+required_level = 36
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 10
+required_level = 36
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 22
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 23
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.29"
+skill_id = 29
+l2_ref = "Iron Punch"
+skill_level = 24
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 13
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 14
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.120"
+skill_id = 120
+l2_ref = "Stunning Fist"
+skill_level = 15
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 10
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 11
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.54"
+skill_id = 54
+l2_ref = "Force Blaster"
+skill_level = 12
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.284"
+skill_id = 284
+l2_ref = "Hurricane Assault"
+skill_level = 1
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.284"
+skill_id = 284
+l2_ref = "Hurricane Assault"
+skill_level = 2
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.284"
+skill_id = 284
+l2_ref = "Hurricane Assault"
+skill_level = 3
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.95"
+skill_id = 95
+l2_ref = "Cripple"
+skill_level = 5
+required_level = 36
+sp_cost = 39000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.168"
+skill_id = 168
+l2_ref = "Boost Attack Speed"
+skill_level = 1
+required_level = 36
+sp_cost = 39000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.210"
+min_level = 20
+skill_id = 210
+skill_level = 1
+l2_ref = "Fist Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 20
+skill_id = 233
+skill_level = 1
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 20
+skill_id = 233
+skill_level = 2
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.210"
+min_level = 24
+skill_id = 210
+skill_level = 2
+l2_ref = "Fist Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 24
+skill_id = 233
+skill_level = 3
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 24
+skill_id = 233
+skill_level = 4
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.210"
+min_level = 28
+skill_id = 210
+skill_level = 3
+l2_ref = "Fist Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.210"
+min_level = 28
+skill_id = 210
+skill_level = 4
+l2_ref = "Fist Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 28
+skill_id = 233
+skill_level = 5
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 28
+skill_id = 233
+skill_level = 6
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.210"
+min_level = 32
+skill_id = 210
+skill_level = 5
+l2_ref = "Fist Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.210"
+min_level = 32
+skill_id = 210
+skill_level = 6
+l2_ref = "Fist Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 32
+skill_id = 233
+skill_level = 7
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 32
+skill_id = 233
+skill_level = 8
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.210"
+min_level = 36
+skill_id = 210
+skill_level = 7
+l2_ref = "Fist Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.210"
+min_level = 36
+skill_id = 210
+skill_level = 8
+l2_ref = "Fist Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 36
+skill_id = 233
+skill_level = 9
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 36
+skill_id = 233
+skill_level = 10
+l2_ref = "Light Armor Mastery"

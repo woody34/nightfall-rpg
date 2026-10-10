@@ -14,6 +14,8 @@ base_class_id = 10
 subclass_allowed = false
 subclass_equivalents = []
 growth = "human_mystic"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 78
@@ -38,3 +40,736 @@ men = 39
 [transfer]
 requires = []
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.194"
+skill_id = 194
+l2_ref = "Lucky"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.163"
+skill_id = 163
+l2_ref = "Spellcraft"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.118"
+skill_id = 118
+l2_ref = "Magician's Movement"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1322"
+skill_id = 1322
+l2_ref = "Common Craft"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.214"
+skill_id = 214
+l2_ref = "Mana Recovery"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1177"
+skill_id = 1177
+l2_ref = "Wind Strike"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1216"
+skill_id = 1216
+l2_ref = "Self Heal"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise D"
+skill_level = 1
+required_level = 20
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise C"
+skill_level = 2
+required_level = 40
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise B"
+skill_level = 3
+required_level = 52
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise A"
+skill_level = 4
+required_level = 61
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S"
+skill_level = 5
+required_level = 76
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S80"
+skill_level = 6
+required_level = 80
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S84"
+skill_level = 7
+required_level = 84
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 1
+required_level = 5
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 2
+required_level = 20
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 3
+required_level = 28
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 4
+required_level = 36
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 5
+required_level = 43
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 6
+required_level = 49
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 7
+required_level = 55
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 8
+required_level = 62
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 9
+required_level = 70
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 1
+required_level = 7
+sp_cost = 470
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.244"
+skill_id = 244
+l2_ref = "Armor Mastery"
+skill_level = 1
+required_level = 7
+sp_cost = 470
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 1
+required_level = 7
+sp_cost = 240
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 2
+required_level = 7
+sp_cost = 240
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1177"
+skill_id = 1177
+l2_ref = "Wind Strike"
+skill_level = 2
+required_level = 7
+sp_cost = 240
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1177"
+skill_id = 1177
+l2_ref = "Wind Strike"
+skill_level = 3
+required_level = 7
+sp_cost = 240
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1184"
+skill_id = 1184
+l2_ref = "Ice Bolt"
+skill_level = 1
+required_level = 7
+sp_cost = 240
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1184"
+skill_id = 1184
+l2_ref = "Ice Bolt"
+skill_level = 2
+required_level = 7
+sp_cost = 240
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1011"
+skill_id = 1011
+l2_ref = "Heal"
+skill_level = 1
+required_level = 7
+sp_cost = 160
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1011"
+skill_id = 1011
+l2_ref = "Heal"
+skill_level = 2
+required_level = 7
+sp_cost = 160
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1011"
+skill_id = 1011
+l2_ref = "Heal"
+skill_level = 3
+required_level = 7
+sp_cost = 160
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1068"
+skill_id = 1068
+l2_ref = "Might"
+skill_level = 1
+required_level = 7
+sp_cost = 470
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1040"
+skill_id = 1040
+l2_ref = "Shield"
+skill_level = 1
+required_level = 7
+sp_cost = 470
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1012"
+skill_id = 1012
+l2_ref = "Cure Poison"
+skill_level = 1
+required_level = 7
+sp_cost = 470
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1168"
+skill_id = 1168
+l2_ref = "Curse Poison"
+skill_level = 1
+required_level = 7
+sp_cost = 470
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 2
+required_level = 14
+sp_cost = 2100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.244"
+skill_id = 244
+l2_ref = "Armor Mastery"
+skill_level = 2
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.244"
+skill_id = 244
+l2_ref = "Armor Mastery"
+skill_level = 3
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 3
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 4
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1177"
+skill_id = 1177
+l2_ref = "Wind Strike"
+skill_level = 4
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1177"
+skill_id = 1177
+l2_ref = "Wind Strike"
+skill_level = 5
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1184"
+skill_id = 1184
+l2_ref = "Ice Bolt"
+skill_level = 3
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1184"
+skill_id = 1184
+l2_ref = "Ice Bolt"
+skill_level = 4
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1011"
+skill_id = 1011
+l2_ref = "Heal"
+skill_level = 4
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1011"
+skill_id = 1011
+l2_ref = "Heal"
+skill_level = 5
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1011"
+skill_id = 1011
+l2_ref = "Heal"
+skill_level = 6
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1147"
+skill_id = 1147
+l2_ref = "Vampiric Touch"
+skill_level = 1
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1147"
+skill_id = 1147
+l2_ref = "Vampiric Touch"
+skill_level = 2
+required_level = 14
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1015"
+skill_id = 1015
+l2_ref = "Battle Heal"
+skill_level = 1
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1015"
+skill_id = 1015
+l2_ref = "Battle Heal"
+skill_level = 2
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1015"
+skill_id = 1015
+l2_ref = "Battle Heal"
+skill_level = 3
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1027"
+skill_id = 1027
+l2_ref = "Group Heal"
+skill_level = 1
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1027"
+skill_id = 1027
+l2_ref = "Group Heal"
+skill_level = 2
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1027"
+skill_id = 1027
+l2_ref = "Group Heal"
+skill_level = 3
+required_level = 14
+sp_cost = 700
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1164"
+skill_id = 1164
+l2_ref = "Curse Weakness"
+skill_level = 1
+required_level = 14
+sp_cost = 2100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 20
+skill_id = 239
+skill_level = 1
+l2_ref = "Expertise D"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 40
+skill_id = 239
+skill_level = 2
+l2_ref = "Expertise C"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 52
+skill_id = 239
+skill_level = 3
+l2_ref = "Expertise B"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 61
+skill_id = 239
+skill_level = 4
+l2_ref = "Expertise A"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 76
+skill_id = 239
+skill_level = 5
+l2_ref = "Expertise S"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 80
+skill_id = 239
+skill_level = 6
+l2_ref = "Expertise S80"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 84
+skill_id = 239
+skill_level = 7
+l2_ref = "Expertise S84"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 7
+skill_id = 249
+skill_level = 1
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.244"
+min_level = 7
+skill_id = 244
+skill_level = 1
+l2_ref = "Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 14
+skill_id = 249
+skill_level = 2
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.244"
+min_level = 14
+skill_id = 244
+skill_level = 2
+l2_ref = "Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.244"
+min_level = 14
+skill_id = 244
+skill_level = 3
+l2_ref = "Armor Mastery"

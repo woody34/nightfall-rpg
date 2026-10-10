@@ -732,4 +732,8 @@ const EMBEDDED_CLASSES: &[(&str, &str)] = &[
         "races/orc.toml",
         include_str!("../../../../packages/data/races/orc.toml"),
     ),
+    (
+        "skill_catalog.toml",
+        include_str!("../../../../packages/data/skill_catalog.toml"),
+    ),
 ];

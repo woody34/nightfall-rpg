@@ -15,6 +15,8 @@ base_class_id = 10
 subclass_allowed = true
 subclass_equivalents = []
 growth = "bishop"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 78
@@ -39,3 +41,6141 @@ men = 39
 [transfer]
 requires = [{ item = "class_transfer_token_2", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 1
+required_level = 52
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8618", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 2
+required_level = 61
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8619", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 3
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8620", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 4
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8621", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 12
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 9
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 9
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 13
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 14
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 15
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 3
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.228"
+skill_id = 228
+l2_ref = "Fast Spell Casting"
+skill_level = 2
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 10
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 12
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 1
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 2
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 3
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 1
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 2
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 3
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 1
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 2
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 3
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 1
+required_level = 40
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 2
+required_level = 40
+sp_cost = 17000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 2
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1016"
+skill_id = 1016
+l2_ref = "Resurrection"
+skill_level = 3
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1254"
+skill_id = 1254
+l2_ref = "Mass Resurrection"
+skill_level = 1
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 1
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1520"
+skill_id = 1520
+l2_ref = "Inquisitor"
+skill_level = 1
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 13
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 14
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 15
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 12
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 13
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 14
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 12
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 13
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 14
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 16
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 17
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 18
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 2
+required_level = 44
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 3
+required_level = 44
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 13
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 14
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 15
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 4
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 5
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 6
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 4
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 5
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 6
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 4
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 5
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 6
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 3
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 4
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 3
+required_level = 44
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 2
+required_level = 44
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 1
+required_level = 44
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1254"
+skill_id = 1254
+l2_ref = "Mass Resurrection"
+skill_level = 2
+required_level = 44
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1018"
+skill_id = 1018
+l2_ref = "Purify"
+skill_level = 1
+required_level = 44
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1258"
+skill_id = 1258
+l2_ref = "Restore Life"
+skill_level = 1
+required_level = 44
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 16
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 17
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 18
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 15
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 16
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 17
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 15
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 16
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 17
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 19
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 20
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 21
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 4
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.164"
+skill_id = 164
+l2_ref = "Quick Recycle"
+skill_level = 3
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 16
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 17
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 18
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 7
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 8
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 9
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 7
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 8
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 9
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 7
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 8
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 9
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 5
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 6
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 1
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 2
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 3
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 4
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 3
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 2
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 1
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1016"
+skill_id = 1016
+l2_ref = "Resurrection"
+skill_level = 4
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1258"
+skill_id = 1258
+l2_ref = "Restore Life"
+skill_level = 2
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1311"
+skill_id = 1311
+l2_ref = "Body of Avatar"
+skill_level = 1
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 19
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 20
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 21
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 18
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 19
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 20
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 18
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 19
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 20
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 22
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 23
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 24
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 3
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 4
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 19
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 20
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 21
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 10
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 11
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 12
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 10
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 11
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 12
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 10
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 11
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 12
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 7
+required_level = 52
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 8
+required_level = 52
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 4
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 5
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 6
+required_level = 52
+sp_cost = 28000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 5
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 4
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 3
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 2
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1018"
+skill_id = 1018
+l2_ref = "Purify"
+skill_level = 2
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1254"
+skill_id = 1254
+l2_ref = "Mass Resurrection"
+skill_level = 3
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1258"
+skill_id = 1258
+l2_ref = "Restore Life"
+skill_level = 3
+required_level = 52
+sp_cost = 84000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 22
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 23
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 24
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 21
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 22
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 23
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 21
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 22
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 23
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 25
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 26
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 27
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 5
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.228"
+skill_id = 228
+l2_ref = "Fast Spell Casting"
+skill_level = 3
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 22
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 23
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 24
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 13
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 14
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 15
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 13
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 14
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 15
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 13
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 14
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 15
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 9
+required_level = 56
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 10
+required_level = 56
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 7
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 8
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 9
+required_level = 56
+sp_cost = 27000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 6
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 5
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 4
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 3
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1016"
+skill_id = 1016
+l2_ref = "Resurrection"
+skill_level = 5
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1254"
+skill_id = 1254
+l2_ref = "Mass Resurrection"
+skill_level = 4
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1258"
+skill_id = 1258
+l2_ref = "Restore Life"
+skill_level = 4
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1311"
+skill_id = 1311
+l2_ref = "Body of Avatar"
+skill_level = 2
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 1
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 1
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 1
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 1
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 1
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 1
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1430"
+skill_id = 1430
+l2_ref = "Invocation"
+skill_level = 1
+required_level = 56
+sp_cost = 81000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 25
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 26
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 24
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 25
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 28
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 29
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 24
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 25
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 4
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 25
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 26
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 16
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 17
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 16
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 17
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 16
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 17
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 11
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 10
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 11
+required_level = 58
+sp_cost = 44000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 7
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 6
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 5
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 4
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1254"
+skill_id = 1254
+l2_ref = "Mass Resurrection"
+skill_level = 5
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1012"
+skill_id = 1012
+l2_ref = "Cure Poison"
+skill_level = 3
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 2
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 2
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 2
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 2
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1399"
+skill_id = 1399
+l2_ref = "Mana Storm"
+skill_level = 1
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 2
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 2
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1402"
+skill_id = 1402
+l2_ref = "Major Group Heal"
+skill_level = 1
+required_level = 58
+sp_cost = 88000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 27
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 28
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 26
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 27
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 30
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 31
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 26
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 27
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 6
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 5
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 27
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 28
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 18
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 19
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 18
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 19
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 18
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 19
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 12
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 12
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 13
+required_level = 60
+sp_cost = 60000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 8
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 7
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 6
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 5
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1016"
+skill_id = 1016
+l2_ref = "Resurrection"
+skill_level = 6
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1311"
+skill_id = 1311
+l2_ref = "Body of Avatar"
+skill_level = 3
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 3
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 3
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 3
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 3
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 3
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 3
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1430"
+skill_id = 1430
+l2_ref = "Invocation"
+skill_level = 2
+required_level = 60
+sp_cost = 120000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 29
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 30
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 28
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 29
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 32
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 33
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 28
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 29
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 29
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 30
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 20
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 21
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 20
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 21
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 20
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 21
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 13
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 14
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 15
+required_level = 62
+sp_cost = 90000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 9
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 8
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 7
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 6
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1018"
+skill_id = 1018
+l2_ref = "Purify"
+skill_level = 3
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 4
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 4
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 4
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 4
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1399"
+skill_id = 1399
+l2_ref = "Mana Storm"
+skill_level = 2
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 4
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 4
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1402"
+skill_id = 1402
+l2_ref = "Major Group Heal"
+skill_level = 2
+required_level = 62
+sp_cost = 170000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 31
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 32
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 30
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 31
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 34
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 35
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 30
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 31
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 5
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 31
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 32
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 22
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 23
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 22
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 23
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 22
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 23
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 14
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 16
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 17
+required_level = 64
+sp_cost = 100000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 10
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 9
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 8
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 7
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1016"
+skill_id = 1016
+l2_ref = "Resurrection"
+skill_level = 7
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1311"
+skill_id = 1311
+l2_ref = "Body of Avatar"
+skill_level = 4
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 5
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 5
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 5
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 5
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 5
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 5
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1418"
+skill_id = 1418
+l2_ref = "Celestial Shield"
+skill_level = 1
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1430"
+skill_id = 1430
+l2_ref = "Invocation"
+skill_level = 3
+required_level = 64
+sp_cost = 190000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 33
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 34
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 32
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 33
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 36
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 37
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 32
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 33
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 7
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 33
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 34
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 24
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 25
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 24
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 25
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 24
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 25
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 15
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 18
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 19
+required_level = 66
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 11
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 10
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 9
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 8
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1271"
+skill_id = 1271
+l2_ref = "Benediction"
+skill_level = 1
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1307"
+skill_id = 1307
+l2_ref = "Prayer"
+skill_level = 1
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 6
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 6
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 6
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 6
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1399"
+skill_id = 1399
+l2_ref = "Mana Storm"
+skill_level = 3
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 6
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 6
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1402"
+skill_id = 1402
+l2_ref = "Major Group Heal"
+skill_level = 3
+required_level = 66
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 35
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 36
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 34
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 35
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 38
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 39
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 34
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 35
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 6
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 35
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 36
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 26
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 27
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 26
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 27
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 26
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 27
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 16
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 20
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 21
+required_level = 68
+sp_cost = 160000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 12
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 11
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 10
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 9
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1254"
+skill_id = 1254
+l2_ref = "Mass Resurrection"
+skill_level = 6
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1311"
+skill_id = 1311
+l2_ref = "Body of Avatar"
+skill_level = 5
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 7
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 7
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 7
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 7
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 7
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 7
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1430"
+skill_id = 1430
+l2_ref = "Invocation"
+skill_level = 4
+required_level = 68
+sp_cost = 320000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 37
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 38
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 36
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 37
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 40
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 41
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 36
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 37
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 37
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 38
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 28
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 29
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 28
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 29
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 28
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 29
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 17
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 22
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 23
+required_level = 70
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 13
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 12
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 11
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 10
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1016"
+skill_id = 1016
+l2_ref = "Resurrection"
+skill_level = 8
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1307"
+skill_id = 1307
+l2_ref = "Prayer"
+skill_level = 2
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 8
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 8
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 8
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 8
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1399"
+skill_id = 1399
+l2_ref = "Mana Storm"
+skill_level = 4
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 8
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 8
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1402"
+skill_id = 1402
+l2_ref = "Major Group Heal"
+skill_level = 4
+required_level = 70
+sp_cost = 390000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 39
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 40
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 38
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 39
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 42
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 43
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 38
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 39
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 8
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 39
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 40
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 30
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 31
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 30
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 31
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 30
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 31
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 18
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 24
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 25
+required_level = 72
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 14
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 13
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 12
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 11
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1311"
+skill_id = 1311
+l2_ref = "Body of Avatar"
+skill_level = 6
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 9
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 9
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 9
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 9
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 9
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 9
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1430"
+skill_id = 1430
+l2_ref = "Invocation"
+skill_level = 5
+required_level = 72
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 41
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 42
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 40
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.235"
+skill_id = 235
+l2_ref = "Robe Mastery"
+skill_level = 41
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 44
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 45
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 40
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.236"
+skill_id = 236
+l2_ref = "Light Armor Mastery"
+skill_level = 41
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 6
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 7
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 41
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 42
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 32
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1219"
+skill_id = 1219
+l2_ref = "Greater Group Heal"
+skill_level = 33
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 32
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1218"
+skill_id = 1218
+l2_ref = "Greater Battle Heal"
+skill_level = 33
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 32
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1217"
+skill_id = 1217
+l2_ref = "Greater Heal"
+skill_level = 33
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1028"
+skill_id = 1028
+l2_ref = "Might of Heaven"
+skill_level = 19
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 26
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1020"
+skill_id = 1020
+l2_ref = "Vitalize"
+skill_level = 27
+required_level = 74
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1075"
+skill_id = 1075
+l2_ref = "Peace"
+skill_level = 15
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1049"
+skill_id = 1049
+l2_ref = "Requiem"
+skill_level = 14
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1034"
+skill_id = 1034
+l2_ref = "Repose"
+skill_level = 13
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1042"
+skill_id = 1042
+l2_ref = "Hold Undead"
+skill_level = 12
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1016"
+skill_id = 1016
+l2_ref = "Resurrection"
+skill_level = 9
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1307"
+skill_id = 1307
+l2_ref = "Prayer"
+skill_level = 3
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1394"
+skill_id = 1394
+l2_ref = "Trance"
+skill_level = 10
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1395"
+skill_id = 1395
+l2_ref = "Erase"
+skill_level = 10
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1396"
+skill_id = 1396
+l2_ref = "Magical BackFire"
+skill_level = 10
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1398"
+skill_id = 1398
+l2_ref = "Mana Burn"
+skill_level = 10
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1399"
+skill_id = 1399
+l2_ref = "Mana Storm"
+skill_level = 5
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1400"
+skill_id = 1400
+l2_ref = "Turn Undead"
+skill_level = 10
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 10
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1401"
+skill_id = 1401
+l2_ref = "Major Heal"
+skill_level = 11
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1402"
+skill_id = 1402
+l2_ref = "Major Group Heal"
+skill_level = 5
+required_level = 74
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 10
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 11
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 12
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 40
+skill_id = 235
+skill_level = 9
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 40
+skill_id = 235
+skill_level = 10
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 40
+skill_id = 235
+skill_level = 11
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 40
+skill_id = 236
+skill_level = 9
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 40
+skill_id = 236
+skill_level = 10
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 40
+skill_id = 236
+skill_level = 11
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 13
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 14
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 15
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 44
+skill_id = 235
+skill_level = 12
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 44
+skill_id = 235
+skill_level = 13
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 44
+skill_id = 235
+skill_level = 14
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 44
+skill_id = 236
+skill_level = 12
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 44
+skill_id = 236
+skill_level = 13
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 44
+skill_id = 236
+skill_level = 14
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 16
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 17
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 18
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 48
+skill_id = 235
+skill_level = 15
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 48
+skill_id = 235
+skill_level = 16
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 48
+skill_id = 235
+skill_level = 17
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 48
+skill_id = 236
+skill_level = 15
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 48
+skill_id = 236
+skill_level = 16
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 48
+skill_id = 236
+skill_level = 17
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 19
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 20
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 21
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 52
+skill_id = 235
+skill_level = 18
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 52
+skill_id = 235
+skill_level = 19
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 52
+skill_id = 235
+skill_level = 20
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 52
+skill_id = 236
+skill_level = 18
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 52
+skill_id = 236
+skill_level = 19
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 52
+skill_id = 236
+skill_level = 20
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 22
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 23
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 24
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 56
+skill_id = 235
+skill_level = 21
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 56
+skill_id = 235
+skill_level = 22
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 56
+skill_id = 235
+skill_level = 23
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 56
+skill_id = 236
+skill_level = 21
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 56
+skill_id = 236
+skill_level = 22
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 56
+skill_id = 236
+skill_level = 23
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 58
+skill_id = 249
+skill_level = 25
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 58
+skill_id = 249
+skill_level = 26
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 58
+skill_id = 235
+skill_level = 24
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 58
+skill_id = 235
+skill_level = 25
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 58
+skill_id = 236
+skill_level = 24
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 58
+skill_id = 236
+skill_level = 25
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 60
+skill_id = 249
+skill_level = 27
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 60
+skill_id = 249
+skill_level = 28
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 60
+skill_id = 235
+skill_level = 26
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 60
+skill_id = 235
+skill_level = 27
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 60
+skill_id = 236
+skill_level = 26
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 60
+skill_id = 236
+skill_level = 27
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 62
+skill_id = 249
+skill_level = 29
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 62
+skill_id = 249
+skill_level = 30
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 62
+skill_id = 235
+skill_level = 28
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 62
+skill_id = 235
+skill_level = 29
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 62
+skill_id = 236
+skill_level = 28
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 62
+skill_id = 236
+skill_level = 29
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 64
+skill_id = 249
+skill_level = 31
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 64
+skill_id = 249
+skill_level = 32
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 64
+skill_id = 235
+skill_level = 30
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 64
+skill_id = 235
+skill_level = 31
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 64
+skill_id = 236
+skill_level = 30
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 64
+skill_id = 236
+skill_level = 31
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 66
+skill_id = 249
+skill_level = 33
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 66
+skill_id = 249
+skill_level = 34
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 66
+skill_id = 235
+skill_level = 32
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 66
+skill_id = 235
+skill_level = 33
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 66
+skill_id = 236
+skill_level = 32
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 66
+skill_id = 236
+skill_level = 33
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 68
+skill_id = 249
+skill_level = 35
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 68
+skill_id = 249
+skill_level = 36
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 68
+skill_id = 235
+skill_level = 34
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 68
+skill_id = 235
+skill_level = 35
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 68
+skill_id = 236
+skill_level = 34
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 68
+skill_id = 236
+skill_level = 35
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 70
+skill_id = 249
+skill_level = 37
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 70
+skill_id = 249
+skill_level = 38
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 70
+skill_id = 235
+skill_level = 36
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 70
+skill_id = 235
+skill_level = 37
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 70
+skill_id = 236
+skill_level = 36
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 70
+skill_id = 236
+skill_level = 37
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 72
+skill_id = 249
+skill_level = 39
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 72
+skill_id = 249
+skill_level = 40
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 72
+skill_id = 235
+skill_level = 38
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 72
+skill_id = 235
+skill_level = 39
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 72
+skill_id = 236
+skill_level = 38
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 72
+skill_id = 236
+skill_level = 39
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 74
+skill_id = 249
+skill_level = 41
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 74
+skill_id = 249
+skill_level = 42
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 74
+skill_id = 235
+skill_level = 40
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.235"
+min_level = 74
+skill_id = 235
+skill_level = 41
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 74
+skill_id = 236
+skill_level = 40
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.236"
+min_level = 74
+skill_id = 236
+skill_level = 41
+l2_ref = "Light Armor Mastery"

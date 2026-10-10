@@ -15,6 +15,9 @@ base_class_id = 10
 subclass_allowed = false
 subclass_equivalents = []
 growth = "arcana_lord"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "deferred"
+skill_tree = []
 
 [movement]
 walk = 78
@@ -39,3 +42,10 @@ men = 39
 [transfer]
 requires = [{ item = "class_transfer_token_3", count = 1 }]
 quest_hooks = []
+
+[[proficiencies]]
+key = "l2.skill.934"
+min_level = 76
+skill_id = 934
+skill_level = 1
+l2_ref = "Sigil Mastery"

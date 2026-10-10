@@ -14,6 +14,8 @@ base_class_id = 0
 subclass_allowed = false
 subclass_equivalents = []
 growth = "human_fighter"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 80
@@ -38,3 +40,702 @@ men = 25
 [transfer]
 requires = []
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.194"
+skill_id = 194
+l2_ref = "Lucky"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1322"
+skill_id = 1322
+l2_ref = "Common Craft"
+skill_level = 1
+required_level = 1
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise D"
+skill_level = 1
+required_level = 20
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise C"
+skill_level = 2
+required_level = 40
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise B"
+skill_level = 3
+required_level = 52
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise A"
+skill_level = 4
+required_level = 61
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S"
+skill_level = 5
+required_level = 76
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S80"
+skill_level = 6
+required_level = 80
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.239"
+skill_id = 239
+l2_ref = "Expertise S84"
+skill_level = 7
+required_level = 84
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 1
+required_level = 5
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 2
+required_level = 20
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 3
+required_level = 28
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 4
+required_level = 36
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 5
+required_level = 43
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 6
+required_level = 49
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 7
+required_level = 55
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 8
+required_level = 62
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1320"
+skill_id = 1320
+l2_ref = "Create Common Item"
+skill_level = 9
+required_level = 70
+sp_cost = 0
+auto_get = true
+learned_by_npc = false
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.141"
+skill_id = 141
+l2_ref = "Weapon Mastery"
+skill_level = 1
+required_level = 5
+sp_cost = 160
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.142"
+skill_id = 142
+l2_ref = "Armor Mastery"
+skill_level = 1
+required_level = 5
+sp_cost = 160
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 1
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 2
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 3
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 1
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 2
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 3
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 1
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 2
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 3
+required_level = 5
+sp_cost = 50
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.226"
+skill_id = 226
+l2_ref = "Relax"
+skill_level = 1
+required_level = 5
+sp_cost = 160
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.141"
+skill_id = 141
+l2_ref = "Weapon Mastery"
+skill_level = 2
+required_level = 10
+sp_cost = 1100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.142"
+skill_id = 142
+l2_ref = "Armor Mastery"
+skill_level = 2
+required_level = 10
+sp_cost = 550
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.142"
+skill_id = 142
+l2_ref = "Armor Mastery"
+skill_level = 3
+required_level = 10
+sp_cost = 550
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 4
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 5
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 6
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 4
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 5
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 6
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 4
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 5
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 6
+required_level = 10
+sp_cost = 370
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.141"
+skill_id = 141
+l2_ref = "Weapon Mastery"
+skill_level = 3
+required_level = 15
+sp_cost = 4000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.142"
+skill_id = 142
+l2_ref = "Armor Mastery"
+skill_level = 4
+required_level = 15
+sp_cost = 2000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.142"
+skill_id = 142
+l2_ref = "Armor Mastery"
+skill_level = 5
+required_level = 15
+sp_cost = 2000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 7
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 8
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.3"
+skill_id = 3
+l2_ref = "Power Strike"
+skill_level = 9
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 7
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 8
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.56"
+skill_id = 56
+l2_ref = "Power Shot"
+skill_level = 9
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 7
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 8
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.16"
+skill_id = 16
+l2_ref = "Mortal Blow"
+skill_level = 9
+required_level = 15
+sp_cost = 1300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 20
+skill_id = 239
+skill_level = 1
+l2_ref = "Expertise D"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 40
+skill_id = 239
+skill_level = 2
+l2_ref = "Expertise C"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 52
+skill_id = 239
+skill_level = 3
+l2_ref = "Expertise B"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 61
+skill_id = 239
+skill_level = 4
+l2_ref = "Expertise A"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 76
+skill_id = 239
+skill_level = 5
+l2_ref = "Expertise S"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 80
+skill_id = 239
+skill_level = 6
+l2_ref = "Expertise S80"
+
+[[proficiencies]]
+key = "l2.skill.239"
+min_level = 84
+skill_id = 239
+skill_level = 7
+l2_ref = "Expertise S84"
+
+[[proficiencies]]
+key = "l2.skill.141"
+min_level = 5
+skill_id = 141
+skill_level = 1
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.142"
+min_level = 5
+skill_id = 142
+skill_level = 1
+l2_ref = "Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.141"
+min_level = 10
+skill_id = 141
+skill_level = 2
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.142"
+min_level = 10
+skill_id = 142
+skill_level = 2
+l2_ref = "Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.142"
+min_level = 10
+skill_id = 142
+skill_level = 3
+l2_ref = "Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.141"
+min_level = 15
+skill_id = 141
+skill_level = 3
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.142"
+min_level = 15
+skill_id = 142
+skill_level = 4
+l2_ref = "Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.142"
+min_level = 15
+skill_id = 142
+skill_level = 5
+l2_ref = "Armor Mastery"

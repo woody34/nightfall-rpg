@@ -15,6 +15,8 @@ base_class_id = 10
 subclass_allowed = true
 subclass_equivalents = [27, 40]
 growth = "sorcerer"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 78
@@ -39,3 +41,4546 @@ men = 39
 [transfer]
 requires = [{ item = "class_transfer_token_2", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 1
+required_level = 52
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8618", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 2
+required_level = 61
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8619", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 3
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8620", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.1405"
+skill_id = 1405
+l2_ref = "Divine Inspiration"
+skill_level = 4
+required_level = 76
+sp_cost = 0
+auto_get = false
+learned_by_npc = true
+required_items = [{ item = "l2.item.8621", count = 1 }]
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 12
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 9
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 13
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 14
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 15
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 9
+required_level = 40
+sp_cost = 16000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 10
+required_level = 40
+sp_cost = 16000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 3
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.228"
+skill_id = 228
+l2_ref = "Fast Spell Casting"
+skill_level = 2
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 1
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 1
+required_level = 40
+sp_cost = 16000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 2
+required_level = 40
+sp_cost = 16000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 1
+required_level = 40
+sp_cost = 16000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 2
+required_level = 40
+sp_cost = 16000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 1
+required_level = 40
+sp_cost = 16000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 2
+required_level = 40
+sp_cost = 16000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 10
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 12
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 4
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 2
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 1
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 1
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1232"
+skill_id = 1232
+l2_ref = "Blazing Skin"
+skill_level = 1
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 1
+required_level = 40
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 13
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 14
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 15
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 12
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 13
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 14
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 16
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 17
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 18
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 11
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 12
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 2
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 3
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 3
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 4
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 3
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 4
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 3
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 4
+required_level = 44
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 13
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 14
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 15
+required_level = 44
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 5
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 3
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 2
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 2
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1078"
+skill_id = 1078
+l2_ref = "Concentration"
+skill_level = 3
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 1
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 2
+required_level = 44
+sp_cost = 41000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 16
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 17
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 18
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 15
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 16
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 17
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 19
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 20
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 21
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 13
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 14
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 4
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.164"
+skill_id = 164
+l2_ref = "Quick Recycle"
+skill_level = 3
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 2
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 5
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 6
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 5
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 6
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 5
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 6
+required_level = 48
+sp_cost = 32000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 16
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 17
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 18
+required_level = 48
+sp_cost = 21000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 6
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 4
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 3
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 1
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 3
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1232"
+skill_id = 1232
+l2_ref = "Blazing Skin"
+skill_level = 2
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1233"
+skill_id = 1233
+l2_ref = "Decay"
+skill_level = 1
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 3
+required_level = 48
+sp_cost = 63000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 19
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 20
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 21
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 18
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 19
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 20
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 22
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 23
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 24
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 15
+required_level = 52
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 16
+required_level = 52
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 3
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 4
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 7
+required_level = 52
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 8
+required_level = 52
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 7
+required_level = 52
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 8
+required_level = 52
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 7
+required_level = 52
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 8
+required_level = 52
+sp_cost = 47000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 19
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 20
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 21
+required_level = 52
+sp_cost = 31000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 7
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 5
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 4
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 2
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 4
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1078"
+skill_id = 1078
+l2_ref = "Concentration"
+skill_level = 4
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 4
+required_level = 52
+sp_cost = 94000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 22
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 23
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 24
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 21
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 22
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 23
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 25
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 26
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 27
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 17
+required_level = 56
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 18
+required_level = 56
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 5
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.228"
+skill_id = 228
+l2_ref = "Fast Spell Casting"
+skill_level = 3
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 3
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 9
+required_level = 56
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 10
+required_level = 56
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 9
+required_level = 56
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 10
+required_level = 56
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 9
+required_level = 56
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 10
+required_level = 56
+sp_cost = 55000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 22
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 23
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 24
+required_level = 56
+sp_cost = 37000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 8
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 6
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 5
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 3
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 5
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1232"
+skill_id = 1232
+l2_ref = "Blazing Skin"
+skill_level = 3
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1233"
+skill_id = 1233
+l2_ref = "Decay"
+skill_level = 2
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 2
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 5
+required_level = 56
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 25
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 26
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 24
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 25
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 28
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 29
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 19
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 4
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 11
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 12
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 11
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 12
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 11
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 25
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 26
+required_level = 58
+sp_cost = 65000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 9
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 7
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 6
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 4
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 6
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 1
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 6
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 1
+required_level = 58
+sp_cost = 129000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 27
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 28
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 26
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 27
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 30
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 31
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 20
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 6
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 5
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 13
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 14
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 13
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 14
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 12
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 27
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 28
+required_level = 60
+sp_cost = 83000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 10
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 8
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 7
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 5
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 7
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1078"
+skill_id = 1078
+l2_ref = "Concentration"
+skill_level = 5
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 2
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 7
+required_level = 60
+sp_cost = 167000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 29
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 30
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 28
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 29
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 32
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 33
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 21
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 4
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 15
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 16
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 15
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 16
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 13
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 29
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 30
+required_level = 62
+sp_cost = 110000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 11
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 9
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 8
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 6
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 8
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 3
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 3
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 8
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 2
+required_level = 62
+sp_cost = 220000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 31
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 32
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 30
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 31
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 34
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 35
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 22
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 5
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 17
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 18
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 17
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 18
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 14
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 31
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 32
+required_level = 64
+sp_cost = 140000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 12
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 10
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 9
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 7
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 9
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1233"
+skill_id = 1233
+l2_ref = "Decay"
+skill_level = 3
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 4
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 9
+required_level = 64
+sp_cost = 280000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 33
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 34
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 32
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 33
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 36
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 37
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 23
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 7
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 19
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 20
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 19
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 20
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 15
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 33
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 34
+required_level = 66
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 13
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 11
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 10
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 8
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 10
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1285"
+skill_id = 1285
+l2_ref = "Seed of Fire"
+skill_level = 1
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 4
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 5
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 10
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 3
+required_level = 66
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 35
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 36
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 34
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 35
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 38
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 39
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 24
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 6
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 5
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 21
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 22
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 21
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 22
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 16
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 35
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 36
+required_level = 68
+sp_cost = 200000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 14
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 12
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 11
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 9
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 11
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1288"
+skill_id = 1288
+l2_ref = "Aura Symphony"
+skill_level = 1
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1078"
+skill_id = 1078
+l2_ref = "Concentration"
+skill_level = 6
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 6
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 11
+required_level = 68
+sp_cost = 410000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 37
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 38
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 36
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 37
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 40
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 41
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 25
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 23
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 24
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 23
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 24
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 17
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 37
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 38
+required_level = 70
+sp_cost = 260000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 15
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 13
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 12
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 10
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 12
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1289"
+skill_id = 1289
+l2_ref = "Inferno"
+skill_level = 1
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1072"
+skill_id = 1072
+l2_ref = "Sleeping Cloud"
+skill_level = 5
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 7
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 12
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 4
+required_level = 70
+sp_cost = 520000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 39
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 40
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 38
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 39
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 42
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 43
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 26
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.213"
+skill_id = 213
+l2_ref = "Boost Mana"
+skill_level = 8
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 25
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 26
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 25
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 26
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 18
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 39
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 40
+required_level = 72
+sp_cost = 440000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 16
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 14
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 13
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 11
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 13
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1292"
+skill_id = 1292
+l2_ref = "Elemental Assault"
+skill_level = 1
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 8
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 13
+required_level = 72
+sp_cost = 880000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 41
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.249"
+skill_id = 249
+l2_ref = "Weapon Mastery"
+skill_level = 42
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 40
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.234"
+skill_id = 234
+l2_ref = "Robe Mastery"
+skill_level = 41
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 44
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.146"
+skill_id = 146
+l2_ref = "Anti Magic"
+skill_level = 45
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.285"
+skill_id = 285
+l2_ref = "Higher Mana Gain"
+skill_level = 27
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.212"
+skill_id = 212
+l2_ref = "Fast HP Recovery"
+skill_level = 6
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.229"
+skill_id = 229
+l2_ref = "Fast Mana Recovery"
+skill_level = 7
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1297"
+skill_id = 1297
+l2_ref = "Clear Mind"
+skill_level = 6
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 27
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1231"
+skill_id = 1231
+l2_ref = "Aura Flare"
+skill_level = 28
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 27
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1230"
+skill_id = 1230
+l2_ref = "Prominence"
+skill_level = 28
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1171"
+skill_id = 1171
+l2_ref = "Blazing Circle"
+skill_level = 19
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 41
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1069"
+skill_id = 1069
+l2_ref = "Sleep"
+skill_level = 42
+required_level = 74
+sp_cost = 580000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1083"
+skill_id = 1083
+l2_ref = "Surrender To Fire"
+skill_level = 17
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1160"
+skill_id = 1160
+l2_ref = "Slow"
+skill_level = 15
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1074"
+skill_id = 1074
+l2_ref = "Surrender To Wind"
+skill_level = 14
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1056"
+skill_id = 1056
+l2_ref = "Cancellation"
+skill_level = 12
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1275"
+skill_id = 1275
+l2_ref = "Aura Bolt"
+skill_level = 14
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1233"
+skill_id = 1233
+l2_ref = "Decay"
+skill_level = 4
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1296"
+skill_id = 1296
+l2_ref = "Rain of Fire"
+skill_level = 9
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1169"
+skill_id = 1169
+l2_ref = "Curse Fear"
+skill_level = 14
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.1417"
+skill_id = 1417
+l2_ref = "Aura Flash"
+skill_level = 5
+required_level = 74
+sp_cost = 1150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 10
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 11
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 12
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 9
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 10
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 11
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 13
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 14
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 15
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 12
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 13
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 14
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 16
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 17
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 18
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 15
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 16
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 17
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 19
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 20
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 21
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 18
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 19
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 20
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 22
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 23
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 24
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 21
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 22
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 23
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 58
+skill_id = 249
+skill_level = 25
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 58
+skill_id = 249
+skill_level = 26
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 58
+skill_id = 234
+skill_level = 24
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 58
+skill_id = 234
+skill_level = 25
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 60
+skill_id = 249
+skill_level = 27
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 60
+skill_id = 249
+skill_level = 28
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 60
+skill_id = 234
+skill_level = 26
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 60
+skill_id = 234
+skill_level = 27
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 62
+skill_id = 249
+skill_level = 29
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 62
+skill_id = 249
+skill_level = 30
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 62
+skill_id = 234
+skill_level = 28
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 62
+skill_id = 234
+skill_level = 29
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 64
+skill_id = 249
+skill_level = 31
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 64
+skill_id = 249
+skill_level = 32
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 64
+skill_id = 234
+skill_level = 30
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 64
+skill_id = 234
+skill_level = 31
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 66
+skill_id = 249
+skill_level = 33
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 66
+skill_id = 249
+skill_level = 34
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 66
+skill_id = 234
+skill_level = 32
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 66
+skill_id = 234
+skill_level = 33
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 68
+skill_id = 249
+skill_level = 35
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 68
+skill_id = 249
+skill_level = 36
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 68
+skill_id = 234
+skill_level = 34
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 68
+skill_id = 234
+skill_level = 35
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 70
+skill_id = 249
+skill_level = 37
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 70
+skill_id = 249
+skill_level = 38
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 70
+skill_id = 234
+skill_level = 36
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 70
+skill_id = 234
+skill_level = 37
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 72
+skill_id = 249
+skill_level = 39
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 72
+skill_id = 249
+skill_level = 40
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 72
+skill_id = 234
+skill_level = 38
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 72
+skill_id = 234
+skill_level = 39
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 74
+skill_id = 249
+skill_level = 41
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 74
+skill_id = 249
+skill_level = 42
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 74
+skill_id = 234
+skill_level = 40
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 74
+skill_id = 234
+skill_level = 41
+l2_ref = "Robe Mastery"

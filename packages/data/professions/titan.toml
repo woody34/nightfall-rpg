@@ -15,6 +15,10 @@ base_class_id = 44
 subclass_allowed = false
 subclass_equivalents = []
 growth = "titan"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "deferred"
+skill_tree = []
+proficiencies = []
 
 [movement]
 walk = 70

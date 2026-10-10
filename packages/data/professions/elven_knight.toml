@@ -15,6 +15,8 @@ base_class_id = 18
 subclass_allowed = false
 subclass_equivalents = []
 growth = "elven_knight"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 90
@@ -39,3 +41,1179 @@ men = 26
 [transfer]
 requires = [{ item = "class_transfer_token_1", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 1
+required_level = 20
+sp_cost = 4100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 1
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 2
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 3
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 1
+required_level = 20
+sp_cost = 2100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 2
+required_level = 20
+sp_cost = 2100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 4
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 5
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 6
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 1
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 2
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 3
+required_level = 20
+sp_cost = 1400
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.91"
+skill_id = 91
+l2_ref = "Defense Aura"
+skill_level = 2
+required_level = 20
+sp_cost = 4100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.153"
+skill_id = 153
+l2_ref = "Shield Mastery"
+skill_level = 1
+required_level = 20
+sp_cost = 4100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.110"
+skill_id = 110
+l2_ref = "Ultimate Defense"
+skill_level = 1
+required_level = 20
+sp_cost = 4100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.21"
+skill_id = 21
+l2_ref = "Poison Recovery"
+skill_level = 1
+required_level = 20
+sp_cost = 4100
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 2
+required_level = 24
+sp_cost = 8800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 4
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 5
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 6
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 3
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 4
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 5
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 7
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 8
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 9
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 4
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 5
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 6
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 1
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 2
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 3
+required_level = 24
+sp_cost = 2900
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.112"
+skill_id = 112
+l2_ref = "Deflect Arrow"
+skill_level = 1
+required_level = 24
+sp_cost = 8800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.61"
+skill_id = 61
+l2_ref = "Cure Bleeding"
+skill_level = 1
+required_level = 24
+sp_cost = 8800
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 3
+required_level = 28
+sp_cost = 7500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 4
+required_level = 28
+sp_cost = 7500
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 7
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 8
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 9
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 6
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 7
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 8
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 10
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 11
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 12
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 7
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 8
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 9
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 4
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 5
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 6
+required_level = 28
+sp_cost = 5000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.153"
+skill_id = 153
+l2_ref = "Shield Mastery"
+skill_level = 2
+required_level = 28
+sp_cost = 15000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.77"
+skill_id = 77
+l2_ref = "Attack Aura"
+skill_level = 2
+required_level = 28
+sp_cost = 15000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 5
+required_level = 32
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 6
+required_level = 32
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 10
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 11
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 12
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 9
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 10
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 11
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 13
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 14
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 15
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 10
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 11
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 12
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 7
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 8
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 9
+required_level = 32
+sp_cost = 8300
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.112"
+skill_id = 112
+l2_ref = "Deflect Arrow"
+skill_level = 2
+required_level = 32
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.230"
+skill_id = 230
+l2_ref = "Sprint"
+skill_level = 1
+required_level = 32
+sp_cost = 25000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 7
+required_level = 36
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.217"
+skill_id = 217
+l2_ref = "Sword/Blunt Weapon Mastery"
+skill_level = 8
+required_level = 36
+sp_cost = 19000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 13
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 14
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.232"
+skill_id = 232
+l2_ref = "Heavy Armor Mastery"
+skill_level = 15
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 12
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 13
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.147"
+skill_id = 147
+l2_ref = "M. Def."
+skill_level = 14
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 16
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 17
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.58"
+skill_id = 58
+l2_ref = "Elemental Heal"
+skill_level = 18
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 13
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 14
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.15"
+skill_id = 15
+l2_ref = "Charm"
+skill_level = 15
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 10
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 11
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.28"
+skill_id = 28
+l2_ref = "Aggression"
+skill_level = 12
+required_level = 36
+sp_cost = 13000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.191"
+skill_id = 191
+l2_ref = "Focus Mind"
+skill_level = 1
+required_level = 36
+sp_cost = 39000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.102"
+skill_id = 102
+l2_ref = "Entangle"
+skill_level = 1
+required_level = 36
+sp_cost = 39000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 20
+skill_id = 217
+skill_level = 1
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 20
+skill_id = 232
+skill_level = 1
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 20
+skill_id = 232
+skill_level = 2
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 20
+skill_id = 232
+skill_level = 3
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.153"
+min_level = 20
+skill_id = 153
+skill_level = 1
+l2_ref = "Shield Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 24
+skill_id = 217
+skill_level = 2
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 24
+skill_id = 232
+skill_level = 4
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 24
+skill_id = 232
+skill_level = 5
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 24
+skill_id = 232
+skill_level = 6
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 28
+skill_id = 217
+skill_level = 3
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 28
+skill_id = 217
+skill_level = 4
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 28
+skill_id = 232
+skill_level = 7
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 28
+skill_id = 232
+skill_level = 8
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 28
+skill_id = 232
+skill_level = 9
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.153"
+min_level = 28
+skill_id = 153
+skill_level = 2
+l2_ref = "Shield Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 32
+skill_id = 217
+skill_level = 5
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 32
+skill_id = 217
+skill_level = 6
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 32
+skill_id = 232
+skill_level = 10
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 32
+skill_id = 232
+skill_level = 11
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 32
+skill_id = 232
+skill_level = 12
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 36
+skill_id = 217
+skill_level = 7
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.217"
+min_level = 36
+skill_id = 217
+skill_level = 8
+l2_ref = "Sword/Blunt Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 36
+skill_id = 232
+skill_level = 13
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 36
+skill_id = 232
+skill_level = 14
+l2_ref = "Heavy Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.232"
+min_level = 36
+skill_id = 232
+skill_level = 15
+l2_ref = "Heavy Armor Mastery"

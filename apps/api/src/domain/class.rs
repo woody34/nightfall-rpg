@@ -16,6 +16,7 @@ pub struct ClassId(pub u32);
 /// One exact source resource row, before CON/MEN multipliers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(missing_docs)]
+#[serde(deny_unknown_fields)]
 pub struct GrowthRow {
     pub hp: Scaled,
     pub mp: Scaled,
@@ -41,12 +42,15 @@ pub struct TransferRules {
     pub quest_hooks: Vec<String>,
 }
 
-/// Deferred class skill-learning hook; Phase 3 owns the actual skill registry.
+/// Sourced class learning metadata; Phase 3 owns skill execution and effect definitions.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(missing_docs)]
 pub struct SkillLearnDef {
     pub key: String,
+    pub skill_id: u32,
+    pub l2_ref: String,
+    pub learned_by_npc: bool,
     pub skill_level: u32,
     pub required_level: u32,
     pub sp_cost: u64,
@@ -62,6 +66,41 @@ pub struct SkillLearnDef {
 pub struct ProficiencyDef {
     pub key: String,
     pub min_level: u32,
+    pub skill_id: u32,
+    pub skill_level: u32,
+    pub l2_ref: String,
+}
+
+/// Whether the direct learning tree is sourced for this MVP profession.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SkillTreeStatus {
+    /// Own tree intentionally deferred; ancestor entries remain visible.
+    #[default]
+    Deferred,
+    /// All direct source learning entries are present.
+    Populated,
+}
+
+/// The Phase 3 effects engine is absent; sourced learning metadata is still available.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeSkillStatus {
+    /// Metadata only; no skill execution or effect is implemented.
+    Deferred,
+}
+
+/// A known source skill id and level range, used to reject dangling learning references.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct KnownSkillDef {
+    pub id: u32,
+    pub key: String,
+    pub max_level: u32,
+    pub l2_ref: String,
+    pub source_file: String,
+    pub runtime_status: RuntimeSkillStatus,
 }
 
 /// One node in the class tree. Base stats stay fixed throughout the lineage.
@@ -80,6 +119,7 @@ pub struct ClassDef {
     #[serde(with = "archetype_serde")]
     pub archetype: Archetype,
     pub base_class_id: ClassId,
+    #[serde(with = "base_stats_serde")]
     pub base_stats: BaseStats,
     pub movement: RaceMovement,
     pub collision: RaceCollision,
@@ -88,6 +128,10 @@ pub struct ClassDef {
     pub transfer: TransferRules,
     pub subclass_allowed: bool,
     pub subclass_equivalents: Vec<ClassId>,
+    #[serde(default)]
+    pub learning_source: Option<String>,
+    #[serde(default)]
+    pub skill_tree_status: SkillTreeStatus,
     #[serde(default)]
     pub skill_tree: Vec<SkillLearnDef>,
     #[serde(default)]
@@ -127,6 +171,7 @@ pub struct RaceTraits {
 /// A selectable classic race. Passive keys describe Phase 3 hooks, rather than learned skills.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(missing_docs)]
+#[serde(deny_unknown_fields)]
 pub struct RaceDef {
     pub id: Race,
     pub display_name: String,
@@ -163,6 +208,8 @@ struct RegistryParts {
     classes: Vec<ClassDef>,
     races: Vec<RaceDef>,
     growth: BTreeMap<String, Vec<GrowthRow>>,
+    #[serde(default)]
+    known_skills: Vec<KnownSkillDef>,
 }
 
 /// Ordered catalog copied into replay snapshots, so replay never consults current files.
@@ -181,17 +228,28 @@ impl From<ClassRegistry> for RegistryParts {
 impl TryFrom<RegistryParts> for ClassRegistry {
     type Error = RegistryError;
     fn try_from(value: RegistryParts) -> Result<Self, Self::Error> {
-        Self::new(value.classes, value.races, value.growth)
+        Self::new_with_skills(value.classes, value.races, value.growth, value.known_skills)
     }
 }
 
 impl ClassRegistry {
     /// Constructs the complete classic catalog, rejecting broken trees, stats or growth.
     pub fn new(
+        classes: Vec<ClassDef>,
+        races: Vec<RaceDef>,
+        growth: BTreeMap<String, Vec<GrowthRow>>,
+    ) -> Result<Self, RegistryError> {
+        Self::new_with_skills(classes, races, growth, Vec::new())
+    }
+
+    /// Constructs a complete catalog with primary-source skill references and level bounds.
+    pub fn new_with_skills(
         mut classes: Vec<ClassDef>,
         mut races: Vec<RaceDef>,
         growth: BTreeMap<String, Vec<GrowthRow>>,
+        mut known_skills: Vec<KnownSkillDef>,
     ) -> Result<Self, RegistryError> {
+        known_skills.sort_by_key(|s| s.id);
         classes.sort_by_key(|c| c.id);
         races.sort_by_key(|r| r.id.as_str());
         let registry = Self {
@@ -199,6 +257,7 @@ impl ClassRegistry {
                 classes,
                 races,
                 growth,
+                known_skills,
             },
         };
         let mut errors = Vec::new();
@@ -232,6 +291,18 @@ impl ClassRegistry {
     #[must_use]
     pub fn race(&self, id: Race) -> Option<&RaceDef> {
         self.parts.races.iter().find(|r| r.id == id)
+    }
+
+    /// Source id and level metadata for a deferred skill, without an effects engine.
+    #[must_use]
+    pub fn known_skill(&self, id: u32) -> Option<&KnownSkillDef> {
+        self.parts.known_skills.iter().find(|skill| skill.id == id)
+    }
+
+    /// Every source reference, ordered by retail skill id.
+    #[must_use]
+    pub fn known_skills(&self) -> &[KnownSkillDef] {
+        &self.parts.known_skills
     }
 
     /// Direct children, ordered by retail id.
@@ -358,7 +429,16 @@ impl ClassRegistry {
             self.validate_class(class, errors);
         }
         self.validate_races(errors);
+        self.validate_skills(errors);
+        let used_growth: BTreeSet<_> = self
+            .classes()
+            .iter()
+            .filter_map(|c| c.growth.as_ref())
+            .collect();
         for (key, table) in &self.parts.growth {
+            if !used_growth.contains(key) {
+                errors.push(format!("growth {key}: table is not referenced by a profession"));
+            }
             if table.len() != 85
                 || table
                     .iter()
@@ -422,6 +502,9 @@ impl ClassRegistry {
         if self.ancestors(c.id).contains(&c.id) {
             errors.push(format!("class {:?}: cyclic lineage", c.id));
         }
+        if !valid_collision(c.collision) {
+            errors.push(format!("class {:?}: collision dimensions must be positive", c.id));
+        }
         if c.movement.walk == 0 || c.movement.run == 0 || c.movement.swim == 0 {
             errors.push(format!("class {:?}: invalid movement", c.id));
         }
@@ -466,6 +549,74 @@ impl ClassRegistry {
                 errors.push(format!("class {:?}: asymmetric or missing equivalent {id:?}", c.id));
             }
         }
+    }
+
+    fn validate_skills(&self, errors: &mut Vec<String>) {
+        let mut ids = BTreeSet::new();
+        for skill in self.known_skills() {
+            if !ids.insert(skill.id)
+                || skill.id == 0
+                || skill.key != format!("l2.skill.{}", skill.id)
+                || skill.max_level == 0
+                || skill.l2_ref.is_empty()
+                || !skill
+                    .source_file
+                    .starts_with("src/main/resources/data/stats/skills/")
+            {
+                errors.push(format!("skill {}: invalid source reference", skill.id));
+            }
+        }
+        for class in self.classes() {
+            let mut learned = BTreeSet::new();
+            for skill in &class.skill_tree {
+                if !learned.insert((skill.skill_id, skill.skill_level))
+                    || !self.valid_skill_ref(&skill.key, skill.skill_id, skill.skill_level)
+                    || skill.l2_ref.is_empty()
+                {
+                    errors.push(format!(
+                        "class {:?}: invalid or duplicate learned skill {}:{}",
+                        class.id, skill.skill_id, skill.skill_level
+                    ));
+                }
+            }
+            let mut proficiencies = BTreeSet::new();
+            for proficiency in &class.proficiencies {
+                if !proficiencies.insert((proficiency.skill_id, proficiency.skill_level))
+                    || !self.valid_skill_ref(
+                        &proficiency.key,
+                        proficiency.skill_id,
+                        proficiency.skill_level,
+                    )
+                    || proficiency.l2_ref.is_empty()
+                {
+                    errors.push(format!(
+                        "class {:?}: invalid or duplicate proficiency {}:{}",
+                        class.id, proficiency.skill_id, proficiency.skill_level
+                    ));
+                }
+            }
+            if (!class.skill_tree.is_empty() || !class.proficiencies.is_empty())
+                && class.learning_source.as_deref()
+                    != Some("src/main/resources/data/skillTrees/classSkillTree.xml")
+            {
+                errors.push(format!("class {:?}: missing learning provenance", class.id));
+            }
+            if (class.skill_tree_status == SkillTreeStatus::Populated)
+                == class.skill_tree.is_empty()
+            {
+                errors.push(format!(
+                    "class {:?}: learning tree status disagrees with entries",
+                    class.id
+                ));
+            }
+        }
+    }
+
+    fn valid_skill_ref(&self, key: &str, id: u32, level: u32) -> bool {
+        key == format!("l2.skill.{id}")
+            && self
+                .known_skill(id)
+                .is_some_and(|skill| level > 0 && level <= skill.max_level)
     }
 
     fn validate_races(&self, errors: &mut Vec<String>) {
@@ -536,5 +687,59 @@ mod archetype_serde {
             "mystic" => Ok(Archetype::Mystic),
             value => Err(serde::de::Error::custom(format!("unknown archetype {value}"))),
         }
+    }
+}
+
+fn valid_collision(c: RaceCollision) -> bool {
+    [
+        c.radius_male,
+        c.radius_female,
+        c.height_male,
+        c.height_female,
+    ]
+    .iter()
+    .all(|v| v.raw() > 0)
+}
+
+// The legacy BaseStats transport shape stays unchanged; catalogs and snapshots reject typos.
+mod base_stats_serde {
+    use super::BaseStats;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    #[derive(Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct StrictStats {
+        str: u32,
+        dex: u32,
+        con: u32,
+        int: u32,
+        wit: u32,
+        men: u32,
+    }
+    pub(super) fn serialize<S: Serializer>(
+        value: &BaseStats,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        StrictStats {
+            str: value.str,
+            dex: value.dex,
+            con: value.con,
+            int: value.int,
+            wit: value.wit,
+            men: value.men,
+        }
+        .serialize(serializer)
+    }
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<BaseStats, D::Error> {
+        let value = StrictStats::deserialize(deserializer)?;
+        Ok(BaseStats {
+            str: value.str,
+            dex: value.dex,
+            con: value.con,
+            int: value.int,
+            wit: value.wit,
+            men: value.men,
+        })
     }
 }

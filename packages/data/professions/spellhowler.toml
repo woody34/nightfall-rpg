@@ -15,6 +15,9 @@ base_class_id = 38
 subclass_allowed = true
 subclass_equivalents = [12, 27]
 growth = "spellhowler"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "deferred"
+skill_tree = []
 
 [movement]
 walk = 85
@@ -39,3 +42,465 @@ men = 37
 [transfer]
 requires = [{ item = "class_transfer_token_2", count = 1 }]
 quest_hooks = []
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 10
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 11
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 40
+skill_id = 249
+skill_level = 12
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 9
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 10
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 40
+skill_id = 234
+skill_level = 11
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 13
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 14
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 44
+skill_id = 249
+skill_level = 15
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 12
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 13
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 44
+skill_id = 234
+skill_level = 14
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 16
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 17
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 48
+skill_id = 249
+skill_level = 18
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 15
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 16
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 48
+skill_id = 234
+skill_level = 17
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 19
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 20
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 52
+skill_id = 249
+skill_level = 21
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 18
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 19
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 52
+skill_id = 234
+skill_level = 20
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 22
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 23
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 56
+skill_id = 249
+skill_level = 24
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 21
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 22
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 56
+skill_id = 234
+skill_level = 23
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 58
+skill_id = 249
+skill_level = 25
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 58
+skill_id = 249
+skill_level = 26
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 58
+skill_id = 234
+skill_level = 24
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 58
+skill_id = 234
+skill_level = 25
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 60
+skill_id = 249
+skill_level = 27
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 60
+skill_id = 249
+skill_level = 28
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 60
+skill_id = 234
+skill_level = 26
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 60
+skill_id = 234
+skill_level = 27
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 62
+skill_id = 249
+skill_level = 29
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 62
+skill_id = 249
+skill_level = 30
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 62
+skill_id = 234
+skill_level = 28
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 62
+skill_id = 234
+skill_level = 29
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 64
+skill_id = 249
+skill_level = 31
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 64
+skill_id = 249
+skill_level = 32
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 64
+skill_id = 234
+skill_level = 30
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 64
+skill_id = 234
+skill_level = 31
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 66
+skill_id = 249
+skill_level = 33
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 66
+skill_id = 249
+skill_level = 34
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 66
+skill_id = 234
+skill_level = 32
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 66
+skill_id = 234
+skill_level = 33
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 68
+skill_id = 249
+skill_level = 35
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 68
+skill_id = 249
+skill_level = 36
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 68
+skill_id = 234
+skill_level = 34
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 68
+skill_id = 234
+skill_level = 35
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 70
+skill_id = 249
+skill_level = 37
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 70
+skill_id = 249
+skill_level = 38
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 70
+skill_id = 234
+skill_level = 36
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 70
+skill_id = 234
+skill_level = 37
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 72
+skill_id = 249
+skill_level = 39
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 72
+skill_id = 249
+skill_level = 40
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 72
+skill_id = 234
+skill_level = 38
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 72
+skill_id = 234
+skill_level = 39
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 74
+skill_id = 249
+skill_level = 41
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.249"
+min_level = 74
+skill_id = 249
+skill_level = 42
+l2_ref = "Weapon Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 74
+skill_id = 234
+skill_level = 40
+l2_ref = "Robe Mastery"
+
+[[proficiencies]]
+key = "l2.skill.234"
+min_level = 74
+skill_id = 234
+skill_level = 41
+l2_ref = "Robe Mastery"

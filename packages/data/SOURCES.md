@@ -174,3 +174,139 @@ are accepted when the number is exactly representable at Q (e.g. `0.1234560`). B
 now accept the entire signed Q range including `-9223372036854.775808`; out-of-range
 neighbours still fail. NPC TOML float literals remain rejected. The shared module contains
 the union of both parser suites plus exact signed endpoint tests.
+
+## Phase 2 class and race catalog provenance
+
+Provenance and reproduction for the Phase 2 race, profession, and growth catalogs. The catalog expands beyond Phase 1's 9 starting classes (`classes/*.toml`) to encompass all 89 classic professions across tiers 0..=3, 5 classic playable races, and 89 per-class growth tables, while preserving Phase 1 tables, starter classes, and fidelity oracles unchanged.
+
+### Pinned High Five source
+
+| Repository | Revision | Role |
+|---|---|---|
+| <https://bitbucket.org/l2jserver/l2j-server-datapack> (`develop`) | `3ca488dd2bd0bfaca43e378886a3c2e37968153a` (2026-09-13) | Class definitions, static attributes, and per-level resource growth |
+
+Datapack files read (prefix `src/main/resources/data/stats/chars/`):
+- `classList.xml`: class IDs, parent links, and retail class names.
+- `src/main/resources/data/skillTrees/classSkillTree.xml`: level/SP gates, automatic grants, NPC learning flags, item requirements, Expertise and equipment mastery references.
+- `src/main/resources/data/stats/skills/*.xml`: targeted skill ID/name/level-range metadata for validating learning references, without copying skill effects.
+- `baseStats/*.xml`: 89 classic class XML templates containing `<staticData>` (base stats, movement speeds, collision boxes, environmental traits) and `<lvlUpgainData>` (85 per-level HP, MP, and CP rows).
+- Base fighter XML templates (`HumanFighter.xml`, `ElvenFighter.xml`, `DarkFighter.xml`, `OrcFighter.xml`, `DwarvenFighter.xml`) providing baseline race movement, collision, and traits.
+
+### Generated catalog directories
+
+| Directory | Count / Schema | Contents |
+|---|---|---|
+| `packages/data/races/*.toml` | 5 TOML files | 5 classic playable races (`human`, `elf`, `dark_elf`, `orc`, `dwarf`). Contains racial fighter-baseline movement speeds, decimal collision strings, environmental traits (`breath`, `safe_fall`), and racial passive skill descriptor keys. |
+| `packages/data/professions/*.toml` | 89 TOML files | 89 classic classes across tiers 0..=3 (tier distribution 9-18-31-31; IDs 0..=57 and 88..=118). Contains base stats summing to 170, class-specific movement, collision in integer world units at Q = 1,000,000, transfer token requirements, and subclass configuration. Reserved Kamael IDs 123..=136 are absent. |
+| `packages/data/skill_catalog.toml` | 378 targeted skill definitions | Source skill IDs, maximum levels, reference names and definition paths; runtime status is explicitly deferred. |
+| `packages/data/growth/*.csv` | 89 CSV files | Per-class resource growth for levels 1..=85. Each file contains header `level,hp,mp,cp` followed by 85 rows: 7,565 rows total, 22,695 exact HP/MP/CP plain decimal scalars (up to 6 decimal places, exact at Q = 1e-6). |
+
+### Regenerating and verifying
+
+```bash
+git clone -b develop https://bitbucket.org/l2jserver/l2j-server-datapack.git /tmp/phase2-l2j-dp
+git -C /tmp/phase2-l2j-dp checkout 3ca488dd2bd0bfaca43e378886a3c2e37968153a
+python3 packages/data/scripts/gen_classes.py --datapack /tmp/phase2-l2j-dp --check
+```
+
+The generation script `packages/data/scripts/gen_classes.py`:
+- Validates that the datapack clone is checked out to exact pinned revision `3ca488dd2bd0bfaca43e378886a3c2e37968153a`.
+- Extracts XML source strings verbatim, formatting plain decimals without floating-point conversion.
+- Generates all 5 race files, 89 profession files, 89 growth CSV files and the targeted skill reference catalog.
+- Refuses unknown skill IDs, source levels outside their definition range, duplicate learning/proficiency rows and unexpected files in generated directories during `--check`.
+- In `--check` mode, verifies that committed data files in `packages/data/` (`races/`, `professions/`, `growth/`) AND the compiled Rust inventory file at `apps/api/src/infrastructure/class_data_embedded.rs` match generated contents byte-for-byte.
+
+### Data extraction and lineage fidelity
+
+- **XML source exact strings**: Base stats, movement speeds, collision boxes, and `lvlUpgainData` values are transcribed directly as exact plain decimal strings (up to 6 fractional decimal digits, exact at Q = 1,000,000). Float literals are forbidden.
+- **Retail parent errata**: Retail `classList.xml` contains two defective parent links that break class lineage trees, corrected via `PARENT_ERRATA`:
+  - Class 34 (`Bladedancer` / `Edge Cantor`): retail lists `parentClassId="33"` (Shillien Knight). Corrected to `parentClassId="32"` (Palus Knight).
+  - Class 104 (`Elemental Master` / `Tide Sovereign`): retail lists `parentClassId="26"` (Elven Wizard). Corrected to `parentClassId="28"` (Elemental Summoner).
+- **Fixed 170 stat sum**: For all 89 classic classes, the six base stats (`STR + DEX + CON + INT + WIT + MEN`) sum to exactly 170.
+- **Lineage consistency**: For all non-root classes (tiers 1..=3), all combat-sourced static attributes match the lineage root class: `race`, `archetype`, `base_class_id`, and all six `base_stats` are identical to the root starter class.
+- **Source-explicit growth necessity (240 vs 27 curves)**:
+  - The 9 starter XML templates have 27 curves (9 classes × 3 resources HP/MP/CP), all of which are exact quadratics (`base + per_level*(L-1) + accel*(L-1)^2`).
+  - Across all 89 classes (267 curves total), 240 curves are non-quadratic due to transfer discontinuities and growth shifts around the level 20 and 40 transfer thresholds. Only the 27 base curves are quadratic.
+  - Storing explicit 85-row source tables (7,565 rows, 22,695 decimal scalars) is strictly necessary to maintain source fidelity across the entire catalog; single quadratic formulas cannot represent advancing professions.
+
+### Movement and collision semantics
+
+- **Racial baseline vs class-specific attributes**:
+  - `RaceDef` (and `RaceInfo`): Movement speeds (`walk`, `run`, `swim`) and collision dimensions (`radius_male`, `radius_female`, `height_male`, `height_female`) record the fighter baseline for that race (read from `HumanFighter.xml`, `ElvenFighter.xml`, etc.).
+  - `ClassDef`: Records the actual class movement and collision from each class's XML. Human Mystic (class ID 10) and Orc Mystic (class ID 49) differ from their racial fighter baselines (e.g. Human Mystic walk/run 78/120 vs Human Fighter 80/115; collision dimensions differ accordingly).
+- **Unit representations**:
+  - In race files (`races/*.toml`): Collision dimensions are stored as exact decimal strings in reference world units (e.g. `radius_male = "9.0"`, `height_male = "23"`).
+  - In profession files (`professions/*.toml`): Collision dimensions are stored as integers at fixed-point Q = 1,000,000 world units (`Scaled`, e.g. `radius_male = 9000000`, `height_male = 23000000`).
+  - Movement speeds are whole integers in reference world units per second.
+
+### Start points, reference zones, and naming conventions
+
+- **Start points and fixture zones**: `start_points` in `races/*.toml` are set to fixture test coordinates `[[0, 0]]` within `test_zone` (with respawn safe point `[126, 126]`).
+- **Reference starting zones**: `reference_starting_zone` (`talking_island_village`, `elven_village`, `dark_elf_village`, `orc_village`, `dwarven_village`) is purely informational metadata pointing to classic starter villages; these are NOT implemented villages.
+- **Naming identity**:
+  - `l2_ref`: Retains exact, unmodified retail names (e.g. "Human Fighter", "Warrior", "Gladiator", "Duelist").
+  - `display_name`: Curated original draft mutable metadata for Nightfall (e.g. "Human Armsbearer", "Steel Initiate", "Twinblade Champion", "Blade Paragon").
+  - Disclaimer: The 89 original Nightfall labels and fixture starting positions are design metadata, separate from the cited retail values.
+
+### Deferred hooks and future phase boundaries
+
+- **Class skill tree and proficiencies**: `SkillLearnDef` (`skill_tree`) contains the complete source learning rows for all 9 base classes, 18 first classes, and the 12 second-class MVP professions (6,927 entries). The 50 other direct trees are marked `deferred`, while inherited entries remain queryable. `ProficiencyDef` records 3,521 source equipment mastery and Expertise unlock rows across all 89 classes. Skill execution/effects and manual learning flows are deferred to Phase 3; equipment/mastery effects are deferred to Phase 4.
+- **Racial passive keys**: `passive_skill_keys` in `races/*.toml` (e.g. `racial.adaptable`, `racial.forest_step`, `racial.shadow_precision`, `racial.iron_constitution`, `racial.pack_mule`) are descriptor strings gated behind the future Phase 3 skill registry. Server runtime effects are defined by progression and combat rules.
+- **Reserved Kamael IDs**: Classic catalog IDs include 0..=57 and 88..=118; Kamael IDs 123..=136 are absent (Nightfall has no Kamael race).
+
+### Level progression, transfer gates, and subclass eligibility
+
+- **Level cap**: Authoritative source level cap and playable level cap remain 85, preserving Phase 1.
+- **Transfer gate**: Catalog files specify transfer token requirements across tiers 1..=3 (`class_transfer_token_1`, `class_transfer_token_2`, `class_transfer_token_3`). However, the application transfer gate is capped at transfer 2. Third-tier professions (tier 3, min level 76, IDs 88..=118) exist in catalog metadata and validation but are currently unreachable in gameplay under the transfer gate.
+- **Subclass eligibility model** (`apps/api/src/domain/subclass.rs`):
+  - Pure eligibility verification model without mutating character state or learning skills; village-master dialogue and interaction flows are deferred.
+  - Subclasses start at level 40 (`SUBCLASS_START_LEVEL = 40`).
+  - Subclass level cap is authoritative main level cap minus 5 (`subclass_level_cap(85) = 80`).
+  - Up to 3 additional subclass slots per character (`MAX_SUBCLASSES = 3`).
+  - Certification limits: 4 certifications per subclass slot (`CERTIFICATIONS_PER_SUBCLASS = 4`), up to 12 total across all three slots (`MAX_CERTIFICATIONS = 12`).
+  - Subclass eligibility criteria:
+    - Main class must have completed the second transfer (tier ≥ 2).
+    - Main level must be at least 75.
+    - Subclass quest completed (`quest_completed = true`) or noble status (`noble = true`).
+    - Additional subclass slots not exhausted (< 3).
+    - Candidate profession must be tier 2 and permitted (`subclass_allowed = true`; Overlord ID 51 and Warsmith ID 57 are forbidden).
+    - Racial restriction: Elf and Dark Elf lineages cannot cross.
+    - Equivalence restriction: Candidate cannot match or share an equivalence set with any held profession (main or existing subclasses) via `subclass_equivalents`.
+
+### Registry validation, canonical hashing, and Phase 1 preservation
+
+- **Startup loader and deserialization validation**: `infrastructure::class_data::load_classes` loads all catalog files at startup. `ClassRegistry` serde deserialization (`try_from = "RegistryParts"`) re-executes `validate()`, guaranteeing that deserializing saved snapshots revalidates all catalog invariants (IDs, stat totals, tier gates, parent links, non-decreasing growth, and subclass configurations, collision positivity, strict nested fields and known skill ID/level bounds).
+- **Canonical config hash**: `ResolvedClasses.config_hash` is a SHA-256 digest over the canonical JSON encoding of `(&registry, &provenance)`. It tracks all resolved metadata, source provenance, and growth tables, while remaining insensitive to TOML whitespace/comments and equivalent accepted decimal representations. CSV headers and contiguous four-column rows remain strict; comments and whitespace outside plain decimal cells are rejected.
+- **Phase 1 preservation**: Phase 1 stat tables (`tables/*.toml`), starter classes (`classes/*.toml`), formula tests (`formula_fidelity`), and independent verification fixtures (`oracle.py`, `oracle.json`, `rounding-audit.json`) remain completely intact and unchanged.
+
+
+### CP maximum multiplier
+
+The pinned game source at `abfde0490ac52a2106e884b7242c0276c44cdf76` uses the same
+CON multiplier for CP as HP. `FuncMaxCpMul.calc` multiplies the template's CP row
+by `BaseStats.CON.calcBonus(effector)`; `PcStat.getMaxCp` casts the resulting
+positive value to an integer. Nightfall therefore floors the exact CP × CON product,
+using the existing Q arithmetic and no binary floating point. Sources:
+[FuncMaxCpMul.java](https://raw.githubusercontent.com/monkey1sai/l2j-server-game/abfde0490ac52a2106e884b7242c0276c44cdf76/src/main/java/com/l2jserver/gameserver/model/stats/functions/formulas/FuncMaxCpMul.java)
+and [PcStat.java](https://raw.githubusercontent.com/monkey1sai/l2j-server-game/abfde0490ac52a2106e884b7242c0276c44cdf76/src/main/java/com/l2jserver/gameserver/model/actor/stat/PcStat.java).
+The Phase 2 catalog stores pre-multiplier CP, including fractional source rows; the
+server applies CON when it builds the active class sheet.
+
+### Source learning and proficiency coverage
+
+The populated second-class IDs are **2, 5, 8, 9, 12, 16, 17, 27, 33, 46, 52, 55**,
+as specified by the Phase 2 MVP slice. Together with all bases and first transfers,
+these provide 39 direct learning trees and 6,927 source entries. Each entry retains
+`skillId`, `skillLvl`, `getLevel`, `levelUpSp` (zero when absent), `autoGet`,
+`learnedByNpc`, and optional item ID/count requirements. Stable keys are
+`l2.skill.<id>` and `l2.item.<id>`; source names remain `l2_ref`.
+
+All 89 classes carry their source equipment mastery and Expertise rows as proficiency
+metadata (3,521 entries), inherited through the corrected class graph. Expertise 239
+unlocks at 20/40/52/61/76/80/84 for levels 1..7. Equipment mastery names are explicitly
+selected; Cubic Mastery, Skill Mastery and Focus Skill Mastery are outside equipment
+proficiency scope. The 378 distinct referenced skills are cross-checked against the
+pinned skill-definition XML IDs and maximum levels and serialized with the registry.
+Every known skill's runtime status remains `deferred`: metadata grants do not claim
+that the Phase 3 effects engine exists. Automatic grants may persist progress at zero
+SP cost; manual learning and effect execution remain future work.

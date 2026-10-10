@@ -15,6 +15,8 @@ base_class_id = 0
 subclass_allowed = true
 subclass_equivalents = [23, 36]
 growth = "treasure_hunter"
+learning_source = "src/main/resources/data/skillTrees/classSkillTree.xml"
+skill_tree_status = "populated"
 
 [movement]
 walk = 80
@@ -39,3 +41,3601 @@ men = 25
 [transfer]
 requires = [{ item = "class_transfer_token_2", count = 1 }]
 quest_hooks = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 9
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 10
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 11
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 12
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 13
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 1
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 2
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 3
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 1
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 2
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 3
+required_level = 40
+sp_cost = 11000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 6
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 3
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.193"
+skill_id = 193
+l2_ref = "Critical Damage"
+skill_level = 3
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.137"
+skill_id = 137
+l2_ref = "Critical Chance"
+skill_level = 2
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.221"
+skill_id = 221
+l2_ref = "Silent Move"
+skill_level = 1
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.60"
+skill_id = 60
+l2_ref = "Fake Death"
+skill_level = 1
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 6
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.821"
+skill_id = 821
+l2_ref = "Shadow Step"
+skill_level = 1
+required_level = 40
+sp_cost = 33000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 12
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 13
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 14
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 14
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 15
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 16
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 4
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 5
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 6
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 4
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 5
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 6
+required_level = 43
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 7
+required_level = 43
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 1
+required_level = 43
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 1
+required_level = 43
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.225"
+skill_id = 225
+l2_ref = "Acrobatic Move"
+skill_level = 2
+required_level = 43
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 2
+required_level = 43
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.169"
+skill_id = 169
+l2_ref = "Quick Step"
+skill_level = 2
+required_level = 43
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 7
+required_level = 43
+sp_cost = 42000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 15
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 16
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 17
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 17
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 18
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 19
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 7
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 8
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 9
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 7
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 8
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 9
+required_level = 46
+sp_cost = 14000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 8
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 2
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 2
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 4
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 3
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.168"
+skill_id = 168
+l2_ref = "Boost Attack Speed"
+skill_level = 2
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.198"
+skill_id = 198
+l2_ref = "Boost Evasion"
+skill_level = 2
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.4"
+skill_id = 4
+l2_ref = "Dash"
+skill_level = 2
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 8
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.419"
+skill_id = 419
+l2_ref = "Summon Treasure Key"
+skill_level = 1
+required_level = 46
+sp_cost = 43000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 18
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 19
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 20
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 20
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 21
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 22
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 10
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 11
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 12
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 10
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 11
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 12
+required_level = 49
+sp_cost = 30000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 9
+required_level = 49
+sp_cost = 89000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 3
+required_level = 49
+sp_cost = 89000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 3
+required_level = 49
+sp_cost = 89000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 1
+required_level = 49
+sp_cost = 89000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 4
+required_level = 49
+sp_cost = 89000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.137"
+skill_id = 137
+l2_ref = "Critical Chance"
+skill_level = 3
+required_level = 49
+sp_cost = 89000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.96"
+skill_id = 96
+l2_ref = "Bleed"
+skill_level = 3
+required_level = 49
+sp_cost = 89000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 21
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 22
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 23
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 23
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 24
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 25
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 13
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 14
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 15
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 13
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 14
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 15
+required_level = 52
+sp_cost = 38000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 10
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 4
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 4
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 2
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 5
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 5
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.51"
+skill_id = 51
+l2_ref = "Lure"
+skill_level = 1
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.193"
+skill_id = 193
+l2_ref = "Critical Damage"
+skill_level = 4
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 9
+required_level = 52
+sp_cost = 115000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 24
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 25
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 26
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 26
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 27
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 28
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 16
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 17
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 18
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 16
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 17
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 18
+required_level = 55
+sp_cost = 49000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 11
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 5
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 5
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 3
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.225"
+skill_id = 225
+l2_ref = "Acrobatic Move"
+skill_level = 3
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.195"
+skill_id = 195
+l2_ref = "Boost Breath"
+skill_level = 2
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.173"
+skill_id = 173
+l2_ref = "Acrobatics"
+skill_level = 2
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.111"
+skill_id = 111
+l2_ref = "Ultimate Evasion"
+skill_level = 2
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 10
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 1
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 1
+required_level = 55
+sp_cost = 147000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 27
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 28
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 29
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 29
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 30
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 31
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 19
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 20
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 21
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 19
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 20
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 21
+required_level = 58
+sp_cost = 50000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 12
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 6
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 6
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 4
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 6
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.96"
+skill_id = 96
+l2_ref = "Bleed"
+skill_level = 4
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.168"
+skill_id = 168
+l2_ref = "Boost Attack Speed"
+skill_level = 3
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.198"
+skill_id = 198
+l2_ref = "Boost Evasion"
+skill_level = 3
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 2
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.411"
+skill_id = 411
+l2_ref = "Stealth"
+skill_level = 1
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 2
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.419"
+skill_id = 419
+l2_ref = "Summon Treasure Key"
+skill_level = 2
+required_level = 58
+sp_cost = 150000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 30
+required_level = 60
+sp_cost = 121000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 31
+required_level = 60
+sp_cost = 121000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 32
+required_level = 60
+sp_cost = 121000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 33
+required_level = 60
+sp_cost = 121000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 22
+required_level = 60
+sp_cost = 121000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 23
+required_level = 60
+sp_cost = 121000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 22
+required_level = 60
+sp_cost = 121000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 23
+required_level = 60
+sp_cost = 121000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 13
+required_level = 60
+sp_cost = 242000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 7
+required_level = 60
+sp_cost = 242000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 7
+required_level = 60
+sp_cost = 242000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 5
+required_level = 60
+sp_cost = 242000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 11
+required_level = 60
+sp_cost = 242000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 3
+required_level = 60
+sp_cost = 242000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 3
+required_level = 60
+sp_cost = 242000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.453"
+skill_id = 453
+l2_ref = "Escape Shackle"
+skill_level = 1
+required_level = 60
+sp_cost = 242000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 32
+required_level = 62
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 33
+required_level = 62
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 34
+required_level = 62
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 35
+required_level = 62
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 24
+required_level = 62
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 25
+required_level = 62
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 24
+required_level = 62
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 25
+required_level = 62
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 14
+required_level = 62
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 8
+required_level = 62
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 8
+required_level = 62
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 6
+required_level = 62
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 6
+required_level = 62
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 4
+required_level = 62
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 4
+required_level = 62
+sp_cost = 360000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 34
+required_level = 64
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 35
+required_level = 64
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 36
+required_level = 64
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 37
+required_level = 64
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 26
+required_level = 64
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 27
+required_level = 64
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 26
+required_level = 64
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 27
+required_level = 64
+sp_cost = 180000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 15
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 9
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 9
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 7
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.193"
+skill_id = 193
+l2_ref = "Critical Damage"
+skill_level = 5
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 7
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 12
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 5
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 5
+required_level = 64
+sp_cost = 370000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 36
+required_level = 66
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 37
+required_level = 66
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 38
+required_level = 66
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 39
+required_level = 66
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 28
+required_level = 66
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 29
+required_level = 66
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 28
+required_level = 66
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 29
+required_level = 66
+sp_cost = 270000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 16
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 10
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 10
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 8
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.96"
+skill_id = 96
+l2_ref = "Bleed"
+skill_level = 5
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 6
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.411"
+skill_id = 411
+l2_ref = "Stealth"
+skill_level = 2
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 6
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.419"
+skill_id = 419
+l2_ref = "Summon Treasure Key"
+skill_level = 3
+required_level = 66
+sp_cost = 540000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 38
+required_level = 68
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 39
+required_level = 68
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 40
+required_level = 68
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 41
+required_level = 68
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 30
+required_level = 68
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 31
+required_level = 68
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 30
+required_level = 68
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 31
+required_level = 68
+sp_cost = 330000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 17
+required_level = 68
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 11
+required_level = 68
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 11
+required_level = 68
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 9
+required_level = 68
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 7
+required_level = 68
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 13
+required_level = 68
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 7
+required_level = 68
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 7
+required_level = 68
+sp_cost = 650000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 40
+required_level = 70
+sp_cost = 420000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 41
+required_level = 70
+sp_cost = 420000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 42
+required_level = 70
+sp_cost = 420000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 43
+required_level = 70
+sp_cost = 420000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 32
+required_level = 70
+sp_cost = 420000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 33
+required_level = 70
+sp_cost = 420000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 32
+required_level = 70
+sp_cost = 420000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 33
+required_level = 70
+sp_cost = 420000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 18
+required_level = 70
+sp_cost = 850000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 12
+required_level = 70
+sp_cost = 850000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 12
+required_level = 70
+sp_cost = 850000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 10
+required_level = 70
+sp_cost = 850000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.96"
+skill_id = 96
+l2_ref = "Bleed"
+skill_level = 6
+required_level = 70
+sp_cost = 850000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 8
+required_level = 70
+sp_cost = 850000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 8
+required_level = 70
+sp_cost = 850000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 42
+required_level = 72
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 43
+required_level = 72
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 44
+required_level = 72
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 45
+required_level = 72
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 34
+required_level = 72
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 35
+required_level = 72
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 34
+required_level = 72
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 35
+required_level = 72
+sp_cost = 460000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 19
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 13
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 13
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 11
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.193"
+skill_id = 193
+l2_ref = "Critical Damage"
+skill_level = 6
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.148"
+skill_id = 148
+l2_ref = "Vital Force"
+skill_level = 8
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.27"
+skill_id = 27
+l2_ref = "Unlock"
+skill_level = 14
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 9
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 9
+required_level = 72
+sp_cost = 920000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 44
+required_level = 74
+sp_cost = 870000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.209"
+skill_id = 209
+l2_ref = "Dagger Mastery"
+skill_level = 45
+required_level = 74
+sp_cost = 870000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 46
+required_level = 74
+sp_cost = 870000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.233"
+skill_id = 233
+l2_ref = "Light Armor Mastery"
+skill_level = 47
+required_level = 74
+sp_cost = 870000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 36
+required_level = 74
+sp_cost = 870000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.263"
+skill_id = 263
+l2_ref = "Deadly Blow"
+skill_level = 37
+required_level = 74
+sp_cost = 870000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 36
+required_level = 74
+sp_cost = 870000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.30"
+skill_id = 30
+l2_ref = "Backstab"
+skill_level = 37
+required_level = 74
+sp_cost = 870000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.312"
+skill_id = 312
+l2_ref = "Vicious Stance"
+skill_level = 20
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.12"
+skill_id = 12
+l2_ref = "Switch"
+skill_level = 14
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.106"
+skill_id = 106
+l2_ref = "Veil"
+skill_level = 14
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.11"
+skill_id = 11
+l2_ref = "Trick"
+skill_level = 12
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.171"
+skill_id = 171
+l2_ref = "Esprit"
+skill_level = 8
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.409"
+skill_id = 409
+l2_ref = "Critical Blow"
+skill_level = 10
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.411"
+skill_id = 411
+l2_ref = "Stealth"
+skill_level = 3
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.412"
+skill_id = 412
+l2_ref = "Sand Bomb"
+skill_level = 10
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.419"
+skill_id = 419
+l2_ref = "Summon Treasure Key"
+skill_level = 4
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.623"
+skill_id = 623
+l2_ref = "Find Trap"
+skill_level = 1
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[skill_tree]]
+key = "l2.skill.624"
+skill_id = 624
+l2_ref = "Remove Trap"
+skill_level = 1
+required_level = 74
+sp_cost = 1730000
+auto_get = false
+learned_by_npc = true
+required_items = []
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 40
+skill_id = 209
+skill_level = 9
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 40
+skill_id = 209
+skill_level = 10
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 40
+skill_id = 209
+skill_level = 11
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 40
+skill_id = 233
+skill_level = 11
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 40
+skill_id = 233
+skill_level = 12
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 40
+skill_id = 233
+skill_level = 13
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 43
+skill_id = 209
+skill_level = 12
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 43
+skill_id = 209
+skill_level = 13
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 43
+skill_id = 209
+skill_level = 14
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 43
+skill_id = 233
+skill_level = 14
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 43
+skill_id = 233
+skill_level = 15
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 43
+skill_id = 233
+skill_level = 16
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 46
+skill_id = 209
+skill_level = 15
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 46
+skill_id = 209
+skill_level = 16
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 46
+skill_id = 209
+skill_level = 17
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 46
+skill_id = 233
+skill_level = 17
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 46
+skill_id = 233
+skill_level = 18
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 46
+skill_id = 233
+skill_level = 19
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 49
+skill_id = 209
+skill_level = 18
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 49
+skill_id = 209
+skill_level = 19
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 49
+skill_id = 209
+skill_level = 20
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 49
+skill_id = 233
+skill_level = 20
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 49
+skill_id = 233
+skill_level = 21
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 49
+skill_id = 233
+skill_level = 22
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 52
+skill_id = 209
+skill_level = 21
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 52
+skill_id = 209
+skill_level = 22
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 52
+skill_id = 209
+skill_level = 23
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 52
+skill_id = 233
+skill_level = 23
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 52
+skill_id = 233
+skill_level = 24
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 52
+skill_id = 233
+skill_level = 25
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 55
+skill_id = 209
+skill_level = 24
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 55
+skill_id = 209
+skill_level = 25
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 55
+skill_id = 209
+skill_level = 26
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 55
+skill_id = 233
+skill_level = 26
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 55
+skill_id = 233
+skill_level = 27
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 55
+skill_id = 233
+skill_level = 28
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 58
+skill_id = 209
+skill_level = 27
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 58
+skill_id = 209
+skill_level = 28
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 58
+skill_id = 209
+skill_level = 29
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 58
+skill_id = 233
+skill_level = 29
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 58
+skill_id = 233
+skill_level = 30
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 58
+skill_id = 233
+skill_level = 31
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 60
+skill_id = 209
+skill_level = 30
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 60
+skill_id = 209
+skill_level = 31
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 60
+skill_id = 233
+skill_level = 32
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 60
+skill_id = 233
+skill_level = 33
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 62
+skill_id = 209
+skill_level = 32
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 62
+skill_id = 209
+skill_level = 33
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 62
+skill_id = 233
+skill_level = 34
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 62
+skill_id = 233
+skill_level = 35
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 64
+skill_id = 209
+skill_level = 34
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 64
+skill_id = 209
+skill_level = 35
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 64
+skill_id = 233
+skill_level = 36
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 64
+skill_id = 233
+skill_level = 37
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 66
+skill_id = 209
+skill_level = 36
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 66
+skill_id = 209
+skill_level = 37
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 66
+skill_id = 233
+skill_level = 38
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 66
+skill_id = 233
+skill_level = 39
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 68
+skill_id = 209
+skill_level = 38
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 68
+skill_id = 209
+skill_level = 39
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 68
+skill_id = 233
+skill_level = 40
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 68
+skill_id = 233
+skill_level = 41
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 70
+skill_id = 209
+skill_level = 40
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 70
+skill_id = 209
+skill_level = 41
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 70
+skill_id = 233
+skill_level = 42
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 70
+skill_id = 233
+skill_level = 43
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 72
+skill_id = 209
+skill_level = 42
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 72
+skill_id = 209
+skill_level = 43
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 72
+skill_id = 233
+skill_level = 44
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 72
+skill_id = 233
+skill_level = 45
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 74
+skill_id = 209
+skill_level = 44
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.209"
+min_level = 74
+skill_id = 209
+skill_level = 45
+l2_ref = "Dagger Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 74
+skill_id = 233
+skill_level = 46
+l2_ref = "Light Armor Mastery"
+
+[[proficiencies]]
+key = "l2.skill.233"
+min_level = 74
+skill_id = 233
+skill_level = 47
+l2_ref = "Light Armor Mastery"
