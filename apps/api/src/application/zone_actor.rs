@@ -258,11 +258,17 @@ pub struct ActorStopped;
 struct Queued {
     input: ZoneInput,
     trace: Option<TraceCarrier>,
+    reply: Option<
+        oneshot::Sender<
+            Result<crate::domain::character_progression::FrozenTransferResult, super::AppError>,
+        >,
+    >,
 }
 
 /// Cheap, cloneable access to a running zone.
 #[derive(Debug, Clone)]
 pub struct ZoneHandle {
+    phase2: bool,
     /// Serial persistence lane, installed before admitting sockets.
     pub checkpoints: super::checkpoint::CheckpointLane,
     commands: mpsc::Sender<Queued>,
@@ -271,11 +277,17 @@ pub struct ZoneHandle {
     stats: watch::Receiver<TickStats>,
     paused: watch::Receiver<bool>,
     final_snapshot: Arc<parking_lot::RwLock<Option<ZoneSnapshot>>>,
+    persistence_failed: Arc<std::sync::atomic::AtomicBool>,
     audit_seed: crate::domain::zone::ZoneSeed,
     audit_next_tick: watch::Receiver<Tick>,
 }
 
 impl ZoneHandle {
+    /// Whether authoritative Phase 2 identity is required at admission.
+    pub fn has_classes(&self) -> bool {
+        self.phase2
+    }
+
     /// Current zone position for best-effort session audit. The next tick follows state
     /// advancement, including idle ticks and ticks waiting for durable admission.
     pub fn audit_context(&self) -> super::SessionAuditContext {
@@ -286,6 +298,12 @@ impl ZoneHandle {
         }
     }
 
+    /// True when the actor stopped with an unresolved persistence fence.
+    pub fn persistence_failed(&self) -> bool {
+        self.persistence_failed
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
     pub(crate) fn final_snapshot(&self) -> Option<ZoneSnapshot> {
         self.final_snapshot.read().clone()
     }
@@ -294,7 +312,11 @@ impl ZoneHandle {
     /// in the order sent. Refused with [`ZoneSendError::Paused`] while the gate reports the
     /// zone paused.
     pub fn send(&self, input: ZoneInput) -> Result<(), ZoneSendError> {
-        self.enqueue(Queued { input, trace: None })
+        self.enqueue(Queued {
+            input,
+            trace: None,
+            reply: None,
+        })
     }
 
     /// [`Self::send`], continuing the trace in `trace`: the actor records a `zone.apply` span
@@ -304,6 +326,7 @@ impl ZoneHandle {
         self.enqueue(Queued {
             input,
             trace: Some(trace),
+            reply: None,
         })
     }
 
@@ -312,7 +335,11 @@ impl ZoneHandle {
     /// use [`Self::send`] and are refused with `OVERLOADED` instead.
     pub async fn send_wait(&self, input: ZoneInput) -> Result<(), ActorStopped> {
         self.commands
-            .send(Queued { input, trace: None })
+            .send(Queued {
+                input,
+                trace: None,
+                reply: None,
+            })
             .await
             .map_err(|_| ActorStopped)
     }
@@ -325,6 +352,33 @@ impl ZoneHandle {
             mpsc::error::TrySendError::Full(q) => ZoneSendError::Full(q.input),
             mpsc::error::TrySendError::Closed(q) => ZoneSendError::Closed(q.input),
         })
+    }
+
+    /// Enqueues an authenticated transfer; the receiver is completed only after checkpoint.
+    pub fn enqueue_class_transfer(
+        &self,
+        input: ZoneInput,
+    ) -> Result<
+        oneshot::Receiver<
+            Result<crate::domain::character_progression::FrozenTransferResult, super::AppError>,
+        >,
+        super::AppError,
+    > {
+        let (reply, receiver) = oneshot::channel();
+        self.enqueue(Queued {
+            input,
+            trace: None,
+            reply: Some(reply),
+        })
+        .map_err(|e| match e {
+            ZoneSendError::Full(_) => {
+                super::AppError::ResourceExhausted("zone command queue is full".into())
+            },
+            ZoneSendError::Paused(_) | ZoneSendError::Closed(_) => {
+                super::AppError::Unavailable("zone is unavailable".into())
+            },
+        })?;
+        Ok(receiver)
     }
 
     /// Every non-idle tick's record, one batch per tick, in tick order.
@@ -361,9 +415,17 @@ impl ZoneHandle {
 
 /// The task that owns a zone. Construct with [`ZoneActor::spawn`].
 pub struct ZoneActor<T, G> {
+    failed: bool,
+    replies: BTreeMap<
+        Ordinal,
+        oneshot::Sender<
+            Result<crate::domain::character_progression::FrozenTransferResult, super::AppError>,
+        >,
+    >,
     audit_next_tick: watch::Sender<Tick>,
     checkpoints: super::checkpoint::CheckpointLane,
     final_snapshot: Arc<parking_lot::RwLock<Option<ZoneSnapshot>>>,
+    persistence_failed: Arc<std::sync::atomic::AtomicBool>,
     state: ZoneState,
     ticks: T,
     gate: G,
@@ -410,13 +472,18 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
         let paused = gate.paused();
+        let phase2 = state.has_classes();
         let audit_seed = state.seed();
         let (audit_next_tick_tx, audit_next_tick_rx) = watch::channel(state.next_tick());
         let checkpoints = super::checkpoint::CheckpointLane::with_snapshot(state.snapshot());
         let final_snapshot = Arc::default();
+        let persistence_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let actor = Self {
+            failed: false,
+            replies: BTreeMap::new(),
             audit_next_tick: audit_next_tick_tx,
             final_snapshot: Arc::clone(&final_snapshot),
+            persistence_failed: persistence_failed.clone(),
             checkpoints: checkpoints.clone(),
             state,
             ticks,
@@ -434,9 +501,11 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         tokio::spawn(actor.run());
         ZoneHandle {
+            phase2,
             audit_seed,
             audit_next_tick: audit_next_tick_rx,
             final_snapshot,
+            persistence_failed,
             checkpoints,
             commands: cmd_tx,
             snapshots: snap_tx,
@@ -460,6 +529,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                     }
                     let outcome = self.tick().await;
                     self.ticks.tick_done(outcome);
+                    if self.failed { break; }
                     self.answer_snapshots().await;
                     if self.commands_closed && self.pending.is_empty() && self.unrecorded.is_none() {
                         break;
@@ -467,7 +537,12 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 },
             }
         }
-        if self.unrecorded.is_none() {
+        if self.failed {
+            self.persistence_failed
+                .store(true, std::sync::atomic::Ordering::Release);
+            self.fail_replies();
+        }
+        if self.unrecorded.is_none() && !self.failed {
             let mut snapshot = self.state.snapshot();
             if let Some(service) = self.checkpoints.service() {
                 service.lock().await.snapshot(&mut snapshot);
@@ -505,8 +580,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 Err((tick, e)) => {
                     // Unreachable by construction: the draft came from this state just above.
                     tracing::error!(tick = tick.0, error = %e, "draft did not continue the zone");
+                    self.failed = true;
                     self.publish_stats(tick, started, 0);
-                    return TickOutcome::Ran(tick);
+                    return TickOutcome::Held(tick);
                 },
             },
         };
@@ -527,12 +603,19 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             return TickOutcome::Held(tick);
         }
         if let Some(service) = self.checkpoints.service() {
-            service
+            if let Err(error) = service
                 .lock()
                 .await
                 .admitted(&record, &self.state.snapshot())
-                .await;
+                .await
+            {
+                tracing::error!(%error,"checkpoint failure fences zone before output release");
+                self.failed = true;
+                self.fail_replies();
+                return TickOutcome::Held(tick);
+            }
         }
+        self.complete_replies(&record);
         if !record.is_idle() {
             // No subscribers is fine: nobody is connected yet.
             let _ = self.out.send(record);
@@ -549,7 +632,61 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
 
     /// Drafts and runs the next tick, consuming its inputs from `pending`.
     async fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
-        let admitted = self.select_admitted();
+        let admitted = loop {
+            let selected = self.select_admitted();
+            let transfer = selected.iter().find_map(|i| {
+                self.pending.get(*i).and_then(|q| match q.input.command {
+                    crate::domain::zone::ZoneCommand::ChangeClass {
+                        entity,
+                        account,
+                        request_key,
+                        target,
+                    } => Some((*i, entity, account, request_key, target)),
+                    _ => None,
+                })
+            });
+            let Some((index, entity, account, key, target)) = transfer else {
+                break selected;
+            };
+            let result = if let Some(service) = self.checkpoints.service() {
+                let service = service.lock().await;
+                if !service.transfer_ready(entity) {
+                    Some(Err(super::AppError::Unavailable(
+                        "checkpoint lane missing or fenced".into(),
+                    )))
+                } else {
+                    let key = super::IdempotencyKey::from_uuid(key);
+                    let fingerprint = super::ports::transfer_fingerprint(
+                        crate::domain::CharacterId::from_uuid(entity.as_uuid()),
+                        target,
+                    );
+                    match service
+                        .mutation_receipt_lookup(account, &key, &fingerprint)
+                        .await
+                    {
+                        Ok(super::ports::MutationReceiptLookup::Unknown) => None,
+                        Ok(super::ports::MutationReceiptLookup::Known(result)) => Some(Ok(result)),
+                        Ok(super::ports::MutationReceiptLookup::Conflict) => {
+                            Some(Err(super::AppError::IdempotencyConflict))
+                        },
+                        Err(_) => Some(Err(super::AppError::Unavailable(
+                            "transfer receipt lookup failed".into(),
+                        ))),
+                    }
+                }
+            } else {
+                Some(Err(super::AppError::Unavailable("checkpoint service unavailable".into())))
+            };
+            if let Some(result) = result {
+                if let Some(mut queued) = self.pending.remove(index) {
+                    if let Some(reply) = queued.reply.take() {
+                        let _ = reply.send(result);
+                    }
+                }
+            } else {
+                break selected;
+            }
+        };
         let inputs: Vec<ZoneInput> = admitted
             .iter()
             .filter_map(|i| self.pending.get(*i).map(|q| q.input.clone()))
@@ -567,6 +704,11 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             })
             .collect();
 
+        for (command, index) in draft.commands.iter().zip(&admitted) {
+            if let Some(reply) = self.pending.get_mut(*index).and_then(|q| q.reply.take()) {
+                self.replies.insert(command.ordinal, reply);
+            }
+        }
         let applied = draft.commands.len();
         let mut index = 0_usize;
         let mut next_admitted = admitted.iter().peekable();
@@ -582,7 +724,12 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 | crate::domain::zone::ZoneCommand::ReplaceSession { entity, .. } =
                     command.command
                 {
-                    service.flush(entity).await;
+                    if let Err(error) = service.flush(entity).await {
+                        tracing::error!(%error,"lifecycle checkpoint failure fences zone");
+                        self.failed = true;
+                        self.fail_replies();
+                        return Err((tick, TickError::PersistenceFence));
+                    }
                 }
             }
         }
@@ -613,6 +760,19 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let mut touched = BTreeSet::new();
         let checkpoints = self.checkpoints.service().is_some();
         for (i, queued) in self.pending.iter().enumerate() {
+            let transfer = matches!(
+                queued.input.command,
+                crate::domain::zone::ZoneCommand::ChangeClass { .. }
+            );
+            if transfer
+                && queued
+                    .input
+                    .command
+                    .entity()
+                    .is_some_and(|e| touched.contains(&e))
+            {
+                break;
+            }
             // A preceding Respawn/Spawn/intent must reach an admitted boundary before the
             // same player's final save. Otherwise Respawn + disconnect in one draft could
             // remove the entity before its progression delta is emitted.
@@ -629,6 +789,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             if let CommandSource::Session { entity, .. } = queued.input.source {
                 let used = per_session.entry(entity).or_default();
                 if *used >= SESSION_COMMANDS_PER_TICK {
+                    if transfer {
+                        break;
+                    }
                     continue;
                 }
                 *used = used.saturating_add(1);
@@ -637,8 +800,61 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 touched.insert(entity);
             }
             admitted.push(i);
+            if transfer {
+                break;
+            }
         }
         admitted
+    }
+
+    fn fail_replies(&mut self) {
+        for (_, reply) in std::mem::take(&mut self.replies) {
+            let _ = reply.send(Err(super::AppError::Unavailable(
+                "checkpoint fenced; retry the same key after recovery".into(),
+            )));
+        }
+    }
+
+    fn complete_replies(&mut self, record: &AppliedTick) {
+        for command in &record.commands {
+            let Some(reply) = self.replies.remove(&command.ordinal) else {
+                continue;
+            };
+            let result = if let Some(d) = record
+                .dispositions
+                .iter()
+                .find(|d| d.ordinal == command.ordinal)
+            {
+                Err(class_error(d.reason))
+            } else if let crate::domain::zone::ZoneCommand::ChangeClass {
+                entity,
+                account,
+                request_key,
+                ..
+            } = command.command
+            {
+                let generation = match command.source {
+                    CommandSource::Session { generation, .. } => generation,
+                    CommandSource::System => crate::domain::zone::SessionGeneration(0),
+                };
+                self.state
+                    .class_player(entity, account, generation)
+                    .map_err(class_error)
+                    .and_then(|p| {
+                        p.class_state
+                            .receipt(request_key)
+                            .map(|r| r.result.clone())
+                            .ok_or_else(|| {
+                                super::AppError::Unavailable(
+                                    "successful transfer receipt missing".into(),
+                                )
+                            })
+                    })
+            } else {
+                Err(super::AppError::Unavailable("invalid RPC envelope".into()))
+            };
+            let _ = reply.send(result);
+        }
     }
 
     fn publish_stats(&mut self, tick: Tick, started: Instant, applied: usize) {
@@ -678,3 +894,13 @@ fn trace_applied(record: &AppliedTick, traces: &[(Ordinal, TraceCarrier)]) {
 #[cfg(test)]
 #[path = "zone_actor_tests.rs"]
 mod tests;
+
+/// Maps deterministic refusals at the application boundary.
+pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::AppError {
+    use crate::domain::zone::RejectReason;
+    match reason {
+        RejectReason::TransferConflict => super::AppError::IdempotencyConflict,
+        RejectReason::NotPermitted => super::AppError::PermissionDenied(reason.detail().to_owned()),
+        _ => super::AppError::FailedPrecondition(reason.detail().to_owned()),
+    }
+}

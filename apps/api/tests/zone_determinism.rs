@@ -145,6 +145,8 @@ fn assert_output_order(t: &AppliedTick) {
                 _e @ (ZoneEvent::AttackResult { .. }
                 | ZoneEvent::EntityDied { .. }
                 | ZoneEvent::EntityRespawned { .. }
+                | ZoneEvent::ClassChanged { .. }
+                | ZoneEvent::ClassTransfer { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::XpGained { .. }
                 | ZoneEvent::LevelUp { .. }

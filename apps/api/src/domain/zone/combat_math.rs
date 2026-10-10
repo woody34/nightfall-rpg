@@ -58,6 +58,18 @@ pub fn physical_damage(
     crit: bool,
     spread: i64,
 ) -> Result<u32, StatError> {
+    physical_damage_with_critical_bonus(c, attacker, target, crit, spread, 100)
+}
+
+/// Critical-only racial percentage, included before the damage's single final floor.
+pub fn physical_damage_with_critical_bonus(
+    c: &FormulaConstants,
+    attacker: &StatSheet,
+    target: &StatSheet,
+    crit: bool,
+    spread: i64,
+    critical_percent: u32,
+) -> Result<u32, StatError> {
     let radius = i64::from(attacker.random_damage());
     if spread < radius.saturating_neg() || spread > radius {
         return Err(StatError::DrawOutOfRange(spread));
@@ -69,6 +81,8 @@ pub fn physical_damage(
         add(divisor, spread.into())?,
     )?;
     let denominator = mul(target.p_def().raw().into(), divisor)?;
+    let numerator = mul(numerator, if crit { critical_percent.into() } else { 100 })?;
+    let denominator = mul(denominator, 100)?;
     narrow(floor_div(numerator, denominator)?.max(1))
 }
 

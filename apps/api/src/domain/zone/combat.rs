@@ -83,6 +83,9 @@ pub enum CombatRole {
         class: String,
         /// Cumulative XP; level is derived from it.
         xp: u64,
+        /// Phase 2 identity and progression; absent in legacy snapshots.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        progression: Option<Box<super::PlayerProgression>>,
     },
     /// A monster spawned from a template.
     Npc {
@@ -177,6 +180,9 @@ pub struct CombatView {
 /// repository (plan D5). HP/MP `None` means full (a character never saved in combat).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerLoad {
+    /// Phase 2 authoritative identity and class ledger.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progression: Option<Box<super::PlayerProgression>>,
     /// Repository fence recorded at admission; absent in simulation-only fixtures.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checkpoint_revision: Option<u64>,
@@ -204,6 +210,7 @@ impl PlayerLoad {
     #[must_use]
     pub fn fresh(class: impl Into<String>) -> Self {
         Self {
+            progression: None,
             checkpoint_revision: None,
             class: class.into(),
             level: 1,

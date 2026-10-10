@@ -86,6 +86,17 @@ impl ZoneInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ZoneCommand {
+    /// Authenticated class transition. Transport reply handles never enter this command.
+    ChangeClass {
+        /// Character entity, also present in the session source.
+        entity: EntityId,
+        /// Verified account; checked against immutable player identity.
+        account: crate::domain::AccountId,
+        /// Client operation key, scoped to account and change_class.
+        request_key: uuid::Uuid,
+        /// Exact next profession.
+        target: crate::domain::class::ClassId,
+    },
     /// A player enters with its loaded character state. System only.
     SpawnPlayer {
         /// The character id; player entity ids are always character ids.
@@ -179,7 +190,8 @@ impl ZoneCommand {
     #[must_use]
     pub const fn entity(&self) -> Option<EntityId> {
         match self {
-            Self::SpawnPlayer { entity, .. }
+            Self::ChangeClass { entity, .. }
+            | Self::SpawnPlayer { entity, .. }
             | Self::Despawn { entity }
             | Self::ReplaceSession { entity, .. }
             | Self::MoveTo { entity, .. }
@@ -198,6 +210,16 @@ impl ZoneCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RejectReason {
+    /// Transfer key already names another target.
+    TransferConflict,
+    /// Target is not a playable direct child for this race and level.
+    TransferIneligible,
+    /// The required transfer token is absent or a requirement is unsupported.
+    TransferRequirement,
+    /// A combat engagement is still active.
+    InCombat,
+    /// Character is outside the class master's interaction radius.
+    ClassMasterTooFar,
     /// the actor is dead and cannot perform this intent.
     DeadActor,
     /// target is dead, a player, or a noncombat NPC.
@@ -237,6 +259,13 @@ impl RejectReason {
     #[must_use]
     pub const fn detail(self) -> &'static str {
         match self {
+            Self::TransferConflict => "transfer key was used for a different target",
+            Self::TransferIneligible => {
+                "class race, parent, level or playable tier requirement is unmet"
+            },
+            Self::TransferRequirement => "class transfer token or requirement is unmet",
+            Self::InCombat => "cannot transfer during combat",
+            Self::ClassMasterTooFar => "class master is more than three tiles away",
             Self::DeadActor => "the actor is dead and cannot perform this intent",
             Self::NonAttackableTarget => "target is dead, a player, or a noncombat NPC",
             Self::TargetNotInAoi => "existing target is outside the actor's 3x3-cell AOI",
@@ -293,6 +322,28 @@ pub struct AppliedCommand {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)] // names mirror the proto messages one to one
 pub enum ZoneEvent {
+    /// Public profession identity change.
+    ClassChanged {
+        /// Applied tick.
+        tick: Tick,
+        /// Player.
+        entity: EntityId,
+        /// New profession.
+        class_id: crate::domain::class::ClassId,
+        /// Exact owning generation.
+        generation: SessionGeneration,
+    },
+    /// Private durable success fact, never sent to an observer.
+    ClassTransfer {
+        /// Applied tick.
+        tick: Tick,
+        /// Player.
+        entity: EntityId,
+        /// Previous profession.
+        old_class_id: crate::domain::class::ClassId,
+        /// Frozen response at command application.
+        receipt: Box<crate::domain::character_progression::SuccessfulTransferReceipt>,
+    },
     /// Authoritative attack result fact.
     AttackResult {
         /// attacker UUID.
@@ -389,6 +440,9 @@ pub enum ZoneEvent {
     },
     /// Authoritative stats changed fact.
     StatsChanged {
+        /// Phase 2 owner-only resources; absent in legacy output.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        class: Option<super::ClassStatsView>,
         /// Tick of the fact.
         tick: Tick,
         /// owner UUID; this event is owner-only (MP is private).
@@ -439,6 +493,9 @@ pub enum ZoneEvent {
     /// An entity appeared (in the zone, or in an observer's AOI). Carries full movement state
     /// so an observer can render an entity that is already walking.
     EntitySpawn {
+        /// Public Phase 2 identity; absent for legacy entities and NPCs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        identity: Option<super::PlayerIdentityView>,
         /// When.
         tick: Tick,
         /// Who.
@@ -487,7 +544,9 @@ impl ZoneEvent {
     #[must_use]
     pub const fn tick(&self) -> Tick {
         match self {
-            Self::EntitySpawn { tick, .. }
+            Self::ClassChanged { tick, .. }
+            | Self::ClassTransfer { tick, .. }
+            | Self::EntitySpawn { tick, .. }
             | Self::EntityMove { tick, .. }
             | Self::EntityDespawn { tick, .. }
             | Self::AttackResult { tick, .. }
@@ -509,7 +568,9 @@ impl ZoneEvent {
     #[must_use]
     pub const fn entity(&self) -> EntityId {
         match self {
-            Self::EntitySpawn { entity, .. }
+            Self::ClassChanged { entity, .. }
+            | Self::ClassTransfer { entity, .. }
+            | Self::EntitySpawn { entity, .. }
             | Self::EntityMove { entity, .. }
             | Self::EntityDespawn { entity, .. }
             | Self::EntityDied { entity, .. }

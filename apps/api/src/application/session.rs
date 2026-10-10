@@ -380,8 +380,16 @@ impl SessionRegistry {
                 .await
                 .map_err(|_| AdmitError::LoadFailed)?
                 .ok_or(AdmitError::LoadFailed)?;
+            spawn.name = loaded.name.as_str().to_owned();
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
+                progression: zone.has_classes().then(|| {
+                    Box::new(crate::domain::zone::PlayerProgression {
+                        identity: loaded.identity,
+                        class_state: loaded.class_state,
+                        max_cp: 0,
+                    })
+                }),
                 checkpoint_revision: Some(loaded.revision),
                 class: loaded.class_profile,
                 level: loaded.level,
@@ -877,7 +885,8 @@ impl<'a> Actor<'a> {
                     | ZoneCommand::ReplaceSession { entity, generation } => {
                         entity == self.entity && generation == self.generation
                     },
-                    ZoneCommand::SpawnNpc { .. }
+                    ZoneCommand::ChangeClass { .. }
+                    | ZoneCommand::SpawnNpc { .. }
                     | ZoneCommand::Despawn { .. }
                     | ZoneCommand::MoveTo { .. }
                     | ZoneCommand::StopMove { .. }
@@ -974,4 +983,79 @@ fn saved_position(pos: crate::domain::Position) -> Option<Vec2Fixed> {
         Some(crate::domain::zone::Fixed::from_raw(raw as i32))
     };
     Some(Vec2Fixed::new(fixed(pos.x)?, fixed(pos.y)?))
+}
+
+#[async_trait::async_trait]
+impl super::ports::ClassTransferRuntime for SessionContext {
+    async fn change_class(
+        &self,
+        caller: crate::domain::AccountId,
+        character: crate::domain::CharacterId,
+        target: crate::domain::class::ClassId,
+        key: super::IdempotencyKey,
+    ) -> Result<crate::domain::character_progression::FrozenTransferResult, super::AppError> {
+        let entity = EntityId::from_uuid(character.as_uuid());
+        let receiver = {
+            let live = self.registry.live.lock().await;
+            let current = live.get(&entity).ok_or_else(|| {
+                super::AppError::FailedPrecondition("character must be online".into())
+            })?;
+            self.zone.enqueue_class_transfer(ZoneInput {
+                source: CommandSource::Session {
+                    entity,
+                    generation: current.generation,
+                },
+                seq: None,
+                command: ZoneCommand::ChangeClass {
+                    entity,
+                    account: caller,
+                    request_key: key.as_uuid(),
+                    target,
+                },
+            })?
+        };
+        receiver
+            .await
+            .map_err(|_| super::AppError::Unavailable("zone stopped; retry the same key".into()))?
+    }
+
+    async fn transfer_options(
+        &self,
+        caller: crate::domain::AccountId,
+        character: crate::domain::CharacterId,
+    ) -> Result<super::ports::TransferOptionsState, super::AppError> {
+        let entity = EntityId::from_uuid(character.as_uuid());
+        let generation = {
+            let live = self.registry.live.lock().await;
+            live.get(&entity)
+                .ok_or_else(|| {
+                    super::AppError::FailedPrecondition("character must be online".into())
+                })?
+                .generation
+        };
+        let snapshot = self
+            .zone
+            .snapshot()
+            .await
+            .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
+        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot)
+            .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
+        let p = state
+            .class_player(entity, caller, generation)
+            .map_err(super::zone_actor::class_error)?;
+        Ok(super::ports::TransferOptionsState {
+            current_class_id: p.class_state.current_class_id,
+            token_tier_1_count: p.class_state.token_tier_1_count,
+            token_tier_2_count: p.class_state.token_tier_2_count,
+            options: state
+                .class_options(entity)
+                .into_iter()
+                .map(|(class_id, unmet)| super::ports::TransferEligibility {
+                    class_id,
+                    eligible: unmet.is_empty(),
+                    unmet: unmet.into_iter().map(|r| r.detail().to_owned()).collect(),
+                })
+                .collect(),
+        })
+    }
 }

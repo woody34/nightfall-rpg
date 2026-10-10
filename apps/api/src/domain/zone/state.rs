@@ -40,7 +40,7 @@ pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 /// scheduler (Phase 1 E3.2–E3.4). 4: safe point and the player's `alive` load flag (E2.4).
 /// 5: application checkpoint lanes, excluded from the simulation digest.
 /// 6: explicit state digest version; older snapshots default to JSON v1.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 6;
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 7;
 
 /// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -50,6 +50,8 @@ pub enum StateDigestVersion {
     JsonV1,
     /// Explicit little-endian binary layout in `state_digest.rs`.
     BinaryV2,
+    /// Phase 2 identity, class ledger and immutable transfer receipts.
+    BinaryV3,
 }
 
 /// Identity of a zone.
@@ -159,6 +161,9 @@ impl ZoneBounds {
 /// them; replay compares them and warns on mismatch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SnapshotMeta {
+    /// Canonical catalogue provenance, independent of legacy stat rule provenance.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub classes_hash: String,
     /// [`SNAPSHOT_SCHEMA_VERSION`] at the time of writing.
     pub schema_version: u32,
     /// State digest algorithm for this epoch; absent in snapshot schemas 4 and 5.
@@ -181,6 +186,7 @@ pub struct SnapshotMeta {
 impl Default for SnapshotMeta {
     fn default() -> Self {
         Self {
+            classes_hash: String::new(),
             schema_version: SNAPSHOT_SCHEMA_VERSION,
             digest_version: StateDigestVersion::BinaryV2,
             build_id: env!("CARGO_PKG_VERSION").to_owned(),
@@ -196,6 +202,9 @@ impl Default for SnapshotMeta {
 /// [`AppliedTick`]s, which replay (Story 3.3) relies on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ZoneSnapshot {
+    /// Resolved Phase 2 data; absent means legacy simulation rules.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub classes: Option<crate::domain::class::ClassRegistry>,
     /// Persistence lanes, filled by the actor at an admitted boundary. Schema 4 lacks them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub checkpoints: Vec<CheckpointSnapshot>,
@@ -255,6 +264,9 @@ pub struct CheckpointSnapshot {
 /// Integer-only representation of an application checkpoint request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CheckpointRequestSnapshot {
+    /// Exact Phase 2 request body; omitted for old checkpoint fingerprints.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class_state: Option<crate::domain::character_progression::ClassState>,
     /// Revision used by the request (may precede an acknowledged lane revision).
     pub revision_seen: u64,
     /// Level.
@@ -319,6 +331,9 @@ pub enum SnapshotError {
 /// A draft that does not continue this zone: replay has diverged or the log has a gap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum TickError {
+    /// Application stopped before applying a lifecycle transition after a failed save.
+    #[error("checkpoint persistence fence")]
+    PersistenceFence,
     /// The draft is for another epoch.
     #[error("draft epoch {got} but zone epoch is {expected}")]
     Epoch {
@@ -349,6 +364,7 @@ pub enum TickError {
 /// mutability, no locks, no clock.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZoneState {
+    classes: Option<Arc<crate::domain::class::ClassRegistry>>,
     seed: ZoneSeed,
     checkpoints: Vec<CheckpointSnapshot>,
     meta: SnapshotMeta,
@@ -396,6 +412,7 @@ impl ZoneState {
     pub fn new(seed: ZoneSeed, bounds: ZoneBounds, time_origin_ms: i64) -> Self {
         Self {
             seed,
+            classes: None,
             checkpoints: Vec::new(),
             meta: SnapshotMeta::default(),
             rng: ChaCha12Rng::from_seed(seed.key()),
@@ -450,7 +467,7 @@ impl ZoneState {
 
     /// Rebuilds a zone from a snapshot, validating it.
     pub fn from_snapshot(snapshot: ZoneSnapshot) -> Result<Self, SnapshotError> {
-        if ![4, 5, SNAPSHOT_SCHEMA_VERSION].contains(&snapshot.meta.schema_version) {
+        if ![4, 5, 6, SNAPSHOT_SCHEMA_VERSION].contains(&snapshot.meta.schema_version) {
             return Err(SnapshotError::Schema(snapshot.meta.schema_version));
         }
         if snapshot.rng.key != snapshot.seed.key() {
@@ -480,6 +497,10 @@ impl ZoneState {
             state.meta.digest_version = StateDigestVersion::JsonV1;
         }
         state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
+        state.classes = snapshot.classes.map(Arc::new);
+        if state.classes.is_some() && state.meta.digest_version != StateDigestVersion::BinaryV3 {
+            return Err(SnapshotError::CombatMismatch);
+        }
         state.checkpoints = snapshot.checkpoints;
         state.safe_point = snapshot.safe_point;
         state.rng = snapshot.rng.restore();
@@ -494,6 +515,56 @@ impl ZoneState {
             }
             if e.combat.is_some() && state.rules.is_none() {
                 return Err(SnapshotError::CombatMismatch);
+            }
+            if let Some(CombatState {
+                role: CombatRole::Player { progression, .. },
+                ..
+            }) = &e.combat
+            {
+                match (&state.classes, progression) {
+                    (None, None) => {},
+                    (Some(registry), Some(p)) => {
+                        p.class_state
+                            .validate_for(
+                                registry,
+                                &p.identity,
+                                crate::domain::CharacterId::from_uuid(e.id.as_uuid()),
+                            )
+                            .map_err(|_| SnapshotError::CombatMismatch)?;
+                        let c = e.combat.as_ref().ok_or(SnapshotError::CombatMismatch)?;
+                        let rules = state
+                            .rules
+                            .as_deref()
+                            .ok_or(SnapshotError::CombatMismatch)?;
+                        let (sheet, max_cp, speed, radius) = super::profession_stats(
+                            rules,
+                            registry,
+                            &p.identity,
+                            &p.class_state,
+                            c.sheet.level(),
+                        )
+                        .map_err(|_| SnapshotError::CombatMismatch)?;
+                        if sheet != c.sheet
+                            || p.max_cp != max_cp
+                            || p.class_state.cp > max_cp
+                            || c.hp > sheet.max_hp()
+                            || c.mp > sheet.max_mp()
+                            || e.speed != speed
+                            || c.collision_radius != radius
+                        {
+                            return Err(SnapshotError::CombatMismatch);
+                        }
+                        for r in &p.class_state.successful_transfer_receipts {
+                            if r.result.character_id.as_uuid() != e.id.as_uuid()
+                                || r.result.identity != p.identity
+                                || r.result.current_class_id != r.target_class_id
+                            {
+                                return Err(SnapshotError::CombatMismatch);
+                            }
+                        }
+                    },
+                    _ => return Err(SnapshotError::CombatMismatch),
+                }
             }
             state.aoi.insert(e.id, e.pos);
             state.entities.insert(e.id, e);
@@ -534,6 +605,7 @@ impl ZoneState {
     #[must_use]
     pub fn snapshot(&self) -> ZoneSnapshot {
         ZoneSnapshot {
+            classes: self.classes.as_deref().cloned(),
             checkpoints: self.checkpoints.clone(),
             meta: self.meta.clone(),
             seed: self.seed,
@@ -751,6 +823,7 @@ impl ZoneState {
         match self.meta.digest_version {
             StateDigestVersion::JsonV1 => self.json_state_digest(),
             StateDigestVersion::BinaryV2 => self.binary_state_digest(),
+            StateDigestVersion::BinaryV3 => self.phase2_state_digest(),
         }
     }
 
@@ -807,11 +880,15 @@ impl ZoneState {
     /// Checks that `source` may issue `cmd`. Sessions may only steer or remove their own
     /// entity, and only while their generation is current; everything else is system-only.
     fn authorize(&self, source: CommandSource, cmd: &ZoneCommand) -> Result<(), RejectReason> {
+        if matches!(cmd, ZoneCommand::ChangeClass { .. }) && source == CommandSource::System {
+            return Err(RejectReason::NotPermitted);
+        }
         let CommandSource::Session { entity, generation } = source else {
             return Ok(());
         };
         match cmd {
-            ZoneCommand::MoveTo { entity: target, .. }
+            ZoneCommand::ChangeClass { entity: target, .. }
+            | ZoneCommand::MoveTo { entity: target, .. }
             | ZoneCommand::StopMove { entity: target }
             | ZoneCommand::SetTarget { entity: target, .. }
             | ZoneCommand::Attack { entity: target }
@@ -826,7 +903,8 @@ impl ZoneState {
                     Some(_) | None => Ok(()),
                 }
             },
-            ZoneCommand::MoveTo { .. }
+            ZoneCommand::ChangeClass { .. }
+            | ZoneCommand::MoveTo { .. }
             | ZoneCommand::StopMove { .. }
             | ZoneCommand::SetTarget { .. }
             | ZoneCommand::Attack { .. }
@@ -845,6 +923,12 @@ impl ZoneState {
         self.authorize(c.source, &c.command)?;
         self.refuse_dead_actor(c.source, &c.command)?;
         match &c.command {
+            ZoneCommand::ChangeClass {
+                entity,
+                account,
+                request_key,
+                target,
+            } => self.change_class(tick, *entity, *account, *request_key, *target),
             ZoneCommand::SpawnPlayer {
                 entity,
                 name,
@@ -854,7 +938,7 @@ impl ZoneState {
                 load,
             } => {
                 let combat = match (&self.rules, load) {
-                    (Some(rules), Some(load)) => Some(player_combat(rules, load)?),
+                    (Some(rules), Some(load)) => Some(self.loaded_player(rules, load, *entity)?),
                     _ => None,
                 };
                 let mut events = self.spawn(
@@ -864,7 +948,22 @@ impl ZoneState {
                         kind: EntityKind::Player,
                         name,
                         pos: *pos,
-                        speed: *speed,
+                        speed: match (self.classes.as_deref(), load.as_deref()) {
+                            (Some(registry), Some(load)) => {
+                                let p =
+                                    load.progression.as_ref().ok_or(RejectReason::InvalidLoad)?;
+                                super::profession_stats(
+                                    self.rules.as_deref().ok_or(RejectReason::InvalidLoad)?,
+                                    registry,
+                                    &p.identity,
+                                    &p.class_state,
+                                    load.level,
+                                )
+                                .map_err(|_| RejectReason::InvalidLoad)?
+                                .2
+                            },
+                            _ => *speed,
+                        },
                         generation: *generation,
                         combat,
                     },
@@ -968,7 +1067,8 @@ impl ZoneState {
                     Ok(())
                 }
             },
-            ZoneCommand::Respawn { .. }
+            ZoneCommand::ChangeClass { .. }
+            | ZoneCommand::Respawn { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
@@ -1252,10 +1352,11 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         | ZoneEvent::AttackCancelled {
             attacker, target, ..
         } => sees(attacker) && sees(target),
-        ZoneEvent::EntityDied { entity, .. } | ZoneEvent::EntityRespawned { entity, .. } => {
-            sees(entity)
-        },
-        ZoneEvent::HateChanged { .. }
+        ZoneEvent::ClassChanged { entity, .. }
+        | ZoneEvent::EntityDied { entity, .. }
+        | ZoneEvent::EntityRespawned { entity, .. } => sees(entity),
+        ZoneEvent::ClassTransfer { .. }
+        | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
         | ZoneEvent::Progression(_)
         | ZoneEvent::EntitySpawn { .. }
@@ -1324,9 +1425,11 @@ impl<'a> CellFacts<'a> {
                 | ZoneEvent::AttackCancelled {
                     attacker, target, ..
                 } => (*attacker, Some(*target), false),
-                ZoneEvent::EntityDied { entity, .. }
+                ZoneEvent::ClassChanged { entity, .. }
+                | ZoneEvent::EntityDied { entity, .. }
                 | ZoneEvent::EntityRespawned { entity, .. } => (*entity, None, false),
-                ZoneEvent::HateChanged { .. }
+                ZoneEvent::ClassTransfer { .. }
+                | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
                 | ZoneEvent::Progression(_)
                 | ZoneEvent::EntitySpawn { .. }
@@ -1488,6 +1591,10 @@ fn diff_into(
 /// The spawn an observer receives when `e` enters its AOI: full current movement state.
 fn spawn_event(tick: Tick, e: &Entity) -> ZoneEvent {
     ZoneEvent::EntitySpawn {
+        identity: e.combat.as_ref().and_then(|c| match &c.role {
+            CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.public()),
+            CombatRole::Npc { .. } => None,
+        }),
         tick,
         entity: e.id,
         kind: e.kind,
@@ -1533,6 +1640,7 @@ fn player_combat(rules: &StatRules, load: &PlayerLoad) -> Result<CombatState, Re
         role: CombatRole::Player {
             class: load.class.clone(),
             xp: load.xp,
+            progression: load.progression.clone(),
         },
         hp,
         mp: load.mp.map_or(sheet.max_mp(), |mp| mp.min(sheet.max_mp())),
@@ -1576,6 +1684,10 @@ fn npc_combat(spec: &NpcCombat) -> Result<CombatState, RejectReason> {
 /// The owner-only resource fact.
 pub(super) fn stats_changed(tick: Tick, entity: EntityId, c: &CombatState) -> ZoneEvent {
     ZoneEvent::StatsChanged {
+        class: match &c.role {
+            CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.stats()),
+            CombatRole::Npc { .. } => None,
+        },
         tick,
         entity,
         hp: c.hp,
@@ -1589,6 +1701,9 @@ pub(super) fn stats_changed(tick: Tick, entity: EntityId, c: &CombatState) -> Zo
         },
     }
 }
+
+#[path = "state_class.rs"]
+mod class_phase;
 
 #[path = "state_combat.rs"]
 mod combat_phase;

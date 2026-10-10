@@ -135,7 +135,7 @@ impl CheckpointService {
     pub async fn shutdown(&mut self, snapshot: &ZoneSnapshot) -> anyhow::Result<()> {
         let players: Vec<_> = self.players.keys().copied().collect();
         for entity in players {
-            self.flush(entity).await;
+            self.flush(entity).await?;
         }
         self.refresh(snapshot).await?;
         if let Some((_, store)) = &self.durability {
@@ -182,6 +182,7 @@ impl CheckpointService {
                 events: p.events.clone(),
                 latest: p.latest.as_ref().map(|cp| {
                     crate::domain::zone::CheckpointRequestSnapshot {
+                        class_state: cp.class_state.clone(),
                         revision_seen: cp.revision_seen,
                         level: cp.level,
                         xp: cp.xp,
@@ -211,6 +212,7 @@ impl CheckpointService {
                         fenced: p.fenced,
                         events: p.events.clone(),
                         latest: p.latest.as_ref().map(|cp| CharacterCheckpoint {
+                            class_state: cp.class_state.clone(),
                             character_id: CharacterId::from_uuid(p.entity.as_uuid()),
                             revision_seen: cp.revision_seen,
                             level: cp.level,
@@ -238,13 +240,30 @@ impl CheckpointService {
             .map(|tick| (snapshot.seed.epoch, Tick(tick)));
     }
 
+    /// Rechecks account-wide successful receipts before a new actor mutation is drafted.
+    pub async fn mutation_receipt_lookup(
+        &self,
+        account: crate::domain::AccountId,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<super::ports::MutationReceiptLookup> {
+        self.repo
+            .mutation_receipt_lookup(account, key, fingerprint)
+            .await
+    }
+
+    /// A new transfer requires a committed revision lane, even before its command is run.
+    pub fn transfer_ready(&self, entity: EntityId) -> bool {
+        self.players.get(&entity).is_some_and(|p| !p.fenced)
+    }
+
     /// Associates acknowledgements with the owning socket. Replacements share the same lane.
     pub fn bind_session(&mut self, entity: EntityId, session: SessionId) {
         self.sessions.insert(entity, session);
     }
 
     /// Saves the previous admitted state before a lifecycle command removes or replaces it.
-    pub async fn flush(&mut self, entity: EntityId) {
+    pub async fn flush(&mut self, entity: EntityId) -> anyhow::Result<()> {
         if let Some(player) = self.players.get_mut(&entity) {
             save(
                 self.repo.as_ref(),
@@ -253,17 +272,22 @@ impl CheckpointService {
                 self.sessions.get(&entity).copied(),
                 player,
             )
-            .await;
+            .await?;
         }
+        Ok(())
     }
 
     /// Consumes one live, admitted batch and its end-of-tick state. Duplicate batches are no-ops.
-    pub async fn admitted(&mut self, tick: &AppliedTick, snapshot: &ZoneSnapshot) {
+    pub async fn admitted(
+        &mut self,
+        tick: &AppliedTick,
+        snapshot: &ZoneSnapshot,
+    ) -> anyhow::Result<()> {
         if self
             .last
             .is_some_and(|last| last >= (tick.epoch, tick.tick))
         {
-            return;
+            return Ok(());
         }
         for command in &tick.commands {
             if tick
@@ -294,6 +318,18 @@ impl CheckpointService {
                 }
             }
         }
+        for event in &tick.events {
+            if let crate::domain::zone::ZoneEvent::ClassTransfer { entity, .. } = event {
+                anyhow::ensure!(
+                    self.players.get(entity).is_some_and(|p| !p.fenced),
+                    "class transfer checkpoint lane missing or fenced"
+                );
+                anyhow::ensure!(
+                    snapshot.entities.iter().any(|e| e.id == *entity),
+                    "class transfer entity removed before persistence"
+                );
+            }
+        }
         for entity in &snapshot.entities {
             let Some(player) = self.players.get_mut(&entity.id) else {
                 continue;
@@ -305,6 +341,12 @@ impl CheckpointService {
                 continue;
             };
             let mut cp = CharacterCheckpoint {
+                class_state: match &combat.role {
+                    CombatRole::Player { progression, .. } => {
+                        progression.as_ref().map(|p| p.class_state.clone())
+                    },
+                    CombatRole::Npc { .. } => None,
+                },
                 character_id: CharacterId::from_uuid(entity.id.as_uuid()),
                 revision_seen: player.revision,
                 level: combat.sheet.level(),
@@ -335,7 +377,8 @@ impl CheckpointService {
                 cp.position = position(delta.pos);
             }
             let changed = player.latest.as_ref().is_none_or(|old| {
-                old.level != cp.level
+                old.class_state != cp.class_state
+                    || old.level != cp.level
                     || old.xp != cp.xp
                     || old.hp != cp.hp
                     || old.mp != cp.mp
@@ -345,15 +388,77 @@ impl CheckpointService {
             player.dirty |= changed;
             player.latest = Some(cp);
             let mut immediate = false;
+            for event in &tick.events {
+                if let crate::domain::zone::ZoneEvent::ClassTransfer {
+                    tick: at,
+                    entity: who,
+                    old_class_id,
+                    receipt,
+                } = event
+                {
+                    if *who != entity.id {
+                        continue;
+                    }
+                    anyhow::ensure!(
+                        player
+                            .latest
+                            .as_ref()
+                            .and_then(|cp| cp.class_state.as_ref())
+                            .and_then(|s| s.receipt(receipt.key))
+                            == Some(receipt.as_ref()),
+                        "class transfer receipt missing from checkpoint"
+                    );
+                    immediate = true;
+                    let ordinal = player.events.len() as u64;
+                    player.events.push(DomainEvent::CharacterClassChanged {
+                        metadata: EventMetadata {
+                            event_id: stable_id(
+                                entity.id,
+                                snapshot.seed.zone,
+                                tick.epoch,
+                                *at,
+                                Some(ordinal),
+                            ),
+                            sequence: (player.revision.saturating_add(1), ordinal),
+                        },
+                        character_id: CharacterId::from_uuid(entity.id.as_uuid()),
+                        old_class_id: *old_class_id,
+                        new_class_id: receipt.target_class_id,
+                        tick: at.0,
+                        request_key: receipt.key,
+                    });
+                }
+            }
             for delta in tick.progression().filter(|d| d.entity == entity.id) {
                 immediate |=
                     delta.died.is_some() || delta.level_before != delta.level || delta.respawned;
-                player.events.extend(domain_events(
+                let mut facts = domain_events(
                     snapshot.seed.zone,
                     tick.epoch,
                     player.revision.saturating_add(1),
                     delta,
-                ));
+                );
+                if snapshot.classes.is_some() {
+                    let offset = player.events.len() as u64;
+                    for (n, event) in facts.iter_mut().enumerate() {
+                        let metadata = match event {
+                            DomainEvent::CharacterLeveled { metadata, .. }
+                            | DomainEvent::CharacterDied { metadata, .. }
+                            | DomainEvent::CharacterClassChanged { metadata, .. } => metadata,
+                            DomainEvent::CharacterCreated { .. } => continue,
+                        };
+                        let ordinal = offset.saturating_add(n as u64);
+                        metadata.event_id = stable_id(
+                            entity.id,
+                            snapshot.seed.zone,
+                            tick.epoch,
+                            delta.tick,
+                            Some(ordinal),
+                        );
+                        metadata.sequence.1 = ordinal;
+                    }
+                }
+                player.events.extend(facts);
             }
             if immediate || tick.tick.0.saturating_sub(player.last_saved.0) >= 50 {
                 save(
@@ -363,7 +468,7 @@ impl CheckpointService {
                     self.sessions.get(&entity.id).copied(),
                     player,
                 )
-                .await;
+                .await?;
                 player.last_saved = tick.tick;
             }
         }
@@ -378,6 +483,7 @@ impl CheckpointService {
         self.index_tick(snapshot.seed.zone, tick.epoch, tick.tick, true)
             .await;
         self.refresh_if_due(snapshot).await;
+        Ok(())
     }
 
     async fn refresh_if_due(&mut self, snapshot: &ZoneSnapshot) {
@@ -450,10 +556,10 @@ impl CheckpointService {
                 if let ZoneCommand::Despawn { entity }
                 | ZoneCommand::ReplaceSession { entity, .. } = command.command
                 {
-                    self.flush(entity).await;
+                    self.flush(entity).await?;
                 }
             }
-            self.admitted(&applied, &state.snapshot()).await;
+            self.admitted(&applied, &state.snapshot()).await?;
         }
         anyhow::ensure!(
             required.is_none_or(|tick| state.snapshot().tick > tick),
@@ -467,7 +573,7 @@ impl CheckpointService {
             .map(|(id, _)| *id)
             .collect();
         for entity in pending {
-            self.flush(entity).await;
+            self.flush(entity).await?;
         }
         // Ordinary progress may roll back; critical facts have already been checkpointed.
         self.players.clear();
@@ -483,13 +589,15 @@ async fn save(
     metrics: &dyn CheckpointMetrics,
     session: Option<SessionId>,
     player: &mut Player,
-) {
-    if !player.dirty || player.fenced {
-        return;
+) -> anyhow::Result<()> {
+    anyhow::ensure!(!player.fenced, "checkpoint lane is fenced");
+    if !player.dirty {
+        return Ok(());
     }
-    let Some(cp) = &player.latest else {
-        return;
-    };
+    let cp = player
+        .latest
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("dirty checkpoint has no request"))?;
     let started = Instant::now();
     let mut backoff = Duration::from_millis(100);
     loop {
@@ -510,14 +618,23 @@ async fn save(
                 player.events.clear();
                 player.dirty = false;
                 metrics.lag(Duration::ZERO);
-                return;
+                return Ok(());
             },
             Ok(CheckpointOutcome::Stale) => {
                 player.fenced = true;
                 metrics.failed();
                 metrics.lag(Duration::ZERO);
                 tracing::warn!(character = %cp.character_id, "checkpoint fenced by newer revision");
-                return;
+                anyhow::bail!("checkpoint fenced by newer revision");
+            },
+            Err(
+                e @ (super::ports::CheckpointError::KeyReused
+                | super::ports::CheckpointError::NotFound
+                | super::ports::CheckpointError::Constraint(_)),
+            ) => {
+                player.fenced = true;
+                metrics.failed();
+                return Err(e.into());
             },
             Err(e) => {
                 metrics.failed();

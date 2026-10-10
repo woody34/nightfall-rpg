@@ -74,6 +74,7 @@ pub struct ResolvedRules {
 
 /// Starts zones. Holds the ports every epoch needs.
 pub struct ZoneBootstrap {
+    classes: Option<(Arc<crate::domain::class::ClassRegistry>, String)>,
     rules: Option<ResolvedRules>,
     log: Arc<dyn EventLog>,
     snapshots: Option<Arc<dyn ZoneSnapshotStore>>,
@@ -93,6 +94,7 @@ impl ZoneBootstrap {
         metrics: Arc<dyn ReplayLogMetrics>,
     ) -> Self {
         Self {
+            classes: None,
             rules: None,
             log,
             snapshots,
@@ -125,6 +127,17 @@ impl ZoneBootstrap {
         self
     }
 
+    /// Installs immutable Phase 2 registry and its provenance for new epochs only.
+    #[must_use]
+    pub fn with_classes(
+        mut self,
+        registry: Arc<crate::domain::class::ClassRegistry>,
+        hash: String,
+    ) -> Self {
+        self.classes = Some((registry, hash));
+        self
+    }
+
     /// The injected stat rules, if any.
     #[must_use]
     pub const fn rules(&self) -> Option<&ResolvedRules> {
@@ -153,7 +166,45 @@ impl ZoneBootstrap {
                 .with_rules(rules.rules.clone())
                 .with_spawn_slots(slot_specs(&rules.rules, def)?);
         }
+        if let Some((registry, _)) = &self.classes {
+            let rules = self
+                .rules
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("class registry requires stat rules"))?;
+            for class in registry.classes().iter().filter(|c| c.tier <= 2) {
+                for sex in [
+                    crate::domain::subclass::Sex::Male,
+                    crate::domain::subclass::Sex::Female,
+                ] {
+                    let identity = crate::domain::character_progression::CharacterIdentity {
+                        account_id: crate::domain::AccountId::from_uuid(uuid::Uuid::nil()),
+                        race: class.race,
+                        base_class_id: class.base_class_id,
+                        appearance: crate::domain::character_progression::CharacterAppearance {
+                            sex,
+                            ..Default::default()
+                        },
+                    };
+                    let mut ledger =
+                        crate::domain::character_progression::ClassState::new(class.base_class_id);
+                    ledger.current_class_id = class.id;
+                    for level in 1..=85 {
+                        crate::domain::zone::profession_stats(
+                            &rules.rules,
+                            registry,
+                            &identity,
+                            &ledger,
+                            level,
+                        )?;
+                    }
+                }
+            }
+            state = state.with_classes(registry.clone());
+        }
         let mut snapshot = state.snapshot();
+        if let Some((_, hash)) = &self.classes {
+            snapshot.meta.classes_hash = hash.clone();
+        }
         snapshot.meta.config_hash.clone_from(&def.config_hash);
         if let Some(rules) = &self.rules {
             snapshot.meta.rules_hash.clone_from(&rules.config_hash);
@@ -333,6 +384,10 @@ impl RunningZone {
             // Also refresh when the lane has no database (NATS-only development mode).
             self.log.write_recovery_snapshot(&snapshot).await?;
         }
+        anyhow::ensure!(
+            !self.handle.persistence_failed(),
+            "zone stopped with unresolved checkpoint failure"
+        );
         let progress = *self.progress.borrow();
         let watermark = Watermark {
             zone: self.zone,

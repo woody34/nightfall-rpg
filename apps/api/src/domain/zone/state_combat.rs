@@ -14,8 +14,8 @@
 
 use super::super::combat::{CombatRole, HateEntry, Swing, SwingCancel};
 use super::super::combat_math::{
-    attack_timing, crit_lands, damage_hate, hit_chance_permille, hit_lands, physical_damage,
-    spawn_protection_ticks, town_respawn_vitals,
+    attack_timing, crit_lands, damage_hate, hit_chance_permille, hit_lands, spawn_protection_ticks,
+    town_respawn_vitals,
 };
 use super::super::command::{AttackOutcome, DeathFact, ProgressionDelta, RejectReason, ZoneEvent};
 use super::super::entity::{Entity, EntityId, EntityKind, Tick};
@@ -452,7 +452,8 @@ impl ZoneState {
         ) else {
             return;
         };
-        let Some((outcome, damage)) = self.resolve(c, &a_sheet, &t_sheet) else {
+        let critical_percent=if self.entities.get(&id).and_then(|e|e.combat.as_ref()).is_some_and(|c|matches!(&c.role,CombatRole::Player {progression:Some(p),..} if p.identity.race==crate::domain::Race::DarkElf)) {105} else {100};
+        let Some((outcome, damage)) = self.resolve(c, &a_sheet, &t_sheet, critical_percent) else {
             return;
         };
         let hp_after = t_hp.saturating_sub(damage);
@@ -516,6 +517,7 @@ impl ZoneState {
         c: &FormulaConstants,
         attacker: &StatSheet,
         target: &StatSheet,
+        critical_percent: u32,
     ) -> Option<(AttackOutcome, u32)> {
         let chance = hit_chance_permille(c, attacker.accuracy(), target.evasion()).ok()?;
         let roll = self.roll_below(c.hit_roll_range);
@@ -531,7 +533,15 @@ impl ZoneState {
             let width = radius.saturating_mul(2).saturating_add(1);
             i64::from(self.roll_below(width)).saturating_sub(i64::from(radius))
         };
-        let damage = physical_damage(c, attacker, target, crit, spread).ok()?;
+        let damage = crate::domain::zone::combat_math::physical_damage_with_critical_bonus(
+            c,
+            attacker,
+            target,
+            crit,
+            spread,
+            critical_percent,
+        )
+        .ok()?;
         Some((
             if crit {
                 AttackOutcome::Crit
@@ -695,8 +705,19 @@ impl ZoneState {
         else {
             return;
         };
-        let CombatRole::Player { xp, .. } = &mut c.role else {
+        let CombatRole::Player {
+            xp, progression, ..
+        } = &mut c.role
+        else {
             return;
+        };
+        let reward = if progression
+            .as_ref()
+            .is_some_and(|p| p.identity.race == crate::domain::Race::Human)
+        {
+            u64::try_from(u128::from(reward) * 105 / 100).unwrap_or(u64::MAX)
+        } else {
+            reward
         };
         let before = *xp;
         *xp = add_xp(&rules, before, reward).unwrap_or(before);
@@ -733,16 +754,41 @@ impl ZoneState {
     fn relevel(&mut self, player: EntityId) -> Option<(u32, u32)> {
         let rules = self.rules.clone()?;
         let c = self.entities.get_mut(&player)?.combat.as_mut()?;
-        let CombatRole::Player { class, xp } = &c.role else {
+        let CombatRole::Player {
+            class,
+            xp,
+            progression,
+        } = &mut c.role
+        else {
             return None;
         };
         let (old, new) = (c.sheet.level(), level_for_xp(&rules, *xp));
         if old == new {
             return None;
         }
-        let sheet =
+        let sheet = if let Some(p) = progression {
+            let (sheet, max_cp, _, _) = crate::domain::zone::profession_stats(
+                &rules,
+                self.classes.as_deref()?,
+                &p.identity,
+                &p.class_state,
+                new,
+            )
+            .ok()?;
+            p.max_cp = max_cp;
+            p.class_state.cp = p.class_state.cp.min(max_cp);
+            let grants = crate::domain::character_progression::auto_get_metadata(
+                self.classes.as_deref()?,
+                p.class_state.current_class_id,
+                new,
+            )
+            .ok()?;
+            p.class_state.merge_learned_skills(grants);
+            sheet
+        } else {
             StatSheet::for_player(&rules, rules.class(class)?, new, Some(rules.starter_weapon()))
-                .ok()?;
+                .ok()?
+        };
         c.sheet = sheet;
         c.hp = c.hp.min(sheet.max_hp());
         c.mp = c.mp.min(sheet.max_mp());

@@ -137,9 +137,16 @@ pub async fn start(
     } else if let Some(epoch) = log.latest_epoch(def.zone).await? {
         checkpoints.recover(log.as_ref(), def.zone, epoch).await?;
     }
+    let classes = match &deps.classes {
+        Some(classes) => classes.clone(),
+        None => crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )?,
+    };
     let running = ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics.clone()))
         .with_telemetry(Arc::new(metrics))
         .with_rules(rules)
+        .with_classes(classes.registry, classes.config_hash)
         .start(&def, IntervalTicks::new())
         .await?;
     running.handle().checkpoints.install(checkpoints);

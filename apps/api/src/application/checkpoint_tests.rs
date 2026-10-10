@@ -66,7 +66,7 @@ impl Harness {
                 })),
             })]))
             .unwrap();
-        service.admitted(&tick, &state.snapshot()).await;
+        service.admitted(&tick, &state.snapshot()).await.unwrap();
         Self {
             repo,
             audit,
@@ -78,7 +78,10 @@ impl Harness {
     }
     async fn step(&mut self) {
         let tick = self.state.run_tick(self.state.draft(vec![])).unwrap();
-        self.service.admitted(&tick, &self.state.snapshot()).await;
+        self.service
+            .admitted(&tick, &self.state.snapshot())
+            .await
+            .unwrap();
     }
     async fn stored(&self) -> ProgressionState {
         self.repo
@@ -123,7 +126,7 @@ impl Harness {
         };
         // Projection consumes the full delta; the supplied boundary agrees on resources.
         tick.events.push(ZoneEvent::Progression(delta));
-        self.service.admitted(&tick, &snapshot).await;
+        self.service.admitted(&tick, &snapshot).await.unwrap();
         tick
     }
 }
@@ -144,14 +147,17 @@ async fn cadence_is_per_player_fifty_ticks_and_logout_flushes_resources_position
             dest: Vec2Fixed::from_tiles(11, 10),
         })]))
         .unwrap();
-    h.service.admitted(&tick, &h.state.snapshot()).await;
+    h.service
+        .admitted(&tick, &h.state.snapshot())
+        .await
+        .unwrap();
     assert_eq!(h.stored().await.revision, 1);
-    h.service.flush(h.id).await;
+    h.service.flush(h.id).await.unwrap();
     let saved = h.stored().await;
     assert_eq!(saved.revision, 2);
     assert!(saved.position.x > 10.0);
     assert!(saved.hp.is_some() && saved.mp.is_some() && saved.alive);
-    h.service.flush(h.id).await;
+    h.service.flush(h.id).await.unwrap();
     assert_eq!(h.stored().await.revision, 2);
     assert_eq!(
         h.audit
@@ -168,7 +174,10 @@ async fn death_and_level_are_immediate_and_duplicate_batches_do_not_duplicate_ev
     let mut h = Harness::new().await;
     let tick = h.transition(false).await;
     assert_eq!(h.stored().await.revision, 1);
-    h.service.admitted(&tick, &h.state.snapshot()).await;
+    h.service
+        .admitted(&tick, &h.state.snapshot())
+        .await
+        .unwrap();
     assert_eq!(h.repo.staged_events().len(), 1);
     h.transition(true).await;
     let p = h.stored().await;
@@ -292,7 +301,9 @@ fn multiple_levels_and_death_keep_stable_ids_order_and_penalty() {
         .map(|e| match e {
             DomainEvent::CharacterLeveled { metadata, .. }
             | DomainEvent::CharacterDied { metadata, .. } => metadata,
-            DomainEvent::CharacterCreated { .. } => unreachable!(),
+            DomainEvent::CharacterCreated { .. } | DomainEvent::CharacterClassChanged { .. } => {
+                unreachable!()
+            },
         })
         .collect();
     assert_eq!(
@@ -409,7 +420,10 @@ async fn mid_fight_actor_snapshot_restores_checkpoint_cadence_revision_and_pendi
             combat: Some(Box::new(npc)),
         })]))
         .unwrap();
-    h.service.admitted(&batch, &h.state.snapshot()).await;
+    h.service
+        .admitted(&batch, &h.state.snapshot())
+        .await
+        .unwrap();
     let target = h
         .state
         .snapshot()
@@ -428,7 +442,10 @@ async fn mid_fight_actor_snapshot_restores_checkpoint_cadence_revision_and_pendi
             ZoneInput::system(ZoneCommand::Attack { entity: h.id }),
         ]))
         .unwrap();
-    h.service.admitted(&batch, &h.state.snapshot()).await;
+    h.service
+        .admitted(&batch, &h.state.snapshot())
+        .await
+        .unwrap();
     assert!(h
         .state
         .snapshot()

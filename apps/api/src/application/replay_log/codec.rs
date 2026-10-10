@@ -136,12 +136,17 @@ struct PbCommand {
     session: Option<PbSession>,
     #[prost(uint32, optional, tag = "3")]
     seq: Option<u32>,
-    #[prost(oneof = "PbCommandKind", tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14")]
+    #[prost(
+        oneof = "PbCommandKind",
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15"
+    )]
     kind: Option<PbCommandKind>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbCommandKind {
+    #[prost(bytes, tag = "15")]
+    ChangeClass(Vec<u8>),
     #[prost(message, tag = "4")]
     SpawnPlayer(PbSpawnPlayer),
     #[prost(message, tag = "5")]
@@ -176,6 +181,8 @@ struct PbAddAggro {
 
 #[derive(Clone, PartialEq, Message)]
 struct PbPlayerLoad {
+    #[prost(bytes = "vec", optional, tag = "8")]
+    progression: Option<Vec<u8>>,
     #[prost(uint64, optional, tag = "7")]
     checkpoint_revision: Option<u64>,
     #[prost(string, tag = "1")]
@@ -402,13 +409,16 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    // Canonical integer-only Phase2 event JSON; legacy event tags remain byte-identical.
+    #[prost(bytes, tag = "18")]
+    Phase2(Vec<u8>),
     #[prost(message, tag = "1")]
     Spawn(PbSpawnEvent),
     #[prost(message, tag = "2")]
@@ -574,7 +584,8 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
         state_digest: r.state_digest.clone(),
         schema: match r.digest_version {
             StateDigestVersion::JsonV1 => 3,
-            StateDigestVersion::BinaryV2 => RECORD_SCHEMA_VERSION,
+            StateDigestVersion::BinaryV2 => 4,
+            StateDigestVersion::BinaryV3 => 5,
         },
     }
 }
@@ -583,7 +594,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
 /// combat commands and facts. 3 (E2.4/E2.6): progression facts, the
 /// `alive` load flag, XP on `StatsChanged`. 4: binary v2 state digest. Schema 3 remains
 /// readable and writable for JSON v1 replay; earlier versions are refused (1 reads 0).
-pub const RECORD_SCHEMA_VERSION: u32 = 4;
+pub const RECORD_SCHEMA_VERSION: u32 = 5;
 
 pub(super) fn encode_events(events: &[ZoneEvent]) -> Vec<u8> {
     PbOutputs {
@@ -659,6 +670,7 @@ struct PbSetTarget {
 
 fn command_to_pb(c: &AppliedCommand) -> PbCommand {
     let kind = match &c.command {
+        ZoneCommand::ChangeClass { .. } => PbCommandKind::ChangeClass(canonical_json(&c.command)),
         ZoneCommand::SpawnPlayer {
             entity,
             name,
@@ -673,6 +685,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             speed: speed.milli_tiles_per_tick(),
             generation: generation.0,
             load: load.as_ref().map(|l| PbPlayerLoad {
+                progression: l.progression.as_ref().map(canonical_json),
                 checkpoint_revision: l.checkpoint_revision,
                 class: l.class.clone(),
                 level: l.level,
@@ -744,6 +757,11 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
 /// Wire values of [`RejectReason`]. Zero is reserved for "unset".
 const fn reason_to_pb(r: RejectReason) -> i32 {
     match r {
+        RejectReason::TransferConflict => 16,
+        RejectReason::TransferIneligible => 17,
+        RejectReason::TransferRequirement => 18,
+        RejectReason::InCombat => 19,
+        RejectReason::ClassMasterTooFar => 20,
         RejectReason::UnknownEntity => 1,
         RejectReason::OutOfBounds => 2,
         RejectReason::TooFar => 3,
@@ -764,6 +782,11 @@ const fn reason_to_pb(r: RejectReason) -> i32 {
 
 fn reason_from_pb(v: i32) -> Result<RejectReason, CodecError> {
     Ok(match v {
+        16 => RejectReason::TransferConflict,
+        17 => RejectReason::TransferIneligible,
+        18 => RejectReason::TransferRequirement,
+        19 => RejectReason::InCombat,
+        20 => RejectReason::ClassMasterTooFar,
         1 => RejectReason::UnknownEntity,
         2 => RejectReason::OutOfBounds,
         3 => RejectReason::TooFar,
@@ -1023,7 +1046,19 @@ fn cancel_from_pb(v: i32) -> Result<SwingCancel, CodecError> {
 
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
+    if matches!(
+        e,
+        ZoneEvent::EntitySpawn {
+            identity: Some(_),
+            ..
+        } | ZoneEvent::StatsChanged { class: Some(_), .. }
+    ) {
+        return PbOutputItem::Phase2(canonical_json(e));
+    }
     match e {
+        ZoneEvent::ClassChanged { .. } | ZoneEvent::ClassTransfer { .. } => {
+            PbOutputItem::Phase2(canonical_json(e))
+        },
         ZoneEvent::AttackResult {
             attacker,
             target,
@@ -1140,6 +1175,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             respawned: d.respawned,
         }),
         ZoneEvent::StatsChanged {
+            class: _,
             entity,
             hp,
             max_hp,
@@ -1188,6 +1224,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             tick: tick.0,
         }),
         ZoneEvent::EntitySpawn {
+            identity: _,
             tick,
             entity,
             kind,
@@ -1275,7 +1312,7 @@ fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOu
 
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
     let pb = PbRecord::decode(bytes).map_err(err)?;
-    if ![3, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
+    if ![3, 4, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
         return Err(CodecError(format!(
             "record schema {} is not supported (this build reads 3 and {RECORD_SCHEMA_VERSION})",
             pb.schema
@@ -1314,8 +1351,10 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
         state_digest: pb.state_digest,
         digest_version: if pb.schema == 3 {
             StateDigestVersion::JsonV1
-        } else {
+        } else if pb.schema == 4 {
             StateDigestVersion::BinaryV2
+        } else {
+            StateDigestVersion::BinaryV3
         },
     })
 }
@@ -1393,23 +1432,37 @@ fn source_from(s: Option<PbSession>) -> Result<CommandSource, CodecError> {
 fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
     let command = match c.kind {
         None => return Err(CodecError("command without a kind".to_owned())),
+        Some(PbCommandKind::ChangeClass(bytes)) => {
+            let command: ZoneCommand = serde_json::from_slice(&bytes).map_err(err)?;
+            if !matches!(command, ZoneCommand::ChangeClass { .. }) {
+                return Err(err("invalid class command tag"));
+            }
+            command
+        },
         Some(PbCommandKind::SpawnPlayer(s)) => ZoneCommand::SpawnPlayer {
             entity: entity_from(&s.entity)?,
             name: s.name,
             pos: vec_from(s.pos)?,
             speed: Speed::from_milli_tiles_per_tick(s.speed),
             generation: SessionGeneration(s.generation),
-            load: s.load.map(|l| {
-                Box::new(PlayerLoad {
-                    checkpoint_revision: l.checkpoint_revision,
-                    class: l.class,
-                    level: l.level,
-                    xp: l.xp,
-                    hp: l.hp,
-                    mp: l.mp,
-                    alive: !l.dead,
+            load: s
+                .load
+                .map(|l| {
+                    Ok::<_, CodecError>(Box::new(PlayerLoad {
+                        progression: l
+                            .progression
+                            .map(|b| serde_json::from_slice(&b).map_err(err))
+                            .transpose()?,
+                        checkpoint_revision: l.checkpoint_revision,
+                        class: l.class,
+                        level: l.level,
+                        xp: l.xp,
+                        hp: l.hp,
+                        mp: l.mp,
+                        alive: !l.dead,
+                    }))
                 })
-            }),
+                .transpose()?,
         },
         Some(PbCommandKind::SpawnNpc(s)) => ZoneCommand::SpawnNpc {
             name: s.name,
@@ -1530,6 +1583,22 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::Phase2(bytes) => {
+            let event: ZoneEvent = serde_json::from_slice(&bytes).map_err(err)?;
+            if !matches!(
+                event,
+                ZoneEvent::ClassChanged { .. }
+                    | ZoneEvent::ClassTransfer { .. }
+                    | ZoneEvent::EntitySpawn {
+                        identity: Some(_),
+                        ..
+                    }
+                    | ZoneEvent::StatsChanged { class: Some(_), .. }
+            ) {
+                return Err(err("invalid Phase2 event tag"));
+            }
+            event
+        },
         PbOutputItem::Accepted(_) | PbOutputItem::Rejected(_) => {
             return Err(CodecError("response where an event was expected".to_owned()))
         },
@@ -1613,6 +1682,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             respawned: d.respawned,
         }),
         PbOutputItem::StatsChanged(e) => ZoneEvent::StatsChanged {
+            class: None,
             entity: entity_from(&e.entity)?,
             hp: e.hp,
             max_hp: e.max_hp,
@@ -1639,6 +1709,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             tick: Tick(e.tick),
         },
         PbOutputItem::Spawn(s) => ZoneEvent::EntitySpawn {
+            identity: None,
             tick: Tick(s.tick),
             entity: entity_from(&s.entity)?,
             kind: kind_from_pb(s.kind)?,
@@ -1739,6 +1810,7 @@ mod combat_tests {
     #[test]
     fn stats_changed_durable_round_trip() {
         let event = ObserverOutput::Event(ZoneEvent::StatsChanged {
+            class: None,
             tick: Tick(31),
             entity: id(1),
             hp: 22,
@@ -1827,4 +1899,10 @@ mod combat_tests {
             assert_eq!(reason_from_pb(reason_to_pb(reason)).unwrap(), reason);
         }
     }
+}
+
+// These plain structs contain only bounded integer/string data and ordered vectors. JSON
+// serialization cannot fail; using one canonical encoding retains absent legacy fields.
+fn canonical_json<T: serde::Serialize>(value: &T) -> Vec<u8> {
+    serde_json::to_vec(value).unwrap_or_default()
 }

@@ -12,6 +12,23 @@ use crate::domain::zone::{Intention, MemberState, NpcAi, SlotMember, Swing, Targ
 use sha2::{Digest as _, Sha256};
 
 impl ZoneState {
+    pub(super) fn phase2_state_digest(&self) -> [u8; 32] {
+        let mut w = Writer(Vec::new());
+        w.0.extend_from_slice(b"nightfall.state.3\0");
+        // The immutable legacy layout is incorporated as a fixed-width component.
+        w.0.extend_from_slice(&self.binary_state_digest());
+        w.len(self.entities.len());
+        for e in self.entities.values() {
+            w.id(e.id);
+            let p = match e.combat.as_ref().map(|c| &c.role) {
+                Some(CombatRole::Player { progression, .. }) => progression.as_deref(),
+                _ => None,
+            };
+            w.option(p, Writer::progression);
+        }
+        Sha256::digest(&w.0).into()
+    }
+
     pub(super) fn binary_state_digest(&self) -> [u8; 32] {
         // One contiguous buffer avoids tiny hash updates and all per-entity allocations.
         let mut w = Writer(Vec::with_capacity(self.entities.len().saturating_mul(320)));
@@ -60,6 +77,79 @@ impl ZoneState {
 struct Writer(Vec<u8>);
 
 impl Writer {
+    fn identity(&mut self, i: &crate::domain::character_progression::CharacterIdentity) {
+        self.0.extend_from_slice(i.account_id.as_uuid().as_bytes());
+        self.string(i.race.as_str());
+        self.u32(i.base_class_id.0);
+        self.u32(match i.appearance.sex {
+            crate::domain::subclass::Sex::Male => 1,
+            crate::domain::subclass::Sex::Female => 2,
+        });
+        self.u32(i.appearance.hair_style);
+        self.u32(i.appearance.hair_color);
+        self.u32(i.appearance.face);
+    }
+    fn progression(&mut self, p: &crate::domain::zone::PlayerProgression) {
+        self.identity(&p.identity);
+        let c = &p.class_state;
+        self.u32(c.base_class_id.0);
+        self.u32(c.current_class_id.0);
+        self.u64(c.sp);
+        self.u32(c.cp);
+        self.u32(p.max_cp);
+        self.u32(c.token_tier_1_count);
+        self.u32(c.token_tier_2_count);
+        self.0.push(c.milestone_claimed_mask);
+        self.len(c.learned_skills.len());
+        for skill in &c.learned_skills {
+            self.string(&skill.key);
+            self.u32(skill.level);
+        }
+        self.len(c.successful_transfer_receipts.len());
+        for receipt in &c.successful_transfer_receipts {
+            self.0.extend_from_slice(receipt.key.as_bytes());
+            self.u32(receipt.target_class_id.0);
+            let r = &receipt.result;
+            self.0
+                .extend_from_slice(r.character_id.as_uuid().as_bytes());
+            self.identity(&r.identity);
+            self.string(r.name.as_str());
+            self.u32(r.current_class_id.0);
+            self.u32(r.level);
+            self.u64(r.xp);
+            self.u64(r.sp);
+            for n in [
+                r.stats.str,
+                r.stats.dex,
+                r.stats.con,
+                r.stats.int,
+                r.stats.wit,
+                r.stats.men,
+            ] {
+                self.u32(n);
+            }
+            for n in r.position_millitiles {
+                self.0.extend_from_slice(&n.to_le_bytes());
+            }
+            for n in [
+                r.hp,
+                r.mp,
+                r.cp,
+                r.max_hp,
+                r.max_mp,
+                r.max_cp,
+                r.token_tier_1_count,
+                r.token_tier_2_count,
+            ] {
+                self.u32(n);
+            }
+            self.len(r.granted_skill_keys.len());
+            for key in &r.granted_skill_keys {
+                self.string(key);
+            }
+        }
+    }
+
     fn u32(&mut self, value: u32) {
         self.0.extend_from_slice(&value.to_le_bytes());
     }
@@ -159,7 +249,11 @@ impl Writer {
             protected_until,
         } = combat;
         match role {
-            CombatRole::Player { class, xp } => {
+            CombatRole::Player {
+                class,
+                xp,
+                progression: _,
+            } => {
                 self.0.push(0);
                 self.string(class);
                 self.u64(*xp);

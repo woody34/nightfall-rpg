@@ -112,7 +112,13 @@ pub fn player_spawn(c: &Character) -> Result<PlayerSpawn, MappingError> {
         speed: Speed::DEFAULT,
         load: Some(Box::new(PlayerLoad {
             level: c.level,
-            ..PlayerLoad::fresh(starter_class(c.race))
+            xp: c.xp,
+            ..PlayerLoad::fresh(
+                crate::domain::character_progression::base_class_profile(
+                    c.class_state.base_class_id,
+                )
+                .unwrap_or(starter_class(c.race)),
+            )
         })),
     })
 }
@@ -278,6 +284,7 @@ fn world(event: Event) -> pb::WorldEvent {
 pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEvent> {
     match ev {
         ZoneEvent::EntitySpawn {
+            identity,
             tick,
             entity,
             kind,
@@ -288,7 +295,27 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             generation,
             combat,
         } => {
-            let spawn = spawn_to_pb(*entity, *kind, name, *pos, *generation, combat.as_ref());
+            let mut spawn = spawn_to_pb(*entity, *kind, name, *pos, *generation, combat.as_ref());
+            if let (Some(identity), Some(Event::Spawn(s))) = (identity, &mut spawn.event) {
+                s.race = match identity.race {
+                    Race::Human => pb::Race::Human,
+                    Race::Elf => pb::Race::Elf,
+                    Race::DarkElf => pb::Race::DarkElf,
+                    Race::Orc => pb::Race::Orc,
+                    Race::Dwarf => pb::Race::Dwarf,
+                }
+                .into();
+                s.class_id = identity.class_id.0;
+                s.sex = match identity.appearance.sex {
+                    crate::domain::subclass::Sex::Male => pb::Sex::Male,
+                    crate::domain::subclass::Sex::Female => pb::Sex::Female,
+                }
+                .into();
+                s.hair_style = identity.appearance.hair_style;
+                s.hair_color = identity.appearance.hair_color;
+                s.face = identity.appearance.face;
+                s.state_tick = tick.0;
+            }
             match dest {
                 Some(_) => vec![
                     spawn,
@@ -372,8 +399,20 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             tick: tick.0,
             reason: cancel_to_pb(*reason).into(),
         }))],
+        ZoneEvent::ClassChanged {
+            tick,
+            entity,
+            class_id,
+            generation,
+        } => vec![world(Event::ClassChanged(pb::ClassChanged {
+            entity: entity.to_string(),
+            class_id: class_id.0,
+            tick: tick.0,
+            session_generation: u32::try_from(generation.0).unwrap_or(u32::MAX),
+        }))],
         // Internal; never in an observer's output.
-        ZoneEvent::HateChanged { .. }
+        ZoneEvent::ClassTransfer { .. }
+        | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
         | ZoneEvent::Progression(_) => Vec::new(),
         ZoneEvent::EntityRespawned {
@@ -390,6 +429,8 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             incarnation: *incarnation,
         }))],
         ZoneEvent::StatsChanged {
+            class,
+            tick,
             entity,
             hp,
             max_hp,
@@ -406,6 +447,13 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             max_mp: *max_mp,
             level: *level,
             xp: *xp,
+            cp: class.as_ref().map_or(0, |c| c.cp),
+            max_cp: class.as_ref().map_or(0, |c| c.max_cp),
+            class_id: class.as_ref().map_or(0, |c| c.class_id.0),
+            sp: class.as_ref().map_or(0, |c| c.sp),
+            token_tier_1_count: class.as_ref().map_or(0, |c| c.token_tier_1_count),
+            token_tier_2_count: class.as_ref().map_or(0, |c| c.token_tier_2_count),
+            tick: if class.is_some() { tick.0 } else { 0 },
         }))],
         ZoneEvent::XpGained {
             entity,
@@ -446,7 +494,12 @@ pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
         RejectReason::OutOfBounds => pb::RejectReason::OutOfBounds,
         RejectReason::TooFar => pb::RejectReason::TooFar,
         RejectReason::UnknownEntity => pb::RejectReason::UnknownEntity,
-        RejectReason::AlreadyExists
+        RejectReason::TransferConflict
+        | RejectReason::TransferIneligible
+        | RejectReason::TransferRequirement
+        | RejectReason::InCombat
+        | RejectReason::ClassMasterTooFar
+        | RejectReason::AlreadyExists
         | RejectReason::NotPermitted
         | RejectReason::StaleSession
         | RejectReason::NotAPlayer
@@ -594,6 +647,7 @@ mod tests {
     #[test]
     fn spawn_of_a_moving_entity_is_followed_by_its_move() {
         let ev = ZoneEvent::EntitySpawn {
+            identity: None,
             tick: Tick(1),
             entity: EntityId::from_uuid(Uuid::from_u128(1)),
             kind: EntityKind::Npc,
@@ -758,6 +812,7 @@ mod combat_tests {
     #[test]
     fn stats_changed_all_fields_round_trip() {
         let event = ZoneEvent::StatsChanged {
+            class: None,
             tick: Tick(31),
             entity: id(1),
             hp: 22,
@@ -776,6 +831,7 @@ mod combat_tests {
                 max_mp: 25,
                 level: 26,
                 xp: u64::MAX,
+                ..Default::default()
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
