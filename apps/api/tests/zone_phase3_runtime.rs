@@ -749,3 +749,71 @@ async fn real_v5_actor_byte_admission_preserves_fifo_and_terminal_inputs_never_u
         assert!(record.with_output_digests().encoded_len() <= 20_000);
     }
 }
+
+#[test]
+fn checkpoint_export_freezes_strict_timer_thresholds_and_relative_modifier_order() {
+    let (mut zone, player, npc) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1), (1177, 1)],
+    );
+    let applied = finish_skill(&mut zone, player, player, 1040);
+    let tick = applied.tick;
+    let mut snapshot = zone.snapshot();
+    let CombatRole::Player {
+        progression: Some(progression),
+        ..
+    } = combat(&zone, player).role
+    else {
+        panic!("player")
+    };
+    let phase = snapshot.phase3.as_mut().unwrap();
+    let side = phase.entities.get_mut(&player).unwrap();
+    side.reuse.insert(SkillId(1040), Tick(tick.0 + 50));
+    side.reuse.insert(SkillId(1177), Tick(tick.0 + 51));
+    side.player.as_mut().unwrap().pvp.flag_until = Some(Tick(tick.0 + 1));
+    side.fractions.mp = Q / 7;
+    let mut effects = side.effects.entries().clone();
+    let effect = effects.values_mut().next().unwrap();
+    effect.expires_at = Some(Tick(tick.0 + 101));
+    side.effects = effects::EffectList::from_entries(effects).unwrap();
+    let checkpoint = phase.checkpoint(player, tick).unwrap();
+    assert_eq!(checkpoint.flag_remaining_ticks, 1);
+    assert_eq!(checkpoint.resource_fractions.mp, Q / 7);
+    assert_eq!(checkpoint.reuse_remainders.len(), 1);
+    assert_eq!(checkpoint.reuse_remainders[&SkillId(1177)], 51);
+    assert_eq!(checkpoint.effect_remainders.len(), 1);
+    assert_eq!(checkpoint.effect_remainders[0].remaining_ticks, 101);
+    checkpoint
+        .validate(&phase.rules, &progression.class_state.learned_skills, true)
+        .unwrap();
+    let restored = checkpoint
+        .stage_restore(
+            &phase.rules,
+            &progression.class_state.learned_skills,
+            true,
+            7,
+            Tick(2000),
+            40,
+            100,
+        )
+        .unwrap();
+    let restored_effect = &restored.effects.entries()[&effects::EffectId(40)];
+    assert_eq!(restored_effect.target_incarnation, 7);
+    assert_eq!(restored_effect.expires_at, Some(Tick(2101)));
+    assert_eq!(restored.flag_until, Some(Tick(2001)));
+    assert_eq!(restored.reuse[&SkillId(1177)], Tick(2051));
+    assert!(phase.checkpoint(npc, tick).is_err());
+    // One tick later, exact equality with both thresholds excludes both saved timers.
+    let expired_subset = phase.checkpoint(player, Tick(tick.0 + 1)).unwrap();
+    assert!(expired_subset.effect_remainders.is_empty());
+    assert!(expired_subset.reuse_remainders.is_empty());
+    assert!(!expired_subset
+        .modifier_install_order
+        .iter()
+        .any(|s| matches!(s, effects::RetainedModifierSource::Effect { .. })));
+    assert_eq!(
+        checkpoint.effect_remainders[0].remaining_ticks, 101,
+        "frozen request never ages"
+    );
+}

@@ -20,6 +20,12 @@ impl ZoneState {
         let mut w = Writer(Vec::new());
         w.0.extend_from_slice(b"nightfall-state-v5\0");
         w.0.extend_from_slice(&self.token_state_digest());
+        w.option(self.meta.phase3_admission_policy.as_ref(), |w, policy| {
+            w.u32(policy.version);
+            w.u64(policy.record_budget);
+            w.u64(policy.max_command_bytes);
+            w.u32(policy.max_observers);
+        });
         w.option(self.phase3.as_ref(), |w, p| {
             let p = &p.canonical;
             w.0.extend_from_slice(&p.rules_hash);

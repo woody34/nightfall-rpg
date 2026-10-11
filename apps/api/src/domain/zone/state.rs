@@ -170,6 +170,9 @@ impl ZoneBounds {
 /// them; replay compares them and warns on mismatch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SnapshotMeta {
+    /// Recorded pre-draft byte policy; required for V5 and forbidden in every legacy epoch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase3_admission_policy: Option<super::Phase3AdmissionPolicy>,
     /// Canonical catalogue provenance, independent of legacy stat rule provenance.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub classes_hash: String,
@@ -199,6 +202,7 @@ impl SnapshotMeta {
     /// Explicit historical constructor; a latest-schema bump cannot upgrade legacy policy.
     pub fn legacy() -> Self {
         Self {
+            phase3_admission_policy: None,
             classes_hash: String::new(),
             classes_rules_hash: None,
             schema_version: 8,
@@ -402,19 +406,23 @@ impl ZoneSnapshot {
                 (4 | 5, JsonV1, false)
                 | (6..=8, JsonV1 | BinaryV2, false)
                 | (7, BinaryV3, true)
-                | (8, BinaryV4, true) => self.phase3.is_none(),
+                | (8, BinaryV4, true) => {
+                    self.phase3.is_none() && self.meta.phase3_admission_policy.is_none()
+                },
                 (9, BinaryV5, true) => {
-                    self.rules
-                        .as_ref()
-                        .zip(self.phase3.as_ref())
-                        .is_some_and(|(stats, phase3)| {
-                            phase3
-                                .rules
-                                .profiles()
-                                .starter_weapon
-                                .validate_physical(&stats.starter_weapon)
-                                .is_ok()
-                        })
+                    self.meta
+                        .phase3_admission_policy
+                        .is_some_and(super::Phase3AdmissionPolicy::is_valid)
+                        && self.rules.as_ref().zip(self.phase3.as_ref()).is_some_and(
+                            |(stats, phase3)| {
+                                phase3
+                                    .rules
+                                    .profiles()
+                                    .starter_weapon
+                                    .validate_physical(&stats.starter_weapon)
+                                    .is_ok()
+                            },
+                        )
                         && self
                             .phase3
                             .as_ref()
@@ -552,6 +560,7 @@ impl ZoneState {
         );
         state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
         state.meta.digest_version = StateDigestVersion::BinaryV5;
+        state.meta.phase3_admission_policy = Some(super::Phase3AdmissionPolicy::version_one());
         Ok(state)
     }
 
@@ -861,6 +870,12 @@ impl ZoneState {
             }
             self.run_tick_legacy(draft)
         }
+    }
+
+    /// Immutable recorded byte admission inputs; absent only for legacy epochs.
+    #[must_use]
+    pub fn phase3_admission_policy(&self) -> Option<&super::Phase3AdmissionPolicy> {
+        self.meta.phase3_admission_policy.as_ref()
     }
 
     /// Policy is selected only by the validated epoch version, never registry presence.

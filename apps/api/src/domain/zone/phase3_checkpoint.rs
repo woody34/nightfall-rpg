@@ -318,6 +318,84 @@ pub struct FrozenLearnResult {
     pub incarnation: u32,
 }
 
+impl super::Phase3Snapshot {
+    /// Freeze paused persistence after this tick's callbacks. Snapshot timers themselves
+    /// remain exact: only this repository projection applies the >50/>100 thresholds.
+    /// Casts/offers/regen deadlines are deliberately not retained across real disconnects.
+    pub fn checkpoint(
+        &self,
+        entity: super::EntityId,
+        tick: Tick,
+    ) -> Result<Phase3Checkpoint, EffectError> {
+        let side = self
+            .entities
+            .get(&entity)
+            .ok_or(EffectError::Invalid("unknown player"))?;
+        let player = side
+            .player
+            .as_ref()
+            .ok_or(EffectError::Invalid("NPC checkpoint"))?;
+        let mut effect_remainders = Vec::new();
+        let mut ordinals = BTreeMap::new();
+        for effect in side.effects.entries().values() {
+            effect.validate_source(self.rules.skills())?;
+            if let Some(retained) = effect.retain(tick)? {
+                let ordinal =
+                    u32::try_from(effect_remainders.len()).map_err(|_| EffectError::Overflow)?;
+                ordinals.insert(effect.id, ordinal);
+                effect_remainders.push(retained);
+            }
+        }
+        let mut modifier_install_order = Vec::new();
+        for source in side.modifier_install_order.values() {
+            let source = match source {
+                RestoredModifierSource::Passive(skill) => {
+                    RetainedModifierSource::Passive { skill: *skill }
+                },
+                RestoredModifierSource::DeathPenalty => RetainedModifierSource::DeathPenalty,
+                RestoredModifierSource::Effect(id) => {
+                    if !side.effects.entries().contains_key(id) {
+                        return Err(EffectError::Invalid("unknown checkpoint modifier source"));
+                    }
+                    let Some(ordinal) = ordinals.get(id) else {
+                        continue;
+                    };
+                    RetainedModifierSource::Effect {
+                        effect_ordinal: *ordinal,
+                    }
+                },
+            };
+            modifier_install_order.push(source);
+        }
+        side.fractions.validate()?;
+        Ok(Phase3Checkpoint {
+            timer_policy_version: self.rules.timer_policy_version(),
+            karma: player.pvp.karma,
+            pk_count: player.pvp.pk_count,
+            pvp_count: player.pvp.pvp_count,
+            flag_remaining_ticks: player
+                .pvp
+                .flag_until
+                .map_or(0, |end| end.0.saturating_sub(tick.0)),
+            death_penalty_level: player.death_penalty_level,
+            last_death: player.last_death.clone(),
+            resource_fractions: side.fractions,
+            reuse_remainders: side
+                .reuse
+                .iter()
+                .filter_map(|(id, end)| {
+                    end.0
+                        .checked_sub(tick.0)
+                        .filter(|left| *left > 50)
+                        .map(|left| (*id, left))
+                })
+                .collect(),
+            effect_remainders,
+            modifier_install_order,
+        })
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,

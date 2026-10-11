@@ -83,7 +83,7 @@ pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot};
 pub use phase2::{
     profession_stats, transfer_resource, ClassStatsView, PlayerIdentityView, PlayerProgression,
 };
-pub use phase3::{Phase3Rules, Phase3Snapshot};
+pub use phase3::{Phase3AdmissionPolicy, Phase3Rules, Phase3Snapshot};
 pub use phase3_checkpoint::{
     DeathRecord, FrozenLearnResult, LearnedEffectiveStats, Phase3Checkpoint, ResourceFractions,
     RestoredModifierSource, RestoredPhase3Timers,

@@ -10,6 +10,7 @@ pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
                 if matches!(
                     key.as_str(),
                     "phase3"
+                        | "phase3_admission_policy"
                         | "active_effects"
                         | "pending_cast"
                         | "cp_damage"
