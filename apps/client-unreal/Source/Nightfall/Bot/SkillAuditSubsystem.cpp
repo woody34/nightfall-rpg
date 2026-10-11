@@ -350,7 +350,18 @@ TOptional<bool> USkillAuditSubsystem::Check(const FString& Name) const
   return Stats.IsSet()?TOptional<bool>(Stats->DeathPenaltyLevel==*PriorPenalty):Sync.IsSet()?TOptional<bool>(Sync->DeathPenaltyLevel==*PriorPenalty):TOptional<bool>();
  }
  if(Name==TEXT("resurrect_offer_matches_death"))return Offer.IsSet() && Death.IsSet()?TOptional<bool>(Offer->TargetIncarnation==Death->Incarnation && Offer->Target.Equals(Death->Entity,ESearchCase::IgnoreCase) && Offer->ExpiryTick>Offer->Tick):TOptional<bool>();
- if(Name==TEXT("own_flag_deadline_matches_received"))return Stats.IsSet() && Net && PublicPvp.Contains(Net->GetOwnEntityId().ToLower()) && PublicPvp[Net->GetOwnEntityId().ToLower()].Tick==Stats->Tick?TOptional<bool>(PublicPvp[Net->GetOwnEntityId().ToLower()].FlagUntilTick==Stats->FlagUntilTick):TOptional<bool>();
+ if(Name==TEXT("own_flag_deadline_matches_received"))
+ {
+  if(!Stats.IsSet() || !Net)return {};
+  const auto* Public=PublicPvp.Find(Net->GetOwnEntityId().ToLower());
+  // StatsChanged can advance for StopAttack/resources while the public PvP state
+  // stays unchanged. Compare the latest accepted copies of this life, not their
+  // publication ticks. A differing deadline remains false; no local expiry math.
+  if(!Public || Public->Incarnation!=Stats->Incarnation
+   || !Fence.Accept(Stats->Entity,Stats->Incarnation,Stats->Tick,Stats->bBaseline,Stats->BaselineTick)
+   || !Fence.Accept(Public->Entity,Public->Incarnation,Public->Tick,Public->bBaseline,Public->BaselineTick))return {};
+  return Public->FlagUntilTick==Stats->FlagUntilTick;
+ }
  if(Name==TEXT("npc_target_is_owner"))
  {
   if(!Net)return {};bool Witnessed=false;for(const auto& S:Swings){const auto* I=Fence.Identities.Find(S.Key);if(I && I->Kind==2 && !I->bDead){Witnessed=true;if(S.Value.Target.Equals(Net->GetOwnEntityId(),ESearchCase::IgnoreCase))return true;}}return Witnessed?TOptional<bool>(false):TOptional<bool>();

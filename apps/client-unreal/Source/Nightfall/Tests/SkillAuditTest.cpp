@@ -65,4 +65,42 @@ bool FSkillCpSampleLimitTest::RunTest(const FString& Parameters)
  TestFalse(TEXT("disconnect cannot retain a prior passing witness"),CpEvidence().IsSet());
  return true;
 }
+// Captured r9 3-pvp-flag-a: public tick123/deadline1323 followed by
+// StopAttack StatsChanged tick124 with the SAME deadline. These are current copies.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSkillFlagCopyTicksTest,"Nightfall.Skill.FlagCopyIndependentTicks",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FSkillFlagCopyTicksTest::RunTest(const FString& Parameters)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* A=Scope.Get<USkillAuditSubsystem>();N->SetOwnEntityId(TEXT("owner"));
+ auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};
+ auto Check=[&](){return A->Check(TEXT("own_flag_deadline_matches_received"));};
+ TestFalse(TEXT("no received state is unknown"),Check().IsSet());
+ FEntitySpawn S;S.EntityId=TEXT("owner");S.Kind=1;S.LifeIncarnation=1;S.SessionGeneration=1;S.StateTick=103;FWorldEvent E;E.Spawn=S;Send(E);
+ FStatsChanged Stats;Stats.Entity=TEXT("owner");Stats.Incarnation=1;Stats.Tick=Stats.BaselineTick=103;Stats.bBaseline=true;E={};E.StatsChanged=Stats;Send(E);
+ TestTrue(TEXT("baseline copies agree"),Check().Get(false));
+ Stats.bBaseline=false;Stats.Tick=123;Stats.FlagUntilTick=1323;E.StatsChanged=Stats;Send(E);
+ TestTrue(TEXT("different copies are a known mismatch"),Check().IsSet());TestFalse(TEXT("no invented public refresh"),Check().Get(true));
+ FPvpStateChanged P;P.Entity=TEXT("owner");P.Incarnation=1;P.Tick=123;P.FlagUntilTick=1323;E={};E.PvpStateChanged=P;Send(E);
+ TestTrue(TEXT("matching refresh received"),Check().Get(false));
+ Stats.Tick=124;Stats.Mp=17;E={};E.StatsChanged=Stats;Send(E);
+ TestTrue(TEXT("later unrelated stats retain exact deadline proof"),Check().Get(false));
+ P.Tick=122;P.FlagUntilTick=1316;E={};E.PvpStateChanged=P;Send(E);
+ TestTrue(TEXT("stale public copy cannot overwrite"),Check().Get(false));
+ Stats.Tick=125;Stats.FlagUntilTick=1400;E={};E.StatsChanged=Stats;Send(E);
+ TestFalse(TEXT("new differing private deadline still fails"),Check().Get(true));
+ P.Tick=126;P.FlagUntilTick=1400;E={};E.PvpStateChanged=P;Send(E);
+ TestTrue(TEXT("public may be newer than private too"),Check().Get(false));
+ P.Tick=127;P.FlagUntilTick=0;E.PvpStateChanged=P;Send(E);
+ TestFalse(TEXT("expiry must be received on both copies"),Check().Get(true));
+ Stats.Tick=128;Stats.FlagUntilTick=0;E={};E.StatsChanged=Stats;Send(E);
+ TestTrue(TEXT("received expiry copies agree"),Check().Get(false));
+ FEntityRespawned R;R.Entity=TEXT("owner");R.Incarnation=2;R.Tick=130;R.Hp=100;E={};E.EntityRespawned=R;Send(E);
+ TestFalse(TEXT("old-life agreement is not evidence"),Check().IsSet());
+ Stats.Incarnation=2;Stats.Tick=Stats.BaselineTick=130;Stats.bBaseline=true;E={};E.StatsChanged=Stats;Send(E);
+ TestFalse(TEXT("new private copy cannot pair with old public life"),Check().IsSet());
+ P.Incarnation=2;P.Tick=P.BaselineTick=130;P.bBaseline=true;E={};E.PvpStateChanged=P;Send(E);
+ TestTrue(TEXT("new-life baseline copies agree"),Check().Get(false));
+ A->Disconnected(TEXT("test"));TestFalse(TEXT("disconnect clears evidence"),Check().IsSet());
+ return true;
+}
+
 #endif
