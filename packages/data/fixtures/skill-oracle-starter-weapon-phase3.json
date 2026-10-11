@@ -1,0 +1,1313 @@
+{
+  "schema": 1,
+  "source_revisions": {
+    "l2j_game": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+    "l2j_datapack": "3ca488dd2bd0bfaca43e378886a3c2e37968153a"
+  },
+  "policy": "Exact Fraction formula evidence and Q adaptation; not a Java binary64 equivalence claim.",
+  "coverage": {
+    "class_keys": [
+      "human_fighter",
+      "human_mystic",
+      "elven_mystic",
+      "dark_fighter",
+      "orc_mystic",
+      "dwarven_fighter"
+    ],
+    "levels": [
+      1,
+      20,
+      40,
+      85
+    ],
+    "item_id": 2369
+  },
+  "inputs_sha256": {
+    "classes-phase3/dark_fighter.toml": "f077e0d5b6545394f135a7564cccc10eee6663625170a30e6c6bb2a14c00c724",
+    "classes-phase3/dwarven_fighter.toml": "89d8af4aad53cecbb72141159c9f1af8e1524c55fedced869e827e4e690ebc51",
+    "classes-phase3/elven_mystic.toml": "6425dbe28bca903ae2bfe3f13e2a171e997dc15d3cfa730d0e607dc12f1477a5",
+    "classes-phase3/human_fighter.toml": "3cf1ac185451d79210480a125645b06b76f34c422030ceb64eccf2f1ac95c6aa",
+    "classes-phase3/human_mystic.toml": "d43e297043da67ff90dd56cea534cdaf4e6c49368a3d0dcdae0557f9237ac9dc",
+    "classes-phase3/orc_mystic.toml": "0bbb156f652e59f09d6042c94d4d967b53236810bda35366262f35b039ef6541",
+    "scripts/starter_weapon_oracle.py": "c68438bdf5efcca8348f0e2addb2f82775f177f4c3474571e314b1c393f7f770",
+    "tables-phase3/starter_weapon.toml": "70a45848215eadf96ddf7600a8d39ff660e0879fcf8f8d8d48a3d5adbf039ffa",
+    "tables/stat_bonus.toml": "f5ba322d085ebdbb41ab4f16ae7e6bdb4c0ce7b5dd4d1e4ffc011da410150f7c"
+  },
+  "formulas": {
+    "FuncMAtkMod": [
+      {
+        "description": "Human Fighter level 1: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 0,
+          "class_key": "human_fighter",
+          "level": 1,
+          "template_file": "classes-phase3/human_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 21,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "81/100",
+          "level_mod": "9/10",
+          "unarmed_exact": "1594323/500000",
+          "incorrect_additive_exact": "5845851/1000000"
+        },
+        "exact_rational": "531441/200000",
+        "q_result": 2657205,
+        "rounded_result": 2,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Human Fighter level 20: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 0,
+          "class_key": "human_fighter",
+          "level": 20,
+          "template_file": "classes-phase3/human_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 21,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "81/100",
+          "level_mod": "109/100",
+          "unarmed_exact": "233853723/50000000",
+          "incorrect_additive_exact": "857463651/100000000"
+        },
+        "exact_rational": "77951241/20000000",
+        "q_result": 3897562,
+        "rounded_result": 3,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Human Fighter level 40: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 0,
+          "class_key": "human_fighter",
+          "level": 40,
+          "template_file": "classes-phase3/human_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 21,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "81/100",
+          "level_mod": "129/100",
+          "unarmed_exact": "327544803/50000000",
+          "incorrect_additive_exact": "1200997611/100000000"
+        },
+        "exact_rational": "109181601/20000000",
+        "q_result": 5459080,
+        "rounded_result": 5,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Human Fighter level 85: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 0,
+          "class_key": "human_fighter",
+          "level": 85,
+          "template_file": "classes-phase3/human_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 21,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "81/100",
+          "level_mod": "87/50",
+          "unarmed_exact": "148980627/12500000",
+          "incorrect_additive_exact": "546262299/25000000"
+        },
+        "exact_rational": "49660209/5000000",
+        "q_result": 9932041,
+        "rounded_result": 9,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Human Mystic level 1: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/HumanMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 10,
+          "class_key": "human_mystic",
+          "level": 1,
+          "template_file": "classes-phase3/human_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 41,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "121/100",
+          "level_mod": "9/10",
+          "unarmed_exact": "3557763/500000",
+          "incorrect_additive_exact": "13045131/1000000"
+        },
+        "exact_rational": "1185921/200000",
+        "q_result": 5929605,
+        "rounded_result": 5,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Human Mystic level 20: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/HumanMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 10,
+          "class_key": "human_mystic",
+          "level": 20,
+          "template_file": "classes-phase3/human_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 41,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "121/100",
+          "level_mod": "109/100",
+          "unarmed_exact": "521849163/50000000",
+          "incorrect_additive_exact": "1913446931/100000000"
+        },
+        "exact_rational": "173949721/20000000",
+        "q_result": 8697486,
+        "rounded_result": 8,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Human Mystic level 40: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/HumanMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 10,
+          "class_key": "human_mystic",
+          "level": 40,
+          "template_file": "classes-phase3/human_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 41,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "121/100",
+          "level_mod": "129/100",
+          "unarmed_exact": "730922643/50000000",
+          "incorrect_additive_exact": "2680049691/100000000"
+        },
+        "exact_rational": "243640881/20000000",
+        "q_result": 12182044,
+        "rounded_result": 12,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Human Mystic level 85: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/HumanMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 10,
+          "class_key": "human_mystic",
+          "level": 85,
+          "template_file": "classes-phase3/human_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 41,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "121/100",
+          "level_mod": "87/50",
+          "unarmed_exact": "332453187/12500000",
+          "incorrect_additive_exact": "1218995019/25000000"
+        },
+        "exact_rational": "110817729/5000000",
+        "q_result": 22163545,
+        "rounded_result": 22,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Elven Mystic level 1: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/ElvenMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 25,
+          "class_key": "elven_mystic",
+          "level": 1,
+          "template_file": "classes-phase3/elven_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 37,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "28/25",
+          "level_mod": "9/10",
+          "unarmed_exact": "95256/15625",
+          "incorrect_additive_exact": "174636/15625"
+        },
+        "exact_rational": "15876/3125",
+        "q_result": 5080320,
+        "rounded_result": 5,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Elven Mystic level 20: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/ElvenMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 25,
+          "class_key": "elven_mystic",
+          "level": 20,
+          "template_file": "classes-phase3/elven_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 37,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "28/25",
+          "level_mod": "109/100",
+          "unarmed_exact": "3493014/390625",
+          "incorrect_additive_exact": "6403859/390625"
+        },
+        "exact_rational": "582169/78125",
+        "q_result": 7451763,
+        "rounded_result": 7,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Elven Mystic level 40: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/ElvenMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 25,
+          "class_key": "elven_mystic",
+          "level": 40,
+          "template_file": "classes-phase3/elven_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 37,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "28/25",
+          "level_mod": "129/100",
+          "unarmed_exact": "4892454/390625",
+          "incorrect_additive_exact": "8969499/390625"
+        },
+        "exact_rational": "815409/78125",
+        "q_result": 10437235,
+        "rounded_result": 10,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Elven Mystic level 85: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/ElvenMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 25,
+          "class_key": "elven_mystic",
+          "level": 85,
+          "template_file": "classes-phase3/elven_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 37,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "28/25",
+          "level_mod": "87/50",
+          "unarmed_exact": "8901144/390625",
+          "incorrect_additive_exact": "16318764/390625"
+        },
+        "exact_rational": "1483524/78125",
+        "q_result": 18989107,
+        "rounded_result": 18,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Dark Fighter level 1: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/DarkFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 31,
+          "class_key": "dark_fighter",
+          "level": 1,
+          "template_file": "classes-phase3/dark_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 25,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "22/25",
+          "level_mod": "9/10",
+          "unarmed_exact": "58806/15625",
+          "incorrect_additive_exact": "107811/15625"
+        },
+        "exact_rational": "9801/3125",
+        "q_result": 3136320,
+        "rounded_result": 3,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Dark Fighter level 20: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/DarkFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 31,
+          "class_key": "dark_fighter",
+          "level": 20,
+          "template_file": "classes-phase3/dark_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 25,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "22/25",
+          "level_mod": "109/100",
+          "unarmed_exact": "4312803/781250",
+          "incorrect_additive_exact": "15813611/1562500"
+        },
+        "exact_rational": "1437601/312500",
+        "q_result": 4600323,
+        "rounded_result": 4,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Dark Fighter level 40: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/DarkFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 31,
+          "class_key": "dark_fighter",
+          "level": 40,
+          "template_file": "classes-phase3/dark_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 25,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "22/25",
+          "level_mod": "129/100",
+          "unarmed_exact": "6040683/781250",
+          "incorrect_additive_exact": "22149171/1562500"
+        },
+        "exact_rational": "2013561/312500",
+        "q_result": 6443395,
+        "rounded_result": 6,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Dark Fighter level 85: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/DarkFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 31,
+          "class_key": "dark_fighter",
+          "level": 85,
+          "template_file": "classes-phase3/dark_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 25,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "22/25",
+          "level_mod": "87/50",
+          "unarmed_exact": "5495094/390625",
+          "incorrect_additive_exact": "10074339/390625"
+        },
+        "exact_rational": "915849/78125",
+        "q_result": 11722867,
+        "rounded_result": 11,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Orc Mystic level 1: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/OrcMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 49,
+          "class_key": "orc_mystic",
+          "level": 1,
+          "template_file": "classes-phase3/orc_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 31,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "99/100",
+          "level_mod": "9/10",
+          "unarmed_exact": "2381643/500000",
+          "incorrect_additive_exact": "8732691/1000000"
+        },
+        "exact_rational": "793881/200000",
+        "q_result": 3969405,
+        "rounded_result": 3,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Orc Mystic level 20: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/OrcMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 49,
+          "class_key": "orc_mystic",
+          "level": 20,
+          "template_file": "classes-phase3/orc_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 31,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "99/100",
+          "level_mod": "109/100",
+          "unarmed_exact": "349337043/50000000",
+          "incorrect_additive_exact": "1280902491/100000000"
+        },
+        "exact_rational": "116445681/20000000",
+        "q_result": 5822284,
+        "rounded_result": 5,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Orc Mystic level 40: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/OrcMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 49,
+          "class_key": "orc_mystic",
+          "level": 40,
+          "template_file": "classes-phase3/orc_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 31,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "99/100",
+          "level_mod": "129/100",
+          "unarmed_exact": "489295323/50000000",
+          "incorrect_additive_exact": "1794082851/100000000"
+        },
+        "exact_rational": "163098441/20000000",
+        "q_result": 8154922,
+        "rounded_result": 8,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Orc Mystic level 85: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/OrcMystic.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 49,
+          "class_key": "orc_mystic",
+          "level": 85,
+          "template_file": "classes-phase3/orc_mystic.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 31,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "99/100",
+          "level_mod": "87/50",
+          "unarmed_exact": "222551307/12500000",
+          "incorrect_additive_exact": "816021459/25000000"
+        },
+        "exact_rational": "74183769/5000000",
+        "q_result": 14836753,
+        "rounded_result": 14,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Dwarf Fighter level 1: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/DwarvenFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 53,
+          "class_key": "dwarven_fighter",
+          "level": 1,
+          "template_file": "classes-phase3/dwarven_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 20,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "4/5",
+          "level_mod": "9/10",
+          "unarmed_exact": "1944/625",
+          "incorrect_additive_exact": "3564/625"
+        },
+        "exact_rational": "324/125",
+        "q_result": 2592000,
+        "rounded_result": 2,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Dwarf Fighter level 20: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/DwarvenFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 53,
+          "class_key": "dwarven_fighter",
+          "level": 20,
+          "template_file": "classes-phase3/dwarven_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 20,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "4/5",
+          "level_mod": "109/100",
+          "unarmed_exact": "71286/15625",
+          "incorrect_additive_exact": "130691/15625"
+        },
+        "exact_rational": "11881/3125",
+        "q_result": 3801920,
+        "rounded_result": 3,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Dwarf Fighter level 40: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/DwarvenFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 53,
+          "class_key": "dwarven_fighter",
+          "level": 40,
+          "template_file": "classes-phase3/dwarven_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 20,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "4/5",
+          "level_mod": "129/100",
+          "unarmed_exact": "99846/15625",
+          "incorrect_additive_exact": "183051/15625"
+        },
+        "exact_rational": "16641/3125",
+        "q_result": 5325120,
+        "rounded_result": 5,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      },
+      {
+        "description": "Dwarf Fighter level 85: equipped Squire's Sword",
+        "source_lines": [
+          "model/actor/stat/CharStat.java:237-246",
+          "model/stats/functions/FuncSet.java:36-40",
+          "model/stats/functions/formulas/FuncMAtkMod.java:37-46",
+          "model/actor/L2Character.java:5007-5008"
+        ],
+        "template_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/chars/baseStats/DwarvenFighter.xml",
+          "lines": "3-57",
+          "symbol": "staticData"
+        },
+        "weapon_source": {
+          "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+          "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+          "file": "src/main/resources/data/stats/items/02300-02399.xml",
+          "lines": "863",
+          "symbol": "item 2369/for/mAtk"
+        },
+        "inputs": {
+          "class_id": 53,
+          "class_key": "dwarven_fighter",
+          "level": 85,
+          "template_file": "classes-phase3/dwarven_fighter.toml",
+          "is_player": true,
+          "equipment": "squires_sword_empty_jewelry",
+          "weapon_file": "tables-phase3/starter_weapon.toml",
+          "item_id": 2369,
+          "weapon_type": "SWORD",
+          "template_base": 6,
+          "base": 5,
+          "stat_name": "INT",
+          "stat_value": 20,
+          "modifiers": [],
+          "rolls": []
+        },
+        "intermediate": {
+          "after_order_0_set": "5",
+          "weapon_order": 0,
+          "builtin_order": 1,
+          "stat_bonus": "4/5",
+          "level_mod": "87/50",
+          "unarmed_exact": "181656/15625",
+          "incorrect_additive_exact": "333036/15625"
+        },
+        "exact_rational": "30276/3125",
+        "q_result": 9688320,
+        "rounded_result": 9,
+        "rounding_rule": "SET replaces template base at order 0; FuncMAtkMod multiplies at order 1. Exact Fraction to Q once; whole floor for display only."
+      }
+    ]
+  },
+  "vector_set_sha256": "bf06a15fdd583d9a8b8c6ab34567f03f5ba736c22c2ab244f6028dde8e4d7171"
+}
