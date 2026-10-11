@@ -166,6 +166,13 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('-BotOutDir=' + str(self.root / 'owned'), result.stdout)
 
+    def test_competing_bot_output_override_is_refused(self):
+        result = self.shell('sim_bot_cmd test.nfs', SIM_BOT_BIN='/bin/true',
+                            SIM_SAVED_DIR=str(self.root / 'owned'),
+                            SIM_BOT_ARGS_JSON='["-botoutdir=/tmp/foreign"]')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('set SIM_SAVED_DIR', result.stderr)
+
     def test_fresh_flag_overrides_inherited_opt_out(self):
         args = self.ci_args() + ['--fresh-stack']
         seen = []

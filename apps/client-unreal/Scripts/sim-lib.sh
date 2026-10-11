@@ -233,9 +233,14 @@ sim_bot_cmd() {
     local -a extra_args=()
     mapfile -d '' -t extra_args <"$args_file"
     rm -f "$args_file"
+    local extra_arg
+    for extra_arg in "${extra_args[@]}"; do
+      [[ "${extra_arg,,}" != -botoutdir=* ]] \
+        || sim_die "set SIM_SAVED_DIR instead of overriding -BotOutDir"
+    done
     SIM_BOT_CMD+=("${extra_args[@]}")
   fi
-  # Last argument wins: collected evidence must come from this invocation only.
+  # One unambiguous output argument keeps collection tied to this invocation.
   SIM_BOT_CMD+=("-BotOutDir=$SIM_SAVED_DIR")
   if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
     local fixture_args_file
