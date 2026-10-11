@@ -995,6 +995,7 @@ pub fn disposition_to_pb(d: &Disposition) -> Option<pb::IntentRejected> {
 }
 
 /// One item of a player's output stream as server messages, in order.
+/// Retained offer hydration requires the identity batch; use [`encode_observer_outputs`].
 #[must_use]
 pub fn observer_output_to_pb(o: &ObserverOutput, server_time_ms: i64) -> Vec<pb::ServerMessage> {
     use pb::server_message::Payload;
@@ -1027,7 +1028,22 @@ pub fn observer_output_to_pb(o: &ObserverOutput, server_time_ms: i64) -> Vec<pb:
 pub fn encode_observer_outputs(outputs: &[ObserverOutput], server_time_ms: i64) -> Vec<Bytes> {
     outputs
         .iter()
-        .flat_map(|o| observer_output_to_pb(o, server_time_ms))
+        .flat_map(|o| {
+            let baseline = offer_hydration_baseline(outputs, o);
+            let mut messages = observer_output_to_pb(o, server_time_ms);
+            if let Some(tick) = baseline {
+                for message in &mut messages {
+                    if let Some(pb::server_message::Payload::Event(pb::WorldEvent {
+                        event: Some(Event::ResurrectOffer(offer)),
+                    })) = &mut message.payload
+                    {
+                        offer.baseline = true;
+                        offer.baseline_tick = tick.0;
+                    }
+                }
+            }
+            messages
+        })
         .map(|m| Bytes::from(m.encode_to_vec()))
         .collect()
 }
@@ -1469,4 +1485,37 @@ mod combat_tests {
             );
         }
     }
+}
+
+// V5 observe explicitly emits a retained owner offer after its identity batch at the
+// identity tick (state_runtime_observe.rs). That matching identity is the hydration marker;
+// ordinary offered/terminal facts have no such identity. Derive the additive wire metadata
+// here so the canonical replay event shape and all historical recording bytes stay frozen.
+fn offer_hydration_baseline(outputs: &[ObserverOutput], output: &ObserverOutput) -> Option<Tick> {
+    let ObserverOutput::Event(ZoneEvent::ResurrectOffer {
+        tick,
+        target,
+        state: crate::domain::zone::ResurrectOfferState::Offered,
+        ..
+    }) = output
+    else {
+        return None;
+    };
+    outputs.iter().find_map(|output| match output {
+        ObserverOutput::Event(ZoneEvent::EntitySpawn {
+            tick: identity_tick,
+            entity,
+            combat: Some(combat),
+            ..
+        }) if combat.phase3.is_some()
+            && *entity == target.entity
+            && combat.incarnation == target.incarnation
+            && identity_tick == tick =>
+        {
+            Some(*tick)
+        },
+        ObserverOutput::Event(_)
+        | ObserverOutput::Accepted { .. }
+        | ObserverOutput::Rejected(_) => None,
+    })
 }

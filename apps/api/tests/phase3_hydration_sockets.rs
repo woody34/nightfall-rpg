@@ -6,6 +6,8 @@
     clippy::panic
 )]
 mod common;
+#[path = "common/hydration.rs"]
+mod hydration_fixture;
 
 use std::{future::Future, sync::Arc, time::Duration};
 
@@ -287,7 +289,8 @@ async fn socket_identity_has_final_status_before_effect_hydration() {
 }
 
 #[tokio::test]
-async fn socket_swing_identity_batch_pvp_selection_reset_and_cp_are_authoritative() {
+async fn socket_swing_identity_batch_pvp_selection_reset_and_cp_are_authoritative(
+) -> anyhow::Result<()> {
     let repo = Arc::new(InMemoryCharacterRepository::default());
     let a = ordinary(&repo, "SwingAlpha", 10.0).await;
     let b = ordinary(&repo, "SwingBravo", 11.0).await;
@@ -344,6 +347,7 @@ async fn socket_swing_identity_batch_pvp_selection_reset_and_cp_are_authoritativ
             (s.tick, s.impact_tick, s.ready_tick),
             (swing.start.0, swing.impact.0, swing.ready.0)
         );
+        assert!(s.tick < s.baseline_tick);
         assert_eq!(s.attacker_incarnation, Some(1));
         assert!(!s.target.is_empty());
         assert!(baseline.iter().any(|m| matches!(event(m), Some(Event::Spawn(p)) if p.entity_id == s.target && p.life_incarnation == s.target_incarnation)));
@@ -358,6 +362,7 @@ async fn socket_swing_identity_batch_pvp_selection_reset_and_cp_are_authoritativ
         }
     }
     assert!(baseline.iter().any(|m| matches!(event(m), Some(Event::PvpStateChanged(p)) if p.entity == a.id.to_string() && p.baseline && p.karma == 7 && p.pk_count == 3 && p.pvp_count == 4 && p.flag_until_tick > p.tick)));
+    hydration_fixture::write("pending-swings", &baseline)?;
     private_absent(&baseline, a.id);
     private_absent(&baseline, b.id);
     let hits = drive(
@@ -372,6 +377,7 @@ async fn socket_swing_identity_batch_pvp_selection_reset_and_cp_are_authoritativ
     assert!(hit.cp_damage > 0);
     private_absent(&hits, a.id);
     private_absent(&hits, b.id);
+    Ok(())
 }
 
 async fn corpse_fixture() -> (TestApp, ManualTickDriver, Character, Character, Character) {
@@ -569,4 +575,106 @@ async fn socket_offers_all_states_private_and_same_id_revival_has_final_max_hp_b
         private_absent(&frames, corpse.id);
         private_absent(&frames, caster.id);
     }
+}
+
+#[tokio::test]
+async fn socket_replacement_hydrates_pending_offer_and_can_accept_it() -> anyhow::Result<()> {
+    use anyhow::Context as _;
+    let (app, driver, caster, corpse, viewer) = corpse_fixture().await;
+    let (mut priest, _) = join(&app, &driver, &caster).await;
+    let (mut old, _) = join(&app, &driver, &corpse).await;
+    let (mut observer, _) = join(&app, &driver, &viewer).await;
+    intent(
+        &mut priest,
+        &driver,
+        1,
+        Intent::CastSkill(pb::CastSkillRequest {
+            skill_id: 1016,
+            target: Some(corpse.id.to_string()),
+        }),
+    )
+    .await;
+    let offered = drive(&driver, old.until(|m| matches!(event(m), Some(Event::ResurrectOffer(o)) if o.state == i32::from(pb::ResurrectOfferState::Offered)))).await;
+    let original = offered
+        .iter()
+        .find_map(|m| match event(m) {
+            Some(Event::ResurrectOffer(o)) => Some(o.clone()),
+            _ => None,
+        })
+        .context("ordinary pending offer")?;
+    assert!(!original.baseline);
+    assert_eq!(original.baseline_tick, 0);
+    let (mut replacement, frames) = join(&app, &driver, &corpse).await;
+    assert_eq!(old.closed(ws::WAIT).await, Some(4409));
+    let (identity_index, identity) = frames
+        .iter()
+        .enumerate()
+        .find_map(|(i, m)| match event(m) {
+            Some(Event::Spawn(s)) if s.entity_id == corpse.id.to_string() => Some((i, s)),
+            _ => None,
+        })
+        .context("replacement corpse identity")?;
+    let (offer_index, hydrated) = frames
+        .iter()
+        .enumerate()
+        .find_map(|(i, m)| match event(m) {
+            Some(Event::ResurrectOffer(o)) => Some((i, o)),
+            _ => None,
+        })
+        .context("replacement pending offer hydration")?;
+    assert!(offer_index > identity_index);
+    assert!(hydrated.baseline);
+    assert_eq!(
+        (hydrated.tick, hydrated.baseline_tick),
+        (identity.state_tick, identity.state_tick)
+    );
+    assert_eq!(hydrated.target_incarnation, identity.life_incarnation);
+    assert_eq!(identity.session_generation, 2);
+    assert!(hydrated.tick > original.tick);
+    let mut retained = original.clone();
+    retained.tick = hydrated.tick;
+    retained.baseline = true;
+    retained.baseline_tick = hydrated.baseline_tick;
+    assert_eq!(*hydrated, retained);
+    assert_eq!(
+        frames
+            .iter()
+            .filter(|m| matches!(event(m), Some(Event::ResurrectOffer(_))))
+            .count(),
+        1
+    );
+    // Accept using the offer ID received by the replacement, proving that hydration neither
+    // invalidated the offer nor created a second offer. Terminal events remain ordinary.
+    let mut accepted = intent(
+        &mut replacement,
+        &driver,
+        1,
+        Intent::AcceptResurrect(pb::AcceptResurrectRequest {
+            offer_id: hydrated.offer_id,
+            accept: true,
+        }),
+    )
+    .await;
+    accepted.extend(drive(&driver, replacement.until(|m| matches!(event(m), Some(Event::ResurrectOffer(o)) if o.state == i32::from(pb::ResurrectOfferState::Accepted)))).await);
+    let terminal = accepted
+        .iter()
+        .find_map(|m| match event(m) {
+            Some(Event::ResurrectOffer(o))
+                if o.state == i32::from(pb::ResurrectOfferState::Accepted) =>
+            {
+                Some(o)
+            },
+            _ => None,
+        })
+        .context("accepted retained offer")?;
+    assert_eq!(terminal.offer_id, original.offer_id);
+    assert_eq!(terminal.target_incarnation, original.target_incarnation);
+    assert!(!terminal.baseline);
+    assert_eq!(terminal.baseline_tick, 0);
+    let mut fixture = frames;
+    fixture.extend(accepted);
+    hydration_fixture::write("replacement-offer", &fixture)?;
+    let public = drive(&driver, observer.until(|m| matches!(event(m), Some(Event::VitalsChanged(v)) if v.entity == corpse.id.to_string() && v.baseline))).await;
+    private_absent(&public, corpse.id);
+    Ok(())
 }

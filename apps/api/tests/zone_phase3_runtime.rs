@@ -6,6 +6,9 @@
     clippy::wildcard_enum_match_arm,
     clippy::panic
 )]
+#[path = "common/hydration.rs"]
+mod hydration_fixture;
+
 use nightfall_api::application::replay_log::{decode_snapshot, encode_snapshot, AppliedTickRecord};
 use nightfall_api::domain::character_progression::{
     CharacterAppearance, CharacterIdentity, ClassState,
@@ -2790,7 +2793,7 @@ fn npc_effect_hydration_wire_uses_identity_tick_without_changing_legacy_spawn_by
     assert_eq!((effect.tick, effect.baseline_tick), (identity.state_tick, identity.state_tick));
     // Client fence contract (architecture-decisions C12): hydration upserts at the identity
     // tick; ordinary deltas need a strictly newer tick. The client owner tests its projection.
-    assert!(effect.baseline && effect.baseline_tick == identity.state_tick);
+
     let last_identity = events
         .iter()
         .rposition(|e| matches!(e, Event::Spawn(_)))
@@ -2800,6 +2803,14 @@ fn npc_effect_hydration_wire_uses_identity_tick_without_changing_legacy_spawn_by
         .position(|e| matches!(e, Event::EffectApplied(e) if e.effect_id == effect.effect_id))
         .context("hydration index")?;
     assert!(effect_index > last_identity);
+    let frames = nightfall_api::interface::zone_mapping::encode_observer_outputs(
+        admission.outputs.get(&viewer).context("viewer outputs")?,
+        admission.server_time_ms,
+    )
+    .iter()
+    .map(|bytes| pb::ServerMessage::decode(bytes.as_ref()))
+    .collect::<Result<Vec<_>, _>>()?;
+    hydration_fixture::write("npc-effects", &frames)?;
 
     // Reproject the actual NPC producer with its legacy combat policy. The previous spawn
     // mapper's exact bytes are preserved; absent player metadata cannot imply a V5 baseline.

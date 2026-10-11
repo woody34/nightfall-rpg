@@ -352,3 +352,95 @@ fn offer_baseline_uses_additive_tags_and_preserves_prior_bytes() -> Result<(), p
     assert_eq!(pb::ResurrectOffer::decode(expected.as_slice())?, offer);
     Ok(())
 }
+
+#[test]
+fn offer_hydration_requires_matching_v5_identity_and_only_marks_offered() -> anyhow::Result<()> {
+    use anyhow::Context as _;
+    use nightfall_api::domain::zone::{
+        effects::{StatusFlags, TargetBinding},
+        CombatView, CombatViewPhase3, EntityId, EntityKind, ObserverOutput, OfferId,
+        ResurrectOfferState, SessionGeneration, Speed, Tick, Vec2Fixed, ZoneEvent,
+    };
+    use nightfall_api::interface::zone_mapping::encode_observer_outputs;
+    let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
+    for (v5, same_entity, life, identity_tick, offer_tick, state, expected) in [
+        (true, true, 7, 100, 100, ResurrectOfferState::Offered, true),
+        (false, true, 7, 100, 100, ResurrectOfferState::Offered, false),
+        (true, false, 7, 100, 100, ResurrectOfferState::Offered, false),
+        (true, true, 8, 100, 100, ResurrectOfferState::Offered, false),
+        (true, true, 7, 100, 101, ResurrectOfferState::Offered, false),
+        (true, true, 7, 100, 99, ResurrectOfferState::Offered, false),
+        (true, true, 7, 100, 100, ResurrectOfferState::Accepted, false),
+        (true, true, 7, 100, 100, ResurrectOfferState::Declined, false),
+        (true, true, 7, 100, 100, ResurrectOfferState::Expired, false),
+    ] {
+        let identity = ZoneEvent::EntitySpawn {
+            identity: None,
+            tick: Tick(identity_tick),
+            entity: if same_entity {
+                entity
+            } else {
+                EntityId::from_uuid(uuid::Uuid::from_u128(2))
+            },
+            kind: EntityKind::Player,
+            name: "owner".into(),
+            pos: Vec2Fixed::from_tiles(0, 0),
+            dest: None,
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(2),
+            combat: Some(CombatView {
+                phase3: v5.then_some(CombatViewPhase3 {
+                    status_flags: StatusFlags::default(),
+                    flag_until: None,
+                    karma: 0,
+                }),
+                template: None,
+                incarnation: life,
+                dead: true,
+                attackable: true,
+                hp: 0,
+                max_hp: 100,
+                level: 1,
+                swing: None,
+            }),
+        };
+        let offer = ZoneEvent::ResurrectOffer {
+            tick: Tick(offer_tick),
+            target: TargetBinding {
+                entity,
+                incarnation: 7,
+            },
+            offer_id: OfferId(9),
+            caster: None,
+            restore_percent_q: 0,
+            recoverable_xp: 0,
+            expires_at: Tick(u64::MAX),
+            state,
+        };
+        let outputs = [
+            ObserverOutput::Event(identity),
+            ObserverOutput::Event(offer),
+        ];
+        for (batch, baseline) in [(&outputs[..], expected), (&outputs[1..], false)] {
+            let decoded = encode_observer_outputs(batch, 0)
+                .iter()
+                .map(|bytes| pb::ServerMessage::decode(bytes.as_ref()))
+                .collect::<Result<Vec<_>, _>>()?;
+            let offer = decoded
+                .iter()
+                .find_map(|m| match &m.payload {
+                    Some(pb::server_message::Payload::Event(pb::WorldEvent {
+                        event: Some(pb::world_event::Event::ResurrectOffer(o)),
+                    })) => Some(o),
+                    _ => None,
+                })
+                .context("mapped offer frame")?;
+            assert_eq!(offer.baseline, baseline);
+            assert_eq!(offer.baseline_tick, if baseline { identity_tick } else { 0 });
+            assert_eq!(offer.tick, offer_tick);
+            assert_eq!(offer.expiry_tick, u64::MAX);
+            assert!(offer.caster.is_none() && offer.caster_incarnation.is_none());
+        }
+    }
+    Ok(())
+}
