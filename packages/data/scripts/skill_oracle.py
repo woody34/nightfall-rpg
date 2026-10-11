@@ -134,6 +134,136 @@ def format_fraction(x: F) -> str:
     return f"{x.numerator}/{x.denominator}"
 
 
+def calc_skill_phys_damage(power, p_atk, defence, proximity="front", soulshot=False,
+                           crit=False, spread=F(1)) -> F:
+    """Formulas.java:746-809; PhysicalAttack.java:86-104, no equipped shield."""
+    if proximity not in ("front", "side", "behind") or F(defence) <= 0 or F(spread) <= 0:
+        raise ValueError("unsupported physical damage inputs")
+    proximity_bonus = {"front": F(1), "side": F(11, 10), "behind": F(6, 5)}[proximity]
+    damage = F(77) * (F(power) + F(p_atk) * (2 if soulshot else 1)) / F(defence)
+    return max(F(1), damage * proximity_bonus * F(spread)) * (2 if crit else 1)
+
+
+def calc_magic_damage_bounds(power, m_atk, m_def, is_pvp, mcrit, magic_failure,
+                             second_success, lvl_diff, attribute_bonus=F(1),
+                             spread=F(1)) -> tuple[F, F]:
+    """Formulas.java:845-898, MagicalAttack.java:88; certify whole damage."""
+    if F(m_atk) < 0 or F(m_def) <= 0 or F(spread) <= 0:
+        raise ValueError("unsupported magical damage inputs")
+    def at_root(root):
+        damage = F(91) * root * F(power) / F(m_def)
+        if magic_failure:
+            damage = damage / 2 if second_success and lvl_diff <= 9 else F(1)
+        elif mcrit:
+            damage *= F(5, 2) if is_pvp else 3
+        return damage * F(attribute_bonus) * F(spread)
+    lo, hi = root_bounds(F(m_atk))
+    return at_root(lo), at_root(hi)
+
+
+def calc_magic_success(lvl_difference, res_modifier=F(1), target_modifier=F(1)) -> int:
+    """Formulas.java:1286-1301: float cast followed by Java Math.round."""
+    raw = F(13, 10) ** lvl_difference * F(res_modifier) * F(target_modifier)
+    if raw < 0:
+        raise ValueError("unsupported negative magic resistance")
+    return 100 - min(2**31 - 1, rounded(ieee_normal(raw, 24)))
+
+
+def calc_effect_success_bounds(magic_level, target_level, activate_rate, lvl_bonus_rate,
+                               target_base_stat, basic_property, is_magic, m_atk, m_def,
+                               trait_mod, element_mod, buff_debuff_mod,
+                               min_chance, max_chance) -> tuple[F, F]:
+    """Formulas.java:1158-1224: continuous chance, clamp before roll comparison."""
+    if activate_rate == -1 or basic_property == "NONE":
+        return F(100), F(100)
+    if F(trait_mod) <= 0:
+        return F(0), F(0)
+    level = target_level + 3 if magic_level <= -1 else magic_level
+    coefficient = F((level - target_level + 3) * lvl_bonus_rate + activate_rate + 30 - target_base_stat)
+    coefficient *= F(element_mod) * F(trait_mod) * F(buff_debuff_mod)
+    roots = root_bounds(F(m_atk)) if is_magic else (F(1), F(1))
+    if is_magic:
+        coefficient *= F(11) / F(m_def)
+    rates = sorted(coefficient * root for root in roots)
+    return tuple(max(F(min_chance), min(F(max_chance), rate)) for rate in rates)
+
+
+def calc_effect_duration(abnormal_time, is_debuff, magic_level, attacker_level,
+                         target_level, lvl_bonus_rate, stat_bonus, trait_mod,
+                         element_mod) -> F:
+    """Formulas.java:1760-1784: return clamped seconds before Math.ceil."""
+    time = F(abnormal_time)
+    if not is_debuff:
+        return time
+    level = magic_level if magic_level > 0 else attacker_level
+    raw = time * F(trait_mod) * (1 + F(lvl_bonus_rate, 100))
+    raw *= (1 + F(level - target_level, 100)) * F(element_mod) / F(stat_bonus)
+    return max(time / 2, min(time, raw))
+
+
+def fold_stat(initial, modifiers, quantum=Q) -> F:
+    """Calculator.java:110-127; Func{Set,Add,Sub,Mul,Div}.java:36-40.
+    Nightfall D-R12 quantizes each runtime Func to Q with Java Math.round.
+    None retains the exact expression for source/golden comparisons.
+    """
+    value = F(initial)
+    for operation, operand in modifiers:
+        operand = F(operand)
+        if operation == "Set": value = operand
+        elif operation == "Add": value += operand
+        elif operation == "Sub": value -= operand
+        elif operation in ("Mul", "Product"): value *= operand
+        elif operation == "Div": value /= operand
+        else: raise ValueError("unsupported independent modifier " + operation)
+        if quantum is not None:
+            value = F(rounded(value * quantum), quantum)
+    return value
+
+
+def calc_regen_initial(base, level_mod=F(1), stat_bonus=F(1), minimum=F(1)) -> F:
+    """Formulas.java:263-351,357-442,442-450: clamp before stat Funcs."""
+    return max(F(minimum), F(base) * F(level_mod) * F(stat_bonus))
+
+
+def calc_regen_credit(initial, config_multiplier=F(1), posture_multiplier=F(1)) -> F:
+    """Formulas.java:334-351,417-434,448-453: config/posture after Funcs."""
+    return F(initial) * F(config_multiplier) * F(posture_multiplier)
+
+
+def calc_stat_base(formula, value, level=1, stat_value=0, max_m_atk_speed=None) -> F:
+    """Source FuncMAtkMod.java:42-47, FuncMDefMod.java:58-61,
+    FuncMAtkSpeed.java:42-45 and FuncPAtkMod.java:43-44, at arbitrary input levels.
+    Literal bonuses are independent oracle inputs, never producer Product values.
+    """
+    bonuses = read_toml("tables/stat_bonus.toml")
+    level_mod = F(level + 89, 100)  # L2Character.java:5007-5008
+    if formula == "FuncMAtkMod":
+        return F(value) * F(bonuses["int"]["bonus"][stat_value])**2 * level_mod**2
+    if formula == "FuncMDefMod":
+        return F(value) * F(bonuses["men"]["bonus"][stat_value]) * level_mod
+    if formula == "FuncMAtkSpeed":
+        return min(F(max_m_atk_speed), F(value) * F(bonuses["wit"]["bonus"][stat_value]))
+    if formula == "FuncPAtk":
+        return F(value) * F(bonuses["str"]["bonus"][stat_value]) * level_mod
+    if formula == "FuncPDef":  # FuncPDefMod.java:70
+        return F(value) * level_mod
+    raise ValueError("unsupported independent stat formula " + formula)
+
+
+def calc_evasion_base(level, dex, is_player=True) -> int:
+    """FuncAtkEvasion.java:37,61: intermediate (int) before later modifiers."""
+    addition = F(level)
+    if is_player and level >= 70:
+        addition += F(level - 69) * (F(6, 5) if level >= 78 else 1)
+    elif not is_player and level > 69:
+        addition += level - 69 + 2
+    lo, hi = root_bounds(F(dex))
+    a, b = floor(lo * 6 + addition), floor(hi * 6 + addition)
+    if a != b:
+        raise ValueError("ambiguous independent evasion rounding")
+    return a
+
+
 # ---------------------------------------------------------------------------
 # Formula 1: calcSkillPhysDam (+ skill crit)
 # ---------------------------------------------------------------------------
@@ -212,10 +342,7 @@ def make_calc_skill_phys_dam_vectors() -> list[dict]:
         else:
             prox_mul = F(1)
 
-        dmg = base_mod * prox_mul
-        dmg = max(F(1), dmg)
-        if crit:
-            dmg *= F(2)
+        dmg = calc_skill_phys_damage(power, p_atk, p_def, prox, ss, crit)
 
         rounded_res = floor(dmg)
 
@@ -315,20 +442,8 @@ def make_calc_magic_dam_vectors() -> list[dict]:
         mdef_f = F(m_def)
         lo_sq, hi_sq = root_bounds(F(m_atk))
 
-        def calc_dmg(sq: F) -> F:
-            dmg = ((F(91) * sq) / mdef_f) * pow_f
-            if fail:
-                if sec_succ and diff <= 9:
-                    dmg = dmg / F(2)
-                else:
-                    dmg = F(1)
-            elif mcrit:
-                dmg *= F(5, 2) if pvp else F(3)
-            dmg *= attr
-            return dmg
-
-        lo_d = calc_dmg(lo_sq)
-        hi_d = calc_dmg(hi_sq)
+        lo_d, hi_d = calc_magic_damage_bounds(power, m_atk, m_def, pvp, mcrit,
+                                                fail, sec_succ, diff, attr)
         assert floor(lo_d) == floor(hi_d), f"Ambiguous sqrt rounding for {desc}"
 
         out.append({
@@ -391,7 +506,7 @@ def make_calc_magic_success_vectors() -> list[dict]:
         raw = lvl_mod_exact * tgt_mod * res_mod
         flt = binary_nearest(raw, 24)
         subtrahend = rounded(flt)
-        rate = 100 - subtrahend
+        rate = calc_magic_success(diff, res_mod, tgt_mod)
 
         out.append({
             "description": desc,
@@ -477,6 +592,9 @@ def make_calc_effect_success_vectors() -> list[dict]:
                 final_rate = max(F(min_c), min(F(max_c), rate))
             else:
                 final_rate = F(0)
+            final_rate, _ = calc_effect_success_bounds(
+                mlvl, tlvl, act, lbr, tstat, prop, is_mag, matk, mdef,
+                trt, elem, buff, min_c, max_c)
             rounded_res = floor(final_rate)
 
         out.append({
@@ -595,6 +713,8 @@ def make_calc_effect_duration_vectors() -> list[dict]:
         else:
             clamped = t_f
             sec = t
+        clamped = calc_effect_duration(t, is_deb, mlvl, alvl, tlvl, lbr, sb, trt, elem)
+        sec = ceil(clamped)
         ticks = sec * 10
 
         out.append({
@@ -950,8 +1070,8 @@ def make_calc_regen_vectors(bonuses: dict) -> dict[str, list[dict]]:
                 init = base_val
                 post_mul = F(1)
 
-            clamped_init = max(F(1), init)
-            rate = clamped_init * post_mul
+            clamped_init = calc_regen_initial(base_val, lvl_mod, stat_b)
+            rate = calc_regen_credit(clamped_init, posture_multiplier=post_mul)
 
             # Multi-step accumulation: over 30 ticks (1 pulse), 60 ticks (2 pulses), 90 ticks (3 pulses)
             # In Nightfall, 1 pulse = 30 ticks = rate added to fractional accumulator
@@ -1385,7 +1505,7 @@ def make_m_stat_derivation_vectors(bonuses: dict) -> dict[str, list[dict]]:
             if len(matk_vectors) < 45:
                 int_b = bonuses["int"][int_stat]
                 lvl_mod = F(lvl + 89, 100)
-                exact = F(6) * (int_b**2) * (lvl_mod**2)
+                exact = calc_stat_base("FuncMAtkMod", 6, lvl, int_stat)
                 matk_vectors.append({
                     "description": f"FuncMAtkMod initVal=6, level={lvl}, INT={int_stat}",
                     "source_lines": matk_source,
@@ -1407,7 +1527,7 @@ def make_m_stat_derivation_vectors(bonuses: dict) -> dict[str, list[dict]]:
             if len(mdef_vectors) < 45:
                 men_b = bonuses["men"][men_stat]
                 lvl_mod = F(lvl + 89, 100)
-                exact = F(41) * men_b * lvl_mod
+                exact = calc_stat_base("FuncMDefMod", 41, lvl, men_stat)
                 mdef_vectors.append({
                     "description": f"FuncMDefMod value=41, level={lvl}, MEN={men_stat}",
                     "source_lines": mdef_source,
@@ -1427,7 +1547,7 @@ def make_m_stat_derivation_vectors(bonuses: dict) -> dict[str, list[dict]]:
         if len(matkspd_vectors) < 45:
             wit_b = bonuses["wit"][wit_stat]
             exact = F(333) * wit_b
-            clamped = min(F(1999), exact)
+            clamped = calc_stat_base("FuncMAtkSpeed", 333, stat_value=wit_stat, max_m_atk_speed=1999)
             matkspd_vectors.append({
                 "description": f"FuncMAtkSpeed base=333, WIT={wit_stat}",
                 "source_lines": matkspd_source,
@@ -1849,13 +1969,13 @@ def make_func_atk_evasion_vectors() -> list[dict]:
             if lv > 69:
                 raw += F(lv - 69 + 2)
 
-        intermediate_cast = floor(raw)
+        intermediate_cast = calc_evasion_base(lv, dx, is_p)
 
         if m_op == "add":
-            val_with = F(intermediate_cast) + F(m_val)
+            val_with = fold_stat(intermediate_cast, [("Add", m_val)], quantum=None)
             val_without = raw + F(m_val)
         elif m_op == "mul":
-            val_with = F(intermediate_cast) * F(m_val)
+            val_with = fold_stat(intermediate_cast, [("Mul", m_val)], quantum=None)
             val_without = raw * F(m_val)
         else:
             val_with = F(intermediate_cast)
