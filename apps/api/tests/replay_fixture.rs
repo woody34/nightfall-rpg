@@ -502,7 +502,7 @@ async fn the_tool_exits_3_on_an_incomplete_jetstream_epoch() {
     assert_eq!(code, 3, "{stderr}");
     assert!(stderr.contains("incomplete"), "{stderr}");
     let out = tmp("incomplete.nfr");
-    let (code, _, _) = tool(&[
+    let (code, stdout, stderr) = tool(&[
         "export",
         "--zone",
         &zone,
@@ -513,7 +513,7 @@ async fn the_tool_exits_3_on_an_incomplete_jetstream_epoch() {
         "--out",
         out.to_str().unwrap(),
     ]);
-    assert_eq!(code, 3, "export refuses it too");
+    assert_eq!(code, 3, "export refuses it too: {stdout}{stderr}");
     assert!(!out.exists());
 
     let applied = state.run_tick(state.draft(vec![spawn(1, 30, 30)])).unwrap();

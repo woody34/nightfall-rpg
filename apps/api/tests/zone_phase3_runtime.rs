@@ -773,6 +773,36 @@ async fn real_v5_actor_byte_admission_preserves_fifo_and_terminal_inputs_never_u
     }
 }
 
+#[tokio::test]
+async fn checkpoint_lane_requires_an_admitted_player_revision_before_retained_output() {
+    use nightfall_api::application::checkpoint::CheckpointService;
+    use nightfall_api::application::zone_actor::{manual_ticks, OpenGate, TickOutcome, ZoneActor};
+    use nightfall_api::infrastructure::memory::{
+        InMemoryCharacterRepository, InMemorySessionAudit,
+    };
+    use nightfall_api::infrastructure::telemetry::Metrics;
+    use std::sync::Arc;
+    let (state, player, npc) = setup();
+    let expected = state.next_tick();
+    let (ticks, driver) = manual_ticks();
+    let zone = ZoneActor::spawn_gated(state, ticks, OpenGate);
+    zone.checkpoints.install(CheckpointService::new(
+        Arc::new(InMemoryCharacterRepository::default()),
+        Arc::new(InMemorySessionAudit::default()),
+        Arc::new(Metrics::detached()),
+    ));
+    let mut output = zone.subscribe();
+    zone.send(cast(player, npc)).unwrap();
+    assert_eq!(driver.step().await.unwrap(), TickOutcome::Held(expected));
+    zone.stopped().await;
+    assert!(zone.persistence_failed());
+    assert!(matches!(
+        output.try_recv(),
+        Err(tokio::sync::broadcast::error::TryRecvError::Empty)
+    ));
+    assert!(zone.snapshot().await.is_err());
+}
+
 #[test]
 fn checkpoint_export_freezes_strict_timer_thresholds_and_relative_modifier_order() {
     let (mut zone, player, npc) = setup_with_skills(
@@ -839,36 +869,6 @@ fn checkpoint_export_freezes_strict_timer_thresholds_and_relative_modifier_order
         checkpoint.effect_remainders[0].remaining_ticks, 101,
         "frozen request never ages"
     );
-}
-
-#[tokio::test]
-async fn checkpoint_lane_fences_experimental_state_until_paused_export_is_available() {
-    use nightfall_api::application::checkpoint::CheckpointService;
-    use nightfall_api::application::zone_actor::{manual_ticks, OpenGate, TickOutcome, ZoneActor};
-    use nightfall_api::infrastructure::memory::{
-        InMemoryCharacterRepository, InMemorySessionAudit,
-    };
-    use nightfall_api::infrastructure::telemetry::Metrics;
-    use std::sync::Arc;
-    let (state, player, npc) = setup();
-    let expected = state.next_tick();
-    let (ticks, driver) = manual_ticks();
-    let zone = ZoneActor::spawn_gated(state, ticks, OpenGate);
-    zone.checkpoints.install(CheckpointService::new(
-        Arc::new(InMemoryCharacterRepository::default()),
-        Arc::new(InMemorySessionAudit::default()),
-        Arc::new(Metrics::detached()),
-    ));
-    let mut output = zone.subscribe();
-    zone.send(cast(player, npc)).unwrap();
-    assert_eq!(driver.step().await.unwrap(), TickOutcome::Held(expected));
-    zone.stopped().await;
-    assert!(zone.persistence_failed());
-    assert!(matches!(
-        output.try_recv(),
-        Err(tokio::sync::broadcast::error::TryRecvError::Empty)
-    ));
-    assert!(zone.snapshot().await.is_err());
 }
 
 #[test]

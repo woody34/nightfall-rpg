@@ -293,6 +293,7 @@ struct Queued {
 #[derive(Debug, Clone)]
 pub struct ZoneHandle {
     phase2: bool,
+    phase3: bool,
     admission_policy: Option<RecordAdmissionPolicy>,
     admission_failures: broadcast::Sender<AdmissionFailure>,
     /// Serial persistence lane, installed before admitting sockets.
@@ -312,6 +313,11 @@ impl ZoneHandle {
     /// Whether authoritative Phase 2 identity is required at admission.
     pub fn has_classes(&self) -> bool {
         self.phase2
+    }
+
+    /// Whether this actor was created from an explicitly experimental V5 state.
+    pub fn phase3_enabled(&self) -> bool {
+        self.phase3
     }
 
     /// Current zone position for best-effort session audit. The next tick follows state
@@ -589,6 +595,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
         let paused = gate.paused();
         let phase2 = state.has_classes();
+        let phase3 = state.phase3_enabled();
         let audit_seed = state.seed();
         let (audit_next_tick_tx, audit_next_tick_rx) = watch::channel(state.next_tick());
         let checkpoints = super::checkpoint::CheckpointLane::with_snapshot(state.snapshot());
@@ -620,6 +627,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         tokio::spawn(actor.run());
         ZoneHandle {
             phase2,
+            phase3,
             admission_policy,
             admission_failures,
             audit_seed,
