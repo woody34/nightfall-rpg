@@ -51,14 +51,17 @@ type DamageRoll<'a> =
     dyn FnMut(&mut ZoneState, DamageRollSite, TargetBinding, u32) -> Result<u32, StatError> + 'a;
 fn draw_damage_v5(
     zone: &mut ZoneState,
-    _site: DamageRollSite,
-    _target: TargetBinding,
+    site: DamageRollSite,
+    target: TargetBinding,
     bound: u32,
 ) -> Result<u32, StatError> {
     if bound == 0 {
         return Err(StatError::Overflow);
     }
-    Ok(zone.roll_below(bound))
+    if zone.evidence.is_none() {
+        return Ok(zone.roll_below(bound));
+    }
+    Ok(zone.evidence_roll(&format!("{site:?}"), Some(target), bound))
 }
 fn derive_effective_v5(
     stats: &StatRules,
@@ -128,7 +131,7 @@ impl ZoneState {
             .as_ref()
             .is_some_and(|p| p.canonical.rules.runtime_revision() >= 2)
     }
-    fn sidecar(&self, id: EntityId) -> Result<&Phase3Entity, TickError> {
+    pub(super) fn sidecar(&self, id: EntityId) -> Result<&Phase3Entity, TickError> {
         self.phase3
             .as_ref()
             .and_then(|p| p.canonical.entities.get(&id))
@@ -173,7 +176,7 @@ impl ZoneState {
             sidecar,
         )
     }
-    fn effective(&self, id: EntityId) -> Result<Arc<EffectiveStats>, TickError> {
+    pub(super) fn effective(&self, id: EntityId) -> Result<Arc<EffectiveStats>, TickError> {
         if let Some(cached) = self.phase3.as_ref().and_then(|p| p.effective.get(&id)) {
             return Ok(Arc::clone(cached));
         }
@@ -182,6 +185,11 @@ impl ZoneState {
             .map_err(invariant)
     }
     fn rebuild_v5(&mut self, id: EntityId) -> Result<(), TickError> {
+        let before = self.evidence.as_ref().map(|_| {
+            serde_json::json!({
+                "entity": self.entities.get(&id), "word_cursor": self.rng.get_word_pos().to_string()
+            })
+        });
         let effective = Arc::new(
             self.effective_for(self.entities.get(&id).ok_or_else(missing)?, self.sidecar(id)?)
                 .map_err(invariant)?,
@@ -230,6 +238,18 @@ impl ZoneState {
         }
         if combat_points_full {
             fractions.cp = 0;
+        }
+        if let Some(before) = before {
+            self.evidence_fact(
+                "modifier_reconstruction",
+                id,
+                serde_json::json!({
+                    "before": before, "after": self.evidence_context(id)?,
+                    "word_cursor_after": self.rng.get_word_pos().to_string(),
+                    "ordered_sources": self.sidecar(id)?.modifier_install_order.iter().collect::<Vec<_>>(),
+                    "functions": effective.calculator
+                }),
+            );
         }
         Ok(())
     }
@@ -353,6 +373,15 @@ impl ZoneState {
                 c.mp = c.sheet.max_mp();
             }
             self.rebuild_v5(id)?;
+        }
+        if self.evidence.is_some() {
+            self.evidence_fact(
+                "admission_reconstruction",
+                id,
+                serde_json::json!({
+                    "load": load, "after": self.evidence_context(id)?
+                }),
+            );
         }
         Ok(())
     }
@@ -792,7 +821,7 @@ impl ZoneState {
         {
             return;
         }
-        self.add_hate(
+        self.add_hate_for(
             tick,
             target.entity,
             caster.entity,
@@ -800,6 +829,7 @@ impl ZoneState {
                 hate: point.unsigned_abs(),
                 damage: 0,
             },
+            "effect_point",
             events,
         );
     }
@@ -1569,6 +1599,14 @@ impl ZoneState {
         events: &mut Vec<ZoneEvent>,
         results: &mut Vec<SkillTargetResult>,
     ) -> Result<(), TickError> {
+        let mark = self.evidence_mark();
+        let before = if self.evidence.is_some() {
+            serde_json::json!({"caster": self.evidence_context(caster.entity)?,
+                "target": self.evidence_context(target.entity)?, "skill": skill, "rank": rank})
+        } else {
+            serde_json::Value::Null
+        };
+        let result_start = results.len();
         let continuous = self.continuous_terms_v5(caster, target, skill, rank)?;
 
         for handler in skill
@@ -1634,6 +1672,19 @@ impl ZoneState {
                     applied_effect_ids: Vec::new(),
                 });
             }
+        }
+        if self.evidence.is_some() {
+            self.evidence_fact(
+                "formula_resolution",
+                caster.entity,
+                serde_json::json!({
+                    "inputs": before, "target": target, "skill_id": skill.id, "rank": rank,
+                    "continuous": continuous,
+                    "outcomes": results.get(result_start..).ok_or_else(missing)?,
+                    "rng_draws": self.evidence_draws(mark),
+                    "after": self.evidence_context(target.entity)?
+                }),
+            );
         }
         Ok(())
     }
@@ -1750,11 +1801,12 @@ impl ZoneState {
         {
             ai.last_hit = tick;
         }
-        self.add_hate(
+        self.add_hate_for(
             tick,
             request.target.entity,
             source.entity,
             super::super::HateEntry { hate: 1, damage: 0 },
+            "attacked",
             events,
         );
         let hate = super::super::combat_math::damage_hate(
@@ -1763,7 +1815,7 @@ impl ZoneState {
             level,
         )
         .map_err(invariant)?;
-        self.add_hate(
+        self.add_hate_for(
             tick,
             request.target.entity,
             source.entity,
@@ -1772,6 +1824,7 @@ impl ZoneState {
                 hate: hate.max(1),
                 damage: u64::from(damage),
             },
+            "damage",
             events,
         );
         Ok(())
@@ -2143,6 +2196,25 @@ impl ZoneState {
                 amounts,
             )
             .map_err(invariant)?;
+            if self.evidence.is_some() {
+                self.evidence_fact(
+                    "regen_pulse",
+                    id,
+                    serde_json::json!({
+                        "cause": "scheduled_regeneration", "inputs": input,
+                        "rules": rules.regen(), "functions": effective.calculator,
+                        "before": {"hp": c.hp, "mp": c.mp, "cp": cp},
+                        "max_hp": c.sheet.max_hp(), "max_mp": c.sheet.max_mp(),
+                        "fractions_before": self.sidecar(id)?.fractions,
+                        "amounts": amounts, "actual": result
+                    }),
+                );
+            }
+            let c = self
+                .entities
+                .get(&id)
+                .and_then(|e| e.combat.as_ref())
+                .ok_or_else(missing)?;
             if result.hp != c.hp {
                 self.phase3
                     .as_mut()
@@ -2688,6 +2760,23 @@ impl ZoneState {
         let target = self
             .most_hated_v5(tick, npc)
             .and_then(|id| self.binding(id));
+        if self.evidence.is_some() {
+            let eligible: Vec<_> = self
+                .entities
+                .keys()
+                .copied()
+                .filter(|id| self.npc_pair_v5(tick, npc, *id))
+                .collect();
+            self.evidence_fact(
+                "hate_selection",
+                npc,
+                serde_json::json!({
+                    "ledger": self.hate.get(&npc), "eligible": eligible,
+                    "current_target": self.entities.get(&npc).and_then(|e| e.targeting.target),
+                    "most_hated": target
+                }),
+            );
+        }
         if let Some(phase) = &mut self.phase3 {
             phase
                 .ai_requests
@@ -2799,7 +2888,7 @@ impl ZoneState {
                             .and_then(|l| l.get(caster.entity))
                             .is_some())
                 {
-                    self.add_hate(
+                    self.add_hate_for(
                         tick,
                         target.entity,
                         caster.entity,
@@ -2807,6 +2896,7 @@ impl ZoneState {
                             hate: u64::try_from(amount).map_err(invariant)?,
                             damage: 0,
                         },
+                        "add_hate",
                         events,
                     );
                 }
@@ -2919,7 +3009,11 @@ impl ZoneState {
         let sampled = if limit.width == 0 {
             0
         } else {
-            limit.offset.saturating_add(self.roll_below(limit.width))
+            limit.offset.saturating_add(self.evidence_roll(
+                "AffectLimit",
+                Some(caster),
+                limit.width,
+            ))
         };
         let mut targets: Vec<_> = ordered.into_iter().map(|(_, _, target)| target).collect();
         if sampled != 0 {

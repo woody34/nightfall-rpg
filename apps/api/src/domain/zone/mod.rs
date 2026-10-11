@@ -32,6 +32,7 @@ mod command;
 pub mod effective_stats;
 pub mod effects;
 mod entity;
+pub mod evidence;
 mod fixed;
 mod npc_template;
 mod phase2;
@@ -117,8 +118,10 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 49] = [
+    const SOURCES: [(&str, &str); 51] = [
         ("mod.rs", include_str!("mod.rs")),
+        ("evidence.rs", include_str!("evidence.rs")),
+        ("state_evidence.rs", include_str!("state_evidence.rs")),
         ("effects.rs", include_str!("effects.rs")),
         ("effective_stats.rs", include_str!("effective_stats.rs")),
         ("skill_profiles.rs", include_str!("skill_profiles.rs")),

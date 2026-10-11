@@ -5,6 +5,8 @@
 
 #[path = "state_digest.rs"]
 mod digest;
+#[path = "state_evidence.rs"]
+mod evidence_hooks;
 #[path = "state_runtime.rs"]
 mod runtime;
 
@@ -473,6 +475,8 @@ impl ZoneSnapshot {
 /// mutability, no locks, no clock.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZoneState {
+    // Opt-in replay diagnostics only: never snapshot, hash, encode or send these facts.
+    evidence: Option<super::evidence::EvidenceBuffer>,
     phase3: Option<super::phase3::Phase3Zone>,
     classes: Option<Arc<crate::domain::class::ClassRegistry>>,
     seed: ZoneSeed,
@@ -524,6 +528,7 @@ impl ZoneState {
             seed,
             classes: None,
             phase3: None,
+            evidence: None,
             checkpoints: Vec::new(),
             meta: SnapshotMeta::legacy(),
             rng: ChaCha12Rng::from_seed(seed.key()),
@@ -1291,7 +1296,11 @@ impl ZoneState {
             Some(e) => {
                 self.aoi.remove(id, e.pos);
                 self.known.remove(&id);
-                self.hate.remove(&id);
+                if let Some(ledger) = self.hate.remove(&id) {
+                    for (source, row) in ledger.iter() {
+                        self.evidence_hate_removal(id, source, row, "despawn");
+                    }
+                }
                 events.push(ZoneEvent::EntityDespawn { tick, entity: id });
                 self.release_target(tick, id, &mut events);
                 events

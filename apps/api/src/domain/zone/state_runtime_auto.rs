@@ -19,7 +19,25 @@ impl ZoneState {
             .collect();
         // BTreeMap traversal retains the legacy attacker EntityId order (design phase6).
         for (id, swing) in due {
+            let mark = self.evidence_mark();
+            let before = if self.evidence.is_some() {
+                serde_json::json!({"source": self.evidence_context(id)?,
+                    "target": self.entities.get(&swing.target), "swing": swing})
+            } else {
+                serde_json::Value::Null
+            };
+            let start = events.len();
             self.land_auto_v5(tick, id, swing, events, &mut draw_damage_v5)?;
+            if self.evidence.is_some() {
+                self.evidence_fact(
+                    "auto_attack_resolution",
+                    id,
+                    serde_json::json!({
+                        "inputs": before, "events": events.get(start..).ok_or_else(missing)?,
+                        "rng_draws": self.evidence_draws(mark)
+                    }),
+                );
+            }
         }
         Ok(())
     }
@@ -125,11 +143,12 @@ impl ZoneState {
                 {
                     ai.last_hit = tick;
                 }
-                self.add_hate(
+                self.add_hate_for(
                     tick,
                     target.entity,
                     source.entity,
                     crate::domain::zone::HateEntry { hate: 1, damage: 0 },
+                    "auto_attacked",
                     events,
                 );
             }

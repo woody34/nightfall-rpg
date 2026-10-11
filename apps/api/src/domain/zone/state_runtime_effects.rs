@@ -243,6 +243,14 @@ impl ZoneState {
                         amount.to_q().map_err(invariant)?,
                     )
                     .map_err(invariant)?;
+                    if self.evidence.is_some() {
+                        self.evidence_fact("resource_hook", target.entity, serde_json::json!({
+                            "skill_id": skill.id, "rank": rank, "handler": handler.name,
+                            "resource": if hp { "hp" } else { "mp" }, "before": current,
+                            "fraction_before": fraction, "amount": amount, "after": restored.current,
+                            "whole_credit": restored.granted, "fraction_after": restored.remainder_q
+                        }));
+                    }
                     let c = self
                         .entities
                         .get_mut(&target.entity)
@@ -415,10 +423,12 @@ impl ZoneState {
         let Some(abnormal) = &skill.abnormal else {
             return Ok(None);
         };
+        let mark = self.evidence_mark();
+        let mut chance_evidence = None;
         let a = self.effective(caster.entity)?;
         let b = self.effective(target.entity)?;
         if abnormal.is_debuff && skill.activate_rate != -1 {
-            self.roll_below(100);
+            self.evidence_roll("EffectReflection", Some(target), 100);
         }
         let trait_modifier = Self::trait_modifier_v5(&a, &b, &skill.r#trait)?;
         let (target_base_stat, stat_bonus) =
@@ -429,7 +439,7 @@ impl ZoneState {
         let success = if skill.activate_rate == -1 || skill.basic_property == "NONE" {
             true
         } else {
-            let rate = skill_math::effect_success_rate(skill_math::EffectSuccessInputs {
+            let inputs = skill_math::EffectSuccessInputs {
                 magic_level,
                 target_level: b.physical.level(),
                 activate_rate: i32::try_from(skill.activate_rate).map_err(invariant)?,
@@ -469,10 +479,17 @@ impl ZoneState {
                     .map_err(invariant)?,
                 min_chance: skill.min_chance,
                 max_chance: skill.max_chance,
-            })
-            .map_err(invariant)?;
-            rate.checked_cmp(ExactRatio::whole(i64::from(self.roll_below(100))))
-                .map_err(invariant)?
+            };
+            let rate = skill_math::effect_success_rate(inputs).map_err(invariant)?;
+            if self.evidence.is_some() {
+                chance_evidence = Some(serde_json::json!({"inputs": inputs, "chance": rate}));
+            }
+            rate.checked_cmp(ExactRatio::whole(i64::from(self.evidence_roll(
+                "EffectSuccess",
+                Some(target),
+                100,
+            ))))
+            .map_err(invariant)?
                 == std::cmp::Ordering::Greater
         };
         let duration = skill_math::effect_duration_seconds(
@@ -490,6 +507,19 @@ impl ZoneState {
             ExactRatio::whole(1),
         )
         .map_err(invariant)?;
+        if self.evidence.is_some() {
+            self.evidence_fact("effect_formula", caster.entity, serde_json::json!({
+                "skill_id": skill.id, "rank": rank, "target": target,
+                "chance_evaluation": chance_evidence, "landed": success,
+                "duration_seconds": duration, "duration_inputs": {
+                    "base_seconds": abnormal.time_s.get(index), "is_debuff": abnormal.is_debuff,
+                    "magic_level": magic_level, "caster_level": a.physical.level(),
+                    "target_level": b.physical.level(), "level_bonus_rate": skill.level_bonus_rate,
+                    "stat_bonus": stat_bonus, "trait_modifier": trait_modifier,
+                    "element_modifier": "1/1" },
+                "rng_draws": self.evidence_draws(mark)
+            }));
+        }
         Ok(Some((success, duration)))
     }
     pub(super) fn status_barrier_v5(
@@ -763,7 +793,9 @@ impl ZoneState {
                 )
                 .map_err(invariant)?;
                 // HEAL_EFFECT is absent from the executable Func manifest; coefficient stays1.
-                if skill.is_magic == 1 && self.roll_below(1000) < a.magic_crit {
+                if skill.is_magic == 1
+                    && self.evidence_roll("HealCritical", Some(target), 1000) < a.magic_crit
+                {
                     amount = amount
                         .checked_mul(ExactRatio::whole(3))
                         .map_err(invariant)?;
@@ -903,7 +935,7 @@ impl ZoneState {
             })
             .collect();
         for (id, level) in recipients {
-            self.add_hate(
+            self.add_hate_for(
                 tick,
                 id,
                 caster.entity,
@@ -914,6 +946,7 @@ impl ZoneState {
                         .unwrap_or(0),
                     damage: 0,
                 },
+                "heal",
                 events,
             );
         }
@@ -1081,7 +1114,7 @@ impl ZoneState {
                 }
                 i64::from(rate)
             };
-            let roll = i64::from(self.roll_below(100));
+            let roll = i64::from(self.evidence_roll("Dispel", Some(target), 100));
             if (buff && roll < chance) || (!buff && roll <= chance) {
                 removals.push(effect.id);
                 // Source tests after insertion: even max=0 permits the first success.

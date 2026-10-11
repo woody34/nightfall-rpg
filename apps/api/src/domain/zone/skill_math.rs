@@ -14,6 +14,12 @@ pub struct ExactRatio {
     denominator: i128,
 }
 
+impl serde::Serialize for ExactRatio {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(&format_args!("{}/{}", self.numerator, self.denominator))
+    }
+}
+
 impl ExactRatio {
     /// Parse an exact signed decimal or fraction without a binary floating-point hop.
     /// Exponents, whitespace, empty components and unrepresentable values are rejected.
@@ -797,7 +803,7 @@ pub fn attribute_bonus(
 /// An exact `offset + coefficient * sqrt(radicand)` local expression. Comparing its
 /// square against a rational threshold avoids an early Q square-root rounding. This is
 /// not serialized state and never approximates an irrational value with a guessed epsilon.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct RootExpression {
     offset: ExactRatio,
     coefficient: ExactRatio,
@@ -1021,7 +1027,7 @@ pub fn heal_base(
 
 /// Resolved source inputs for `Formulas.calcEffectSuccess:1158-1232`. Basic property NONE
 /// is an explicit unconditional branch, not a synthetic zero target base stat.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize)]
 #[allow(missing_docs)]
 pub struct EffectSuccessInputs {
     pub magic_level: i32,
