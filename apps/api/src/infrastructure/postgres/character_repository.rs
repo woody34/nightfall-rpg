@@ -1,4 +1,5 @@
 use crate::domain::class::ClassRegistry;
+use crate::domain::zone::{Phase3Checkpoint, Phase3Rules};
 use std::future::Future;
 use std::sync::Arc;
 
@@ -11,9 +12,9 @@ use sea_orm::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::character_ledger;
 use super::entities::{characters, outbox};
 use super::idempotency::{self, operation, Claim};
+use super::{character_ledger, phase3_checkpoint};
 use crate::application::ports::{
     FrozenLearnResult, LearnReceiptLookup, LearnReceiptRepository, LearningCheckpointOutcome,
     LearningCheckpointRepository, MutationReceiptLookup, RepositoryError, SuccessfulLearnReceipt,
@@ -35,6 +36,7 @@ pub struct PgCharacterRepository {
     db: DatabaseConnection,
     metrics: Option<Metrics>,
     classes: Option<Arc<ClassRegistry>>,
+    phase3_rules: Option<Arc<Phase3Rules>>,
 }
 
 impl PgCharacterRepository {
@@ -45,6 +47,7 @@ impl PgCharacterRepository {
             db: db.into(),
             metrics: None,
             classes: None,
+            phase3_rules: None,
         }
     }
 
@@ -53,6 +56,54 @@ impl PgCharacterRepository {
     pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Self {
         self.classes = Some(classes);
         self
+    }
+
+    /// Injects the full immutable V5 bundle used by the actor; no timer-only policy.
+    #[must_use]
+    pub fn with_phase3_rules(mut self, rules: Arc<Phase3Rules>) -> Self {
+        self.phase3_rules = Some(rules);
+        self
+    }
+
+    fn phase3_rules(&self) -> anyhow::Result<Arc<Phase3Rules>> {
+        static RULES: std::sync::OnceLock<Result<Arc<Phase3Rules>, String>> =
+            std::sync::OnceLock::new();
+        if let Some(rules) = &self.phase3_rules {
+            return Ok(rules.clone());
+        }
+        RULES
+            .get_or_init(|| {
+                crate::infrastructure::skill_data::load_phase3_rules(
+                    &crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+                    &[],
+                )
+                .map(Arc::new)
+                .map_err(|e| e.to_string())
+            })
+            .clone()
+            .map_err(anyhow::Error::msg)
+    }
+
+    fn validate_versioned(
+        &self,
+        c: &Character,
+        ledger: &crate::domain::character_progression::ClassState,
+        phase3: Option<&Phase3Checkpoint>,
+        alive: bool,
+    ) -> anyhow::Result<()> {
+        let registry =
+            crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
+        if let Some(phase3) = phase3 {
+            let rules = self.phase3_rules()?;
+            rules
+                .validate_catalogue(&registry)
+                .map_err(anyhow::Error::msg)?;
+            phase3.validate(&rules, &ledger.learned_skills, alive)?;
+            ledger.validate_for_phase3(&registry, &c.identity(), c.id)?;
+        } else {
+            ledger.validate_for(&registry, &c.identity(), c.id)?;
+        }
+        Ok(())
     }
 
     fn validate_character(&self, c: &Character) -> anyhow::Result<()> {
@@ -178,11 +229,16 @@ impl CharacterRepository for PgCharacterRepository {
                 .lock_shared()
                 .one(&tx)
                 .await?;
-            let mut character = model.map(model_to_character).transpose()?;
-            if let Some(c) = &mut character {
-                character_ledger::hydrate(&tx, c).await?;
-                self.validate_character(c)?;
-            }
+            let character = if let Some(model) = model {
+                let phase3 = phase3_checkpoint::load(&tx, &model).await?;
+                let alive = model.alive;
+                let mut c = model_to_character(model)?;
+                character_ledger::hydrate(&tx, &mut c).await?;
+                self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
+                Some(c)
+            } else {
+                None
+            };
             tx.commit().await?;
             Ok(character)
         })
@@ -200,9 +256,16 @@ impl CharacterRepository for PgCharacterRepository {
                 .await?;
             let mut out = Vec::with_capacity(rows.len());
             for model in rows {
+                let phase3 = phase3_checkpoint::load(&tx, &model).await?;
+                let alive = model.alive;
                 let mut character = model_to_character(model)?;
                 character_ledger::hydrate(&tx, &mut character).await?;
-                self.validate_character(&character)?;
+                self.validate_versioned(
+                    &character,
+                    &character.class_state,
+                    phase3.as_ref(),
+                    alive,
+                )?;
                 out.push(character);
             }
             tx.commit().await?;
@@ -257,10 +320,12 @@ impl CharacterRepository for PgCharacterRepository {
                 let alive = m.alive;
                 let class_profile = m.class_profile.clone();
                 let revision = u64::try_from(m.revision)?;
+                let phase3 = phase3_checkpoint::load(&tx, &m).await?;
                 let mut c = model_to_character(m)?;
                 character_ledger::hydrate(&tx, &mut c).await?;
-                self.validate_character(&c)?;
+                self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
                 Some(ProgressionState {
+                    phase3,
                     position: c.position,
                     level: c.level,
                     xp: c.xp,
@@ -296,7 +361,7 @@ impl CharacterRepository for PgCharacterRepository {
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
         match self
-            .timed("checkpoint", self.checkpoint_tx(checkpoint, events, None))
+            .timed("checkpoint", Box::pin(self.checkpoint_tx(checkpoint, events, None)))
             .await?
         {
             LearningCheckpointOutcome::Checkpoint(outcome) => Ok(outcome),
@@ -351,8 +416,11 @@ impl LearningCheckpointRepository for PgCharacterRepository {
         events: &[DomainEvent],
         receipt: &SuccessfulLearnReceipt,
     ) -> Result<LearningCheckpointOutcome, CheckpointError> {
-        self.timed("checkpoint_learning", self.checkpoint_tx(checkpoint, events, Some(receipt)))
-            .await
+        self.timed(
+            "checkpoint_learning",
+            Box::pin(self.checkpoint_tx(checkpoint, events, Some(receipt))),
+        )
+        .await
     }
 }
 
@@ -445,10 +513,12 @@ impl PgCharacterRepository {
         let tx = self.db.begin().await.map_err(other)?;
 
         let original = characters::Entity::find_by_id(cp.character_id.as_uuid())
+            .lock(sea_orm::sea_query::LockType::Update)
             .one(&tx)
             .await
             .map_err(other)?
             .ok_or(CheckpointError::NotFound)?;
+        let phase3_seen = original.phase3_timer_policy_version.is_some();
         let original = model_to_character(original)?;
         let account = original.account_id.as_uuid();
         if let Some(receipt) = receipt {
@@ -545,14 +615,17 @@ impl PgCharacterRepository {
             return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
         }
 
+        if phase3_seen && cp.phase3.is_none() {
+            return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
+        }
         if let Some(ledger) = &cp.class_state {
-            let registry =
-                crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
-            ledger
-                .validate_for(&registry, &original.identity(), cp.character_id)
+            self.validate_versioned(&original, ledger, cp.phase3.as_ref(), cp.alive)
                 .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
         }
         character_ledger::persist(&tx, cp, &original).await?;
+        if let Some(phase3) = &cp.phase3 {
+            phase3_checkpoint::persist(&tx, cp.character_id, phase3).await?;
+        }
 
         for event in events {
             let staged = outbox::ActiveModel {

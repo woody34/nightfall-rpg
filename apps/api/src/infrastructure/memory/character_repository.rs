@@ -1,4 +1,5 @@
 use crate::domain::class::ClassRegistry;
+use crate::domain::zone::{Phase3Checkpoint, Phase3Rules};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
@@ -36,6 +37,7 @@ impl State {
         self.progression.insert(
             c.id,
             ProgressionState {
+                phase3: None,
                 position: c.position,
                 level: c.level,
                 xp: c.xp,
@@ -59,6 +61,7 @@ impl State {
 pub struct InMemoryCharacterRepository {
     state: Mutex<State>,
     classes: Option<Arc<ClassRegistry>>,
+    phase3_rules: Option<Arc<Phase3Rules>>,
 }
 
 impl InMemoryCharacterRepository {
@@ -68,6 +71,54 @@ impl InMemoryCharacterRepository {
         self.classes = Some(classes);
         self
     }
+    /// Injects the full immutable V5 bundle used by the actor; no timer-only policy.
+    #[must_use]
+    pub fn with_phase3_rules(mut self, rules: Arc<Phase3Rules>) -> Self {
+        self.phase3_rules = Some(rules);
+        self
+    }
+
+    fn phase3_rules(&self) -> anyhow::Result<Arc<Phase3Rules>> {
+        static RULES: std::sync::OnceLock<Result<Arc<Phase3Rules>, String>> =
+            std::sync::OnceLock::new();
+        if let Some(rules) = &self.phase3_rules {
+            return Ok(rules.clone());
+        }
+        RULES
+            .get_or_init(|| {
+                crate::infrastructure::skill_data::load_phase3_rules(
+                    &crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+                    &[],
+                )
+                .map(Arc::new)
+                .map_err(|e| e.to_string())
+            })
+            .clone()
+            .map_err(anyhow::Error::msg)
+    }
+
+    fn validate_versioned(
+        &self,
+        c: &Character,
+        ledger: &crate::domain::character_progression::ClassState,
+        phase3: Option<&Phase3Checkpoint>,
+        alive: bool,
+    ) -> anyhow::Result<()> {
+        let registry =
+            crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
+        if let Some(phase3) = phase3 {
+            let rules = self.phase3_rules()?;
+            rules
+                .validate_catalogue(&registry)
+                .map_err(anyhow::Error::msg)?;
+            phase3.validate(&rules, &ledger.learned_skills, alive)?;
+            ledger.validate_for_phase3(&registry, &c.identity(), c.id)?;
+        } else {
+            ledger.validate_for(&registry, &c.identity(), c.id)?;
+        }
+        Ok(())
+    }
+
     fn validate(&self, c: &Character) -> anyhow::Result<()> {
         let registry =
             crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
@@ -140,16 +191,25 @@ impl InMemoryCharacterRepository {
         if let Some(name) = checkpoint.violated_constraint() {
             return Err(CheckpointError::Constraint(name.to_owned()));
         }
+        if checkpoint.phase3.is_none()
+            && s.progression
+                .get(&checkpoint.character_id)
+                .is_some_and(|p| p.phase3.is_some())
+        {
+            return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
+        }
         if let Some(ledger) = &checkpoint.class_state {
             let character = s
                 .characters
                 .get(&checkpoint.character_id)
                 .ok_or(CheckpointError::NotFound)?;
-            let registry =
-                crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
-            ledger
-                .validate_for(&registry, &character.identity(), checkpoint.character_id)
-                .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
+            self.validate_versioned(
+                character,
+                ledger,
+                checkpoint.phase3.as_ref(),
+                checkpoint.alive,
+            )
+            .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
             if ledger.base_class_id != character.class_state.base_class_id {
                 return Err(CheckpointError::Constraint("characters_base_class_immutable".into()));
             }
@@ -205,6 +265,7 @@ impl InMemoryCharacterRepository {
             p.hp = Some(checkpoint.hp);
             p.mp = Some(checkpoint.mp);
             p.alive = checkpoint.alive;
+            p.phase3.clone_from(&checkpoint.phase3);
             p.revision = revision;
             if let Some(ledger) = &checkpoint.class_state {
                 p.class_state = ledger.clone();
@@ -285,27 +346,43 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
 #[async_trait]
 impl CharacterRepository for InMemoryCharacterRepository {
     async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>> {
-        let character = self.state.lock().characters.get(&id).cloned();
-        if let Some(c) = &character {
-            self.validate(c)?;
+        let state = self.state.lock();
+        if let Some(c) = state.characters.get(&id) {
+            let progression = state
+                .progression
+                .get(&id)
+                .ok_or_else(|| anyhow::anyhow!("progression missing"))?;
+            self.validate_versioned(
+                c,
+                &c.class_state,
+                progression.phase3.as_ref(),
+                progression.alive,
+            )?;
         }
-        Ok(character)
+        Ok(state.characters.get(&id).cloned())
     }
 
     async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
-        let mut out: Vec<Character> = self
-            .state
-            .lock()
+        let state = self.state.lock();
+        let mut out = Vec::new();
+        for c in state
             .characters
             .values()
             .filter(|c| c.account_id == account)
-            .cloned()
-            .collect();
-        // Ids are uuid v7, so id order is creation order (the Postgres adapter sorts the same).
-        out.sort_by_key(|c| c.id.as_uuid());
-        for c in &out {
-            self.validate(c)?;
+        {
+            let progression = state
+                .progression
+                .get(&c.id)
+                .ok_or_else(|| anyhow::anyhow!("progression missing"))?;
+            self.validate_versioned(
+                c,
+                &c.class_state,
+                progression.phase3.as_ref(),
+                progression.alive,
+            )?;
+            out.push(c.clone());
         }
+        out.sort_by_key(|c| c.id.as_uuid());
         Ok(out)
     }
 
@@ -360,7 +437,16 @@ impl CharacterRepository for InMemoryCharacterRepository {
     ) -> anyhow::Result<Option<ProgressionState>> {
         let state = self.state.lock();
         if let Some(c) = state.characters.get(&character_id) {
-            self.validate(c)?;
+            let progression = state
+                .progression
+                .get(&character_id)
+                .ok_or_else(|| anyhow::anyhow!("progression missing"))?;
+            self.validate_versioned(
+                c,
+                &c.class_state,
+                progression.phase3.as_ref(),
+                progression.alive,
+            )?;
         }
         Ok(state.progression.get(&character_id).cloned())
     }
@@ -397,6 +483,7 @@ mod tests {
 
     fn cp(c: &Character, seen: u64, key: &str) -> CharacterCheckpoint {
         CharacterCheckpoint {
+            phase3: None,
             character_id: c.id,
             revision_seen: seen,
             level: 2,

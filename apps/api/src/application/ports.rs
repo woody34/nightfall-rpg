@@ -148,6 +148,8 @@ pub struct ProgressionState {
     pub name: CharacterName,
     /// Active main class ledger, including successful transfer receipts.
     pub class_state: ClassState,
+    /// Explicit paused Phase 3 payload. None identifies legacy state.
+    pub phase3: Option<crate::domain::zone::Phase3Checkpoint>,
     /// Bumped by every applied checkpoint; the fence for the next one.
     pub revision: u64,
 }
@@ -175,6 +177,8 @@ pub struct CharacterCheckpoint {
     pub idempotency: (String, IdempotencyKey),
     /// None is legacy recovery: preserve ledger and original checkpoint fingerprint bytes.
     pub class_state: Option<ClassState>,
+    /// Explicit V5 retained state; absent on all legacy requests and fingerprints.
+    pub phase3: Option<crate::domain::zone::Phase3Checkpoint>,
 }
 
 impl CharacterCheckpoint {
@@ -197,6 +201,9 @@ impl CharacterCheckpoint {
         if let (Some(class_state), Some(object)) = (&self.class_state, body.as_object_mut()) {
             object.insert("class_state".into(), serde_json::json!(class_state));
         }
+        if let (Some(phase3), Some(object)) = (&self.phase3, body.as_object_mut()) {
+            object.insert("phase3".into(), serde_json::json!(phase3));
+        }
         Sha256::digest(body.to_string().as_bytes())
             .iter()
             .fold(String::new(), |mut s, b| {
@@ -210,7 +217,29 @@ impl CharacterCheckpoint {
     /// Postgres would. Returns the violated constraint's name.
     #[must_use]
     pub fn violated_constraint(&self) -> Option<&'static str> {
-        if !LEVEL_RANGE.contains(&self.level) {
+        if self.phase3.as_ref().is_some_and(|p| {
+            self.class_state.is_none()
+                || p.timer_policy_version != 1
+                || p.death_penalty_level > 5
+                || p.resource_fractions.validate().is_err()
+                || i64::try_from(p.flag_remaining_ticks).is_err()
+                || p.reuse_remainders
+                    .values()
+                    .any(|v| *v <= 50 || i64::try_from(*v).is_err())
+                || p.effect_remainders
+                    .iter()
+                    .any(|v| v.remaining_ticks <= 100 || i64::try_from(v.remaining_ticks).is_err())
+                || p.last_death.as_ref().is_some_and(|d| {
+                    i64::try_from(d.pre_death_xp).is_err()
+                        || d.recoverable_death_xp_loss > d.pre_death_xp
+                })
+                || (!self.alive
+                    && (self.hp != 0
+                        || p.resource_fractions
+                            != crate::domain::zone::ResourceFractions::default()))
+        }) {
+            Some("characters_phase3_state_valid")
+        } else if !LEVEL_RANGE.contains(&self.level) {
             Some("characters_level_range")
         } else if i64::try_from(self.xp).is_err() {
             Some("characters_xp_nonneg")
@@ -342,42 +371,26 @@ pub fn learn_skill_fingerprint(
     format!("v1|{character}|{}|{}", skill.id.0, skill.rank)
 }
 
-/// Owner-only effective sheet frozen at a successful learn's tick.
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-#[allow(missing_docs)]
-pub struct LearnedEffectiveStats {
-    pub p_atk_q: i64,
-    pub p_def_q: i64,
-    pub m_atk_q: i64,
-    pub m_def_q: i64,
-    pub attack_speed: u32,
-    pub cast_speed: u32,
-    pub speed_q: i64,
-    pub accuracy_q: i64,
-    pub evasion_q: i64,
-    pub crit_permille: u32,
-}
+/// Shared compiled domain DTOs; receipts remain outside canonical simulation state.
+pub use crate::domain::zone::{FrozenLearnResult, LearnedEffectiveStats};
 
-/// Immutable response stored with the fenced checkpoint, never rebuilt from later state.
-/// This application DTO maps to Z's proposed `FrozenLearnResult` when that export lands.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-#[allow(missing_docs)]
-pub struct FrozenLearnResult {
-    pub character_id: CharacterId,
-    pub skill: crate::domain::zone::skill::SkillRef,
-    pub sp_spent: u64,
-    pub sp_remaining: u64,
-    pub tick: crate::domain::zone::Tick,
-    pub hp: u32,
-    pub max_hp: u32,
-    pub mp: u32,
-    pub max_mp: u32,
-    pub cp: u32,
-    pub max_cp: u32,
-    pub effective_stats: LearnedEffectiveStats,
-    pub incarnation: u32,
+// Preserve the existing application constructor while sharing Z's exact receipt DTO.
+#[allow(clippy::derivable_impls)] // The DTO declaration is owned by the zone engine.
+impl Default for LearnedEffectiveStats {
+    fn default() -> Self {
+        Self {
+            p_atk_q: 0,
+            p_def_q: 0,
+            m_atk_q: 0,
+            m_def_q: 0,
+            attack_speed: 0,
+            cast_speed: 0,
+            speed_q: 0,
+            accuracy_q: 0,
+            evasion_q: 0,
+            crit_permille: 0,
+        }
+    }
 }
 
 /// Receipt lookup must use `idempotency_keys`, never transfer history or simulation state.

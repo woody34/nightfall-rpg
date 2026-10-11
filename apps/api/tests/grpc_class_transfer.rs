@@ -163,6 +163,7 @@ async fn offline_retry_returns_original_frozen_wire_response_after_later_checkpo
         })
         .unwrap();
     let cp = CharacterCheckpoint {
+        phase3: None,
         character_id: c.id,
         revision_seen: 0,
         level: 20,
