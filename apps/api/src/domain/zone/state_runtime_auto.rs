@@ -9,16 +9,16 @@ impl ZoneState {
         tick: Tick,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
-        let mut due: Vec<_> = self
+        let due: Vec<_> = self
             .entities
             .values()
             .filter_map(|e| {
                 let swing = e.combat.as_ref()?.swing?;
-                (swing.impact <= tick).then_some((self.sidecar(e.id).ok()?.ordinal, e.id, swing))
+                (swing.impact <= tick).then_some((e.id, swing))
             })
             .collect();
-        due.sort_unstable_by_key(|(ordinal, _, _)| *ordinal);
-        for (_, id, swing) in due {
+        // BTreeMap traversal retains the legacy attacker EntityId order (design phase6).
+        for (id, swing) in due {
             self.land_auto_v5(tick, id, swing, events, &mut draw_damage_v5)?;
         }
         Ok(())
@@ -82,6 +82,7 @@ impl ZoneState {
             });
             return Ok(());
         }
+        self.note_hostility_v5(tick, source, target)?;
         let (outcome, rolled) = self.auto_damage_v5(source, target, draw)?;
         let damage = if outcome == AttackOutcome::Miss {
             // An evasion is not a reduceCurrentHp call: no status removal/hate/break draw.

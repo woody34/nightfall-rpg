@@ -2296,6 +2296,7 @@ mod phase3_boundary_tests {
                 generation: SessionGeneration(1),
                 combat: Some(CombatView {
                     phase3: Some(CombatViewPhase3 {
+                        status_flags: crate::domain::zone::effects::StatusFlags::STUN,
                         flag_until: Some(Tick(1200)),
                         karma: 5,
                     }),

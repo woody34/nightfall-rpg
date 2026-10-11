@@ -882,6 +882,11 @@ impl StatusFlags {
     pub const fn bits(self) -> u64 {
         self.0
     }
+    /// Whether the public identity has no active status providers.
+    #[allow(clippy::trivially_copy_pass_by_ref)] // serde skip predicate takes a reference.
+    pub const fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
     /// Add providers without ever clearing another effect's contribution.
     #[must_use]
     pub const fn union(self, other: Self) -> Self {

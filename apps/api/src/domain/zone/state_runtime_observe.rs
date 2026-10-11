@@ -49,7 +49,8 @@ impl ZoneState {
             .filter(|e| {
                 matches!(
                     e,
-                    ZoneEvent::AttackStarted { .. }
+                    ZoneEvent::EntityDied { .. }
+                        | ZoneEvent::AttackStarted { .. }
                         | ZoneEvent::AttackResult { .. }
                         | ZoneEvent::EffectApplied { .. }
                         | ZoneEvent::EffectRemoved { .. }
@@ -103,6 +104,7 @@ impl ZoneState {
                             .and_then(|s| s.player.as_ref())
                             .map(|p| &p.pvp);
                         combat.phase3 = Some(CombatViewPhase3 {
+                            status_flags: self.effective(*entity)?.flags,
                             flag_until: pvp.and_then(|p| p.flag_until),
                             karma: pvp.map_or(0, |p| p.karma),
                         });
@@ -117,17 +119,11 @@ impl ZoneState {
                     ObserverOutput::Event(
                         ZoneEvent::AttackStarted { .. }
                         | ZoneEvent::AttackResult { .. }
-                        | ZoneEvent::TargetChanged { .. },
+                        | ZoneEvent::TargetChanged { .. }
+                        | ZoneEvent::EntityDied { .. },
                     ) => {},
                     ObserverOutput::Event(ZoneEvent::StatsChanged { entity, .. })
                         if owner_baseline && entity == observer => {},
-                    ObserverOutput::Event(ZoneEvent::EntityDied {
-                        entity,
-                        incarnation,
-                        ..
-                    }) if self
-                        .binding(*entity)
-                        .is_none_or(|b| b.incarnation != *incarnation) => {},
                     ObserverOutput::Event(_) => ordinary.push(output),
                 }
             }
@@ -235,6 +231,26 @@ impl ZoneState {
             out.extend(ordinary);
             for event in &filtered {
                 let projected = match event {
+                    ZoneEvent::EntityDied {
+                        entity,
+                        incarnation,
+                        killer,
+                        ..
+                    } if current(TargetBinding {
+                        entity: *entity,
+                        incarnation: *incarnation,
+                    }) && !hydrate.contains(entity) =>
+                    {
+                        let mut event = (*event).clone();
+                        if let ZoneEvent::EntityDied {
+                            killer: projected, ..
+                        } = &mut event
+                        {
+                            *projected =
+                                killer.filter(|id| sees(*id) && self.binding(*id).is_some());
+                        }
+                        Some(event)
+                    },
                     ZoneEvent::EffectApplied { target, source, .. }
                         if current(*target) && !hydrate.contains(&target.entity) =>
                     {

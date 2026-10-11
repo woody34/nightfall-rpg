@@ -27,8 +27,8 @@ use crate::domain::zone::state_pvp::{
 };
 use crate::domain::zone::state_regen::RegenSchedule;
 use crate::domain::zone::state_skill::{
-    self, CapturedTarget, CastCancelReason, CastError, CastStart, CastStatContext, StagedCast,
-    StagedCasts,
+    self, CapturedTarget, CastCancelReason, CastError, CastStart, CastStatContext, StagedAction,
+    StagedActions, StagedCast,
 };
 use crate::domain::zone::{
     CastId, CastState, EntityOrdinal, Phase3Entity, Phase3EntityContext, Phase3Player, PvpState,
@@ -548,7 +548,7 @@ impl ZoneState {
         let known = self.known.clone();
         let mut events = Vec::new();
         let mut dispositions = Vec::new();
-        let mut staged = StagedCasts::default();
+        let mut staged = StagedActions::default();
         for command in &draft.commands {
             let result = self.command_v5(tick, command, &mut staged, &mut events);
             if let Err(reason) = result {
@@ -563,28 +563,27 @@ impl ZoneState {
             self.next_ordinal = Ordinal(command.ordinal.0.checked_add(1).ok_or_else(missing)?);
         }
         self.spawn_phase_v5(tick, &mut events)?;
+        self.expire_effects_v5(tick, &mut events)?;
+        self.expire_reuse_v5(tick, &mut events)?;
         if self.complete_runtime_v5() {
             self.expire_policy_v5(tick, &mut events)?;
         }
-        self.expire_effects_v5(tick, &mut events)?;
-        self.expire_reuse_v5(tick, &mut events)?;
         self.pulse_effects_v5(tick, &mut events)?;
         self.regen_v5(tick)?;
         if self.complete_runtime_v5() {
             self.chase(tick, &mut events);
         }
         events.extend(self.step(tick));
+        // Binding V5 phases 5-9: completions, impacts, bookkeeping, starts, AI.
+        // A due stun/lethal cast cancels a swing before any of its damage draws.
+        self.complete_casts_v5(tick, &mut events)?;
         if self.complete_runtime_v5() {
             self.land_autos_v5(tick, &mut events)?;
         }
-        self.complete_casts_v5(tick, &mut events)?;
         self.note_hits_v5(tick)?;
         for entry in staged.drain() {
-            if entry.canceled.is_some() {
-                continue;
-            }
-            let ordinal = entry.ordinal;
-            if let Err(reason) = self.start_cast_v5(tick, &entry, &mut events) {
+            let ordinal = entry.ordinal();
+            if let Err(reason) = self.start_action_v5(tick, entry, &mut events) {
                 let c = draft
                     .commands
                     .iter()
@@ -599,6 +598,22 @@ impl ZoneState {
                 });
             }
         }
+        if self.complete_runtime_v5() {
+            let first = events.len();
+            self.start_swings(tick, &mut events);
+            for event in events.get(first..).ok_or_else(missing)? {
+                if let ZoneEvent::AttackStarted {
+                    attacker, target, ..
+                } = event
+                {
+                    self.note_hostility_v5(
+                        tick,
+                        self.binding(*attacker).ok_or_else(missing)?,
+                        self.binding(*target).ok_or_else(missing)?,
+                    )?;
+                }
+            }
+        }
         self.drain_ai_v5(tick, &mut events);
         self.ai_phase(tick, &mut events);
         self.drain_ai_v5(tick, &mut events);
@@ -607,9 +622,6 @@ impl ZoneState {
             .ok_or_else(missing)?
             .forced_this_tick
             .clear();
-        if self.complete_runtime_v5() {
-            self.start_swings(tick, &mut events);
-        }
         self.flush_progression(tick, &mut events);
         self.final_resources_v5(tick, &before, &mut events)?;
         if self.complete_runtime_v5() {
@@ -673,16 +685,141 @@ impl ZoneState {
         }
         Ok(())
     }
+    fn start_action_v5(
+        &mut self,
+        tick: Tick,
+        action: StagedAction,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), RejectReason> {
+        match action {
+            StagedAction::Cast(entry) => {
+                if entry.canceled.is_some() {
+                    Ok(())
+                } else {
+                    self.start_cast_v5(tick, &entry, events)
+                }
+            },
+            StagedAction::Attack {
+                caster,
+                target,
+                canceled,
+                ..
+            } => {
+                if canceled {
+                    return Ok(());
+                }
+                if self.binding(caster.entity) != Some(caster) {
+                    return Err(RejectReason::UnknownEntity);
+                }
+                if self
+                    .entities
+                    .get(&caster.entity)
+                    .is_some_and(|e| e.targeting.dead)
+                {
+                    return Err(RejectReason::DeadActor);
+                }
+                if self
+                    .sidecar(caster.entity)
+                    .is_ok_and(|s| matches!(s.cast, CastState::Casting(_)))
+                {
+                    return Err(RejectReason::AlreadyCasting);
+                }
+                if !self.auto_action_v5(caster.entity) {
+                    return Err(RejectReason::Incapacitated);
+                }
+                let target = target
+                    .and_then(|t| {
+                        t.incarnation.map(|incarnation| TargetBinding {
+                            entity: t.entity,
+                            incarnation,
+                        })
+                    })
+                    .ok_or(RejectReason::InvalidTargetType)?;
+                self.cast_target_v5(tick, caster, target, -1, true, false, false)?;
+                let c = self
+                    .entities
+                    .get_mut(&caster.entity)
+                    .and_then(|e| e.combat.as_mut())
+                    .ok_or(RejectReason::InvalidLoad)?;
+                c.auto_attack = true;
+                c.protected_until = None;
+                self.note_hostility_v5(tick, caster, target)
+                    .map_err(|_| RejectReason::InvalidLoad)
+            },
+            StagedAction::AcceptResurrect {
+                target,
+                offer_id,
+                accept,
+                present,
+                ..
+            } => {
+                if !present || self.binding(target.entity) != Some(target) {
+                    return Err(RejectReason::NoResurrectOffer);
+                }
+                events.extend(self.accept_resurrect_v5(tick, target.entity, offer_id, accept)?);
+                Ok(())
+            },
+        }
+    }
+
+    /// L2Character.java:4595-4607: only playable -> attackable, never a player ledger.
+    /// Positive effectPoint calls reduceHate, whose pinned implementation ADDS to an
+    /// existing row (L2Attackable.java:658-669; AggroInfo.java:51-53), despite its name.
+    fn effect_point_hate_v5(
+        &mut self,
+        tick: Tick,
+        caster: TargetBinding,
+        target: TargetBinding,
+        point: i64,
+        events: &mut Vec<ZoneEvent>,
+    ) {
+        if self
+            .entities
+            .get(&caster.entity)
+            .is_none_or(|e| e.kind != EntityKind::Player)
+            || self
+                .entities
+                .get(&target.entity)
+                .is_none_or(|e| e.kind != EntityKind::Npc || !e.targeting.attackable)
+            || point == 0
+            || (point > 0
+                && self
+                    .hate
+                    .get(&target.entity)
+                    .and_then(|h| h.get(caster.entity))
+                    .is_none())
+        {
+            return;
+        }
+        self.add_hate(
+            tick,
+            target.entity,
+            caster.entity,
+            super::super::HateEntry {
+                hate: point.unsigned_abs(),
+                damage: 0,
+            },
+            events,
+        );
+    }
+
     #[allow(clippy::too_many_lines)] // The command transaction retains explicit per-variant refusals.
     fn command_v5(
         &mut self,
         tick: Tick,
         command: &AppliedCommand,
-        staged: &mut StagedCasts,
+        staged: &mut StagedActions,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         self.authorize(command.source, &command.command)?;
-        self.refuse_dead_actor(command.source, &command.command)?;
+        if !matches!(
+            command.command,
+            ZoneCommand::CastSkill { .. }
+                | ZoneCommand::Attack { .. }
+                | ZoneCommand::AcceptResurrect { .. }
+        ) {
+            self.refuse_dead_actor(command.source, &command.command)?;
+        }
         if let ZoneCommand::Despawn { entity } | ZoneCommand::ReplaceSession { entity, .. } =
             command.command
         {
@@ -755,29 +892,43 @@ impl ZoneState {
                 offer_id,
                 accept,
             } if self.complete_runtime_v5() => {
-                events.extend(self.accept_resurrect_v5(tick, *entity, *offer_id, *accept)?);
+                let target = self.binding(*entity).ok_or(RejectReason::UnknownEntity)?;
+                let present = self
+                    .sidecar(*entity)
+                    .ok()
+                    .and_then(|s| s.player.as_ref())
+                    .and_then(|p| p.resurrect_offer.as_ref())
+                    .is_some_and(|o| {
+                        o.id == *offer_id && o.target_incarnation == target.incarnation
+                    });
+                staged
+                    .stage_action(StagedAction::AcceptResurrect {
+                        ordinal: command.ordinal,
+                        target,
+                        offer_id: *offer_id,
+                        accept: *accept,
+                        present,
+                    })
+                    .map_err(cast_reject)?;
             },
             ZoneCommand::Attack { entity } if self.complete_runtime_v5() => {
-                let source = self.binding(*entity).ok_or(RejectReason::UnknownEntity)?;
+                let caster = self.binding(*entity).ok_or(RejectReason::UnknownEntity)?;
                 let target = self
                     .entities
                     .get(entity)
                     .and_then(|e| e.targeting.target)
-                    .and_then(|id| self.binding(id))
-                    .ok_or(RejectReason::InvalidTargetType)?;
-                self.cast_target_v5(tick, source, target, -1, true, false, false)?;
-                if !self.auto_action_v5(*entity) {
-                    return Err(RejectReason::Incapacitated);
-                }
-                let c = self
-                    .entities
-                    .get_mut(entity)
-                    .and_then(|e| e.combat.as_mut())
-                    .ok_or(RejectReason::InvalidLoad)?;
-                c.auto_attack = true;
-                c.protected_until = None;
-                self.note_hostility_v5(tick, source, target)
-                    .map_err(|_| RejectReason::InvalidLoad)?;
+                    .map(|entity| CapturedTarget {
+                        entity,
+                        incarnation: self.binding(entity).map(|b| b.incarnation),
+                    });
+                staged
+                    .stage_action(StagedAction::Attack {
+                        ordinal: command.ordinal,
+                        caster,
+                        target,
+                        canceled: false,
+                    })
+                    .map_err(cast_reject)?;
             },
             ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::ChangeClass { .. }
@@ -793,8 +944,12 @@ impl ZoneState {
                 events.extend(applied);
                 match command.command {
                     ZoneCommand::MoveTo { entity, .. } | ZoneCommand::StopMove { entity } => {
+                        staged.cancel_attacks(entity);
                         staged.cancel(entity, None, CastCancelReason::Moved);
                         self.cancel_v5(tick, entity, None, CastCancelReason::Moved, events);
+                    },
+                    ZoneCommand::SetTarget { entity, .. } | ZoneCommand::StopAttack { entity } => {
+                        staged.cancel_attacks(entity);
                     },
                     ZoneCommand::Despawn { entity } => {
                         if let Some(p) = &mut self.phase3 {
@@ -820,9 +975,7 @@ impl ZoneState {
                     | ZoneCommand::SpawnPlayer { .. }
                     | ZoneCommand::SpawnNpc { .. }
                     | ZoneCommand::ReplaceSession { .. }
-                    | ZoneCommand::SetTarget { .. }
                     | ZoneCommand::Attack { .. }
-                    | ZoneCommand::StopAttack { .. }
                     | ZoneCommand::Respawn { .. }
                     | ZoneCommand::AddAggro { .. } => {},
                 }
@@ -1332,18 +1485,7 @@ impl ZoneState {
                 .get(usize::try_from(cast.skill.rank.saturating_sub(1)).map_err(invariant)?)
                 .ok_or_else(missing)?;
             for target in &targets {
-                if effect_point < 0 {
-                    self.add_hate(
-                        tick,
-                        target.entity,
-                        caster.entity,
-                        super::super::HateEntry {
-                            hate: effect_point.unsigned_abs(),
-                            damage: 0,
-                        },
-                        events,
-                    );
-                }
+                self.effect_point_hate_v5(tick, caster, *target, effect_point, events);
             }
             let stats = self.effective(work.caster)?;
             let (_, mp, hp) = state_skill::cast_costs(
@@ -1388,6 +1530,9 @@ impl ZoneState {
             }
             let mut results = Vec::new();
             for target in targets {
+                if hostile_skill(&skill) {
+                    self.note_hostility_v5(tick, caster, target)?;
+                }
                 self.impact_target_v5(
                     tick,
                     caster,
