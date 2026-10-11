@@ -35,7 +35,7 @@
     "classes-phase3/human_mystic.toml": "d43e297043da67ff90dd56cea534cdaf4e6c49368a3d0dcdae0557f9237ac9dc",
     "classes-phase3/orc_mystic.toml": "0bbb156f652e59f09d6042c94d4d967b53236810bda35366262f35b039ef6541",
     "npcs/keltir.toml": "48337cf14917534b28f670919963e3134999f57b706c6d5d98249baf3830b6db",
-    "scripts/skill_oracle.py": "f51a79de3ada65316f1a2b0f7f58abf14d63b85ea8356f9f3a9a972c06cbcc02",
+    "scripts/skill_oracle.py": "81a091e4005e867c9564bff751ebd662e12f83d970eb33e24d9a7e3c8b53ab1a",
     "tables/formulas.toml": "31fb777b853c3d62bafc58487333c1269292f7271bf0c2b68a81fcfe1ab29b23",
     "tables/regen.toml": "6bfdd2933c66494251a3d92d65e5d6340a6a48c97a0eeabb72a763d9b5935f33",
     "tables/stat_bonus.toml": "f5ba322d085ebdbb41ab4f16ae7e6bdb4c0ce7b5dd4d1e4ffc011da410150f7c"

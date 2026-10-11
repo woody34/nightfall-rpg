@@ -1112,6 +1112,15 @@ def make_calc_regen_vectors(bonuses: dict) -> dict[str, list[dict]]:
 # ---------------------------------------------------------------------------
 # Formula 9: calculateKarmaGain and calculateKarmaLost
 # ---------------------------------------------------------------------------
+def calculate_karma_lost(exp: int, multiplier: F, rate: F = F(1)) -> int:
+    """Formulas.java:1814-1821; exact emulation of each Java binary64 boundary."""
+    if exp < 0 or multiplier <= 0 or rate <= 0:
+        raise ValueError('positive NPC-XP karma inputs required')
+    adjusted = int(ieee_normal(ieee_normal(F(exp), 53) / ieee_normal(rate, 53), 53))
+    first = ieee_normal(ieee_normal(F(adjusted), 53) / ieee_normal(multiplier, 53), 53)
+    return min(2**31 - 1, floor(ieee_normal(first / 30, 53)))
+
+
 def make_calculate_karma_vectors(multipliers: list[F]) -> tuple[list[dict], list[dict]]:
     gain_source_lines = "Formulas.java:1830-1848"
     lost_source_lines = "Formulas.java:1814-1821"
@@ -1179,7 +1188,7 @@ def make_calculate_karma_vectors(multipliers: list[F]) -> tuple[list[dict], list
         java_mul = ieee_normal(mul, 53)
         java_first = ieee_normal(ieee_normal(F(abs(exp)), 53) / java_mul, 53)
         java_final = ieee_normal(java_first / F(30), 53)
-        rounded_res = min(2**31 - 1, floor(java_final))
+        rounded_res = calculate_karma_lost(exp, mul)
 
         lost_out.append({
             "description": f"Karma lost level {lvl}, exp {exp}",
@@ -1405,6 +1414,12 @@ def make_calc_cast_time_vectors() -> list[dict]:
 # ---------------------------------------------------------------------------
 # Formula 12: doRevive vitals (HP to 65% if lower; MP/CP unchanged)
 # ---------------------------------------------------------------------------
+def do_revive(max_hp, current_hp, current_mp, current_cp):
+    """Pinned L2Character.java:2098-2124; character.properties:40-42."""
+    return dict(hp=max(current_hp, floor(F(max_hp) * F(65, 100))),
+                mp=current_mp, cp=current_cp)
+
+
 def make_do_revive_vectors() -> list[dict]:
     source_lines = "L2Character.java:2098-2124, character.properties:40-42"
     vectors = []
@@ -1452,9 +1467,8 @@ def make_do_revive_vectors() -> list[dict]:
     for max_hp, cur_hp, max_mp, cur_mp, max_cp, cur_cp, desc in configs:
         exact_restore_hp = F(max_hp) * F(65, 100)
         floor_restore_hp = floor(exact_restore_hp)
-        new_hp = max(cur_hp, floor_restore_hp)
-        new_mp = cur_mp
-        new_cp = cur_cp
+        revived = do_revive(max_hp, cur_hp, cur_mp, cur_cp)
+        new_hp, new_mp, new_cp = revived['hp'], revived['mp'], revived['cp']
 
         out.append({
             "description": desc,
