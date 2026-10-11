@@ -23,6 +23,20 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnStatsChanged, const FStatsChanged&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnXpGained, const FXpGained&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelUp, const FLevelUp&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetChanged, const FTargetChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAttackStarted, const FAttackStarted&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAttackCancelled, const FAttackCancelled&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillCastStarted, const FSkillCastStarted&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillCastResult, const FSkillCastResult&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillCastCancelled, const FSkillCastCancelled&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEffectApplied, const FEffectApplied&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEffectRemoved, const FEffectRemoved&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillReuse, const FSkillReuse&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillLearned, const FSkillLearned&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPvpStateChanged, const FPvpStateChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnResurrectOffer, const FResurrectOffer&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSpGained, const FSpGained&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillStateSync, const FSkillStateSync&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnVitalsChanged, const FVitalsChanged&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWireFrameObserved, const TArray<uint8>&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWireCloseObserved, int32);
 
@@ -87,6 +101,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Nightfall|Net")
 	bool IsConnected() const { return bConnected; }
+	bool IsPhase3Projection() const { return bPhase3Projection; }
+	uint64 GetLatestReceivedTick() const { return LatestReceivedTick; }
 
 	/**
 	 * The server closes a session that sends nothing for 60 s (4408). While connected, a check runs
@@ -106,6 +122,9 @@ public:
 	uint32 SendAttack();
 	uint32 SendStopAttack();
 	uint32 SendRespawn();
+	uint32 SendCastSkill(uint32 SkillId, TOptional<FString> Target = {});
+	uint32 SendCancelCast(TOptional<uint64> CastId = {});
+	uint32 SendAcceptResurrect(uint64 OfferId, bool bAccept);
 
 	/**
 	 * Routes one decoded ServerMessage to the typed delegates and the entity cache. HandleRawMessage
@@ -186,6 +205,20 @@ public:
 	FOnLevelUp OnLevelUp;
 	FOnTargetChanged OnTargetChanged;
 	/** Bot diagnostics observe each complete wire envelope once, before projection filtering. */
+		FOnAttackStarted OnAttackStarted;
+	FOnAttackCancelled OnAttackCancelled;
+	FOnSkillCastStarted OnSkillCastStarted;
+	FOnSkillCastResult OnSkillCastResult;
+	FOnSkillCastCancelled OnSkillCastCancelled;
+	FOnEffectApplied OnEffectApplied;
+	FOnEffectRemoved OnEffectRemoved;
+	FOnSkillReuse OnSkillReuse;
+	FOnSkillLearned OnSkillLearned;
+	FOnPvpStateChanged OnPvpStateChanged;
+	FOnResurrectOffer OnResurrectOffer;
+	FOnSpGained OnSpGained;
+	FOnSkillStateSync OnSkillStateSync;
+	FOnVitalsChanged OnVitalsChanged;
 	FOnWireFrameObserved OnWireSent;
 	FOnWireFrameObserved OnWireReceived;
 	FOnWireCloseObserved OnWireClosed;
@@ -208,6 +241,8 @@ private:
 	FSocketFactory SocketFactory;
 	FScheduler Scheduler;
 	bool bConnected = false;
+	bool bPhase3Projection = false;
+	uint64 LatestReceivedTick = 0;
 	bool bWantConnected = false;
 	bool bReconnectPending = false;
 	/** Bumped by Connect and Disconnect; pending reconnects and ticket replies compare it. */

@@ -60,9 +60,15 @@ extern const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable
     descriptor_table_nightfall_2fv1_2fworld_2eproto;
 namespace nightfall {
 namespace v1 {
+class AcceptResurrectRequest;
+struct AcceptResurrectRequestDefaultTypeInternal;
+extern AcceptResurrectRequestDefaultTypeInternal _AcceptResurrectRequest_default_instance_;
 class Ack;
 struct AckDefaultTypeInternal;
 extern AckDefaultTypeInternal _Ack_default_instance_;
+class ActiveEffect;
+struct ActiveEffectDefaultTypeInternal;
+extern ActiveEffectDefaultTypeInternal _ActiveEffect_default_instance_;
 class AttackCancelled;
 struct AttackCancelledDefaultTypeInternal;
 extern AttackCancelledDefaultTypeInternal _AttackCancelled_default_instance_;
@@ -75,12 +81,24 @@ extern AttackResultDefaultTypeInternal _AttackResult_default_instance_;
 class AttackStarted;
 struct AttackStartedDefaultTypeInternal;
 extern AttackStartedDefaultTypeInternal _AttackStarted_default_instance_;
+class CancelCastRequest;
+struct CancelCastRequestDefaultTypeInternal;
+extern CancelCastRequestDefaultTypeInternal _CancelCastRequest_default_instance_;
+class CastSkillRequest;
+struct CastSkillRequestDefaultTypeInternal;
+extern CastSkillRequestDefaultTypeInternal _CastSkillRequest_default_instance_;
 class ClassChanged;
 struct ClassChangedDefaultTypeInternal;
 extern ClassChangedDefaultTypeInternal _ClassChanged_default_instance_;
 class ClientMessage;
 struct ClientMessageDefaultTypeInternal;
 extern ClientMessageDefaultTypeInternal _ClientMessage_default_instance_;
+class EffectApplied;
+struct EffectAppliedDefaultTypeInternal;
+extern EffectAppliedDefaultTypeInternal _EffectApplied_default_instance_;
+class EffectRemoved;
+struct EffectRemovedDefaultTypeInternal;
+extern EffectRemovedDefaultTypeInternal _EffectRemoved_default_instance_;
 class EntityDespawn;
 struct EntityDespawnDefaultTypeInternal;
 extern EntityDespawnDefaultTypeInternal _EntityDespawn_default_instance_;
@@ -99,21 +117,57 @@ extern EntitySpawnDefaultTypeInternal _EntitySpawn_default_instance_;
 class IntentRejected;
 struct IntentRejectedDefaultTypeInternal;
 extern IntentRejectedDefaultTypeInternal _IntentRejected_default_instance_;
+class LearnedSkillRank;
+struct LearnedSkillRankDefaultTypeInternal;
+extern LearnedSkillRankDefaultTypeInternal _LearnedSkillRank_default_instance_;
 class LevelUp;
 struct LevelUpDefaultTypeInternal;
 extern LevelUpDefaultTypeInternal _LevelUp_default_instance_;
 class MoveToRequest;
 struct MoveToRequestDefaultTypeInternal;
 extern MoveToRequestDefaultTypeInternal _MoveToRequest_default_instance_;
+class PvpStateChanged;
+struct PvpStateChangedDefaultTypeInternal;
+extern PvpStateChangedDefaultTypeInternal _PvpStateChanged_default_instance_;
 class RespawnRequest;
 struct RespawnRequestDefaultTypeInternal;
 extern RespawnRequestDefaultTypeInternal _RespawnRequest_default_instance_;
+class ResurrectOffer;
+struct ResurrectOfferDefaultTypeInternal;
+extern ResurrectOfferDefaultTypeInternal _ResurrectOffer_default_instance_;
 class ServerMessage;
 struct ServerMessageDefaultTypeInternal;
 extern ServerMessageDefaultTypeInternal _ServerMessage_default_instance_;
 class SetTargetRequest;
 struct SetTargetRequestDefaultTypeInternal;
 extern SetTargetRequestDefaultTypeInternal _SetTargetRequest_default_instance_;
+class SkillCastCancelled;
+struct SkillCastCancelledDefaultTypeInternal;
+extern SkillCastCancelledDefaultTypeInternal _SkillCastCancelled_default_instance_;
+class SkillCastResult;
+struct SkillCastResultDefaultTypeInternal;
+extern SkillCastResultDefaultTypeInternal _SkillCastResult_default_instance_;
+class SkillCastStarted;
+struct SkillCastStartedDefaultTypeInternal;
+extern SkillCastStartedDefaultTypeInternal _SkillCastStarted_default_instance_;
+class SkillLearned;
+struct SkillLearnedDefaultTypeInternal;
+extern SkillLearnedDefaultTypeInternal _SkillLearned_default_instance_;
+class SkillReuse;
+struct SkillReuseDefaultTypeInternal;
+extern SkillReuseDefaultTypeInternal _SkillReuse_default_instance_;
+class SkillReuseState;
+struct SkillReuseStateDefaultTypeInternal;
+extern SkillReuseStateDefaultTypeInternal _SkillReuseState_default_instance_;
+class SkillStateSync;
+struct SkillStateSyncDefaultTypeInternal;
+extern SkillStateSyncDefaultTypeInternal _SkillStateSync_default_instance_;
+class SkillTargetResult;
+struct SkillTargetResultDefaultTypeInternal;
+extern SkillTargetResultDefaultTypeInternal _SkillTargetResult_default_instance_;
+class SpGained;
+struct SpGainedDefaultTypeInternal;
+extern SpGainedDefaultTypeInternal _SpGained_default_instance_;
 class StatsChanged;
 struct StatsChangedDefaultTypeInternal;
 extern StatsChangedDefaultTypeInternal _StatsChanged_default_instance_;
@@ -126,6 +180,9 @@ extern StopMoveRequestDefaultTypeInternal _StopMoveRequest_default_instance_;
 class TargetChanged;
 struct TargetChangedDefaultTypeInternal;
 extern TargetChangedDefaultTypeInternal _TargetChanged_default_instance_;
+class VitalsChanged;
+struct VitalsChangedDefaultTypeInternal;
+extern VitalsChangedDefaultTypeInternal _VitalsChanged_default_instance_;
 class WorldEvent;
 struct WorldEventDefaultTypeInternal;
 extern WorldEventDefaultTypeInternal _WorldEvent_default_instance_;
@@ -136,7 +193,11 @@ extern XpGainedDefaultTypeInternal _XpGained_default_instance_;
 }  // namespace nightfall
 PROTOBUF_NAMESPACE_OPEN
 template <>
+::nightfall::v1::AcceptResurrectRequest* Arena::CreateMaybeMessage<::nightfall::v1::AcceptResurrectRequest>(Arena*);
+template <>
 ::nightfall::v1::Ack* Arena::CreateMaybeMessage<::nightfall::v1::Ack>(Arena*);
+template <>
+::nightfall::v1::ActiveEffect* Arena::CreateMaybeMessage<::nightfall::v1::ActiveEffect>(Arena*);
 template <>
 ::nightfall::v1::AttackCancelled* Arena::CreateMaybeMessage<::nightfall::v1::AttackCancelled>(Arena*);
 template <>
@@ -146,9 +207,17 @@ template <>
 template <>
 ::nightfall::v1::AttackStarted* Arena::CreateMaybeMessage<::nightfall::v1::AttackStarted>(Arena*);
 template <>
+::nightfall::v1::CancelCastRequest* Arena::CreateMaybeMessage<::nightfall::v1::CancelCastRequest>(Arena*);
+template <>
+::nightfall::v1::CastSkillRequest* Arena::CreateMaybeMessage<::nightfall::v1::CastSkillRequest>(Arena*);
+template <>
 ::nightfall::v1::ClassChanged* Arena::CreateMaybeMessage<::nightfall::v1::ClassChanged>(Arena*);
 template <>
 ::nightfall::v1::ClientMessage* Arena::CreateMaybeMessage<::nightfall::v1::ClientMessage>(Arena*);
+template <>
+::nightfall::v1::EffectApplied* Arena::CreateMaybeMessage<::nightfall::v1::EffectApplied>(Arena*);
+template <>
+::nightfall::v1::EffectRemoved* Arena::CreateMaybeMessage<::nightfall::v1::EffectRemoved>(Arena*);
 template <>
 ::nightfall::v1::EntityDespawn* Arena::CreateMaybeMessage<::nightfall::v1::EntityDespawn>(Arena*);
 template <>
@@ -162,15 +231,39 @@ template <>
 template <>
 ::nightfall::v1::IntentRejected* Arena::CreateMaybeMessage<::nightfall::v1::IntentRejected>(Arena*);
 template <>
+::nightfall::v1::LearnedSkillRank* Arena::CreateMaybeMessage<::nightfall::v1::LearnedSkillRank>(Arena*);
+template <>
 ::nightfall::v1::LevelUp* Arena::CreateMaybeMessage<::nightfall::v1::LevelUp>(Arena*);
 template <>
 ::nightfall::v1::MoveToRequest* Arena::CreateMaybeMessage<::nightfall::v1::MoveToRequest>(Arena*);
 template <>
+::nightfall::v1::PvpStateChanged* Arena::CreateMaybeMessage<::nightfall::v1::PvpStateChanged>(Arena*);
+template <>
 ::nightfall::v1::RespawnRequest* Arena::CreateMaybeMessage<::nightfall::v1::RespawnRequest>(Arena*);
+template <>
+::nightfall::v1::ResurrectOffer* Arena::CreateMaybeMessage<::nightfall::v1::ResurrectOffer>(Arena*);
 template <>
 ::nightfall::v1::ServerMessage* Arena::CreateMaybeMessage<::nightfall::v1::ServerMessage>(Arena*);
 template <>
 ::nightfall::v1::SetTargetRequest* Arena::CreateMaybeMessage<::nightfall::v1::SetTargetRequest>(Arena*);
+template <>
+::nightfall::v1::SkillCastCancelled* Arena::CreateMaybeMessage<::nightfall::v1::SkillCastCancelled>(Arena*);
+template <>
+::nightfall::v1::SkillCastResult* Arena::CreateMaybeMessage<::nightfall::v1::SkillCastResult>(Arena*);
+template <>
+::nightfall::v1::SkillCastStarted* Arena::CreateMaybeMessage<::nightfall::v1::SkillCastStarted>(Arena*);
+template <>
+::nightfall::v1::SkillLearned* Arena::CreateMaybeMessage<::nightfall::v1::SkillLearned>(Arena*);
+template <>
+::nightfall::v1::SkillReuse* Arena::CreateMaybeMessage<::nightfall::v1::SkillReuse>(Arena*);
+template <>
+::nightfall::v1::SkillReuseState* Arena::CreateMaybeMessage<::nightfall::v1::SkillReuseState>(Arena*);
+template <>
+::nightfall::v1::SkillStateSync* Arena::CreateMaybeMessage<::nightfall::v1::SkillStateSync>(Arena*);
+template <>
+::nightfall::v1::SkillTargetResult* Arena::CreateMaybeMessage<::nightfall::v1::SkillTargetResult>(Arena*);
+template <>
+::nightfall::v1::SpGained* Arena::CreateMaybeMessage<::nightfall::v1::SpGained>(Arena*);
 template <>
 ::nightfall::v1::StatsChanged* Arena::CreateMaybeMessage<::nightfall::v1::StatsChanged>(Arena*);
 template <>
@@ -179,6 +272,8 @@ template <>
 ::nightfall::v1::StopMoveRequest* Arena::CreateMaybeMessage<::nightfall::v1::StopMoveRequest>(Arena*);
 template <>
 ::nightfall::v1::TargetChanged* Arena::CreateMaybeMessage<::nightfall::v1::TargetChanged>(Arena*);
+template <>
+::nightfall::v1::VitalsChanged* Arena::CreateMaybeMessage<::nightfall::v1::VitalsChanged>(Arena*);
 template <>
 ::nightfall::v1::WorldEvent* Arena::CreateMaybeMessage<::nightfall::v1::WorldEvent>(Arena*);
 template <>
@@ -201,6 +296,18 @@ enum RejectReason : int {
   REJECT_REASON_OUT_OF_RANGE = 10,
   REJECT_REASON_PROTECTED = 11,
   REJECT_REASON_NOT_YET_IMPLEMENTED = 12,
+  REJECT_REASON_SKILL_UNKNOWN = 13,
+  REJECT_REASON_SKILL_NOT_LEARNED = 14,
+  REJECT_REASON_SKILL_COOLDOWN = 15,
+  REJECT_REASON_INSUFFICIENT_MP = 16,
+  REJECT_REASON_INSUFFICIENT_HP = 17,
+  REJECT_REASON_ALREADY_CASTING = 18,
+  REJECT_REASON_INCAPACITATED = 19,
+  REJECT_REASON_SILENCED = 20,
+  REJECT_REASON_INVALID_TARGET_TYPE = 21,
+  REJECT_REASON_PEACE_ZONE = 22,
+  REJECT_REASON_WEAPON_CONDITION = 23,
+  REJECT_REASON_NO_RESURRECT_OFFER = 24,
   RejectReason_INT_MIN_SENTINEL_DO_NOT_USE_ =
       std::numeric_limits<::int32_t>::min(),
   RejectReason_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -209,8 +316,8 @@ enum RejectReason : int {
 
 bool RejectReason_IsValid(int value);
 constexpr RejectReason RejectReason_MIN = static_cast<RejectReason>(0);
-constexpr RejectReason RejectReason_MAX = static_cast<RejectReason>(12);
-constexpr int RejectReason_ARRAYSIZE = 12 + 1;
+constexpr RejectReason RejectReason_MAX = static_cast<RejectReason>(24);
+constexpr int RejectReason_ARRAYSIZE = 24 + 1;
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
 RejectReason_descriptor();
 template <typename T>
@@ -223,7 +330,7 @@ const std::string& RejectReason_Name(T value) {
 template <>
 inline const std::string& RejectReason_Name(RejectReason value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<RejectReason_descriptor,
-                                                 0, 12>(
+                                                 0, 24>(
       static_cast<int>(value));
 }
 inline bool RejectReason_Parse(absl::string_view name, RejectReason* value) {
@@ -334,6 +441,226 @@ inline bool SwingCancelReason_Parse(absl::string_view name, SwingCancelReason* v
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<SwingCancelReason>(
       SwingCancelReason_descriptor(), name, value);
 }
+enum SkillResolutionKind : int {
+  SKILL_RESOLUTION_KIND_UNSPECIFIED = 0,
+  SKILL_RESOLUTION_KIND_PHYSICAL = 1,
+  SKILL_RESOLUTION_KIND_MAGICAL = 2,
+  SKILL_RESOLUTION_KIND_EFFECT = 3,
+  SKILL_RESOLUTION_KIND_HEAL = 4,
+  SKILL_RESOLUTION_KIND_RESURRECTION = 5,
+  SkillResolutionKind_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::min(),
+  SkillResolutionKind_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::max(),
+};
+
+bool SkillResolutionKind_IsValid(int value);
+constexpr SkillResolutionKind SkillResolutionKind_MIN = static_cast<SkillResolutionKind>(0);
+constexpr SkillResolutionKind SkillResolutionKind_MAX = static_cast<SkillResolutionKind>(5);
+constexpr int SkillResolutionKind_ARRAYSIZE = 5 + 1;
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
+SkillResolutionKind_descriptor();
+template <typename T>
+const std::string& SkillResolutionKind_Name(T value) {
+  static_assert(std::is_same<T, SkillResolutionKind>::value ||
+                    std::is_integral<T>::value,
+                "Incorrect type passed to SkillResolutionKind_Name().");
+  return SkillResolutionKind_Name(static_cast<SkillResolutionKind>(value));
+}
+template <>
+inline const std::string& SkillResolutionKind_Name(SkillResolutionKind value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<SkillResolutionKind_descriptor,
+                                                 0, 5>(
+      static_cast<int>(value));
+}
+inline bool SkillResolutionKind_Parse(absl::string_view name, SkillResolutionKind* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<SkillResolutionKind>(
+      SkillResolutionKind_descriptor(), name, value);
+}
+enum SkillOutcome : int {
+  SKILL_OUTCOME_UNSPECIFIED = 0,
+  SKILL_OUTCOME_MISS = 1,
+  SKILL_OUTCOME_HIT = 2,
+  SKILL_OUTCOME_CRIT = 3,
+  SKILL_OUTCOME_RESIST = 4,
+  SKILL_OUTCOME_HALF = 5,
+  SkillOutcome_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::min(),
+  SkillOutcome_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::max(),
+};
+
+bool SkillOutcome_IsValid(int value);
+constexpr SkillOutcome SkillOutcome_MIN = static_cast<SkillOutcome>(0);
+constexpr SkillOutcome SkillOutcome_MAX = static_cast<SkillOutcome>(5);
+constexpr int SkillOutcome_ARRAYSIZE = 5 + 1;
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
+SkillOutcome_descriptor();
+template <typename T>
+const std::string& SkillOutcome_Name(T value) {
+  static_assert(std::is_same<T, SkillOutcome>::value ||
+                    std::is_integral<T>::value,
+                "Incorrect type passed to SkillOutcome_Name().");
+  return SkillOutcome_Name(static_cast<SkillOutcome>(value));
+}
+template <>
+inline const std::string& SkillOutcome_Name(SkillOutcome value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<SkillOutcome_descriptor,
+                                                 0, 5>(
+      static_cast<int>(value));
+}
+inline bool SkillOutcome_Parse(absl::string_view name, SkillOutcome* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<SkillOutcome>(
+      SkillOutcome_descriptor(), name, value);
+}
+enum CastCancelReason : int {
+  CAST_CANCEL_REASON_UNSPECIFIED = 0,
+  CAST_CANCEL_REASON_STOPPED = 1,
+  CAST_CANCEL_REASON_MOVED = 2,
+  CAST_CANCEL_REASON_DAMAGE = 3,
+  CAST_CANCEL_REASON_INCAPACITATED = 4,
+  CAST_CANCEL_REASON_TARGET_LOST = 5,
+  CAST_CANCEL_REASON_OUT_OF_RANGE = 6,
+  CAST_CANCEL_REASON_RESOURCES = 7,
+  CAST_CANCEL_REASON_CASTER_DIED = 8,
+  CAST_CANCEL_REASON_PEACE_ZONE = 9,
+  CAST_CANCEL_REASON_TRANSFER = 10,
+  CastCancelReason_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::min(),
+  CastCancelReason_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::max(),
+};
+
+bool CastCancelReason_IsValid(int value);
+constexpr CastCancelReason CastCancelReason_MIN = static_cast<CastCancelReason>(0);
+constexpr CastCancelReason CastCancelReason_MAX = static_cast<CastCancelReason>(10);
+constexpr int CastCancelReason_ARRAYSIZE = 10 + 1;
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
+CastCancelReason_descriptor();
+template <typename T>
+const std::string& CastCancelReason_Name(T value) {
+  static_assert(std::is_same<T, CastCancelReason>::value ||
+                    std::is_integral<T>::value,
+                "Incorrect type passed to CastCancelReason_Name().");
+  return CastCancelReason_Name(static_cast<CastCancelReason>(value));
+}
+template <>
+inline const std::string& CastCancelReason_Name(CastCancelReason value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<CastCancelReason_descriptor,
+                                                 0, 10>(
+      static_cast<int>(value));
+}
+inline bool CastCancelReason_Parse(absl::string_view name, CastCancelReason* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<CastCancelReason>(
+      CastCancelReason_descriptor(), name, value);
+}
+enum EffectPool : int {
+  EFFECT_POOL_UNSPECIFIED = 0,
+  EFFECT_POOL_BUFF = 1,
+  EFFECT_POOL_SONG_DANCE = 2,
+  EFFECT_POOL_DEBUFF = 3,
+  EffectPool_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::min(),
+  EffectPool_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::max(),
+};
+
+bool EffectPool_IsValid(int value);
+constexpr EffectPool EffectPool_MIN = static_cast<EffectPool>(0);
+constexpr EffectPool EffectPool_MAX = static_cast<EffectPool>(3);
+constexpr int EffectPool_ARRAYSIZE = 3 + 1;
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
+EffectPool_descriptor();
+template <typename T>
+const std::string& EffectPool_Name(T value) {
+  static_assert(std::is_same<T, EffectPool>::value ||
+                    std::is_integral<T>::value,
+                "Incorrect type passed to EffectPool_Name().");
+  return EffectPool_Name(static_cast<EffectPool>(value));
+}
+template <>
+inline const std::string& EffectPool_Name(EffectPool value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<EffectPool_descriptor,
+                                                 0, 3>(
+      static_cast<int>(value));
+}
+inline bool EffectPool_Parse(absl::string_view name, EffectPool* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<EffectPool>(
+      EffectPool_descriptor(), name, value);
+}
+enum EffectRemoveReason : int {
+  EFFECT_REMOVE_REASON_UNSPECIFIED = 0,
+  EFFECT_REMOVE_REASON_EXPIRED = 1,
+  EFFECT_REMOVE_REASON_REPLACED = 2,
+  EFFECT_REMOVE_REASON_OVERFLOW = 3,
+  EFFECT_REMOVE_REASON_DISPELLED = 4,
+  EFFECT_REMOVE_REASON_DAMAGE = 5,
+  EFFECT_REMOVE_REASON_DEATH = 6,
+  EFFECT_REMOVE_REASON_TRANSFER = 7,
+  EffectRemoveReason_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::min(),
+  EffectRemoveReason_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::max(),
+};
+
+bool EffectRemoveReason_IsValid(int value);
+constexpr EffectRemoveReason EffectRemoveReason_MIN = static_cast<EffectRemoveReason>(0);
+constexpr EffectRemoveReason EffectRemoveReason_MAX = static_cast<EffectRemoveReason>(7);
+constexpr int EffectRemoveReason_ARRAYSIZE = 7 + 1;
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
+EffectRemoveReason_descriptor();
+template <typename T>
+const std::string& EffectRemoveReason_Name(T value) {
+  static_assert(std::is_same<T, EffectRemoveReason>::value ||
+                    std::is_integral<T>::value,
+                "Incorrect type passed to EffectRemoveReason_Name().");
+  return EffectRemoveReason_Name(static_cast<EffectRemoveReason>(value));
+}
+template <>
+inline const std::string& EffectRemoveReason_Name(EffectRemoveReason value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<EffectRemoveReason_descriptor,
+                                                 0, 7>(
+      static_cast<int>(value));
+}
+inline bool EffectRemoveReason_Parse(absl::string_view name, EffectRemoveReason* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<EffectRemoveReason>(
+      EffectRemoveReason_descriptor(), name, value);
+}
+enum ResurrectOfferState : int {
+  RESURRECT_OFFER_STATE_UNSPECIFIED = 0,
+  RESURRECT_OFFER_STATE_OFFERED = 1,
+  RESURRECT_OFFER_STATE_DECLINED = 2,
+  RESURRECT_OFFER_STATE_EXPIRED = 3,
+  RESURRECT_OFFER_STATE_ACCEPTED = 4,
+  ResurrectOfferState_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::min(),
+  ResurrectOfferState_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::max(),
+};
+
+bool ResurrectOfferState_IsValid(int value);
+constexpr ResurrectOfferState ResurrectOfferState_MIN = static_cast<ResurrectOfferState>(0);
+constexpr ResurrectOfferState ResurrectOfferState_MAX = static_cast<ResurrectOfferState>(4);
+constexpr int ResurrectOfferState_ARRAYSIZE = 4 + 1;
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
+ResurrectOfferState_descriptor();
+template <typename T>
+const std::string& ResurrectOfferState_Name(T value) {
+  static_assert(std::is_same<T, ResurrectOfferState>::value ||
+                    std::is_integral<T>::value,
+                "Incorrect type passed to ResurrectOfferState_Name().");
+  return ResurrectOfferState_Name(static_cast<ResurrectOfferState>(value));
+}
+template <>
+inline const std::string& ResurrectOfferState_Name(ResurrectOfferState value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<ResurrectOfferState_descriptor,
+                                                 0, 4>(
+      static_cast<int>(value));
+}
+inline bool ResurrectOfferState_Parse(absl::string_view name, ResurrectOfferState* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ResurrectOfferState>(
+      ResurrectOfferState_descriptor(), name, value);
+}
 
 // ===================================================================
 
@@ -398,6 +725,9 @@ class ClientMessage final :
     kAttack = 13,
     kStopAttack = 14,
     kRespawn = 15,
+    kCastSkill = 16,
+    kCancelCast = 17,
+    kAcceptResurrect = 18,
     INTENT_NOT_SET = 0,
   };
 
@@ -485,6 +815,9 @@ class ClientMessage final :
     kAttackFieldNumber = 13,
     kStopAttackFieldNumber = 14,
     kRespawnFieldNumber = 15,
+    kCastSkillFieldNumber = 16,
+    kCancelCastFieldNumber = 17,
+    kAcceptResurrectFieldNumber = 18,
   };
   // uint32 seq = 1;
   void clear_seq() ;
@@ -604,6 +937,60 @@ class ClientMessage final :
   void unsafe_arena_set_allocated_respawn(
       ::nightfall::v1::RespawnRequest* respawn);
   ::nightfall::v1::RespawnRequest* unsafe_arena_release_respawn();
+  // .nightfall.v1.CastSkillRequest cast_skill = 16;
+  bool has_cast_skill() const;
+  private:
+  bool _internal_has_cast_skill() const;
+
+  public:
+  void clear_cast_skill() ;
+  const ::nightfall::v1::CastSkillRequest& cast_skill() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::CastSkillRequest* release_cast_skill();
+  ::nightfall::v1::CastSkillRequest* mutable_cast_skill();
+  void set_allocated_cast_skill(::nightfall::v1::CastSkillRequest* cast_skill);
+  private:
+  const ::nightfall::v1::CastSkillRequest& _internal_cast_skill() const;
+  ::nightfall::v1::CastSkillRequest* _internal_mutable_cast_skill();
+  public:
+  void unsafe_arena_set_allocated_cast_skill(
+      ::nightfall::v1::CastSkillRequest* cast_skill);
+  ::nightfall::v1::CastSkillRequest* unsafe_arena_release_cast_skill();
+  // .nightfall.v1.CancelCastRequest cancel_cast = 17;
+  bool has_cancel_cast() const;
+  private:
+  bool _internal_has_cancel_cast() const;
+
+  public:
+  void clear_cancel_cast() ;
+  const ::nightfall::v1::CancelCastRequest& cancel_cast() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::CancelCastRequest* release_cancel_cast();
+  ::nightfall::v1::CancelCastRequest* mutable_cancel_cast();
+  void set_allocated_cancel_cast(::nightfall::v1::CancelCastRequest* cancel_cast);
+  private:
+  const ::nightfall::v1::CancelCastRequest& _internal_cancel_cast() const;
+  ::nightfall::v1::CancelCastRequest* _internal_mutable_cancel_cast();
+  public:
+  void unsafe_arena_set_allocated_cancel_cast(
+      ::nightfall::v1::CancelCastRequest* cancel_cast);
+  ::nightfall::v1::CancelCastRequest* unsafe_arena_release_cancel_cast();
+  // .nightfall.v1.AcceptResurrectRequest accept_resurrect = 18;
+  bool has_accept_resurrect() const;
+  private:
+  bool _internal_has_accept_resurrect() const;
+
+  public:
+  void clear_accept_resurrect() ;
+  const ::nightfall::v1::AcceptResurrectRequest& accept_resurrect() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::AcceptResurrectRequest* release_accept_resurrect();
+  ::nightfall::v1::AcceptResurrectRequest* mutable_accept_resurrect();
+  void set_allocated_accept_resurrect(::nightfall::v1::AcceptResurrectRequest* accept_resurrect);
+  private:
+  const ::nightfall::v1::AcceptResurrectRequest& _internal_accept_resurrect() const;
+  ::nightfall::v1::AcceptResurrectRequest* _internal_mutable_accept_resurrect();
+  public:
+  void unsafe_arena_set_allocated_accept_resurrect(
+      ::nightfall::v1::AcceptResurrectRequest* accept_resurrect);
+  ::nightfall::v1::AcceptResurrectRequest* unsafe_arena_release_accept_resurrect();
   void clear_intent();
   IntentCase intent_case() const;
   // @@protoc_insertion_point(class_scope:nightfall.v1.ClientMessage)
@@ -615,6 +1002,9 @@ class ClientMessage final :
   void set_has_attack();
   void set_has_stop_attack();
   void set_has_respawn();
+  void set_has_cast_skill();
+  void set_has_cancel_cast();
+  void set_has_accept_resurrect();
 
   inline bool has_intent() const;
   inline void clear_has_intent();
@@ -633,6 +1023,9 @@ class ClientMessage final :
       ::nightfall::v1::AttackRequest* attack_;
       ::nightfall::v1::StopAttackRequest* stop_attack_;
       ::nightfall::v1::RespawnRequest* respawn_;
+      ::nightfall::v1::CastSkillRequest* cast_skill_;
+      ::nightfall::v1::CancelCastRequest* cancel_cast_;
+      ::nightfall::v1::AcceptResurrectRequest* accept_resurrect_;
     } intent_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::uint32_t _oneof_case_[1];
@@ -1463,6 +1856,509 @@ class RespawnRequest final :
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
 };// -------------------------------------------------------------------
 
+class CastSkillRequest final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.CastSkillRequest) */ {
+ public:
+  inline CastSkillRequest() : CastSkillRequest(nullptr) {}
+  ~CastSkillRequest() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR CastSkillRequest(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  CastSkillRequest(const CastSkillRequest& from);
+  CastSkillRequest(CastSkillRequest&& from) noexcept
+    : CastSkillRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline CastSkillRequest& operator=(const CastSkillRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline CastSkillRequest& operator=(CastSkillRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const CastSkillRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const CastSkillRequest* internal_default_instance() {
+    return reinterpret_cast<const CastSkillRequest*>(
+               &_CastSkillRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    7;
+
+  friend void swap(CastSkillRequest& a, CastSkillRequest& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(CastSkillRequest* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(CastSkillRequest* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  CastSkillRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<CastSkillRequest>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const CastSkillRequest& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const CastSkillRequest& from) {
+    CastSkillRequest::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(CastSkillRequest* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.CastSkillRequest";
+  }
+  protected:
+  explicit CastSkillRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kTargetFieldNumber = 2,
+    kSkillIdFieldNumber = 1,
+  };
+  // optional string target = 2;
+  bool has_target() const;
+  void clear_target() ;
+  const std::string& target() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  std::string* mutable_target();
+  PROTOBUF_NODISCARD std::string* release_target();
+  void set_allocated_target(std::string* ptr);
+
+  private:
+  const std::string& _internal_target() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_target(
+      const std::string& value);
+  std::string* _internal_mutable_target();
+
+  public:
+  // uint32 skill_id = 1;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.CastSkillRequest)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
+    ::uint32_t skill_id_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class CancelCastRequest final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.CancelCastRequest) */ {
+ public:
+  inline CancelCastRequest() : CancelCastRequest(nullptr) {}
+  ~CancelCastRequest() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR CancelCastRequest(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  CancelCastRequest(const CancelCastRequest& from);
+  CancelCastRequest(CancelCastRequest&& from) noexcept
+    : CancelCastRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline CancelCastRequest& operator=(const CancelCastRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline CancelCastRequest& operator=(CancelCastRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const CancelCastRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const CancelCastRequest* internal_default_instance() {
+    return reinterpret_cast<const CancelCastRequest*>(
+               &_CancelCastRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    8;
+
+  friend void swap(CancelCastRequest& a, CancelCastRequest& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(CancelCastRequest* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(CancelCastRequest* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  CancelCastRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<CancelCastRequest>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const CancelCastRequest& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const CancelCastRequest& from) {
+    CancelCastRequest::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(CancelCastRequest* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.CancelCastRequest";
+  }
+  protected:
+  explicit CancelCastRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kCastIdFieldNumber = 1,
+  };
+  // optional uint64 cast_id = 1;
+  bool has_cast_id() const;
+  void clear_cast_id() ;
+  ::uint64_t cast_id() const;
+  void set_cast_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_cast_id() const;
+  void _internal_set_cast_id(::uint64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.CancelCastRequest)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::uint64_t cast_id_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class AcceptResurrectRequest final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.AcceptResurrectRequest) */ {
+ public:
+  inline AcceptResurrectRequest() : AcceptResurrectRequest(nullptr) {}
+  ~AcceptResurrectRequest() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR AcceptResurrectRequest(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  AcceptResurrectRequest(const AcceptResurrectRequest& from);
+  AcceptResurrectRequest(AcceptResurrectRequest&& from) noexcept
+    : AcceptResurrectRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline AcceptResurrectRequest& operator=(const AcceptResurrectRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline AcceptResurrectRequest& operator=(AcceptResurrectRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const AcceptResurrectRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const AcceptResurrectRequest* internal_default_instance() {
+    return reinterpret_cast<const AcceptResurrectRequest*>(
+               &_AcceptResurrectRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    9;
+
+  friend void swap(AcceptResurrectRequest& a, AcceptResurrectRequest& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(AcceptResurrectRequest* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(AcceptResurrectRequest* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  AcceptResurrectRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<AcceptResurrectRequest>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const AcceptResurrectRequest& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const AcceptResurrectRequest& from) {
+    AcceptResurrectRequest::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(AcceptResurrectRequest* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.AcceptResurrectRequest";
+  }
+  protected:
+  explicit AcceptResurrectRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kOfferIdFieldNumber = 1,
+    kAcceptFieldNumber = 2,
+  };
+  // uint64 offer_id = 1;
+  void clear_offer_id() ;
+  ::uint64_t offer_id() const;
+  void set_offer_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_offer_id() const;
+  void _internal_set_offer_id(::uint64_t value);
+
+  public:
+  // bool accept = 2;
+  void clear_accept() ;
+  bool accept() const;
+  void set_accept(bool value);
+
+  private:
+  bool _internal_accept() const;
+  void _internal_set_accept(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.AcceptResurrectRequest)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::uint64_t offer_id_;
+    bool accept_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
 class ServerMessage final :
     public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.ServerMessage) */ {
  public:
@@ -1526,7 +2422,7 @@ class ServerMessage final :
                &_ServerMessage_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    7;
+    10;
 
   friend void swap(ServerMessage& a, ServerMessage& b) {
     a.Swap(&b);
@@ -1743,7 +2639,7 @@ class Ack final :
                &_Ack_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    8;
+    11;
 
   friend void swap(Ack& a, Ack& b) {
     a.Swap(&b);
@@ -1910,7 +2806,7 @@ class IntentRejected final :
                &_IntentRejected_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    9;
+    12;
 
   friend void swap(IntentRejected& a, IntentRejected& b) {
     a.Swap(&b);
@@ -2108,6 +3004,18 @@ class WorldEvent final :
     kAttackStarted = 11,
     kAttackCancelled = 12,
     kClassChanged = 13,
+    kSkillCastStarted = 14,
+    kSkillCastResult = 15,
+    kSkillCastCancelled = 16,
+    kEffectApplied = 17,
+    kEffectRemoved = 18,
+    kSkillReuse = 19,
+    kSkillLearned = 20,
+    kPvpStateChanged = 21,
+    kResurrectOffer = 22,
+    kSpGained = 23,
+    kSkillStateSync = 24,
+    kVitalsChanged = 25,
     EVENT_NOT_SET = 0,
   };
 
@@ -2116,7 +3024,7 @@ class WorldEvent final :
                &_WorldEvent_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    10;
+    13;
 
   friend void swap(WorldEvent& a, WorldEvent& b) {
     a.Swap(&b);
@@ -2201,6 +3109,18 @@ class WorldEvent final :
     kAttackStartedFieldNumber = 11,
     kAttackCancelledFieldNumber = 12,
     kClassChangedFieldNumber = 13,
+    kSkillCastStartedFieldNumber = 14,
+    kSkillCastResultFieldNumber = 15,
+    kSkillCastCancelledFieldNumber = 16,
+    kEffectAppliedFieldNumber = 17,
+    kEffectRemovedFieldNumber = 18,
+    kSkillReuseFieldNumber = 19,
+    kSkillLearnedFieldNumber = 20,
+    kPvpStateChangedFieldNumber = 21,
+    kResurrectOfferFieldNumber = 22,
+    kSpGainedFieldNumber = 23,
+    kSkillStateSyncFieldNumber = 24,
+    kVitalsChangedFieldNumber = 25,
   };
   // .nightfall.v1.EntitySpawn spawn = 1;
   bool has_spawn() const;
@@ -2436,6 +3356,222 @@ class WorldEvent final :
   void unsafe_arena_set_allocated_class_changed(
       ::nightfall::v1::ClassChanged* class_changed);
   ::nightfall::v1::ClassChanged* unsafe_arena_release_class_changed();
+  // .nightfall.v1.SkillCastStarted skill_cast_started = 14;
+  bool has_skill_cast_started() const;
+  private:
+  bool _internal_has_skill_cast_started() const;
+
+  public:
+  void clear_skill_cast_started() ;
+  const ::nightfall::v1::SkillCastStarted& skill_cast_started() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SkillCastStarted* release_skill_cast_started();
+  ::nightfall::v1::SkillCastStarted* mutable_skill_cast_started();
+  void set_allocated_skill_cast_started(::nightfall::v1::SkillCastStarted* skill_cast_started);
+  private:
+  const ::nightfall::v1::SkillCastStarted& _internal_skill_cast_started() const;
+  ::nightfall::v1::SkillCastStarted* _internal_mutable_skill_cast_started();
+  public:
+  void unsafe_arena_set_allocated_skill_cast_started(
+      ::nightfall::v1::SkillCastStarted* skill_cast_started);
+  ::nightfall::v1::SkillCastStarted* unsafe_arena_release_skill_cast_started();
+  // .nightfall.v1.SkillCastResult skill_cast_result = 15;
+  bool has_skill_cast_result() const;
+  private:
+  bool _internal_has_skill_cast_result() const;
+
+  public:
+  void clear_skill_cast_result() ;
+  const ::nightfall::v1::SkillCastResult& skill_cast_result() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SkillCastResult* release_skill_cast_result();
+  ::nightfall::v1::SkillCastResult* mutable_skill_cast_result();
+  void set_allocated_skill_cast_result(::nightfall::v1::SkillCastResult* skill_cast_result);
+  private:
+  const ::nightfall::v1::SkillCastResult& _internal_skill_cast_result() const;
+  ::nightfall::v1::SkillCastResult* _internal_mutable_skill_cast_result();
+  public:
+  void unsafe_arena_set_allocated_skill_cast_result(
+      ::nightfall::v1::SkillCastResult* skill_cast_result);
+  ::nightfall::v1::SkillCastResult* unsafe_arena_release_skill_cast_result();
+  // .nightfall.v1.SkillCastCancelled skill_cast_cancelled = 16;
+  bool has_skill_cast_cancelled() const;
+  private:
+  bool _internal_has_skill_cast_cancelled() const;
+
+  public:
+  void clear_skill_cast_cancelled() ;
+  const ::nightfall::v1::SkillCastCancelled& skill_cast_cancelled() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SkillCastCancelled* release_skill_cast_cancelled();
+  ::nightfall::v1::SkillCastCancelled* mutable_skill_cast_cancelled();
+  void set_allocated_skill_cast_cancelled(::nightfall::v1::SkillCastCancelled* skill_cast_cancelled);
+  private:
+  const ::nightfall::v1::SkillCastCancelled& _internal_skill_cast_cancelled() const;
+  ::nightfall::v1::SkillCastCancelled* _internal_mutable_skill_cast_cancelled();
+  public:
+  void unsafe_arena_set_allocated_skill_cast_cancelled(
+      ::nightfall::v1::SkillCastCancelled* skill_cast_cancelled);
+  ::nightfall::v1::SkillCastCancelled* unsafe_arena_release_skill_cast_cancelled();
+  // .nightfall.v1.EffectApplied effect_applied = 17;
+  bool has_effect_applied() const;
+  private:
+  bool _internal_has_effect_applied() const;
+
+  public:
+  void clear_effect_applied() ;
+  const ::nightfall::v1::EffectApplied& effect_applied() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EffectApplied* release_effect_applied();
+  ::nightfall::v1::EffectApplied* mutable_effect_applied();
+  void set_allocated_effect_applied(::nightfall::v1::EffectApplied* effect_applied);
+  private:
+  const ::nightfall::v1::EffectApplied& _internal_effect_applied() const;
+  ::nightfall::v1::EffectApplied* _internal_mutable_effect_applied();
+  public:
+  void unsafe_arena_set_allocated_effect_applied(
+      ::nightfall::v1::EffectApplied* effect_applied);
+  ::nightfall::v1::EffectApplied* unsafe_arena_release_effect_applied();
+  // .nightfall.v1.EffectRemoved effect_removed = 18;
+  bool has_effect_removed() const;
+  private:
+  bool _internal_has_effect_removed() const;
+
+  public:
+  void clear_effect_removed() ;
+  const ::nightfall::v1::EffectRemoved& effect_removed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EffectRemoved* release_effect_removed();
+  ::nightfall::v1::EffectRemoved* mutable_effect_removed();
+  void set_allocated_effect_removed(::nightfall::v1::EffectRemoved* effect_removed);
+  private:
+  const ::nightfall::v1::EffectRemoved& _internal_effect_removed() const;
+  ::nightfall::v1::EffectRemoved* _internal_mutable_effect_removed();
+  public:
+  void unsafe_arena_set_allocated_effect_removed(
+      ::nightfall::v1::EffectRemoved* effect_removed);
+  ::nightfall::v1::EffectRemoved* unsafe_arena_release_effect_removed();
+  // .nightfall.v1.SkillReuse skill_reuse = 19;
+  bool has_skill_reuse() const;
+  private:
+  bool _internal_has_skill_reuse() const;
+
+  public:
+  void clear_skill_reuse() ;
+  const ::nightfall::v1::SkillReuse& skill_reuse() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SkillReuse* release_skill_reuse();
+  ::nightfall::v1::SkillReuse* mutable_skill_reuse();
+  void set_allocated_skill_reuse(::nightfall::v1::SkillReuse* skill_reuse);
+  private:
+  const ::nightfall::v1::SkillReuse& _internal_skill_reuse() const;
+  ::nightfall::v1::SkillReuse* _internal_mutable_skill_reuse();
+  public:
+  void unsafe_arena_set_allocated_skill_reuse(
+      ::nightfall::v1::SkillReuse* skill_reuse);
+  ::nightfall::v1::SkillReuse* unsafe_arena_release_skill_reuse();
+  // .nightfall.v1.SkillLearned skill_learned = 20;
+  bool has_skill_learned() const;
+  private:
+  bool _internal_has_skill_learned() const;
+
+  public:
+  void clear_skill_learned() ;
+  const ::nightfall::v1::SkillLearned& skill_learned() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SkillLearned* release_skill_learned();
+  ::nightfall::v1::SkillLearned* mutable_skill_learned();
+  void set_allocated_skill_learned(::nightfall::v1::SkillLearned* skill_learned);
+  private:
+  const ::nightfall::v1::SkillLearned& _internal_skill_learned() const;
+  ::nightfall::v1::SkillLearned* _internal_mutable_skill_learned();
+  public:
+  void unsafe_arena_set_allocated_skill_learned(
+      ::nightfall::v1::SkillLearned* skill_learned);
+  ::nightfall::v1::SkillLearned* unsafe_arena_release_skill_learned();
+  // .nightfall.v1.PvpStateChanged pvp_state_changed = 21;
+  bool has_pvp_state_changed() const;
+  private:
+  bool _internal_has_pvp_state_changed() const;
+
+  public:
+  void clear_pvp_state_changed() ;
+  const ::nightfall::v1::PvpStateChanged& pvp_state_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PvpStateChanged* release_pvp_state_changed();
+  ::nightfall::v1::PvpStateChanged* mutable_pvp_state_changed();
+  void set_allocated_pvp_state_changed(::nightfall::v1::PvpStateChanged* pvp_state_changed);
+  private:
+  const ::nightfall::v1::PvpStateChanged& _internal_pvp_state_changed() const;
+  ::nightfall::v1::PvpStateChanged* _internal_mutable_pvp_state_changed();
+  public:
+  void unsafe_arena_set_allocated_pvp_state_changed(
+      ::nightfall::v1::PvpStateChanged* pvp_state_changed);
+  ::nightfall::v1::PvpStateChanged* unsafe_arena_release_pvp_state_changed();
+  // .nightfall.v1.ResurrectOffer resurrect_offer = 22;
+  bool has_resurrect_offer() const;
+  private:
+  bool _internal_has_resurrect_offer() const;
+
+  public:
+  void clear_resurrect_offer() ;
+  const ::nightfall::v1::ResurrectOffer& resurrect_offer() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ResurrectOffer* release_resurrect_offer();
+  ::nightfall::v1::ResurrectOffer* mutable_resurrect_offer();
+  void set_allocated_resurrect_offer(::nightfall::v1::ResurrectOffer* resurrect_offer);
+  private:
+  const ::nightfall::v1::ResurrectOffer& _internal_resurrect_offer() const;
+  ::nightfall::v1::ResurrectOffer* _internal_mutable_resurrect_offer();
+  public:
+  void unsafe_arena_set_allocated_resurrect_offer(
+      ::nightfall::v1::ResurrectOffer* resurrect_offer);
+  ::nightfall::v1::ResurrectOffer* unsafe_arena_release_resurrect_offer();
+  // .nightfall.v1.SpGained sp_gained = 23;
+  bool has_sp_gained() const;
+  private:
+  bool _internal_has_sp_gained() const;
+
+  public:
+  void clear_sp_gained() ;
+  const ::nightfall::v1::SpGained& sp_gained() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SpGained* release_sp_gained();
+  ::nightfall::v1::SpGained* mutable_sp_gained();
+  void set_allocated_sp_gained(::nightfall::v1::SpGained* sp_gained);
+  private:
+  const ::nightfall::v1::SpGained& _internal_sp_gained() const;
+  ::nightfall::v1::SpGained* _internal_mutable_sp_gained();
+  public:
+  void unsafe_arena_set_allocated_sp_gained(
+      ::nightfall::v1::SpGained* sp_gained);
+  ::nightfall::v1::SpGained* unsafe_arena_release_sp_gained();
+  // .nightfall.v1.SkillStateSync skill_state_sync = 24;
+  bool has_skill_state_sync() const;
+  private:
+  bool _internal_has_skill_state_sync() const;
+
+  public:
+  void clear_skill_state_sync() ;
+  const ::nightfall::v1::SkillStateSync& skill_state_sync() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SkillStateSync* release_skill_state_sync();
+  ::nightfall::v1::SkillStateSync* mutable_skill_state_sync();
+  void set_allocated_skill_state_sync(::nightfall::v1::SkillStateSync* skill_state_sync);
+  private:
+  const ::nightfall::v1::SkillStateSync& _internal_skill_state_sync() const;
+  ::nightfall::v1::SkillStateSync* _internal_mutable_skill_state_sync();
+  public:
+  void unsafe_arena_set_allocated_skill_state_sync(
+      ::nightfall::v1::SkillStateSync* skill_state_sync);
+  ::nightfall::v1::SkillStateSync* unsafe_arena_release_skill_state_sync();
+  // .nightfall.v1.VitalsChanged vitals_changed = 25;
+  bool has_vitals_changed() const;
+  private:
+  bool _internal_has_vitals_changed() const;
+
+  public:
+  void clear_vitals_changed() ;
+  const ::nightfall::v1::VitalsChanged& vitals_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::VitalsChanged* release_vitals_changed();
+  ::nightfall::v1::VitalsChanged* mutable_vitals_changed();
+  void set_allocated_vitals_changed(::nightfall::v1::VitalsChanged* vitals_changed);
+  private:
+  const ::nightfall::v1::VitalsChanged& _internal_vitals_changed() const;
+  ::nightfall::v1::VitalsChanged* _internal_mutable_vitals_changed();
+  public:
+  void unsafe_arena_set_allocated_vitals_changed(
+      ::nightfall::v1::VitalsChanged* vitals_changed);
+  ::nightfall::v1::VitalsChanged* unsafe_arena_release_vitals_changed();
   void clear_event();
   EventCase event_case() const;
   // @@protoc_insertion_point(class_scope:nightfall.v1.WorldEvent)
@@ -2454,6 +3590,18 @@ class WorldEvent final :
   void set_has_attack_started();
   void set_has_attack_cancelled();
   void set_has_class_changed();
+  void set_has_skill_cast_started();
+  void set_has_skill_cast_result();
+  void set_has_skill_cast_cancelled();
+  void set_has_effect_applied();
+  void set_has_effect_removed();
+  void set_has_skill_reuse();
+  void set_has_skill_learned();
+  void set_has_pvp_state_changed();
+  void set_has_resurrect_offer();
+  void set_has_sp_gained();
+  void set_has_skill_state_sync();
+  void set_has_vitals_changed();
 
   inline bool has_event() const;
   inline void clear_has_event();
@@ -2478,6 +3626,18 @@ class WorldEvent final :
       ::nightfall::v1::AttackStarted* attack_started_;
       ::nightfall::v1::AttackCancelled* attack_cancelled_;
       ::nightfall::v1::ClassChanged* class_changed_;
+      ::nightfall::v1::SkillCastStarted* skill_cast_started_;
+      ::nightfall::v1::SkillCastResult* skill_cast_result_;
+      ::nightfall::v1::SkillCastCancelled* skill_cast_cancelled_;
+      ::nightfall::v1::EffectApplied* effect_applied_;
+      ::nightfall::v1::EffectRemoved* effect_removed_;
+      ::nightfall::v1::SkillReuse* skill_reuse_;
+      ::nightfall::v1::SkillLearned* skill_learned_;
+      ::nightfall::v1::PvpStateChanged* pvp_state_changed_;
+      ::nightfall::v1::ResurrectOffer* resurrect_offer_;
+      ::nightfall::v1::SpGained* sp_gained_;
+      ::nightfall::v1::SkillStateSync* skill_state_sync_;
+      ::nightfall::v1::VitalsChanged* vitals_changed_;
     } event_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::uint32_t _oneof_case_[1];
@@ -2543,7 +3703,7 @@ class EntitySpawn final :
                &_EntitySpawn_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    11;
+    14;
 
   friend void swap(EntitySpawn& a, EntitySpawn& b) {
     a.Swap(&b);
@@ -2615,11 +3775,13 @@ class EntitySpawn final :
   // accessors -------------------------------------------------------
 
   enum : int {
+    kActiveEffectsFieldNumber = 24,
     kEntityIdFieldNumber = 1,
     kNameFieldNumber = 2,
     kTemplateIdFieldNumber = 7,
     kPositionFieldNumber = 3,
     kPendingSwingFieldNumber = 14,
+    kPendingCastFieldNumber = 25,
     kKindFieldNumber = 4,
     kSessionGenerationFieldNumber = 5,
     kLifeIncarnationFieldNumber = 8,
@@ -2636,7 +3798,32 @@ class EntitySpawn final :
     kHairColorFieldNumber = 19,
     kStateTickFieldNumber = 21,
     kFaceFieldNumber = 20,
+    kKarmaFieldNumber = 23,
+    kFlagUntilTickFieldNumber = 22,
+    kPkCountFieldNumber = 26,
+    kPvpCountFieldNumber = 27,
+    kStatusFlagsFieldNumber = 28,
   };
+  // repeated .nightfall.v1.ActiveEffect active_effects = 24;
+  int active_effects_size() const;
+  private:
+  int _internal_active_effects_size() const;
+
+  public:
+  void clear_active_effects() ;
+  ::nightfall::v1::ActiveEffect* mutable_active_effects(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ActiveEffect >*
+      mutable_active_effects();
+  private:
+  const ::nightfall::v1::ActiveEffect& _internal_active_effects(int index) const;
+  ::nightfall::v1::ActiveEffect* _internal_add_active_effects();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::ActiveEffect>& _internal_active_effects() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::ActiveEffect>* _internal_mutable_active_effects();
+  public:
+  const ::nightfall::v1::ActiveEffect& active_effects(int index) const;
+  ::nightfall::v1::ActiveEffect* add_active_effects();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ActiveEffect >&
+      active_effects() const;
   // string entity_id = 1;
   void clear_entity_id() ;
   const std::string& entity_id() const;
@@ -2725,6 +3912,20 @@ class EntitySpawn final :
   void unsafe_arena_set_allocated_pending_swing(
       ::nightfall::v1::AttackStarted* pending_swing);
   ::nightfall::v1::AttackStarted* unsafe_arena_release_pending_swing();
+  // .nightfall.v1.SkillCastStarted pending_cast = 25;
+  bool has_pending_cast() const;
+  void clear_pending_cast() ;
+  const ::nightfall::v1::SkillCastStarted& pending_cast() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SkillCastStarted* release_pending_cast();
+  ::nightfall::v1::SkillCastStarted* mutable_pending_cast();
+  void set_allocated_pending_cast(::nightfall::v1::SkillCastStarted* pending_cast);
+  private:
+  const ::nightfall::v1::SkillCastStarted& _internal_pending_cast() const;
+  ::nightfall::v1::SkillCastStarted* _internal_mutable_pending_cast();
+  public:
+  void unsafe_arena_set_allocated_pending_cast(
+      ::nightfall::v1::SkillCastStarted* pending_cast);
+  ::nightfall::v1::SkillCastStarted* unsafe_arena_release_pending_cast();
   // .nightfall.v1.EntityKind kind = 4;
   void clear_kind() ;
   ::nightfall::v1::EntityKind kind() const;
@@ -2885,6 +4086,56 @@ class EntitySpawn final :
   void _internal_set_face(::uint32_t value);
 
   public:
+  // uint32 karma = 23;
+  void clear_karma() ;
+  ::uint32_t karma() const;
+  void set_karma(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_karma() const;
+  void _internal_set_karma(::uint32_t value);
+
+  public:
+  // uint64 flag_until_tick = 22;
+  void clear_flag_until_tick() ;
+  ::uint64_t flag_until_tick() const;
+  void set_flag_until_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_flag_until_tick() const;
+  void _internal_set_flag_until_tick(::uint64_t value);
+
+  public:
+  // uint32 pk_count = 26;
+  void clear_pk_count() ;
+  ::uint32_t pk_count() const;
+  void set_pk_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_pk_count() const;
+  void _internal_set_pk_count(::uint32_t value);
+
+  public:
+  // uint32 pvp_count = 27;
+  void clear_pvp_count() ;
+  ::uint32_t pvp_count() const;
+  void set_pvp_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_pvp_count() const;
+  void _internal_set_pvp_count(::uint32_t value);
+
+  public:
+  // uint64 status_flags = 28;
+  void clear_status_flags() ;
+  ::uint64_t status_flags() const;
+  void set_status_flags(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_status_flags() const;
+  void _internal_set_status_flags(::uint64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.EntitySpawn)
  private:
   class _Internal;
@@ -2895,11 +4146,13 @@ class EntitySpawn final :
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ActiveEffect > active_effects_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_id_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr name_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr template_id_;
     ::nightfall::v1::Position* position_;
     ::nightfall::v1::AttackStarted* pending_swing_;
+    ::nightfall::v1::SkillCastStarted* pending_cast_;
     int kind_;
     ::uint32_t session_generation_;
     ::uint32_t life_incarnation_;
@@ -2916,6 +4169,11 @@ class EntitySpawn final :
     ::uint32_t hair_color_;
     ::uint64_t state_tick_;
     ::uint32_t face_;
+    ::uint32_t karma_;
+    ::uint64_t flag_until_tick_;
+    ::uint32_t pk_count_;
+    ::uint32_t pvp_count_;
+    ::uint64_t status_flags_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
@@ -2977,7 +4235,7 @@ class EntityMove final :
                &_EntityMove_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    12;
+    15;
 
   friend void swap(EntityMove& a, EntityMove& b) {
     a.Swap(&b);
@@ -3211,7 +4469,7 @@ class EntityDespawn final :
                &_EntityDespawn_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    13;
+    16;
 
   friend void swap(EntityDespawn& a, EntityDespawn& b) {
     a.Swap(&b);
@@ -3376,7 +4634,7 @@ class AttackResult final :
                &_AttackResult_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    14;
+    17;
 
   friend void swap(AttackResult& a, AttackResult& b) {
     a.Swap(&b);
@@ -3455,6 +4713,7 @@ class AttackResult final :
     kDamageFieldNumber = 5,
     kTargetHpAfterFieldNumber = 6,
     kTargetIncarnationFieldNumber = 7,
+    kCpDamageFieldNumber = 8,
   };
   // string attacker = 1;
   void clear_attacker() ;
@@ -3546,6 +4805,16 @@ class AttackResult final :
   void _internal_set_target_incarnation(::uint32_t value);
 
   public:
+  // uint32 cp_damage = 8;
+  void clear_cp_damage() ;
+  ::uint32_t cp_damage() const;
+  void set_cp_damage(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_cp_damage() const;
+  void _internal_set_cp_damage(::uint32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.AttackResult)
  private:
   class _Internal;
@@ -3561,6 +4830,7 @@ class AttackResult final :
     ::uint32_t damage_;
     ::uint32_t target_hp_after_;
     ::uint32_t target_incarnation_;
+    ::uint32_t cp_damage_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -3623,7 +4893,7 @@ class EntityDied final :
                &_EntityDied_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    15;
+    18;
 
   friend void swap(EntityDied& a, EntityDied& b) {
     a.Swap(&b);
@@ -3834,7 +5104,7 @@ class AttackStarted final :
                &_AttackStarted_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    16;
+    19;
 
   friend void swap(AttackStarted& a, AttackStarted& b) {
     a.Swap(&b);
@@ -3912,6 +5182,9 @@ class AttackStarted final :
     kImpactTickFieldNumber = 4,
     kReadyTickFieldNumber = 5,
     kTargetIncarnationFieldNumber = 6,
+    kBaselineFieldNumber = 7,
+    kBaselineTickFieldNumber = 8,
+    kAttackerIncarnationFieldNumber = 9,
   };
   // string attacker = 1;
   void clear_attacker() ;
@@ -3993,6 +5266,37 @@ class AttackStarted final :
   void _internal_set_target_incarnation(::uint32_t value);
 
   public:
+  // bool baseline = 7;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // uint64 baseline_tick = 8;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
+  // optional uint32 attacker_incarnation = 9;
+  bool has_attacker_incarnation() const;
+  void clear_attacker_incarnation() ;
+  ::uint32_t attacker_incarnation() const;
+  void set_attacker_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_attacker_incarnation() const;
+  void _internal_set_attacker_incarnation(::uint32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.AttackStarted)
  private:
   class _Internal;
@@ -4001,13 +5305,17 @@ class AttackStarted final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr attacker_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
     ::uint64_t tick_;
     ::uint64_t impact_tick_;
     ::uint64_t ready_tick_;
     ::uint32_t target_incarnation_;
-    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    bool baseline_;
+    ::uint64_t baseline_tick_;
+    ::uint32_t attacker_incarnation_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
@@ -4069,7 +5377,7 @@ class AttackCancelled final :
                &_AttackCancelled_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    17;
+    20;
 
   friend void swap(AttackCancelled& a, AttackCancelled& b) {
     a.Swap(&b);
@@ -4280,7 +5588,7 @@ class EntityRespawned final :
                &_EntityRespawned_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    18;
+    21;
 
   friend void swap(EntityRespawned& a, EntityRespawned& b) {
     a.Swap(&b);
@@ -4498,7 +5806,7 @@ class StatsChanged final :
                &_StatsChanged_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    19;
+    22;
 
   friend void swap(StatsChanged& a, StatsChanged& b) {
     a.Swap(&b);
@@ -4571,6 +5879,7 @@ class StatsChanged final :
 
   enum : int {
     kEntityFieldNumber = 1,
+    kEffectiveStatsFieldNumber = 20,
     kHpFieldNumber = 2,
     kMaxHpFieldNumber = 3,
     kMpFieldNumber = 4,
@@ -4584,6 +5893,14 @@ class StatsChanged final :
     kTokenTier1CountFieldNumber = 12,
     kTokenTier2CountFieldNumber = 13,
     kTickFieldNumber = 14,
+    kKarmaFieldNumber = 15,
+    kPkCountFieldNumber = 16,
+    kFlagUntilTickFieldNumber = 18,
+    kPvpCountFieldNumber = 17,
+    kDeathPenaltyLevelFieldNumber = 19,
+    kBaselineTickFieldNumber = 22,
+    kBaselineFieldNumber = 21,
+    kIncarnationFieldNumber = 23,
   };
   // string entity = 1;
   void clear_entity() ;
@@ -4605,6 +5922,20 @@ class StatsChanged final :
   std::string* _internal_mutable_entity();
 
   public:
+  // .nightfall.v1.EffectiveStats effective_stats = 20;
+  bool has_effective_stats() const;
+  void clear_effective_stats() ;
+  const ::nightfall::v1::EffectiveStats& effective_stats() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EffectiveStats* release_effective_stats();
+  ::nightfall::v1::EffectiveStats* mutable_effective_stats();
+  void set_allocated_effective_stats(::nightfall::v1::EffectiveStats* effective_stats);
+  private:
+  const ::nightfall::v1::EffectiveStats& _internal_effective_stats() const;
+  ::nightfall::v1::EffectiveStats* _internal_mutable_effective_stats();
+  public:
+  void unsafe_arena_set_allocated_effective_stats(
+      ::nightfall::v1::EffectiveStats* effective_stats);
+  ::nightfall::v1::EffectiveStats* unsafe_arena_release_effective_stats();
   // uint32 hp = 2;
   void clear_hp() ;
   ::uint32_t hp() const;
@@ -4735,6 +6066,86 @@ class StatsChanged final :
   void _internal_set_tick(::uint64_t value);
 
   public:
+  // uint32 karma = 15;
+  void clear_karma() ;
+  ::uint32_t karma() const;
+  void set_karma(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_karma() const;
+  void _internal_set_karma(::uint32_t value);
+
+  public:
+  // uint32 pk_count = 16;
+  void clear_pk_count() ;
+  ::uint32_t pk_count() const;
+  void set_pk_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_pk_count() const;
+  void _internal_set_pk_count(::uint32_t value);
+
+  public:
+  // uint64 flag_until_tick = 18;
+  void clear_flag_until_tick() ;
+  ::uint64_t flag_until_tick() const;
+  void set_flag_until_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_flag_until_tick() const;
+  void _internal_set_flag_until_tick(::uint64_t value);
+
+  public:
+  // uint32 pvp_count = 17;
+  void clear_pvp_count() ;
+  ::uint32_t pvp_count() const;
+  void set_pvp_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_pvp_count() const;
+  void _internal_set_pvp_count(::uint32_t value);
+
+  public:
+  // uint32 death_penalty_level = 19;
+  void clear_death_penalty_level() ;
+  ::uint32_t death_penalty_level() const;
+  void set_death_penalty_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_death_penalty_level() const;
+  void _internal_set_death_penalty_level(::uint32_t value);
+
+  public:
+  // uint64 baseline_tick = 22;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
+  // bool baseline = 21;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // uint32 incarnation = 23;
+  void clear_incarnation() ;
+  ::uint32_t incarnation() const;
+  void set_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_incarnation() const;
+  void _internal_set_incarnation(::uint32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.StatsChanged)
  private:
   class _Internal;
@@ -4743,7 +6154,10 @@ class StatsChanged final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::nightfall::v1::EffectiveStats* effective_stats_;
     ::uint32_t hp_;
     ::uint32_t max_hp_;
     ::uint32_t mp_;
@@ -4757,7 +6171,14 @@ class StatsChanged final :
     ::uint32_t token_tier_1_count_;
     ::uint32_t token_tier_2_count_;
     ::uint64_t tick_;
-    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::uint32_t karma_;
+    ::uint32_t pk_count_;
+    ::uint64_t flag_until_tick_;
+    ::uint32_t pvp_count_;
+    ::uint32_t death_penalty_level_;
+    ::uint64_t baseline_tick_;
+    bool baseline_;
+    ::uint32_t incarnation_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
@@ -4819,7 +6240,7 @@ class XpGained final :
                &_XpGained_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    20;
+    23;
 
   friend void swap(XpGained& a, XpGained& b) {
     a.Swap(&b);
@@ -5008,7 +6429,7 @@ class LevelUp final :
                &_LevelUp_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    21;
+    24;
 
   friend void swap(LevelUp& a, LevelUp& b) {
     a.Swap(&b);
@@ -5185,7 +6606,7 @@ class TargetChanged final :
                &_TargetChanged_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    22;
+    25;
 
   friend void swap(TargetChanged& a, TargetChanged& b) {
     a.Swap(&b);
@@ -5259,6 +6680,10 @@ class TargetChanged final :
   enum : int {
     kEntityFieldNumber = 1,
     kTargetFieldNumber = 2,
+    kBaselineTickFieldNumber = 4,
+    kBaselineFieldNumber = 3,
+    kTargetIncarnationFieldNumber = 5,
+    kTickFieldNumber = 6,
   };
   // string entity = 1;
   void clear_entity() ;
@@ -5300,6 +6725,47 @@ class TargetChanged final :
   std::string* _internal_mutable_target();
 
   public:
+  // uint64 baseline_tick = 4;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
+  // bool baseline = 3;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // optional uint32 target_incarnation = 5;
+  bool has_target_incarnation() const;
+  void clear_target_incarnation() ;
+  ::uint32_t target_incarnation() const;
+  void set_target_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_incarnation() const;
+  void _internal_set_target_incarnation(::uint32_t value);
+
+  public:
+  // uint64 tick = 6;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.TargetChanged)
  private:
   class _Internal;
@@ -5308,9 +6774,14 @@ class TargetChanged final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
-    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::uint64_t baseline_tick_;
+    bool baseline_;
+    ::uint32_t target_incarnation_;
+    ::uint64_t tick_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
@@ -5372,7 +6843,7 @@ class ClassChanged final :
                &_ClassChanged_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    23;
+    26;
 
   friend void swap(ClassChanged& a, ClassChanged& b) {
     a.Swap(&b);
@@ -5511,6 +6982,4063 @@ class ClassChanged final :
     ::uint64_t tick_;
     ::uint32_t class_id_;
     ::uint32_t session_generation_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class ActiveEffect final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.ActiveEffect) */ {
+ public:
+  inline ActiveEffect() : ActiveEffect(nullptr) {}
+  ~ActiveEffect() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR ActiveEffect(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  ActiveEffect(const ActiveEffect& from);
+  ActiveEffect(ActiveEffect&& from) noexcept
+    : ActiveEffect() {
+    *this = ::std::move(from);
+  }
+
+  inline ActiveEffect& operator=(const ActiveEffect& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline ActiveEffect& operator=(ActiveEffect&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const ActiveEffect& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const ActiveEffect* internal_default_instance() {
+    return reinterpret_cast<const ActiveEffect*>(
+               &_ActiveEffect_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    27;
+
+  friend void swap(ActiveEffect& a, ActiveEffect& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(ActiveEffect* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(ActiveEffect* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  ActiveEffect* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<ActiveEffect>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const ActiveEffect& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const ActiveEffect& from) {
+    ActiveEffect::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(ActiveEffect* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.ActiveEffect";
+  }
+  protected:
+  explicit ActiveEffect(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kCasterFieldNumber = 5,
+    kSkillIdFieldNumber = 1,
+    kSkillLevelFieldNumber = 2,
+    kRemainingTicksFieldNumber = 3,
+    kIsDebuffFieldNumber = 4,
+    kCasterIncarnationFieldNumber = 7,
+    kEffectIdFieldNumber = 6,
+    kTargetIncarnationFieldNumber = 8,
+  };
+  // optional string caster = 5;
+  bool has_caster() const;
+  void clear_caster() ;
+  const std::string& caster() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_caster(Arg_&& arg, Args_... args);
+  std::string* mutable_caster();
+  PROTOBUF_NODISCARD std::string* release_caster();
+  void set_allocated_caster(std::string* ptr);
+
+  private:
+  const std::string& _internal_caster() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_caster(
+      const std::string& value);
+  std::string* _internal_mutable_caster();
+
+  public:
+  // uint32 skill_id = 1;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // uint32 skill_level = 2;
+  void clear_skill_level() ;
+  ::uint32_t skill_level() const;
+  void set_skill_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_level() const;
+  void _internal_set_skill_level(::uint32_t value);
+
+  public:
+  // uint64 remaining_ticks = 3;
+  void clear_remaining_ticks() ;
+  ::uint64_t remaining_ticks() const;
+  void set_remaining_ticks(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_remaining_ticks() const;
+  void _internal_set_remaining_ticks(::uint64_t value);
+
+  public:
+  // bool is_debuff = 4;
+  void clear_is_debuff() ;
+  bool is_debuff() const;
+  void set_is_debuff(bool value);
+
+  private:
+  bool _internal_is_debuff() const;
+  void _internal_set_is_debuff(bool value);
+
+  public:
+  // optional uint32 caster_incarnation = 7;
+  bool has_caster_incarnation() const;
+  void clear_caster_incarnation() ;
+  ::uint32_t caster_incarnation() const;
+  void set_caster_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_caster_incarnation() const;
+  void _internal_set_caster_incarnation(::uint32_t value);
+
+  public:
+  // uint64 effect_id = 6;
+  void clear_effect_id() ;
+  ::uint64_t effect_id() const;
+  void set_effect_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_effect_id() const;
+  void _internal_set_effect_id(::uint64_t value);
+
+  public:
+  // uint32 target_incarnation = 8;
+  void clear_target_incarnation() ;
+  ::uint32_t target_incarnation() const;
+  void set_target_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_incarnation() const;
+  void _internal_set_target_incarnation(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.ActiveEffect)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr caster_;
+    ::uint32_t skill_id_;
+    ::uint32_t skill_level_;
+    ::uint64_t remaining_ticks_;
+    bool is_debuff_;
+    ::uint32_t caster_incarnation_;
+    ::uint64_t effect_id_;
+    ::uint32_t target_incarnation_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SkillCastStarted final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SkillCastStarted) */ {
+ public:
+  inline SkillCastStarted() : SkillCastStarted(nullptr) {}
+  ~SkillCastStarted() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SkillCastStarted(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SkillCastStarted(const SkillCastStarted& from);
+  SkillCastStarted(SkillCastStarted&& from) noexcept
+    : SkillCastStarted() {
+    *this = ::std::move(from);
+  }
+
+  inline SkillCastStarted& operator=(const SkillCastStarted& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SkillCastStarted& operator=(SkillCastStarted&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SkillCastStarted& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SkillCastStarted* internal_default_instance() {
+    return reinterpret_cast<const SkillCastStarted*>(
+               &_SkillCastStarted_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    28;
+
+  friend void swap(SkillCastStarted& a, SkillCastStarted& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SkillCastStarted* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SkillCastStarted* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SkillCastStarted* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SkillCastStarted>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SkillCastStarted& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SkillCastStarted& from) {
+    SkillCastStarted::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SkillCastStarted* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SkillCastStarted";
+  }
+  protected:
+  explicit SkillCastStarted(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kCasterFieldNumber = 1,
+    kTargetFieldNumber = 2,
+    kSkillIdFieldNumber = 3,
+    kSkillLevelFieldNumber = 4,
+    kCastIdFieldNumber = 5,
+    kTickFieldNumber = 6,
+    kCompleteTickFieldNumber = 7,
+    kCasterIncarnationFieldNumber = 8,
+    kTargetIncarnationFieldNumber = 9,
+    kBaselineTickFieldNumber = 11,
+    kLaunchTickFieldNumber = 12,
+    kStartTickFieldNumber = 13,
+    kBaselineFieldNumber = 10,
+  };
+  // string caster = 1;
+  void clear_caster() ;
+  const std::string& caster() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_caster(Arg_&& arg, Args_... args);
+  std::string* mutable_caster();
+  PROTOBUF_NODISCARD std::string* release_caster();
+  void set_allocated_caster(std::string* ptr);
+
+  private:
+  const std::string& _internal_caster() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_caster(
+      const std::string& value);
+  std::string* _internal_mutable_caster();
+
+  public:
+  // optional string target = 2;
+  bool has_target() const;
+  void clear_target() ;
+  const std::string& target() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  std::string* mutable_target();
+  PROTOBUF_NODISCARD std::string* release_target();
+  void set_allocated_target(std::string* ptr);
+
+  private:
+  const std::string& _internal_target() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_target(
+      const std::string& value);
+  std::string* _internal_mutable_target();
+
+  public:
+  // uint32 skill_id = 3;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // uint32 skill_level = 4;
+  void clear_skill_level() ;
+  ::uint32_t skill_level() const;
+  void set_skill_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_level() const;
+  void _internal_set_skill_level(::uint32_t value);
+
+  public:
+  // uint64 cast_id = 5;
+  void clear_cast_id() ;
+  ::uint64_t cast_id() const;
+  void set_cast_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_cast_id() const;
+  void _internal_set_cast_id(::uint64_t value);
+
+  public:
+  // uint64 tick = 6;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint64 complete_tick = 7;
+  void clear_complete_tick() ;
+  ::uint64_t complete_tick() const;
+  void set_complete_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_complete_tick() const;
+  void _internal_set_complete_tick(::uint64_t value);
+
+  public:
+  // uint32 caster_incarnation = 8;
+  void clear_caster_incarnation() ;
+  ::uint32_t caster_incarnation() const;
+  void set_caster_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_caster_incarnation() const;
+  void _internal_set_caster_incarnation(::uint32_t value);
+
+  public:
+  // optional uint32 target_incarnation = 9;
+  bool has_target_incarnation() const;
+  void clear_target_incarnation() ;
+  ::uint32_t target_incarnation() const;
+  void set_target_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_incarnation() const;
+  void _internal_set_target_incarnation(::uint32_t value);
+
+  public:
+  // uint64 baseline_tick = 11;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
+  // uint64 launch_tick = 12;
+  void clear_launch_tick() ;
+  ::uint64_t launch_tick() const;
+  void set_launch_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_launch_tick() const;
+  void _internal_set_launch_tick(::uint64_t value);
+
+  public:
+  // uint64 start_tick = 13;
+  void clear_start_tick() ;
+  ::uint64_t start_tick() const;
+  void set_start_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_start_tick() const;
+  void _internal_set_start_tick(::uint64_t value);
+
+  public:
+  // bool baseline = 10;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SkillCastStarted)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr caster_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
+    ::uint32_t skill_id_;
+    ::uint32_t skill_level_;
+    ::uint64_t cast_id_;
+    ::uint64_t tick_;
+    ::uint64_t complete_tick_;
+    ::uint32_t caster_incarnation_;
+    ::uint32_t target_incarnation_;
+    ::uint64_t baseline_tick_;
+    ::uint64_t launch_tick_;
+    ::uint64_t start_tick_;
+    bool baseline_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SkillTargetResult final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SkillTargetResult) */ {
+ public:
+  inline SkillTargetResult() : SkillTargetResult(nullptr) {}
+  ~SkillTargetResult() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SkillTargetResult(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SkillTargetResult(const SkillTargetResult& from);
+  SkillTargetResult(SkillTargetResult&& from) noexcept
+    : SkillTargetResult() {
+    *this = ::std::move(from);
+  }
+
+  inline SkillTargetResult& operator=(const SkillTargetResult& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SkillTargetResult& operator=(SkillTargetResult&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SkillTargetResult& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SkillTargetResult* internal_default_instance() {
+    return reinterpret_cast<const SkillTargetResult*>(
+               &_SkillTargetResult_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    29;
+
+  friend void swap(SkillTargetResult& a, SkillTargetResult& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SkillTargetResult* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SkillTargetResult* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SkillTargetResult* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SkillTargetResult>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SkillTargetResult& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SkillTargetResult& from) {
+    SkillTargetResult::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SkillTargetResult* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SkillTargetResult";
+  }
+  protected:
+  explicit SkillTargetResult(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kAppliedEffectIdsFieldNumber = 11,
+    kTargetFieldNumber = 1,
+    kTickFieldNumber = 3,
+    kTargetIncarnationFieldNumber = 2,
+    kResolutionKindFieldNumber = 4,
+    kRolledFieldNumber = 5,
+    kCpAbsorbedFieldNumber = 6,
+    kHpRemovedFieldNumber = 7,
+    kHealFieldNumber = 8,
+    kOutcomeFieldNumber = 9,
+    kTargetHpAfterFieldNumber = 10,
+  };
+  // repeated uint64 applied_effect_ids = 11;
+  int applied_effect_ids_size() const;
+  private:
+  int _internal_applied_effect_ids_size() const;
+
+  public:
+  void clear_applied_effect_ids() ;
+  ::uint64_t applied_effect_ids(int index) const;
+  void set_applied_effect_ids(int index, ::uint64_t value);
+  void add_applied_effect_ids(::uint64_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>& applied_effect_ids() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>* mutable_applied_effect_ids();
+
+  private:
+  ::uint64_t _internal_applied_effect_ids(int index) const;
+  void _internal_add_applied_effect_ids(::uint64_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>& _internal_applied_effect_ids() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>* _internal_mutable_applied_effect_ids();
+
+  public:
+  // string target = 1;
+  void clear_target() ;
+  const std::string& target() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  std::string* mutable_target();
+  PROTOBUF_NODISCARD std::string* release_target();
+  void set_allocated_target(std::string* ptr);
+
+  private:
+  const std::string& _internal_target() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_target(
+      const std::string& value);
+  std::string* _internal_mutable_target();
+
+  public:
+  // uint64 tick = 3;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint32 target_incarnation = 2;
+  void clear_target_incarnation() ;
+  ::uint32_t target_incarnation() const;
+  void set_target_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_incarnation() const;
+  void _internal_set_target_incarnation(::uint32_t value);
+
+  public:
+  // .nightfall.v1.SkillResolutionKind resolution_kind = 4;
+  void clear_resolution_kind() ;
+  ::nightfall::v1::SkillResolutionKind resolution_kind() const;
+  void set_resolution_kind(::nightfall::v1::SkillResolutionKind value);
+
+  private:
+  ::nightfall::v1::SkillResolutionKind _internal_resolution_kind() const;
+  void _internal_set_resolution_kind(::nightfall::v1::SkillResolutionKind value);
+
+  public:
+  // uint32 rolled = 5;
+  void clear_rolled() ;
+  ::uint32_t rolled() const;
+  void set_rolled(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_rolled() const;
+  void _internal_set_rolled(::uint32_t value);
+
+  public:
+  // uint32 cp_absorbed = 6;
+  void clear_cp_absorbed() ;
+  ::uint32_t cp_absorbed() const;
+  void set_cp_absorbed(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_cp_absorbed() const;
+  void _internal_set_cp_absorbed(::uint32_t value);
+
+  public:
+  // uint32 hp_removed = 7;
+  void clear_hp_removed() ;
+  ::uint32_t hp_removed() const;
+  void set_hp_removed(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_hp_removed() const;
+  void _internal_set_hp_removed(::uint32_t value);
+
+  public:
+  // uint32 heal = 8;
+  void clear_heal() ;
+  ::uint32_t heal() const;
+  void set_heal(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_heal() const;
+  void _internal_set_heal(::uint32_t value);
+
+  public:
+  // .nightfall.v1.SkillOutcome outcome = 9;
+  void clear_outcome() ;
+  ::nightfall::v1::SkillOutcome outcome() const;
+  void set_outcome(::nightfall::v1::SkillOutcome value);
+
+  private:
+  ::nightfall::v1::SkillOutcome _internal_outcome() const;
+  void _internal_set_outcome(::nightfall::v1::SkillOutcome value);
+
+  public:
+  // uint32 target_hp_after = 10;
+  void clear_target_hp_after() ;
+  ::uint32_t target_hp_after() const;
+  void set_target_hp_after(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_hp_after() const;
+  void _internal_set_target_hp_after(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SkillTargetResult)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t> applied_effect_ids_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _applied_effect_ids_cached_byte_size_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
+    ::uint64_t tick_;
+    ::uint32_t target_incarnation_;
+    int resolution_kind_;
+    ::uint32_t rolled_;
+    ::uint32_t cp_absorbed_;
+    ::uint32_t hp_removed_;
+    ::uint32_t heal_;
+    int outcome_;
+    ::uint32_t target_hp_after_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SkillCastResult final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SkillCastResult) */ {
+ public:
+  inline SkillCastResult() : SkillCastResult(nullptr) {}
+  ~SkillCastResult() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SkillCastResult(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SkillCastResult(const SkillCastResult& from);
+  SkillCastResult(SkillCastResult&& from) noexcept
+    : SkillCastResult() {
+    *this = ::std::move(from);
+  }
+
+  inline SkillCastResult& operator=(const SkillCastResult& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SkillCastResult& operator=(SkillCastResult&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SkillCastResult& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SkillCastResult* internal_default_instance() {
+    return reinterpret_cast<const SkillCastResult*>(
+               &_SkillCastResult_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    30;
+
+  friend void swap(SkillCastResult& a, SkillCastResult& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SkillCastResult* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SkillCastResult* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SkillCastResult* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SkillCastResult>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SkillCastResult& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SkillCastResult& from) {
+    SkillCastResult::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SkillCastResult* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SkillCastResult";
+  }
+  protected:
+  explicit SkillCastResult(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kTargetsFieldNumber = 7,
+    kCasterFieldNumber = 1,
+    kCastIdFieldNumber = 3,
+    kCasterIncarnationFieldNumber = 2,
+    kSkillIdFieldNumber = 5,
+    kTickFieldNumber = 4,
+    kEffectIdFieldNumber = 8,
+    kSkillLevelFieldNumber = 6,
+  };
+  // repeated .nightfall.v1.SkillTargetResult targets = 7;
+  int targets_size() const;
+  private:
+  int _internal_targets_size() const;
+
+  public:
+  void clear_targets() ;
+  ::nightfall::v1::SkillTargetResult* mutable_targets(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillTargetResult >*
+      mutable_targets();
+  private:
+  const ::nightfall::v1::SkillTargetResult& _internal_targets(int index) const;
+  ::nightfall::v1::SkillTargetResult* _internal_add_targets();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::SkillTargetResult>& _internal_targets() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::SkillTargetResult>* _internal_mutable_targets();
+  public:
+  const ::nightfall::v1::SkillTargetResult& targets(int index) const;
+  ::nightfall::v1::SkillTargetResult* add_targets();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillTargetResult >&
+      targets() const;
+  // string caster = 1;
+  void clear_caster() ;
+  const std::string& caster() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_caster(Arg_&& arg, Args_... args);
+  std::string* mutable_caster();
+  PROTOBUF_NODISCARD std::string* release_caster();
+  void set_allocated_caster(std::string* ptr);
+
+  private:
+  const std::string& _internal_caster() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_caster(
+      const std::string& value);
+  std::string* _internal_mutable_caster();
+
+  public:
+  // uint64 cast_id = 3;
+  void clear_cast_id() ;
+  ::uint64_t cast_id() const;
+  void set_cast_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_cast_id() const;
+  void _internal_set_cast_id(::uint64_t value);
+
+  public:
+  // uint32 caster_incarnation = 2;
+  void clear_caster_incarnation() ;
+  ::uint32_t caster_incarnation() const;
+  void set_caster_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_caster_incarnation() const;
+  void _internal_set_caster_incarnation(::uint32_t value);
+
+  public:
+  // uint32 skill_id = 5;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // uint64 tick = 4;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // optional uint64 effect_id = 8;
+  bool has_effect_id() const;
+  void clear_effect_id() ;
+  ::uint64_t effect_id() const;
+  void set_effect_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_effect_id() const;
+  void _internal_set_effect_id(::uint64_t value);
+
+  public:
+  // uint32 skill_level = 6;
+  void clear_skill_level() ;
+  ::uint32_t skill_level() const;
+  void set_skill_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_level() const;
+  void _internal_set_skill_level(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SkillCastResult)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillTargetResult > targets_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr caster_;
+    ::uint64_t cast_id_;
+    ::uint32_t caster_incarnation_;
+    ::uint32_t skill_id_;
+    ::uint64_t tick_;
+    ::uint64_t effect_id_;
+    ::uint32_t skill_level_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SkillCastCancelled final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SkillCastCancelled) */ {
+ public:
+  inline SkillCastCancelled() : SkillCastCancelled(nullptr) {}
+  ~SkillCastCancelled() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SkillCastCancelled(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SkillCastCancelled(const SkillCastCancelled& from);
+  SkillCastCancelled(SkillCastCancelled&& from) noexcept
+    : SkillCastCancelled() {
+    *this = ::std::move(from);
+  }
+
+  inline SkillCastCancelled& operator=(const SkillCastCancelled& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SkillCastCancelled& operator=(SkillCastCancelled&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SkillCastCancelled& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SkillCastCancelled* internal_default_instance() {
+    return reinterpret_cast<const SkillCastCancelled*>(
+               &_SkillCastCancelled_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    31;
+
+  friend void swap(SkillCastCancelled& a, SkillCastCancelled& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SkillCastCancelled* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SkillCastCancelled* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SkillCastCancelled* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SkillCastCancelled>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SkillCastCancelled& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SkillCastCancelled& from) {
+    SkillCastCancelled::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SkillCastCancelled* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SkillCastCancelled";
+  }
+  protected:
+  explicit SkillCastCancelled(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kCasterFieldNumber = 1,
+    kCastIdFieldNumber = 2,
+    kTickFieldNumber = 4,
+    kReasonFieldNumber = 3,
+    kCasterIncarnationFieldNumber = 5,
+  };
+  // string caster = 1;
+  void clear_caster() ;
+  const std::string& caster() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_caster(Arg_&& arg, Args_... args);
+  std::string* mutable_caster();
+  PROTOBUF_NODISCARD std::string* release_caster();
+  void set_allocated_caster(std::string* ptr);
+
+  private:
+  const std::string& _internal_caster() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_caster(
+      const std::string& value);
+  std::string* _internal_mutable_caster();
+
+  public:
+  // uint64 cast_id = 2;
+  void clear_cast_id() ;
+  ::uint64_t cast_id() const;
+  void set_cast_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_cast_id() const;
+  void _internal_set_cast_id(::uint64_t value);
+
+  public:
+  // uint64 tick = 4;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // .nightfall.v1.CastCancelReason reason = 3;
+  void clear_reason() ;
+  ::nightfall::v1::CastCancelReason reason() const;
+  void set_reason(::nightfall::v1::CastCancelReason value);
+
+  private:
+  ::nightfall::v1::CastCancelReason _internal_reason() const;
+  void _internal_set_reason(::nightfall::v1::CastCancelReason value);
+
+  public:
+  // uint32 caster_incarnation = 5;
+  void clear_caster_incarnation() ;
+  ::uint32_t caster_incarnation() const;
+  void set_caster_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_caster_incarnation() const;
+  void _internal_set_caster_incarnation(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SkillCastCancelled)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr caster_;
+    ::uint64_t cast_id_;
+    ::uint64_t tick_;
+    int reason_;
+    ::uint32_t caster_incarnation_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class EffectApplied final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.EffectApplied) */ {
+ public:
+  inline EffectApplied() : EffectApplied(nullptr) {}
+  ~EffectApplied() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR EffectApplied(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  EffectApplied(const EffectApplied& from);
+  EffectApplied(EffectApplied&& from) noexcept
+    : EffectApplied() {
+    *this = ::std::move(from);
+  }
+
+  inline EffectApplied& operator=(const EffectApplied& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline EffectApplied& operator=(EffectApplied&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const EffectApplied& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const EffectApplied* internal_default_instance() {
+    return reinterpret_cast<const EffectApplied*>(
+               &_EffectApplied_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    32;
+
+  friend void swap(EffectApplied& a, EffectApplied& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(EffectApplied* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(EffectApplied* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  EffectApplied* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<EffectApplied>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const EffectApplied& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const EffectApplied& from) {
+    EffectApplied::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(EffectApplied* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.EffectApplied";
+  }
+  protected:
+  explicit EffectApplied(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kTargetFieldNumber = 1,
+    kCasterFieldNumber = 3,
+    kAbnormalTypeFieldNumber = 11,
+    kTargetIncarnationFieldNumber = 2,
+    kCasterIncarnationFieldNumber = 4,
+    kEffectIdFieldNumber = 5,
+    kSkillIdFieldNumber = 6,
+    kSkillLevelFieldNumber = 7,
+    kTickFieldNumber = 9,
+    kEndTickFieldNumber = 10,
+    kPoolFieldNumber = 8,
+    kAbnormalLevelFieldNumber = 12,
+    kStatusFlagsFieldNumber = 13,
+    kBaselineTickFieldNumber = 15,
+    kAppliedTickFieldNumber = 16,
+    kBaselineFieldNumber = 14,
+  };
+  // string target = 1;
+  void clear_target() ;
+  const std::string& target() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  std::string* mutable_target();
+  PROTOBUF_NODISCARD std::string* release_target();
+  void set_allocated_target(std::string* ptr);
+
+  private:
+  const std::string& _internal_target() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_target(
+      const std::string& value);
+  std::string* _internal_mutable_target();
+
+  public:
+  // optional string caster = 3;
+  bool has_caster() const;
+  void clear_caster() ;
+  const std::string& caster() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_caster(Arg_&& arg, Args_... args);
+  std::string* mutable_caster();
+  PROTOBUF_NODISCARD std::string* release_caster();
+  void set_allocated_caster(std::string* ptr);
+
+  private:
+  const std::string& _internal_caster() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_caster(
+      const std::string& value);
+  std::string* _internal_mutable_caster();
+
+  public:
+  // string abnormal_type = 11;
+  void clear_abnormal_type() ;
+  const std::string& abnormal_type() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_abnormal_type(Arg_&& arg, Args_... args);
+  std::string* mutable_abnormal_type();
+  PROTOBUF_NODISCARD std::string* release_abnormal_type();
+  void set_allocated_abnormal_type(std::string* ptr);
+
+  private:
+  const std::string& _internal_abnormal_type() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_abnormal_type(
+      const std::string& value);
+  std::string* _internal_mutable_abnormal_type();
+
+  public:
+  // uint32 target_incarnation = 2;
+  void clear_target_incarnation() ;
+  ::uint32_t target_incarnation() const;
+  void set_target_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_incarnation() const;
+  void _internal_set_target_incarnation(::uint32_t value);
+
+  public:
+  // optional uint32 caster_incarnation = 4;
+  bool has_caster_incarnation() const;
+  void clear_caster_incarnation() ;
+  ::uint32_t caster_incarnation() const;
+  void set_caster_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_caster_incarnation() const;
+  void _internal_set_caster_incarnation(::uint32_t value);
+
+  public:
+  // uint64 effect_id = 5;
+  void clear_effect_id() ;
+  ::uint64_t effect_id() const;
+  void set_effect_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_effect_id() const;
+  void _internal_set_effect_id(::uint64_t value);
+
+  public:
+  // uint32 skill_id = 6;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // uint32 skill_level = 7;
+  void clear_skill_level() ;
+  ::uint32_t skill_level() const;
+  void set_skill_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_level() const;
+  void _internal_set_skill_level(::uint32_t value);
+
+  public:
+  // uint64 tick = 9;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint64 end_tick = 10;
+  void clear_end_tick() ;
+  ::uint64_t end_tick() const;
+  void set_end_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_end_tick() const;
+  void _internal_set_end_tick(::uint64_t value);
+
+  public:
+  // .nightfall.v1.EffectPool pool = 8;
+  void clear_pool() ;
+  ::nightfall::v1::EffectPool pool() const;
+  void set_pool(::nightfall::v1::EffectPool value);
+
+  private:
+  ::nightfall::v1::EffectPool _internal_pool() const;
+  void _internal_set_pool(::nightfall::v1::EffectPool value);
+
+  public:
+  // uint32 abnormal_level = 12;
+  void clear_abnormal_level() ;
+  ::uint32_t abnormal_level() const;
+  void set_abnormal_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_abnormal_level() const;
+  void _internal_set_abnormal_level(::uint32_t value);
+
+  public:
+  // uint64 status_flags = 13;
+  void clear_status_flags() ;
+  ::uint64_t status_flags() const;
+  void set_status_flags(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_status_flags() const;
+  void _internal_set_status_flags(::uint64_t value);
+
+  public:
+  // uint64 baseline_tick = 15;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
+  // uint64 applied_tick = 16;
+  void clear_applied_tick() ;
+  ::uint64_t applied_tick() const;
+  void set_applied_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_applied_tick() const;
+  void _internal_set_applied_tick(::uint64_t value);
+
+  public:
+  // bool baseline = 14;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.EffectApplied)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr caster_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr abnormal_type_;
+    ::uint32_t target_incarnation_;
+    ::uint32_t caster_incarnation_;
+    ::uint64_t effect_id_;
+    ::uint32_t skill_id_;
+    ::uint32_t skill_level_;
+    ::uint64_t tick_;
+    ::uint64_t end_tick_;
+    int pool_;
+    ::uint32_t abnormal_level_;
+    ::uint64_t status_flags_;
+    ::uint64_t baseline_tick_;
+    ::uint64_t applied_tick_;
+    bool baseline_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class EffectRemoved final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.EffectRemoved) */ {
+ public:
+  inline EffectRemoved() : EffectRemoved(nullptr) {}
+  ~EffectRemoved() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR EffectRemoved(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  EffectRemoved(const EffectRemoved& from);
+  EffectRemoved(EffectRemoved&& from) noexcept
+    : EffectRemoved() {
+    *this = ::std::move(from);
+  }
+
+  inline EffectRemoved& operator=(const EffectRemoved& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline EffectRemoved& operator=(EffectRemoved&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const EffectRemoved& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const EffectRemoved* internal_default_instance() {
+    return reinterpret_cast<const EffectRemoved*>(
+               &_EffectRemoved_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    33;
+
+  friend void swap(EffectRemoved& a, EffectRemoved& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(EffectRemoved* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(EffectRemoved* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  EffectRemoved* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<EffectRemoved>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const EffectRemoved& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const EffectRemoved& from) {
+    EffectRemoved::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(EffectRemoved* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.EffectRemoved";
+  }
+  protected:
+  explicit EffectRemoved(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kTargetFieldNumber = 1,
+    kEffectIdFieldNumber = 3,
+    kTargetIncarnationFieldNumber = 2,
+    kReasonFieldNumber = 4,
+    kTickFieldNumber = 5,
+  };
+  // string target = 1;
+  void clear_target() ;
+  const std::string& target() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  std::string* mutable_target();
+  PROTOBUF_NODISCARD std::string* release_target();
+  void set_allocated_target(std::string* ptr);
+
+  private:
+  const std::string& _internal_target() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_target(
+      const std::string& value);
+  std::string* _internal_mutable_target();
+
+  public:
+  // uint64 effect_id = 3;
+  void clear_effect_id() ;
+  ::uint64_t effect_id() const;
+  void set_effect_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_effect_id() const;
+  void _internal_set_effect_id(::uint64_t value);
+
+  public:
+  // uint32 target_incarnation = 2;
+  void clear_target_incarnation() ;
+  ::uint32_t target_incarnation() const;
+  void set_target_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_incarnation() const;
+  void _internal_set_target_incarnation(::uint32_t value);
+
+  public:
+  // .nightfall.v1.EffectRemoveReason reason = 4;
+  void clear_reason() ;
+  ::nightfall::v1::EffectRemoveReason reason() const;
+  void set_reason(::nightfall::v1::EffectRemoveReason value);
+
+  private:
+  ::nightfall::v1::EffectRemoveReason _internal_reason() const;
+  void _internal_set_reason(::nightfall::v1::EffectRemoveReason value);
+
+  public:
+  // uint64 tick = 5;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.EffectRemoved)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
+    ::uint64_t effect_id_;
+    ::uint32_t target_incarnation_;
+    int reason_;
+    ::uint64_t tick_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SkillReuse final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SkillReuse) */ {
+ public:
+  inline SkillReuse() : SkillReuse(nullptr) {}
+  ~SkillReuse() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SkillReuse(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SkillReuse(const SkillReuse& from);
+  SkillReuse(SkillReuse&& from) noexcept
+    : SkillReuse() {
+    *this = ::std::move(from);
+  }
+
+  inline SkillReuse& operator=(const SkillReuse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SkillReuse& operator=(SkillReuse&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SkillReuse& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SkillReuse* internal_default_instance() {
+    return reinterpret_cast<const SkillReuse*>(
+               &_SkillReuse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    34;
+
+  friend void swap(SkillReuse& a, SkillReuse& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SkillReuse* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SkillReuse* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SkillReuse* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SkillReuse>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SkillReuse& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SkillReuse& from) {
+    SkillReuse::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SkillReuse* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SkillReuse";
+  }
+  protected:
+  explicit SkillReuse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kReadyTickFieldNumber = 3,
+    kSkillIdFieldNumber = 2,
+    kIncarnationFieldNumber = 5,
+    kTickFieldNumber = 4,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // uint64 ready_tick = 3;
+  void clear_ready_tick() ;
+  ::uint64_t ready_tick() const;
+  void set_ready_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_ready_tick() const;
+  void _internal_set_ready_tick(::uint64_t value);
+
+  public:
+  // uint32 skill_id = 2;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // uint32 incarnation = 5;
+  void clear_incarnation() ;
+  ::uint32_t incarnation() const;
+  void set_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_incarnation() const;
+  void _internal_set_incarnation(::uint32_t value);
+
+  public:
+  // uint64 tick = 4;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SkillReuse)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::uint64_t ready_tick_;
+    ::uint32_t skill_id_;
+    ::uint32_t incarnation_;
+    ::uint64_t tick_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SkillLearned final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SkillLearned) */ {
+ public:
+  inline SkillLearned() : SkillLearned(nullptr) {}
+  ~SkillLearned() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SkillLearned(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SkillLearned(const SkillLearned& from);
+  SkillLearned(SkillLearned&& from) noexcept
+    : SkillLearned() {
+    *this = ::std::move(from);
+  }
+
+  inline SkillLearned& operator=(const SkillLearned& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SkillLearned& operator=(SkillLearned&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SkillLearned& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SkillLearned* internal_default_instance() {
+    return reinterpret_cast<const SkillLearned*>(
+               &_SkillLearned_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    35;
+
+  friend void swap(SkillLearned& a, SkillLearned& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SkillLearned* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SkillLearned* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SkillLearned* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SkillLearned>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SkillLearned& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SkillLearned& from) {
+    SkillLearned::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SkillLearned* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SkillLearned";
+  }
+  protected:
+  explicit SkillLearned(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kIdempotencyKeyFieldNumber = 6,
+    kSkillIdFieldNumber = 2,
+    kSkillLevelFieldNumber = 3,
+    kSpCostFieldNumber = 4,
+    kSpRemainingFieldNumber = 5,
+    kTickFieldNumber = 7,
+    kIncarnationFieldNumber = 8,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // string idempotency_key = 6;
+  void clear_idempotency_key() ;
+  const std::string& idempotency_key() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_idempotency_key(Arg_&& arg, Args_... args);
+  std::string* mutable_idempotency_key();
+  PROTOBUF_NODISCARD std::string* release_idempotency_key();
+  void set_allocated_idempotency_key(std::string* ptr);
+
+  private:
+  const std::string& _internal_idempotency_key() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_idempotency_key(
+      const std::string& value);
+  std::string* _internal_mutable_idempotency_key();
+
+  public:
+  // uint32 skill_id = 2;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // uint32 skill_level = 3;
+  void clear_skill_level() ;
+  ::uint32_t skill_level() const;
+  void set_skill_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_level() const;
+  void _internal_set_skill_level(::uint32_t value);
+
+  public:
+  // uint64 sp_cost = 4;
+  void clear_sp_cost() ;
+  ::uint64_t sp_cost() const;
+  void set_sp_cost(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_sp_cost() const;
+  void _internal_set_sp_cost(::uint64_t value);
+
+  public:
+  // uint64 sp_remaining = 5;
+  void clear_sp_remaining() ;
+  ::uint64_t sp_remaining() const;
+  void set_sp_remaining(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_sp_remaining() const;
+  void _internal_set_sp_remaining(::uint64_t value);
+
+  public:
+  // uint64 tick = 7;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint32 incarnation = 8;
+  void clear_incarnation() ;
+  ::uint32_t incarnation() const;
+  void set_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_incarnation() const;
+  void _internal_set_incarnation(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SkillLearned)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr idempotency_key_;
+    ::uint32_t skill_id_;
+    ::uint32_t skill_level_;
+    ::uint64_t sp_cost_;
+    ::uint64_t sp_remaining_;
+    ::uint64_t tick_;
+    ::uint32_t incarnation_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class PvpStateChanged final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.PvpStateChanged) */ {
+ public:
+  inline PvpStateChanged() : PvpStateChanged(nullptr) {}
+  ~PvpStateChanged() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR PvpStateChanged(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  PvpStateChanged(const PvpStateChanged& from);
+  PvpStateChanged(PvpStateChanged&& from) noexcept
+    : PvpStateChanged() {
+    *this = ::std::move(from);
+  }
+
+  inline PvpStateChanged& operator=(const PvpStateChanged& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline PvpStateChanged& operator=(PvpStateChanged&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const PvpStateChanged& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const PvpStateChanged* internal_default_instance() {
+    return reinterpret_cast<const PvpStateChanged*>(
+               &_PvpStateChanged_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    36;
+
+  friend void swap(PvpStateChanged& a, PvpStateChanged& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(PvpStateChanged* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(PvpStateChanged* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  PvpStateChanged* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<PvpStateChanged>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const PvpStateChanged& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const PvpStateChanged& from) {
+    PvpStateChanged::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(PvpStateChanged* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.PvpStateChanged";
+  }
+  protected:
+  explicit PvpStateChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kFlagUntilTickFieldNumber = 2,
+    kKarmaFieldNumber = 3,
+    kPkCountFieldNumber = 4,
+    kTickFieldNumber = 6,
+    kPvpCountFieldNumber = 5,
+    kIncarnationFieldNumber = 7,
+    kBaselineTickFieldNumber = 9,
+    kBaselineFieldNumber = 8,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // uint64 flag_until_tick = 2;
+  void clear_flag_until_tick() ;
+  ::uint64_t flag_until_tick() const;
+  void set_flag_until_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_flag_until_tick() const;
+  void _internal_set_flag_until_tick(::uint64_t value);
+
+  public:
+  // uint32 karma = 3;
+  void clear_karma() ;
+  ::uint32_t karma() const;
+  void set_karma(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_karma() const;
+  void _internal_set_karma(::uint32_t value);
+
+  public:
+  // uint32 pk_count = 4;
+  void clear_pk_count() ;
+  ::uint32_t pk_count() const;
+  void set_pk_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_pk_count() const;
+  void _internal_set_pk_count(::uint32_t value);
+
+  public:
+  // uint64 tick = 6;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint32 pvp_count = 5;
+  void clear_pvp_count() ;
+  ::uint32_t pvp_count() const;
+  void set_pvp_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_pvp_count() const;
+  void _internal_set_pvp_count(::uint32_t value);
+
+  public:
+  // uint32 incarnation = 7;
+  void clear_incarnation() ;
+  ::uint32_t incarnation() const;
+  void set_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_incarnation() const;
+  void _internal_set_incarnation(::uint32_t value);
+
+  public:
+  // uint64 baseline_tick = 9;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
+  // bool baseline = 8;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.PvpStateChanged)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::uint64_t flag_until_tick_;
+    ::uint32_t karma_;
+    ::uint32_t pk_count_;
+    ::uint64_t tick_;
+    ::uint32_t pvp_count_;
+    ::uint32_t incarnation_;
+    ::uint64_t baseline_tick_;
+    bool baseline_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class ResurrectOffer final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.ResurrectOffer) */ {
+ public:
+  inline ResurrectOffer() : ResurrectOffer(nullptr) {}
+  ~ResurrectOffer() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR ResurrectOffer(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  ResurrectOffer(const ResurrectOffer& from);
+  ResurrectOffer(ResurrectOffer&& from) noexcept
+    : ResurrectOffer() {
+    *this = ::std::move(from);
+  }
+
+  inline ResurrectOffer& operator=(const ResurrectOffer& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline ResurrectOffer& operator=(ResurrectOffer&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const ResurrectOffer& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const ResurrectOffer* internal_default_instance() {
+    return reinterpret_cast<const ResurrectOffer*>(
+               &_ResurrectOffer_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    37;
+
+  friend void swap(ResurrectOffer& a, ResurrectOffer& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(ResurrectOffer* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(ResurrectOffer* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  ResurrectOffer* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<ResurrectOffer>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const ResurrectOffer& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const ResurrectOffer& from) {
+    ResurrectOffer::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(ResurrectOffer* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.ResurrectOffer";
+  }
+  protected:
+  explicit ResurrectOffer(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kTargetFieldNumber = 1,
+    kCasterFieldNumber = 4,
+    kOfferIdFieldNumber = 3,
+    kTargetIncarnationFieldNumber = 2,
+    kCasterIncarnationFieldNumber = 5,
+    kRestorePercentQFieldNumber = 6,
+    kRecoverableXpFieldNumber = 7,
+    kExpiryTickFieldNumber = 8,
+    kTickFieldNumber = 10,
+    kStateFieldNumber = 9,
+  };
+  // string target = 1;
+  void clear_target() ;
+  const std::string& target() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_target(Arg_&& arg, Args_... args);
+  std::string* mutable_target();
+  PROTOBUF_NODISCARD std::string* release_target();
+  void set_allocated_target(std::string* ptr);
+
+  private:
+  const std::string& _internal_target() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_target(
+      const std::string& value);
+  std::string* _internal_mutable_target();
+
+  public:
+  // optional string caster = 4;
+  bool has_caster() const;
+  void clear_caster() ;
+  const std::string& caster() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_caster(Arg_&& arg, Args_... args);
+  std::string* mutable_caster();
+  PROTOBUF_NODISCARD std::string* release_caster();
+  void set_allocated_caster(std::string* ptr);
+
+  private:
+  const std::string& _internal_caster() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_caster(
+      const std::string& value);
+  std::string* _internal_mutable_caster();
+
+  public:
+  // uint64 offer_id = 3;
+  void clear_offer_id() ;
+  ::uint64_t offer_id() const;
+  void set_offer_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_offer_id() const;
+  void _internal_set_offer_id(::uint64_t value);
+
+  public:
+  // uint32 target_incarnation = 2;
+  void clear_target_incarnation() ;
+  ::uint32_t target_incarnation() const;
+  void set_target_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_target_incarnation() const;
+  void _internal_set_target_incarnation(::uint32_t value);
+
+  public:
+  // optional uint32 caster_incarnation = 5;
+  bool has_caster_incarnation() const;
+  void clear_caster_incarnation() ;
+  ::uint32_t caster_incarnation() const;
+  void set_caster_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_caster_incarnation() const;
+  void _internal_set_caster_incarnation(::uint32_t value);
+
+  public:
+  // int64 restore_percent_q = 6;
+  void clear_restore_percent_q() ;
+  ::int64_t restore_percent_q() const;
+  void set_restore_percent_q(::int64_t value);
+
+  private:
+  ::int64_t _internal_restore_percent_q() const;
+  void _internal_set_restore_percent_q(::int64_t value);
+
+  public:
+  // uint64 recoverable_xp = 7;
+  void clear_recoverable_xp() ;
+  ::uint64_t recoverable_xp() const;
+  void set_recoverable_xp(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_recoverable_xp() const;
+  void _internal_set_recoverable_xp(::uint64_t value);
+
+  public:
+  // uint64 expiry_tick = 8;
+  void clear_expiry_tick() ;
+  ::uint64_t expiry_tick() const;
+  void set_expiry_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_expiry_tick() const;
+  void _internal_set_expiry_tick(::uint64_t value);
+
+  public:
+  // uint64 tick = 10;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // .nightfall.v1.ResurrectOfferState state = 9;
+  void clear_state() ;
+  ::nightfall::v1::ResurrectOfferState state() const;
+  void set_state(::nightfall::v1::ResurrectOfferState value);
+
+  private:
+  ::nightfall::v1::ResurrectOfferState _internal_state() const;
+  void _internal_set_state(::nightfall::v1::ResurrectOfferState value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.ResurrectOffer)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr target_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr caster_;
+    ::uint64_t offer_id_;
+    ::uint32_t target_incarnation_;
+    ::uint32_t caster_incarnation_;
+    ::int64_t restore_percent_q_;
+    ::uint64_t recoverable_xp_;
+    ::uint64_t expiry_tick_;
+    ::uint64_t tick_;
+    int state_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SpGained final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SpGained) */ {
+ public:
+  inline SpGained() : SpGained(nullptr) {}
+  ~SpGained() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SpGained(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SpGained(const SpGained& from);
+  SpGained(SpGained&& from) noexcept
+    : SpGained() {
+    *this = ::std::move(from);
+  }
+
+  inline SpGained& operator=(const SpGained& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SpGained& operator=(SpGained&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SpGained& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SpGained* internal_default_instance() {
+    return reinterpret_cast<const SpGained*>(
+               &_SpGained_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    38;
+
+  friend void swap(SpGained& a, SpGained& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SpGained* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SpGained* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SpGained* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SpGained>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SpGained& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SpGained& from) {
+    SpGained::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SpGained* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SpGained";
+  }
+  protected:
+  explicit SpGained(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kAmountFieldNumber = 2,
+    kTotalFieldNumber = 3,
+    kTickFieldNumber = 4,
+    kIncarnationFieldNumber = 5,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // uint64 amount = 2;
+  void clear_amount() ;
+  ::uint64_t amount() const;
+  void set_amount(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_amount() const;
+  void _internal_set_amount(::uint64_t value);
+
+  public:
+  // uint64 total = 3;
+  void clear_total() ;
+  ::uint64_t total() const;
+  void set_total(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_total() const;
+  void _internal_set_total(::uint64_t value);
+
+  public:
+  // uint64 tick = 4;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint32 incarnation = 5;
+  void clear_incarnation() ;
+  ::uint32_t incarnation() const;
+  void set_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_incarnation() const;
+  void _internal_set_incarnation(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SpGained)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::uint64_t amount_;
+    ::uint64_t total_;
+    ::uint64_t tick_;
+    ::uint32_t incarnation_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class LearnedSkillRank final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.LearnedSkillRank) */ {
+ public:
+  inline LearnedSkillRank() : LearnedSkillRank(nullptr) {}
+  ~LearnedSkillRank() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR LearnedSkillRank(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  LearnedSkillRank(const LearnedSkillRank& from);
+  LearnedSkillRank(LearnedSkillRank&& from) noexcept
+    : LearnedSkillRank() {
+    *this = ::std::move(from);
+  }
+
+  inline LearnedSkillRank& operator=(const LearnedSkillRank& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline LearnedSkillRank& operator=(LearnedSkillRank&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const LearnedSkillRank& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const LearnedSkillRank* internal_default_instance() {
+    return reinterpret_cast<const LearnedSkillRank*>(
+               &_LearnedSkillRank_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    39;
+
+  friend void swap(LearnedSkillRank& a, LearnedSkillRank& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(LearnedSkillRank* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(LearnedSkillRank* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  LearnedSkillRank* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<LearnedSkillRank>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const LearnedSkillRank& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const LearnedSkillRank& from) {
+    LearnedSkillRank::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(LearnedSkillRank* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.LearnedSkillRank";
+  }
+  protected:
+  explicit LearnedSkillRank(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kSkillIdFieldNumber = 1,
+    kSkillLevelFieldNumber = 2,
+  };
+  // uint32 skill_id = 1;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // uint32 skill_level = 2;
+  void clear_skill_level() ;
+  ::uint32_t skill_level() const;
+  void set_skill_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_level() const;
+  void _internal_set_skill_level(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.LearnedSkillRank)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::uint32_t skill_id_;
+    ::uint32_t skill_level_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SkillReuseState final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SkillReuseState) */ {
+ public:
+  inline SkillReuseState() : SkillReuseState(nullptr) {}
+  ~SkillReuseState() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SkillReuseState(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SkillReuseState(const SkillReuseState& from);
+  SkillReuseState(SkillReuseState&& from) noexcept
+    : SkillReuseState() {
+    *this = ::std::move(from);
+  }
+
+  inline SkillReuseState& operator=(const SkillReuseState& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SkillReuseState& operator=(SkillReuseState&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SkillReuseState& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SkillReuseState* internal_default_instance() {
+    return reinterpret_cast<const SkillReuseState*>(
+               &_SkillReuseState_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    40;
+
+  friend void swap(SkillReuseState& a, SkillReuseState& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SkillReuseState* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SkillReuseState* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SkillReuseState* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SkillReuseState>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SkillReuseState& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SkillReuseState& from) {
+    SkillReuseState::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SkillReuseState* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SkillReuseState";
+  }
+  protected:
+  explicit SkillReuseState(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kReadyTickFieldNumber = 2,
+    kSkillIdFieldNumber = 1,
+  };
+  // uint64 ready_tick = 2;
+  void clear_ready_tick() ;
+  ::uint64_t ready_tick() const;
+  void set_ready_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_ready_tick() const;
+  void _internal_set_ready_tick(::uint64_t value);
+
+  public:
+  // uint32 skill_id = 1;
+  void clear_skill_id() ;
+  ::uint32_t skill_id() const;
+  void set_skill_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_skill_id() const;
+  void _internal_set_skill_id(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SkillReuseState)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::uint64_t ready_tick_;
+    ::uint32_t skill_id_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class SkillStateSync final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.SkillStateSync) */ {
+ public:
+  inline SkillStateSync() : SkillStateSync(nullptr) {}
+  ~SkillStateSync() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR SkillStateSync(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SkillStateSync(const SkillStateSync& from);
+  SkillStateSync(SkillStateSync&& from) noexcept
+    : SkillStateSync() {
+    *this = ::std::move(from);
+  }
+
+  inline SkillStateSync& operator=(const SkillStateSync& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SkillStateSync& operator=(SkillStateSync&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SkillStateSync& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SkillStateSync* internal_default_instance() {
+    return reinterpret_cast<const SkillStateSync*>(
+               &_SkillStateSync_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    41;
+
+  friend void swap(SkillStateSync& a, SkillStateSync& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SkillStateSync* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SkillStateSync* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  SkillStateSync* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<SkillStateSync>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SkillStateSync& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const SkillStateSync& from) {
+    SkillStateSync::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SkillStateSync* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.SkillStateSync";
+  }
+  protected:
+  explicit SkillStateSync(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kLearnedFieldNumber = 2,
+    kReuseFieldNumber = 3,
+    kEntityFieldNumber = 1,
+    kSpFieldNumber = 4,
+    kKarmaFieldNumber = 5,
+    kPkCountFieldNumber = 6,
+    kFlagUntilTickFieldNumber = 8,
+    kPvpCountFieldNumber = 7,
+    kDeathPenaltyLevelFieldNumber = 9,
+    kTickFieldNumber = 10,
+    kIncarnationFieldNumber = 11,
+    kBaselineFieldNumber = 12,
+    kBaselineTickFieldNumber = 13,
+  };
+  // repeated .nightfall.v1.LearnedSkillRank learned = 2;
+  int learned_size() const;
+  private:
+  int _internal_learned_size() const;
+
+  public:
+  void clear_learned() ;
+  ::nightfall::v1::LearnedSkillRank* mutable_learned(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::LearnedSkillRank >*
+      mutable_learned();
+  private:
+  const ::nightfall::v1::LearnedSkillRank& _internal_learned(int index) const;
+  ::nightfall::v1::LearnedSkillRank* _internal_add_learned();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::LearnedSkillRank>& _internal_learned() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::LearnedSkillRank>* _internal_mutable_learned();
+  public:
+  const ::nightfall::v1::LearnedSkillRank& learned(int index) const;
+  ::nightfall::v1::LearnedSkillRank* add_learned();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::LearnedSkillRank >&
+      learned() const;
+  // repeated .nightfall.v1.SkillReuseState reuse = 3;
+  int reuse_size() const;
+  private:
+  int _internal_reuse_size() const;
+
+  public:
+  void clear_reuse() ;
+  ::nightfall::v1::SkillReuseState* mutable_reuse(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillReuseState >*
+      mutable_reuse();
+  private:
+  const ::nightfall::v1::SkillReuseState& _internal_reuse(int index) const;
+  ::nightfall::v1::SkillReuseState* _internal_add_reuse();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::SkillReuseState>& _internal_reuse() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::SkillReuseState>* _internal_mutable_reuse();
+  public:
+  const ::nightfall::v1::SkillReuseState& reuse(int index) const;
+  ::nightfall::v1::SkillReuseState* add_reuse();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillReuseState >&
+      reuse() const;
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // uint64 sp = 4;
+  void clear_sp() ;
+  ::uint64_t sp() const;
+  void set_sp(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_sp() const;
+  void _internal_set_sp(::uint64_t value);
+
+  public:
+  // uint32 karma = 5;
+  void clear_karma() ;
+  ::uint32_t karma() const;
+  void set_karma(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_karma() const;
+  void _internal_set_karma(::uint32_t value);
+
+  public:
+  // uint32 pk_count = 6;
+  void clear_pk_count() ;
+  ::uint32_t pk_count() const;
+  void set_pk_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_pk_count() const;
+  void _internal_set_pk_count(::uint32_t value);
+
+  public:
+  // uint64 flag_until_tick = 8;
+  void clear_flag_until_tick() ;
+  ::uint64_t flag_until_tick() const;
+  void set_flag_until_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_flag_until_tick() const;
+  void _internal_set_flag_until_tick(::uint64_t value);
+
+  public:
+  // uint32 pvp_count = 7;
+  void clear_pvp_count() ;
+  ::uint32_t pvp_count() const;
+  void set_pvp_count(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_pvp_count() const;
+  void _internal_set_pvp_count(::uint32_t value);
+
+  public:
+  // uint32 death_penalty_level = 9;
+  void clear_death_penalty_level() ;
+  ::uint32_t death_penalty_level() const;
+  void set_death_penalty_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_death_penalty_level() const;
+  void _internal_set_death_penalty_level(::uint32_t value);
+
+  public:
+  // uint64 tick = 10;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint32 incarnation = 11;
+  void clear_incarnation() ;
+  ::uint32_t incarnation() const;
+  void set_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_incarnation() const;
+  void _internal_set_incarnation(::uint32_t value);
+
+  public:
+  // bool baseline = 12;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // uint64 baseline_tick = 13;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.SkillStateSync)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::LearnedSkillRank > learned_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillReuseState > reuse_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::uint64_t sp_;
+    ::uint32_t karma_;
+    ::uint32_t pk_count_;
+    ::uint64_t flag_until_tick_;
+    ::uint32_t pvp_count_;
+    ::uint32_t death_penalty_level_;
+    ::uint64_t tick_;
+    ::uint32_t incarnation_;
+    bool baseline_;
+    ::uint64_t baseline_tick_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
+};// -------------------------------------------------------------------
+
+class VitalsChanged final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:nightfall.v1.VitalsChanged) */ {
+ public:
+  inline VitalsChanged() : VitalsChanged(nullptr) {}
+  ~VitalsChanged() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR VitalsChanged(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  VitalsChanged(const VitalsChanged& from);
+  VitalsChanged(VitalsChanged&& from) noexcept
+    : VitalsChanged() {
+    *this = ::std::move(from);
+  }
+
+  inline VitalsChanged& operator=(const VitalsChanged& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline VitalsChanged& operator=(VitalsChanged&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const VitalsChanged& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const VitalsChanged* internal_default_instance() {
+    return reinterpret_cast<const VitalsChanged*>(
+               &_VitalsChanged_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    42;
+
+  friend void swap(VitalsChanged& a, VitalsChanged& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(VitalsChanged* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(VitalsChanged* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  VitalsChanged* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<VitalsChanged>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const VitalsChanged& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const VitalsChanged& from) {
+    VitalsChanged::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(VitalsChanged* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "nightfall.v1.VitalsChanged";
+  }
+  protected:
+  explicit VitalsChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kEntityFieldNumber = 1,
+    kHpFieldNumber = 2,
+    kMaxHpFieldNumber = 3,
+    kTickFieldNumber = 4,
+    kIncarnationFieldNumber = 5,
+    kBaselineFieldNumber = 6,
+    kBaselineTickFieldNumber = 7,
+  };
+  // string entity = 1;
+  void clear_entity() ;
+  const std::string& entity() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_entity(Arg_&& arg, Args_... args);
+  std::string* mutable_entity();
+  PROTOBUF_NODISCARD std::string* release_entity();
+  void set_allocated_entity(std::string* ptr);
+
+  private:
+  const std::string& _internal_entity() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_entity(
+      const std::string& value);
+  std::string* _internal_mutable_entity();
+
+  public:
+  // uint32 hp = 2;
+  void clear_hp() ;
+  ::uint32_t hp() const;
+  void set_hp(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_hp() const;
+  void _internal_set_hp(::uint32_t value);
+
+  public:
+  // uint32 max_hp = 3;
+  void clear_max_hp() ;
+  ::uint32_t max_hp() const;
+  void set_max_hp(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_max_hp() const;
+  void _internal_set_max_hp(::uint32_t value);
+
+  public:
+  // uint64 tick = 4;
+  void clear_tick() ;
+  ::uint64_t tick() const;
+  void set_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_tick() const;
+  void _internal_set_tick(::uint64_t value);
+
+  public:
+  // uint32 incarnation = 5;
+  void clear_incarnation() ;
+  ::uint32_t incarnation() const;
+  void set_incarnation(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_incarnation() const;
+  void _internal_set_incarnation(::uint32_t value);
+
+  public:
+  // bool baseline = 6;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // uint64 baseline_tick = 7;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:nightfall.v1.VitalsChanged)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
+    ::uint32_t hp_;
+    ::uint32_t max_hp_;
+    ::uint64_t tick_;
+    ::uint32_t incarnation_;
+    bool baseline_;
+    ::uint64_t baseline_tick_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -5997,6 +11525,228 @@ inline ::nightfall::v1::RespawnRequest* ClientMessage::mutable_respawn() {
   return _msg;
 }
 
+// .nightfall.v1.CastSkillRequest cast_skill = 16;
+inline bool ClientMessage::has_cast_skill() const {
+  return intent_case() == kCastSkill;
+}
+inline bool ClientMessage::_internal_has_cast_skill() const {
+  return intent_case() == kCastSkill;
+}
+inline void ClientMessage::set_has_cast_skill() {
+  _impl_._oneof_case_[0] = kCastSkill;
+}
+inline void ClientMessage::clear_cast_skill() {
+  if (intent_case() == kCastSkill) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.cast_skill_;
+    }
+    clear_has_intent();
+  }
+}
+inline ::nightfall::v1::CastSkillRequest* ClientMessage::release_cast_skill() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.cast_skill)
+  if (intent_case() == kCastSkill) {
+    clear_has_intent();
+    ::nightfall::v1::CastSkillRequest* temp = _impl_.intent_.cast_skill_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.cast_skill_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::CastSkillRequest& ClientMessage::_internal_cast_skill() const {
+  return intent_case() == kCastSkill
+      ? *_impl_.intent_.cast_skill_
+      : reinterpret_cast<::nightfall::v1::CastSkillRequest&>(::nightfall::v1::_CastSkillRequest_default_instance_);
+}
+inline const ::nightfall::v1::CastSkillRequest& ClientMessage::cast_skill() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.cast_skill)
+  return _internal_cast_skill();
+}
+inline ::nightfall::v1::CastSkillRequest* ClientMessage::unsafe_arena_release_cast_skill() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.cast_skill)
+  if (intent_case() == kCastSkill) {
+    clear_has_intent();
+    ::nightfall::v1::CastSkillRequest* temp = _impl_.intent_.cast_skill_;
+    _impl_.intent_.cast_skill_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_cast_skill(::nightfall::v1::CastSkillRequest* cast_skill) {
+  clear_intent();
+  if (cast_skill) {
+    set_has_cast_skill();
+    _impl_.intent_.cast_skill_ = cast_skill;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.cast_skill)
+}
+inline ::nightfall::v1::CastSkillRequest* ClientMessage::_internal_mutable_cast_skill() {
+  if (intent_case() != kCastSkill) {
+    clear_intent();
+    set_has_cast_skill();
+    _impl_.intent_.cast_skill_ = CreateMaybeMessage< ::nightfall::v1::CastSkillRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.cast_skill_;
+}
+inline ::nightfall::v1::CastSkillRequest* ClientMessage::mutable_cast_skill() {
+  ::nightfall::v1::CastSkillRequest* _msg = _internal_mutable_cast_skill();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.cast_skill)
+  return _msg;
+}
+
+// .nightfall.v1.CancelCastRequest cancel_cast = 17;
+inline bool ClientMessage::has_cancel_cast() const {
+  return intent_case() == kCancelCast;
+}
+inline bool ClientMessage::_internal_has_cancel_cast() const {
+  return intent_case() == kCancelCast;
+}
+inline void ClientMessage::set_has_cancel_cast() {
+  _impl_._oneof_case_[0] = kCancelCast;
+}
+inline void ClientMessage::clear_cancel_cast() {
+  if (intent_case() == kCancelCast) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.cancel_cast_;
+    }
+    clear_has_intent();
+  }
+}
+inline ::nightfall::v1::CancelCastRequest* ClientMessage::release_cancel_cast() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.cancel_cast)
+  if (intent_case() == kCancelCast) {
+    clear_has_intent();
+    ::nightfall::v1::CancelCastRequest* temp = _impl_.intent_.cancel_cast_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.cancel_cast_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::CancelCastRequest& ClientMessage::_internal_cancel_cast() const {
+  return intent_case() == kCancelCast
+      ? *_impl_.intent_.cancel_cast_
+      : reinterpret_cast<::nightfall::v1::CancelCastRequest&>(::nightfall::v1::_CancelCastRequest_default_instance_);
+}
+inline const ::nightfall::v1::CancelCastRequest& ClientMessage::cancel_cast() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.cancel_cast)
+  return _internal_cancel_cast();
+}
+inline ::nightfall::v1::CancelCastRequest* ClientMessage::unsafe_arena_release_cancel_cast() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.cancel_cast)
+  if (intent_case() == kCancelCast) {
+    clear_has_intent();
+    ::nightfall::v1::CancelCastRequest* temp = _impl_.intent_.cancel_cast_;
+    _impl_.intent_.cancel_cast_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_cancel_cast(::nightfall::v1::CancelCastRequest* cancel_cast) {
+  clear_intent();
+  if (cancel_cast) {
+    set_has_cancel_cast();
+    _impl_.intent_.cancel_cast_ = cancel_cast;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.cancel_cast)
+}
+inline ::nightfall::v1::CancelCastRequest* ClientMessage::_internal_mutable_cancel_cast() {
+  if (intent_case() != kCancelCast) {
+    clear_intent();
+    set_has_cancel_cast();
+    _impl_.intent_.cancel_cast_ = CreateMaybeMessage< ::nightfall::v1::CancelCastRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.cancel_cast_;
+}
+inline ::nightfall::v1::CancelCastRequest* ClientMessage::mutable_cancel_cast() {
+  ::nightfall::v1::CancelCastRequest* _msg = _internal_mutable_cancel_cast();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.cancel_cast)
+  return _msg;
+}
+
+// .nightfall.v1.AcceptResurrectRequest accept_resurrect = 18;
+inline bool ClientMessage::has_accept_resurrect() const {
+  return intent_case() == kAcceptResurrect;
+}
+inline bool ClientMessage::_internal_has_accept_resurrect() const {
+  return intent_case() == kAcceptResurrect;
+}
+inline void ClientMessage::set_has_accept_resurrect() {
+  _impl_._oneof_case_[0] = kAcceptResurrect;
+}
+inline void ClientMessage::clear_accept_resurrect() {
+  if (intent_case() == kAcceptResurrect) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.accept_resurrect_;
+    }
+    clear_has_intent();
+  }
+}
+inline ::nightfall::v1::AcceptResurrectRequest* ClientMessage::release_accept_resurrect() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.accept_resurrect)
+  if (intent_case() == kAcceptResurrect) {
+    clear_has_intent();
+    ::nightfall::v1::AcceptResurrectRequest* temp = _impl_.intent_.accept_resurrect_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.accept_resurrect_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::AcceptResurrectRequest& ClientMessage::_internal_accept_resurrect() const {
+  return intent_case() == kAcceptResurrect
+      ? *_impl_.intent_.accept_resurrect_
+      : reinterpret_cast<::nightfall::v1::AcceptResurrectRequest&>(::nightfall::v1::_AcceptResurrectRequest_default_instance_);
+}
+inline const ::nightfall::v1::AcceptResurrectRequest& ClientMessage::accept_resurrect() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.accept_resurrect)
+  return _internal_accept_resurrect();
+}
+inline ::nightfall::v1::AcceptResurrectRequest* ClientMessage::unsafe_arena_release_accept_resurrect() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.accept_resurrect)
+  if (intent_case() == kAcceptResurrect) {
+    clear_has_intent();
+    ::nightfall::v1::AcceptResurrectRequest* temp = _impl_.intent_.accept_resurrect_;
+    _impl_.intent_.accept_resurrect_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_accept_resurrect(::nightfall::v1::AcceptResurrectRequest* accept_resurrect) {
+  clear_intent();
+  if (accept_resurrect) {
+    set_has_accept_resurrect();
+    _impl_.intent_.accept_resurrect_ = accept_resurrect;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.accept_resurrect)
+}
+inline ::nightfall::v1::AcceptResurrectRequest* ClientMessage::_internal_mutable_accept_resurrect() {
+  if (intent_case() != kAcceptResurrect) {
+    clear_intent();
+    set_has_accept_resurrect();
+    _impl_.intent_.accept_resurrect_ = CreateMaybeMessage< ::nightfall::v1::AcceptResurrectRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.accept_resurrect_;
+}
+inline ::nightfall::v1::AcceptResurrectRequest* ClientMessage::mutable_accept_resurrect() {
+  ::nightfall::v1::AcceptResurrectRequest* _msg = _internal_mutable_accept_resurrect();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.accept_resurrect)
+  return _msg;
+}
+
 inline bool ClientMessage::has_intent() const {
   return intent_case() != INTENT_NOT_SET;
 }
@@ -6160,6 +11910,168 @@ inline void SetTargetRequest::set_allocated_entity_id(std::string* value) {
 // -------------------------------------------------------------------
 
 // RespawnRequest
+
+// -------------------------------------------------------------------
+
+// CastSkillRequest
+
+// uint32 skill_id = 1;
+inline void CastSkillRequest::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t CastSkillRequest::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.CastSkillRequest.skill_id)
+  return _internal_skill_id();
+}
+inline void CastSkillRequest::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.CastSkillRequest.skill_id)
+}
+inline ::uint32_t CastSkillRequest::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void CastSkillRequest::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// optional string target = 2;
+inline bool CastSkillRequest::has_target() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void CastSkillRequest::clear_target() {
+  _impl_.target_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const std::string& CastSkillRequest::target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.CastSkillRequest.target)
+  return _internal_target();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void CastSkillRequest::set_target(Arg_&& arg,
+                                                     Args_... args) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.CastSkillRequest.target)
+}
+inline std::string* CastSkillRequest::mutable_target() {
+  std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.CastSkillRequest.target)
+  return _s;
+}
+inline const std::string& CastSkillRequest::_internal_target() const {
+  return _impl_.target_.Get();
+}
+inline void CastSkillRequest::_internal_set_target(const std::string& value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+
+
+  _impl_.target_.Set(value, GetArenaForAllocation());
+}
+inline std::string* CastSkillRequest::_internal_mutable_target() {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.target_.Mutable( GetArenaForAllocation());
+}
+inline std::string* CastSkillRequest::release_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.CastSkillRequest.target)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.target_.Release();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  return released;
+}
+inline void CastSkillRequest::set_allocated_target(std::string* value) {
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.target_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.target_.IsDefault()) {
+          _impl_.target_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.CastSkillRequest.target)
+}
+
+// -------------------------------------------------------------------
+
+// CancelCastRequest
+
+// optional uint64 cast_id = 1;
+inline bool CancelCastRequest::has_cast_id() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void CancelCastRequest::clear_cast_id() {
+  _impl_.cast_id_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline ::uint64_t CancelCastRequest::cast_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.CancelCastRequest.cast_id)
+  return _internal_cast_id();
+}
+inline void CancelCastRequest::set_cast_id(::uint64_t value) {
+  _internal_set_cast_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.CancelCastRequest.cast_id)
+}
+inline ::uint64_t CancelCastRequest::_internal_cast_id() const {
+  return _impl_.cast_id_;
+}
+inline void CancelCastRequest::_internal_set_cast_id(::uint64_t value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.cast_id_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// AcceptResurrectRequest
+
+// uint64 offer_id = 1;
+inline void AcceptResurrectRequest::clear_offer_id() {
+  _impl_.offer_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t AcceptResurrectRequest::offer_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AcceptResurrectRequest.offer_id)
+  return _internal_offer_id();
+}
+inline void AcceptResurrectRequest::set_offer_id(::uint64_t value) {
+  _internal_set_offer_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AcceptResurrectRequest.offer_id)
+}
+inline ::uint64_t AcceptResurrectRequest::_internal_offer_id() const {
+  return _impl_.offer_id_;
+}
+inline void AcceptResurrectRequest::_internal_set_offer_id(::uint64_t value) {
+  ;
+  _impl_.offer_id_ = value;
+}
+
+// bool accept = 2;
+inline void AcceptResurrectRequest::clear_accept() {
+  _impl_.accept_ = false;
+}
+inline bool AcceptResurrectRequest::accept() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AcceptResurrectRequest.accept)
+  return _internal_accept();
+}
+inline void AcceptResurrectRequest::set_accept(bool value) {
+  _internal_set_accept(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AcceptResurrectRequest.accept)
+}
+inline bool AcceptResurrectRequest::_internal_accept() const {
+  return _impl_.accept_;
+}
+inline void AcceptResurrectRequest::_internal_set_accept(bool value) {
+  ;
+  _impl_.accept_ = value;
+}
 
 // -------------------------------------------------------------------
 
@@ -7497,6 +13409,894 @@ inline ::nightfall::v1::ClassChanged* WorldEvent::mutable_class_changed() {
   return _msg;
 }
 
+// .nightfall.v1.SkillCastStarted skill_cast_started = 14;
+inline bool WorldEvent::has_skill_cast_started() const {
+  return event_case() == kSkillCastStarted;
+}
+inline bool WorldEvent::_internal_has_skill_cast_started() const {
+  return event_case() == kSkillCastStarted;
+}
+inline void WorldEvent::set_has_skill_cast_started() {
+  _impl_._oneof_case_[0] = kSkillCastStarted;
+}
+inline void WorldEvent::clear_skill_cast_started() {
+  if (event_case() == kSkillCastStarted) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.skill_cast_started_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::SkillCastStarted* WorldEvent::release_skill_cast_started() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.skill_cast_started)
+  if (event_case() == kSkillCastStarted) {
+    clear_has_event();
+    ::nightfall::v1::SkillCastStarted* temp = _impl_.event_.skill_cast_started_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.skill_cast_started_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SkillCastStarted& WorldEvent::_internal_skill_cast_started() const {
+  return event_case() == kSkillCastStarted
+      ? *_impl_.event_.skill_cast_started_
+      : reinterpret_cast<::nightfall::v1::SkillCastStarted&>(::nightfall::v1::_SkillCastStarted_default_instance_);
+}
+inline const ::nightfall::v1::SkillCastStarted& WorldEvent::skill_cast_started() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.skill_cast_started)
+  return _internal_skill_cast_started();
+}
+inline ::nightfall::v1::SkillCastStarted* WorldEvent::unsafe_arena_release_skill_cast_started() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.skill_cast_started)
+  if (event_case() == kSkillCastStarted) {
+    clear_has_event();
+    ::nightfall::v1::SkillCastStarted* temp = _impl_.event_.skill_cast_started_;
+    _impl_.event_.skill_cast_started_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_skill_cast_started(::nightfall::v1::SkillCastStarted* skill_cast_started) {
+  clear_event();
+  if (skill_cast_started) {
+    set_has_skill_cast_started();
+    _impl_.event_.skill_cast_started_ = skill_cast_started;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.skill_cast_started)
+}
+inline ::nightfall::v1::SkillCastStarted* WorldEvent::_internal_mutable_skill_cast_started() {
+  if (event_case() != kSkillCastStarted) {
+    clear_event();
+    set_has_skill_cast_started();
+    _impl_.event_.skill_cast_started_ = CreateMaybeMessage< ::nightfall::v1::SkillCastStarted >(GetArenaForAllocation());
+  }
+  return _impl_.event_.skill_cast_started_;
+}
+inline ::nightfall::v1::SkillCastStarted* WorldEvent::mutable_skill_cast_started() {
+  ::nightfall::v1::SkillCastStarted* _msg = _internal_mutable_skill_cast_started();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.skill_cast_started)
+  return _msg;
+}
+
+// .nightfall.v1.SkillCastResult skill_cast_result = 15;
+inline bool WorldEvent::has_skill_cast_result() const {
+  return event_case() == kSkillCastResult;
+}
+inline bool WorldEvent::_internal_has_skill_cast_result() const {
+  return event_case() == kSkillCastResult;
+}
+inline void WorldEvent::set_has_skill_cast_result() {
+  _impl_._oneof_case_[0] = kSkillCastResult;
+}
+inline void WorldEvent::clear_skill_cast_result() {
+  if (event_case() == kSkillCastResult) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.skill_cast_result_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::SkillCastResult* WorldEvent::release_skill_cast_result() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.skill_cast_result)
+  if (event_case() == kSkillCastResult) {
+    clear_has_event();
+    ::nightfall::v1::SkillCastResult* temp = _impl_.event_.skill_cast_result_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.skill_cast_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SkillCastResult& WorldEvent::_internal_skill_cast_result() const {
+  return event_case() == kSkillCastResult
+      ? *_impl_.event_.skill_cast_result_
+      : reinterpret_cast<::nightfall::v1::SkillCastResult&>(::nightfall::v1::_SkillCastResult_default_instance_);
+}
+inline const ::nightfall::v1::SkillCastResult& WorldEvent::skill_cast_result() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.skill_cast_result)
+  return _internal_skill_cast_result();
+}
+inline ::nightfall::v1::SkillCastResult* WorldEvent::unsafe_arena_release_skill_cast_result() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.skill_cast_result)
+  if (event_case() == kSkillCastResult) {
+    clear_has_event();
+    ::nightfall::v1::SkillCastResult* temp = _impl_.event_.skill_cast_result_;
+    _impl_.event_.skill_cast_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_skill_cast_result(::nightfall::v1::SkillCastResult* skill_cast_result) {
+  clear_event();
+  if (skill_cast_result) {
+    set_has_skill_cast_result();
+    _impl_.event_.skill_cast_result_ = skill_cast_result;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.skill_cast_result)
+}
+inline ::nightfall::v1::SkillCastResult* WorldEvent::_internal_mutable_skill_cast_result() {
+  if (event_case() != kSkillCastResult) {
+    clear_event();
+    set_has_skill_cast_result();
+    _impl_.event_.skill_cast_result_ = CreateMaybeMessage< ::nightfall::v1::SkillCastResult >(GetArenaForAllocation());
+  }
+  return _impl_.event_.skill_cast_result_;
+}
+inline ::nightfall::v1::SkillCastResult* WorldEvent::mutable_skill_cast_result() {
+  ::nightfall::v1::SkillCastResult* _msg = _internal_mutable_skill_cast_result();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.skill_cast_result)
+  return _msg;
+}
+
+// .nightfall.v1.SkillCastCancelled skill_cast_cancelled = 16;
+inline bool WorldEvent::has_skill_cast_cancelled() const {
+  return event_case() == kSkillCastCancelled;
+}
+inline bool WorldEvent::_internal_has_skill_cast_cancelled() const {
+  return event_case() == kSkillCastCancelled;
+}
+inline void WorldEvent::set_has_skill_cast_cancelled() {
+  _impl_._oneof_case_[0] = kSkillCastCancelled;
+}
+inline void WorldEvent::clear_skill_cast_cancelled() {
+  if (event_case() == kSkillCastCancelled) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.skill_cast_cancelled_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::SkillCastCancelled* WorldEvent::release_skill_cast_cancelled() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.skill_cast_cancelled)
+  if (event_case() == kSkillCastCancelled) {
+    clear_has_event();
+    ::nightfall::v1::SkillCastCancelled* temp = _impl_.event_.skill_cast_cancelled_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.skill_cast_cancelled_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SkillCastCancelled& WorldEvent::_internal_skill_cast_cancelled() const {
+  return event_case() == kSkillCastCancelled
+      ? *_impl_.event_.skill_cast_cancelled_
+      : reinterpret_cast<::nightfall::v1::SkillCastCancelled&>(::nightfall::v1::_SkillCastCancelled_default_instance_);
+}
+inline const ::nightfall::v1::SkillCastCancelled& WorldEvent::skill_cast_cancelled() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.skill_cast_cancelled)
+  return _internal_skill_cast_cancelled();
+}
+inline ::nightfall::v1::SkillCastCancelled* WorldEvent::unsafe_arena_release_skill_cast_cancelled() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.skill_cast_cancelled)
+  if (event_case() == kSkillCastCancelled) {
+    clear_has_event();
+    ::nightfall::v1::SkillCastCancelled* temp = _impl_.event_.skill_cast_cancelled_;
+    _impl_.event_.skill_cast_cancelled_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_skill_cast_cancelled(::nightfall::v1::SkillCastCancelled* skill_cast_cancelled) {
+  clear_event();
+  if (skill_cast_cancelled) {
+    set_has_skill_cast_cancelled();
+    _impl_.event_.skill_cast_cancelled_ = skill_cast_cancelled;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.skill_cast_cancelled)
+}
+inline ::nightfall::v1::SkillCastCancelled* WorldEvent::_internal_mutable_skill_cast_cancelled() {
+  if (event_case() != kSkillCastCancelled) {
+    clear_event();
+    set_has_skill_cast_cancelled();
+    _impl_.event_.skill_cast_cancelled_ = CreateMaybeMessage< ::nightfall::v1::SkillCastCancelled >(GetArenaForAllocation());
+  }
+  return _impl_.event_.skill_cast_cancelled_;
+}
+inline ::nightfall::v1::SkillCastCancelled* WorldEvent::mutable_skill_cast_cancelled() {
+  ::nightfall::v1::SkillCastCancelled* _msg = _internal_mutable_skill_cast_cancelled();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.skill_cast_cancelled)
+  return _msg;
+}
+
+// .nightfall.v1.EffectApplied effect_applied = 17;
+inline bool WorldEvent::has_effect_applied() const {
+  return event_case() == kEffectApplied;
+}
+inline bool WorldEvent::_internal_has_effect_applied() const {
+  return event_case() == kEffectApplied;
+}
+inline void WorldEvent::set_has_effect_applied() {
+  _impl_._oneof_case_[0] = kEffectApplied;
+}
+inline void WorldEvent::clear_effect_applied() {
+  if (event_case() == kEffectApplied) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.effect_applied_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::EffectApplied* WorldEvent::release_effect_applied() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.effect_applied)
+  if (event_case() == kEffectApplied) {
+    clear_has_event();
+    ::nightfall::v1::EffectApplied* temp = _impl_.event_.effect_applied_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.effect_applied_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EffectApplied& WorldEvent::_internal_effect_applied() const {
+  return event_case() == kEffectApplied
+      ? *_impl_.event_.effect_applied_
+      : reinterpret_cast<::nightfall::v1::EffectApplied&>(::nightfall::v1::_EffectApplied_default_instance_);
+}
+inline const ::nightfall::v1::EffectApplied& WorldEvent::effect_applied() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.effect_applied)
+  return _internal_effect_applied();
+}
+inline ::nightfall::v1::EffectApplied* WorldEvent::unsafe_arena_release_effect_applied() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.effect_applied)
+  if (event_case() == kEffectApplied) {
+    clear_has_event();
+    ::nightfall::v1::EffectApplied* temp = _impl_.event_.effect_applied_;
+    _impl_.event_.effect_applied_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_effect_applied(::nightfall::v1::EffectApplied* effect_applied) {
+  clear_event();
+  if (effect_applied) {
+    set_has_effect_applied();
+    _impl_.event_.effect_applied_ = effect_applied;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.effect_applied)
+}
+inline ::nightfall::v1::EffectApplied* WorldEvent::_internal_mutable_effect_applied() {
+  if (event_case() != kEffectApplied) {
+    clear_event();
+    set_has_effect_applied();
+    _impl_.event_.effect_applied_ = CreateMaybeMessage< ::nightfall::v1::EffectApplied >(GetArenaForAllocation());
+  }
+  return _impl_.event_.effect_applied_;
+}
+inline ::nightfall::v1::EffectApplied* WorldEvent::mutable_effect_applied() {
+  ::nightfall::v1::EffectApplied* _msg = _internal_mutable_effect_applied();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.effect_applied)
+  return _msg;
+}
+
+// .nightfall.v1.EffectRemoved effect_removed = 18;
+inline bool WorldEvent::has_effect_removed() const {
+  return event_case() == kEffectRemoved;
+}
+inline bool WorldEvent::_internal_has_effect_removed() const {
+  return event_case() == kEffectRemoved;
+}
+inline void WorldEvent::set_has_effect_removed() {
+  _impl_._oneof_case_[0] = kEffectRemoved;
+}
+inline void WorldEvent::clear_effect_removed() {
+  if (event_case() == kEffectRemoved) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.effect_removed_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::EffectRemoved* WorldEvent::release_effect_removed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.effect_removed)
+  if (event_case() == kEffectRemoved) {
+    clear_has_event();
+    ::nightfall::v1::EffectRemoved* temp = _impl_.event_.effect_removed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.effect_removed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EffectRemoved& WorldEvent::_internal_effect_removed() const {
+  return event_case() == kEffectRemoved
+      ? *_impl_.event_.effect_removed_
+      : reinterpret_cast<::nightfall::v1::EffectRemoved&>(::nightfall::v1::_EffectRemoved_default_instance_);
+}
+inline const ::nightfall::v1::EffectRemoved& WorldEvent::effect_removed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.effect_removed)
+  return _internal_effect_removed();
+}
+inline ::nightfall::v1::EffectRemoved* WorldEvent::unsafe_arena_release_effect_removed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.effect_removed)
+  if (event_case() == kEffectRemoved) {
+    clear_has_event();
+    ::nightfall::v1::EffectRemoved* temp = _impl_.event_.effect_removed_;
+    _impl_.event_.effect_removed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_effect_removed(::nightfall::v1::EffectRemoved* effect_removed) {
+  clear_event();
+  if (effect_removed) {
+    set_has_effect_removed();
+    _impl_.event_.effect_removed_ = effect_removed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.effect_removed)
+}
+inline ::nightfall::v1::EffectRemoved* WorldEvent::_internal_mutable_effect_removed() {
+  if (event_case() != kEffectRemoved) {
+    clear_event();
+    set_has_effect_removed();
+    _impl_.event_.effect_removed_ = CreateMaybeMessage< ::nightfall::v1::EffectRemoved >(GetArenaForAllocation());
+  }
+  return _impl_.event_.effect_removed_;
+}
+inline ::nightfall::v1::EffectRemoved* WorldEvent::mutable_effect_removed() {
+  ::nightfall::v1::EffectRemoved* _msg = _internal_mutable_effect_removed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.effect_removed)
+  return _msg;
+}
+
+// .nightfall.v1.SkillReuse skill_reuse = 19;
+inline bool WorldEvent::has_skill_reuse() const {
+  return event_case() == kSkillReuse;
+}
+inline bool WorldEvent::_internal_has_skill_reuse() const {
+  return event_case() == kSkillReuse;
+}
+inline void WorldEvent::set_has_skill_reuse() {
+  _impl_._oneof_case_[0] = kSkillReuse;
+}
+inline void WorldEvent::clear_skill_reuse() {
+  if (event_case() == kSkillReuse) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.skill_reuse_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::SkillReuse* WorldEvent::release_skill_reuse() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.skill_reuse)
+  if (event_case() == kSkillReuse) {
+    clear_has_event();
+    ::nightfall::v1::SkillReuse* temp = _impl_.event_.skill_reuse_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.skill_reuse_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SkillReuse& WorldEvent::_internal_skill_reuse() const {
+  return event_case() == kSkillReuse
+      ? *_impl_.event_.skill_reuse_
+      : reinterpret_cast<::nightfall::v1::SkillReuse&>(::nightfall::v1::_SkillReuse_default_instance_);
+}
+inline const ::nightfall::v1::SkillReuse& WorldEvent::skill_reuse() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.skill_reuse)
+  return _internal_skill_reuse();
+}
+inline ::nightfall::v1::SkillReuse* WorldEvent::unsafe_arena_release_skill_reuse() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.skill_reuse)
+  if (event_case() == kSkillReuse) {
+    clear_has_event();
+    ::nightfall::v1::SkillReuse* temp = _impl_.event_.skill_reuse_;
+    _impl_.event_.skill_reuse_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_skill_reuse(::nightfall::v1::SkillReuse* skill_reuse) {
+  clear_event();
+  if (skill_reuse) {
+    set_has_skill_reuse();
+    _impl_.event_.skill_reuse_ = skill_reuse;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.skill_reuse)
+}
+inline ::nightfall::v1::SkillReuse* WorldEvent::_internal_mutable_skill_reuse() {
+  if (event_case() != kSkillReuse) {
+    clear_event();
+    set_has_skill_reuse();
+    _impl_.event_.skill_reuse_ = CreateMaybeMessage< ::nightfall::v1::SkillReuse >(GetArenaForAllocation());
+  }
+  return _impl_.event_.skill_reuse_;
+}
+inline ::nightfall::v1::SkillReuse* WorldEvent::mutable_skill_reuse() {
+  ::nightfall::v1::SkillReuse* _msg = _internal_mutable_skill_reuse();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.skill_reuse)
+  return _msg;
+}
+
+// .nightfall.v1.SkillLearned skill_learned = 20;
+inline bool WorldEvent::has_skill_learned() const {
+  return event_case() == kSkillLearned;
+}
+inline bool WorldEvent::_internal_has_skill_learned() const {
+  return event_case() == kSkillLearned;
+}
+inline void WorldEvent::set_has_skill_learned() {
+  _impl_._oneof_case_[0] = kSkillLearned;
+}
+inline void WorldEvent::clear_skill_learned() {
+  if (event_case() == kSkillLearned) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.skill_learned_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::SkillLearned* WorldEvent::release_skill_learned() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.skill_learned)
+  if (event_case() == kSkillLearned) {
+    clear_has_event();
+    ::nightfall::v1::SkillLearned* temp = _impl_.event_.skill_learned_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.skill_learned_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SkillLearned& WorldEvent::_internal_skill_learned() const {
+  return event_case() == kSkillLearned
+      ? *_impl_.event_.skill_learned_
+      : reinterpret_cast<::nightfall::v1::SkillLearned&>(::nightfall::v1::_SkillLearned_default_instance_);
+}
+inline const ::nightfall::v1::SkillLearned& WorldEvent::skill_learned() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.skill_learned)
+  return _internal_skill_learned();
+}
+inline ::nightfall::v1::SkillLearned* WorldEvent::unsafe_arena_release_skill_learned() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.skill_learned)
+  if (event_case() == kSkillLearned) {
+    clear_has_event();
+    ::nightfall::v1::SkillLearned* temp = _impl_.event_.skill_learned_;
+    _impl_.event_.skill_learned_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_skill_learned(::nightfall::v1::SkillLearned* skill_learned) {
+  clear_event();
+  if (skill_learned) {
+    set_has_skill_learned();
+    _impl_.event_.skill_learned_ = skill_learned;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.skill_learned)
+}
+inline ::nightfall::v1::SkillLearned* WorldEvent::_internal_mutable_skill_learned() {
+  if (event_case() != kSkillLearned) {
+    clear_event();
+    set_has_skill_learned();
+    _impl_.event_.skill_learned_ = CreateMaybeMessage< ::nightfall::v1::SkillLearned >(GetArenaForAllocation());
+  }
+  return _impl_.event_.skill_learned_;
+}
+inline ::nightfall::v1::SkillLearned* WorldEvent::mutable_skill_learned() {
+  ::nightfall::v1::SkillLearned* _msg = _internal_mutable_skill_learned();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.skill_learned)
+  return _msg;
+}
+
+// .nightfall.v1.PvpStateChanged pvp_state_changed = 21;
+inline bool WorldEvent::has_pvp_state_changed() const {
+  return event_case() == kPvpStateChanged;
+}
+inline bool WorldEvent::_internal_has_pvp_state_changed() const {
+  return event_case() == kPvpStateChanged;
+}
+inline void WorldEvent::set_has_pvp_state_changed() {
+  _impl_._oneof_case_[0] = kPvpStateChanged;
+}
+inline void WorldEvent::clear_pvp_state_changed() {
+  if (event_case() == kPvpStateChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.pvp_state_changed_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::PvpStateChanged* WorldEvent::release_pvp_state_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.pvp_state_changed)
+  if (event_case() == kPvpStateChanged) {
+    clear_has_event();
+    ::nightfall::v1::PvpStateChanged* temp = _impl_.event_.pvp_state_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.pvp_state_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PvpStateChanged& WorldEvent::_internal_pvp_state_changed() const {
+  return event_case() == kPvpStateChanged
+      ? *_impl_.event_.pvp_state_changed_
+      : reinterpret_cast<::nightfall::v1::PvpStateChanged&>(::nightfall::v1::_PvpStateChanged_default_instance_);
+}
+inline const ::nightfall::v1::PvpStateChanged& WorldEvent::pvp_state_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.pvp_state_changed)
+  return _internal_pvp_state_changed();
+}
+inline ::nightfall::v1::PvpStateChanged* WorldEvent::unsafe_arena_release_pvp_state_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.pvp_state_changed)
+  if (event_case() == kPvpStateChanged) {
+    clear_has_event();
+    ::nightfall::v1::PvpStateChanged* temp = _impl_.event_.pvp_state_changed_;
+    _impl_.event_.pvp_state_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_pvp_state_changed(::nightfall::v1::PvpStateChanged* pvp_state_changed) {
+  clear_event();
+  if (pvp_state_changed) {
+    set_has_pvp_state_changed();
+    _impl_.event_.pvp_state_changed_ = pvp_state_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.pvp_state_changed)
+}
+inline ::nightfall::v1::PvpStateChanged* WorldEvent::_internal_mutable_pvp_state_changed() {
+  if (event_case() != kPvpStateChanged) {
+    clear_event();
+    set_has_pvp_state_changed();
+    _impl_.event_.pvp_state_changed_ = CreateMaybeMessage< ::nightfall::v1::PvpStateChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.pvp_state_changed_;
+}
+inline ::nightfall::v1::PvpStateChanged* WorldEvent::mutable_pvp_state_changed() {
+  ::nightfall::v1::PvpStateChanged* _msg = _internal_mutable_pvp_state_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.pvp_state_changed)
+  return _msg;
+}
+
+// .nightfall.v1.ResurrectOffer resurrect_offer = 22;
+inline bool WorldEvent::has_resurrect_offer() const {
+  return event_case() == kResurrectOffer;
+}
+inline bool WorldEvent::_internal_has_resurrect_offer() const {
+  return event_case() == kResurrectOffer;
+}
+inline void WorldEvent::set_has_resurrect_offer() {
+  _impl_._oneof_case_[0] = kResurrectOffer;
+}
+inline void WorldEvent::clear_resurrect_offer() {
+  if (event_case() == kResurrectOffer) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.resurrect_offer_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::ResurrectOffer* WorldEvent::release_resurrect_offer() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.resurrect_offer)
+  if (event_case() == kResurrectOffer) {
+    clear_has_event();
+    ::nightfall::v1::ResurrectOffer* temp = _impl_.event_.resurrect_offer_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.resurrect_offer_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ResurrectOffer& WorldEvent::_internal_resurrect_offer() const {
+  return event_case() == kResurrectOffer
+      ? *_impl_.event_.resurrect_offer_
+      : reinterpret_cast<::nightfall::v1::ResurrectOffer&>(::nightfall::v1::_ResurrectOffer_default_instance_);
+}
+inline const ::nightfall::v1::ResurrectOffer& WorldEvent::resurrect_offer() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.resurrect_offer)
+  return _internal_resurrect_offer();
+}
+inline ::nightfall::v1::ResurrectOffer* WorldEvent::unsafe_arena_release_resurrect_offer() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.resurrect_offer)
+  if (event_case() == kResurrectOffer) {
+    clear_has_event();
+    ::nightfall::v1::ResurrectOffer* temp = _impl_.event_.resurrect_offer_;
+    _impl_.event_.resurrect_offer_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_resurrect_offer(::nightfall::v1::ResurrectOffer* resurrect_offer) {
+  clear_event();
+  if (resurrect_offer) {
+    set_has_resurrect_offer();
+    _impl_.event_.resurrect_offer_ = resurrect_offer;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.resurrect_offer)
+}
+inline ::nightfall::v1::ResurrectOffer* WorldEvent::_internal_mutable_resurrect_offer() {
+  if (event_case() != kResurrectOffer) {
+    clear_event();
+    set_has_resurrect_offer();
+    _impl_.event_.resurrect_offer_ = CreateMaybeMessage< ::nightfall::v1::ResurrectOffer >(GetArenaForAllocation());
+  }
+  return _impl_.event_.resurrect_offer_;
+}
+inline ::nightfall::v1::ResurrectOffer* WorldEvent::mutable_resurrect_offer() {
+  ::nightfall::v1::ResurrectOffer* _msg = _internal_mutable_resurrect_offer();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.resurrect_offer)
+  return _msg;
+}
+
+// .nightfall.v1.SpGained sp_gained = 23;
+inline bool WorldEvent::has_sp_gained() const {
+  return event_case() == kSpGained;
+}
+inline bool WorldEvent::_internal_has_sp_gained() const {
+  return event_case() == kSpGained;
+}
+inline void WorldEvent::set_has_sp_gained() {
+  _impl_._oneof_case_[0] = kSpGained;
+}
+inline void WorldEvent::clear_sp_gained() {
+  if (event_case() == kSpGained) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.sp_gained_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::SpGained* WorldEvent::release_sp_gained() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.sp_gained)
+  if (event_case() == kSpGained) {
+    clear_has_event();
+    ::nightfall::v1::SpGained* temp = _impl_.event_.sp_gained_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.sp_gained_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SpGained& WorldEvent::_internal_sp_gained() const {
+  return event_case() == kSpGained
+      ? *_impl_.event_.sp_gained_
+      : reinterpret_cast<::nightfall::v1::SpGained&>(::nightfall::v1::_SpGained_default_instance_);
+}
+inline const ::nightfall::v1::SpGained& WorldEvent::sp_gained() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.sp_gained)
+  return _internal_sp_gained();
+}
+inline ::nightfall::v1::SpGained* WorldEvent::unsafe_arena_release_sp_gained() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.sp_gained)
+  if (event_case() == kSpGained) {
+    clear_has_event();
+    ::nightfall::v1::SpGained* temp = _impl_.event_.sp_gained_;
+    _impl_.event_.sp_gained_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_sp_gained(::nightfall::v1::SpGained* sp_gained) {
+  clear_event();
+  if (sp_gained) {
+    set_has_sp_gained();
+    _impl_.event_.sp_gained_ = sp_gained;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.sp_gained)
+}
+inline ::nightfall::v1::SpGained* WorldEvent::_internal_mutable_sp_gained() {
+  if (event_case() != kSpGained) {
+    clear_event();
+    set_has_sp_gained();
+    _impl_.event_.sp_gained_ = CreateMaybeMessage< ::nightfall::v1::SpGained >(GetArenaForAllocation());
+  }
+  return _impl_.event_.sp_gained_;
+}
+inline ::nightfall::v1::SpGained* WorldEvent::mutable_sp_gained() {
+  ::nightfall::v1::SpGained* _msg = _internal_mutable_sp_gained();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.sp_gained)
+  return _msg;
+}
+
+// .nightfall.v1.SkillStateSync skill_state_sync = 24;
+inline bool WorldEvent::has_skill_state_sync() const {
+  return event_case() == kSkillStateSync;
+}
+inline bool WorldEvent::_internal_has_skill_state_sync() const {
+  return event_case() == kSkillStateSync;
+}
+inline void WorldEvent::set_has_skill_state_sync() {
+  _impl_._oneof_case_[0] = kSkillStateSync;
+}
+inline void WorldEvent::clear_skill_state_sync() {
+  if (event_case() == kSkillStateSync) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.skill_state_sync_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::SkillStateSync* WorldEvent::release_skill_state_sync() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.skill_state_sync)
+  if (event_case() == kSkillStateSync) {
+    clear_has_event();
+    ::nightfall::v1::SkillStateSync* temp = _impl_.event_.skill_state_sync_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.skill_state_sync_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SkillStateSync& WorldEvent::_internal_skill_state_sync() const {
+  return event_case() == kSkillStateSync
+      ? *_impl_.event_.skill_state_sync_
+      : reinterpret_cast<::nightfall::v1::SkillStateSync&>(::nightfall::v1::_SkillStateSync_default_instance_);
+}
+inline const ::nightfall::v1::SkillStateSync& WorldEvent::skill_state_sync() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.skill_state_sync)
+  return _internal_skill_state_sync();
+}
+inline ::nightfall::v1::SkillStateSync* WorldEvent::unsafe_arena_release_skill_state_sync() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.skill_state_sync)
+  if (event_case() == kSkillStateSync) {
+    clear_has_event();
+    ::nightfall::v1::SkillStateSync* temp = _impl_.event_.skill_state_sync_;
+    _impl_.event_.skill_state_sync_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_skill_state_sync(::nightfall::v1::SkillStateSync* skill_state_sync) {
+  clear_event();
+  if (skill_state_sync) {
+    set_has_skill_state_sync();
+    _impl_.event_.skill_state_sync_ = skill_state_sync;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.skill_state_sync)
+}
+inline ::nightfall::v1::SkillStateSync* WorldEvent::_internal_mutable_skill_state_sync() {
+  if (event_case() != kSkillStateSync) {
+    clear_event();
+    set_has_skill_state_sync();
+    _impl_.event_.skill_state_sync_ = CreateMaybeMessage< ::nightfall::v1::SkillStateSync >(GetArenaForAllocation());
+  }
+  return _impl_.event_.skill_state_sync_;
+}
+inline ::nightfall::v1::SkillStateSync* WorldEvent::mutable_skill_state_sync() {
+  ::nightfall::v1::SkillStateSync* _msg = _internal_mutable_skill_state_sync();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.skill_state_sync)
+  return _msg;
+}
+
+// .nightfall.v1.VitalsChanged vitals_changed = 25;
+inline bool WorldEvent::has_vitals_changed() const {
+  return event_case() == kVitalsChanged;
+}
+inline bool WorldEvent::_internal_has_vitals_changed() const {
+  return event_case() == kVitalsChanged;
+}
+inline void WorldEvent::set_has_vitals_changed() {
+  _impl_._oneof_case_[0] = kVitalsChanged;
+}
+inline void WorldEvent::clear_vitals_changed() {
+  if (event_case() == kVitalsChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.vitals_changed_;
+    }
+    clear_has_event();
+  }
+}
+inline ::nightfall::v1::VitalsChanged* WorldEvent::release_vitals_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.vitals_changed)
+  if (event_case() == kVitalsChanged) {
+    clear_has_event();
+    ::nightfall::v1::VitalsChanged* temp = _impl_.event_.vitals_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.vitals_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::VitalsChanged& WorldEvent::_internal_vitals_changed() const {
+  return event_case() == kVitalsChanged
+      ? *_impl_.event_.vitals_changed_
+      : reinterpret_cast<::nightfall::v1::VitalsChanged&>(::nightfall::v1::_VitalsChanged_default_instance_);
+}
+inline const ::nightfall::v1::VitalsChanged& WorldEvent::vitals_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.vitals_changed)
+  return _internal_vitals_changed();
+}
+inline ::nightfall::v1::VitalsChanged* WorldEvent::unsafe_arena_release_vitals_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.vitals_changed)
+  if (event_case() == kVitalsChanged) {
+    clear_has_event();
+    ::nightfall::v1::VitalsChanged* temp = _impl_.event_.vitals_changed_;
+    _impl_.event_.vitals_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_vitals_changed(::nightfall::v1::VitalsChanged* vitals_changed) {
+  clear_event();
+  if (vitals_changed) {
+    set_has_vitals_changed();
+    _impl_.event_.vitals_changed_ = vitals_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.vitals_changed)
+}
+inline ::nightfall::v1::VitalsChanged* WorldEvent::_internal_mutable_vitals_changed() {
+  if (event_case() != kVitalsChanged) {
+    clear_event();
+    set_has_vitals_changed();
+    _impl_.event_.vitals_changed_ = CreateMaybeMessage< ::nightfall::v1::VitalsChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.vitals_changed_;
+}
+inline ::nightfall::v1::VitalsChanged* WorldEvent::mutable_vitals_changed() {
+  ::nightfall::v1::VitalsChanged* _msg = _internal_mutable_vitals_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.vitals_changed)
+  return _msg;
+}
+
 inline bool WorldEvent::has_event() const {
   return event_case() != EVENT_NOT_SET;
 }
@@ -8142,6 +14942,241 @@ inline void EntitySpawn::_internal_set_state_tick(::uint64_t value) {
   _impl_.state_tick_ = value;
 }
 
+// uint64 flag_until_tick = 22;
+inline void EntitySpawn::clear_flag_until_tick() {
+  _impl_.flag_until_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t EntitySpawn::flag_until_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.flag_until_tick)
+  return _internal_flag_until_tick();
+}
+inline void EntitySpawn::set_flag_until_tick(::uint64_t value) {
+  _internal_set_flag_until_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntitySpawn.flag_until_tick)
+}
+inline ::uint64_t EntitySpawn::_internal_flag_until_tick() const {
+  return _impl_.flag_until_tick_;
+}
+inline void EntitySpawn::_internal_set_flag_until_tick(::uint64_t value) {
+  ;
+  _impl_.flag_until_tick_ = value;
+}
+
+// uint32 karma = 23;
+inline void EntitySpawn::clear_karma() {
+  _impl_.karma_ = 0u;
+}
+inline ::uint32_t EntitySpawn::karma() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.karma)
+  return _internal_karma();
+}
+inline void EntitySpawn::set_karma(::uint32_t value) {
+  _internal_set_karma(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntitySpawn.karma)
+}
+inline ::uint32_t EntitySpawn::_internal_karma() const {
+  return _impl_.karma_;
+}
+inline void EntitySpawn::_internal_set_karma(::uint32_t value) {
+  ;
+  _impl_.karma_ = value;
+}
+
+// repeated .nightfall.v1.ActiveEffect active_effects = 24;
+inline int EntitySpawn::_internal_active_effects_size() const {
+  return _impl_.active_effects_.size();
+}
+inline int EntitySpawn::active_effects_size() const {
+  return _internal_active_effects_size();
+}
+inline void EntitySpawn::clear_active_effects() {
+  _internal_mutable_active_effects()->Clear();
+}
+inline ::nightfall::v1::ActiveEffect* EntitySpawn::mutable_active_effects(int index) {
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EntitySpawn.active_effects)
+  return _internal_mutable_active_effects()->Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ActiveEffect >*
+EntitySpawn::mutable_active_effects() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.EntitySpawn.active_effects)
+  return _internal_mutable_active_effects();
+}
+inline const ::nightfall::v1::ActiveEffect& EntitySpawn::_internal_active_effects(int index) const {
+  return _internal_active_effects().Get(index);
+}
+inline const ::nightfall::v1::ActiveEffect& EntitySpawn::active_effects(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.active_effects)
+  return _internal_active_effects(index);
+}
+inline ::nightfall::v1::ActiveEffect* EntitySpawn::_internal_add_active_effects() {
+  return _internal_mutable_active_effects()->Add();
+}
+inline ::nightfall::v1::ActiveEffect* EntitySpawn::add_active_effects() {
+  ::nightfall::v1::ActiveEffect* _add = _internal_add_active_effects();
+  // @@protoc_insertion_point(field_add:nightfall.v1.EntitySpawn.active_effects)
+  return _add;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ActiveEffect >&
+EntitySpawn::active_effects() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.EntitySpawn.active_effects)
+  return _internal_active_effects();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::ActiveEffect>&
+EntitySpawn::_internal_active_effects() const {
+  return _impl_.active_effects_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::ActiveEffect>*
+EntitySpawn::_internal_mutable_active_effects() {
+  return &_impl_.active_effects_;
+}
+
+// .nightfall.v1.SkillCastStarted pending_cast = 25;
+inline bool EntitySpawn::has_pending_cast() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000004u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.pending_cast_ != nullptr);
+  return value;
+}
+inline void EntitySpawn::clear_pending_cast() {
+  if (_impl_.pending_cast_ != nullptr) _impl_.pending_cast_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline const ::nightfall::v1::SkillCastStarted& EntitySpawn::_internal_pending_cast() const {
+  const ::nightfall::v1::SkillCastStarted* p = _impl_.pending_cast_;
+  return p != nullptr ? *p : reinterpret_cast<const ::nightfall::v1::SkillCastStarted&>(
+      ::nightfall::v1::_SkillCastStarted_default_instance_);
+}
+inline const ::nightfall::v1::SkillCastStarted& EntitySpawn::pending_cast() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.pending_cast)
+  return _internal_pending_cast();
+}
+inline void EntitySpawn::unsafe_arena_set_allocated_pending_cast(
+    ::nightfall::v1::SkillCastStarted* pending_cast) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.pending_cast_);
+  }
+  _impl_.pending_cast_ = pending_cast;
+  if (pending_cast) {
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.EntitySpawn.pending_cast)
+}
+inline ::nightfall::v1::SkillCastStarted* EntitySpawn::release_pending_cast() {
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::nightfall::v1::SkillCastStarted* temp = _impl_.pending_cast_;
+  _impl_.pending_cast_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::nightfall::v1::SkillCastStarted* EntitySpawn::unsafe_arena_release_pending_cast() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EntitySpawn.pending_cast)
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::nightfall::v1::SkillCastStarted* temp = _impl_.pending_cast_;
+  _impl_.pending_cast_ = nullptr;
+  return temp;
+}
+inline ::nightfall::v1::SkillCastStarted* EntitySpawn::_internal_mutable_pending_cast() {
+  _impl_._has_bits_[0] |= 0x00000004u;
+  if (_impl_.pending_cast_ == nullptr) {
+    auto* p = CreateMaybeMessage<::nightfall::v1::SkillCastStarted>(GetArenaForAllocation());
+    _impl_.pending_cast_ = p;
+  }
+  return _impl_.pending_cast_;
+}
+inline ::nightfall::v1::SkillCastStarted* EntitySpawn::mutable_pending_cast() {
+  ::nightfall::v1::SkillCastStarted* _msg = _internal_mutable_pending_cast();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EntitySpawn.pending_cast)
+  return _msg;
+}
+inline void EntitySpawn::set_allocated_pending_cast(::nightfall::v1::SkillCastStarted* pending_cast) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete _impl_.pending_cast_;
+  }
+  if (pending_cast) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(pending_cast);
+    if (message_arena != submessage_arena) {
+      pending_cast = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, pending_cast, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  _impl_.pending_cast_ = pending_cast;
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EntitySpawn.pending_cast)
+}
+
+// uint32 pk_count = 26;
+inline void EntitySpawn::clear_pk_count() {
+  _impl_.pk_count_ = 0u;
+}
+inline ::uint32_t EntitySpawn::pk_count() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.pk_count)
+  return _internal_pk_count();
+}
+inline void EntitySpawn::set_pk_count(::uint32_t value) {
+  _internal_set_pk_count(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntitySpawn.pk_count)
+}
+inline ::uint32_t EntitySpawn::_internal_pk_count() const {
+  return _impl_.pk_count_;
+}
+inline void EntitySpawn::_internal_set_pk_count(::uint32_t value) {
+  ;
+  _impl_.pk_count_ = value;
+}
+
+// uint32 pvp_count = 27;
+inline void EntitySpawn::clear_pvp_count() {
+  _impl_.pvp_count_ = 0u;
+}
+inline ::uint32_t EntitySpawn::pvp_count() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.pvp_count)
+  return _internal_pvp_count();
+}
+inline void EntitySpawn::set_pvp_count(::uint32_t value) {
+  _internal_set_pvp_count(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntitySpawn.pvp_count)
+}
+inline ::uint32_t EntitySpawn::_internal_pvp_count() const {
+  return _impl_.pvp_count_;
+}
+inline void EntitySpawn::_internal_set_pvp_count(::uint32_t value) {
+  ;
+  _impl_.pvp_count_ = value;
+}
+
+// uint64 status_flags = 28;
+inline void EntitySpawn::clear_status_flags() {
+  _impl_.status_flags_ = ::uint64_t{0u};
+}
+inline ::uint64_t EntitySpawn::status_flags() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.status_flags)
+  return _internal_status_flags();
+}
+inline void EntitySpawn::set_status_flags(::uint64_t value) {
+  _internal_set_status_flags(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntitySpawn.status_flags)
+}
+inline ::uint64_t EntitySpawn::_internal_status_flags() const {
+  return _impl_.status_flags_;
+}
+inline void EntitySpawn::_internal_set_status_flags(::uint64_t value) {
+  ;
+  _impl_.status_flags_ = value;
+}
+
 // -------------------------------------------------------------------
 
 // EntityMove
@@ -8670,6 +15705,26 @@ inline void AttackResult::_internal_set_target_incarnation(::uint32_t value) {
   _impl_.target_incarnation_ = value;
 }
 
+// uint32 cp_damage = 8;
+inline void AttackResult::clear_cp_damage() {
+  _impl_.cp_damage_ = 0u;
+}
+inline ::uint32_t AttackResult::cp_damage() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackResult.cp_damage)
+  return _internal_cp_damage();
+}
+inline void AttackResult::set_cp_damage(::uint32_t value) {
+  _internal_set_cp_damage(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackResult.cp_damage)
+}
+inline ::uint32_t AttackResult::_internal_cp_damage() const {
+  return _impl_.cp_damage_;
+}
+inline void AttackResult::_internal_set_cp_damage(::uint32_t value) {
+  ;
+  _impl_.cp_damage_ = value;
+}
+
 // -------------------------------------------------------------------
 
 // EntityDied
@@ -8984,6 +16039,71 @@ inline ::uint32_t AttackStarted::_internal_target_incarnation() const {
 inline void AttackStarted::_internal_set_target_incarnation(::uint32_t value) {
   ;
   _impl_.target_incarnation_ = value;
+}
+
+// bool baseline = 7;
+inline void AttackStarted::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool AttackStarted::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackStarted.baseline)
+  return _internal_baseline();
+}
+inline void AttackStarted::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackStarted.baseline)
+}
+inline bool AttackStarted::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void AttackStarted::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 8;
+inline void AttackStarted::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t AttackStarted::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackStarted.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void AttackStarted::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackStarted.baseline_tick)
+}
+inline ::uint64_t AttackStarted::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void AttackStarted::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
+}
+
+// optional uint32 attacker_incarnation = 9;
+inline bool AttackStarted::has_attacker_incarnation() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void AttackStarted::clear_attacker_incarnation() {
+  _impl_.attacker_incarnation_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline ::uint32_t AttackStarted::attacker_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.AttackStarted.attacker_incarnation)
+  return _internal_attacker_incarnation();
+}
+inline void AttackStarted::set_attacker_incarnation(::uint32_t value) {
+  _internal_set_attacker_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.AttackStarted.attacker_incarnation)
+}
+inline ::uint32_t AttackStarted::_internal_attacker_incarnation() const {
+  return _impl_.attacker_incarnation_;
+}
+inline void AttackStarted::_internal_set_attacker_incarnation(::uint32_t value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.attacker_incarnation_ = value;
 }
 
 // -------------------------------------------------------------------
@@ -9630,6 +16750,250 @@ inline void StatsChanged::_internal_set_tick(::uint64_t value) {
   _impl_.tick_ = value;
 }
 
+// uint32 karma = 15;
+inline void StatsChanged::clear_karma() {
+  _impl_.karma_ = 0u;
+}
+inline ::uint32_t StatsChanged::karma() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.karma)
+  return _internal_karma();
+}
+inline void StatsChanged::set_karma(::uint32_t value) {
+  _internal_set_karma(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.karma)
+}
+inline ::uint32_t StatsChanged::_internal_karma() const {
+  return _impl_.karma_;
+}
+inline void StatsChanged::_internal_set_karma(::uint32_t value) {
+  ;
+  _impl_.karma_ = value;
+}
+
+// uint32 pk_count = 16;
+inline void StatsChanged::clear_pk_count() {
+  _impl_.pk_count_ = 0u;
+}
+inline ::uint32_t StatsChanged::pk_count() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.pk_count)
+  return _internal_pk_count();
+}
+inline void StatsChanged::set_pk_count(::uint32_t value) {
+  _internal_set_pk_count(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.pk_count)
+}
+inline ::uint32_t StatsChanged::_internal_pk_count() const {
+  return _impl_.pk_count_;
+}
+inline void StatsChanged::_internal_set_pk_count(::uint32_t value) {
+  ;
+  _impl_.pk_count_ = value;
+}
+
+// uint32 pvp_count = 17;
+inline void StatsChanged::clear_pvp_count() {
+  _impl_.pvp_count_ = 0u;
+}
+inline ::uint32_t StatsChanged::pvp_count() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.pvp_count)
+  return _internal_pvp_count();
+}
+inline void StatsChanged::set_pvp_count(::uint32_t value) {
+  _internal_set_pvp_count(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.pvp_count)
+}
+inline ::uint32_t StatsChanged::_internal_pvp_count() const {
+  return _impl_.pvp_count_;
+}
+inline void StatsChanged::_internal_set_pvp_count(::uint32_t value) {
+  ;
+  _impl_.pvp_count_ = value;
+}
+
+// uint64 flag_until_tick = 18;
+inline void StatsChanged::clear_flag_until_tick() {
+  _impl_.flag_until_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t StatsChanged::flag_until_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.flag_until_tick)
+  return _internal_flag_until_tick();
+}
+inline void StatsChanged::set_flag_until_tick(::uint64_t value) {
+  _internal_set_flag_until_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.flag_until_tick)
+}
+inline ::uint64_t StatsChanged::_internal_flag_until_tick() const {
+  return _impl_.flag_until_tick_;
+}
+inline void StatsChanged::_internal_set_flag_until_tick(::uint64_t value) {
+  ;
+  _impl_.flag_until_tick_ = value;
+}
+
+// uint32 death_penalty_level = 19;
+inline void StatsChanged::clear_death_penalty_level() {
+  _impl_.death_penalty_level_ = 0u;
+}
+inline ::uint32_t StatsChanged::death_penalty_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.death_penalty_level)
+  return _internal_death_penalty_level();
+}
+inline void StatsChanged::set_death_penalty_level(::uint32_t value) {
+  _internal_set_death_penalty_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.death_penalty_level)
+}
+inline ::uint32_t StatsChanged::_internal_death_penalty_level() const {
+  return _impl_.death_penalty_level_;
+}
+inline void StatsChanged::_internal_set_death_penalty_level(::uint32_t value) {
+  ;
+  _impl_.death_penalty_level_ = value;
+}
+
+// .nightfall.v1.EffectiveStats effective_stats = 20;
+inline bool StatsChanged::has_effective_stats() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.effective_stats_ != nullptr);
+  return value;
+}
+inline const ::nightfall::v1::EffectiveStats& StatsChanged::_internal_effective_stats() const {
+  const ::nightfall::v1::EffectiveStats* p = _impl_.effective_stats_;
+  return p != nullptr ? *p : reinterpret_cast<const ::nightfall::v1::EffectiveStats&>(
+      ::nightfall::v1::_EffectiveStats_default_instance_);
+}
+inline const ::nightfall::v1::EffectiveStats& StatsChanged::effective_stats() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.effective_stats)
+  return _internal_effective_stats();
+}
+inline void StatsChanged::unsafe_arena_set_allocated_effective_stats(
+    ::nightfall::v1::EffectiveStats* effective_stats) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.effective_stats_);
+  }
+  _impl_.effective_stats_ = effective_stats;
+  if (effective_stats) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.StatsChanged.effective_stats)
+}
+inline ::nightfall::v1::EffectiveStats* StatsChanged::release_effective_stats() {
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::nightfall::v1::EffectiveStats* temp = _impl_.effective_stats_;
+  _impl_.effective_stats_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::nightfall::v1::EffectiveStats* StatsChanged::unsafe_arena_release_effective_stats() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.StatsChanged.effective_stats)
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::nightfall::v1::EffectiveStats* temp = _impl_.effective_stats_;
+  _impl_.effective_stats_ = nullptr;
+  return temp;
+}
+inline ::nightfall::v1::EffectiveStats* StatsChanged::_internal_mutable_effective_stats() {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  if (_impl_.effective_stats_ == nullptr) {
+    auto* p = CreateMaybeMessage<::nightfall::v1::EffectiveStats>(GetArenaForAllocation());
+    _impl_.effective_stats_ = p;
+  }
+  return _impl_.effective_stats_;
+}
+inline ::nightfall::v1::EffectiveStats* StatsChanged::mutable_effective_stats() {
+  ::nightfall::v1::EffectiveStats* _msg = _internal_mutable_effective_stats();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.StatsChanged.effective_stats)
+  return _msg;
+}
+inline void StatsChanged::set_allocated_effective_stats(::nightfall::v1::EffectiveStats* effective_stats) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete reinterpret_cast< ::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.effective_stats_);
+  }
+  if (effective_stats) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(effective_stats));
+    if (message_arena != submessage_arena) {
+      effective_stats = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, effective_stats, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.effective_stats_ = effective_stats;
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.StatsChanged.effective_stats)
+}
+
+// bool baseline = 21;
+inline void StatsChanged::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool StatsChanged::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.baseline)
+  return _internal_baseline();
+}
+inline void StatsChanged::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.baseline)
+}
+inline bool StatsChanged::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void StatsChanged::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 22;
+inline void StatsChanged::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t StatsChanged::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void StatsChanged::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.baseline_tick)
+}
+inline ::uint64_t StatsChanged::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void StatsChanged::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
+}
+
+// uint32 incarnation = 23;
+inline void StatsChanged::clear_incarnation() {
+  _impl_.incarnation_ = 0u;
+}
+inline ::uint32_t StatsChanged::incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.incarnation)
+  return _internal_incarnation();
+}
+inline void StatsChanged::set_incarnation(::uint32_t value) {
+  _internal_set_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.incarnation)
+}
+inline ::uint32_t StatsChanged::_internal_incarnation() const {
+  return _impl_.incarnation_;
+}
+inline void StatsChanged::_internal_set_incarnation(::uint32_t value) {
+  ;
+  _impl_.incarnation_ = value;
+}
+
 // -------------------------------------------------------------------
 
 // XpGained
@@ -9890,6 +17254,91 @@ inline void TargetChanged::set_allocated_target(std::string* value) {
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.TargetChanged.target)
 }
 
+// bool baseline = 3;
+inline void TargetChanged::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool TargetChanged::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.TargetChanged.baseline)
+  return _internal_baseline();
+}
+inline void TargetChanged::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.TargetChanged.baseline)
+}
+inline bool TargetChanged::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void TargetChanged::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 4;
+inline void TargetChanged::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t TargetChanged::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.TargetChanged.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void TargetChanged::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.TargetChanged.baseline_tick)
+}
+inline ::uint64_t TargetChanged::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void TargetChanged::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
+}
+
+// optional uint32 target_incarnation = 5;
+inline bool TargetChanged::has_target_incarnation() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void TargetChanged::clear_target_incarnation() {
+  _impl_.target_incarnation_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline ::uint32_t TargetChanged::target_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.TargetChanged.target_incarnation)
+  return _internal_target_incarnation();
+}
+inline void TargetChanged::set_target_incarnation(::uint32_t value) {
+  _internal_set_target_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.TargetChanged.target_incarnation)
+}
+inline ::uint32_t TargetChanged::_internal_target_incarnation() const {
+  return _impl_.target_incarnation_;
+}
+inline void TargetChanged::_internal_set_target_incarnation(::uint32_t value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.target_incarnation_ = value;
+}
+
+// uint64 tick = 6;
+inline void TargetChanged::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t TargetChanged::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.TargetChanged.tick)
+  return _internal_tick();
+}
+inline void TargetChanged::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.TargetChanged.tick)
+}
+inline ::uint64_t TargetChanged::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void TargetChanged::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
 // -------------------------------------------------------------------
 
 // ClassChanged
@@ -10001,6 +17450,3328 @@ inline void ClassChanged::_internal_set_session_generation(::uint32_t value) {
   _impl_.session_generation_ = value;
 }
 
+// -------------------------------------------------------------------
+
+// ActiveEffect
+
+// uint32 skill_id = 1;
+inline void ActiveEffect::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t ActiveEffect::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ActiveEffect.skill_id)
+  return _internal_skill_id();
+}
+inline void ActiveEffect::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ActiveEffect.skill_id)
+}
+inline ::uint32_t ActiveEffect::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void ActiveEffect::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// uint32 skill_level = 2;
+inline void ActiveEffect::clear_skill_level() {
+  _impl_.skill_level_ = 0u;
+}
+inline ::uint32_t ActiveEffect::skill_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ActiveEffect.skill_level)
+  return _internal_skill_level();
+}
+inline void ActiveEffect::set_skill_level(::uint32_t value) {
+  _internal_set_skill_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ActiveEffect.skill_level)
+}
+inline ::uint32_t ActiveEffect::_internal_skill_level() const {
+  return _impl_.skill_level_;
+}
+inline void ActiveEffect::_internal_set_skill_level(::uint32_t value) {
+  ;
+  _impl_.skill_level_ = value;
+}
+
+// uint64 remaining_ticks = 3;
+inline void ActiveEffect::clear_remaining_ticks() {
+  _impl_.remaining_ticks_ = ::uint64_t{0u};
+}
+inline ::uint64_t ActiveEffect::remaining_ticks() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ActiveEffect.remaining_ticks)
+  return _internal_remaining_ticks();
+}
+inline void ActiveEffect::set_remaining_ticks(::uint64_t value) {
+  _internal_set_remaining_ticks(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ActiveEffect.remaining_ticks)
+}
+inline ::uint64_t ActiveEffect::_internal_remaining_ticks() const {
+  return _impl_.remaining_ticks_;
+}
+inline void ActiveEffect::_internal_set_remaining_ticks(::uint64_t value) {
+  ;
+  _impl_.remaining_ticks_ = value;
+}
+
+// bool is_debuff = 4;
+inline void ActiveEffect::clear_is_debuff() {
+  _impl_.is_debuff_ = false;
+}
+inline bool ActiveEffect::is_debuff() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ActiveEffect.is_debuff)
+  return _internal_is_debuff();
+}
+inline void ActiveEffect::set_is_debuff(bool value) {
+  _internal_set_is_debuff(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ActiveEffect.is_debuff)
+}
+inline bool ActiveEffect::_internal_is_debuff() const {
+  return _impl_.is_debuff_;
+}
+inline void ActiveEffect::_internal_set_is_debuff(bool value) {
+  ;
+  _impl_.is_debuff_ = value;
+}
+
+// optional string caster = 5;
+inline bool ActiveEffect::has_caster() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void ActiveEffect::clear_caster() {
+  _impl_.caster_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const std::string& ActiveEffect::caster() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ActiveEffect.caster)
+  return _internal_caster();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void ActiveEffect::set_caster(Arg_&& arg,
+                                                     Args_... args) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.caster_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.ActiveEffect.caster)
+}
+inline std::string* ActiveEffect::mutable_caster() {
+  std::string* _s = _internal_mutable_caster();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ActiveEffect.caster)
+  return _s;
+}
+inline const std::string& ActiveEffect::_internal_caster() const {
+  return _impl_.caster_.Get();
+}
+inline void ActiveEffect::_internal_set_caster(const std::string& value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+
+
+  _impl_.caster_.Set(value, GetArenaForAllocation());
+}
+inline std::string* ActiveEffect::_internal_mutable_caster() {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.caster_.Mutable( GetArenaForAllocation());
+}
+inline std::string* ActiveEffect::release_caster() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ActiveEffect.caster)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.caster_.Release();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  return released;
+}
+inline void ActiveEffect::set_allocated_caster(std::string* value) {
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.caster_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.caster_.IsDefault()) {
+          _impl_.caster_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ActiveEffect.caster)
+}
+
+// uint64 effect_id = 6;
+inline void ActiveEffect::clear_effect_id() {
+  _impl_.effect_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t ActiveEffect::effect_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ActiveEffect.effect_id)
+  return _internal_effect_id();
+}
+inline void ActiveEffect::set_effect_id(::uint64_t value) {
+  _internal_set_effect_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ActiveEffect.effect_id)
+}
+inline ::uint64_t ActiveEffect::_internal_effect_id() const {
+  return _impl_.effect_id_;
+}
+inline void ActiveEffect::_internal_set_effect_id(::uint64_t value) {
+  ;
+  _impl_.effect_id_ = value;
+}
+
+// optional uint32 caster_incarnation = 7;
+inline bool ActiveEffect::has_caster_incarnation() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  return value;
+}
+inline void ActiveEffect::clear_caster_incarnation() {
+  _impl_.caster_incarnation_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline ::uint32_t ActiveEffect::caster_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ActiveEffect.caster_incarnation)
+  return _internal_caster_incarnation();
+}
+inline void ActiveEffect::set_caster_incarnation(::uint32_t value) {
+  _internal_set_caster_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ActiveEffect.caster_incarnation)
+}
+inline ::uint32_t ActiveEffect::_internal_caster_incarnation() const {
+  return _impl_.caster_incarnation_;
+}
+inline void ActiveEffect::_internal_set_caster_incarnation(::uint32_t value) {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.caster_incarnation_ = value;
+}
+
+// uint32 target_incarnation = 8;
+inline void ActiveEffect::clear_target_incarnation() {
+  _impl_.target_incarnation_ = 0u;
+}
+inline ::uint32_t ActiveEffect::target_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ActiveEffect.target_incarnation)
+  return _internal_target_incarnation();
+}
+inline void ActiveEffect::set_target_incarnation(::uint32_t value) {
+  _internal_set_target_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ActiveEffect.target_incarnation)
+}
+inline ::uint32_t ActiveEffect::_internal_target_incarnation() const {
+  return _impl_.target_incarnation_;
+}
+inline void ActiveEffect::_internal_set_target_incarnation(::uint32_t value) {
+  ;
+  _impl_.target_incarnation_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SkillCastStarted
+
+// string caster = 1;
+inline void SkillCastStarted::clear_caster() {
+  _impl_.caster_.ClearToEmpty();
+}
+inline const std::string& SkillCastStarted::caster() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.caster)
+  return _internal_caster();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillCastStarted::set_caster(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.caster_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.caster)
+}
+inline std::string* SkillCastStarted::mutable_caster() {
+  std::string* _s = _internal_mutable_caster();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillCastStarted.caster)
+  return _s;
+}
+inline const std::string& SkillCastStarted::_internal_caster() const {
+  return _impl_.caster_.Get();
+}
+inline void SkillCastStarted::_internal_set_caster(const std::string& value) {
+  ;
+
+
+  _impl_.caster_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillCastStarted::_internal_mutable_caster() {
+  ;
+  return _impl_.caster_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillCastStarted::release_caster() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillCastStarted.caster)
+  return _impl_.caster_.Release();
+}
+inline void SkillCastStarted::set_allocated_caster(std::string* value) {
+  _impl_.caster_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.caster_.IsDefault()) {
+          _impl_.caster_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillCastStarted.caster)
+}
+
+// optional string target = 2;
+inline bool SkillCastStarted::has_target() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void SkillCastStarted::clear_target() {
+  _impl_.target_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const std::string& SkillCastStarted::target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.target)
+  return _internal_target();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillCastStarted::set_target(Arg_&& arg,
+                                                     Args_... args) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.target)
+}
+inline std::string* SkillCastStarted::mutable_target() {
+  std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillCastStarted.target)
+  return _s;
+}
+inline const std::string& SkillCastStarted::_internal_target() const {
+  return _impl_.target_.Get();
+}
+inline void SkillCastStarted::_internal_set_target(const std::string& value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+
+
+  _impl_.target_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillCastStarted::_internal_mutable_target() {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.target_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillCastStarted::release_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillCastStarted.target)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.target_.Release();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  return released;
+}
+inline void SkillCastStarted::set_allocated_target(std::string* value) {
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.target_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.target_.IsDefault()) {
+          _impl_.target_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillCastStarted.target)
+}
+
+// uint32 skill_id = 3;
+inline void SkillCastStarted::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t SkillCastStarted::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.skill_id)
+  return _internal_skill_id();
+}
+inline void SkillCastStarted::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.skill_id)
+}
+inline ::uint32_t SkillCastStarted::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void SkillCastStarted::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// uint32 skill_level = 4;
+inline void SkillCastStarted::clear_skill_level() {
+  _impl_.skill_level_ = 0u;
+}
+inline ::uint32_t SkillCastStarted::skill_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.skill_level)
+  return _internal_skill_level();
+}
+inline void SkillCastStarted::set_skill_level(::uint32_t value) {
+  _internal_set_skill_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.skill_level)
+}
+inline ::uint32_t SkillCastStarted::_internal_skill_level() const {
+  return _impl_.skill_level_;
+}
+inline void SkillCastStarted::_internal_set_skill_level(::uint32_t value) {
+  ;
+  _impl_.skill_level_ = value;
+}
+
+// uint64 cast_id = 5;
+inline void SkillCastStarted::clear_cast_id() {
+  _impl_.cast_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastStarted::cast_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.cast_id)
+  return _internal_cast_id();
+}
+inline void SkillCastStarted::set_cast_id(::uint64_t value) {
+  _internal_set_cast_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.cast_id)
+}
+inline ::uint64_t SkillCastStarted::_internal_cast_id() const {
+  return _impl_.cast_id_;
+}
+inline void SkillCastStarted::_internal_set_cast_id(::uint64_t value) {
+  ;
+  _impl_.cast_id_ = value;
+}
+
+// uint64 tick = 6;
+inline void SkillCastStarted::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastStarted::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.tick)
+  return _internal_tick();
+}
+inline void SkillCastStarted::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.tick)
+}
+inline ::uint64_t SkillCastStarted::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void SkillCastStarted::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint64 complete_tick = 7;
+inline void SkillCastStarted::clear_complete_tick() {
+  _impl_.complete_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastStarted::complete_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.complete_tick)
+  return _internal_complete_tick();
+}
+inline void SkillCastStarted::set_complete_tick(::uint64_t value) {
+  _internal_set_complete_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.complete_tick)
+}
+inline ::uint64_t SkillCastStarted::_internal_complete_tick() const {
+  return _impl_.complete_tick_;
+}
+inline void SkillCastStarted::_internal_set_complete_tick(::uint64_t value) {
+  ;
+  _impl_.complete_tick_ = value;
+}
+
+// uint32 caster_incarnation = 8;
+inline void SkillCastStarted::clear_caster_incarnation() {
+  _impl_.caster_incarnation_ = 0u;
+}
+inline ::uint32_t SkillCastStarted::caster_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.caster_incarnation)
+  return _internal_caster_incarnation();
+}
+inline void SkillCastStarted::set_caster_incarnation(::uint32_t value) {
+  _internal_set_caster_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.caster_incarnation)
+}
+inline ::uint32_t SkillCastStarted::_internal_caster_incarnation() const {
+  return _impl_.caster_incarnation_;
+}
+inline void SkillCastStarted::_internal_set_caster_incarnation(::uint32_t value) {
+  ;
+  _impl_.caster_incarnation_ = value;
+}
+
+// optional uint32 target_incarnation = 9;
+inline bool SkillCastStarted::has_target_incarnation() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  return value;
+}
+inline void SkillCastStarted::clear_target_incarnation() {
+  _impl_.target_incarnation_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline ::uint32_t SkillCastStarted::target_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.target_incarnation)
+  return _internal_target_incarnation();
+}
+inline void SkillCastStarted::set_target_incarnation(::uint32_t value) {
+  _internal_set_target_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.target_incarnation)
+}
+inline ::uint32_t SkillCastStarted::_internal_target_incarnation() const {
+  return _impl_.target_incarnation_;
+}
+inline void SkillCastStarted::_internal_set_target_incarnation(::uint32_t value) {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.target_incarnation_ = value;
+}
+
+// bool baseline = 10;
+inline void SkillCastStarted::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool SkillCastStarted::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.baseline)
+  return _internal_baseline();
+}
+inline void SkillCastStarted::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.baseline)
+}
+inline bool SkillCastStarted::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void SkillCastStarted::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 11;
+inline void SkillCastStarted::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastStarted::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void SkillCastStarted::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.baseline_tick)
+}
+inline ::uint64_t SkillCastStarted::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void SkillCastStarted::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
+}
+
+// uint64 launch_tick = 12;
+inline void SkillCastStarted::clear_launch_tick() {
+  _impl_.launch_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastStarted::launch_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.launch_tick)
+  return _internal_launch_tick();
+}
+inline void SkillCastStarted::set_launch_tick(::uint64_t value) {
+  _internal_set_launch_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.launch_tick)
+}
+inline ::uint64_t SkillCastStarted::_internal_launch_tick() const {
+  return _impl_.launch_tick_;
+}
+inline void SkillCastStarted::_internal_set_launch_tick(::uint64_t value) {
+  ;
+  _impl_.launch_tick_ = value;
+}
+
+// uint64 start_tick = 13;
+inline void SkillCastStarted::clear_start_tick() {
+  _impl_.start_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastStarted::start_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastStarted.start_tick)
+  return _internal_start_tick();
+}
+inline void SkillCastStarted::set_start_tick(::uint64_t value) {
+  _internal_set_start_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastStarted.start_tick)
+}
+inline ::uint64_t SkillCastStarted::_internal_start_tick() const {
+  return _impl_.start_tick_;
+}
+inline void SkillCastStarted::_internal_set_start_tick(::uint64_t value) {
+  ;
+  _impl_.start_tick_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SkillTargetResult
+
+// string target = 1;
+inline void SkillTargetResult::clear_target() {
+  _impl_.target_.ClearToEmpty();
+}
+inline const std::string& SkillTargetResult::target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.target)
+  return _internal_target();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillTargetResult::set_target(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.target)
+}
+inline std::string* SkillTargetResult::mutable_target() {
+  std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillTargetResult.target)
+  return _s;
+}
+inline const std::string& SkillTargetResult::_internal_target() const {
+  return _impl_.target_.Get();
+}
+inline void SkillTargetResult::_internal_set_target(const std::string& value) {
+  ;
+
+
+  _impl_.target_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillTargetResult::_internal_mutable_target() {
+  ;
+  return _impl_.target_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillTargetResult::release_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillTargetResult.target)
+  return _impl_.target_.Release();
+}
+inline void SkillTargetResult::set_allocated_target(std::string* value) {
+  _impl_.target_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.target_.IsDefault()) {
+          _impl_.target_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillTargetResult.target)
+}
+
+// uint32 target_incarnation = 2;
+inline void SkillTargetResult::clear_target_incarnation() {
+  _impl_.target_incarnation_ = 0u;
+}
+inline ::uint32_t SkillTargetResult::target_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.target_incarnation)
+  return _internal_target_incarnation();
+}
+inline void SkillTargetResult::set_target_incarnation(::uint32_t value) {
+  _internal_set_target_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.target_incarnation)
+}
+inline ::uint32_t SkillTargetResult::_internal_target_incarnation() const {
+  return _impl_.target_incarnation_;
+}
+inline void SkillTargetResult::_internal_set_target_incarnation(::uint32_t value) {
+  ;
+  _impl_.target_incarnation_ = value;
+}
+
+// uint64 tick = 3;
+inline void SkillTargetResult::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillTargetResult::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.tick)
+  return _internal_tick();
+}
+inline void SkillTargetResult::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.tick)
+}
+inline ::uint64_t SkillTargetResult::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void SkillTargetResult::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// .nightfall.v1.SkillResolutionKind resolution_kind = 4;
+inline void SkillTargetResult::clear_resolution_kind() {
+  _impl_.resolution_kind_ = 0;
+}
+inline ::nightfall::v1::SkillResolutionKind SkillTargetResult::resolution_kind() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.resolution_kind)
+  return _internal_resolution_kind();
+}
+inline void SkillTargetResult::set_resolution_kind(::nightfall::v1::SkillResolutionKind value) {
+   _internal_set_resolution_kind(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.resolution_kind)
+}
+inline ::nightfall::v1::SkillResolutionKind SkillTargetResult::_internal_resolution_kind() const {
+  return static_cast<::nightfall::v1::SkillResolutionKind>(_impl_.resolution_kind_);
+}
+inline void SkillTargetResult::_internal_set_resolution_kind(::nightfall::v1::SkillResolutionKind value) {
+  ;
+  _impl_.resolution_kind_ = value;
+}
+
+// uint32 rolled = 5;
+inline void SkillTargetResult::clear_rolled() {
+  _impl_.rolled_ = 0u;
+}
+inline ::uint32_t SkillTargetResult::rolled() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.rolled)
+  return _internal_rolled();
+}
+inline void SkillTargetResult::set_rolled(::uint32_t value) {
+  _internal_set_rolled(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.rolled)
+}
+inline ::uint32_t SkillTargetResult::_internal_rolled() const {
+  return _impl_.rolled_;
+}
+inline void SkillTargetResult::_internal_set_rolled(::uint32_t value) {
+  ;
+  _impl_.rolled_ = value;
+}
+
+// uint32 cp_absorbed = 6;
+inline void SkillTargetResult::clear_cp_absorbed() {
+  _impl_.cp_absorbed_ = 0u;
+}
+inline ::uint32_t SkillTargetResult::cp_absorbed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.cp_absorbed)
+  return _internal_cp_absorbed();
+}
+inline void SkillTargetResult::set_cp_absorbed(::uint32_t value) {
+  _internal_set_cp_absorbed(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.cp_absorbed)
+}
+inline ::uint32_t SkillTargetResult::_internal_cp_absorbed() const {
+  return _impl_.cp_absorbed_;
+}
+inline void SkillTargetResult::_internal_set_cp_absorbed(::uint32_t value) {
+  ;
+  _impl_.cp_absorbed_ = value;
+}
+
+// uint32 hp_removed = 7;
+inline void SkillTargetResult::clear_hp_removed() {
+  _impl_.hp_removed_ = 0u;
+}
+inline ::uint32_t SkillTargetResult::hp_removed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.hp_removed)
+  return _internal_hp_removed();
+}
+inline void SkillTargetResult::set_hp_removed(::uint32_t value) {
+  _internal_set_hp_removed(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.hp_removed)
+}
+inline ::uint32_t SkillTargetResult::_internal_hp_removed() const {
+  return _impl_.hp_removed_;
+}
+inline void SkillTargetResult::_internal_set_hp_removed(::uint32_t value) {
+  ;
+  _impl_.hp_removed_ = value;
+}
+
+// uint32 heal = 8;
+inline void SkillTargetResult::clear_heal() {
+  _impl_.heal_ = 0u;
+}
+inline ::uint32_t SkillTargetResult::heal() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.heal)
+  return _internal_heal();
+}
+inline void SkillTargetResult::set_heal(::uint32_t value) {
+  _internal_set_heal(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.heal)
+}
+inline ::uint32_t SkillTargetResult::_internal_heal() const {
+  return _impl_.heal_;
+}
+inline void SkillTargetResult::_internal_set_heal(::uint32_t value) {
+  ;
+  _impl_.heal_ = value;
+}
+
+// .nightfall.v1.SkillOutcome outcome = 9;
+inline void SkillTargetResult::clear_outcome() {
+  _impl_.outcome_ = 0;
+}
+inline ::nightfall::v1::SkillOutcome SkillTargetResult::outcome() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.outcome)
+  return _internal_outcome();
+}
+inline void SkillTargetResult::set_outcome(::nightfall::v1::SkillOutcome value) {
+   _internal_set_outcome(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.outcome)
+}
+inline ::nightfall::v1::SkillOutcome SkillTargetResult::_internal_outcome() const {
+  return static_cast<::nightfall::v1::SkillOutcome>(_impl_.outcome_);
+}
+inline void SkillTargetResult::_internal_set_outcome(::nightfall::v1::SkillOutcome value) {
+  ;
+  _impl_.outcome_ = value;
+}
+
+// uint32 target_hp_after = 10;
+inline void SkillTargetResult::clear_target_hp_after() {
+  _impl_.target_hp_after_ = 0u;
+}
+inline ::uint32_t SkillTargetResult::target_hp_after() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.target_hp_after)
+  return _internal_target_hp_after();
+}
+inline void SkillTargetResult::set_target_hp_after(::uint32_t value) {
+  _internal_set_target_hp_after(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.target_hp_after)
+}
+inline ::uint32_t SkillTargetResult::_internal_target_hp_after() const {
+  return _impl_.target_hp_after_;
+}
+inline void SkillTargetResult::_internal_set_target_hp_after(::uint32_t value) {
+  ;
+  _impl_.target_hp_after_ = value;
+}
+
+// repeated uint64 applied_effect_ids = 11;
+inline int SkillTargetResult::_internal_applied_effect_ids_size() const {
+  return _impl_.applied_effect_ids_.size();
+}
+inline int SkillTargetResult::applied_effect_ids_size() const {
+  return _internal_applied_effect_ids_size();
+}
+inline void SkillTargetResult::clear_applied_effect_ids() {
+  _internal_mutable_applied_effect_ids()->Clear();
+}
+inline ::uint64_t SkillTargetResult::applied_effect_ids(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillTargetResult.applied_effect_ids)
+  return _internal_applied_effect_ids(index);
+}
+inline void SkillTargetResult::set_applied_effect_ids(int index, ::uint64_t value) {
+  _internal_mutable_applied_effect_ids()->Set(index, value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillTargetResult.applied_effect_ids)
+}
+inline void SkillTargetResult::add_applied_effect_ids(::uint64_t value) {
+  _internal_add_applied_effect_ids(value);
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillTargetResult.applied_effect_ids)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>& SkillTargetResult::applied_effect_ids() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillTargetResult.applied_effect_ids)
+  return _internal_applied_effect_ids();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>* SkillTargetResult::mutable_applied_effect_ids() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillTargetResult.applied_effect_ids)
+  return _internal_mutable_applied_effect_ids();
+}
+
+inline ::uint64_t SkillTargetResult::_internal_applied_effect_ids(int index) const {
+  return _internal_applied_effect_ids().Get(index);
+}
+inline void SkillTargetResult::_internal_add_applied_effect_ids(::uint64_t value) {
+  _internal_mutable_applied_effect_ids()->Add(value);
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>& SkillTargetResult::_internal_applied_effect_ids() const {
+  return _impl_.applied_effect_ids_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>* SkillTargetResult::_internal_mutable_applied_effect_ids() {
+  return &_impl_.applied_effect_ids_;
+}
+
+// -------------------------------------------------------------------
+
+// SkillCastResult
+
+// string caster = 1;
+inline void SkillCastResult::clear_caster() {
+  _impl_.caster_.ClearToEmpty();
+}
+inline const std::string& SkillCastResult::caster() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastResult.caster)
+  return _internal_caster();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillCastResult::set_caster(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.caster_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastResult.caster)
+}
+inline std::string* SkillCastResult::mutable_caster() {
+  std::string* _s = _internal_mutable_caster();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillCastResult.caster)
+  return _s;
+}
+inline const std::string& SkillCastResult::_internal_caster() const {
+  return _impl_.caster_.Get();
+}
+inline void SkillCastResult::_internal_set_caster(const std::string& value) {
+  ;
+
+
+  _impl_.caster_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillCastResult::_internal_mutable_caster() {
+  ;
+  return _impl_.caster_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillCastResult::release_caster() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillCastResult.caster)
+  return _impl_.caster_.Release();
+}
+inline void SkillCastResult::set_allocated_caster(std::string* value) {
+  _impl_.caster_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.caster_.IsDefault()) {
+          _impl_.caster_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillCastResult.caster)
+}
+
+// uint32 caster_incarnation = 2;
+inline void SkillCastResult::clear_caster_incarnation() {
+  _impl_.caster_incarnation_ = 0u;
+}
+inline ::uint32_t SkillCastResult::caster_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastResult.caster_incarnation)
+  return _internal_caster_incarnation();
+}
+inline void SkillCastResult::set_caster_incarnation(::uint32_t value) {
+  _internal_set_caster_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastResult.caster_incarnation)
+}
+inline ::uint32_t SkillCastResult::_internal_caster_incarnation() const {
+  return _impl_.caster_incarnation_;
+}
+inline void SkillCastResult::_internal_set_caster_incarnation(::uint32_t value) {
+  ;
+  _impl_.caster_incarnation_ = value;
+}
+
+// uint64 cast_id = 3;
+inline void SkillCastResult::clear_cast_id() {
+  _impl_.cast_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastResult::cast_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastResult.cast_id)
+  return _internal_cast_id();
+}
+inline void SkillCastResult::set_cast_id(::uint64_t value) {
+  _internal_set_cast_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastResult.cast_id)
+}
+inline ::uint64_t SkillCastResult::_internal_cast_id() const {
+  return _impl_.cast_id_;
+}
+inline void SkillCastResult::_internal_set_cast_id(::uint64_t value) {
+  ;
+  _impl_.cast_id_ = value;
+}
+
+// uint64 tick = 4;
+inline void SkillCastResult::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastResult::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastResult.tick)
+  return _internal_tick();
+}
+inline void SkillCastResult::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastResult.tick)
+}
+inline ::uint64_t SkillCastResult::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void SkillCastResult::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint32 skill_id = 5;
+inline void SkillCastResult::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t SkillCastResult::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastResult.skill_id)
+  return _internal_skill_id();
+}
+inline void SkillCastResult::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastResult.skill_id)
+}
+inline ::uint32_t SkillCastResult::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void SkillCastResult::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// uint32 skill_level = 6;
+inline void SkillCastResult::clear_skill_level() {
+  _impl_.skill_level_ = 0u;
+}
+inline ::uint32_t SkillCastResult::skill_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastResult.skill_level)
+  return _internal_skill_level();
+}
+inline void SkillCastResult::set_skill_level(::uint32_t value) {
+  _internal_set_skill_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastResult.skill_level)
+}
+inline ::uint32_t SkillCastResult::_internal_skill_level() const {
+  return _impl_.skill_level_;
+}
+inline void SkillCastResult::_internal_set_skill_level(::uint32_t value) {
+  ;
+  _impl_.skill_level_ = value;
+}
+
+// repeated .nightfall.v1.SkillTargetResult targets = 7;
+inline int SkillCastResult::_internal_targets_size() const {
+  return _impl_.targets_.size();
+}
+inline int SkillCastResult::targets_size() const {
+  return _internal_targets_size();
+}
+inline void SkillCastResult::clear_targets() {
+  _internal_mutable_targets()->Clear();
+}
+inline ::nightfall::v1::SkillTargetResult* SkillCastResult::mutable_targets(int index) {
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillCastResult.targets)
+  return _internal_mutable_targets()->Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillTargetResult >*
+SkillCastResult::mutable_targets() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillCastResult.targets)
+  return _internal_mutable_targets();
+}
+inline const ::nightfall::v1::SkillTargetResult& SkillCastResult::_internal_targets(int index) const {
+  return _internal_targets().Get(index);
+}
+inline const ::nightfall::v1::SkillTargetResult& SkillCastResult::targets(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastResult.targets)
+  return _internal_targets(index);
+}
+inline ::nightfall::v1::SkillTargetResult* SkillCastResult::_internal_add_targets() {
+  return _internal_mutable_targets()->Add();
+}
+inline ::nightfall::v1::SkillTargetResult* SkillCastResult::add_targets() {
+  ::nightfall::v1::SkillTargetResult* _add = _internal_add_targets();
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCastResult.targets)
+  return _add;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillTargetResult >&
+SkillCastResult::targets() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillCastResult.targets)
+  return _internal_targets();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::SkillTargetResult>&
+SkillCastResult::_internal_targets() const {
+  return _impl_.targets_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::SkillTargetResult>*
+SkillCastResult::_internal_mutable_targets() {
+  return &_impl_.targets_;
+}
+
+// optional uint64 effect_id = 8;
+inline bool SkillCastResult::has_effect_id() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void SkillCastResult::clear_effect_id() {
+  _impl_.effect_id_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline ::uint64_t SkillCastResult::effect_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastResult.effect_id)
+  return _internal_effect_id();
+}
+inline void SkillCastResult::set_effect_id(::uint64_t value) {
+  _internal_set_effect_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastResult.effect_id)
+}
+inline ::uint64_t SkillCastResult::_internal_effect_id() const {
+  return _impl_.effect_id_;
+}
+inline void SkillCastResult::_internal_set_effect_id(::uint64_t value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.effect_id_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SkillCastCancelled
+
+// string caster = 1;
+inline void SkillCastCancelled::clear_caster() {
+  _impl_.caster_.ClearToEmpty();
+}
+inline const std::string& SkillCastCancelled::caster() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastCancelled.caster)
+  return _internal_caster();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillCastCancelled::set_caster(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.caster_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastCancelled.caster)
+}
+inline std::string* SkillCastCancelled::mutable_caster() {
+  std::string* _s = _internal_mutable_caster();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillCastCancelled.caster)
+  return _s;
+}
+inline const std::string& SkillCastCancelled::_internal_caster() const {
+  return _impl_.caster_.Get();
+}
+inline void SkillCastCancelled::_internal_set_caster(const std::string& value) {
+  ;
+
+
+  _impl_.caster_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillCastCancelled::_internal_mutable_caster() {
+  ;
+  return _impl_.caster_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillCastCancelled::release_caster() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillCastCancelled.caster)
+  return _impl_.caster_.Release();
+}
+inline void SkillCastCancelled::set_allocated_caster(std::string* value) {
+  _impl_.caster_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.caster_.IsDefault()) {
+          _impl_.caster_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillCastCancelled.caster)
+}
+
+// uint64 cast_id = 2;
+inline void SkillCastCancelled::clear_cast_id() {
+  _impl_.cast_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastCancelled::cast_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastCancelled.cast_id)
+  return _internal_cast_id();
+}
+inline void SkillCastCancelled::set_cast_id(::uint64_t value) {
+  _internal_set_cast_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastCancelled.cast_id)
+}
+inline ::uint64_t SkillCastCancelled::_internal_cast_id() const {
+  return _impl_.cast_id_;
+}
+inline void SkillCastCancelled::_internal_set_cast_id(::uint64_t value) {
+  ;
+  _impl_.cast_id_ = value;
+}
+
+// .nightfall.v1.CastCancelReason reason = 3;
+inline void SkillCastCancelled::clear_reason() {
+  _impl_.reason_ = 0;
+}
+inline ::nightfall::v1::CastCancelReason SkillCastCancelled::reason() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastCancelled.reason)
+  return _internal_reason();
+}
+inline void SkillCastCancelled::set_reason(::nightfall::v1::CastCancelReason value) {
+   _internal_set_reason(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastCancelled.reason)
+}
+inline ::nightfall::v1::CastCancelReason SkillCastCancelled::_internal_reason() const {
+  return static_cast<::nightfall::v1::CastCancelReason>(_impl_.reason_);
+}
+inline void SkillCastCancelled::_internal_set_reason(::nightfall::v1::CastCancelReason value) {
+  ;
+  _impl_.reason_ = value;
+}
+
+// uint64 tick = 4;
+inline void SkillCastCancelled::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillCastCancelled::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastCancelled.tick)
+  return _internal_tick();
+}
+inline void SkillCastCancelled::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastCancelled.tick)
+}
+inline ::uint64_t SkillCastCancelled::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void SkillCastCancelled::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint32 caster_incarnation = 5;
+inline void SkillCastCancelled::clear_caster_incarnation() {
+  _impl_.caster_incarnation_ = 0u;
+}
+inline ::uint32_t SkillCastCancelled::caster_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCastCancelled.caster_incarnation)
+  return _internal_caster_incarnation();
+}
+inline void SkillCastCancelled::set_caster_incarnation(::uint32_t value) {
+  _internal_set_caster_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCastCancelled.caster_incarnation)
+}
+inline ::uint32_t SkillCastCancelled::_internal_caster_incarnation() const {
+  return _impl_.caster_incarnation_;
+}
+inline void SkillCastCancelled::_internal_set_caster_incarnation(::uint32_t value) {
+  ;
+  _impl_.caster_incarnation_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// EffectApplied
+
+// string target = 1;
+inline void EffectApplied::clear_target() {
+  _impl_.target_.ClearToEmpty();
+}
+inline const std::string& EffectApplied::target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.target)
+  return _internal_target();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EffectApplied::set_target(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.target)
+}
+inline std::string* EffectApplied::mutable_target() {
+  std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EffectApplied.target)
+  return _s;
+}
+inline const std::string& EffectApplied::_internal_target() const {
+  return _impl_.target_.Get();
+}
+inline void EffectApplied::_internal_set_target(const std::string& value) {
+  ;
+
+
+  _impl_.target_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EffectApplied::_internal_mutable_target() {
+  ;
+  return _impl_.target_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EffectApplied::release_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EffectApplied.target)
+  return _impl_.target_.Release();
+}
+inline void EffectApplied::set_allocated_target(std::string* value) {
+  _impl_.target_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.target_.IsDefault()) {
+          _impl_.target_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EffectApplied.target)
+}
+
+// uint32 target_incarnation = 2;
+inline void EffectApplied::clear_target_incarnation() {
+  _impl_.target_incarnation_ = 0u;
+}
+inline ::uint32_t EffectApplied::target_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.target_incarnation)
+  return _internal_target_incarnation();
+}
+inline void EffectApplied::set_target_incarnation(::uint32_t value) {
+  _internal_set_target_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.target_incarnation)
+}
+inline ::uint32_t EffectApplied::_internal_target_incarnation() const {
+  return _impl_.target_incarnation_;
+}
+inline void EffectApplied::_internal_set_target_incarnation(::uint32_t value) {
+  ;
+  _impl_.target_incarnation_ = value;
+}
+
+// optional string caster = 3;
+inline bool EffectApplied::has_caster() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void EffectApplied::clear_caster() {
+  _impl_.caster_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const std::string& EffectApplied::caster() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.caster)
+  return _internal_caster();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EffectApplied::set_caster(Arg_&& arg,
+                                                     Args_... args) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.caster_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.caster)
+}
+inline std::string* EffectApplied::mutable_caster() {
+  std::string* _s = _internal_mutable_caster();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EffectApplied.caster)
+  return _s;
+}
+inline const std::string& EffectApplied::_internal_caster() const {
+  return _impl_.caster_.Get();
+}
+inline void EffectApplied::_internal_set_caster(const std::string& value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+
+
+  _impl_.caster_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EffectApplied::_internal_mutable_caster() {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.caster_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EffectApplied::release_caster() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EffectApplied.caster)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.caster_.Release();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  return released;
+}
+inline void EffectApplied::set_allocated_caster(std::string* value) {
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.caster_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.caster_.IsDefault()) {
+          _impl_.caster_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EffectApplied.caster)
+}
+
+// optional uint32 caster_incarnation = 4;
+inline bool EffectApplied::has_caster_incarnation() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  return value;
+}
+inline void EffectApplied::clear_caster_incarnation() {
+  _impl_.caster_incarnation_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline ::uint32_t EffectApplied::caster_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.caster_incarnation)
+  return _internal_caster_incarnation();
+}
+inline void EffectApplied::set_caster_incarnation(::uint32_t value) {
+  _internal_set_caster_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.caster_incarnation)
+}
+inline ::uint32_t EffectApplied::_internal_caster_incarnation() const {
+  return _impl_.caster_incarnation_;
+}
+inline void EffectApplied::_internal_set_caster_incarnation(::uint32_t value) {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.caster_incarnation_ = value;
+}
+
+// uint64 effect_id = 5;
+inline void EffectApplied::clear_effect_id() {
+  _impl_.effect_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t EffectApplied::effect_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.effect_id)
+  return _internal_effect_id();
+}
+inline void EffectApplied::set_effect_id(::uint64_t value) {
+  _internal_set_effect_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.effect_id)
+}
+inline ::uint64_t EffectApplied::_internal_effect_id() const {
+  return _impl_.effect_id_;
+}
+inline void EffectApplied::_internal_set_effect_id(::uint64_t value) {
+  ;
+  _impl_.effect_id_ = value;
+}
+
+// uint32 skill_id = 6;
+inline void EffectApplied::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t EffectApplied::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.skill_id)
+  return _internal_skill_id();
+}
+inline void EffectApplied::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.skill_id)
+}
+inline ::uint32_t EffectApplied::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void EffectApplied::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// uint32 skill_level = 7;
+inline void EffectApplied::clear_skill_level() {
+  _impl_.skill_level_ = 0u;
+}
+inline ::uint32_t EffectApplied::skill_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.skill_level)
+  return _internal_skill_level();
+}
+inline void EffectApplied::set_skill_level(::uint32_t value) {
+  _internal_set_skill_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.skill_level)
+}
+inline ::uint32_t EffectApplied::_internal_skill_level() const {
+  return _impl_.skill_level_;
+}
+inline void EffectApplied::_internal_set_skill_level(::uint32_t value) {
+  ;
+  _impl_.skill_level_ = value;
+}
+
+// .nightfall.v1.EffectPool pool = 8;
+inline void EffectApplied::clear_pool() {
+  _impl_.pool_ = 0;
+}
+inline ::nightfall::v1::EffectPool EffectApplied::pool() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.pool)
+  return _internal_pool();
+}
+inline void EffectApplied::set_pool(::nightfall::v1::EffectPool value) {
+   _internal_set_pool(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.pool)
+}
+inline ::nightfall::v1::EffectPool EffectApplied::_internal_pool() const {
+  return static_cast<::nightfall::v1::EffectPool>(_impl_.pool_);
+}
+inline void EffectApplied::_internal_set_pool(::nightfall::v1::EffectPool value) {
+  ;
+  _impl_.pool_ = value;
+}
+
+// uint64 tick = 9;
+inline void EffectApplied::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t EffectApplied::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.tick)
+  return _internal_tick();
+}
+inline void EffectApplied::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.tick)
+}
+inline ::uint64_t EffectApplied::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void EffectApplied::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint64 end_tick = 10;
+inline void EffectApplied::clear_end_tick() {
+  _impl_.end_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t EffectApplied::end_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.end_tick)
+  return _internal_end_tick();
+}
+inline void EffectApplied::set_end_tick(::uint64_t value) {
+  _internal_set_end_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.end_tick)
+}
+inline ::uint64_t EffectApplied::_internal_end_tick() const {
+  return _impl_.end_tick_;
+}
+inline void EffectApplied::_internal_set_end_tick(::uint64_t value) {
+  ;
+  _impl_.end_tick_ = value;
+}
+
+// string abnormal_type = 11;
+inline void EffectApplied::clear_abnormal_type() {
+  _impl_.abnormal_type_.ClearToEmpty();
+}
+inline const std::string& EffectApplied::abnormal_type() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.abnormal_type)
+  return _internal_abnormal_type();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EffectApplied::set_abnormal_type(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.abnormal_type_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.abnormal_type)
+}
+inline std::string* EffectApplied::mutable_abnormal_type() {
+  std::string* _s = _internal_mutable_abnormal_type();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EffectApplied.abnormal_type)
+  return _s;
+}
+inline const std::string& EffectApplied::_internal_abnormal_type() const {
+  return _impl_.abnormal_type_.Get();
+}
+inline void EffectApplied::_internal_set_abnormal_type(const std::string& value) {
+  ;
+
+
+  _impl_.abnormal_type_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EffectApplied::_internal_mutable_abnormal_type() {
+  ;
+  return _impl_.abnormal_type_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EffectApplied::release_abnormal_type() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EffectApplied.abnormal_type)
+  return _impl_.abnormal_type_.Release();
+}
+inline void EffectApplied::set_allocated_abnormal_type(std::string* value) {
+  _impl_.abnormal_type_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.abnormal_type_.IsDefault()) {
+          _impl_.abnormal_type_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EffectApplied.abnormal_type)
+}
+
+// uint32 abnormal_level = 12;
+inline void EffectApplied::clear_abnormal_level() {
+  _impl_.abnormal_level_ = 0u;
+}
+inline ::uint32_t EffectApplied::abnormal_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.abnormal_level)
+  return _internal_abnormal_level();
+}
+inline void EffectApplied::set_abnormal_level(::uint32_t value) {
+  _internal_set_abnormal_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.abnormal_level)
+}
+inline ::uint32_t EffectApplied::_internal_abnormal_level() const {
+  return _impl_.abnormal_level_;
+}
+inline void EffectApplied::_internal_set_abnormal_level(::uint32_t value) {
+  ;
+  _impl_.abnormal_level_ = value;
+}
+
+// uint64 status_flags = 13;
+inline void EffectApplied::clear_status_flags() {
+  _impl_.status_flags_ = ::uint64_t{0u};
+}
+inline ::uint64_t EffectApplied::status_flags() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.status_flags)
+  return _internal_status_flags();
+}
+inline void EffectApplied::set_status_flags(::uint64_t value) {
+  _internal_set_status_flags(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.status_flags)
+}
+inline ::uint64_t EffectApplied::_internal_status_flags() const {
+  return _impl_.status_flags_;
+}
+inline void EffectApplied::_internal_set_status_flags(::uint64_t value) {
+  ;
+  _impl_.status_flags_ = value;
+}
+
+// bool baseline = 14;
+inline void EffectApplied::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool EffectApplied::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.baseline)
+  return _internal_baseline();
+}
+inline void EffectApplied::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.baseline)
+}
+inline bool EffectApplied::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void EffectApplied::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 15;
+inline void EffectApplied::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t EffectApplied::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void EffectApplied::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.baseline_tick)
+}
+inline ::uint64_t EffectApplied::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void EffectApplied::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
+}
+
+// uint64 applied_tick = 16;
+inline void EffectApplied::clear_applied_tick() {
+  _impl_.applied_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t EffectApplied::applied_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectApplied.applied_tick)
+  return _internal_applied_tick();
+}
+inline void EffectApplied::set_applied_tick(::uint64_t value) {
+  _internal_set_applied_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectApplied.applied_tick)
+}
+inline ::uint64_t EffectApplied::_internal_applied_tick() const {
+  return _impl_.applied_tick_;
+}
+inline void EffectApplied::_internal_set_applied_tick(::uint64_t value) {
+  ;
+  _impl_.applied_tick_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// EffectRemoved
+
+// string target = 1;
+inline void EffectRemoved::clear_target() {
+  _impl_.target_.ClearToEmpty();
+}
+inline const std::string& EffectRemoved::target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectRemoved.target)
+  return _internal_target();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EffectRemoved::set_target(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectRemoved.target)
+}
+inline std::string* EffectRemoved::mutable_target() {
+  std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EffectRemoved.target)
+  return _s;
+}
+inline const std::string& EffectRemoved::_internal_target() const {
+  return _impl_.target_.Get();
+}
+inline void EffectRemoved::_internal_set_target(const std::string& value) {
+  ;
+
+
+  _impl_.target_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EffectRemoved::_internal_mutable_target() {
+  ;
+  return _impl_.target_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EffectRemoved::release_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EffectRemoved.target)
+  return _impl_.target_.Release();
+}
+inline void EffectRemoved::set_allocated_target(std::string* value) {
+  _impl_.target_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.target_.IsDefault()) {
+          _impl_.target_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EffectRemoved.target)
+}
+
+// uint32 target_incarnation = 2;
+inline void EffectRemoved::clear_target_incarnation() {
+  _impl_.target_incarnation_ = 0u;
+}
+inline ::uint32_t EffectRemoved::target_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectRemoved.target_incarnation)
+  return _internal_target_incarnation();
+}
+inline void EffectRemoved::set_target_incarnation(::uint32_t value) {
+  _internal_set_target_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectRemoved.target_incarnation)
+}
+inline ::uint32_t EffectRemoved::_internal_target_incarnation() const {
+  return _impl_.target_incarnation_;
+}
+inline void EffectRemoved::_internal_set_target_incarnation(::uint32_t value) {
+  ;
+  _impl_.target_incarnation_ = value;
+}
+
+// uint64 effect_id = 3;
+inline void EffectRemoved::clear_effect_id() {
+  _impl_.effect_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t EffectRemoved::effect_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectRemoved.effect_id)
+  return _internal_effect_id();
+}
+inline void EffectRemoved::set_effect_id(::uint64_t value) {
+  _internal_set_effect_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectRemoved.effect_id)
+}
+inline ::uint64_t EffectRemoved::_internal_effect_id() const {
+  return _impl_.effect_id_;
+}
+inline void EffectRemoved::_internal_set_effect_id(::uint64_t value) {
+  ;
+  _impl_.effect_id_ = value;
+}
+
+// .nightfall.v1.EffectRemoveReason reason = 4;
+inline void EffectRemoved::clear_reason() {
+  _impl_.reason_ = 0;
+}
+inline ::nightfall::v1::EffectRemoveReason EffectRemoved::reason() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectRemoved.reason)
+  return _internal_reason();
+}
+inline void EffectRemoved::set_reason(::nightfall::v1::EffectRemoveReason value) {
+   _internal_set_reason(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectRemoved.reason)
+}
+inline ::nightfall::v1::EffectRemoveReason EffectRemoved::_internal_reason() const {
+  return static_cast<::nightfall::v1::EffectRemoveReason>(_impl_.reason_);
+}
+inline void EffectRemoved::_internal_set_reason(::nightfall::v1::EffectRemoveReason value) {
+  ;
+  _impl_.reason_ = value;
+}
+
+// uint64 tick = 5;
+inline void EffectRemoved::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t EffectRemoved::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectRemoved.tick)
+  return _internal_tick();
+}
+inline void EffectRemoved::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectRemoved.tick)
+}
+inline ::uint64_t EffectRemoved::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void EffectRemoved::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SkillReuse
+
+// string entity = 1;
+inline void SkillReuse::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& SkillReuse::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillReuse.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillReuse::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillReuse.entity)
+}
+inline std::string* SkillReuse::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillReuse.entity)
+  return _s;
+}
+inline const std::string& SkillReuse::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void SkillReuse::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillReuse::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillReuse::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillReuse.entity)
+  return _impl_.entity_.Release();
+}
+inline void SkillReuse::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillReuse.entity)
+}
+
+// uint32 skill_id = 2;
+inline void SkillReuse::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t SkillReuse::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillReuse.skill_id)
+  return _internal_skill_id();
+}
+inline void SkillReuse::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillReuse.skill_id)
+}
+inline ::uint32_t SkillReuse::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void SkillReuse::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// uint64 ready_tick = 3;
+inline void SkillReuse::clear_ready_tick() {
+  _impl_.ready_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillReuse::ready_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillReuse.ready_tick)
+  return _internal_ready_tick();
+}
+inline void SkillReuse::set_ready_tick(::uint64_t value) {
+  _internal_set_ready_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillReuse.ready_tick)
+}
+inline ::uint64_t SkillReuse::_internal_ready_tick() const {
+  return _impl_.ready_tick_;
+}
+inline void SkillReuse::_internal_set_ready_tick(::uint64_t value) {
+  ;
+  _impl_.ready_tick_ = value;
+}
+
+// uint64 tick = 4;
+inline void SkillReuse::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillReuse::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillReuse.tick)
+  return _internal_tick();
+}
+inline void SkillReuse::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillReuse.tick)
+}
+inline ::uint64_t SkillReuse::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void SkillReuse::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint32 incarnation = 5;
+inline void SkillReuse::clear_incarnation() {
+  _impl_.incarnation_ = 0u;
+}
+inline ::uint32_t SkillReuse::incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillReuse.incarnation)
+  return _internal_incarnation();
+}
+inline void SkillReuse::set_incarnation(::uint32_t value) {
+  _internal_set_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillReuse.incarnation)
+}
+inline ::uint32_t SkillReuse::_internal_incarnation() const {
+  return _impl_.incarnation_;
+}
+inline void SkillReuse::_internal_set_incarnation(::uint32_t value) {
+  ;
+  _impl_.incarnation_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SkillLearned
+
+// string entity = 1;
+inline void SkillLearned::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& SkillLearned::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillLearned.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillLearned::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillLearned.entity)
+}
+inline std::string* SkillLearned::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillLearned.entity)
+  return _s;
+}
+inline const std::string& SkillLearned::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void SkillLearned::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillLearned::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillLearned::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillLearned.entity)
+  return _impl_.entity_.Release();
+}
+inline void SkillLearned::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillLearned.entity)
+}
+
+// uint32 skill_id = 2;
+inline void SkillLearned::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t SkillLearned::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillLearned.skill_id)
+  return _internal_skill_id();
+}
+inline void SkillLearned::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillLearned.skill_id)
+}
+inline ::uint32_t SkillLearned::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void SkillLearned::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// uint32 skill_level = 3;
+inline void SkillLearned::clear_skill_level() {
+  _impl_.skill_level_ = 0u;
+}
+inline ::uint32_t SkillLearned::skill_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillLearned.skill_level)
+  return _internal_skill_level();
+}
+inline void SkillLearned::set_skill_level(::uint32_t value) {
+  _internal_set_skill_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillLearned.skill_level)
+}
+inline ::uint32_t SkillLearned::_internal_skill_level() const {
+  return _impl_.skill_level_;
+}
+inline void SkillLearned::_internal_set_skill_level(::uint32_t value) {
+  ;
+  _impl_.skill_level_ = value;
+}
+
+// uint64 sp_cost = 4;
+inline void SkillLearned::clear_sp_cost() {
+  _impl_.sp_cost_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillLearned::sp_cost() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillLearned.sp_cost)
+  return _internal_sp_cost();
+}
+inline void SkillLearned::set_sp_cost(::uint64_t value) {
+  _internal_set_sp_cost(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillLearned.sp_cost)
+}
+inline ::uint64_t SkillLearned::_internal_sp_cost() const {
+  return _impl_.sp_cost_;
+}
+inline void SkillLearned::_internal_set_sp_cost(::uint64_t value) {
+  ;
+  _impl_.sp_cost_ = value;
+}
+
+// uint64 sp_remaining = 5;
+inline void SkillLearned::clear_sp_remaining() {
+  _impl_.sp_remaining_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillLearned::sp_remaining() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillLearned.sp_remaining)
+  return _internal_sp_remaining();
+}
+inline void SkillLearned::set_sp_remaining(::uint64_t value) {
+  _internal_set_sp_remaining(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillLearned.sp_remaining)
+}
+inline ::uint64_t SkillLearned::_internal_sp_remaining() const {
+  return _impl_.sp_remaining_;
+}
+inline void SkillLearned::_internal_set_sp_remaining(::uint64_t value) {
+  ;
+  _impl_.sp_remaining_ = value;
+}
+
+// string idempotency_key = 6;
+inline void SkillLearned::clear_idempotency_key() {
+  _impl_.idempotency_key_.ClearToEmpty();
+}
+inline const std::string& SkillLearned::idempotency_key() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillLearned.idempotency_key)
+  return _internal_idempotency_key();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillLearned::set_idempotency_key(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.idempotency_key_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillLearned.idempotency_key)
+}
+inline std::string* SkillLearned::mutable_idempotency_key() {
+  std::string* _s = _internal_mutable_idempotency_key();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillLearned.idempotency_key)
+  return _s;
+}
+inline const std::string& SkillLearned::_internal_idempotency_key() const {
+  return _impl_.idempotency_key_.Get();
+}
+inline void SkillLearned::_internal_set_idempotency_key(const std::string& value) {
+  ;
+
+
+  _impl_.idempotency_key_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillLearned::_internal_mutable_idempotency_key() {
+  ;
+  return _impl_.idempotency_key_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillLearned::release_idempotency_key() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillLearned.idempotency_key)
+  return _impl_.idempotency_key_.Release();
+}
+inline void SkillLearned::set_allocated_idempotency_key(std::string* value) {
+  _impl_.idempotency_key_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.idempotency_key_.IsDefault()) {
+          _impl_.idempotency_key_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillLearned.idempotency_key)
+}
+
+// uint64 tick = 7;
+inline void SkillLearned::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillLearned::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillLearned.tick)
+  return _internal_tick();
+}
+inline void SkillLearned::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillLearned.tick)
+}
+inline ::uint64_t SkillLearned::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void SkillLearned::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint32 incarnation = 8;
+inline void SkillLearned::clear_incarnation() {
+  _impl_.incarnation_ = 0u;
+}
+inline ::uint32_t SkillLearned::incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillLearned.incarnation)
+  return _internal_incarnation();
+}
+inline void SkillLearned::set_incarnation(::uint32_t value) {
+  _internal_set_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillLearned.incarnation)
+}
+inline ::uint32_t SkillLearned::_internal_incarnation() const {
+  return _impl_.incarnation_;
+}
+inline void SkillLearned::_internal_set_incarnation(::uint32_t value) {
+  ;
+  _impl_.incarnation_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// PvpStateChanged
+
+// string entity = 1;
+inline void PvpStateChanged::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& PvpStateChanged::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void PvpStateChanged::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.entity)
+}
+inline std::string* PvpStateChanged::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.PvpStateChanged.entity)
+  return _s;
+}
+inline const std::string& PvpStateChanged::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void PvpStateChanged::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* PvpStateChanged::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* PvpStateChanged::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.PvpStateChanged.entity)
+  return _impl_.entity_.Release();
+}
+inline void PvpStateChanged::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.PvpStateChanged.entity)
+}
+
+// uint64 flag_until_tick = 2;
+inline void PvpStateChanged::clear_flag_until_tick() {
+  _impl_.flag_until_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t PvpStateChanged::flag_until_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.flag_until_tick)
+  return _internal_flag_until_tick();
+}
+inline void PvpStateChanged::set_flag_until_tick(::uint64_t value) {
+  _internal_set_flag_until_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.flag_until_tick)
+}
+inline ::uint64_t PvpStateChanged::_internal_flag_until_tick() const {
+  return _impl_.flag_until_tick_;
+}
+inline void PvpStateChanged::_internal_set_flag_until_tick(::uint64_t value) {
+  ;
+  _impl_.flag_until_tick_ = value;
+}
+
+// uint32 karma = 3;
+inline void PvpStateChanged::clear_karma() {
+  _impl_.karma_ = 0u;
+}
+inline ::uint32_t PvpStateChanged::karma() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.karma)
+  return _internal_karma();
+}
+inline void PvpStateChanged::set_karma(::uint32_t value) {
+  _internal_set_karma(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.karma)
+}
+inline ::uint32_t PvpStateChanged::_internal_karma() const {
+  return _impl_.karma_;
+}
+inline void PvpStateChanged::_internal_set_karma(::uint32_t value) {
+  ;
+  _impl_.karma_ = value;
+}
+
+// uint32 pk_count = 4;
+inline void PvpStateChanged::clear_pk_count() {
+  _impl_.pk_count_ = 0u;
+}
+inline ::uint32_t PvpStateChanged::pk_count() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.pk_count)
+  return _internal_pk_count();
+}
+inline void PvpStateChanged::set_pk_count(::uint32_t value) {
+  _internal_set_pk_count(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.pk_count)
+}
+inline ::uint32_t PvpStateChanged::_internal_pk_count() const {
+  return _impl_.pk_count_;
+}
+inline void PvpStateChanged::_internal_set_pk_count(::uint32_t value) {
+  ;
+  _impl_.pk_count_ = value;
+}
+
+// uint32 pvp_count = 5;
+inline void PvpStateChanged::clear_pvp_count() {
+  _impl_.pvp_count_ = 0u;
+}
+inline ::uint32_t PvpStateChanged::pvp_count() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.pvp_count)
+  return _internal_pvp_count();
+}
+inline void PvpStateChanged::set_pvp_count(::uint32_t value) {
+  _internal_set_pvp_count(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.pvp_count)
+}
+inline ::uint32_t PvpStateChanged::_internal_pvp_count() const {
+  return _impl_.pvp_count_;
+}
+inline void PvpStateChanged::_internal_set_pvp_count(::uint32_t value) {
+  ;
+  _impl_.pvp_count_ = value;
+}
+
+// uint64 tick = 6;
+inline void PvpStateChanged::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t PvpStateChanged::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.tick)
+  return _internal_tick();
+}
+inline void PvpStateChanged::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.tick)
+}
+inline ::uint64_t PvpStateChanged::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void PvpStateChanged::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint32 incarnation = 7;
+inline void PvpStateChanged::clear_incarnation() {
+  _impl_.incarnation_ = 0u;
+}
+inline ::uint32_t PvpStateChanged::incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.incarnation)
+  return _internal_incarnation();
+}
+inline void PvpStateChanged::set_incarnation(::uint32_t value) {
+  _internal_set_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.incarnation)
+}
+inline ::uint32_t PvpStateChanged::_internal_incarnation() const {
+  return _impl_.incarnation_;
+}
+inline void PvpStateChanged::_internal_set_incarnation(::uint32_t value) {
+  ;
+  _impl_.incarnation_ = value;
+}
+
+// bool baseline = 8;
+inline void PvpStateChanged::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool PvpStateChanged::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.baseline)
+  return _internal_baseline();
+}
+inline void PvpStateChanged::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.baseline)
+}
+inline bool PvpStateChanged::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void PvpStateChanged::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 9;
+inline void PvpStateChanged::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t PvpStateChanged::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.PvpStateChanged.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void PvpStateChanged::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.PvpStateChanged.baseline_tick)
+}
+inline ::uint64_t PvpStateChanged::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void PvpStateChanged::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// ResurrectOffer
+
+// string target = 1;
+inline void ResurrectOffer::clear_target() {
+  _impl_.target_.ClearToEmpty();
+}
+inline const std::string& ResurrectOffer::target() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.target)
+  return _internal_target();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void ResurrectOffer::set_target(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.target_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.target)
+}
+inline std::string* ResurrectOffer::mutable_target() {
+  std::string* _s = _internal_mutable_target();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ResurrectOffer.target)
+  return _s;
+}
+inline const std::string& ResurrectOffer::_internal_target() const {
+  return _impl_.target_.Get();
+}
+inline void ResurrectOffer::_internal_set_target(const std::string& value) {
+  ;
+
+
+  _impl_.target_.Set(value, GetArenaForAllocation());
+}
+inline std::string* ResurrectOffer::_internal_mutable_target() {
+  ;
+  return _impl_.target_.Mutable( GetArenaForAllocation());
+}
+inline std::string* ResurrectOffer::release_target() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ResurrectOffer.target)
+  return _impl_.target_.Release();
+}
+inline void ResurrectOffer::set_allocated_target(std::string* value) {
+  _impl_.target_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.target_.IsDefault()) {
+          _impl_.target_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ResurrectOffer.target)
+}
+
+// uint32 target_incarnation = 2;
+inline void ResurrectOffer::clear_target_incarnation() {
+  _impl_.target_incarnation_ = 0u;
+}
+inline ::uint32_t ResurrectOffer::target_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.target_incarnation)
+  return _internal_target_incarnation();
+}
+inline void ResurrectOffer::set_target_incarnation(::uint32_t value) {
+  _internal_set_target_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.target_incarnation)
+}
+inline ::uint32_t ResurrectOffer::_internal_target_incarnation() const {
+  return _impl_.target_incarnation_;
+}
+inline void ResurrectOffer::_internal_set_target_incarnation(::uint32_t value) {
+  ;
+  _impl_.target_incarnation_ = value;
+}
+
+// uint64 offer_id = 3;
+inline void ResurrectOffer::clear_offer_id() {
+  _impl_.offer_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t ResurrectOffer::offer_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.offer_id)
+  return _internal_offer_id();
+}
+inline void ResurrectOffer::set_offer_id(::uint64_t value) {
+  _internal_set_offer_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.offer_id)
+}
+inline ::uint64_t ResurrectOffer::_internal_offer_id() const {
+  return _impl_.offer_id_;
+}
+inline void ResurrectOffer::_internal_set_offer_id(::uint64_t value) {
+  ;
+  _impl_.offer_id_ = value;
+}
+
+// optional string caster = 4;
+inline bool ResurrectOffer::has_caster() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void ResurrectOffer::clear_caster() {
+  _impl_.caster_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const std::string& ResurrectOffer::caster() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.caster)
+  return _internal_caster();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void ResurrectOffer::set_caster(Arg_&& arg,
+                                                     Args_... args) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.caster_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.caster)
+}
+inline std::string* ResurrectOffer::mutable_caster() {
+  std::string* _s = _internal_mutable_caster();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ResurrectOffer.caster)
+  return _s;
+}
+inline const std::string& ResurrectOffer::_internal_caster() const {
+  return _impl_.caster_.Get();
+}
+inline void ResurrectOffer::_internal_set_caster(const std::string& value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+
+
+  _impl_.caster_.Set(value, GetArenaForAllocation());
+}
+inline std::string* ResurrectOffer::_internal_mutable_caster() {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  return _impl_.caster_.Mutable( GetArenaForAllocation());
+}
+inline std::string* ResurrectOffer::release_caster() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ResurrectOffer.caster)
+  if ((_impl_._has_bits_[0] & 0x00000001u) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  auto* released = _impl_.caster_.Release();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  return released;
+}
+inline void ResurrectOffer::set_allocated_caster(std::string* value) {
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.caster_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.caster_.IsDefault()) {
+          _impl_.caster_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ResurrectOffer.caster)
+}
+
+// optional uint32 caster_incarnation = 5;
+inline bool ResurrectOffer::has_caster_incarnation() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  return value;
+}
+inline void ResurrectOffer::clear_caster_incarnation() {
+  _impl_.caster_incarnation_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline ::uint32_t ResurrectOffer::caster_incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.caster_incarnation)
+  return _internal_caster_incarnation();
+}
+inline void ResurrectOffer::set_caster_incarnation(::uint32_t value) {
+  _internal_set_caster_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.caster_incarnation)
+}
+inline ::uint32_t ResurrectOffer::_internal_caster_incarnation() const {
+  return _impl_.caster_incarnation_;
+}
+inline void ResurrectOffer::_internal_set_caster_incarnation(::uint32_t value) {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.caster_incarnation_ = value;
+}
+
+// int64 restore_percent_q = 6;
+inline void ResurrectOffer::clear_restore_percent_q() {
+  _impl_.restore_percent_q_ = ::int64_t{0};
+}
+inline ::int64_t ResurrectOffer::restore_percent_q() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.restore_percent_q)
+  return _internal_restore_percent_q();
+}
+inline void ResurrectOffer::set_restore_percent_q(::int64_t value) {
+  _internal_set_restore_percent_q(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.restore_percent_q)
+}
+inline ::int64_t ResurrectOffer::_internal_restore_percent_q() const {
+  return _impl_.restore_percent_q_;
+}
+inline void ResurrectOffer::_internal_set_restore_percent_q(::int64_t value) {
+  ;
+  _impl_.restore_percent_q_ = value;
+}
+
+// uint64 recoverable_xp = 7;
+inline void ResurrectOffer::clear_recoverable_xp() {
+  _impl_.recoverable_xp_ = ::uint64_t{0u};
+}
+inline ::uint64_t ResurrectOffer::recoverable_xp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.recoverable_xp)
+  return _internal_recoverable_xp();
+}
+inline void ResurrectOffer::set_recoverable_xp(::uint64_t value) {
+  _internal_set_recoverable_xp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.recoverable_xp)
+}
+inline ::uint64_t ResurrectOffer::_internal_recoverable_xp() const {
+  return _impl_.recoverable_xp_;
+}
+inline void ResurrectOffer::_internal_set_recoverable_xp(::uint64_t value) {
+  ;
+  _impl_.recoverable_xp_ = value;
+}
+
+// uint64 expiry_tick = 8;
+inline void ResurrectOffer::clear_expiry_tick() {
+  _impl_.expiry_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t ResurrectOffer::expiry_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.expiry_tick)
+  return _internal_expiry_tick();
+}
+inline void ResurrectOffer::set_expiry_tick(::uint64_t value) {
+  _internal_set_expiry_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.expiry_tick)
+}
+inline ::uint64_t ResurrectOffer::_internal_expiry_tick() const {
+  return _impl_.expiry_tick_;
+}
+inline void ResurrectOffer::_internal_set_expiry_tick(::uint64_t value) {
+  ;
+  _impl_.expiry_tick_ = value;
+}
+
+// .nightfall.v1.ResurrectOfferState state = 9;
+inline void ResurrectOffer::clear_state() {
+  _impl_.state_ = 0;
+}
+inline ::nightfall::v1::ResurrectOfferState ResurrectOffer::state() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.state)
+  return _internal_state();
+}
+inline void ResurrectOffer::set_state(::nightfall::v1::ResurrectOfferState value) {
+   _internal_set_state(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.state)
+}
+inline ::nightfall::v1::ResurrectOfferState ResurrectOffer::_internal_state() const {
+  return static_cast<::nightfall::v1::ResurrectOfferState>(_impl_.state_);
+}
+inline void ResurrectOffer::_internal_set_state(::nightfall::v1::ResurrectOfferState value) {
+  ;
+  _impl_.state_ = value;
+}
+
+// uint64 tick = 10;
+inline void ResurrectOffer::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t ResurrectOffer::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.tick)
+  return _internal_tick();
+}
+inline void ResurrectOffer::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.tick)
+}
+inline ::uint64_t ResurrectOffer::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void ResurrectOffer::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SpGained
+
+// string entity = 1;
+inline void SpGained::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& SpGained::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SpGained.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SpGained::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SpGained.entity)
+}
+inline std::string* SpGained::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SpGained.entity)
+  return _s;
+}
+inline const std::string& SpGained::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void SpGained::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SpGained::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SpGained::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SpGained.entity)
+  return _impl_.entity_.Release();
+}
+inline void SpGained::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SpGained.entity)
+}
+
+// uint64 amount = 2;
+inline void SpGained::clear_amount() {
+  _impl_.amount_ = ::uint64_t{0u};
+}
+inline ::uint64_t SpGained::amount() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SpGained.amount)
+  return _internal_amount();
+}
+inline void SpGained::set_amount(::uint64_t value) {
+  _internal_set_amount(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SpGained.amount)
+}
+inline ::uint64_t SpGained::_internal_amount() const {
+  return _impl_.amount_;
+}
+inline void SpGained::_internal_set_amount(::uint64_t value) {
+  ;
+  _impl_.amount_ = value;
+}
+
+// uint64 total = 3;
+inline void SpGained::clear_total() {
+  _impl_.total_ = ::uint64_t{0u};
+}
+inline ::uint64_t SpGained::total() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SpGained.total)
+  return _internal_total();
+}
+inline void SpGained::set_total(::uint64_t value) {
+  _internal_set_total(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SpGained.total)
+}
+inline ::uint64_t SpGained::_internal_total() const {
+  return _impl_.total_;
+}
+inline void SpGained::_internal_set_total(::uint64_t value) {
+  ;
+  _impl_.total_ = value;
+}
+
+// uint64 tick = 4;
+inline void SpGained::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SpGained::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SpGained.tick)
+  return _internal_tick();
+}
+inline void SpGained::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SpGained.tick)
+}
+inline ::uint64_t SpGained::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void SpGained::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint32 incarnation = 5;
+inline void SpGained::clear_incarnation() {
+  _impl_.incarnation_ = 0u;
+}
+inline ::uint32_t SpGained::incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SpGained.incarnation)
+  return _internal_incarnation();
+}
+inline void SpGained::set_incarnation(::uint32_t value) {
+  _internal_set_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SpGained.incarnation)
+}
+inline ::uint32_t SpGained::_internal_incarnation() const {
+  return _impl_.incarnation_;
+}
+inline void SpGained::_internal_set_incarnation(::uint32_t value) {
+  ;
+  _impl_.incarnation_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// LearnedSkillRank
+
+// uint32 skill_id = 1;
+inline void LearnedSkillRank::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t LearnedSkillRank::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.LearnedSkillRank.skill_id)
+  return _internal_skill_id();
+}
+inline void LearnedSkillRank::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.LearnedSkillRank.skill_id)
+}
+inline ::uint32_t LearnedSkillRank::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void LearnedSkillRank::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// uint32 skill_level = 2;
+inline void LearnedSkillRank::clear_skill_level() {
+  _impl_.skill_level_ = 0u;
+}
+inline ::uint32_t LearnedSkillRank::skill_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.LearnedSkillRank.skill_level)
+  return _internal_skill_level();
+}
+inline void LearnedSkillRank::set_skill_level(::uint32_t value) {
+  _internal_set_skill_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.LearnedSkillRank.skill_level)
+}
+inline ::uint32_t LearnedSkillRank::_internal_skill_level() const {
+  return _impl_.skill_level_;
+}
+inline void LearnedSkillRank::_internal_set_skill_level(::uint32_t value) {
+  ;
+  _impl_.skill_level_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SkillReuseState
+
+// uint32 skill_id = 1;
+inline void SkillReuseState::clear_skill_id() {
+  _impl_.skill_id_ = 0u;
+}
+inline ::uint32_t SkillReuseState::skill_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillReuseState.skill_id)
+  return _internal_skill_id();
+}
+inline void SkillReuseState::set_skill_id(::uint32_t value) {
+  _internal_set_skill_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillReuseState.skill_id)
+}
+inline ::uint32_t SkillReuseState::_internal_skill_id() const {
+  return _impl_.skill_id_;
+}
+inline void SkillReuseState::_internal_set_skill_id(::uint32_t value) {
+  ;
+  _impl_.skill_id_ = value;
+}
+
+// uint64 ready_tick = 2;
+inline void SkillReuseState::clear_ready_tick() {
+  _impl_.ready_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillReuseState::ready_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillReuseState.ready_tick)
+  return _internal_ready_tick();
+}
+inline void SkillReuseState::set_ready_tick(::uint64_t value) {
+  _internal_set_ready_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillReuseState.ready_tick)
+}
+inline ::uint64_t SkillReuseState::_internal_ready_tick() const {
+  return _impl_.ready_tick_;
+}
+inline void SkillReuseState::_internal_set_ready_tick(::uint64_t value) {
+  ;
+  _impl_.ready_tick_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SkillStateSync
+
+// string entity = 1;
+inline void SkillStateSync::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& SkillStateSync::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void SkillStateSync::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.entity)
+}
+inline std::string* SkillStateSync::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillStateSync.entity)
+  return _s;
+}
+inline const std::string& SkillStateSync::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void SkillStateSync::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* SkillStateSync::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* SkillStateSync::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.SkillStateSync.entity)
+  return _impl_.entity_.Release();
+}
+inline void SkillStateSync::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillStateSync.entity)
+}
+
+// repeated .nightfall.v1.LearnedSkillRank learned = 2;
+inline int SkillStateSync::_internal_learned_size() const {
+  return _impl_.learned_.size();
+}
+inline int SkillStateSync::learned_size() const {
+  return _internal_learned_size();
+}
+inline void SkillStateSync::clear_learned() {
+  _internal_mutable_learned()->Clear();
+}
+inline ::nightfall::v1::LearnedSkillRank* SkillStateSync::mutable_learned(int index) {
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillStateSync.learned)
+  return _internal_mutable_learned()->Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::LearnedSkillRank >*
+SkillStateSync::mutable_learned() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillStateSync.learned)
+  return _internal_mutable_learned();
+}
+inline const ::nightfall::v1::LearnedSkillRank& SkillStateSync::_internal_learned(int index) const {
+  return _internal_learned().Get(index);
+}
+inline const ::nightfall::v1::LearnedSkillRank& SkillStateSync::learned(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.learned)
+  return _internal_learned(index);
+}
+inline ::nightfall::v1::LearnedSkillRank* SkillStateSync::_internal_add_learned() {
+  return _internal_mutable_learned()->Add();
+}
+inline ::nightfall::v1::LearnedSkillRank* SkillStateSync::add_learned() {
+  ::nightfall::v1::LearnedSkillRank* _add = _internal_add_learned();
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillStateSync.learned)
+  return _add;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::LearnedSkillRank >&
+SkillStateSync::learned() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillStateSync.learned)
+  return _internal_learned();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::LearnedSkillRank>&
+SkillStateSync::_internal_learned() const {
+  return _impl_.learned_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::LearnedSkillRank>*
+SkillStateSync::_internal_mutable_learned() {
+  return &_impl_.learned_;
+}
+
+// repeated .nightfall.v1.SkillReuseState reuse = 3;
+inline int SkillStateSync::_internal_reuse_size() const {
+  return _impl_.reuse_.size();
+}
+inline int SkillStateSync::reuse_size() const {
+  return _internal_reuse_size();
+}
+inline void SkillStateSync::clear_reuse() {
+  _internal_mutable_reuse()->Clear();
+}
+inline ::nightfall::v1::SkillReuseState* SkillStateSync::mutable_reuse(int index) {
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillStateSync.reuse)
+  return _internal_mutable_reuse()->Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillReuseState >*
+SkillStateSync::mutable_reuse() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillStateSync.reuse)
+  return _internal_mutable_reuse();
+}
+inline const ::nightfall::v1::SkillReuseState& SkillStateSync::_internal_reuse(int index) const {
+  return _internal_reuse().Get(index);
+}
+inline const ::nightfall::v1::SkillReuseState& SkillStateSync::reuse(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.reuse)
+  return _internal_reuse(index);
+}
+inline ::nightfall::v1::SkillReuseState* SkillStateSync::_internal_add_reuse() {
+  return _internal_mutable_reuse()->Add();
+}
+inline ::nightfall::v1::SkillReuseState* SkillStateSync::add_reuse() {
+  ::nightfall::v1::SkillReuseState* _add = _internal_add_reuse();
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillStateSync.reuse)
+  return _add;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::SkillReuseState >&
+SkillStateSync::reuse() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillStateSync.reuse)
+  return _internal_reuse();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::SkillReuseState>&
+SkillStateSync::_internal_reuse() const {
+  return _impl_.reuse_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::SkillReuseState>*
+SkillStateSync::_internal_mutable_reuse() {
+  return &_impl_.reuse_;
+}
+
+// uint64 sp = 4;
+inline void SkillStateSync::clear_sp() {
+  _impl_.sp_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillStateSync::sp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.sp)
+  return _internal_sp();
+}
+inline void SkillStateSync::set_sp(::uint64_t value) {
+  _internal_set_sp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.sp)
+}
+inline ::uint64_t SkillStateSync::_internal_sp() const {
+  return _impl_.sp_;
+}
+inline void SkillStateSync::_internal_set_sp(::uint64_t value) {
+  ;
+  _impl_.sp_ = value;
+}
+
+// uint32 karma = 5;
+inline void SkillStateSync::clear_karma() {
+  _impl_.karma_ = 0u;
+}
+inline ::uint32_t SkillStateSync::karma() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.karma)
+  return _internal_karma();
+}
+inline void SkillStateSync::set_karma(::uint32_t value) {
+  _internal_set_karma(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.karma)
+}
+inline ::uint32_t SkillStateSync::_internal_karma() const {
+  return _impl_.karma_;
+}
+inline void SkillStateSync::_internal_set_karma(::uint32_t value) {
+  ;
+  _impl_.karma_ = value;
+}
+
+// uint32 pk_count = 6;
+inline void SkillStateSync::clear_pk_count() {
+  _impl_.pk_count_ = 0u;
+}
+inline ::uint32_t SkillStateSync::pk_count() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.pk_count)
+  return _internal_pk_count();
+}
+inline void SkillStateSync::set_pk_count(::uint32_t value) {
+  _internal_set_pk_count(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.pk_count)
+}
+inline ::uint32_t SkillStateSync::_internal_pk_count() const {
+  return _impl_.pk_count_;
+}
+inline void SkillStateSync::_internal_set_pk_count(::uint32_t value) {
+  ;
+  _impl_.pk_count_ = value;
+}
+
+// uint32 pvp_count = 7;
+inline void SkillStateSync::clear_pvp_count() {
+  _impl_.pvp_count_ = 0u;
+}
+inline ::uint32_t SkillStateSync::pvp_count() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.pvp_count)
+  return _internal_pvp_count();
+}
+inline void SkillStateSync::set_pvp_count(::uint32_t value) {
+  _internal_set_pvp_count(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.pvp_count)
+}
+inline ::uint32_t SkillStateSync::_internal_pvp_count() const {
+  return _impl_.pvp_count_;
+}
+inline void SkillStateSync::_internal_set_pvp_count(::uint32_t value) {
+  ;
+  _impl_.pvp_count_ = value;
+}
+
+// uint64 flag_until_tick = 8;
+inline void SkillStateSync::clear_flag_until_tick() {
+  _impl_.flag_until_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillStateSync::flag_until_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.flag_until_tick)
+  return _internal_flag_until_tick();
+}
+inline void SkillStateSync::set_flag_until_tick(::uint64_t value) {
+  _internal_set_flag_until_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.flag_until_tick)
+}
+inline ::uint64_t SkillStateSync::_internal_flag_until_tick() const {
+  return _impl_.flag_until_tick_;
+}
+inline void SkillStateSync::_internal_set_flag_until_tick(::uint64_t value) {
+  ;
+  _impl_.flag_until_tick_ = value;
+}
+
+// uint32 death_penalty_level = 9;
+inline void SkillStateSync::clear_death_penalty_level() {
+  _impl_.death_penalty_level_ = 0u;
+}
+inline ::uint32_t SkillStateSync::death_penalty_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.death_penalty_level)
+  return _internal_death_penalty_level();
+}
+inline void SkillStateSync::set_death_penalty_level(::uint32_t value) {
+  _internal_set_death_penalty_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.death_penalty_level)
+}
+inline ::uint32_t SkillStateSync::_internal_death_penalty_level() const {
+  return _impl_.death_penalty_level_;
+}
+inline void SkillStateSync::_internal_set_death_penalty_level(::uint32_t value) {
+  ;
+  _impl_.death_penalty_level_ = value;
+}
+
+// uint64 tick = 10;
+inline void SkillStateSync::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillStateSync::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.tick)
+  return _internal_tick();
+}
+inline void SkillStateSync::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.tick)
+}
+inline ::uint64_t SkillStateSync::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void SkillStateSync::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint32 incarnation = 11;
+inline void SkillStateSync::clear_incarnation() {
+  _impl_.incarnation_ = 0u;
+}
+inline ::uint32_t SkillStateSync::incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.incarnation)
+  return _internal_incarnation();
+}
+inline void SkillStateSync::set_incarnation(::uint32_t value) {
+  _internal_set_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.incarnation)
+}
+inline ::uint32_t SkillStateSync::_internal_incarnation() const {
+  return _impl_.incarnation_;
+}
+inline void SkillStateSync::_internal_set_incarnation(::uint32_t value) {
+  ;
+  _impl_.incarnation_ = value;
+}
+
+// bool baseline = 12;
+inline void SkillStateSync::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool SkillStateSync::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.baseline)
+  return _internal_baseline();
+}
+inline void SkillStateSync::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.baseline)
+}
+inline bool SkillStateSync::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void SkillStateSync::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 13;
+inline void SkillStateSync::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t SkillStateSync::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillStateSync.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void SkillStateSync::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillStateSync.baseline_tick)
+}
+inline ::uint64_t SkillStateSync::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void SkillStateSync::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// VitalsChanged
+
+// string entity = 1;
+inline void VitalsChanged::clear_entity() {
+  _impl_.entity_.ClearToEmpty();
+}
+inline const std::string& VitalsChanged::entity() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.VitalsChanged.entity)
+  return _internal_entity();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void VitalsChanged::set_entity(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.entity_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.VitalsChanged.entity)
+}
+inline std::string* VitalsChanged::mutable_entity() {
+  std::string* _s = _internal_mutable_entity();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.VitalsChanged.entity)
+  return _s;
+}
+inline const std::string& VitalsChanged::_internal_entity() const {
+  return _impl_.entity_.Get();
+}
+inline void VitalsChanged::_internal_set_entity(const std::string& value) {
+  ;
+
+
+  _impl_.entity_.Set(value, GetArenaForAllocation());
+}
+inline std::string* VitalsChanged::_internal_mutable_entity() {
+  ;
+  return _impl_.entity_.Mutable( GetArenaForAllocation());
+}
+inline std::string* VitalsChanged::release_entity() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.VitalsChanged.entity)
+  return _impl_.entity_.Release();
+}
+inline void VitalsChanged::set_allocated_entity(std::string* value) {
+  _impl_.entity_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.entity_.IsDefault()) {
+          _impl_.entity_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.VitalsChanged.entity)
+}
+
+// uint32 hp = 2;
+inline void VitalsChanged::clear_hp() {
+  _impl_.hp_ = 0u;
+}
+inline ::uint32_t VitalsChanged::hp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.VitalsChanged.hp)
+  return _internal_hp();
+}
+inline void VitalsChanged::set_hp(::uint32_t value) {
+  _internal_set_hp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.VitalsChanged.hp)
+}
+inline ::uint32_t VitalsChanged::_internal_hp() const {
+  return _impl_.hp_;
+}
+inline void VitalsChanged::_internal_set_hp(::uint32_t value) {
+  ;
+  _impl_.hp_ = value;
+}
+
+// uint32 max_hp = 3;
+inline void VitalsChanged::clear_max_hp() {
+  _impl_.max_hp_ = 0u;
+}
+inline ::uint32_t VitalsChanged::max_hp() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.VitalsChanged.max_hp)
+  return _internal_max_hp();
+}
+inline void VitalsChanged::set_max_hp(::uint32_t value) {
+  _internal_set_max_hp(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.VitalsChanged.max_hp)
+}
+inline ::uint32_t VitalsChanged::_internal_max_hp() const {
+  return _impl_.max_hp_;
+}
+inline void VitalsChanged::_internal_set_max_hp(::uint32_t value) {
+  ;
+  _impl_.max_hp_ = value;
+}
+
+// uint64 tick = 4;
+inline void VitalsChanged::clear_tick() {
+  _impl_.tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t VitalsChanged::tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.VitalsChanged.tick)
+  return _internal_tick();
+}
+inline void VitalsChanged::set_tick(::uint64_t value) {
+  _internal_set_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.VitalsChanged.tick)
+}
+inline ::uint64_t VitalsChanged::_internal_tick() const {
+  return _impl_.tick_;
+}
+inline void VitalsChanged::_internal_set_tick(::uint64_t value) {
+  ;
+  _impl_.tick_ = value;
+}
+
+// uint32 incarnation = 5;
+inline void VitalsChanged::clear_incarnation() {
+  _impl_.incarnation_ = 0u;
+}
+inline ::uint32_t VitalsChanged::incarnation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.VitalsChanged.incarnation)
+  return _internal_incarnation();
+}
+inline void VitalsChanged::set_incarnation(::uint32_t value) {
+  _internal_set_incarnation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.VitalsChanged.incarnation)
+}
+inline ::uint32_t VitalsChanged::_internal_incarnation() const {
+  return _impl_.incarnation_;
+}
+inline void VitalsChanged::_internal_set_incarnation(::uint32_t value) {
+  ;
+  _impl_.incarnation_ = value;
+}
+
+// bool baseline = 6;
+inline void VitalsChanged::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool VitalsChanged::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.VitalsChanged.baseline)
+  return _internal_baseline();
+}
+inline void VitalsChanged::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.VitalsChanged.baseline)
+}
+inline bool VitalsChanged::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void VitalsChanged::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 7;
+inline void VitalsChanged::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t VitalsChanged::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.VitalsChanged.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void VitalsChanged::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.VitalsChanged.baseline_tick)
+}
+inline ::uint64_t VitalsChanged::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void VitalsChanged::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
+}
+
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif  // __GNUC__
@@ -10035,6 +20806,42 @@ struct is_proto_enum<::nightfall::v1::SwingCancelReason> : std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::SwingCancelReason>() {
   return ::nightfall::v1::SwingCancelReason_descriptor();
+}
+template <>
+struct is_proto_enum<::nightfall::v1::SkillResolutionKind> : std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::SkillResolutionKind>() {
+  return ::nightfall::v1::SkillResolutionKind_descriptor();
+}
+template <>
+struct is_proto_enum<::nightfall::v1::SkillOutcome> : std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::SkillOutcome>() {
+  return ::nightfall::v1::SkillOutcome_descriptor();
+}
+template <>
+struct is_proto_enum<::nightfall::v1::CastCancelReason> : std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::CastCancelReason>() {
+  return ::nightfall::v1::CastCancelReason_descriptor();
+}
+template <>
+struct is_proto_enum<::nightfall::v1::EffectPool> : std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::EffectPool>() {
+  return ::nightfall::v1::EffectPool_descriptor();
+}
+template <>
+struct is_proto_enum<::nightfall::v1::EffectRemoveReason> : std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::EffectRemoveReason>() {
+  return ::nightfall::v1::EffectRemoveReason_descriptor();
+}
+template <>
+struct is_proto_enum<::nightfall::v1::ResurrectOfferState> : std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::ResurrectOfferState>() {
+  return ::nightfall::v1::ResurrectOfferState_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE

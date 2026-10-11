@@ -97,16 +97,21 @@ class SoakTests(unittest.TestCase):
     def test_teardown_failure_changes_final_verdict(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
-            (out / 'report.json').write_text(json.dumps({'passed': True, 'errors': []}))
+            (out / 'report.json').write_text(json.dumps({'passed': True, 'errors': [],
+                                                       'phase3_acceptance': True}))
             (out / 'soak.xml').write_text('<testsuites/>')
             (out / 'summary.txt').write_text('Soak: PASS\n')
             self.assertEqual(reporting.teardown(out, 0), 0)
             self.assertTrue(json.loads((out / 'report.json').read_text())['passed'])
+            self.assertTrue(json.loads((out / 'report.json').read_text())['phase3_acceptance'])
             self.assertEqual(reporting.teardown(out, 124), 1)
             result = json.loads((out / 'report.json').read_text())
             self.assertFalse(result['passed'])
+            self.assertFalse(result['phase3_acceptance'])
             self.assertEqual(result['cleanup_exit_code'], 124)
             self.assertIsNotNone(ET.parse(out / 'soak.xml').find('.//failure'))
+            self.assertEqual(reporting.teardown(out, 0), 0)
+            self.assertFalse(json.loads((out / 'report.json').read_text())['phase3_acceptance'])
 
 
 if __name__ == '__main__':

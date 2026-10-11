@@ -10,6 +10,9 @@ DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SetTargetRequest, ::nightfall::v1::SetTarg
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1AttackRequest, ::nightfall::v1::AttackRequest)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1StopAttackRequest, ::nightfall::v1::StopAttackRequest)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1RespawnRequest, ::nightfall::v1::RespawnRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1CastSkillRequest, ::nightfall::v1::CastSkillRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1CancelCastRequest, ::nightfall::v1::CancelCastRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1AcceptResurrectRequest, ::nightfall::v1::AcceptResurrectRequest)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ServerMessage, ::nightfall::v1::ServerMessage)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1Ack, ::nightfall::v1::Ack)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1IntentRejected, ::nightfall::v1::IntentRejected)
@@ -27,10 +30,27 @@ DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1XpGained, ::nightfall::v1::XpGained)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1LevelUp, ::nightfall::v1::LevelUp)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1TargetChanged, ::nightfall::v1::TargetChanged)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ClassChanged, ::nightfall::v1::ClassChanged)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ActiveEffect, ::nightfall::v1::ActiveEffect)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillCastStarted, ::nightfall::v1::SkillCastStarted)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillTargetResult, ::nightfall::v1::SkillTargetResult)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillCastResult, ::nightfall::v1::SkillCastResult)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillCastCancelled, ::nightfall::v1::SkillCastCancelled)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EffectApplied, ::nightfall::v1::EffectApplied)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EffectRemoved, ::nightfall::v1::EffectRemoved)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillReuse, ::nightfall::v1::SkillReuse)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillLearned, ::nightfall::v1::SkillLearned)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1PvpStateChanged, ::nightfall::v1::PvpStateChanged)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ResurrectOffer, ::nightfall::v1::ResurrectOffer)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SpGained, ::nightfall::v1::SpGained)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1LearnedSkillRank, ::nightfall::v1::LearnedSkillRank)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillReuseState, ::nightfall::v1::SkillReuseState)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillStateSync, ::nightfall::v1::SkillStateSync)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1VitalsChanged, ::nightfall::v1::VitalsChanged)
 
 FGrpcNightfallV1ClientMessageIntent UGrpcNightfallV1ClientMessageIntentHelperLibrary::MakeIntent(EGrpcNightfallV1ClientMessageIntent IntentCase,
     FGrpcNightfallV1MoveToRequest MoveTo, FGrpcNightfallV1StopMoveRequest StopMove, FGrpcNightfallV1SetTargetRequest SetTarget,
-    FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn
+    FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn,
+    FGrpcNightfallV1CastSkillRequest CastSkill, FGrpcNightfallV1CancelCastRequest CancelCast, FGrpcNightfallV1AcceptResurrectRequest AcceptResurrect
 )
 {
     FGrpcNightfallV1ClientMessageIntent Intent;
@@ -41,13 +61,17 @@ FGrpcNightfallV1ClientMessageIntent UGrpcNightfallV1ClientMessageIntentHelperLib
     Intent.Attack = MakeShareable(new FGrpcNightfallV1AttackRequest(Attack));
     Intent.StopAttack = MakeShareable(new FGrpcNightfallV1StopAttackRequest(StopAttack));
     Intent.Respawn = MakeShareable(new FGrpcNightfallV1RespawnRequest(Respawn));
+    Intent.CastSkill = MakeShareable(new FGrpcNightfallV1CastSkillRequest(CastSkill));
+    Intent.CancelCast = MakeShareable(new FGrpcNightfallV1CancelCastRequest(CancelCast));
+    Intent.AcceptResurrect = MakeShareable(new FGrpcNightfallV1AcceptResurrectRequest(AcceptResurrect));
 
     return Intent;
 }
 
 void UGrpcNightfallV1ClientMessageIntentHelperLibrary::BreakIntent(const FGrpcNightfallV1ClientMessageIntent& Intent, EGrpcNightfallV1ClientMessageIntent& IntentCase,
     FGrpcNightfallV1MoveToRequest& MoveTo, FGrpcNightfallV1StopMoveRequest& StopMove, FGrpcNightfallV1SetTargetRequest& SetTarget,
-    FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn
+    FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn,
+    FGrpcNightfallV1CastSkillRequest& CastSkill, FGrpcNightfallV1CancelCastRequest& CancelCast, FGrpcNightfallV1AcceptResurrectRequest& AcceptResurrect
 )
 {
     IntentCase = Intent.IntentCase;
@@ -75,6 +99,56 @@ void UGrpcNightfallV1ClientMessageIntentHelperLibrary::BreakIntent(const FGrpcNi
     {
         Respawn = *(Intent.Respawn.Get());
     }
+    if(Intent.CastSkill.Get())
+    {
+        CastSkill = *(Intent.CastSkill.Get());
+    }
+    if(Intent.CancelCast.Get())
+    {
+        CancelCast = *(Intent.CancelCast.Get());
+    }
+    if(Intent.AcceptResurrect.Get())
+    {
+        AcceptResurrect = *(Intent.AcceptResurrect.Get());
+    }
+}
+
+FGrpcNightfallV1CastSkillRequest_target UGrpcNightfallV1CastSkillRequest_targetHelperLibrary::Make_target(EGrpcNightfallV1CastSkillRequest_target _targetCase,
+    FString Target
+)
+{
+    FGrpcNightfallV1CastSkillRequest_target _target;
+    _target._targetCase = _targetCase;
+    _target.Target = Target;
+
+    return _target;
+}
+
+void UGrpcNightfallV1CastSkillRequest_targetHelperLibrary::Break_target(const FGrpcNightfallV1CastSkillRequest_target& _target, EGrpcNightfallV1CastSkillRequest_target& _targetCase,
+    FString& Target
+)
+{
+    _targetCase = _target._targetCase;
+    Target = _target.Target;
+}
+
+FGrpcNightfallV1CancelCastRequest_cast_id UGrpcNightfallV1CancelCastRequest_cast_idHelperLibrary::Make_cast_id(EGrpcNightfallV1CancelCastRequest_cast_id _cast_idCase,
+    FUInt64 CastId
+)
+{
+    FGrpcNightfallV1CancelCastRequest_cast_id _cast_id;
+    _cast_id._cast_idCase = _cast_idCase;
+    _cast_id.CastId = CastId;
+
+    return _cast_id;
+}
+
+void UGrpcNightfallV1CancelCastRequest_cast_idHelperLibrary::Break_cast_id(const FGrpcNightfallV1CancelCastRequest_cast_id& _cast_id, EGrpcNightfallV1CancelCastRequest_cast_id& _cast_idCase,
+    FUInt64& CastId
+)
+{
+    _cast_idCase = _cast_id._cast_idCase;
+    CastId = _cast_id.CastId;
 }
 
 FGrpcNightfallV1ServerMessagePayload UGrpcNightfallV1ServerMessagePayloadHelperLibrary::MakePayload(EGrpcNightfallV1ServerMessagePayload PayloadCase,
@@ -114,7 +188,11 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     FGrpcNightfallV1AttackResult AttackResult, FGrpcNightfallV1EntityDied EntityDied, FGrpcNightfallV1EntityRespawned EntityRespawned,
     FGrpcNightfallV1StatsChanged StatsChanged, FGrpcNightfallV1XpGained XpGained, FGrpcNightfallV1LevelUp LevelUp,
     FGrpcNightfallV1TargetChanged TargetChanged, FGrpcNightfallV1AttackStarted AttackStarted, FGrpcNightfallV1AttackCancelled AttackCancelled,
-    FGrpcNightfallV1ClassChanged ClassChanged
+    FGrpcNightfallV1ClassChanged ClassChanged, FGrpcNightfallV1SkillCastStarted SkillCastStarted, FGrpcNightfallV1SkillCastResult SkillCastResult,
+    FGrpcNightfallV1SkillCastCancelled SkillCastCancelled, FGrpcNightfallV1EffectApplied EffectApplied, FGrpcNightfallV1EffectRemoved EffectRemoved,
+    FGrpcNightfallV1SkillReuse SkillReuse, FGrpcNightfallV1SkillLearned SkillLearned, FGrpcNightfallV1PvpStateChanged PvpStateChanged,
+    FGrpcNightfallV1ResurrectOffer ResurrectOffer, FGrpcNightfallV1SpGained SpGained, FGrpcNightfallV1SkillStateSync SkillStateSync,
+    FGrpcNightfallV1VitalsChanged VitalsChanged
 )
 {
     FGrpcNightfallV1WorldEventEvent Event;
@@ -132,6 +210,18 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     Event.AttackStarted = MakeShareable(new FGrpcNightfallV1AttackStarted(AttackStarted));
     Event.AttackCancelled = MakeShareable(new FGrpcNightfallV1AttackCancelled(AttackCancelled));
     Event.ClassChanged = MakeShareable(new FGrpcNightfallV1ClassChanged(ClassChanged));
+    Event.SkillCastStarted = MakeShareable(new FGrpcNightfallV1SkillCastStarted(SkillCastStarted));
+    Event.SkillCastResult = MakeShareable(new FGrpcNightfallV1SkillCastResult(SkillCastResult));
+    Event.SkillCastCancelled = MakeShareable(new FGrpcNightfallV1SkillCastCancelled(SkillCastCancelled));
+    Event.EffectApplied = MakeShareable(new FGrpcNightfallV1EffectApplied(EffectApplied));
+    Event.EffectRemoved = MakeShareable(new FGrpcNightfallV1EffectRemoved(EffectRemoved));
+    Event.SkillReuse = MakeShareable(new FGrpcNightfallV1SkillReuse(SkillReuse));
+    Event.SkillLearned = MakeShareable(new FGrpcNightfallV1SkillLearned(SkillLearned));
+    Event.PvpStateChanged = MakeShareable(new FGrpcNightfallV1PvpStateChanged(PvpStateChanged));
+    Event.ResurrectOffer = MakeShareable(new FGrpcNightfallV1ResurrectOffer(ResurrectOffer));
+    Event.SpGained = MakeShareable(new FGrpcNightfallV1SpGained(SpGained));
+    Event.SkillStateSync = MakeShareable(new FGrpcNightfallV1SkillStateSync(SkillStateSync));
+    Event.VitalsChanged = MakeShareable(new FGrpcNightfallV1VitalsChanged(VitalsChanged));
 
     return Event;
 }
@@ -141,7 +231,11 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     FGrpcNightfallV1AttackResult& AttackResult, FGrpcNightfallV1EntityDied& EntityDied, FGrpcNightfallV1EntityRespawned& EntityRespawned,
     FGrpcNightfallV1StatsChanged& StatsChanged, FGrpcNightfallV1XpGained& XpGained, FGrpcNightfallV1LevelUp& LevelUp,
     FGrpcNightfallV1TargetChanged& TargetChanged, FGrpcNightfallV1AttackStarted& AttackStarted, FGrpcNightfallV1AttackCancelled& AttackCancelled,
-    FGrpcNightfallV1ClassChanged& ClassChanged
+    FGrpcNightfallV1ClassChanged& ClassChanged, FGrpcNightfallV1SkillCastStarted& SkillCastStarted, FGrpcNightfallV1SkillCastResult& SkillCastResult,
+    FGrpcNightfallV1SkillCastCancelled& SkillCastCancelled, FGrpcNightfallV1EffectApplied& EffectApplied, FGrpcNightfallV1EffectRemoved& EffectRemoved,
+    FGrpcNightfallV1SkillReuse& SkillReuse, FGrpcNightfallV1SkillLearned& SkillLearned, FGrpcNightfallV1PvpStateChanged& PvpStateChanged,
+    FGrpcNightfallV1ResurrectOffer& ResurrectOffer, FGrpcNightfallV1SpGained& SpGained, FGrpcNightfallV1SkillStateSync& SkillStateSync,
+    FGrpcNightfallV1VitalsChanged& VitalsChanged
 )
 {
     EventCase = Event.EventCase;
@@ -197,6 +291,54 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     {
         ClassChanged = *(Event.ClassChanged.Get());
     }
+    if(Event.SkillCastStarted.Get())
+    {
+        SkillCastStarted = *(Event.SkillCastStarted.Get());
+    }
+    if(Event.SkillCastResult.Get())
+    {
+        SkillCastResult = *(Event.SkillCastResult.Get());
+    }
+    if(Event.SkillCastCancelled.Get())
+    {
+        SkillCastCancelled = *(Event.SkillCastCancelled.Get());
+    }
+    if(Event.EffectApplied.Get())
+    {
+        EffectApplied = *(Event.EffectApplied.Get());
+    }
+    if(Event.EffectRemoved.Get())
+    {
+        EffectRemoved = *(Event.EffectRemoved.Get());
+    }
+    if(Event.SkillReuse.Get())
+    {
+        SkillReuse = *(Event.SkillReuse.Get());
+    }
+    if(Event.SkillLearned.Get())
+    {
+        SkillLearned = *(Event.SkillLearned.Get());
+    }
+    if(Event.PvpStateChanged.Get())
+    {
+        PvpStateChanged = *(Event.PvpStateChanged.Get());
+    }
+    if(Event.ResurrectOffer.Get())
+    {
+        ResurrectOffer = *(Event.ResurrectOffer.Get());
+    }
+    if(Event.SpGained.Get())
+    {
+        SpGained = *(Event.SpGained.Get());
+    }
+    if(Event.SkillStateSync.Get())
+    {
+        SkillStateSync = *(Event.SkillStateSync.Get());
+    }
+    if(Event.VitalsChanged.Get())
+    {
+        VitalsChanged = *(Event.VitalsChanged.Get());
+    }
 }
 
 FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntitySpawn(
@@ -206,7 +348,10 @@ FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntity
     bool Attackable, FUInt32 Hp, FUInt32 MaxHp,
     FUInt32 Level, FGrpcNightfallV1AttackStarted PendingSwing, EGrpcNightfallV1Race Race,
     FUInt32 ClassId, EGrpcNightfallV1Sex Sex, FUInt32 HairStyle,
-    FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick
+    FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick,
+    FUInt64 FlagUntilTick, FUInt32 Karma, TArray<FGrpcNightfallV1ActiveEffect> ActiveEffects,
+    FGrpcNightfallV1SkillCastStarted PendingCast, FUInt32 PkCount, FUInt32 PvpCount,
+    FUInt64 StatusFlags
 )
 {
     FGrpcNightfallV1EntitySpawn EntitySpawn;
@@ -231,6 +376,16 @@ FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntity
     EntitySpawn.HairColor = HairColor;
     EntitySpawn.Face = Face;
     EntitySpawn.StateTick = StateTick;
+    EntitySpawn.FlagUntilTick = FlagUntilTick;
+    EntitySpawn.Karma = Karma;
+    for (const auto& element : ActiveEffects)
+    {
+        EntitySpawn.ActiveEffects.Add(MakeShareable(new FGrpcNightfallV1ActiveEffect(element)));
+    }
+    EntitySpawn.PendingCast = MakeShareable(new FGrpcNightfallV1SkillCastStarted(PendingCast));
+    EntitySpawn.PkCount = PkCount;
+    EntitySpawn.PvpCount = PvpCount;
+    EntitySpawn.StatusFlags = StatusFlags;
 
     return EntitySpawn;
 }
@@ -242,7 +397,10 @@ void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNight
     bool& Attackable, FUInt32& Hp, FUInt32& MaxHp,
     FUInt32& Level, FGrpcNightfallV1AttackStarted& PendingSwing, EGrpcNightfallV1Race& Race,
     FUInt32& ClassId, EGrpcNightfallV1Sex& Sex, FUInt32& HairStyle,
-    FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick
+    FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick,
+    FUInt64& FlagUntilTick, FUInt32& Karma, TArray<FGrpcNightfallV1ActiveEffect>& ActiveEffects,
+    FGrpcNightfallV1SkillCastStarted& PendingCast, FUInt32& PkCount, FUInt32& PvpCount,
+    FUInt64& StatusFlags
 )
 {
     EntityId = EntitySpawn.EntityId;
@@ -269,5 +427,227 @@ void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNight
     HairColor = EntitySpawn.HairColor;
     Face = EntitySpawn.Face;
     StateTick = EntitySpawn.StateTick;
+    FlagUntilTick = EntitySpawn.FlagUntilTick;
+    Karma = EntitySpawn.Karma;
+    for (auto& element : EntitySpawn.ActiveEffects)
+    {
+        ActiveEffects.Add(*(element.Get()));
+    }
+    if(EntitySpawn.PendingCast.Get())
+    {
+        PendingCast = *(EntitySpawn.PendingCast.Get());
+    }
+    PkCount = EntitySpawn.PkCount;
+    PvpCount = EntitySpawn.PvpCount;
+    StatusFlags = EntitySpawn.StatusFlags;
+}
+
+FGrpcNightfallV1AttackStarted_attacker_incarnation UGrpcNightfallV1AttackStarted_attacker_incarnationHelperLibrary::Make_attacker_incarnation(EGrpcNightfallV1AttackStarted_attacker_incarnation _attacker_incarnationCase,
+    FUInt32 AttackerIncarnation
+)
+{
+    FGrpcNightfallV1AttackStarted_attacker_incarnation _attacker_incarnation;
+    _attacker_incarnation._attacker_incarnationCase = _attacker_incarnationCase;
+    _attacker_incarnation.AttackerIncarnation = AttackerIncarnation;
+
+    return _attacker_incarnation;
+}
+
+void UGrpcNightfallV1AttackStarted_attacker_incarnationHelperLibrary::Break_attacker_incarnation(const FGrpcNightfallV1AttackStarted_attacker_incarnation& _attacker_incarnation, EGrpcNightfallV1AttackStarted_attacker_incarnation& _attacker_incarnationCase,
+    FUInt32& AttackerIncarnation
+)
+{
+    _attacker_incarnationCase = _attacker_incarnation._attacker_incarnationCase;
+    AttackerIncarnation = _attacker_incarnation.AttackerIncarnation;
+}
+
+FGrpcNightfallV1TargetChanged_target_incarnation UGrpcNightfallV1TargetChanged_target_incarnationHelperLibrary::Make_target_incarnation(EGrpcNightfallV1TargetChanged_target_incarnation _target_incarnationCase,
+    FUInt32 TargetIncarnation
+)
+{
+    FGrpcNightfallV1TargetChanged_target_incarnation _target_incarnation;
+    _target_incarnation._target_incarnationCase = _target_incarnationCase;
+    _target_incarnation.TargetIncarnation = TargetIncarnation;
+
+    return _target_incarnation;
+}
+
+void UGrpcNightfallV1TargetChanged_target_incarnationHelperLibrary::Break_target_incarnation(const FGrpcNightfallV1TargetChanged_target_incarnation& _target_incarnation, EGrpcNightfallV1TargetChanged_target_incarnation& _target_incarnationCase,
+    FUInt32& TargetIncarnation
+)
+{
+    _target_incarnationCase = _target_incarnation._target_incarnationCase;
+    TargetIncarnation = _target_incarnation.TargetIncarnation;
+}
+
+FGrpcNightfallV1ActiveEffect_caster UGrpcNightfallV1ActiveEffect_casterHelperLibrary::Make_caster(EGrpcNightfallV1ActiveEffect_caster _casterCase,
+    FString Caster
+)
+{
+    FGrpcNightfallV1ActiveEffect_caster _caster;
+    _caster._casterCase = _casterCase;
+    _caster.Caster = Caster;
+
+    return _caster;
+}
+
+void UGrpcNightfallV1ActiveEffect_casterHelperLibrary::Break_caster(const FGrpcNightfallV1ActiveEffect_caster& _caster, EGrpcNightfallV1ActiveEffect_caster& _casterCase,
+    FString& Caster
+)
+{
+    _casterCase = _caster._casterCase;
+    Caster = _caster.Caster;
+}
+
+FGrpcNightfallV1ActiveEffect_caster_incarnation UGrpcNightfallV1ActiveEffect_caster_incarnationHelperLibrary::Make_caster_incarnation(EGrpcNightfallV1ActiveEffect_caster_incarnation _caster_incarnationCase,
+    FUInt32 CasterIncarnation
+)
+{
+    FGrpcNightfallV1ActiveEffect_caster_incarnation _caster_incarnation;
+    _caster_incarnation._caster_incarnationCase = _caster_incarnationCase;
+    _caster_incarnation.CasterIncarnation = CasterIncarnation;
+
+    return _caster_incarnation;
+}
+
+void UGrpcNightfallV1ActiveEffect_caster_incarnationHelperLibrary::Break_caster_incarnation(const FGrpcNightfallV1ActiveEffect_caster_incarnation& _caster_incarnation, EGrpcNightfallV1ActiveEffect_caster_incarnation& _caster_incarnationCase,
+    FUInt32& CasterIncarnation
+)
+{
+    _caster_incarnationCase = _caster_incarnation._caster_incarnationCase;
+    CasterIncarnation = _caster_incarnation.CasterIncarnation;
+}
+
+FGrpcNightfallV1SkillCastStarted_target UGrpcNightfallV1SkillCastStarted_targetHelperLibrary::Make_target(EGrpcNightfallV1SkillCastStarted_target _targetCase,
+    FString Target
+)
+{
+    FGrpcNightfallV1SkillCastStarted_target _target;
+    _target._targetCase = _targetCase;
+    _target.Target = Target;
+
+    return _target;
+}
+
+void UGrpcNightfallV1SkillCastStarted_targetHelperLibrary::Break_target(const FGrpcNightfallV1SkillCastStarted_target& _target, EGrpcNightfallV1SkillCastStarted_target& _targetCase,
+    FString& Target
+)
+{
+    _targetCase = _target._targetCase;
+    Target = _target.Target;
+}
+
+FGrpcNightfallV1SkillCastStarted_target_incarnation UGrpcNightfallV1SkillCastStarted_target_incarnationHelperLibrary::Make_target_incarnation(EGrpcNightfallV1SkillCastStarted_target_incarnation _target_incarnationCase,
+    FUInt32 TargetIncarnation
+)
+{
+    FGrpcNightfallV1SkillCastStarted_target_incarnation _target_incarnation;
+    _target_incarnation._target_incarnationCase = _target_incarnationCase;
+    _target_incarnation.TargetIncarnation = TargetIncarnation;
+
+    return _target_incarnation;
+}
+
+void UGrpcNightfallV1SkillCastStarted_target_incarnationHelperLibrary::Break_target_incarnation(const FGrpcNightfallV1SkillCastStarted_target_incarnation& _target_incarnation, EGrpcNightfallV1SkillCastStarted_target_incarnation& _target_incarnationCase,
+    FUInt32& TargetIncarnation
+)
+{
+    _target_incarnationCase = _target_incarnation._target_incarnationCase;
+    TargetIncarnation = _target_incarnation.TargetIncarnation;
+}
+
+FGrpcNightfallV1SkillCastResult_effect_id UGrpcNightfallV1SkillCastResult_effect_idHelperLibrary::Make_effect_id(EGrpcNightfallV1SkillCastResult_effect_id _effect_idCase,
+    FUInt64 EffectId
+)
+{
+    FGrpcNightfallV1SkillCastResult_effect_id _effect_id;
+    _effect_id._effect_idCase = _effect_idCase;
+    _effect_id.EffectId = EffectId;
+
+    return _effect_id;
+}
+
+void UGrpcNightfallV1SkillCastResult_effect_idHelperLibrary::Break_effect_id(const FGrpcNightfallV1SkillCastResult_effect_id& _effect_id, EGrpcNightfallV1SkillCastResult_effect_id& _effect_idCase,
+    FUInt64& EffectId
+)
+{
+    _effect_idCase = _effect_id._effect_idCase;
+    EffectId = _effect_id.EffectId;
+}
+
+FGrpcNightfallV1EffectApplied_caster UGrpcNightfallV1EffectApplied_casterHelperLibrary::Make_caster(EGrpcNightfallV1EffectApplied_caster _casterCase,
+    FString Caster
+)
+{
+    FGrpcNightfallV1EffectApplied_caster _caster;
+    _caster._casterCase = _casterCase;
+    _caster.Caster = Caster;
+
+    return _caster;
+}
+
+void UGrpcNightfallV1EffectApplied_casterHelperLibrary::Break_caster(const FGrpcNightfallV1EffectApplied_caster& _caster, EGrpcNightfallV1EffectApplied_caster& _casterCase,
+    FString& Caster
+)
+{
+    _casterCase = _caster._casterCase;
+    Caster = _caster.Caster;
+}
+
+FGrpcNightfallV1EffectApplied_caster_incarnation UGrpcNightfallV1EffectApplied_caster_incarnationHelperLibrary::Make_caster_incarnation(EGrpcNightfallV1EffectApplied_caster_incarnation _caster_incarnationCase,
+    FUInt32 CasterIncarnation
+)
+{
+    FGrpcNightfallV1EffectApplied_caster_incarnation _caster_incarnation;
+    _caster_incarnation._caster_incarnationCase = _caster_incarnationCase;
+    _caster_incarnation.CasterIncarnation = CasterIncarnation;
+
+    return _caster_incarnation;
+}
+
+void UGrpcNightfallV1EffectApplied_caster_incarnationHelperLibrary::Break_caster_incarnation(const FGrpcNightfallV1EffectApplied_caster_incarnation& _caster_incarnation, EGrpcNightfallV1EffectApplied_caster_incarnation& _caster_incarnationCase,
+    FUInt32& CasterIncarnation
+)
+{
+    _caster_incarnationCase = _caster_incarnation._caster_incarnationCase;
+    CasterIncarnation = _caster_incarnation.CasterIncarnation;
+}
+
+FGrpcNightfallV1ResurrectOffer_caster UGrpcNightfallV1ResurrectOffer_casterHelperLibrary::Make_caster(EGrpcNightfallV1ResurrectOffer_caster _casterCase,
+    FString Caster
+)
+{
+    FGrpcNightfallV1ResurrectOffer_caster _caster;
+    _caster._casterCase = _casterCase;
+    _caster.Caster = Caster;
+
+    return _caster;
+}
+
+void UGrpcNightfallV1ResurrectOffer_casterHelperLibrary::Break_caster(const FGrpcNightfallV1ResurrectOffer_caster& _caster, EGrpcNightfallV1ResurrectOffer_caster& _casterCase,
+    FString& Caster
+)
+{
+    _casterCase = _caster._casterCase;
+    Caster = _caster.Caster;
+}
+
+FGrpcNightfallV1ResurrectOffer_caster_incarnation UGrpcNightfallV1ResurrectOffer_caster_incarnationHelperLibrary::Make_caster_incarnation(EGrpcNightfallV1ResurrectOffer_caster_incarnation _caster_incarnationCase,
+    FUInt32 CasterIncarnation
+)
+{
+    FGrpcNightfallV1ResurrectOffer_caster_incarnation _caster_incarnation;
+    _caster_incarnation._caster_incarnationCase = _caster_incarnationCase;
+    _caster_incarnation.CasterIncarnation = CasterIncarnation;
+
+    return _caster_incarnation;
+}
+
+void UGrpcNightfallV1ResurrectOffer_caster_incarnationHelperLibrary::Break_caster_incarnation(const FGrpcNightfallV1ResurrectOffer_caster_incarnation& _caster_incarnation, EGrpcNightfallV1ResurrectOffer_caster_incarnation& _caster_incarnationCase,
+    FUInt32& CasterIncarnation
+)
+{
+    _caster_incarnationCase = _caster_incarnation._caster_incarnationCase;
+    CasterIncarnation = _caster_incarnation.CasterIncarnation;
 }
 

@@ -13,6 +13,8 @@
 
 namespace NightfallWire
 {
+	/** Serializes a populated server envelope for offline contract/replay tests. */
+	TURBOLINKGRPC_API void EncodeServerMessage(const FGrpcNightfallV1ServerMessage& In, TArray<uint8>& Out);
 	/** Serialises nightfall.v1.ClientMessage. An Intent whose active case has no payload is omitted. */
 	TURBOLINKGRPC_API void EncodeClientMessage(const FGrpcNightfallV1ClientMessage& In, TArray<uint8>& Out);
 

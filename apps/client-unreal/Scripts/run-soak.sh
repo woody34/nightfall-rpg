@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Gauntlet soak: [--clients 8] [--seconds 1200] [--skip-stage] [--artifacts DIR]
+# Gauntlet casting soak: [--clients 8] [--seconds 1200] [--skip-stage] [--artifacts DIR]
+# --legacy-attacks retains the previous workload, without Phase 3 acceptance.
 # Each run owns a fresh Compose project on dedicated ports and deletes only its own volumes.
 # SOAK_PORT_OFFSET (default 10000) offsets normal stack ports; API 13000, gRPC 15051 by default.
 # Set SOAK_API_BIN to an already-built API to avoid a redundant Rust build.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/sim-lib.sh"
-CLIENTS=8; DURATION=1200; STAGE=1; OUT=""
+CLIENTS=8; DURATION=1200; STAGE=1; OUT=""; CASTING=1
 while (($#)); do
   case "$1" in
     --clients) CLIENTS="${2:?}"; shift 2 ;;
     --seconds) DURATION="${2:?}"; shift 2 ;;
+    --legacy-attacks) CASTING=0; shift ;;
     --skip-stage) STAGE=0; shift ;;
     --artifacts) OUT="${2:?}"; shift 2 ;;
     -h|--help) sed -n '2,/^set -/p' "$0" | sed '$d'; exit 0 ;;
@@ -23,20 +25,33 @@ OUT="${OUT:-$SIM_PROJECT_DIR/Saved/Soak/$(date +%Y%m%d-%H%M%S)-$$}"
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 [[ -z "$(find "$OUT" -mindepth 1 -maxdepth 1 -print -quit)" ]] || sim_die "artifacts directory must be empty; choose a fresh directory"
+if ((CASTING)); then
+  # Client-owned Gauntlet role wiring is an explicit integration dependency.
+  rg -q 'SoakRoleManifest' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
+    || sim_die "casting soak requires client Gauntlet SoakRoleManifest support; see phase3-fixtures.md"
+  rg -q 'SoakScenarioSeconds' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
+    || sim_die "casting soak requires client SoakScenarioSeconds budget support; see phase3-fixtures.md"
+fi
 sim_resolve_env
 export UE_ROOT
 if ((STAGE)); then bash "$HERE/stage-linux.sh" >"$OUT/stage.log" 2>&1; fi
 [[ -d "$SIM_PROJECT_DIR/Saved/StagedBuilds/Linux" ]] || sim_die "staged Linux game missing; run stage-linux.sh"
 DOTNET="$UE_ROOT/Engine/Binaries/ThirdParty/DotNet/10.0/linux-x64/dotnet"
 "$DOTNET" build "$SIM_PROJECT_DIR/Build/Scripts/Nightfall.Automation.csproj" -c Development --nologo >"$OUT/gauntlet-build.log" 2>&1
-python3 "$HERE/soak-fixtures.py" "$SIM_REPO" "$OUT/fixtures" "$CLIENTS"
+CAST_ARGS=(); if ((CASTING)); then CAST_ARGS+=(--casting); fi
+python3 "$HERE/soak-fixtures.py" "$SIM_REPO" "$OUT/fixtures" "$CLIENTS" "${CAST_ARGS[@]}"
 OFFSET="${SOAK_PORT_OFFSET:-10000}"
 [[ "$OFFSET" =~ ^[0-9]+$ ]] && ((OFFSET >= 1 && OFFSET <= 15000)) || sim_die "SOAK_PORT_OFFSET must be 1..15000"
 # The project's gRPC port is high; use a separate low default instead of adding to 50051.
 GRPC_PORT=$((5051 + OFFSET)); HTTP_PORT=$((3000 + OFFSET))
 COMPOSE_PROJECT="nightfall-soak-$$-$(date +%s)"
-docker compose -f "$SIM_REPO/docker-compose.yml" config --format json >"$OUT/compose-source.json"
-python3 "$HERE/soak-compose.py" "$OUT/compose-source.json" "$OUT/compose.json" "$OFFSET"
+if ((CASTING)); then COMPOSE_PROJECT="nightfall-phase3-harness-soak-$$-$(date +%s)"; fi
+touch "$OUT/empty.env"
+docker compose --env-file "$OUT/empty.env" -f "$SIM_REPO/docker-compose.yml" \
+  config --format json >"$OUT/compose-source.json"
+SOAK_DB=nightfall; DB_ARGS=()
+if ((CASTING)); then SOAK_DB="nf_phase3_fixture_soak_$$_$(date +%s)"; DB_ARGS+=(--database "$SOAK_DB"); fi
+python3 "$HERE/soak-compose.py" "$OUT/compose-source.json" "$OUT/compose.json" "$OFFSET" "${DB_ARGS[@]}"
 COMPOSE=(docker compose -p "$COMPOSE_PROJECT" -f "$OUT/compose.json")
 API_PID=""
 stop_api() {
@@ -75,7 +90,17 @@ if [[ -z "${SOAK_API_BIN:-}" ]]; then
 fi
 SOAK_REPLAY_BIN="${SOAK_REPLAY_BIN:-$(dirname "$SOAK_API_BIN")/nightfall-replay}"
 [[ -x "$SOAK_REPLAY_BIN" ]] || sim_die "nightfall-replay missing beside API; build --bins or set SOAK_REPLAY_BIN"
-DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/nightfall" \
+if ((CASTING)); then
+  SOAK_MIGRATE_BIN="${SOAK_MIGRATE_BIN:-$(dirname "$SOAK_API_BIN")/nightfall-migrate}"
+  [[ -x "$SOAK_MIGRATE_BIN" ]] || sim_die "casting soak needs candidate nightfall-migrate"
+  DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
+    "$SOAK_MIGRATE_BIN" up >"$OUT/migrate.log" 2>&1
+  DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
+    AUTH_DEV_TOKENS=1 NIGHTFALL_PHASE3_FIXTURE=1 \
+    python3 "$SIM_REPO/infra/scripts/seed-phase3-soak.py" --manifest "$OUT/fixtures/roles.json" \
+    >"$OUT/seed.log" 2>&1
+fi
+DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
 NATS_URL="nats://localhost:$((4222 + OFFSET))" \
 HTTP_ADDR="127.0.0.1:$HTTP_PORT" GRPC_ADDR="127.0.0.1:$GRPC_PORT" \
 WS_PUBLIC_URL="ws://localhost:$HTTP_PORT/ws" AUTH_DEV_TOKENS=1 WS_MAX_SESSIONS_PER_IP=32 \
@@ -90,6 +115,9 @@ for ((i=0; i<180; i++)); do
   sleep 1
 done
 curl -fsS -m 2 "http://localhost:$HTTP_PORT/health" >/dev/null || sim_die "API startup timed out"
+ROLE_ARGS=(); if ((CASTING)); then
+  ROLE_ARGS+=("-SoakRoleManifest=$OUT/fixtures/roles.json" "-SoakScenarioSeconds=360")
+fi
 START=$(date +%s)
 CODE=0
 timeout --kill-after=20 "$((DURATION + 600))" "$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" \
@@ -97,7 +125,7 @@ timeout --kill-after=20 "$((DURATION + 600))" "$UE_ROOT/Engine/Build/BatchFiles/
   -project="$SIM_PROJECT_DIR/Nightfall.uproject" -platform=Linux -configuration=Development \
   -build="$SIM_PROJECT_DIR/Saved/StagedBuilds" -test=Nightfall.NightfallSoak \
   -MaxLocalDevices="$CLIENTS" -SoakClients="$CLIENTS" -SoakSeconds="$DURATION" -SoakGrpc="localhost:$GRPC_PORT" \
-  -SoakFixtures="$OUT/fixtures" -SoakOutput="$OUT" \
+  "${ROLE_ARGS[@]}" -SoakFixtures="$OUT/fixtures" -SoakOutput="$OUT" \
   -artifacts="$OUT/Gauntlet" -tempdir="$OUT/Temp" -unattended -utf8output \
   >"$OUT/gauntlet.log" 2>&1 || CODE=$?
 END=$(date +%s)
@@ -111,7 +139,14 @@ if ! "$SOAK_REPLAY_BIN" export --zone 1 --epoch 1 --nats "nats://localhost:$((42
 elif ! "$SOAK_REPLAY_BIN" check --file "$OUT/soak.nfr" >"$OUT/replay-check.log" 2>&1; then
   printf '%s\n' 'Soak recording did not replay byte-identically' >>"$OUT/runner-errors.txt"
 fi
+if ((CASTING)) && [[ -s "$OUT/soak.nfr" ]]; then
+  SIM_REPLAY_BIN="$SOAK_REPLAY_BIN" python3 "$HERE/sim-gates.py" coverage \
+    --file "$OUT/soak.nfr" --out "$OUT/coverage.transitions.json" \
+    >"$OUT/coverage.log" 2>&1 || printf '%s\n' 'Casting soak coverage export failed' >>"$OUT/runner-errors.txt"
+fi
 # The API exports OTLP metrics every 10s; allow export plus the Prometheus scrape.
 sleep "${SOAK_TELEMETRY_FLUSH_SECONDS:-25}"
 export SOAK_GRAFANA_URL="${SOAK_GRAFANA_URL:-http://localhost:$((3300 + OFFSET))}"
-python3 "$HERE/soak-report.py" "$OUT" "$CLIENTS" "$DURATION" "$START" "$END" "$CODE" --metrics-at "$(date +%s)"
+REPORT_ARGS=(); if ((CASTING)); then REPORT_ARGS+=(--require-casting); fi
+python3 "$HERE/soak-report.py" "$OUT" "$CLIENTS" "$DURATION" "$START" "$END" "$CODE" \
+  --metrics-at "$(date +%s)" "${REPORT_ARGS[@]}"

@@ -19,6 +19,24 @@ TABLES = ('npc_intentions', 'player_attack_states')
 COUNTERS = ('life_incarnations', 'deaths', 'respawns', 'intent_rejected')
 V2_COUNTERS = ('class_transfer_commands', 'class_changes', 'class_transfer_effects')
 V2_SCALARS = ('owner_stats_updates',)
+# Producer handoff pending: design v3 §8.2 semantics, schema2 facts retained.
+V3_TABLES = ('player_cast_states', 'effect_states')
+V3_COUNTERS = ('cast_end_reasons', 'effect_remove_reasons', 'effect_pulses', 'stack_rejections',
+               'learn_skill_commands', 'skill_learned', 'resurrect_offers', 'cp_absorption',
+               'pvp_changes', 'karma_changes', 'regen_pulses', 'resurrections')
+V3_REACHABLE = {
+    'player_cast_states': ({'Idle', 'Casting'}, {('Idle', 'Casting'), ('Casting', 'Idle')}),
+    'effect_states': ({'Absent', 'Active', 'Removed'}, {('Absent', 'Active'), ('Active', 'Removed')}),
+}
+
+
+def transition_tables(data):
+    return TABLES + (V3_TABLES if data['schema_version'] == 3 else ())
+
+
+def transition_counters(data):
+    return COUNTERS + (V2_COUNTERS if data['schema_version'] >= 2 else ()) + (V3_COUNTERS if data['schema_version'] == 3 else ())
+
 
 
 def write_json(path, value):
@@ -266,24 +284,26 @@ def transition_object(pairs):
 
 
 def transition_facts(data):
-    fields = ('schema_version', *TABLES, *COUNTERS)
-    if data['schema_version'] == 2:
-        fields += (*V2_COUNTERS, *V2_SCALARS)
+    fields = ('schema_version', *transition_tables(data), *transition_counters(data))
+    if data['schema_version'] >= 2:
+        fields += V2_SCALARS
     return {key: data[key] for key in fields}
 
 
 def read_transitions(path):
     data = json.loads(Path(path).read_text(), object_pairs_hook=transition_object)
     if (not isinstance(data, dict) or type(data.get('schema_version')) is not int
-            or data['schema_version'] not in (1, 2)):
+            or data['schema_version'] not in (1, 2, 3)):
         raise ValueError(f'{path}: unsupported transition schema')
-    for key in TABLES:
+    for key in transition_tables(data):
         rows = data.get(key)
         if not isinstance(rows, list) or not rows:
             raise ValueError(f'{path}: missing transition table {key}')
         pairs = set()
         states = set()
         for row in rows:
+            if not isinstance(row, dict) or set(row) != {'from', 'to', 'reachable', 'count'}:
+                raise ValueError('unknown or missing transition row facts')
             before, after = row['from'], row['to']
             if not all(isinstance(s, str) and s for s in (before, after)):
                 raise ValueError('invalid transition state')
@@ -297,13 +317,19 @@ def read_transitions(path):
                 raise ValueError('self transitions cannot be reachable')
             if amount and (not row['reachable'] or before == after):
                 raise ValueError('observed unreachable or self transition')
+        if key in V3_REACHABLE:
+            expected_states, reachable = V3_REACHABLE[key]
+            if states != expected_states or {(r['from'], r['to']) for r in rows if r['reachable']} != reachable:
+                raise ValueError('invalid schema3 cast/effect lifecycle catalogue')
         if len(states) < 2 or not any(row['reachable'] for row in rows):
             raise ValueError('empty transition domain or no reachable transitions')
         if pairs != {(a, b) for a in states for b in states}:
             raise ValueError('incomplete transition catalogue')
     if data['schema_version'] == 1 and any(key in data for key in (*V2_COUNTERS, *V2_SCALARS)):
         raise ValueError('schema 1 cannot carry schema 2 coverage facts')
-    counters = COUNTERS + (V2_COUNTERS if data['schema_version'] == 2 else ())
+    if data['schema_version'] < 3 and any(key in data for key in (*V3_TABLES, *V3_COUNTERS)):
+        raise ValueError('legacy schema cannot carry schema3 coverage facts')
+    counters = transition_counters(data)
     for key in counters:
         values = data.get(key)
         if not isinstance(values, dict):
@@ -324,14 +350,16 @@ def read_transitions(path):
                 match = re.fullmatch(pattern, name)
                 if not match or any(int(part) > 2**32 - 1 for part in match.groups()):
                     raise ValueError('invalid class coverage ID or transfer pair')
+        if key in V3_COUNTERS and any(not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?::[A-Za-z][A-Za-z0-9_]*)?', name) for name in values):
+            raise ValueError('schema3 labels must be bounded kind/reason symbols, never IDs')
         if key in ('deaths', 'respawns') and set(values) != {'player', 'npc'}:
             raise ValueError('missing player/NPC lifecycle counters')
-    if data['schema_version'] == 2:
-        allowed = {'schema_version', *TABLES, *COUNTERS, *V2_COUNTERS, *V2_SCALARS,
+    if data['schema_version'] >= 2:
+        allowed = {'schema_version', *transition_tables(data), *transition_counters(data), *V2_SCALARS,
                    'recording_source', 'recording_sha256', 'group_capture',
                    'sources', 'source_provenance', 'summary'}
         if set(data) - allowed:
-            raise ValueError('unknown schema 2 transition fields cannot be merged without losing facts')
+            raise ValueError(f'unknown schema {data["schema_version"]} transition fields cannot be merged without losing facts')
         for key in V2_SCALARS:
             count(data.get(key))
     if 'recording_sha256' in data and (not isinstance(data['recording_sha256'], str)
@@ -342,7 +370,7 @@ def read_transitions(path):
 
 def transition_summary(data):
     result = {}
-    for key in TABLES:
+    for key in transition_tables(data):
         rows = data[key]
         label = lambda row: row['from'] + ' -> ' + row['to']
         result[key] = {'covered': sum(r['reachable'] and r['count'] > 0 for r in rows),
@@ -367,8 +395,8 @@ def merge_transitions(paths, unique_recordings=False):
     for path in paths:
         data = read_transitions(path)
         if output is not None and output['schema_version'] != data['schema_version']:
-            raise ValueError('cannot merge transition schema 1 and 2: legacy v2 facts are unknown; '
-                             're-export coverage with one producer version')
+            raise ValueError('cannot merge different transition schemas: legacy v2 facts are unknown; '
+                             'legacy v3 facts are unknown; re-export coverage with one producer version')
         provenance[str(path)] = {key: data[key] for key in
                                 ('recording_source', 'recording_sha256', 'group_capture',
                                  'sources', 'source_provenance')
@@ -388,18 +416,18 @@ def merge_transitions(paths, unique_recordings=False):
         if output is None:
             output = json.loads(json.dumps(facts))
             continue
-        for key in TABLES:
+        for key in transition_tables(data):
             signature = lambda rows: {(r['from'], r['to']): r['reachable'] for r in rows}
             if signature(output[key]) != signature(data[key]):
                 raise ValueError('transition catalogues differ between recordings')
             amounts = {(r['from'], r['to']): r['count'] for r in data[key]}
             for row in output[key]:
                 row['count'] += amounts[(row['from'], row['to'])]
-        counters = COUNTERS + (V2_COUNTERS if data['schema_version'] == 2 else ())
+        counters = transition_counters(data)
         for key in counters:
             for name, amount in data[key].items():
                 output[key][name] = output[key].get(name, 0) + amount
-        if data['schema_version'] == 2:
+        if data['schema_version'] >= 2:
             for key in V2_SCALARS:
                 output[key] += data[key]
     output['sources'] = sources

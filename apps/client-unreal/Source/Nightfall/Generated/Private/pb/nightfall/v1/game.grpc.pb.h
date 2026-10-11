@@ -119,6 +119,43 @@ class GameService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>> PrepareAsyncChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>>(PrepareAsyncChangeClassRaw(context, request, cq));
     }
+    // Authenticated read of next ranks in the current class lineage, required_level <= level.
+    // Returns learned/affordable/eligible flags, unmet reasons and trainer requirement.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad character UUID), NOT_FOUND,
+    // PERMISSION_DENIED, FAILED_PRECONDITION (no live session), UNAVAILABLE, INTERNAL.
+    virtual ::grpc::Status ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::nightfall::v1::ListLearnableSkillsResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListLearnableSkillsResponse>> AsyncListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListLearnableSkillsResponse>>(AsyncListLearnableSkillsRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListLearnableSkillsResponse>> PrepareAsyncListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListLearnableSkillsResponse>>(PrepareAsyncListLearnableSkillsRaw(context, request, cq));
+    }
+    // Actor-serialized SP spend for an exact rank. Receipt lookup precedes online/eligibility
+    // checks. (Account, learn_skill, key, semantic fingerprint, frozen response) commit with
+    // the revision-fenced checkpoint AFTER durable log ack; only then is success visible.
+    // Same key/body returns the original reply after disconnect/later progression. Different
+    // character/skill/rank with that key: FAILED_PRECONDITION. Failures consume no key or SP.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad UUID/key, zero/unknown skill or rank),
+    // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
+    // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
+    // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
+    // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+    virtual ::grpc::Status LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::nightfall::v1::LearnSkillResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>> AsyncLearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>>(AsyncLearnSkillRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>> PrepareAsyncLearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>>(PrepareAsyncLearnSkillRaw(context, request, cq));
+    }
+    // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
+    // Errors: UNAUTHENTICATED, UNAVAILABLE (catalogue unavailable, including rollout stub), INTERNAL.
+    virtual ::grpc::Status GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::nightfall::v1::GetSkillCatalogResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>> AsyncGetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>>(AsyncGetSkillCatalogRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>> PrepareAsyncGetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>>(PrepareAsyncGetSkillCatalogRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -163,6 +200,28 @@ class GameService final {
       // FAILED_PRECONDITION (unmet requirements or key reused), UNAVAILABLE.
       virtual void ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Authenticated read of next ranks in the current class lineage, required_level <= level.
+      // Returns learned/affordable/eligible flags, unmet reasons and trainer requirement.
+      // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad character UUID), NOT_FOUND,
+      // PERMISSION_DENIED, FAILED_PRECONDITION (no live session), UNAVAILABLE, INTERNAL.
+      virtual void ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Actor-serialized SP spend for an exact rank. Receipt lookup precedes online/eligibility
+      // checks. (Account, learn_skill, key, semantic fingerprint, frozen response) commit with
+      // the revision-fenced checkpoint AFTER durable log ack; only then is success visible.
+      // Same key/body returns the original reply after disconnect/later progression. Different
+      // character/skill/rank with that key: FAILED_PRECONDITION. Failures consume no key or SP.
+      // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad UUID/key, zero/unknown skill or rank),
+      // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
+      // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
+      // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
+      // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+      virtual void LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
+      // Errors: UNAUTHENTICATED, UNAVAILABLE (catalogue unavailable, including rollout stub), INTERNAL.
+      virtual void GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -182,6 +241,12 @@ class GameService final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::TransferOptionsResponse>* PrepareAsyncTransferOptionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>* AsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ChangeClassResponse>* PrepareAsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListLearnableSkillsResponse>* AsyncListLearnableSkillsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListLearnableSkillsResponse>* PrepareAsyncListLearnableSkillsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>* AsyncLearnSkillRaw(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>* PrepareAsyncLearnSkillRaw(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>* AsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>* PrepareAsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -235,6 +300,27 @@ class GameService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>> PrepareAsyncChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>>(PrepareAsyncChangeClassRaw(context, request, cq));
     }
+    ::grpc::Status ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::nightfall::v1::ListLearnableSkillsResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListLearnableSkillsResponse>> AsyncListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListLearnableSkillsResponse>>(AsyncListLearnableSkillsRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListLearnableSkillsResponse>> PrepareAsyncListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListLearnableSkillsResponse>>(PrepareAsyncListLearnableSkillsRaw(context, request, cq));
+    }
+    ::grpc::Status LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::nightfall::v1::LearnSkillResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>> AsyncLearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>>(AsyncLearnSkillRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>> PrepareAsyncLearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>>(PrepareAsyncLearnSkillRaw(context, request, cq));
+    }
+    ::grpc::Status GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::nightfall::v1::GetSkillCatalogResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>> AsyncGetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>>(AsyncGetSkillCatalogRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>> PrepareAsyncGetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>>(PrepareAsyncGetSkillCatalogRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -252,6 +338,12 @@ class GameService final {
       void TransferOptions(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest* request, ::nightfall::v1::TransferOptionsResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, std::function<void(::grpc::Status)>) override;
       void ChangeClass(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response, std::function<void(::grpc::Status)>) override;
+      void ListLearnableSkills(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, std::function<void(::grpc::Status)>) override;
+      void LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -277,6 +369,12 @@ class GameService final {
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::TransferOptionsResponse>* PrepareAsyncTransferOptionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::TransferOptionsRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>* AsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ChangeClassResponse>* PrepareAsyncChangeClassRaw(::grpc::ClientContext* context, const ::nightfall::v1::ChangeClassRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListLearnableSkillsResponse>* AsyncListLearnableSkillsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListLearnableSkillsResponse>* PrepareAsyncListLearnableSkillsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListLearnableSkillsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>* AsyncLearnSkillRaw(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>* PrepareAsyncLearnSkillRaw(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>* AsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>* PrepareAsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_Ping_;
     const ::grpc::internal::RpcMethod rpcmethod_GetCharacter_;
     const ::grpc::internal::RpcMethod rpcmethod_CreateCharacter_;
@@ -284,6 +382,9 @@ class GameService final {
     const ::grpc::internal::RpcMethod rpcmethod_ListClasses_;
     const ::grpc::internal::RpcMethod rpcmethod_TransferOptions_;
     const ::grpc::internal::RpcMethod rpcmethod_ChangeClass_;
+    const ::grpc::internal::RpcMethod rpcmethod_ListLearnableSkills_;
+    const ::grpc::internal::RpcMethod rpcmethod_LearnSkill_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetSkillCatalog_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -325,6 +426,25 @@ class GameService final {
     // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
     // FAILED_PRECONDITION (unmet requirements or key reused), UNAVAILABLE.
     virtual ::grpc::Status ChangeClass(::grpc::ServerContext* context, const ::nightfall::v1::ChangeClassRequest* request, ::nightfall::v1::ChangeClassResponse* response);
+    // Authenticated read of next ranks in the current class lineage, required_level <= level.
+    // Returns learned/affordable/eligible flags, unmet reasons and trainer requirement.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad character UUID), NOT_FOUND,
+    // PERMISSION_DENIED, FAILED_PRECONDITION (no live session), UNAVAILABLE, INTERNAL.
+    virtual ::grpc::Status ListLearnableSkills(::grpc::ServerContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response);
+    // Actor-serialized SP spend for an exact rank. Receipt lookup precedes online/eligibility
+    // checks. (Account, learn_skill, key, semantic fingerprint, frozen response) commit with
+    // the revision-fenced checkpoint AFTER durable log ack; only then is success visible.
+    // Same key/body returns the original reply after disconnect/later progression. Different
+    // character/skill/rank with that key: FAILED_PRECONDITION. Failures consume no key or SP.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (bad UUID/key, zero/unknown skill or rank),
+    // NOT_FOUND, PERMISSION_DENIED, FAILED_PRECONDITION (offline, stale generation, dead,
+    // engaged/casting, outside trainer radius 3, wrong lineage/rank, required level, SP,
+    // item prerequisites or deferred runtime capability; safe reason supplied), UNAVAILABLE
+    // (zone unavailable), INTERNAL (persistence failure; no infrastructure detail disclosed).
+    virtual ::grpc::Status LearnSkill(::grpc::ServerContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response);
+    // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
+    // Errors: UNAUTHENTICATED, UNAVAILABLE (catalogue unavailable, including rollout stub), INTERNAL.
+    virtual ::grpc::Status GetSkillCatalog(::grpc::ServerContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_Ping : public BaseClass {
@@ -466,7 +586,67 @@ class GameService final {
       ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_Ping<WithAsyncMethod_GetCharacter<WithAsyncMethod_CreateCharacter<WithAsyncMethod_ListMyCharacters<WithAsyncMethod_ListClasses<WithAsyncMethod_TransferOptions<WithAsyncMethod_ChangeClass<Service > > > > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_ListLearnableSkills : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ListLearnableSkills() {
+      ::grpc::Service::MarkMethodAsync(7);
+    }
+    ~WithAsyncMethod_ListLearnableSkills() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListLearnableSkills(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListLearnableSkillsRequest* /*request*/, ::nightfall::v1::ListLearnableSkillsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListLearnableSkills(::grpc::ServerContext* context, ::nightfall::v1::ListLearnableSkillsRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::ListLearnableSkillsResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(7, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_LearnSkill : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_LearnSkill() {
+      ::grpc::Service::MarkMethodAsync(8);
+    }
+    ~WithAsyncMethod_LearnSkill() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status LearnSkill(::grpc::ServerContext* /*context*/, const ::nightfall::v1::LearnSkillRequest* /*request*/, ::nightfall::v1::LearnSkillResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestLearnSkill(::grpc::ServerContext* context, ::nightfall::v1::LearnSkillRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::LearnSkillResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(8, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_GetSkillCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetSkillCatalog() {
+      ::grpc::Service::MarkMethodAsync(9);
+    }
+    ~WithAsyncMethod_GetSkillCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetSkillCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetSkillCatalog(::grpc::ServerContext* context, ::nightfall::v1::GetSkillCatalogRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GetSkillCatalogResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(9, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_Ping<WithAsyncMethod_GetCharacter<WithAsyncMethod_CreateCharacter<WithAsyncMethod_ListMyCharacters<WithAsyncMethod_ListClasses<WithAsyncMethod_TransferOptions<WithAsyncMethod_ChangeClass<WithAsyncMethod_ListLearnableSkills<WithAsyncMethod_LearnSkill<WithAsyncMethod_GetSkillCatalog<Service > > > > > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_Ping : public BaseClass {
    private:
@@ -656,7 +836,88 @@ class GameService final {
     virtual ::grpc::ServerUnaryReactor* ChangeClass(
       ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_Ping<WithCallbackMethod_GetCharacter<WithCallbackMethod_CreateCharacter<WithCallbackMethod_ListMyCharacters<WithCallbackMethod_ListClasses<WithCallbackMethod_TransferOptions<WithCallbackMethod_ChangeClass<Service > > > > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_ListLearnableSkills : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ListLearnableSkills() {
+      ::grpc::Service::MarkMethodCallback(7,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::ListLearnableSkillsRequest* request, ::nightfall::v1::ListLearnableSkillsResponse* response) { return this->ListLearnableSkills(context, request, response); }));}
+    void SetMessageAllocatorFor_ListLearnableSkills(
+        ::grpc::MessageAllocator< ::nightfall::v1::ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(7);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ListLearnableSkills() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListLearnableSkills(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListLearnableSkillsRequest* /*request*/, ::nightfall::v1::ListLearnableSkillsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListLearnableSkills(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ListLearnableSkillsRequest* /*request*/, ::nightfall::v1::ListLearnableSkillsResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_LearnSkill : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_LearnSkill() {
+      ::grpc::Service::MarkMethodCallback(8,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::LearnSkillRequest, ::nightfall::v1::LearnSkillResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response) { return this->LearnSkill(context, request, response); }));}
+    void SetMessageAllocatorFor_LearnSkill(
+        ::grpc::MessageAllocator< ::nightfall::v1::LearnSkillRequest, ::nightfall::v1::LearnSkillResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(8);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::LearnSkillRequest, ::nightfall::v1::LearnSkillResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_LearnSkill() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status LearnSkill(::grpc::ServerContext* /*context*/, const ::nightfall::v1::LearnSkillRequest* /*request*/, ::nightfall::v1::LearnSkillResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* LearnSkill(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::LearnSkillRequest* /*request*/, ::nightfall::v1::LearnSkillResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_GetSkillCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetSkillCatalog() {
+      ::grpc::Service::MarkMethodCallback(9,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response) { return this->GetSkillCatalog(context, request, response); }));}
+    void SetMessageAllocatorFor_GetSkillCatalog(
+        ::grpc::MessageAllocator< ::nightfall::v1::GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(9);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetSkillCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetSkillCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetSkillCatalog(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_Ping<WithCallbackMethod_GetCharacter<WithCallbackMethod_CreateCharacter<WithCallbackMethod_ListMyCharacters<WithCallbackMethod_ListClasses<WithCallbackMethod_TransferOptions<WithCallbackMethod_ChangeClass<WithCallbackMethod_ListLearnableSkills<WithCallbackMethod_LearnSkill<WithCallbackMethod_GetSkillCatalog<Service > > > > > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_Ping : public BaseClass {
@@ -773,6 +1034,57 @@ class GameService final {
     }
     // disable synchronous version of this method
     ::grpc::Status ChangeClass(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ChangeClassRequest* /*request*/, ::nightfall::v1::ChangeClassResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ListLearnableSkills : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ListLearnableSkills() {
+      ::grpc::Service::MarkMethodGeneric(7);
+    }
+    ~WithGenericMethod_ListLearnableSkills() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListLearnableSkills(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListLearnableSkillsRequest* /*request*/, ::nightfall::v1::ListLearnableSkillsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_LearnSkill : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_LearnSkill() {
+      ::grpc::Service::MarkMethodGeneric(8);
+    }
+    ~WithGenericMethod_LearnSkill() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status LearnSkill(::grpc::ServerContext* /*context*/, const ::nightfall::v1::LearnSkillRequest* /*request*/, ::nightfall::v1::LearnSkillResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetSkillCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetSkillCatalog() {
+      ::grpc::Service::MarkMethodGeneric(9);
+    }
+    ~WithGenericMethod_GetSkillCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetSkillCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -915,6 +1227,66 @@ class GameService final {
     }
     void RequestChangeClass(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ListLearnableSkills : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ListLearnableSkills() {
+      ::grpc::Service::MarkMethodRaw(7);
+    }
+    ~WithRawMethod_ListLearnableSkills() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListLearnableSkills(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListLearnableSkillsRequest* /*request*/, ::nightfall::v1::ListLearnableSkillsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListLearnableSkills(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(7, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_LearnSkill : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_LearnSkill() {
+      ::grpc::Service::MarkMethodRaw(8);
+    }
+    ~WithRawMethod_LearnSkill() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status LearnSkill(::grpc::ServerContext* /*context*/, const ::nightfall::v1::LearnSkillRequest* /*request*/, ::nightfall::v1::LearnSkillResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestLearnSkill(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(8, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetSkillCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetSkillCatalog() {
+      ::grpc::Service::MarkMethodRaw(9);
+    }
+    ~WithRawMethod_GetSkillCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetSkillCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetSkillCatalog(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(9, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -1069,6 +1441,72 @@ class GameService final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* ChangeClass(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ListLearnableSkills : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ListLearnableSkills() {
+      ::grpc::Service::MarkMethodRawCallback(7,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ListLearnableSkills(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ListLearnableSkills() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListLearnableSkills(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListLearnableSkillsRequest* /*request*/, ::nightfall::v1::ListLearnableSkillsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListLearnableSkills(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_LearnSkill : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_LearnSkill() {
+      ::grpc::Service::MarkMethodRawCallback(8,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->LearnSkill(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_LearnSkill() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status LearnSkill(::grpc::ServerContext* /*context*/, const ::nightfall::v1::LearnSkillRequest* /*request*/, ::nightfall::v1::LearnSkillResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* LearnSkill(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetSkillCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetSkillCatalog() {
+      ::grpc::Service::MarkMethodRawCallback(9,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetSkillCatalog(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetSkillCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetSkillCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetSkillCatalog(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -1260,9 +1698,90 @@ class GameService final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedChangeClass(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ChangeClassRequest,::nightfall::v1::ChangeClassResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<Service > > > > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ListLearnableSkills : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ListLearnableSkills() {
+      ::grpc::Service::MarkMethodStreamed(7,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsResponse>* streamer) {
+                       return this->StreamedListLearnableSkills(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ListLearnableSkills() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ListLearnableSkills(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListLearnableSkillsRequest* /*request*/, ::nightfall::v1::ListLearnableSkillsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedListLearnableSkills(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ListLearnableSkillsRequest,::nightfall::v1::ListLearnableSkillsResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_LearnSkill : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_LearnSkill() {
+      ::grpc::Service::MarkMethodStreamed(8,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::LearnSkillRequest, ::nightfall::v1::LearnSkillResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::LearnSkillRequest, ::nightfall::v1::LearnSkillResponse>* streamer) {
+                       return this->StreamedLearnSkill(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_LearnSkill() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status LearnSkill(::grpc::ServerContext* /*context*/, const ::nightfall::v1::LearnSkillRequest* /*request*/, ::nightfall::v1::LearnSkillResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedLearnSkill(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::LearnSkillRequest,::nightfall::v1::LearnSkillResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetSkillCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetSkillCatalog() {
+      ::grpc::Service::MarkMethodStreamed(9,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogResponse>* streamer) {
+                       return this->StreamedGetSkillCatalog(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetSkillCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetSkillCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetSkillCatalog(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetSkillCatalogRequest,::nightfall::v1::GetSkillCatalogResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<Service > > > > > > > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<Service > > > > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<Service > > > > > > > > > > StreamedService;
 };
 
 }  // namespace v1

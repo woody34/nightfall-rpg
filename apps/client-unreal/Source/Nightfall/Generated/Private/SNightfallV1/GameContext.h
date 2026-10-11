@@ -94,3 +94,42 @@ public:
 	GrpcContext_GameService_ChangeClass(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
 };
 
+class GrpcContext_GameService_ListLearnableSkills : public GrpcContext_Ping_Pong<GameService_ListLearnableSkills_ReaderWriter, ::nightfall::v1::ListLearnableSkillsResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_ListLearnableSkills_ReaderWriter, ::nightfall::v1::ListLearnableSkillsResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1ListLearnableSkillsRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_ListLearnableSkills(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_LearnSkill : public GrpcContext_Ping_Pong<GameService_LearnSkill_ReaderWriter, ::nightfall::v1::LearnSkillResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_LearnSkill_ReaderWriter, ::nightfall::v1::LearnSkillResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1LearnSkillRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_LearnSkill(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_GetSkillCatalog : public GrpcContext_Ping_Pong<GameService_GetSkillCatalog_ReaderWriter, ::nightfall::v1::GetSkillCatalogResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GetSkillCatalog_ReaderWriter, ::nightfall::v1::GetSkillCatalogResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GetSkillCatalogRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GetSkillCatalog(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+

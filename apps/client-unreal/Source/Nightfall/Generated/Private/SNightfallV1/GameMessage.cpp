@@ -27,6 +27,15 @@ DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1TransferOption, ::nightfall::v1::TransferO
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1TransferOptionsResponse, ::nightfall::v1::TransferOptionsResponse)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ChangeClassRequest, ::nightfall::v1::ChangeClassRequest)
 DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ChangeClassResponse, ::nightfall::v1::ChangeClassResponse)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ListLearnableSkillsRequest, ::nightfall::v1::ListLearnableSkillsRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1LearnableSkill, ::nightfall::v1::LearnableSkill)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1ListLearnableSkillsResponse, ::nightfall::v1::ListLearnableSkillsResponse)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1LearnSkillRequest, ::nightfall::v1::LearnSkillRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1LearnSkillResponse, ::nightfall::v1::LearnSkillResponse)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1GetSkillCatalogRequest, ::nightfall::v1::GetSkillCatalogRequest)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1SkillCatalogEntry, ::nightfall::v1::SkillCatalogEntry)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1GetSkillCatalogResponse, ::nightfall::v1::GetSkillCatalogResponse)
+DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1EffectiveStats, ::nightfall::v1::EffectiveStats)
 
 FGrpcNightfallV1ListMyCharactersResponse UGrpcNightfallV1ListMyCharactersResponseHelperLibrary::MakeListMyCharactersResponse(
     TArray<FGrpcNightfallV1Character> Characters
@@ -175,5 +184,59 @@ void UGrpcNightfallV1SkillLearnInfoHelperLibrary::BreakSkillLearnInfo(const FGrp
     L2Ref = SkillLearnInfo.L2Ref;
     LearnedByNpc = SkillLearnInfo.LearnedByNpc;
     EffectImplemented = SkillLearnInfo.EffectImplemented;
+}
+
+FGrpcNightfallV1LearnSkillResponse UGrpcNightfallV1LearnSkillResponseHelperLibrary::MakeLearnSkillResponse(
+    FUInt32 SkillId, FUInt32 SkillLevel, FUInt64 SpSpent,
+    FUInt64 SpRemaining, FUInt64 Tick, FUInt32 Hp,
+    FUInt32 MaxHp, FUInt32 Mp, FUInt32 MaxMp,
+    FUInt32 Cp, FUInt32 MaxCp, FString CharacterId,
+    FGrpcNightfallV1EffectiveStats EffectiveStats, FUInt32 Incarnation
+)
+{
+    FGrpcNightfallV1LearnSkillResponse LearnSkillResponse;
+    LearnSkillResponse.SkillId = SkillId;
+    LearnSkillResponse.SkillLevel = SkillLevel;
+    LearnSkillResponse.SpSpent = SpSpent;
+    LearnSkillResponse.SpRemaining = SpRemaining;
+    LearnSkillResponse.Tick = Tick;
+    LearnSkillResponse.Hp = Hp;
+    LearnSkillResponse.MaxHp = MaxHp;
+    LearnSkillResponse.Mp = Mp;
+    LearnSkillResponse.MaxMp = MaxMp;
+    LearnSkillResponse.Cp = Cp;
+    LearnSkillResponse.MaxCp = MaxCp;
+    LearnSkillResponse.CharacterId = CharacterId;
+    LearnSkillResponse.EffectiveStats = MakeShareable(new FGrpcNightfallV1EffectiveStats(EffectiveStats));
+    LearnSkillResponse.Incarnation = Incarnation;
+
+    return LearnSkillResponse;
+}
+
+void UGrpcNightfallV1LearnSkillResponseHelperLibrary::BreakLearnSkillResponse(const FGrpcNightfallV1LearnSkillResponse& LearnSkillResponse,
+    FUInt32& SkillId, FUInt32& SkillLevel, FUInt64& SpSpent,
+    FUInt64& SpRemaining, FUInt64& Tick, FUInt32& Hp,
+    FUInt32& MaxHp, FUInt32& Mp, FUInt32& MaxMp,
+    FUInt32& Cp, FUInt32& MaxCp, FString& CharacterId,
+    FGrpcNightfallV1EffectiveStats& EffectiveStats, FUInt32& Incarnation
+)
+{
+    SkillId = LearnSkillResponse.SkillId;
+    SkillLevel = LearnSkillResponse.SkillLevel;
+    SpSpent = LearnSkillResponse.SpSpent;
+    SpRemaining = LearnSkillResponse.SpRemaining;
+    Tick = LearnSkillResponse.Tick;
+    Hp = LearnSkillResponse.Hp;
+    MaxHp = LearnSkillResponse.MaxHp;
+    Mp = LearnSkillResponse.Mp;
+    MaxMp = LearnSkillResponse.MaxMp;
+    Cp = LearnSkillResponse.Cp;
+    MaxCp = LearnSkillResponse.MaxCp;
+    CharacterId = LearnSkillResponse.CharacterId;
+    if(LearnSkillResponse.EffectiveStats.Get())
+    {
+        EffectiveStats = *(LearnSkillResponse.EffectiveStats.Get());
+    }
+    Incarnation = LearnSkillResponse.Incarnation;
 }
 

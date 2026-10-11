@@ -344,3 +344,147 @@ private:
 
 	void Shutdown();
 };
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceListLearnableSkills : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceListLearnableSkillsDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListLearnableSkillsResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService ListLearnableSkills",
+		AdvancedDisplay = 2))
+	static UCallGameServiceListLearnableSkills* ListLearnableSkills(UObject* WorldContextObject, const FGrpcNightfallV1ListLearnableSkillsRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListLearnableSkillsDelegate OnListLearnableSkillsResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListLearnableSkillsDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1ListLearnableSkillsRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListLearnableSkillsResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceLearnSkill : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceLearnSkillDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1LearnSkillResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService LearnSkill",
+		AdvancedDisplay = 2))
+	static UCallGameServiceLearnSkill* LearnSkill(UObject* WorldContextObject, const FGrpcNightfallV1LearnSkillRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceLearnSkillDelegate OnLearnSkillResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceLearnSkillDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1LearnSkillRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1LearnSkillResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGetSkillCatalog : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGetSkillCatalogDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GetSkillCatalog",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGetSkillCatalog* GetSkillCatalog(UObject* WorldContextObject, const FGrpcNightfallV1GetSkillCatalogRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetSkillCatalogDelegate OnGetSkillCatalogResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetSkillCatalogDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GetSkillCatalogRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse& Response);
+
+	void Shutdown();
+};

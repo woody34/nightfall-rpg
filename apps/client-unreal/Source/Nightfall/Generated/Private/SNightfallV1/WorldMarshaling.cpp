@@ -55,6 +55,30 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClientMessage* in, FGrpcNightfallV
         out->Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::Respawn;
     }
         break;
+    case ::nightfall::v1::ClientMessage::kCastSkill:
+    {
+        FGrpcNightfallV1CastSkillRequest field;
+        GRPC_TO_TURBOLINK(&(in->cast_skill()), &field);
+        out->Intent.CastSkill=MakeShareable(new FGrpcNightfallV1CastSkillRequest(field));
+        out->Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CastSkill;
+    }
+        break;
+    case ::nightfall::v1::ClientMessage::kCancelCast:
+    {
+        FGrpcNightfallV1CancelCastRequest field;
+        GRPC_TO_TURBOLINK(&(in->cancel_cast()), &field);
+        out->Intent.CancelCast=MakeShareable(new FGrpcNightfallV1CancelCastRequest(field));
+        out->Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CancelCast;
+    }
+        break;
+    case ::nightfall::v1::ClientMessage::kAcceptResurrect:
+    {
+        FGrpcNightfallV1AcceptResurrectRequest field;
+        GRPC_TO_TURBOLINK(&(in->accept_resurrect()), &field);
+        out->Intent.AcceptResurrect=MakeShareable(new FGrpcNightfallV1AcceptResurrectRequest(field));
+        out->Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::AcceptResurrect;
+    }
+        break;
     }
 }
 
@@ -80,6 +104,15 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClientMessage* in, ::nightfall::v1:
         break;
     case EGrpcNightfallV1ClientMessageIntent::Respawn:
         TURBOLINK_TO_GRPC(in->Intent.Respawn.Get(), out->mutable_respawn());
+        break;
+    case EGrpcNightfallV1ClientMessageIntent::CastSkill:
+        TURBOLINK_TO_GRPC(in->Intent.CastSkill.Get(), out->mutable_cast_skill());
+        break;
+    case EGrpcNightfallV1ClientMessageIntent::CancelCast:
+        TURBOLINK_TO_GRPC(in->Intent.CancelCast.Get(), out->mutable_cancel_cast());
+        break;
+    case EGrpcNightfallV1ClientMessageIntent::AcceptResurrect:
+        TURBOLINK_TO_GRPC(in->Intent.AcceptResurrect.Get(), out->mutable_accept_resurrect());
         break;
     }
 }
@@ -134,6 +167,60 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::RespawnRequest* in, FGrpcNightfall
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1RespawnRequest* in, ::nightfall::v1::RespawnRequest* out)
 {
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::CastSkillRequest* in, FGrpcNightfallV1CastSkillRequest* out)
+{
+    out->SkillId=in->skill_id();
+    out->_target._targetCase = EGrpcNightfallV1CastSkillRequest_target::NotSet;
+    if (in->has_target())
+    {
+        out->_target.Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+        out->_target._targetCase = EGrpcNightfallV1CastSkillRequest_target::Target;
+    }
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1CastSkillRequest* in, ::nightfall::v1::CastSkillRequest* out)
+{
+    out->set_skill_id(in->SkillId);
+    switch (in->_target._targetCase)
+    {
+    case EGrpcNightfallV1CastSkillRequest_target::Target:
+        out->set_target((const char*)StringCast<UTF8CHAR>(*(in->_target.Target)).Get());
+        break;
+    }
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::CancelCastRequest* in, FGrpcNightfallV1CancelCastRequest* out)
+{
+    out->_cast_id._cast_idCase = EGrpcNightfallV1CancelCastRequest_cast_id::NotSet;
+    if (in->has_cast_id())
+    {
+        out->_cast_id.CastId=in->cast_id();
+        out->_cast_id._cast_idCase = EGrpcNightfallV1CancelCastRequest_cast_id::CastId;
+    }
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1CancelCastRequest* in, ::nightfall::v1::CancelCastRequest* out)
+{
+    switch (in->_cast_id._cast_idCase)
+    {
+    case EGrpcNightfallV1CancelCastRequest_cast_id::CastId:
+        out->set_cast_id(in->_cast_id.CastId);
+        break;
+    }
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::AcceptResurrectRequest* in, FGrpcNightfallV1AcceptResurrectRequest* out)
+{
+    out->OfferId=in->offer_id();
+    out->Accept=in->accept();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AcceptResurrectRequest* in, ::nightfall::v1::AcceptResurrectRequest* out)
+{
+    out->set_offer_id(in->OfferId);
+    out->set_accept(in->Accept);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ServerMessage* in, FGrpcNightfallV1ServerMessage* out)
@@ -317,6 +404,102 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::WorldEvent* in, FGrpcNightfallV1Wo
         out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::ClassChanged;
     }
         break;
+    case ::nightfall::v1::WorldEvent::kSkillCastStarted:
+    {
+        FGrpcNightfallV1SkillCastStarted field;
+        GRPC_TO_TURBOLINK(&(in->skill_cast_started()), &field);
+        out->Event.SkillCastStarted=MakeShareable(new FGrpcNightfallV1SkillCastStarted(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::SkillCastStarted;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kSkillCastResult:
+    {
+        FGrpcNightfallV1SkillCastResult field;
+        GRPC_TO_TURBOLINK(&(in->skill_cast_result()), &field);
+        out->Event.SkillCastResult=MakeShareable(new FGrpcNightfallV1SkillCastResult(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::SkillCastResult;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kSkillCastCancelled:
+    {
+        FGrpcNightfallV1SkillCastCancelled field;
+        GRPC_TO_TURBOLINK(&(in->skill_cast_cancelled()), &field);
+        out->Event.SkillCastCancelled=MakeShareable(new FGrpcNightfallV1SkillCastCancelled(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::SkillCastCancelled;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kEffectApplied:
+    {
+        FGrpcNightfallV1EffectApplied field;
+        GRPC_TO_TURBOLINK(&(in->effect_applied()), &field);
+        out->Event.EffectApplied=MakeShareable(new FGrpcNightfallV1EffectApplied(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::EffectApplied;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kEffectRemoved:
+    {
+        FGrpcNightfallV1EffectRemoved field;
+        GRPC_TO_TURBOLINK(&(in->effect_removed()), &field);
+        out->Event.EffectRemoved=MakeShareable(new FGrpcNightfallV1EffectRemoved(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::EffectRemoved;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kSkillReuse:
+    {
+        FGrpcNightfallV1SkillReuse field;
+        GRPC_TO_TURBOLINK(&(in->skill_reuse()), &field);
+        out->Event.SkillReuse=MakeShareable(new FGrpcNightfallV1SkillReuse(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::SkillReuse;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kSkillLearned:
+    {
+        FGrpcNightfallV1SkillLearned field;
+        GRPC_TO_TURBOLINK(&(in->skill_learned()), &field);
+        out->Event.SkillLearned=MakeShareable(new FGrpcNightfallV1SkillLearned(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::SkillLearned;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kPvpStateChanged:
+    {
+        FGrpcNightfallV1PvpStateChanged field;
+        GRPC_TO_TURBOLINK(&(in->pvp_state_changed()), &field);
+        out->Event.PvpStateChanged=MakeShareable(new FGrpcNightfallV1PvpStateChanged(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::PvpStateChanged;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kResurrectOffer:
+    {
+        FGrpcNightfallV1ResurrectOffer field;
+        GRPC_TO_TURBOLINK(&(in->resurrect_offer()), &field);
+        out->Event.ResurrectOffer=MakeShareable(new FGrpcNightfallV1ResurrectOffer(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::ResurrectOffer;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kSpGained:
+    {
+        FGrpcNightfallV1SpGained field;
+        GRPC_TO_TURBOLINK(&(in->sp_gained()), &field);
+        out->Event.SpGained=MakeShareable(new FGrpcNightfallV1SpGained(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::SpGained;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kSkillStateSync:
+    {
+        FGrpcNightfallV1SkillStateSync field;
+        GRPC_TO_TURBOLINK(&(in->skill_state_sync()), &field);
+        out->Event.SkillStateSync=MakeShareable(new FGrpcNightfallV1SkillStateSync(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::SkillStateSync;
+    }
+        break;
+    case ::nightfall::v1::WorldEvent::kVitalsChanged:
+    {
+        FGrpcNightfallV1VitalsChanged field;
+        GRPC_TO_TURBOLINK(&(in->vitals_changed()), &field);
+        out->Event.VitalsChanged=MakeShareable(new FGrpcNightfallV1VitalsChanged(field));
+        out->Event.EventCase = EGrpcNightfallV1WorldEventEvent::VitalsChanged;
+    }
+        break;
     }
 }
 
@@ -363,6 +546,42 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1WorldEvent* in, ::nightfall::v1::Wo
     case EGrpcNightfallV1WorldEventEvent::ClassChanged:
         TURBOLINK_TO_GRPC(in->Event.ClassChanged.Get(), out->mutable_class_changed());
         break;
+    case EGrpcNightfallV1WorldEventEvent::SkillCastStarted:
+        TURBOLINK_TO_GRPC(in->Event.SkillCastStarted.Get(), out->mutable_skill_cast_started());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::SkillCastResult:
+        TURBOLINK_TO_GRPC(in->Event.SkillCastResult.Get(), out->mutable_skill_cast_result());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::SkillCastCancelled:
+        TURBOLINK_TO_GRPC(in->Event.SkillCastCancelled.Get(), out->mutable_skill_cast_cancelled());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::EffectApplied:
+        TURBOLINK_TO_GRPC(in->Event.EffectApplied.Get(), out->mutable_effect_applied());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::EffectRemoved:
+        TURBOLINK_TO_GRPC(in->Event.EffectRemoved.Get(), out->mutable_effect_removed());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::SkillReuse:
+        TURBOLINK_TO_GRPC(in->Event.SkillReuse.Get(), out->mutable_skill_reuse());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::SkillLearned:
+        TURBOLINK_TO_GRPC(in->Event.SkillLearned.Get(), out->mutable_skill_learned());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::PvpStateChanged:
+        TURBOLINK_TO_GRPC(in->Event.PvpStateChanged.Get(), out->mutable_pvp_state_changed());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::ResurrectOffer:
+        TURBOLINK_TO_GRPC(in->Event.ResurrectOffer.Get(), out->mutable_resurrect_offer());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::SpGained:
+        TURBOLINK_TO_GRPC(in->Event.SpGained.Get(), out->mutable_sp_gained());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::SkillStateSync:
+        TURBOLINK_TO_GRPC(in->Event.SkillStateSync.Get(), out->mutable_skill_state_sync());
+        break;
+    case EGrpcNightfallV1WorldEventEvent::VitalsChanged:
+        TURBOLINK_TO_GRPC(in->Event.VitalsChanged.Get(), out->mutable_vitals_changed());
+        break;
     }
 }
 
@@ -393,6 +612,22 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntitySpawn* in, FGrpcNightfallV1E
     out->HairColor=in->hair_color();
     out->Face=in->face();
     out->StateTick=in->state_tick();
+    out->FlagUntilTick=in->flag_until_tick();
+    out->Karma=in->karma();
+    out->ActiveEffects.Empty();
+    for (int i=0; i<in->active_effects_size(); ++i) {
+        FGrpcNightfallV1ActiveEffect field;
+        GRPC_TO_TURBOLINK(&(in->active_effects(i)), &field);
+        out->ActiveEffects.Add(MakeShareable(new FGrpcNightfallV1ActiveEffect(field)));
+    }
+    {
+        FGrpcNightfallV1SkillCastStarted field;
+        GRPC_TO_TURBOLINK(&(in->pending_cast()), &field);
+        out->PendingCast = MakeShareable(new FGrpcNightfallV1SkillCastStarted(field));
+    }
+    out->PkCount=in->pk_count();
+    out->PvpCount=in->pvp_count();
+    out->StatusFlags=in->status_flags();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::EntitySpawn* out)
@@ -418,6 +653,15 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::E
     out->set_hair_color(in->HairColor);
     out->set_face(in->Face);
     out->set_state_tick(in->StateTick);
+    out->set_flag_until_tick(in->FlagUntilTick);
+    out->set_karma(in->Karma);
+    for(const auto& value : in->ActiveEffects) {
+        TURBOLINK_TO_GRPC(value.Get(), out->add_active_effects());
+    }
+    TURBOLINK_TO_GRPC(in->PendingCast.Get(), out->mutable_pending_cast());
+    out->set_pk_count(in->PkCount);
+    out->set_pvp_count(in->PvpCount);
+    out->set_status_flags(in->StatusFlags);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityMove* in, FGrpcNightfallV1EntityMove* out)
@@ -459,6 +703,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackResult* in, FGrpcNightfallV1
     out->Damage=in->damage();
     out->TargetHpAfter=in->target_hp_after();
     out->TargetIncarnation=in->target_incarnation();
+    out->CpDamage=in->cp_damage();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackResult* in, ::nightfall::v1::AttackResult* out)
@@ -470,6 +715,7 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackResult* in, ::nightfall::v1::
     out->set_damage(in->Damage);
     out->set_target_hp_after(in->TargetHpAfter);
     out->set_target_incarnation(in->TargetIncarnation);
+    out->set_cp_damage(in->CpDamage);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityDied* in, FGrpcNightfallV1EntityDied* out)
@@ -496,6 +742,14 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackStarted* in, FGrpcNightfallV
     out->ImpactTick=in->impact_tick();
     out->ReadyTick=in->ready_tick();
     out->TargetIncarnation=in->target_incarnation();
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
+    out->_attacker_incarnation._attacker_incarnationCase = EGrpcNightfallV1AttackStarted_attacker_incarnation::NotSet;
+    if (in->has_attacker_incarnation())
+    {
+        out->_attacker_incarnation.AttackerIncarnation=in->attacker_incarnation();
+        out->_attacker_incarnation._attacker_incarnationCase = EGrpcNightfallV1AttackStarted_attacker_incarnation::AttackerIncarnation;
+    }
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackStarted* in, ::nightfall::v1::AttackStarted* out)
@@ -506,6 +760,14 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackStarted* in, ::nightfall::v1:
     out->set_impact_tick(in->ImpactTick);
     out->set_ready_tick(in->ReadyTick);
     out->set_target_incarnation(in->TargetIncarnation);
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
+    switch (in->_attacker_incarnation._attacker_incarnationCase)
+    {
+    case EGrpcNightfallV1AttackStarted_attacker_incarnation::AttackerIncarnation:
+        out->set_attacker_incarnation(in->_attacker_incarnation.AttackerIncarnation);
+        break;
+    }
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackCancelled* in, FGrpcNightfallV1AttackCancelled* out)
@@ -558,6 +820,15 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::StatsChanged* in, FGrpcNightfallV1
     out->TokenTier1Count=in->token_tier_1_count();
     out->TokenTier2Count=in->token_tier_2_count();
     out->Tick=in->tick();
+    out->Karma=in->karma();
+    out->PkCount=in->pk_count();
+    out->PvpCount=in->pvp_count();
+    out->FlagUntilTick=in->flag_until_tick();
+    out->DeathPenaltyLevel=in->death_penalty_level();
+    GRPC_TO_TURBOLINK(&(in->effective_stats()), &(out->EffectiveStats));
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
+    out->Incarnation=in->incarnation();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::StatsChanged* out)
@@ -576,6 +847,15 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::
     out->set_token_tier_1_count(in->TokenTier1Count);
     out->set_token_tier_2_count(in->TokenTier2Count);
     out->set_tick(in->Tick);
+    out->set_karma(in->Karma);
+    out->set_pk_count(in->PkCount);
+    out->set_pvp_count(in->PvpCount);
+    out->set_flag_until_tick(in->FlagUntilTick);
+    out->set_death_penalty_level(in->DeathPenaltyLevel);
+    TURBOLINK_TO_GRPC(&(in->EffectiveStats), out->mutable_effective_stats());
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
+    out->set_incarnation(in->Incarnation);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::XpGained* in, FGrpcNightfallV1XpGained* out)
@@ -608,12 +888,30 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::TargetChanged* in, FGrpcNightfallV
 {
     out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
     out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
+    out->_target_incarnation._target_incarnationCase = EGrpcNightfallV1TargetChanged_target_incarnation::NotSet;
+    if (in->has_target_incarnation())
+    {
+        out->_target_incarnation.TargetIncarnation=in->target_incarnation();
+        out->_target_incarnation._target_incarnationCase = EGrpcNightfallV1TargetChanged_target_incarnation::TargetIncarnation;
+    }
+    out->Tick=in->tick();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1TargetChanged* in, ::nightfall::v1::TargetChanged* out)
 {
     out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
     out->set_target((const char*)StringCast<UTF8CHAR>(*(in->Target)).Get());
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
+    switch (in->_target_incarnation._target_incarnationCase)
+    {
+    case EGrpcNightfallV1TargetChanged_target_incarnation::TargetIncarnation:
+        out->set_target_incarnation(in->_target_incarnation.TargetIncarnation);
+        break;
+    }
+    out->set_tick(in->Tick);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassChanged* in, FGrpcNightfallV1ClassChanged* out)
@@ -630,5 +928,497 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClassChanged* in, ::nightfall::v1::
     out->set_class_id(in->ClassId);
     out->set_tick(in->Tick);
     out->set_session_generation(in->SessionGeneration);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ActiveEffect* in, FGrpcNightfallV1ActiveEffect* out)
+{
+    out->SkillId=in->skill_id();
+    out->SkillLevel=in->skill_level();
+    out->RemainingTicks=in->remaining_ticks();
+    out->IsDebuff=in->is_debuff();
+    out->_caster._casterCase = EGrpcNightfallV1ActiveEffect_caster::NotSet;
+    if (in->has_caster())
+    {
+        out->_caster.Caster=StringCast<TCHAR>((const UTF8CHAR*)(in->caster().c_str())).Get();
+        out->_caster._casterCase = EGrpcNightfallV1ActiveEffect_caster::Caster;
+    }
+    out->EffectId=in->effect_id();
+    out->_caster_incarnation._caster_incarnationCase = EGrpcNightfallV1ActiveEffect_caster_incarnation::NotSet;
+    if (in->has_caster_incarnation())
+    {
+        out->_caster_incarnation.CasterIncarnation=in->caster_incarnation();
+        out->_caster_incarnation._caster_incarnationCase = EGrpcNightfallV1ActiveEffect_caster_incarnation::CasterIncarnation;
+    }
+    out->TargetIncarnation=in->target_incarnation();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ActiveEffect* in, ::nightfall::v1::ActiveEffect* out)
+{
+    out->set_skill_id(in->SkillId);
+    out->set_skill_level(in->SkillLevel);
+    out->set_remaining_ticks(in->RemainingTicks);
+    out->set_is_debuff(in->IsDebuff);
+    switch (in->_caster._casterCase)
+    {
+    case EGrpcNightfallV1ActiveEffect_caster::Caster:
+        out->set_caster((const char*)StringCast<UTF8CHAR>(*(in->_caster.Caster)).Get());
+        break;
+    }
+    out->set_effect_id(in->EffectId);
+    switch (in->_caster_incarnation._caster_incarnationCase)
+    {
+    case EGrpcNightfallV1ActiveEffect_caster_incarnation::CasterIncarnation:
+        out->set_caster_incarnation(in->_caster_incarnation.CasterIncarnation);
+        break;
+    }
+    out->set_target_incarnation(in->TargetIncarnation);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCastStarted* in, FGrpcNightfallV1SkillCastStarted* out)
+{
+    out->Caster=StringCast<TCHAR>((const UTF8CHAR*)(in->caster().c_str())).Get();
+    out->_target._targetCase = EGrpcNightfallV1SkillCastStarted_target::NotSet;
+    if (in->has_target())
+    {
+        out->_target.Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+        out->_target._targetCase = EGrpcNightfallV1SkillCastStarted_target::Target;
+    }
+    out->SkillId=in->skill_id();
+    out->SkillLevel=in->skill_level();
+    out->CastId=in->cast_id();
+    out->Tick=in->tick();
+    out->CompleteTick=in->complete_tick();
+    out->CasterIncarnation=in->caster_incarnation();
+    out->_target_incarnation._target_incarnationCase = EGrpcNightfallV1SkillCastStarted_target_incarnation::NotSet;
+    if (in->has_target_incarnation())
+    {
+        out->_target_incarnation.TargetIncarnation=in->target_incarnation();
+        out->_target_incarnation._target_incarnationCase = EGrpcNightfallV1SkillCastStarted_target_incarnation::TargetIncarnation;
+    }
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
+    out->LaunchTick=in->launch_tick();
+    out->StartTick=in->start_tick();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCastStarted* in, ::nightfall::v1::SkillCastStarted* out)
+{
+    out->set_caster((const char*)StringCast<UTF8CHAR>(*(in->Caster)).Get());
+    switch (in->_target._targetCase)
+    {
+    case EGrpcNightfallV1SkillCastStarted_target::Target:
+        out->set_target((const char*)StringCast<UTF8CHAR>(*(in->_target.Target)).Get());
+        break;
+    }
+    out->set_skill_id(in->SkillId);
+    out->set_skill_level(in->SkillLevel);
+    out->set_cast_id(in->CastId);
+    out->set_tick(in->Tick);
+    out->set_complete_tick(in->CompleteTick);
+    out->set_caster_incarnation(in->CasterIncarnation);
+    switch (in->_target_incarnation._target_incarnationCase)
+    {
+    case EGrpcNightfallV1SkillCastStarted_target_incarnation::TargetIncarnation:
+        out->set_target_incarnation(in->_target_incarnation.TargetIncarnation);
+        break;
+    }
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
+    out->set_launch_tick(in->LaunchTick);
+    out->set_start_tick(in->StartTick);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillTargetResult* in, FGrpcNightfallV1SkillTargetResult* out)
+{
+    out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+    out->TargetIncarnation=in->target_incarnation();
+    out->Tick=in->tick();
+    out->ResolutionKind=StaticCast<EGrpcNightfallV1SkillResolutionKind>(in->resolution_kind());
+    out->Rolled=in->rolled();
+    out->CpAbsorbed=in->cp_absorbed();
+    out->HpRemoved=in->hp_removed();
+    out->Heal=in->heal();
+    out->Outcome=StaticCast<EGrpcNightfallV1SkillOutcome>(in->outcome());
+    out->TargetHpAfter=in->target_hp_after();
+    out->AppliedEffectIds.Empty();
+    for (int i=0; i<in->applied_effect_ids_size(); ++i) {
+        out->AppliedEffectIds.Add(in->applied_effect_ids(i));
+    }
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillTargetResult* in, ::nightfall::v1::SkillTargetResult* out)
+{
+    out->set_target((const char*)StringCast<UTF8CHAR>(*(in->Target)).Get());
+    out->set_target_incarnation(in->TargetIncarnation);
+    out->set_tick(in->Tick);
+    out->set_resolution_kind(::nightfall::v1::SkillResolutionKind(static_cast<uint8>(in->ResolutionKind)));
+    out->set_rolled(in->Rolled);
+    out->set_cp_absorbed(in->CpAbsorbed);
+    out->set_hp_removed(in->HpRemoved);
+    out->set_heal(in->Heal);
+    out->set_outcome(::nightfall::v1::SkillOutcome(static_cast<uint8>(in->Outcome)));
+    out->set_target_hp_after(in->TargetHpAfter);
+    for(const auto& value : in->AppliedEffectIds) {
+        out->add_applied_effect_ids(value);
+    }
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCastResult* in, FGrpcNightfallV1SkillCastResult* out)
+{
+    out->Caster=StringCast<TCHAR>((const UTF8CHAR*)(in->caster().c_str())).Get();
+    out->CasterIncarnation=in->caster_incarnation();
+    out->CastId=in->cast_id();
+    out->Tick=in->tick();
+    out->SkillId=in->skill_id();
+    out->SkillLevel=in->skill_level();
+    out->Targets.Empty();
+    for (int i=0; i<in->targets_size(); ++i) {
+        GRPC_TO_TURBOLINK(&(in->targets(i)), &(out->Targets.AddZeroed_GetRef()));
+    }
+    out->_effect_id._effect_idCase = EGrpcNightfallV1SkillCastResult_effect_id::NotSet;
+    if (in->has_effect_id())
+    {
+        out->_effect_id.EffectId=in->effect_id();
+        out->_effect_id._effect_idCase = EGrpcNightfallV1SkillCastResult_effect_id::EffectId;
+    }
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCastResult* in, ::nightfall::v1::SkillCastResult* out)
+{
+    out->set_caster((const char*)StringCast<UTF8CHAR>(*(in->Caster)).Get());
+    out->set_caster_incarnation(in->CasterIncarnation);
+    out->set_cast_id(in->CastId);
+    out->set_tick(in->Tick);
+    out->set_skill_id(in->SkillId);
+    out->set_skill_level(in->SkillLevel);
+    for(const auto& value : in->Targets) {
+        TURBOLINK_TO_GRPC(&value, out->add_targets());
+    }
+    switch (in->_effect_id._effect_idCase)
+    {
+    case EGrpcNightfallV1SkillCastResult_effect_id::EffectId:
+        out->set_effect_id(in->_effect_id.EffectId);
+        break;
+    }
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCastCancelled* in, FGrpcNightfallV1SkillCastCancelled* out)
+{
+    out->Caster=StringCast<TCHAR>((const UTF8CHAR*)(in->caster().c_str())).Get();
+    out->CastId=in->cast_id();
+    out->Reason=StaticCast<EGrpcNightfallV1CastCancelReason>(in->reason());
+    out->Tick=in->tick();
+    out->CasterIncarnation=in->caster_incarnation();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillCastCancelled* in, ::nightfall::v1::SkillCastCancelled* out)
+{
+    out->set_caster((const char*)StringCast<UTF8CHAR>(*(in->Caster)).Get());
+    out->set_cast_id(in->CastId);
+    out->set_reason(::nightfall::v1::CastCancelReason(static_cast<uint8>(in->Reason)));
+    out->set_tick(in->Tick);
+    out->set_caster_incarnation(in->CasterIncarnation);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::EffectApplied* in, FGrpcNightfallV1EffectApplied* out)
+{
+    out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+    out->TargetIncarnation=in->target_incarnation();
+    out->_caster._casterCase = EGrpcNightfallV1EffectApplied_caster::NotSet;
+    if (in->has_caster())
+    {
+        out->_caster.Caster=StringCast<TCHAR>((const UTF8CHAR*)(in->caster().c_str())).Get();
+        out->_caster._casterCase = EGrpcNightfallV1EffectApplied_caster::Caster;
+    }
+    out->_caster_incarnation._caster_incarnationCase = EGrpcNightfallV1EffectApplied_caster_incarnation::NotSet;
+    if (in->has_caster_incarnation())
+    {
+        out->_caster_incarnation.CasterIncarnation=in->caster_incarnation();
+        out->_caster_incarnation._caster_incarnationCase = EGrpcNightfallV1EffectApplied_caster_incarnation::CasterIncarnation;
+    }
+    out->EffectId=in->effect_id();
+    out->SkillId=in->skill_id();
+    out->SkillLevel=in->skill_level();
+    out->Pool=StaticCast<EGrpcNightfallV1EffectPool>(in->pool());
+    out->Tick=in->tick();
+    out->EndTick=in->end_tick();
+    out->AbnormalType=StringCast<TCHAR>((const UTF8CHAR*)(in->abnormal_type().c_str())).Get();
+    out->AbnormalLevel=in->abnormal_level();
+    out->StatusFlags=in->status_flags();
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
+    out->AppliedTick=in->applied_tick();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EffectApplied* in, ::nightfall::v1::EffectApplied* out)
+{
+    out->set_target((const char*)StringCast<UTF8CHAR>(*(in->Target)).Get());
+    out->set_target_incarnation(in->TargetIncarnation);
+    switch (in->_caster._casterCase)
+    {
+    case EGrpcNightfallV1EffectApplied_caster::Caster:
+        out->set_caster((const char*)StringCast<UTF8CHAR>(*(in->_caster.Caster)).Get());
+        break;
+    }
+    switch (in->_caster_incarnation._caster_incarnationCase)
+    {
+    case EGrpcNightfallV1EffectApplied_caster_incarnation::CasterIncarnation:
+        out->set_caster_incarnation(in->_caster_incarnation.CasterIncarnation);
+        break;
+    }
+    out->set_effect_id(in->EffectId);
+    out->set_skill_id(in->SkillId);
+    out->set_skill_level(in->SkillLevel);
+    out->set_pool(::nightfall::v1::EffectPool(static_cast<uint8>(in->Pool)));
+    out->set_tick(in->Tick);
+    out->set_end_tick(in->EndTick);
+    out->set_abnormal_type((const char*)StringCast<UTF8CHAR>(*(in->AbnormalType)).Get());
+    out->set_abnormal_level(in->AbnormalLevel);
+    out->set_status_flags(in->StatusFlags);
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
+    out->set_applied_tick(in->AppliedTick);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::EffectRemoved* in, FGrpcNightfallV1EffectRemoved* out)
+{
+    out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+    out->TargetIncarnation=in->target_incarnation();
+    out->EffectId=in->effect_id();
+    out->Reason=StaticCast<EGrpcNightfallV1EffectRemoveReason>(in->reason());
+    out->Tick=in->tick();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EffectRemoved* in, ::nightfall::v1::EffectRemoved* out)
+{
+    out->set_target((const char*)StringCast<UTF8CHAR>(*(in->Target)).Get());
+    out->set_target_incarnation(in->TargetIncarnation);
+    out->set_effect_id(in->EffectId);
+    out->set_reason(::nightfall::v1::EffectRemoveReason(static_cast<uint8>(in->Reason)));
+    out->set_tick(in->Tick);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillReuse* in, FGrpcNightfallV1SkillReuse* out)
+{
+    out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
+    out->SkillId=in->skill_id();
+    out->ReadyTick=in->ready_tick();
+    out->Tick=in->tick();
+    out->Incarnation=in->incarnation();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillReuse* in, ::nightfall::v1::SkillReuse* out)
+{
+    out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
+    out->set_skill_id(in->SkillId);
+    out->set_ready_tick(in->ReadyTick);
+    out->set_tick(in->Tick);
+    out->set_incarnation(in->Incarnation);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillLearned* in, FGrpcNightfallV1SkillLearned* out)
+{
+    out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
+    out->SkillId=in->skill_id();
+    out->SkillLevel=in->skill_level();
+    out->SpCost=in->sp_cost();
+    out->SpRemaining=in->sp_remaining();
+    out->IdempotencyKey=StringCast<TCHAR>((const UTF8CHAR*)(in->idempotency_key().c_str())).Get();
+    out->Tick=in->tick();
+    out->Incarnation=in->incarnation();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillLearned* in, ::nightfall::v1::SkillLearned* out)
+{
+    out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
+    out->set_skill_id(in->SkillId);
+    out->set_skill_level(in->SkillLevel);
+    out->set_sp_cost(in->SpCost);
+    out->set_sp_remaining(in->SpRemaining);
+    out->set_idempotency_key((const char*)StringCast<UTF8CHAR>(*(in->IdempotencyKey)).Get());
+    out->set_tick(in->Tick);
+    out->set_incarnation(in->Incarnation);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::PvpStateChanged* in, FGrpcNightfallV1PvpStateChanged* out)
+{
+    out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
+    out->FlagUntilTick=in->flag_until_tick();
+    out->Karma=in->karma();
+    out->PkCount=in->pk_count();
+    out->PvpCount=in->pvp_count();
+    out->Tick=in->tick();
+    out->Incarnation=in->incarnation();
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1PvpStateChanged* in, ::nightfall::v1::PvpStateChanged* out)
+{
+    out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
+    out->set_flag_until_tick(in->FlagUntilTick);
+    out->set_karma(in->Karma);
+    out->set_pk_count(in->PkCount);
+    out->set_pvp_count(in->PvpCount);
+    out->set_tick(in->Tick);
+    out->set_incarnation(in->Incarnation);
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::ResurrectOffer* in, FGrpcNightfallV1ResurrectOffer* out)
+{
+    out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
+    out->TargetIncarnation=in->target_incarnation();
+    out->OfferId=in->offer_id();
+    out->_caster._casterCase = EGrpcNightfallV1ResurrectOffer_caster::NotSet;
+    if (in->has_caster())
+    {
+        out->_caster.Caster=StringCast<TCHAR>((const UTF8CHAR*)(in->caster().c_str())).Get();
+        out->_caster._casterCase = EGrpcNightfallV1ResurrectOffer_caster::Caster;
+    }
+    out->_caster_incarnation._caster_incarnationCase = EGrpcNightfallV1ResurrectOffer_caster_incarnation::NotSet;
+    if (in->has_caster_incarnation())
+    {
+        out->_caster_incarnation.CasterIncarnation=in->caster_incarnation();
+        out->_caster_incarnation._caster_incarnationCase = EGrpcNightfallV1ResurrectOffer_caster_incarnation::CasterIncarnation;
+    }
+    out->RestorePercentQ=in->restore_percent_q();
+    out->RecoverableXp=in->recoverable_xp();
+    out->ExpiryTick=in->expiry_tick();
+    out->State=StaticCast<EGrpcNightfallV1ResurrectOfferState>(in->state());
+    out->Tick=in->tick();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ResurrectOffer* in, ::nightfall::v1::ResurrectOffer* out)
+{
+    out->set_target((const char*)StringCast<UTF8CHAR>(*(in->Target)).Get());
+    out->set_target_incarnation(in->TargetIncarnation);
+    out->set_offer_id(in->OfferId);
+    switch (in->_caster._casterCase)
+    {
+    case EGrpcNightfallV1ResurrectOffer_caster::Caster:
+        out->set_caster((const char*)StringCast<UTF8CHAR>(*(in->_caster.Caster)).Get());
+        break;
+    }
+    switch (in->_caster_incarnation._caster_incarnationCase)
+    {
+    case EGrpcNightfallV1ResurrectOffer_caster_incarnation::CasterIncarnation:
+        out->set_caster_incarnation(in->_caster_incarnation.CasterIncarnation);
+        break;
+    }
+    out->set_restore_percent_q(in->RestorePercentQ);
+    out->set_recoverable_xp(in->RecoverableXp);
+    out->set_expiry_tick(in->ExpiryTick);
+    out->set_state(::nightfall::v1::ResurrectOfferState(static_cast<uint8>(in->State)));
+    out->set_tick(in->Tick);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SpGained* in, FGrpcNightfallV1SpGained* out)
+{
+    out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
+    out->Amount=in->amount();
+    out->Total=in->total();
+    out->Tick=in->tick();
+    out->Incarnation=in->incarnation();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SpGained* in, ::nightfall::v1::SpGained* out)
+{
+    out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
+    out->set_amount(in->Amount);
+    out->set_total(in->Total);
+    out->set_tick(in->Tick);
+    out->set_incarnation(in->Incarnation);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::LearnedSkillRank* in, FGrpcNightfallV1LearnedSkillRank* out)
+{
+    out->SkillId=in->skill_id();
+    out->SkillLevel=in->skill_level();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1LearnedSkillRank* in, ::nightfall::v1::LearnedSkillRank* out)
+{
+    out->set_skill_id(in->SkillId);
+    out->set_skill_level(in->SkillLevel);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillReuseState* in, FGrpcNightfallV1SkillReuseState* out)
+{
+    out->SkillId=in->skill_id();
+    out->ReadyTick=in->ready_tick();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillReuseState* in, ::nightfall::v1::SkillReuseState* out)
+{
+    out->set_skill_id(in->SkillId);
+    out->set_ready_tick(in->ReadyTick);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillStateSync* in, FGrpcNightfallV1SkillStateSync* out)
+{
+    out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
+    out->Learned.Empty();
+    for (int i=0; i<in->learned_size(); ++i) {
+        GRPC_TO_TURBOLINK(&(in->learned(i)), &(out->Learned.AddZeroed_GetRef()));
+    }
+    out->Reuse.Empty();
+    for (int i=0; i<in->reuse_size(); ++i) {
+        GRPC_TO_TURBOLINK(&(in->reuse(i)), &(out->Reuse.AddZeroed_GetRef()));
+    }
+    out->Sp=in->sp();
+    out->Karma=in->karma();
+    out->PkCount=in->pk_count();
+    out->PvpCount=in->pvp_count();
+    out->FlagUntilTick=in->flag_until_tick();
+    out->DeathPenaltyLevel=in->death_penalty_level();
+    out->Tick=in->tick();
+    out->Incarnation=in->incarnation();
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1SkillStateSync* in, ::nightfall::v1::SkillStateSync* out)
+{
+    out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
+    for(const auto& value : in->Learned) {
+        TURBOLINK_TO_GRPC(&value, out->add_learned());
+    }
+    for(const auto& value : in->Reuse) {
+        TURBOLINK_TO_GRPC(&value, out->add_reuse());
+    }
+    out->set_sp(in->Sp);
+    out->set_karma(in->Karma);
+    out->set_pk_count(in->PkCount);
+    out->set_pvp_count(in->PvpCount);
+    out->set_flag_until_tick(in->FlagUntilTick);
+    out->set_death_penalty_level(in->DeathPenaltyLevel);
+    out->set_tick(in->Tick);
+    out->set_incarnation(in->Incarnation);
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
+}
+
+void GRPC_TO_TURBOLINK(const ::nightfall::v1::VitalsChanged* in, FGrpcNightfallV1VitalsChanged* out)
+{
+    out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
+    out->Hp=in->hp();
+    out->MaxHp=in->max_hp();
+    out->Tick=in->tick();
+    out->Incarnation=in->incarnation();
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
+}
+
+void TURBOLINK_TO_GRPC(const FGrpcNightfallV1VitalsChanged* in, ::nightfall::v1::VitalsChanged* out)
+{
+    out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
+    out->set_hp(in->Hp);
+    out->set_max_hp(in->MaxHp);
+    out->set_tick(in->Tick);
+    out->set_incarnation(in->Incarnation);
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
 }
 

@@ -419,8 +419,14 @@ sim_finalize_verdict() {
 
 # Phase2 is always freshly provisioned before admission. The helper never reads root .env.
 sim_fixture_detect() { python3 "$SIM_HERE/phase2-fixture.py" detect "$@"; }
+sim_phase3_parser_check() {
+  local selected="$1"; shift
+  [[ "$selected" == phase3-* ]] || return 0
+  python3 "$SIM_HERE/sim-parser-check.py" --project "$SIM_PROJECT_DIR" "$@" \
+    || sim_die "Phase3 scenario/client registry mismatch; see phase3-fixtures.md"
+}
 sim_fixture_validate_mode() {
-  [[ "$1" == phase2-* ]] || return 0
+  [[ "$1" == phase2-* || "$1" == phase3-* ]] || return 0
   [[ "$2" == start ]] || sim_die "Phase2 fixture requires --api start; attaching is refused"
   [[ "$SIM_API_URL" == http://localhost:3000 || "$SIM_API_URL" == http://127.0.0.1:3000 ]] \
     || sim_die "Phase2 chooses fresh endpoints; explicit SIM_API_URL is unsupported"
@@ -451,7 +457,7 @@ sim_fixture_finish() {
 
 sim_unit_prepare() {
   local selected="$1" mode="$2"; shift 2
-  if [[ "$selected" != phase2-* ]]; then
+  if [[ "$selected" != phase2-* && "$selected" != phase3-* ]]; then
     [[ -n "$SIM_STARTED_API_PID" ]] || sim_api_prepare "$mode"
     return
   fi
@@ -487,4 +493,12 @@ sim_unit_prepare() {
     sleep 1
   done
   sim_die "fixture API did not become healthy"
+}
+
+# Scenario wall budgets include source-duration ×3 waits (e.g. 1200s buffs).
+sim_scenario_budget() {
+  local budget
+  budget="$(python3 "$SIM_HERE/phase2-fixture.py" budget "$@")" || sim_die "invalid scenario budget"
+  [[ "$budget" =~ ^[0-9]+$ ]] || sim_die "invalid scenario budget"
+  ((budget <= SIM_TIMEOUT)) || SIM_TIMEOUT="$budget"
 }

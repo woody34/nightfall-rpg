@@ -141,6 +141,62 @@ struct RespawnRequestDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 RespawnRequestDefaultTypeInternal _RespawnRequest_default_instance_;
 template <typename>
+PROTOBUF_CONSTEXPR CastSkillRequest::CastSkillRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.target_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+} {}
+struct CastSkillRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR CastSkillRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~CastSkillRequestDefaultTypeInternal() {}
+  union {
+    CastSkillRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 CastSkillRequestDefaultTypeInternal _CastSkillRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR CancelCastRequest::CancelCastRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.cast_id_)*/ ::uint64_t{0u}
+} {}
+struct CancelCastRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR CancelCastRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~CancelCastRequestDefaultTypeInternal() {}
+  union {
+    CancelCastRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 CancelCastRequestDefaultTypeInternal _CancelCastRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR AcceptResurrectRequest::AcceptResurrectRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.offer_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.accept_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct AcceptResurrectRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR AcceptResurrectRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~AcceptResurrectRequestDefaultTypeInternal() {}
+  union {
+    AcceptResurrectRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 AcceptResurrectRequestDefaultTypeInternal _AcceptResurrectRequest_default_instance_;
+template <typename>
 PROTOBUF_CONSTEXPR ServerMessage::ServerMessage(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_.payload_)*/{}
@@ -217,6 +273,7 @@ PROTOBUF_CONSTEXPR EntitySpawn::EntitySpawn(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_._has_bits_)*/{}
   , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.active_effects_)*/{}
   , /*decltype(_impl_.entity_id_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
@@ -231,6 +288,7 @@ PROTOBUF_CONSTEXPR EntitySpawn::EntitySpawn(
 
   , /*decltype(_impl_.position_)*/nullptr
   , /*decltype(_impl_.pending_swing_)*/nullptr
+  , /*decltype(_impl_.pending_cast_)*/nullptr
   , /*decltype(_impl_.kind_)*/ 0
 
   , /*decltype(_impl_.session_generation_)*/ 0u
@@ -262,6 +320,16 @@ PROTOBUF_CONSTEXPR EntitySpawn::EntitySpawn(
   , /*decltype(_impl_.state_tick_)*/ ::uint64_t{0u}
 
   , /*decltype(_impl_.face_)*/ 0u
+
+  , /*decltype(_impl_.karma_)*/ 0u
+
+  , /*decltype(_impl_.flag_until_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.pk_count_)*/ 0u
+
+  , /*decltype(_impl_.pvp_count_)*/ 0u
+
+  , /*decltype(_impl_.status_flags_)*/ ::uint64_t{0u}
 } {}
 struct EntitySpawnDefaultTypeInternal {
   PROTOBUF_CONSTEXPR EntitySpawnDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -339,6 +407,8 @@ PROTOBUF_CONSTEXPR AttackResult::AttackResult(
 
   , /*decltype(_impl_.target_incarnation_)*/ 0u
 
+  , /*decltype(_impl_.cp_damage_)*/ 0u
+
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct AttackResultDefaultTypeInternal {
   PROTOBUF_CONSTEXPR AttackResultDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -379,7 +449,9 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 template <typename>
 PROTOBUF_CONSTEXPR AttackStarted::AttackStarted(
     ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.attacker_)*/ {
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.attacker_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
@@ -395,7 +467,12 @@ PROTOBUF_CONSTEXPR AttackStarted::AttackStarted(
 
   , /*decltype(_impl_.target_incarnation_)*/ 0u
 
-  , /*decltype(_impl_._cached_size_)*/{}} {}
+  , /*decltype(_impl_.baseline_)*/ false
+
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.attacker_incarnation_)*/ 0u
+} {}
 struct AttackStartedDefaultTypeInternal {
   PROTOBUF_CONSTEXPR AttackStartedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~AttackStartedDefaultTypeInternal() {}
@@ -461,10 +538,13 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 template <typename>
 PROTOBUF_CONSTEXPR StatsChanged::StatsChanged(
     ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.entity_)*/ {
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.entity_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
+  , /*decltype(_impl_.effective_stats_)*/nullptr
   , /*decltype(_impl_.hp_)*/ 0u
 
   , /*decltype(_impl_.max_hp_)*/ 0u
@@ -491,7 +571,22 @@ PROTOBUF_CONSTEXPR StatsChanged::StatsChanged(
 
   , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
 
-  , /*decltype(_impl_._cached_size_)*/{}} {}
+  , /*decltype(_impl_.karma_)*/ 0u
+
+  , /*decltype(_impl_.pk_count_)*/ 0u
+
+  , /*decltype(_impl_.flag_until_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.pvp_count_)*/ 0u
+
+  , /*decltype(_impl_.death_penalty_level_)*/ 0u
+
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.baseline_)*/ false
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
+} {}
 struct StatsChangedDefaultTypeInternal {
   PROTOBUF_CONSTEXPR StatsChangedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~StatsChangedDefaultTypeInternal() {}
@@ -547,7 +642,9 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 template <typename>
 PROTOBUF_CONSTEXPR TargetChanged::TargetChanged(
     ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.entity_)*/ {
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.entity_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
@@ -555,7 +652,14 @@ PROTOBUF_CONSTEXPR TargetChanged::TargetChanged(
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
-  , /*decltype(_impl_._cached_size_)*/{}} {}
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.baseline_)*/ false
+
+  , /*decltype(_impl_.target_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+} {}
 struct TargetChangedDefaultTypeInternal {
   PROTOBUF_CONSTEXPR TargetChangedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~TargetChangedDefaultTypeInternal() {}
@@ -590,10 +694,529 @@ struct ClassChangedDefaultTypeInternal {
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ClassChangedDefaultTypeInternal _ClassChanged_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ActiveEffect::ActiveEffect(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.caster_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_.remaining_ticks_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.is_debuff_)*/ false
+
+  , /*decltype(_impl_.caster_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.effect_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.target_incarnation_)*/ 0u
+} {}
+struct ActiveEffectDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ActiveEffectDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ActiveEffectDefaultTypeInternal() {}
+  union {
+    ActiveEffect _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ActiveEffectDefaultTypeInternal _ActiveEffect_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillCastStarted::SkillCastStarted(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.caster_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.target_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_.cast_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.complete_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.caster_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.target_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.launch_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.start_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.baseline_)*/ false
+} {}
+struct SkillCastStartedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillCastStartedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillCastStartedDefaultTypeInternal() {}
+  union {
+    SkillCastStarted _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillCastStartedDefaultTypeInternal _SkillCastStarted_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillTargetResult::SkillTargetResult(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.applied_effect_ids_)*/ {}
+  ,/* _impl_._applied_effect_ids_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.target_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.target_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.resolution_kind_)*/ 0
+
+  , /*decltype(_impl_.rolled_)*/ 0u
+
+  , /*decltype(_impl_.cp_absorbed_)*/ 0u
+
+  , /*decltype(_impl_.hp_removed_)*/ 0u
+
+  , /*decltype(_impl_.heal_)*/ 0u
+
+  , /*decltype(_impl_.outcome_)*/ 0
+
+  , /*decltype(_impl_.target_hp_after_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillTargetResultDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillTargetResultDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillTargetResultDefaultTypeInternal() {}
+  union {
+    SkillTargetResult _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillTargetResultDefaultTypeInternal _SkillTargetResult_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillCastResult::SkillCastResult(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.targets_)*/{}
+  , /*decltype(_impl_.caster_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.cast_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.caster_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.effect_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+} {}
+struct SkillCastResultDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillCastResultDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillCastResultDefaultTypeInternal() {}
+  union {
+    SkillCastResult _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillCastResultDefaultTypeInternal _SkillCastResult_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillCastCancelled::SkillCastCancelled(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.caster_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.cast_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.reason_)*/ 0
+
+  , /*decltype(_impl_.caster_incarnation_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillCastCancelledDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillCastCancelledDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillCastCancelledDefaultTypeInternal() {}
+  union {
+    SkillCastCancelled _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillCastCancelledDefaultTypeInternal _SkillCastCancelled_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR EffectApplied::EffectApplied(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.target_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.caster_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.abnormal_type_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.target_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.caster_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.effect_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.end_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.pool_)*/ 0
+
+  , /*decltype(_impl_.abnormal_level_)*/ 0u
+
+  , /*decltype(_impl_.status_flags_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.applied_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.baseline_)*/ false
+} {}
+struct EffectAppliedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR EffectAppliedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~EffectAppliedDefaultTypeInternal() {}
+  union {
+    EffectApplied _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 EffectAppliedDefaultTypeInternal _EffectApplied_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR EffectRemoved::EffectRemoved(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.target_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.effect_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.target_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.reason_)*/ 0
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct EffectRemovedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR EffectRemovedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~EffectRemovedDefaultTypeInternal() {}
+  union {
+    EffectRemoved _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 EffectRemovedDefaultTypeInternal _EffectRemoved_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillReuse::SkillReuse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.ready_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillReuseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillReuseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillReuseDefaultTypeInternal() {}
+  union {
+    SkillReuse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillReuseDefaultTypeInternal _SkillReuse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillLearned::SkillLearned(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.idempotency_key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_.sp_cost_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.sp_remaining_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillLearnedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillLearnedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillLearnedDefaultTypeInternal() {}
+  union {
+    SkillLearned _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillLearnedDefaultTypeInternal _SkillLearned_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR PvpStateChanged::PvpStateChanged(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.flag_until_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.karma_)*/ 0u
+
+  , /*decltype(_impl_.pk_count_)*/ 0u
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.pvp_count_)*/ 0u
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
+
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.baseline_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct PvpStateChangedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR PvpStateChangedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~PvpStateChangedDefaultTypeInternal() {}
+  union {
+    PvpStateChanged _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PvpStateChangedDefaultTypeInternal _PvpStateChanged_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ResurrectOffer::ResurrectOffer(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.target_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.caster_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.offer_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.target_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.caster_incarnation_)*/ 0u
+
+  , /*decltype(_impl_.restore_percent_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.recoverable_xp_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.expiry_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.state_)*/ 0
+} {}
+struct ResurrectOfferDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ResurrectOfferDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ResurrectOfferDefaultTypeInternal() {}
+  union {
+    ResurrectOffer _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ResurrectOfferDefaultTypeInternal _ResurrectOffer_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SpGained::SpGained(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.amount_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.total_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SpGainedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SpGainedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SpGainedDefaultTypeInternal() {}
+  union {
+    SpGained _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SpGainedDefaultTypeInternal _SpGained_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR LearnedSkillRank::LearnedSkillRank(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_.skill_level_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct LearnedSkillRankDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR LearnedSkillRankDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~LearnedSkillRankDefaultTypeInternal() {}
+  union {
+    LearnedSkillRank _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 LearnedSkillRankDefaultTypeInternal _LearnedSkillRank_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillReuseState::SkillReuseState(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.ready_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.skill_id_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillReuseStateDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillReuseStateDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillReuseStateDefaultTypeInternal() {}
+  union {
+    SkillReuseState _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillReuseStateDefaultTypeInternal _SkillReuseState_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SkillStateSync::SkillStateSync(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.learned_)*/{}
+  , /*decltype(_impl_.reuse_)*/{}
+  , /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.sp_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.karma_)*/ 0u
+
+  , /*decltype(_impl_.pk_count_)*/ 0u
+
+  , /*decltype(_impl_.flag_until_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.pvp_count_)*/ 0u
+
+  , /*decltype(_impl_.death_penalty_level_)*/ 0u
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
+
+  , /*decltype(_impl_.baseline_)*/ false
+
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct SkillStateSyncDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR SkillStateSyncDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~SkillStateSyncDefaultTypeInternal() {}
+  union {
+    SkillStateSync _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SkillStateSyncDefaultTypeInternal _SkillStateSync_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR VitalsChanged::VitalsChanged(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.entity_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.hp_)*/ 0u
+
+  , /*decltype(_impl_.max_hp_)*/ 0u
+
+  , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.incarnation_)*/ 0u
+
+  , /*decltype(_impl_.baseline_)*/ false
+
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct VitalsChangedDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR VitalsChangedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~VitalsChangedDefaultTypeInternal() {}
+  union {
+    VitalsChanged _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 VitalsChangedDefaultTypeInternal _VitalsChanged_default_instance_;
 }  // namespace v1
 }  // namespace nightfall
-static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fworld_2eproto[24];
-static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[4];
+static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fworld_2eproto[43];
+static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[10];
 static constexpr const ::_pb::ServiceDescriptor**
     file_level_service_descriptors_nightfall_2fv1_2fworld_2eproto = nullptr;
 const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(
@@ -607,6 +1230,9 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,  // no _split_
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClientMessage, _impl_.seq_),
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
@@ -665,6 +1291,38 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,  // no _inlined_string_donated_
     ~0u,  // no _split_
     ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CastSkillRequest, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CastSkillRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CastSkillRequest, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CastSkillRequest, _impl_.target_),
+    ~0u,
+    0,
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CancelCastRequest, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CancelCastRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::CancelCastRequest, _impl_.cast_id_),
+    0,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AcceptResurrectRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AcceptResurrectRequest, _impl_.offer_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AcceptResurrectRequest, _impl_.accept_),
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ServerMessage, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -719,6 +1377,18 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::WorldEvent, _impl_.event_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _internal_metadata_),
@@ -749,6 +1419,13 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.hair_color_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.face_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.state_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.flag_until_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.karma_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.active_effects_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pending_cast_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pk_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pvp_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.status_flags_),
     ~0u,
     ~0u,
     0,
@@ -767,6 +1444,13 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,
     ~0u,
     ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    2,
     ~0u,
     ~0u,
     ~0u,
@@ -814,6 +1498,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.damage_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.target_hp_after_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.target_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackResult, _impl_.cp_damage_),
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDied, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -826,7 +1511,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDied, _impl_.tick_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDied, _impl_.killer_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityDied, _impl_.incarnation_),
-    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackStarted, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackStarted, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
@@ -840,6 +1525,18 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackStarted, _impl_.impact_tick_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackStarted, _impl_.ready_tick_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackStarted, _impl_.target_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackStarted, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackStarted, _impl_.baseline_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackStarted, _impl_.attacker_incarnation_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::AttackCancelled, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -870,7 +1567,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     0,
     ~0u,
     ~0u,
-    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
@@ -892,6 +1589,38 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.token_tier_1_count_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.token_tier_2_count_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.karma_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.pk_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.pvp_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.flag_until_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.death_penalty_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.effective_stats_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.baseline_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.incarnation_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,
+    ~0u,
+    ~0u,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::XpGained, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -913,7 +1642,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::LevelUp, _impl_.entity_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::LevelUp, _impl_.level_),
-    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
@@ -923,6 +1652,16 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_.entity_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_.target_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_.baseline_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_.target_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::TargetChanged, _impl_.tick_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassChanged, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -935,34 +1674,363 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassChanged, _impl_.class_id_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassChanged, _impl_.tick_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClassChanged, _impl_.session_generation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_.remaining_ticks_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_.is_debuff_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_.caster_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_.effect_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_.caster_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ActiveEffect, _impl_.target_incarnation_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,
+    1,
+    ~0u,
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.caster_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.target_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.cast_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.complete_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.caster_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.target_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.baseline_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.launch_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastStarted, _impl_.start_tick_),
+    ~0u,
+    0,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    1,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.target_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.target_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.resolution_kind_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.rolled_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.cp_absorbed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.hp_removed_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.heal_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.outcome_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.target_hp_after_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillTargetResult, _impl_.applied_effect_ids_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_.caster_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_.caster_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_.cast_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_.targets_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastResult, _impl_.effect_id_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastCancelled, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastCancelled, _impl_.caster_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastCancelled, _impl_.cast_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastCancelled, _impl_.reason_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastCancelled, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCastCancelled, _impl_.caster_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.target_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.target_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.caster_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.caster_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.effect_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.pool_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.end_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.abnormal_type_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.abnormal_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.status_flags_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.baseline_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectApplied, _impl_.applied_tick_),
+    ~0u,
+    ~0u,
+    0,
+    1,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectRemoved, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectRemoved, _impl_.target_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectRemoved, _impl_.target_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectRemoved, _impl_.effect_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectRemoved, _impl_.reason_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectRemoved, _impl_.tick_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuse, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuse, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuse, _impl_.ready_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuse, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuse, _impl_.incarnation_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _impl_.skill_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _impl_.sp_cost_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _impl_.sp_remaining_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _impl_.idempotency_key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillLearned, _impl_.incarnation_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.flag_until_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.karma_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.pk_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.pvp_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::PvpStateChanged, _impl_.baseline_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.target_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.target_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.offer_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.caster_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.caster_incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.restore_percent_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.recoverable_xp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.expiry_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.state_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.tick_),
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    1,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SpGained, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SpGained, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SpGained, _impl_.amount_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SpGained, _impl_.total_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SpGained, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SpGained, _impl_.incarnation_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnedSkillRank, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnedSkillRank, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::LearnedSkillRank, _impl_.skill_level_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuseState, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuseState, _impl_.skill_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillReuseState, _impl_.ready_tick_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.learned_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.reuse_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.sp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.karma_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.pk_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.pvp_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.flag_until_tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.death_penalty_level_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillStateSync, _impl_.baseline_tick_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::VitalsChanged, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::VitalsChanged, _impl_.entity_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::VitalsChanged, _impl_.hp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::VitalsChanged, _impl_.max_hp_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::VitalsChanged, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::VitalsChanged, _impl_.incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::VitalsChanged, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::VitalsChanged, _impl_.baseline_tick_),
 };
 
 static const ::_pbi::MigrationSchema
     schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
         { 0, -1, -1, sizeof(::nightfall::v1::ClientMessage)},
-        { 16, 25, -1, sizeof(::nightfall::v1::MoveToRequest)},
-        { 26, -1, -1, sizeof(::nightfall::v1::StopMoveRequest)},
-        { 34, -1, -1, sizeof(::nightfall::v1::SetTargetRequest)},
-        { 43, -1, -1, sizeof(::nightfall::v1::AttackRequest)},
-        { 51, -1, -1, sizeof(::nightfall::v1::StopAttackRequest)},
-        { 59, -1, -1, sizeof(::nightfall::v1::RespawnRequest)},
-        { 67, -1, -1, sizeof(::nightfall::v1::ServerMessage)},
-        { 79, -1, -1, sizeof(::nightfall::v1::Ack)},
-        { 89, -1, -1, sizeof(::nightfall::v1::IntentRejected)},
-        { 100, -1, -1, sizeof(::nightfall::v1::WorldEvent)},
-        { 122, 151, -1, sizeof(::nightfall::v1::EntitySpawn)},
-        { 172, 186, -1, sizeof(::nightfall::v1::EntityMove)},
-        { 192, -1, -1, sizeof(::nightfall::v1::EntityDespawn)},
-        { 201, -1, -1, sizeof(::nightfall::v1::AttackResult)},
-        { 216, -1, -1, sizeof(::nightfall::v1::EntityDied)},
-        { 228, -1, -1, sizeof(::nightfall::v1::AttackStarted)},
-        { 242, -1, -1, sizeof(::nightfall::v1::AttackCancelled)},
-        { 254, 267, -1, sizeof(::nightfall::v1::EntityRespawned)},
-        { 272, -1, -1, sizeof(::nightfall::v1::StatsChanged)},
-        { 294, -1, -1, sizeof(::nightfall::v1::XpGained)},
-        { 305, -1, -1, sizeof(::nightfall::v1::LevelUp)},
-        { 315, -1, -1, sizeof(::nightfall::v1::TargetChanged)},
-        { 325, -1, -1, sizeof(::nightfall::v1::ClassChanged)},
+        { 19, 28, -1, sizeof(::nightfall::v1::MoveToRequest)},
+        { 29, -1, -1, sizeof(::nightfall::v1::StopMoveRequest)},
+        { 37, -1, -1, sizeof(::nightfall::v1::SetTargetRequest)},
+        { 46, -1, -1, sizeof(::nightfall::v1::AttackRequest)},
+        { 54, -1, -1, sizeof(::nightfall::v1::StopAttackRequest)},
+        { 62, -1, -1, sizeof(::nightfall::v1::RespawnRequest)},
+        { 70, 80, -1, sizeof(::nightfall::v1::CastSkillRequest)},
+        { 82, 91, -1, sizeof(::nightfall::v1::CancelCastRequest)},
+        { 92, -1, -1, sizeof(::nightfall::v1::AcceptResurrectRequest)},
+        { 102, -1, -1, sizeof(::nightfall::v1::ServerMessage)},
+        { 114, -1, -1, sizeof(::nightfall::v1::Ack)},
+        { 124, -1, -1, sizeof(::nightfall::v1::IntentRejected)},
+        { 135, -1, -1, sizeof(::nightfall::v1::WorldEvent)},
+        { 169, 205, -1, sizeof(::nightfall::v1::EntitySpawn)},
+        { 233, 247, -1, sizeof(::nightfall::v1::EntityMove)},
+        { 253, -1, -1, sizeof(::nightfall::v1::EntityDespawn)},
+        { 262, -1, -1, sizeof(::nightfall::v1::AttackResult)},
+        { 278, -1, -1, sizeof(::nightfall::v1::EntityDied)},
+        { 290, 307, -1, sizeof(::nightfall::v1::AttackStarted)},
+        { 316, -1, -1, sizeof(::nightfall::v1::AttackCancelled)},
+        { 328, 341, -1, sizeof(::nightfall::v1::EntityRespawned)},
+        { 346, 377, -1, sizeof(::nightfall::v1::StatsChanged)},
+        { 400, -1, -1, sizeof(::nightfall::v1::XpGained)},
+        { 411, -1, -1, sizeof(::nightfall::v1::LevelUp)},
+        { 421, 435, -1, sizeof(::nightfall::v1::TargetChanged)},
+        { 441, -1, -1, sizeof(::nightfall::v1::ClassChanged)},
+        { 453, 469, -1, sizeof(::nightfall::v1::ActiveEffect)},
+        { 477, 498, -1, sizeof(::nightfall::v1::SkillCastStarted)},
+        { 511, -1, -1, sizeof(::nightfall::v1::SkillTargetResult)},
+        { 530, 546, -1, sizeof(::nightfall::v1::SkillCastResult)},
+        { 554, -1, -1, sizeof(::nightfall::v1::SkillCastCancelled)},
+        { 567, 591, -1, sizeof(::nightfall::v1::EffectApplied)},
+        { 607, -1, -1, sizeof(::nightfall::v1::EffectRemoved)},
+        { 620, -1, -1, sizeof(::nightfall::v1::SkillReuse)},
+        { 633, -1, -1, sizeof(::nightfall::v1::SkillLearned)},
+        { 649, -1, -1, sizeof(::nightfall::v1::PvpStateChanged)},
+        { 666, 684, -1, sizeof(::nightfall::v1::ResurrectOffer)},
+        { 694, -1, -1, sizeof(::nightfall::v1::SpGained)},
+        { 707, -1, -1, sizeof(::nightfall::v1::LearnedSkillRank)},
+        { 717, -1, -1, sizeof(::nightfall::v1::SkillReuseState)},
+        { 727, -1, -1, sizeof(::nightfall::v1::SkillStateSync)},
+        { 748, -1, -1, sizeof(::nightfall::v1::VitalsChanged)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -973,6 +2041,9 @@ static const ::_pb::Message* const file_default_instances[] = {
     &::nightfall::v1::_AttackRequest_default_instance_._instance,
     &::nightfall::v1::_StopAttackRequest_default_instance_._instance,
     &::nightfall::v1::_RespawnRequest_default_instance_._instance,
+    &::nightfall::v1::_CastSkillRequest_default_instance_._instance,
+    &::nightfall::v1::_CancelCastRequest_default_instance_._instance,
+    &::nightfall::v1::_AcceptResurrectRequest_default_instance_._instance,
     &::nightfall::v1::_ServerMessage_default_instance_._instance,
     &::nightfall::v1::_Ack_default_instance_._instance,
     &::nightfall::v1::_IntentRejected_default_instance_._instance,
@@ -990,10 +2061,26 @@ static const ::_pb::Message* const file_default_instances[] = {
     &::nightfall::v1::_LevelUp_default_instance_._instance,
     &::nightfall::v1::_TargetChanged_default_instance_._instance,
     &::nightfall::v1::_ClassChanged_default_instance_._instance,
+    &::nightfall::v1::_ActiveEffect_default_instance_._instance,
+    &::nightfall::v1::_SkillCastStarted_default_instance_._instance,
+    &::nightfall::v1::_SkillTargetResult_default_instance_._instance,
+    &::nightfall::v1::_SkillCastResult_default_instance_._instance,
+    &::nightfall::v1::_SkillCastCancelled_default_instance_._instance,
+    &::nightfall::v1::_EffectApplied_default_instance_._instance,
+    &::nightfall::v1::_EffectRemoved_default_instance_._instance,
+    &::nightfall::v1::_SkillReuse_default_instance_._instance,
+    &::nightfall::v1::_SkillLearned_default_instance_._instance,
+    &::nightfall::v1::_PvpStateChanged_default_instance_._instance,
+    &::nightfall::v1::_ResurrectOffer_default_instance_._instance,
+    &::nightfall::v1::_SpGained_default_instance_._instance,
+    &::nightfall::v1::_LearnedSkillRank_default_instance_._instance,
+    &::nightfall::v1::_SkillReuseState_default_instance_._instance,
+    &::nightfall::v1::_SkillStateSync_default_instance_._instance,
+    &::nightfall::v1::_VitalsChanged_default_instance_._instance,
 };
 const char descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
     "\n\030nightfall/v1/world.proto\022\014nightfall.v1"
-    "\032\027nightfall/v1/game.proto\"\330\002\n\rClientMess"
+    "\032\027nightfall/v1/game.proto\"\210\004\n\rClientMess"
     "age\022\013\n\003seq\030\001 \001(\r\022.\n\007move_to\030\n \001(\0132\033.nigh"
     "tfall.v1.MoveToRequestH\000\0222\n\tstop_move\030\013 "
     "\001(\0132\035.nightfall.v1.StopMoveRequestH\000\0224\n\n"
@@ -1002,105 +2089,274 @@ const char descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto[] PROTOBUF_S
     "1.AttackRequestH\000\0226\n\013stop_attack\030\016 \001(\0132\037"
     ".nightfall.v1.StopAttackRequestH\000\022/\n\007res"
     "pawn\030\017 \001(\0132\034.nightfall.v1.RespawnRequest"
-    "H\000B\010\n\006intent\"<\n\rMoveToRequest\022+\n\013destina"
-    "tion\030\001 \001(\0132\026.nightfall.v1.Position\"\021\n\017St"
-    "opMoveRequest\"%\n\020SetTargetRequest\022\021\n\tent"
-    "ity_id\030\001 \001(\t\"\017\n\rAttackRequest\"\023\n\021StopAtt"
-    "ackRequest\"\020\n\016RespawnRequest\"\231\001\n\rServerM"
-    "essage\022 \n\003ack\030\001 \001(\0132\021.nightfall.v1.AckH\000"
-    "\022)\n\005event\030\002 \001(\0132\030.nightfall.v1.WorldEven"
-    "tH\000\0220\n\010rejected\030\003 \001(\0132\034.nightfall.v1.Int"
-    "entRejectedH\000B\t\n\007payload\" \n\003Ack\022\013\n\003seq\030\001"
-    " \001(\r\022\014\n\004tick\030\002 \001(\004\"Y\n\016IntentRejected\022\013\n\003"
-    "seq\030\001 \001(\r\022*\n\006reason\030\002 \001(\0162\032.nightfall.v1"
-    ".RejectReason\022\016\n\006detail\030\003 \001(\t\"\247\005\n\nWorldE"
-    "vent\022*\n\005spawn\030\001 \001(\0132\031.nightfall.v1.Entit"
-    "ySpawnH\000\022(\n\004move\030\002 \001(\0132\030.nightfall.v1.En"
-    "tityMoveH\000\022.\n\007despawn\030\003 \001(\0132\033.nightfall."
-    "v1.EntityDespawnH\000\0223\n\rattack_result\030\004 \001("
-    "\0132\032.nightfall.v1.AttackResultH\000\022/\n\013entit"
-    "y_died\030\005 \001(\0132\030.nightfall.v1.EntityDiedH\000"
-    "\0229\n\020entity_respawned\030\006 \001(\0132\035.nightfall.v"
-    "1.EntityRespawnedH\000\0223\n\rstats_changed\030\007 \001"
-    "(\0132\032.nightfall.v1.StatsChangedH\000\022+\n\txp_g"
-    "ained\030\010 \001(\0132\026.nightfall.v1.XpGainedH\000\022)\n"
-    "\010level_up\030\t \001(\0132\025.nightfall.v1.LevelUpH\000"
-    "\0225\n\016target_changed\030\n \001(\0132\033.nightfall.v1."
-    "TargetChangedH\000\0225\n\016attack_started\030\013 \001(\0132"
-    "\033.nightfall.v1.AttackStartedH\000\0229\n\020attack"
-    "_cancelled\030\014 \001(\0132\035.nightfall.v1.AttackCa"
-    "ncelledH\000\0223\n\rclass_changed\030\r \001(\0132\032.night"
-    "fall.v1.ClassChangedH\000B\007\n\005event\"\375\003\n\013Enti"
-    "tySpawn\022\021\n\tentity_id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t"
-    "\022(\n\010position\030\003 \001(\0132\026.nightfall.v1.Positi"
-    "on\022&\n\004kind\030\004 \001(\0162\030.nightfall.v1.EntityKi"
-    "nd\022\032\n\022session_generation\030\005 \001(\r\022\021\n\tcombat"
-    "ant\030\006 \001(\010\022\023\n\013template_id\030\007 \001(\t\022\030\n\020life_i"
-    "ncarnation\030\010 \001(\r\022\014\n\004dead\030\t \001(\010\022\022\n\nattack"
-    "able\030\n \001(\010\022\n\n\002hp\030\013 \001(\r\022\016\n\006max_hp\030\014 \001(\r\022\r"
-    "\n\005level\030\r \001(\r\0222\n\rpending_swing\030\016 \001(\0132\033.n"
-    "ightfall.v1.AttackStarted\022 \n\004race\030\017 \001(\0162"
-    "\022.nightfall.v1.Race\022\020\n\010class_id\030\020 \001(\r\022\036\n"
-    "\003sex\030\021 \001(\0162\021.nightfall.v1.Sex\022\022\n\nhair_st"
-    "yle\030\022 \001(\r\022\022\n\nhair_color\030\023 \001(\r\022\014\n\004face\030\024 "
-    "\001(\r\022\022\n\nstate_tick\030\025 \001(\004\"\253\001\n\nEntityMove\022\021"
-    "\n\tentity_id\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.ni"
-    "ghtfall.v1.Position\022+\n\013destination\030\003 \001(\013"
-    "2\026.nightfall.v1.Position\022\r\n\005speed\030\004 \001(\002\022"
-    "\026\n\016server_time_ms\030\005 \001(\003\022\014\n\004tick\030\006 \001(\004\"\"\n"
-    "\rEntityDespawn\022\021\n\tentity_id\030\001 \001(\t\"\261\001\n\014At"
-    "tackResult\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002"
-    " \001(\t\022\014\n\004tick\030\003 \001(\004\022,\n\007outcome\030\004 \001(\0162\033.ni"
-    "ghtfall.v1.AttackOutcome\022\016\n\006damage\030\005 \001(\r"
-    "\022\027\n\017target_hp_after\030\006 \001(\r\022\032\n\022target_inca"
-    "rnation\030\007 \001(\r\"O\n\nEntityDied\022\016\n\006entity\030\001 "
-    "\001(\t\022\014\n\004tick\030\002 \001(\004\022\016\n\006killer\030\003 \001(\t\022\023\n\013inc"
-    "arnation\030\004 \001(\r\"\204\001\n\rAttackStarted\022\020\n\010atta"
-    "cker\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\022\014\n\004tick\030\003 \001(\004"
-    "\022\023\n\013impact_tick\030\004 \001(\004\022\022\n\nready_tick\030\005 \001("
-    "\004\022\032\n\022target_incarnation\030\006 \001(\r\"r\n\017AttackC"
-    "ancelled\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001"
-    "(\t\022\014\n\004tick\030\003 \001(\004\022/\n\006reason\030\004 \001(\0162\037.night"
-    "fall.v1.SwingCancelReason\"z\n\017EntityRespa"
-    "wned\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022(\n\010po"
-    "sition\030\003 \001(\0132\026.nightfall.v1.Position\022\n\n\002"
-    "hp\030\004 \001(\r\022\023\n\013incarnation\030\005 \001(\r\"\361\001\n\014StatsC"
-    "hanged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006ma"
-    "x_hp\030\003 \001(\r\022\n\n\002mp\030\004 \001(\r\022\016\n\006max_mp\030\005 \001(\r\022\r"
-    "\n\005level\030\006 \001(\r\022\n\n\002xp\030\007 \001(\004\022\n\n\002cp\030\010 \001(\r\022\016\n"
-    "\006max_cp\030\t \001(\r\022\020\n\010class_id\030\n \001(\r\022\n\n\002sp\030\013 "
-    "\001(\004\022\032\n\022token_tier_1_count\030\014 \001(\r\022\032\n\022token"
-    "_tier_2_count\030\r \001(\r\022\014\n\004tick\030\016 \001(\004\"9\n\010XpG"
-    "ained\022\016\n\006entity\030\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n"
-    "\005total\030\003 \001(\004\"(\n\007LevelUp\022\016\n\006entity\030\001 \001(\t\022"
-    "\r\n\005level\030\002 \001(\r\"/\n\rTargetChanged\022\016\n\006entit"
-    "y\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\"Z\n\014ClassChanged\022"
-    "\016\n\006entity\030\001 \001(\t\022\020\n\010class_id\030\002 \001(\r\022\014\n\004tic"
-    "k\030\003 \001(\004\022\032\n\022session_generation\030\004 \001(\r*\264\003\n\014"
-    "RejectReason\022\035\n\031REJECT_REASON_UNSPECIFIE"
-    "D\020\000\022\037\n\033REJECT_REASON_OUT_OF_BOUNDS\020\001\022\031\n\025"
-    "REJECT_REASON_TOO_FAR\020\002\022 \n\034REJECT_REASON"
-    "_UNKNOWN_ENTITY\020\003\022\034\n\030REJECT_REASON_OVERL"
-    "OADED\020\004\022\036\n\032REJECT_REASON_RATE_LIMITED\020\005\022"
-    "\031\n\025REJECT_REASON_INVALID\020\006\022\034\n\030REJECT_REA"
-    "SON_DEAD_ACTOR\020\007\022\'\n#REJECT_REASON_NON_AT"
-    "TACKABLE_TARGET\020\010\022#\n\037REJECT_REASON_TARGE"
-    "T_NOT_IN_AOI\020\t\022\036\n\032REJECT_REASON_OUT_OF_R"
-    "ANGE\020\n\022\033\n\027REJECT_REASON_PROTECTED\020\013\022%\n!R"
-    "EJECT_REASON_NOT_YET_IMPLEMENTED\020\014*V\n\nEn"
-    "tityKind\022\033\n\027ENTITY_KIND_UNSPECIFIED\020\000\022\026\n"
-    "\022ENTITY_KIND_PLAYER\020\001\022\023\n\017ENTITY_KIND_NPC"
-    "\020\002*y\n\rAttackOutcome\022\036\n\032ATTACK_OUTCOME_UN"
-    "SPECIFIED\020\000\022\027\n\023ATTACK_OUTCOME_MISS\020\001\022\026\n\022"
-    "ATTACK_OUTCOME_HIT\020\002\022\027\n\023ATTACK_OUTCOME_C"
-    "RIT\020\003*\222\002\n\021SwingCancelReason\022#\n\037SWING_CAN"
-    "CEL_REASON_UNSPECIFIED\020\000\022\037\n\033SWING_CANCEL"
-    "_REASON_STOPPED\020\001\022&\n\"SWING_CANCEL_REASON"
-    "_TARGET_CHANGED\020\002\022\035\n\031SWING_CANCEL_REASON"
-    "_MOVED\020\003\022$\n SWING_CANCEL_REASON_OUT_OF_R"
-    "ANGE\020\004\022#\n\037SWING_CANCEL_REASON_TARGET_LOS"
-    "T\020\005\022%\n!SWING_CANCEL_REASON_ATTACKER_DIED"
-    "\020\006b\006proto3"
+    "H\000\0224\n\ncast_skill\030\020 \001(\0132\036.nightfall.v1.Ca"
+    "stSkillRequestH\000\0226\n\013cancel_cast\030\021 \001(\0132\037."
+    "nightfall.v1.CancelCastRequestH\000\022@\n\020acce"
+    "pt_resurrect\030\022 \001(\0132$.nightfall.v1.Accept"
+    "ResurrectRequestH\000B\010\n\006intent\"<\n\rMoveToRe"
+    "quest\022+\n\013destination\030\001 \001(\0132\026.nightfall.v"
+    "1.Position\"\021\n\017StopMoveRequest\"%\n\020SetTarg"
+    "etRequest\022\021\n\tentity_id\030\001 \001(\t\"\017\n\rAttackRe"
+    "quest\"\023\n\021StopAttackRequest\"\020\n\016RespawnReq"
+    "uest\"D\n\020CastSkillRequest\022\020\n\010skill_id\030\001 \001"
+    "(\r\022\023\n\006target\030\002 \001(\tH\000\210\001\001B\t\n\007_target\"5\n\021Ca"
+    "ncelCastRequest\022\024\n\007cast_id\030\001 \001(\004H\000\210\001\001B\n\n"
+    "\010_cast_id\":\n\026AcceptResurrectRequest\022\020\n\010o"
+    "ffer_id\030\001 \001(\004\022\016\n\006accept\030\002 \001(\010\"\231\001\n\rServer"
+    "Message\022 \n\003ack\030\001 \001(\0132\021.nightfall.v1.AckH"
+    "\000\022)\n\005event\030\002 \001(\0132\030.nightfall.v1.WorldEve"
+    "ntH\000\0220\n\010rejected\030\003 \001(\0132\034.nightfall.v1.In"
+    "tentRejectedH\000B\t\n\007payload\" \n\003Ack\022\013\n\003seq\030"
+    "\001 \001(\r\022\014\n\004tick\030\002 \001(\004\"Y\n\016IntentRejected\022\013\n"
+    "\003seq\030\001 \001(\r\022*\n\006reason\030\002 \001(\0162\032.nightfall.v"
+    "1.RejectReason\022\016\n\006detail\030\003 \001(\t\"\312\n\n\nWorld"
+    "Event\022*\n\005spawn\030\001 \001(\0132\031.nightfall.v1.Enti"
+    "tySpawnH\000\022(\n\004move\030\002 \001(\0132\030.nightfall.v1.E"
+    "ntityMoveH\000\022.\n\007despawn\030\003 \001(\0132\033.nightfall"
+    ".v1.EntityDespawnH\000\0223\n\rattack_result\030\004 \001"
+    "(\0132\032.nightfall.v1.AttackResultH\000\022/\n\013enti"
+    "ty_died\030\005 \001(\0132\030.nightfall.v1.EntityDiedH"
+    "\000\0229\n\020entity_respawned\030\006 \001(\0132\035.nightfall."
+    "v1.EntityRespawnedH\000\0223\n\rstats_changed\030\007 "
+    "\001(\0132\032.nightfall.v1.StatsChangedH\000\022+\n\txp_"
+    "gained\030\010 \001(\0132\026.nightfall.v1.XpGainedH\000\022)"
+    "\n\010level_up\030\t \001(\0132\025.nightfall.v1.LevelUpH"
+    "\000\0225\n\016target_changed\030\n \001(\0132\033.nightfall.v1"
+    ".TargetChangedH\000\0225\n\016attack_started\030\013 \001(\013"
+    "2\033.nightfall.v1.AttackStartedH\000\0229\n\020attac"
+    "k_cancelled\030\014 \001(\0132\035.nightfall.v1.AttackC"
+    "ancelledH\000\0223\n\rclass_changed\030\r \001(\0132\032.nigh"
+    "tfall.v1.ClassChangedH\000\022<\n\022skill_cast_st"
+    "arted\030\016 \001(\0132\036.nightfall.v1.SkillCastStar"
+    "tedH\000\022:\n\021skill_cast_result\030\017 \001(\0132\035.night"
+    "fall.v1.SkillCastResultH\000\022@\n\024skill_cast_"
+    "cancelled\030\020 \001(\0132 .nightfall.v1.SkillCast"
+    "CancelledH\000\0225\n\016effect_applied\030\021 \001(\0132\033.ni"
+    "ghtfall.v1.EffectAppliedH\000\0225\n\016effect_rem"
+    "oved\030\022 \001(\0132\033.nightfall.v1.EffectRemovedH"
+    "\000\022/\n\013skill_reuse\030\023 \001(\0132\030.nightfall.v1.Sk"
+    "illReuseH\000\0223\n\rskill_learned\030\024 \001(\0132\032.nigh"
+    "tfall.v1.SkillLearnedH\000\022:\n\021pvp_state_cha"
+    "nged\030\025 \001(\0132\035.nightfall.v1.PvpStateChange"
+    "dH\000\0227\n\017resurrect_offer\030\026 \001(\0132\034.nightfall"
+    ".v1.ResurrectOfferH\000\022+\n\tsp_gained\030\027 \001(\0132"
+    "\026.nightfall.v1.SpGainedH\000\0228\n\020skill_state"
+    "_sync\030\030 \001(\0132\034.nightfall.v1.SkillStateSyn"
+    "cH\000\0225\n\016vitals_changed\030\031 \001(\0132\033.nightfall."
+    "v1.VitalsChangedH\000B\007\n\005event\"\312\005\n\013EntitySp"
+    "awn\022\021\n\tentity_id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022(\n\010"
+    "position\030\003 \001(\0132\026.nightfall.v1.Position\022&"
+    "\n\004kind\030\004 \001(\0162\030.nightfall.v1.EntityKind\022\032"
+    "\n\022session_generation\030\005 \001(\r\022\021\n\tcombatant\030"
+    "\006 \001(\010\022\023\n\013template_id\030\007 \001(\t\022\030\n\020life_incar"
+    "nation\030\010 \001(\r\022\014\n\004dead\030\t \001(\010\022\022\n\nattackable"
+    "\030\n \001(\010\022\n\n\002hp\030\013 \001(\r\022\016\n\006max_hp\030\014 \001(\r\022\r\n\005le"
+    "vel\030\r \001(\r\0222\n\rpending_swing\030\016 \001(\0132\033.night"
+    "fall.v1.AttackStarted\022 \n\004race\030\017 \001(\0162\022.ni"
+    "ghtfall.v1.Race\022\020\n\010class_id\030\020 \001(\r\022\036\n\003sex"
+    "\030\021 \001(\0162\021.nightfall.v1.Sex\022\022\n\nhair_style\030"
+    "\022 \001(\r\022\022\n\nhair_color\030\023 \001(\r\022\014\n\004face\030\024 \001(\r\022"
+    "\022\n\nstate_tick\030\025 \001(\004\022\027\n\017flag_until_tick\030\026"
+    " \001(\004\022\r\n\005karma\030\027 \001(\r\0222\n\016active_effects\030\030 "
+    "\003(\0132\032.nightfall.v1.ActiveEffect\0224\n\014pendi"
+    "ng_cast\030\031 \001(\0132\036.nightfall.v1.SkillCastSt"
+    "arted\022\020\n\010pk_count\030\032 \001(\r\022\021\n\tpvp_count\030\033 \001"
+    "(\r\022\024\n\014status_flags\030\034 \001(\004\"\253\001\n\nEntityMove\022"
+    "\021\n\tentity_id\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.n"
+    "ightfall.v1.Position\022+\n\013destination\030\003 \001("
+    "\0132\026.nightfall.v1.Position\022\r\n\005speed\030\004 \001(\002"
+    "\022\026\n\016server_time_ms\030\005 \001(\003\022\014\n\004tick\030\006 \001(\004\"\""
+    "\n\rEntityDespawn\022\021\n\tentity_id\030\001 \001(\t\"\304\001\n\014A"
+    "ttackResult\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030"
+    "\002 \001(\t\022\014\n\004tick\030\003 \001(\004\022,\n\007outcome\030\004 \001(\0162\033.n"
+    "ightfall.v1.AttackOutcome\022\016\n\006damage\030\005 \001("
+    "\r\022\027\n\017target_hp_after\030\006 \001(\r\022\032\n\022target_inc"
+    "arnation\030\007 \001(\r\022\021\n\tcp_damage\030\010 \001(\r\"O\n\nEnt"
+    "ityDied\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022\016\n"
+    "\006killer\030\003 \001(\t\022\023\n\013incarnation\030\004 \001(\r\"\351\001\n\rA"
+    "ttackStarted\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target"
+    "\030\002 \001(\t\022\014\n\004tick\030\003 \001(\004\022\023\n\013impact_tick\030\004 \001("
+    "\004\022\022\n\nready_tick\030\005 \001(\004\022\032\n\022target_incarnat"
+    "ion\030\006 \001(\r\022\020\n\010baseline\030\007 \001(\010\022\025\n\rbaseline_"
+    "tick\030\010 \001(\004\022!\n\024attacker_incarnation\030\t \001(\r"
+    "H\000\210\001\001B\027\n\025_attacker_incarnation\"r\n\017Attack"
+    "Cancelled\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 "
+    "\001(\t\022\014\n\004tick\030\003 \001(\004\022/\n\006reason\030\004 \001(\0162\037.nigh"
+    "tfall.v1.SwingCancelReason\"z\n\017EntityResp"
+    "awned\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022(\n\010p"
+    "osition\030\003 \001(\0132\026.nightfall.v1.Position\022\n\n"
+    "\002hp\030\004 \001(\r\022\023\n\013incarnation\030\005 \001(\r\"\320\003\n\014Stats"
+    "Changed\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006m"
+    "ax_hp\030\003 \001(\r\022\n\n\002mp\030\004 \001(\r\022\016\n\006max_mp\030\005 \001(\r\022"
+    "\r\n\005level\030\006 \001(\r\022\n\n\002xp\030\007 \001(\004\022\n\n\002cp\030\010 \001(\r\022\016"
+    "\n\006max_cp\030\t \001(\r\022\020\n\010class_id\030\n \001(\r\022\n\n\002sp\030\013"
+    " \001(\004\022\032\n\022token_tier_1_count\030\014 \001(\r\022\032\n\022toke"
+    "n_tier_2_count\030\r \001(\r\022\014\n\004tick\030\016 \001(\004\022\r\n\005ka"
+    "rma\030\017 \001(\r\022\020\n\010pk_count\030\020 \001(\r\022\021\n\tpvp_count"
+    "\030\021 \001(\r\022\027\n\017flag_until_tick\030\022 \001(\004\022\033\n\023death"
+    "_penalty_level\030\023 \001(\r\0225\n\017effective_stats\030"
+    "\024 \001(\0132\034.nightfall.v1.EffectiveStats\022\020\n\010b"
+    "aseline\030\025 \001(\010\022\025\n\rbaseline_tick\030\026 \001(\004\022\023\n\013"
+    "incarnation\030\027 \001(\r\"9\n\010XpGained\022\016\n\006entity\030"
+    "\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\"(\n\007"
+    "LevelUp\022\016\n\006entity\030\001 \001(\t\022\r\n\005level\030\002 \001(\r\"\236"
+    "\001\n\rTargetChanged\022\016\n\006entity\030\001 \001(\t\022\016\n\006targ"
+    "et\030\002 \001(\t\022\020\n\010baseline\030\003 \001(\010\022\025\n\rbaseline_t"
+    "ick\030\004 \001(\004\022\037\n\022target_incarnation\030\005 \001(\rH\000\210"
+    "\001\001\022\014\n\004tick\030\006 \001(\004B\025\n\023_target_incarnation\""
+    "Z\n\014ClassChanged\022\016\n\006entity\030\001 \001(\t\022\020\n\010class"
+    "_id\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022\032\n\022session_gener"
+    "ation\030\004 \001(\r\"\350\001\n\014ActiveEffect\022\020\n\010skill_id"
+    "\030\001 \001(\r\022\023\n\013skill_level\030\002 \001(\r\022\027\n\017remaining"
+    "_ticks\030\003 \001(\004\022\021\n\tis_debuff\030\004 \001(\010\022\023\n\006caste"
+    "r\030\005 \001(\tH\000\210\001\001\022\021\n\teffect_id\030\006 \001(\004\022\037\n\022caste"
+    "r_incarnation\030\007 \001(\rH\001\210\001\001\022\032\n\022target_incar"
+    "nation\030\010 \001(\rB\t\n\007_casterB\025\n\023_caster_incar"
+    "nation\"\305\002\n\020SkillCastStarted\022\016\n\006caster\030\001 "
+    "\001(\t\022\023\n\006target\030\002 \001(\tH\000\210\001\001\022\020\n\010skill_id\030\003 \001"
+    "(\r\022\023\n\013skill_level\030\004 \001(\r\022\017\n\007cast_id\030\005 \001(\004"
+    "\022\014\n\004tick\030\006 \001(\004\022\025\n\rcomplete_tick\030\007 \001(\004\022\032\n"
+    "\022caster_incarnation\030\010 \001(\r\022\037\n\022target_inca"
+    "rnation\030\t \001(\rH\001\210\001\001\022\020\n\010baseline\030\n \001(\010\022\025\n\r"
+    "baseline_tick\030\013 \001(\004\022\023\n\013launch_tick\030\014 \001(\004"
+    "\022\022\n\nstart_tick\030\r \001(\004B\t\n\007_targetB\025\n\023_targ"
+    "et_incarnation\"\262\002\n\021SkillTargetResult\022\016\n\006"
+    "target\030\001 \001(\t\022\032\n\022target_incarnation\030\002 \001(\r"
+    "\022\014\n\004tick\030\003 \001(\004\022:\n\017resolution_kind\030\004 \001(\0162"
+    "!.nightfall.v1.SkillResolutionKind\022\016\n\006ro"
+    "lled\030\005 \001(\r\022\023\n\013cp_absorbed\030\006 \001(\r\022\022\n\nhp_re"
+    "moved\030\007 \001(\r\022\014\n\004heal\030\010 \001(\r\022+\n\007outcome\030\t \001"
+    "(\0162\032.nightfall.v1.SkillOutcome\022\027\n\017target"
+    "_hp_after\030\n \001(\r\022\032\n\022applied_effect_ids\030\013 "
+    "\003(\004\"\333\001\n\017SkillCastResult\022\016\n\006caster\030\001 \001(\t\022"
+    "\032\n\022caster_incarnation\030\002 \001(\r\022\017\n\007cast_id\030\003"
+    " \001(\004\022\014\n\004tick\030\004 \001(\004\022\020\n\010skill_id\030\005 \001(\r\022\023\n\013"
+    "skill_level\030\006 \001(\r\0220\n\007targets\030\007 \003(\0132\037.nig"
+    "htfall.v1.SkillTargetResult\022\026\n\teffect_id"
+    "\030\010 \001(\004H\000\210\001\001B\014\n\n_effect_id\"\217\001\n\022SkillCastC"
+    "ancelled\022\016\n\006caster\030\001 \001(\t\022\017\n\007cast_id\030\002 \001("
+    "\004\022.\n\006reason\030\003 \001(\0162\036.nightfall.v1.CastCan"
+    "celReason\022\014\n\004tick\030\004 \001(\004\022\032\n\022caster_incarn"
+    "ation\030\005 \001(\r\"\231\003\n\rEffectApplied\022\016\n\006target\030"
+    "\001 \001(\t\022\032\n\022target_incarnation\030\002 \001(\r\022\023\n\006cas"
+    "ter\030\003 \001(\tH\000\210\001\001\022\037\n\022caster_incarnation\030\004 \001"
+    "(\rH\001\210\001\001\022\021\n\teffect_id\030\005 \001(\004\022\020\n\010skill_id\030\006"
+    " \001(\r\022\023\n\013skill_level\030\007 \001(\r\022&\n\004pool\030\010 \001(\0162"
+    "\030.nightfall.v1.EffectPool\022\014\n\004tick\030\t \001(\004\022"
+    "\020\n\010end_tick\030\n \001(\004\022\025\n\rabnormal_type\030\013 \001(\t"
+    "\022\026\n\016abnormal_level\030\014 \001(\r\022\024\n\014status_flags"
+    "\030\r \001(\004\022\020\n\010baseline\030\016 \001(\010\022\025\n\rbaseline_tic"
+    "k\030\017 \001(\004\022\024\n\014applied_tick\030\020 \001(\004B\t\n\007_caster"
+    "B\025\n\023_caster_incarnation\"\216\001\n\rEffectRemove"
+    "d\022\016\n\006target\030\001 \001(\t\022\032\n\022target_incarnation\030"
+    "\002 \001(\r\022\021\n\teffect_id\030\003 \001(\004\0220\n\006reason\030\004 \001(\016"
+    "2 .nightfall.v1.EffectRemoveReason\022\014\n\004ti"
+    "ck\030\005 \001(\004\"e\n\nSkillReuse\022\016\n\006entity\030\001 \001(\t\022\020"
+    "\n\010skill_id\030\002 \001(\r\022\022\n\nready_tick\030\003 \001(\004\022\014\n\004"
+    "tick\030\004 \001(\004\022\023\n\013incarnation\030\005 \001(\r\"\250\001\n\014Skil"
+    "lLearned\022\016\n\006entity\030\001 \001(\t\022\020\n\010skill_id\030\002 \001"
+    "(\r\022\023\n\013skill_level\030\003 \001(\r\022\017\n\007sp_cost\030\004 \001(\004"
+    "\022\024\n\014sp_remaining\030\005 \001(\004\022\027\n\017idempotency_ke"
+    "y\030\006 \001(\t\022\014\n\004tick\030\007 \001(\004\022\023\n\013incarnation\030\010 \001"
+    "(\r\"\272\001\n\017PvpStateChanged\022\016\n\006entity\030\001 \001(\t\022\027"
+    "\n\017flag_until_tick\030\002 \001(\004\022\r\n\005karma\030\003 \001(\r\022\020"
+    "\n\010pk_count\030\004 \001(\r\022\021\n\tpvp_count\030\005 \001(\r\022\014\n\004t"
+    "ick\030\006 \001(\004\022\023\n\013incarnation\030\007 \001(\r\022\020\n\010baseli"
+    "ne\030\010 \001(\010\022\025\n\rbaseline_tick\030\t \001(\004\"\256\002\n\016Resu"
+    "rrectOffer\022\016\n\006target\030\001 \001(\t\022\032\n\022target_inc"
+    "arnation\030\002 \001(\r\022\020\n\010offer_id\030\003 \001(\004\022\023\n\006cast"
+    "er\030\004 \001(\tH\000\210\001\001\022\037\n\022caster_incarnation\030\005 \001("
+    "\rH\001\210\001\001\022\031\n\021restore_percent_q\030\006 \001(\003\022\026\n\016rec"
+    "overable_xp\030\007 \001(\004\022\023\n\013expiry_tick\030\010 \001(\004\0220"
+    "\n\005state\030\t \001(\0162!.nightfall.v1.ResurrectOf"
+    "ferState\022\014\n\004tick\030\n \001(\004B\t\n\007_casterB\025\n\023_ca"
+    "ster_incarnation\"\\\n\010SpGained\022\016\n\006entity\030\001"
+    " \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\022\014\n\004t"
+    "ick\030\004 \001(\004\022\023\n\013incarnation\030\005 \001(\r\"9\n\020Learne"
+    "dSkillRank\022\020\n\010skill_id\030\001 \001(\r\022\023\n\013skill_le"
+    "vel\030\002 \001(\r\"7\n\017SkillReuseState\022\020\n\010skill_id"
+    "\030\001 \001(\r\022\022\n\nready_tick\030\002 \001(\004\"\301\002\n\016SkillStat"
+    "eSync\022\016\n\006entity\030\001 \001(\t\022/\n\007learned\030\002 \003(\0132\036"
+    ".nightfall.v1.LearnedSkillRank\022,\n\005reuse\030"
+    "\003 \003(\0132\035.nightfall.v1.SkillReuseState\022\n\n\002"
+    "sp\030\004 \001(\004\022\r\n\005karma\030\005 \001(\r\022\020\n\010pk_count\030\006 \001("
+    "\r\022\021\n\tpvp_count\030\007 \001(\r\022\027\n\017flag_until_tick\030"
+    "\010 \001(\004\022\033\n\023death_penalty_level\030\t \001(\r\022\014\n\004ti"
+    "ck\030\n \001(\004\022\023\n\013incarnation\030\013 \001(\r\022\020\n\010baselin"
+    "e\030\014 \001(\010\022\025\n\rbaseline_tick\030\r \001(\004\"\207\001\n\rVital"
+    "sChanged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006"
+    "max_hp\030\003 \001(\r\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarnatio"
+    "n\030\005 \001(\r\022\020\n\010baseline\030\006 \001(\010\022\025\n\rbaseline_ti"
+    "ck\030\007 \001(\004*\321\006\n\014RejectReason\022\035\n\031REJECT_REAS"
+    "ON_UNSPECIFIED\020\000\022\037\n\033REJECT_REASON_OUT_OF"
+    "_BOUNDS\020\001\022\031\n\025REJECT_REASON_TOO_FAR\020\002\022 \n\034"
+    "REJECT_REASON_UNKNOWN_ENTITY\020\003\022\034\n\030REJECT"
+    "_REASON_OVERLOADED\020\004\022\036\n\032REJECT_REASON_RA"
+    "TE_LIMITED\020\005\022\031\n\025REJECT_REASON_INVALID\020\006\022"
+    "\034\n\030REJECT_REASON_DEAD_ACTOR\020\007\022\'\n#REJECT_"
+    "REASON_NON_ATTACKABLE_TARGET\020\010\022#\n\037REJECT"
+    "_REASON_TARGET_NOT_IN_AOI\020\t\022\036\n\032REJECT_RE"
+    "ASON_OUT_OF_RANGE\020\n\022\033\n\027REJECT_REASON_PRO"
+    "TECTED\020\013\022%\n!REJECT_REASON_NOT_YET_IMPLEM"
+    "ENTED\020\014\022\037\n\033REJECT_REASON_SKILL_UNKNOWN\020\r"
+    "\022#\n\037REJECT_REASON_SKILL_NOT_LEARNED\020\016\022 \n"
+    "\034REJECT_REASON_SKILL_COOLDOWN\020\017\022!\n\035REJEC"
+    "T_REASON_INSUFFICIENT_MP\020\020\022!\n\035REJECT_REA"
+    "SON_INSUFFICIENT_HP\020\021\022!\n\035REJECT_REASON_A"
+    "LREADY_CASTING\020\022\022\037\n\033REJECT_REASON_INCAPA"
+    "CITATED\020\023\022\032\n\026REJECT_REASON_SILENCED\020\024\022%\n"
+    "!REJECT_REASON_INVALID_TARGET_TYPE\020\025\022\034\n\030"
+    "REJECT_REASON_PEACE_ZONE\020\026\022\"\n\036REJECT_REA"
+    "SON_WEAPON_CONDITION\020\027\022$\n REJECT_REASON_"
+    "NO_RESURRECT_OFFER\020\030*V\n\nEntityKind\022\033\n\027EN"
+    "TITY_KIND_UNSPECIFIED\020\000\022\026\n\022ENTITY_KIND_P"
+    "LAYER\020\001\022\023\n\017ENTITY_KIND_NPC\020\002*y\n\rAttackOu"
+    "tcome\022\036\n\032ATTACK_OUTCOME_UNSPECIFIED\020\000\022\027\n"
+    "\023ATTACK_OUTCOME_MISS\020\001\022\026\n\022ATTACK_OUTCOME"
+    "_HIT\020\002\022\027\n\023ATTACK_OUTCOME_CRIT\020\003*\222\002\n\021Swin"
+    "gCancelReason\022#\n\037SWING_CANCEL_REASON_UNS"
+    "PECIFIED\020\000\022\037\n\033SWING_CANCEL_REASON_STOPPE"
+    "D\020\001\022&\n\"SWING_CANCEL_REASON_TARGET_CHANGE"
+    "D\020\002\022\035\n\031SWING_CANCEL_REASON_MOVED\020\003\022$\n SW"
+    "ING_CANCEL_REASON_OUT_OF_RANGE\020\004\022#\n\037SWIN"
+    "G_CANCEL_REASON_TARGET_LOST\020\005\022%\n!SWING_C"
+    "ANCEL_REASON_ATTACKER_DIED\020\006*\355\001\n\023SkillRe"
+    "solutionKind\022%\n!SKILL_RESOLUTION_KIND_UN"
+    "SPECIFIED\020\000\022\"\n\036SKILL_RESOLUTION_KIND_PHY"
+    "SICAL\020\001\022!\n\035SKILL_RESOLUTION_KIND_MAGICAL"
+    "\020\002\022 \n\034SKILL_RESOLUTION_KIND_EFFECT\020\003\022\036\n\032"
+    "SKILL_RESOLUTION_KIND_HEAL\020\004\022&\n\"SKILL_RE"
+    "SOLUTION_KIND_RESURRECTION\020\005*\246\001\n\014SkillOu"
+    "tcome\022\035\n\031SKILL_OUTCOME_UNSPECIFIED\020\000\022\026\n\022"
+    "SKILL_OUTCOME_MISS\020\001\022\025\n\021SKILL_OUTCOME_HI"
+    "T\020\002\022\026\n\022SKILL_OUTCOME_CRIT\020\003\022\030\n\024SKILL_OUT"
+    "COME_RESIST\020\004\022\026\n\022SKILL_OUTCOME_HALF\020\005*\214\003"
+    "\n\020CastCancelReason\022\"\n\036CAST_CANCEL_REASON"
+    "_UNSPECIFIED\020\000\022\036\n\032CAST_CANCEL_REASON_STO"
+    "PPED\020\001\022\034\n\030CAST_CANCEL_REASON_MOVED\020\002\022\035\n\031"
+    "CAST_CANCEL_REASON_DAMAGE\020\003\022$\n CAST_CANC"
+    "EL_REASON_INCAPACITATED\020\004\022\"\n\036CAST_CANCEL"
+    "_REASON_TARGET_LOST\020\005\022#\n\037CAST_CANCEL_REA"
+    "SON_OUT_OF_RANGE\020\006\022 \n\034CAST_CANCEL_REASON"
+    "_RESOURCES\020\007\022\"\n\036CAST_CANCEL_REASON_CASTE"
+    "R_DIED\020\010\022!\n\035CAST_CANCEL_REASON_PEACE_ZON"
+    "E\020\t\022\037\n\033CAST_CANCEL_REASON_TRANSFER\020\n*s\n\n"
+    "EffectPool\022\033\n\027EFFECT_POOL_UNSPECIFIED\020\000\022"
+    "\024\n\020EFFECT_POOL_BUFF\020\001\022\032\n\026EFFECT_POOL_SON"
+    "G_DANCE\020\002\022\026\n\022EFFECT_POOL_DEBUFF\020\003*\252\002\n\022Ef"
+    "fectRemoveReason\022$\n EFFECT_REMOVE_REASON"
+    "_UNSPECIFIED\020\000\022 \n\034EFFECT_REMOVE_REASON_E"
+    "XPIRED\020\001\022!\n\035EFFECT_REMOVE_REASON_REPLACE"
+    "D\020\002\022!\n\035EFFECT_REMOVE_REASON_OVERFLOW\020\003\022\""
+    "\n\036EFFECT_REMOVE_REASON_DISPELLED\020\004\022\037\n\033EF"
+    "FECT_REMOVE_REASON_DAMAGE\020\005\022\036\n\032EFFECT_RE"
+    "MOVE_REASON_DEATH\020\006\022!\n\035EFFECT_REMOVE_REA"
+    "SON_TRANSFER\020\007*\312\001\n\023ResurrectOfferState\022%"
+    "\n!RESURRECT_OFFER_STATE_UNSPECIFIED\020\000\022!\n"
+    "\035RESURRECT_OFFER_STATE_OFFERED\020\001\022\"\n\036RESU"
+    "RRECT_OFFER_STATE_DECLINED\020\002\022!\n\035RESURREC"
+    "T_OFFER_STATE_EXPIRED\020\003\022\"\n\036RESURRECT_OFF"
+    "ER_STATE_ACCEPTED\020\004b\006proto3"
 };
 static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fworld_2eproto_deps[1] =
     {
@@ -1110,13 +2366,13 @@ static ::absl::once_flag descriptor_table_nightfall_2fv1_2fworld_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fworld_2eproto = {
     false,
     false,
-    4330,
+    11107,
     descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto,
     "nightfall/v1/world.proto",
     &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
     descriptor_table_nightfall_2fv1_2fworld_2eproto_deps,
     1,
-    24,
+    43,
     schemas,
     file_default_instances,
     TableStruct_nightfall_2fv1_2fworld_2eproto::offsets,
@@ -1163,6 +2419,18 @@ bool RejectReason_IsValid(int value) {
     case 10:
     case 11:
     case 12:
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+    case 20:
+    case 21:
+    case 22:
+    case 23:
+    case 24:
       return true;
     default:
       return false;
@@ -1215,6 +2483,112 @@ bool SwingCancelReason_IsValid(int value) {
       return false;
   }
 }
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* SkillResolutionKind_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fworld_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[4];
+}
+bool SkillResolutionKind_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+      return true;
+    default:
+      return false;
+  }
+}
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* SkillOutcome_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fworld_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[5];
+}
+bool SkillOutcome_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+      return true;
+    default:
+      return false;
+  }
+}
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* CastCancelReason_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fworld_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[6];
+}
+bool CastCancelReason_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+      return true;
+    default:
+      return false;
+  }
+}
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EffectPool_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fworld_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[7];
+}
+bool EffectPool_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+      return true;
+    default:
+      return false;
+  }
+}
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EffectRemoveReason_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fworld_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[8];
+}
+bool EffectRemoveReason_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+      return true;
+    default:
+      return false;
+  }
+}
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ResurrectOfferState_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fworld_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fworld_2eproto[9];
+}
+bool ResurrectOfferState_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+      return true;
+    default:
+      return false;
+  }
+}
 // ===================================================================
 
 class ClientMessage::_Internal {
@@ -1227,6 +2601,9 @@ class ClientMessage::_Internal {
   static const ::nightfall::v1::AttackRequest& attack(const ClientMessage* msg);
   static const ::nightfall::v1::StopAttackRequest& stop_attack(const ClientMessage* msg);
   static const ::nightfall::v1::RespawnRequest& respawn(const ClientMessage* msg);
+  static const ::nightfall::v1::CastSkillRequest& cast_skill(const ClientMessage* msg);
+  static const ::nightfall::v1::CancelCastRequest& cancel_cast(const ClientMessage* msg);
+  static const ::nightfall::v1::AcceptResurrectRequest& accept_resurrect(const ClientMessage* msg);
 };
 
 const ::nightfall::v1::MoveToRequest&
@@ -1252,6 +2629,18 @@ ClientMessage::_Internal::stop_attack(const ClientMessage* msg) {
 const ::nightfall::v1::RespawnRequest&
 ClientMessage::_Internal::respawn(const ClientMessage* msg) {
   return *msg->_impl_.intent_.respawn_;
+}
+const ::nightfall::v1::CastSkillRequest&
+ClientMessage::_Internal::cast_skill(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.cast_skill_;
+}
+const ::nightfall::v1::CancelCastRequest&
+ClientMessage::_Internal::cancel_cast(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.cancel_cast_;
+}
+const ::nightfall::v1::AcceptResurrectRequest&
+ClientMessage::_Internal::accept_resurrect(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.accept_resurrect_;
 }
 void ClientMessage::set_allocated_move_to(::nightfall::v1::MoveToRequest* move_to) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
@@ -1343,6 +2732,51 @@ void ClientMessage::set_allocated_respawn(::nightfall::v1::RespawnRequest* respa
   }
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.respawn)
 }
+void ClientMessage::set_allocated_cast_skill(::nightfall::v1::CastSkillRequest* cast_skill) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (cast_skill) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(cast_skill);
+    if (message_arena != submessage_arena) {
+      cast_skill = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, cast_skill, submessage_arena);
+    }
+    set_has_cast_skill();
+    _impl_.intent_.cast_skill_ = cast_skill;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.cast_skill)
+}
+void ClientMessage::set_allocated_cancel_cast(::nightfall::v1::CancelCastRequest* cancel_cast) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (cancel_cast) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(cancel_cast);
+    if (message_arena != submessage_arena) {
+      cancel_cast = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, cancel_cast, submessage_arena);
+    }
+    set_has_cancel_cast();
+    _impl_.intent_.cancel_cast_ = cancel_cast;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.cancel_cast)
+}
+void ClientMessage::set_allocated_accept_resurrect(::nightfall::v1::AcceptResurrectRequest* accept_resurrect) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (accept_resurrect) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(accept_resurrect);
+    if (message_arena != submessage_arena) {
+      accept_resurrect = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, accept_resurrect, submessage_arena);
+    }
+    set_has_accept_resurrect();
+    _impl_.intent_.accept_resurrect_ = accept_resurrect;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.accept_resurrect)
+}
 ClientMessage::ClientMessage(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -1390,6 +2824,21 @@ ClientMessage::ClientMessage(const ClientMessage& from)
     case kRespawn: {
       _this->_internal_mutable_respawn()->::nightfall::v1::RespawnRequest::MergeFrom(
           from._internal_respawn());
+      break;
+    }
+    case kCastSkill: {
+      _this->_internal_mutable_cast_skill()->::nightfall::v1::CastSkillRequest::MergeFrom(
+          from._internal_cast_skill());
+      break;
+    }
+    case kCancelCast: {
+      _this->_internal_mutable_cancel_cast()->::nightfall::v1::CancelCastRequest::MergeFrom(
+          from._internal_cancel_cast());
+      break;
+    }
+    case kAcceptResurrect: {
+      _this->_internal_mutable_accept_resurrect()->::nightfall::v1::AcceptResurrectRequest::MergeFrom(
+          from._internal_accept_resurrect());
       break;
     }
     case INTENT_NOT_SET: {
@@ -1467,6 +2916,24 @@ void ClientMessage::clear_intent() {
     case kRespawn: {
       if (GetArenaForAllocation() == nullptr) {
         delete _impl_.intent_.respawn_;
+      }
+      break;
+    }
+    case kCastSkill: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.cast_skill_;
+      }
+      break;
+    }
+    case kCancelCast: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.cancel_cast_;
+      }
+      break;
+    }
+    case kAcceptResurrect: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.accept_resurrect_;
       }
       break;
     }
@@ -1558,6 +3025,33 @@ const char* ClientMessage::_InternalParse(const char* ptr, ::_pbi::ParseContext*
           goto handle_unusual;
         }
         continue;
+      // .nightfall.v1.CastSkillRequest cast_skill = 16;
+      case 16:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 130)) {
+          ptr = ctx->ParseMessage(_internal_mutable_cast_skill(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.CancelCastRequest cancel_cast = 17;
+      case 17:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 138)) {
+          ptr = ctx->ParseMessage(_internal_mutable_cancel_cast(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.AcceptResurrectRequest accept_resurrect = 18;
+      case 18:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 146)) {
+          ptr = ctx->ParseMessage(_internal_mutable_accept_resurrect(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -1631,6 +3125,24 @@ failure:
           _Internal::respawn(this).GetCachedSize(), target, stream);
       break;
     }
+    case kCastSkill: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(16, _Internal::cast_skill(this),
+          _Internal::cast_skill(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kCancelCast: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(17, _Internal::cancel_cast(this),
+          _Internal::cancel_cast(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kAcceptResurrect: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(18, _Internal::accept_resurrect(this),
+          _Internal::accept_resurrect(this).GetCachedSize(), target, stream);
+      break;
+    }
     default: ;
   }
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -1698,6 +3210,27 @@ failure:
           *_impl_.intent_.respawn_);
       break;
     }
+    // .nightfall.v1.CastSkillRequest cast_skill = 16;
+    case kCastSkill: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.cast_skill_);
+      break;
+    }
+    // .nightfall.v1.CancelCastRequest cancel_cast = 17;
+    case kCancelCast: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.cancel_cast_);
+      break;
+    }
+    // .nightfall.v1.AcceptResurrectRequest accept_resurrect = 18;
+    case kAcceptResurrect: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.accept_resurrect_);
+      break;
+    }
     case INTENT_NOT_SET: {
       break;
     }
@@ -1752,6 +3285,21 @@ void ClientMessage::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::
     case kRespawn: {
       _this->_internal_mutable_respawn()->::nightfall::v1::RespawnRequest::MergeFrom(
           from._internal_respawn());
+      break;
+    }
+    case kCastSkill: {
+      _this->_internal_mutable_cast_skill()->::nightfall::v1::CastSkillRequest::MergeFrom(
+          from._internal_cast_skill());
+      break;
+    }
+    case kCancelCast: {
+      _this->_internal_mutable_cancel_cast()->::nightfall::v1::CancelCastRequest::MergeFrom(
+          from._internal_cancel_cast());
+      break;
+    }
+    case kAcceptResurrect: {
+      _this->_internal_mutable_accept_resurrect()->::nightfall::v1::AcceptResurrectRequest::MergeFrom(
+          from._internal_accept_resurrect());
       break;
     }
     case INTENT_NOT_SET: {
@@ -2345,6 +3893,646 @@ const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*RespawnRequest::GetClassData()
 }
 // ===================================================================
 
+class CastSkillRequest::_Internal {
+ public:
+  using HasBits = decltype(std::declval<CastSkillRequest>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(CastSkillRequest, _impl_._has_bits_);
+  static void set_has_target(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+CastSkillRequest::CastSkillRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.CastSkillRequest)
+}
+CastSkillRequest::CastSkillRequest(const CastSkillRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  CastSkillRequest* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.skill_id_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
+  }
+  _this->_impl_.skill_id_ = from._impl_.skill_id_;
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.CastSkillRequest)
+}
+
+inline void CastSkillRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+  };
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+CastSkillRequest::~CastSkillRequest() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.CastSkillRequest)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void CastSkillRequest::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.target_.Destroy();
+}
+
+void CastSkillRequest::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void CastSkillRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.CastSkillRequest)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    _impl_.target_.ClearNonDefaultToEmpty();
+  }
+  _impl_.skill_id_ = 0u;
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* CastSkillRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 skill_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional string target = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_target();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.CastSkillRequest.target"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* CastSkillRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.CastSkillRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_skill_id(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional string target = 2;
+  if (cached_has_bits & 0x00000001u) {
+    const std::string& _s = this->_internal_target();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.CastSkillRequest.target");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.CastSkillRequest)
+  return target;
+}
+
+::size_t CastSkillRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.CastSkillRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // optional string target = 2;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_target());
+  }
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData CastSkillRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    CastSkillRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*CastSkillRequest::GetClassData() const { return &_class_data_; }
+
+
+void CastSkillRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<CastSkillRequest*>(&to_msg);
+  auto& from = static_cast<const CastSkillRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.CastSkillRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_target(from._internal_target());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void CastSkillRequest::CopyFrom(const CastSkillRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.CastSkillRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool CastSkillRequest::IsInitialized() const {
+  return true;
+}
+
+void CastSkillRequest::InternalSwap(CastSkillRequest* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
+                                       &other->_impl_.target_, rhs_arena);
+
+  swap(_impl_.skill_id_, other->_impl_.skill_id_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata CastSkillRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[7]);
+}
+// ===================================================================
+
+class CancelCastRequest::_Internal {
+ public:
+  using HasBits = decltype(std::declval<CancelCastRequest>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(CancelCastRequest, _impl_._has_bits_);
+  static void set_has_cast_id(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+CancelCastRequest::CancelCastRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.CancelCastRequest)
+}
+CancelCastRequest::CancelCastRequest(const CancelCastRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _impl_(from._impl_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(
+      from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.CancelCastRequest)
+}
+
+inline void CancelCastRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.cast_id_) { ::uint64_t{0u} }
+
+  };
+}
+
+CancelCastRequest::~CancelCastRequest() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.CancelCastRequest)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void CancelCastRequest::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void CancelCastRequest::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void CancelCastRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.CancelCastRequest)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.cast_id_ = ::uint64_t{0u};
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* CancelCastRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // optional uint64 cast_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _Internal::set_has_cast_id(&has_bits);
+          _impl_.cast_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* CancelCastRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.CancelCastRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional uint64 cast_id = 1;
+  if (cached_has_bits & 0x00000001u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        1, this->_internal_cast_id(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.CancelCastRequest)
+  return target;
+}
+
+::size_t CancelCastRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.CancelCastRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // optional uint64 cast_id = 1;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_cast_id());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData CancelCastRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    CancelCastRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*CancelCastRequest::GetClassData() const { return &_class_data_; }
+
+
+void CancelCastRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<CancelCastRequest*>(&to_msg);
+  auto& from = static_cast<const CancelCastRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.CancelCastRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_cast_id(from._internal_cast_id());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void CancelCastRequest::CopyFrom(const CancelCastRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.CancelCastRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool CancelCastRequest::IsInitialized() const {
+  return true;
+}
+
+void CancelCastRequest::InternalSwap(CancelCastRequest* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+
+  swap(_impl_.cast_id_, other->_impl_.cast_id_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata CancelCastRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[8]);
+}
+// ===================================================================
+
+class AcceptResurrectRequest::_Internal {
+ public:
+};
+
+AcceptResurrectRequest::AcceptResurrectRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.AcceptResurrectRequest)
+}
+AcceptResurrectRequest::AcceptResurrectRequest(const AcceptResurrectRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _impl_(from._impl_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(
+      from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.AcceptResurrectRequest)
+}
+
+inline void AcceptResurrectRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.offer_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.accept_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+AcceptResurrectRequest::~AcceptResurrectRequest() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.AcceptResurrectRequest)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void AcceptResurrectRequest::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void AcceptResurrectRequest::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void AcceptResurrectRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.AcceptResurrectRequest)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  ::memset(&_impl_.offer_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.accept_) -
+      reinterpret_cast<char*>(&_impl_.offer_id_)) + sizeof(_impl_.accept_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* AcceptResurrectRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint64 offer_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.offer_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool accept = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.accept_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* AcceptResurrectRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.AcceptResurrectRequest)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint64 offer_id = 1;
+  if (this->_internal_offer_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        1, this->_internal_offer_id(), target);
+  }
+
+  // bool accept = 2;
+  if (this->_internal_accept() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        2, this->_internal_accept(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.AcceptResurrectRequest)
+  return target;
+}
+
+::size_t AcceptResurrectRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.AcceptResurrectRequest)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // uint64 offer_id = 1;
+  if (this->_internal_offer_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_offer_id());
+  }
+
+  // bool accept = 2;
+  if (this->_internal_accept() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData AcceptResurrectRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    AcceptResurrectRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*AcceptResurrectRequest::GetClassData() const { return &_class_data_; }
+
+
+void AcceptResurrectRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<AcceptResurrectRequest*>(&to_msg);
+  auto& from = static_cast<const AcceptResurrectRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.AcceptResurrectRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from._internal_offer_id() != 0) {
+    _this->_internal_set_offer_id(from._internal_offer_id());
+  }
+  if (from._internal_accept() != 0) {
+    _this->_internal_set_accept(from._internal_accept());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void AcceptResurrectRequest::CopyFrom(const AcceptResurrectRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.AcceptResurrectRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool AcceptResurrectRequest::IsInitialized() const {
+  return true;
+}
+
+void AcceptResurrectRequest::InternalSwap(AcceptResurrectRequest* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(AcceptResurrectRequest, _impl_.accept_)
+      + sizeof(AcceptResurrectRequest::_impl_.accept_)
+      - PROTOBUF_FIELD_OFFSET(AcceptResurrectRequest, _impl_.offer_id_)>(
+          reinterpret_cast<char*>(&_impl_.offer_id_),
+          reinterpret_cast<char*>(&other->_impl_.offer_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata AcceptResurrectRequest::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[9]);
+}
+// ===================================================================
+
 class ServerMessage::_Internal {
  public:
   static constexpr ::int32_t kOneofCaseOffset =
@@ -2705,7 +4893,7 @@ void ServerMessage::InternalSwap(ServerMessage* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata ServerMessage::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[7]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[10]);
 }
 // ===================================================================
 
@@ -2912,7 +5100,7 @@ void Ack::InternalSwap(Ack* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Ack::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[8]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[11]);
 }
 // ===================================================================
 
@@ -3179,7 +5367,7 @@ void IntentRejected::InternalSwap(IntentRejected* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata IntentRejected::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[9]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[12]);
 }
 // ===================================================================
 
@@ -3200,6 +5388,18 @@ class WorldEvent::_Internal {
   static const ::nightfall::v1::AttackStarted& attack_started(const WorldEvent* msg);
   static const ::nightfall::v1::AttackCancelled& attack_cancelled(const WorldEvent* msg);
   static const ::nightfall::v1::ClassChanged& class_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::SkillCastStarted& skill_cast_started(const WorldEvent* msg);
+  static const ::nightfall::v1::SkillCastResult& skill_cast_result(const WorldEvent* msg);
+  static const ::nightfall::v1::SkillCastCancelled& skill_cast_cancelled(const WorldEvent* msg);
+  static const ::nightfall::v1::EffectApplied& effect_applied(const WorldEvent* msg);
+  static const ::nightfall::v1::EffectRemoved& effect_removed(const WorldEvent* msg);
+  static const ::nightfall::v1::SkillReuse& skill_reuse(const WorldEvent* msg);
+  static const ::nightfall::v1::SkillLearned& skill_learned(const WorldEvent* msg);
+  static const ::nightfall::v1::PvpStateChanged& pvp_state_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::ResurrectOffer& resurrect_offer(const WorldEvent* msg);
+  static const ::nightfall::v1::SpGained& sp_gained(const WorldEvent* msg);
+  static const ::nightfall::v1::SkillStateSync& skill_state_sync(const WorldEvent* msg);
+  static const ::nightfall::v1::VitalsChanged& vitals_changed(const WorldEvent* msg);
 };
 
 const ::nightfall::v1::EntitySpawn&
@@ -3253,6 +5453,54 @@ WorldEvent::_Internal::attack_cancelled(const WorldEvent* msg) {
 const ::nightfall::v1::ClassChanged&
 WorldEvent::_Internal::class_changed(const WorldEvent* msg) {
   return *msg->_impl_.event_.class_changed_;
+}
+const ::nightfall::v1::SkillCastStarted&
+WorldEvent::_Internal::skill_cast_started(const WorldEvent* msg) {
+  return *msg->_impl_.event_.skill_cast_started_;
+}
+const ::nightfall::v1::SkillCastResult&
+WorldEvent::_Internal::skill_cast_result(const WorldEvent* msg) {
+  return *msg->_impl_.event_.skill_cast_result_;
+}
+const ::nightfall::v1::SkillCastCancelled&
+WorldEvent::_Internal::skill_cast_cancelled(const WorldEvent* msg) {
+  return *msg->_impl_.event_.skill_cast_cancelled_;
+}
+const ::nightfall::v1::EffectApplied&
+WorldEvent::_Internal::effect_applied(const WorldEvent* msg) {
+  return *msg->_impl_.event_.effect_applied_;
+}
+const ::nightfall::v1::EffectRemoved&
+WorldEvent::_Internal::effect_removed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.effect_removed_;
+}
+const ::nightfall::v1::SkillReuse&
+WorldEvent::_Internal::skill_reuse(const WorldEvent* msg) {
+  return *msg->_impl_.event_.skill_reuse_;
+}
+const ::nightfall::v1::SkillLearned&
+WorldEvent::_Internal::skill_learned(const WorldEvent* msg) {
+  return *msg->_impl_.event_.skill_learned_;
+}
+const ::nightfall::v1::PvpStateChanged&
+WorldEvent::_Internal::pvp_state_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.pvp_state_changed_;
+}
+const ::nightfall::v1::ResurrectOffer&
+WorldEvent::_Internal::resurrect_offer(const WorldEvent* msg) {
+  return *msg->_impl_.event_.resurrect_offer_;
+}
+const ::nightfall::v1::SpGained&
+WorldEvent::_Internal::sp_gained(const WorldEvent* msg) {
+  return *msg->_impl_.event_.sp_gained_;
+}
+const ::nightfall::v1::SkillStateSync&
+WorldEvent::_Internal::skill_state_sync(const WorldEvent* msg) {
+  return *msg->_impl_.event_.skill_state_sync_;
+}
+const ::nightfall::v1::VitalsChanged&
+WorldEvent::_Internal::vitals_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.vitals_changed_;
 }
 void WorldEvent::set_allocated_spawn(::nightfall::v1::EntitySpawn* spawn) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
@@ -3449,6 +5697,186 @@ void WorldEvent::set_allocated_class_changed(::nightfall::v1::ClassChanged* clas
   }
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.class_changed)
 }
+void WorldEvent::set_allocated_skill_cast_started(::nightfall::v1::SkillCastStarted* skill_cast_started) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (skill_cast_started) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(skill_cast_started);
+    if (message_arena != submessage_arena) {
+      skill_cast_started = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, skill_cast_started, submessage_arena);
+    }
+    set_has_skill_cast_started();
+    _impl_.event_.skill_cast_started_ = skill_cast_started;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.skill_cast_started)
+}
+void WorldEvent::set_allocated_skill_cast_result(::nightfall::v1::SkillCastResult* skill_cast_result) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (skill_cast_result) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(skill_cast_result);
+    if (message_arena != submessage_arena) {
+      skill_cast_result = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, skill_cast_result, submessage_arena);
+    }
+    set_has_skill_cast_result();
+    _impl_.event_.skill_cast_result_ = skill_cast_result;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.skill_cast_result)
+}
+void WorldEvent::set_allocated_skill_cast_cancelled(::nightfall::v1::SkillCastCancelled* skill_cast_cancelled) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (skill_cast_cancelled) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(skill_cast_cancelled);
+    if (message_arena != submessage_arena) {
+      skill_cast_cancelled = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, skill_cast_cancelled, submessage_arena);
+    }
+    set_has_skill_cast_cancelled();
+    _impl_.event_.skill_cast_cancelled_ = skill_cast_cancelled;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.skill_cast_cancelled)
+}
+void WorldEvent::set_allocated_effect_applied(::nightfall::v1::EffectApplied* effect_applied) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (effect_applied) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(effect_applied);
+    if (message_arena != submessage_arena) {
+      effect_applied = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, effect_applied, submessage_arena);
+    }
+    set_has_effect_applied();
+    _impl_.event_.effect_applied_ = effect_applied;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.effect_applied)
+}
+void WorldEvent::set_allocated_effect_removed(::nightfall::v1::EffectRemoved* effect_removed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (effect_removed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(effect_removed);
+    if (message_arena != submessage_arena) {
+      effect_removed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, effect_removed, submessage_arena);
+    }
+    set_has_effect_removed();
+    _impl_.event_.effect_removed_ = effect_removed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.effect_removed)
+}
+void WorldEvent::set_allocated_skill_reuse(::nightfall::v1::SkillReuse* skill_reuse) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (skill_reuse) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(skill_reuse);
+    if (message_arena != submessage_arena) {
+      skill_reuse = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, skill_reuse, submessage_arena);
+    }
+    set_has_skill_reuse();
+    _impl_.event_.skill_reuse_ = skill_reuse;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.skill_reuse)
+}
+void WorldEvent::set_allocated_skill_learned(::nightfall::v1::SkillLearned* skill_learned) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (skill_learned) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(skill_learned);
+    if (message_arena != submessage_arena) {
+      skill_learned = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, skill_learned, submessage_arena);
+    }
+    set_has_skill_learned();
+    _impl_.event_.skill_learned_ = skill_learned;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.skill_learned)
+}
+void WorldEvent::set_allocated_pvp_state_changed(::nightfall::v1::PvpStateChanged* pvp_state_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (pvp_state_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(pvp_state_changed);
+    if (message_arena != submessage_arena) {
+      pvp_state_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, pvp_state_changed, submessage_arena);
+    }
+    set_has_pvp_state_changed();
+    _impl_.event_.pvp_state_changed_ = pvp_state_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.pvp_state_changed)
+}
+void WorldEvent::set_allocated_resurrect_offer(::nightfall::v1::ResurrectOffer* resurrect_offer) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (resurrect_offer) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(resurrect_offer);
+    if (message_arena != submessage_arena) {
+      resurrect_offer = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, resurrect_offer, submessage_arena);
+    }
+    set_has_resurrect_offer();
+    _impl_.event_.resurrect_offer_ = resurrect_offer;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.resurrect_offer)
+}
+void WorldEvent::set_allocated_sp_gained(::nightfall::v1::SpGained* sp_gained) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (sp_gained) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(sp_gained);
+    if (message_arena != submessage_arena) {
+      sp_gained = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, sp_gained, submessage_arena);
+    }
+    set_has_sp_gained();
+    _impl_.event_.sp_gained_ = sp_gained;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.sp_gained)
+}
+void WorldEvent::set_allocated_skill_state_sync(::nightfall::v1::SkillStateSync* skill_state_sync) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (skill_state_sync) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(skill_state_sync);
+    if (message_arena != submessage_arena) {
+      skill_state_sync = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, skill_state_sync, submessage_arena);
+    }
+    set_has_skill_state_sync();
+    _impl_.event_.skill_state_sync_ = skill_state_sync;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.skill_state_sync)
+}
+void WorldEvent::set_allocated_vitals_changed(::nightfall::v1::VitalsChanged* vitals_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (vitals_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(vitals_changed);
+    if (message_arena != submessage_arena) {
+      vitals_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, vitals_changed, submessage_arena);
+    }
+    set_has_vitals_changed();
+    _impl_.event_.vitals_changed_ = vitals_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.vitals_changed)
+}
 WorldEvent::WorldEvent(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -3528,6 +5956,66 @@ WorldEvent::WorldEvent(const WorldEvent& from)
     case kClassChanged: {
       _this->_internal_mutable_class_changed()->::nightfall::v1::ClassChanged::MergeFrom(
           from._internal_class_changed());
+      break;
+    }
+    case kSkillCastStarted: {
+      _this->_internal_mutable_skill_cast_started()->::nightfall::v1::SkillCastStarted::MergeFrom(
+          from._internal_skill_cast_started());
+      break;
+    }
+    case kSkillCastResult: {
+      _this->_internal_mutable_skill_cast_result()->::nightfall::v1::SkillCastResult::MergeFrom(
+          from._internal_skill_cast_result());
+      break;
+    }
+    case kSkillCastCancelled: {
+      _this->_internal_mutable_skill_cast_cancelled()->::nightfall::v1::SkillCastCancelled::MergeFrom(
+          from._internal_skill_cast_cancelled());
+      break;
+    }
+    case kEffectApplied: {
+      _this->_internal_mutable_effect_applied()->::nightfall::v1::EffectApplied::MergeFrom(
+          from._internal_effect_applied());
+      break;
+    }
+    case kEffectRemoved: {
+      _this->_internal_mutable_effect_removed()->::nightfall::v1::EffectRemoved::MergeFrom(
+          from._internal_effect_removed());
+      break;
+    }
+    case kSkillReuse: {
+      _this->_internal_mutable_skill_reuse()->::nightfall::v1::SkillReuse::MergeFrom(
+          from._internal_skill_reuse());
+      break;
+    }
+    case kSkillLearned: {
+      _this->_internal_mutable_skill_learned()->::nightfall::v1::SkillLearned::MergeFrom(
+          from._internal_skill_learned());
+      break;
+    }
+    case kPvpStateChanged: {
+      _this->_internal_mutable_pvp_state_changed()->::nightfall::v1::PvpStateChanged::MergeFrom(
+          from._internal_pvp_state_changed());
+      break;
+    }
+    case kResurrectOffer: {
+      _this->_internal_mutable_resurrect_offer()->::nightfall::v1::ResurrectOffer::MergeFrom(
+          from._internal_resurrect_offer());
+      break;
+    }
+    case kSpGained: {
+      _this->_internal_mutable_sp_gained()->::nightfall::v1::SpGained::MergeFrom(
+          from._internal_sp_gained());
+      break;
+    }
+    case kSkillStateSync: {
+      _this->_internal_mutable_skill_state_sync()->::nightfall::v1::SkillStateSync::MergeFrom(
+          from._internal_skill_state_sync());
+      break;
+    }
+    case kVitalsChanged: {
+      _this->_internal_mutable_vitals_changed()->::nightfall::v1::VitalsChanged::MergeFrom(
+          from._internal_vitals_changed());
       break;
     }
     case EVENT_NOT_SET: {
@@ -3645,6 +6133,78 @@ void WorldEvent::clear_event() {
     case kClassChanged: {
       if (GetArenaForAllocation() == nullptr) {
         delete _impl_.event_.class_changed_;
+      }
+      break;
+    }
+    case kSkillCastStarted: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.skill_cast_started_;
+      }
+      break;
+    }
+    case kSkillCastResult: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.skill_cast_result_;
+      }
+      break;
+    }
+    case kSkillCastCancelled: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.skill_cast_cancelled_;
+      }
+      break;
+    }
+    case kEffectApplied: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.effect_applied_;
+      }
+      break;
+    }
+    case kEffectRemoved: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.effect_removed_;
+      }
+      break;
+    }
+    case kSkillReuse: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.skill_reuse_;
+      }
+      break;
+    }
+    case kSkillLearned: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.skill_learned_;
+      }
+      break;
+    }
+    case kPvpStateChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.pvp_state_changed_;
+      }
+      break;
+    }
+    case kResurrectOffer: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.resurrect_offer_;
+      }
+      break;
+    }
+    case kSpGained: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.sp_gained_;
+      }
+      break;
+    }
+    case kSkillStateSync: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.skill_state_sync_;
+      }
+      break;
+    }
+    case kVitalsChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.vitals_changed_;
       }
       break;
     }
@@ -3789,6 +6349,114 @@ const char* WorldEvent::_InternalParse(const char* ptr, ::_pbi::ParseContext* ct
           goto handle_unusual;
         }
         continue;
+      // .nightfall.v1.SkillCastStarted skill_cast_started = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 114)) {
+          ptr = ctx->ParseMessage(_internal_mutable_skill_cast_started(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillCastResult skill_cast_result = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 122)) {
+          ptr = ctx->ParseMessage(_internal_mutable_skill_cast_result(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillCastCancelled skill_cast_cancelled = 16;
+      case 16:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 130)) {
+          ptr = ctx->ParseMessage(_internal_mutable_skill_cast_cancelled(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EffectApplied effect_applied = 17;
+      case 17:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 138)) {
+          ptr = ctx->ParseMessage(_internal_mutable_effect_applied(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EffectRemoved effect_removed = 18;
+      case 18:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 146)) {
+          ptr = ctx->ParseMessage(_internal_mutable_effect_removed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillReuse skill_reuse = 19;
+      case 19:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 154)) {
+          ptr = ctx->ParseMessage(_internal_mutable_skill_reuse(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillLearned skill_learned = 20;
+      case 20:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 162)) {
+          ptr = ctx->ParseMessage(_internal_mutable_skill_learned(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PvpStateChanged pvp_state_changed = 21;
+      case 21:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 170)) {
+          ptr = ctx->ParseMessage(_internal_mutable_pvp_state_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ResurrectOffer resurrect_offer = 22;
+      case 22:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 178)) {
+          ptr = ctx->ParseMessage(_internal_mutable_resurrect_offer(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SpGained sp_gained = 23;
+      case 23:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 186)) {
+          ptr = ctx->ParseMessage(_internal_mutable_sp_gained(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillStateSync skill_state_sync = 24;
+      case 24:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 194)) {
+          ptr = ctx->ParseMessage(_internal_mutable_skill_state_sync(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.VitalsChanged vitals_changed = 25;
+      case 25:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 202)) {
+          ptr = ctx->ParseMessage(_internal_mutable_vitals_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -3895,6 +6563,78 @@ failure:
       target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
         InternalWriteMessage(13, _Internal::class_changed(this),
           _Internal::class_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSkillCastStarted: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(14, _Internal::skill_cast_started(this),
+          _Internal::skill_cast_started(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSkillCastResult: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(15, _Internal::skill_cast_result(this),
+          _Internal::skill_cast_result(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSkillCastCancelled: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(16, _Internal::skill_cast_cancelled(this),
+          _Internal::skill_cast_cancelled(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kEffectApplied: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(17, _Internal::effect_applied(this),
+          _Internal::effect_applied(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kEffectRemoved: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(18, _Internal::effect_removed(this),
+          _Internal::effect_removed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSkillReuse: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(19, _Internal::skill_reuse(this),
+          _Internal::skill_reuse(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSkillLearned: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(20, _Internal::skill_learned(this),
+          _Internal::skill_learned(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPvpStateChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(21, _Internal::pvp_state_changed(this),
+          _Internal::pvp_state_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kResurrectOffer: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(22, _Internal::resurrect_offer(this),
+          _Internal::resurrect_offer(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSpGained: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(23, _Internal::sp_gained(this),
+          _Internal::sp_gained(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSkillStateSync: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(24, _Internal::skill_state_sync(this),
+          _Internal::skill_state_sync(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kVitalsChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(25, _Internal::vitals_changed(this),
+          _Internal::vitals_changed(this).GetCachedSize(), target, stream);
       break;
     }
     default: ;
@@ -4007,6 +6747,90 @@ failure:
           *_impl_.event_.class_changed_);
       break;
     }
+    // .nightfall.v1.SkillCastStarted skill_cast_started = 14;
+    case kSkillCastStarted: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.skill_cast_started_);
+      break;
+    }
+    // .nightfall.v1.SkillCastResult skill_cast_result = 15;
+    case kSkillCastResult: {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.skill_cast_result_);
+      break;
+    }
+    // .nightfall.v1.SkillCastCancelled skill_cast_cancelled = 16;
+    case kSkillCastCancelled: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.skill_cast_cancelled_);
+      break;
+    }
+    // .nightfall.v1.EffectApplied effect_applied = 17;
+    case kEffectApplied: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.effect_applied_);
+      break;
+    }
+    // .nightfall.v1.EffectRemoved effect_removed = 18;
+    case kEffectRemoved: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.effect_removed_);
+      break;
+    }
+    // .nightfall.v1.SkillReuse skill_reuse = 19;
+    case kSkillReuse: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.skill_reuse_);
+      break;
+    }
+    // .nightfall.v1.SkillLearned skill_learned = 20;
+    case kSkillLearned: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.skill_learned_);
+      break;
+    }
+    // .nightfall.v1.PvpStateChanged pvp_state_changed = 21;
+    case kPvpStateChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.pvp_state_changed_);
+      break;
+    }
+    // .nightfall.v1.ResurrectOffer resurrect_offer = 22;
+    case kResurrectOffer: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.resurrect_offer_);
+      break;
+    }
+    // .nightfall.v1.SpGained sp_gained = 23;
+    case kSpGained: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.sp_gained_);
+      break;
+    }
+    // .nightfall.v1.SkillStateSync skill_state_sync = 24;
+    case kSkillStateSync: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.skill_state_sync_);
+      break;
+    }
+    // .nightfall.v1.VitalsChanged vitals_changed = 25;
+    case kVitalsChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.vitals_changed_);
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -4095,6 +6919,66 @@ void WorldEvent::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PRO
           from._internal_class_changed());
       break;
     }
+    case kSkillCastStarted: {
+      _this->_internal_mutable_skill_cast_started()->::nightfall::v1::SkillCastStarted::MergeFrom(
+          from._internal_skill_cast_started());
+      break;
+    }
+    case kSkillCastResult: {
+      _this->_internal_mutable_skill_cast_result()->::nightfall::v1::SkillCastResult::MergeFrom(
+          from._internal_skill_cast_result());
+      break;
+    }
+    case kSkillCastCancelled: {
+      _this->_internal_mutable_skill_cast_cancelled()->::nightfall::v1::SkillCastCancelled::MergeFrom(
+          from._internal_skill_cast_cancelled());
+      break;
+    }
+    case kEffectApplied: {
+      _this->_internal_mutable_effect_applied()->::nightfall::v1::EffectApplied::MergeFrom(
+          from._internal_effect_applied());
+      break;
+    }
+    case kEffectRemoved: {
+      _this->_internal_mutable_effect_removed()->::nightfall::v1::EffectRemoved::MergeFrom(
+          from._internal_effect_removed());
+      break;
+    }
+    case kSkillReuse: {
+      _this->_internal_mutable_skill_reuse()->::nightfall::v1::SkillReuse::MergeFrom(
+          from._internal_skill_reuse());
+      break;
+    }
+    case kSkillLearned: {
+      _this->_internal_mutable_skill_learned()->::nightfall::v1::SkillLearned::MergeFrom(
+          from._internal_skill_learned());
+      break;
+    }
+    case kPvpStateChanged: {
+      _this->_internal_mutable_pvp_state_changed()->::nightfall::v1::PvpStateChanged::MergeFrom(
+          from._internal_pvp_state_changed());
+      break;
+    }
+    case kResurrectOffer: {
+      _this->_internal_mutable_resurrect_offer()->::nightfall::v1::ResurrectOffer::MergeFrom(
+          from._internal_resurrect_offer());
+      break;
+    }
+    case kSpGained: {
+      _this->_internal_mutable_sp_gained()->::nightfall::v1::SpGained::MergeFrom(
+          from._internal_sp_gained());
+      break;
+    }
+    case kSkillStateSync: {
+      _this->_internal_mutable_skill_state_sync()->::nightfall::v1::SkillStateSync::MergeFrom(
+          from._internal_skill_state_sync());
+      break;
+    }
+    case kVitalsChanged: {
+      _this->_internal_mutable_vitals_changed()->::nightfall::v1::VitalsChanged::MergeFrom(
+          from._internal_vitals_changed());
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -4123,7 +7007,7 @@ void WorldEvent::InternalSwap(WorldEvent* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata WorldEvent::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[10]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[13]);
 }
 // ===================================================================
 
@@ -4140,6 +7024,10 @@ class EntitySpawn::_Internal {
   static void set_has_pending_swing(HasBits* has_bits) {
     (*has_bits)[0] |= 2u;
   }
+  static const ::nightfall::v1::SkillCastStarted& pending_cast(const EntitySpawn* msg);
+  static void set_has_pending_cast(HasBits* has_bits) {
+    (*has_bits)[0] |= 4u;
+  }
 };
 
 const ::nightfall::v1::Position&
@@ -4149,6 +7037,10 @@ EntitySpawn::_Internal::position(const EntitySpawn* msg) {
 const ::nightfall::v1::AttackStarted&
 EntitySpawn::_Internal::pending_swing(const EntitySpawn* msg) {
   return *msg->_impl_.pending_swing_;
+}
+const ::nightfall::v1::SkillCastStarted&
+EntitySpawn::_Internal::pending_cast(const EntitySpawn* msg) {
+  return *msg->_impl_.pending_cast_;
 }
 void EntitySpawn::clear_position() {
   if (_impl_.position_ != nullptr) _impl_.position_->Clear();
@@ -4165,6 +7057,7 @@ EntitySpawn::EntitySpawn(const EntitySpawn& from)
   new (&_impl_) Impl_{
       decltype(_impl_._has_bits_){from._impl_._has_bits_}
     , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.active_effects_){from._impl_.active_effects_}
     , decltype(_impl_.entity_id_) {}
 
     , decltype(_impl_.name_) {}
@@ -4173,6 +7066,7 @@ EntitySpawn::EntitySpawn(const EntitySpawn& from)
 
     , decltype(_impl_.position_){nullptr}
     , decltype(_impl_.pending_swing_){nullptr}
+    , decltype(_impl_.pending_cast_){nullptr}
     , decltype(_impl_.kind_) {}
 
     , decltype(_impl_.session_generation_) {}
@@ -4204,6 +7098,16 @@ EntitySpawn::EntitySpawn(const EntitySpawn& from)
     , decltype(_impl_.state_tick_) {}
 
     , decltype(_impl_.face_) {}
+
+    , decltype(_impl_.karma_) {}
+
+    , decltype(_impl_.flag_until_tick_) {}
+
+    , decltype(_impl_.pk_count_) {}
+
+    , decltype(_impl_.pvp_count_) {}
+
+    , decltype(_impl_.status_flags_) {}
   };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -4234,9 +7138,12 @@ EntitySpawn::EntitySpawn(const EntitySpawn& from)
   if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
     _this->_impl_.pending_swing_ = new ::nightfall::v1::AttackStarted(*from._impl_.pending_swing_);
   }
+  if ((from._impl_._has_bits_[0] & 0x00000004u) != 0) {
+    _this->_impl_.pending_cast_ = new ::nightfall::v1::SkillCastStarted(*from._impl_.pending_cast_);
+  }
   ::memcpy(&_impl_.kind_, &from._impl_.kind_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.face_) -
-    reinterpret_cast<char*>(&_impl_.kind_)) + sizeof(_impl_.face_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.status_flags_) -
+    reinterpret_cast<char*>(&_impl_.kind_)) + sizeof(_impl_.status_flags_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.EntitySpawn)
 }
 
@@ -4245,6 +7152,7 @@ inline void EntitySpawn::SharedCtor(::_pb::Arena* arena) {
   new (&_impl_) Impl_{
       decltype(_impl_._has_bits_){}
     , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.active_effects_){arena}
     , decltype(_impl_.entity_id_) {}
 
     , decltype(_impl_.name_) {}
@@ -4253,6 +7161,7 @@ inline void EntitySpawn::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.position_){nullptr}
     , decltype(_impl_.pending_swing_){nullptr}
+    , decltype(_impl_.pending_cast_){nullptr}
     , decltype(_impl_.kind_) { 0 }
 
     , decltype(_impl_.session_generation_) { 0u }
@@ -4285,6 +7194,16 @@ inline void EntitySpawn::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.face_) { 0u }
 
+    , decltype(_impl_.karma_) { 0u }
+
+    , decltype(_impl_.flag_until_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.pk_count_) { 0u }
+
+    , decltype(_impl_.pvp_count_) { 0u }
+
+    , decltype(_impl_.status_flags_) { ::uint64_t{0u} }
+
   };
   _impl_.entity_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -4311,11 +7230,13 @@ EntitySpawn::~EntitySpawn() {
 
 inline void EntitySpawn::SharedDtor() {
   ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_active_effects()->~RepeatedPtrField();
   _impl_.entity_id_.Destroy();
   _impl_.name_.Destroy();
   _impl_.template_id_.Destroy();
   if (this != internal_default_instance()) delete _impl_.position_;
   if (this != internal_default_instance()) delete _impl_.pending_swing_;
+  if (this != internal_default_instance()) delete _impl_.pending_cast_;
 }
 
 void EntitySpawn::SetCachedSize(int size) const {
@@ -4328,11 +7249,12 @@ void EntitySpawn::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
+  _internal_mutable_active_effects()->Clear();
   _impl_.entity_id_.ClearToEmpty();
   _impl_.name_.ClearToEmpty();
   _impl_.template_id_.ClearToEmpty();
   cached_has_bits = _impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000003u) {
+  if (cached_has_bits & 0x00000007u) {
     if (cached_has_bits & 0x00000001u) {
       ABSL_DCHECK(_impl_.position_ != nullptr);
       _impl_.position_->Clear();
@@ -4341,10 +7263,14 @@ void EntitySpawn::Clear() {
       ABSL_DCHECK(_impl_.pending_swing_ != nullptr);
       _impl_.pending_swing_->Clear();
     }
+    if (cached_has_bits & 0x00000004u) {
+      ABSL_DCHECK(_impl_.pending_cast_ != nullptr);
+      _impl_.pending_cast_->Clear();
+    }
   }
   ::memset(&_impl_.kind_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.face_) -
-      reinterpret_cast<char*>(&_impl_.kind_)) + sizeof(_impl_.face_));
+      reinterpret_cast<char*>(&_impl_.status_flags_) -
+      reinterpret_cast<char*>(&_impl_.kind_)) + sizeof(_impl_.status_flags_));
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -4554,6 +7480,74 @@ const char* EntitySpawn::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
           goto handle_unusual;
         }
         continue;
+      // uint64 flag_until_tick = 22;
+      case 22:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 176)) {
+          _impl_.flag_until_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 karma = 23;
+      case 23:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 184)) {
+          _impl_.karma_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.ActiveEffect active_effects = 24;
+      case 24:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 194)) {
+          ptr -= 2;
+          do {
+            ptr += 2;
+            ptr = ctx->ParseMessage(_internal_add_active_effects(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<194>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillCastStarted pending_cast = 25;
+      case 25:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 202)) {
+          ptr = ctx->ParseMessage(_internal_mutable_pending_cast(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 pk_count = 26;
+      case 26:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 208)) {
+          _impl_.pk_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 pvp_count = 27;
+      case 27:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 216)) {
+          _impl_.pvp_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 status_flags = 28;
+      case 28:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 224)) {
+          _impl_.status_flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -4735,6 +7729,56 @@ failure:
         21, this->_internal_state_tick(), target);
   }
 
+  // uint64 flag_until_tick = 22;
+  if (this->_internal_flag_until_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        22, this->_internal_flag_until_tick(), target);
+  }
+
+  // uint32 karma = 23;
+  if (this->_internal_karma() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        23, this->_internal_karma(), target);
+  }
+
+  // repeated .nightfall.v1.ActiveEffect active_effects = 24;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_active_effects_size()); i < n; i++) {
+    const auto& repfield = this->_internal_active_effects(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(24, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // .nightfall.v1.SkillCastStarted pending_cast = 25;
+  if (cached_has_bits & 0x00000004u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(25, _Internal::pending_cast(this),
+        _Internal::pending_cast(this).GetCachedSize(), target, stream);
+  }
+
+  // uint32 pk_count = 26;
+  if (this->_internal_pk_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        26, this->_internal_pk_count(), target);
+  }
+
+  // uint32 pvp_count = 27;
+  if (this->_internal_pvp_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        27, this->_internal_pvp_count(), target);
+  }
+
+  // uint64 status_flags = 28;
+  if (this->_internal_status_flags() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        28, this->_internal_status_flags(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -4750,6 +7794,13 @@ failure:
   ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
+
+  // repeated .nightfall.v1.ActiveEffect active_effects = 24;
+  total_size += 2UL * this->_internal_active_effects_size();
+  for (const auto& msg : this->_internal_active_effects()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
 
   // string entity_id = 1;
   if (!this->_internal_entity_id().empty()) {
@@ -4770,7 +7821,7 @@ failure:
   }
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000003u) {
+  if (cached_has_bits & 0x00000007u) {
     // .nightfall.v1.Position position = 3;
     if (cached_has_bits & 0x00000001u) {
       total_size += 1 +
@@ -4783,6 +7834,13 @@ failure:
       total_size += 1 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *_impl_.pending_swing_);
+    }
+
+    // .nightfall.v1.SkillCastStarted pending_cast = 25;
+    if (cached_has_bits & 0x00000004u) {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.pending_cast_);
     }
 
   }
@@ -4879,6 +7937,36 @@ failure:
                                     this->_internal_face());
   }
 
+  // uint32 karma = 23;
+  if (this->_internal_karma() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt32Size(
+                                    this->_internal_karma());
+  }
+
+  // uint64 flag_until_tick = 22;
+  if (this->_internal_flag_until_tick() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt64Size(
+                                    this->_internal_flag_until_tick());
+  }
+
+  // uint32 pk_count = 26;
+  if (this->_internal_pk_count() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt32Size(
+                                    this->_internal_pk_count());
+  }
+
+  // uint32 pvp_count = 27;
+  if (this->_internal_pvp_count() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt32Size(
+                                    this->_internal_pvp_count());
+  }
+
+  // uint64 status_flags = 28;
+  if (this->_internal_status_flags() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt64Size(
+                                    this->_internal_status_flags());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -4897,6 +7985,7 @@ void EntitySpawn::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
+  _this->_internal_mutable_active_effects()->MergeFrom(from._internal_active_effects());
   if (!from._internal_entity_id().empty()) {
     _this->_internal_set_entity_id(from._internal_entity_id());
   }
@@ -4907,7 +7996,7 @@ void EntitySpawn::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
     _this->_internal_set_template_id(from._internal_template_id());
   }
   cached_has_bits = from._impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000003u) {
+  if (cached_has_bits & 0x00000007u) {
     if (cached_has_bits & 0x00000001u) {
       _this->_internal_mutable_position()->::nightfall::v1::Position::MergeFrom(
           from._internal_position());
@@ -4915,6 +8004,10 @@ void EntitySpawn::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
     if (cached_has_bits & 0x00000002u) {
       _this->_internal_mutable_pending_swing()->::nightfall::v1::AttackStarted::MergeFrom(
           from._internal_pending_swing());
+    }
+    if (cached_has_bits & 0x00000004u) {
+      _this->_internal_mutable_pending_cast()->::nightfall::v1::SkillCastStarted::MergeFrom(
+          from._internal_pending_cast());
     }
   }
   if (from._internal_kind() != 0) {
@@ -4965,6 +8058,21 @@ void EntitySpawn::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
   if (from._internal_face() != 0) {
     _this->_internal_set_face(from._internal_face());
   }
+  if (from._internal_karma() != 0) {
+    _this->_internal_set_karma(from._internal_karma());
+  }
+  if (from._internal_flag_until_tick() != 0) {
+    _this->_internal_set_flag_until_tick(from._internal_flag_until_tick());
+  }
+  if (from._internal_pk_count() != 0) {
+    _this->_internal_set_pk_count(from._internal_pk_count());
+  }
+  if (from._internal_pvp_count() != 0) {
+    _this->_internal_set_pvp_count(from._internal_pvp_count());
+  }
+  if (from._internal_status_flags() != 0) {
+    _this->_internal_set_status_flags(from._internal_status_flags());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -4985,6 +8093,7 @@ void EntitySpawn::InternalSwap(EntitySpawn* other) {
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_active_effects()->InternalSwap(other->_internal_mutable_active_effects());
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_id_, lhs_arena,
                                        &other->_impl_.entity_id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, lhs_arena,
@@ -4992,8 +8101,8 @@ void EntitySpawn::InternalSwap(EntitySpawn* other) {
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.template_id_, lhs_arena,
                                        &other->_impl_.template_id_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(EntitySpawn, _impl_.face_)
-      + sizeof(EntitySpawn::_impl_.face_)
+      PROTOBUF_FIELD_OFFSET(EntitySpawn, _impl_.status_flags_)
+      + sizeof(EntitySpawn::_impl_.status_flags_)
       - PROTOBUF_FIELD_OFFSET(EntitySpawn, _impl_.position_)>(
           reinterpret_cast<char*>(&_impl_.position_),
           reinterpret_cast<char*>(&other->_impl_.position_));
@@ -5002,7 +8111,7 @@ void EntitySpawn::InternalSwap(EntitySpawn* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata EntitySpawn::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[11]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[14]);
 }
 // ===================================================================
 
@@ -5425,7 +8534,7 @@ void EntityMove::InternalSwap(EntityMove* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata EntityMove::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[12]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[15]);
 }
 // ===================================================================
 
@@ -5621,7 +8730,7 @@ void EntityDespawn::InternalSwap(EntityDespawn* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata EntityDespawn::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[13]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[16]);
 }
 // ===================================================================
 
@@ -5652,6 +8761,8 @@ AttackResult::AttackResult(const AttackResult& from)
 
     , decltype(_impl_.target_incarnation_) {}
 
+    , decltype(_impl_.cp_damage_) {}
+
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -5670,8 +8781,8 @@ AttackResult::AttackResult(const AttackResult& from)
     _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
   }
   ::memcpy(&_impl_.tick_, &from._impl_.tick_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.target_incarnation_) -
-    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.target_incarnation_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.cp_damage_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.cp_damage_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.AttackResult)
 }
 
@@ -5691,6 +8802,8 @@ inline void AttackResult::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.target_hp_after_) { 0u }
 
     , decltype(_impl_.target_incarnation_) { 0u }
+
+    , decltype(_impl_.cp_damage_) { 0u }
 
     , /*decltype(_impl_._cached_size_)*/{}
   };
@@ -5732,8 +8845,8 @@ void AttackResult::Clear() {
   _impl_.attacker_.ClearToEmpty();
   _impl_.target_.ClearToEmpty();
   ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.target_incarnation_) -
-      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.target_incarnation_));
+      reinterpret_cast<char*>(&_impl_.cp_damage_) -
+      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.cp_damage_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -5806,6 +8919,15 @@ const char* AttackResult::_InternalParse(const char* ptr, ::_pbi::ParseContext* 
       case 7:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
           _impl_.target_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 cp_damage = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.cp_damage_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -5891,6 +9013,13 @@ failure:
         7, this->_internal_target_incarnation(), target);
   }
 
+  // uint32 cp_damage = 8;
+  if (this->_internal_cp_damage() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_cp_damage(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -5949,6 +9078,12 @@ failure:
         this->_internal_target_incarnation());
   }
 
+  // uint32 cp_damage = 8;
+  if (this->_internal_cp_damage() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_cp_damage());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -5988,6 +9123,9 @@ void AttackResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   if (from._internal_target_incarnation() != 0) {
     _this->_internal_set_target_incarnation(from._internal_target_incarnation());
   }
+  if (from._internal_cp_damage() != 0) {
+    _this->_internal_set_cp_damage(from._internal_cp_damage());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -6012,8 +9150,8 @@ void AttackResult::InternalSwap(AttackResult* other) {
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
                                        &other->_impl_.target_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(AttackResult, _impl_.target_incarnation_)
-      + sizeof(AttackResult::_impl_.target_incarnation_)
+      PROTOBUF_FIELD_OFFSET(AttackResult, _impl_.cp_damage_)
+      + sizeof(AttackResult::_impl_.cp_damage_)
       - PROTOBUF_FIELD_OFFSET(AttackResult, _impl_.tick_)>(
           reinterpret_cast<char*>(&_impl_.tick_),
           reinterpret_cast<char*>(&other->_impl_.tick_));
@@ -6022,7 +9160,7 @@ void AttackResult::InternalSwap(AttackResult* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata AttackResult::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[14]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[17]);
 }
 // ===================================================================
 
@@ -6335,12 +9473,18 @@ void EntityDied::InternalSwap(EntityDied* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata EntityDied::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[15]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[18]);
 }
 // ===================================================================
 
 class AttackStarted::_Internal {
  public:
+  using HasBits = decltype(std::declval<AttackStarted>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(AttackStarted, _impl_._has_bits_);
+  static void set_has_attacker_incarnation(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
 AttackStarted::AttackStarted(::PROTOBUF_NAMESPACE_ID::Arena* arena)
@@ -6352,7 +9496,9 @@ AttackStarted::AttackStarted(const AttackStarted& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   AttackStarted* const _this = this; (void)_this;
   new (&_impl_) Impl_{
-      decltype(_impl_.attacker_) {}
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.attacker_) {}
 
     , decltype(_impl_.target_) {}
 
@@ -6364,7 +9510,12 @@ AttackStarted::AttackStarted(const AttackStarted& from)
 
     , decltype(_impl_.target_incarnation_) {}
 
-    , /*decltype(_impl_._cached_size_)*/{}};
+    , decltype(_impl_.baseline_) {}
+
+    , decltype(_impl_.baseline_tick_) {}
+
+    , decltype(_impl_.attacker_incarnation_) {}
+  };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   _impl_.attacker_.InitDefault();
@@ -6382,15 +9533,17 @@ AttackStarted::AttackStarted(const AttackStarted& from)
     _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
   }
   ::memcpy(&_impl_.tick_, &from._impl_.tick_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.target_incarnation_) -
-    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.target_incarnation_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.attacker_incarnation_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.attacker_incarnation_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.AttackStarted)
 }
 
 inline void AttackStarted::SharedCtor(::_pb::Arena* arena) {
   (void)arena;
   new (&_impl_) Impl_{
-      decltype(_impl_.attacker_) {}
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.attacker_) {}
 
     , decltype(_impl_.target_) {}
 
@@ -6402,7 +9555,12 @@ inline void AttackStarted::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.target_incarnation_) { 0u }
 
-    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.baseline_) { false }
+
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.attacker_incarnation_) { 0u }
+
   };
   _impl_.attacker_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -6442,13 +9600,16 @@ void AttackStarted::Clear() {
   _impl_.attacker_.ClearToEmpty();
   _impl_.target_.ClearToEmpty();
   ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.target_incarnation_) -
-      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.target_incarnation_));
+      reinterpret_cast<char*>(&_impl_.baseline_tick_) -
+      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.baseline_tick_));
+  _impl_.attacker_incarnation_ = 0u;
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* AttackStarted::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
@@ -6511,6 +9672,34 @@ const char* AttackStarted::_InternalParse(const char* ptr, ::_pbi::ParseContext*
           goto handle_unusual;
         }
         continue;
+      // bool baseline = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint32 attacker_incarnation = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _Internal::set_has_attacker_incarnation(&has_bits);
+          _impl_.attacker_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -6527,6 +9716,7 @@ const char* AttackStarted::_InternalParse(const char* ptr, ::_pbi::ParseContext*
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -6584,6 +9774,28 @@ failure:
         6, this->_internal_target_incarnation(), target);
   }
 
+  // bool baseline = 7;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        7, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 8;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        8, this->_internal_baseline_tick(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional uint32 attacker_incarnation = 9;
+  if (cached_has_bits & 0x00000001u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        9, this->_internal_attacker_incarnation(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -6636,6 +9848,24 @@ failure:
         this->_internal_target_incarnation());
   }
 
+  // bool baseline = 7;
+  if (this->_internal_baseline() != 0) {
+    total_size += 2;
+  }
+
+  // uint64 baseline_tick = 8;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_baseline_tick());
+  }
+
+  // optional uint32 attacker_incarnation = 9;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_attacker_incarnation());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -6672,6 +9902,15 @@ void AttackStarted::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::
   if (from._internal_target_incarnation() != 0) {
     _this->_internal_set_target_incarnation(from._internal_target_incarnation());
   }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_attacker_incarnation(from._internal_attacker_incarnation());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -6691,13 +9930,14 @@ void AttackStarted::InternalSwap(AttackStarted* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.attacker_, lhs_arena,
                                        &other->_impl_.attacker_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
                                        &other->_impl_.target_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(AttackStarted, _impl_.target_incarnation_)
-      + sizeof(AttackStarted::_impl_.target_incarnation_)
+      PROTOBUF_FIELD_OFFSET(AttackStarted, _impl_.attacker_incarnation_)
+      + sizeof(AttackStarted::_impl_.attacker_incarnation_)
       - PROTOBUF_FIELD_OFFSET(AttackStarted, _impl_.tick_)>(
           reinterpret_cast<char*>(&_impl_.tick_),
           reinterpret_cast<char*>(&other->_impl_.tick_));
@@ -6706,7 +9946,7 @@ void AttackStarted::InternalSwap(AttackStarted* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata AttackStarted::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[16]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[19]);
 }
 // ===================================================================
 
@@ -7020,7 +10260,7 @@ void AttackCancelled::InternalSwap(AttackCancelled* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata AttackCancelled::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[17]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[20]);
 }
 // ===================================================================
 
@@ -7376,14 +10616,29 @@ void EntityRespawned::InternalSwap(EntityRespawned* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata EntityRespawned::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[18]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[21]);
 }
 // ===================================================================
 
 class StatsChanged::_Internal {
  public:
+  using HasBits = decltype(std::declval<StatsChanged>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_._has_bits_);
+  static const ::nightfall::v1::EffectiveStats& effective_stats(const StatsChanged* msg);
+  static void set_has_effective_stats(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
+const ::nightfall::v1::EffectiveStats&
+StatsChanged::_Internal::effective_stats(const StatsChanged* msg) {
+  return *msg->_impl_.effective_stats_;
+}
+void StatsChanged::clear_effective_stats() {
+  if (_impl_.effective_stats_ != nullptr) _impl_.effective_stats_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
 StatsChanged::StatsChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -7393,8 +10648,11 @@ StatsChanged::StatsChanged(const StatsChanged& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   StatsChanged* const _this = this; (void)_this;
   new (&_impl_) Impl_{
-      decltype(_impl_.entity_) {}
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.entity_) {}
 
+    , decltype(_impl_.effective_stats_){nullptr}
     , decltype(_impl_.hp_) {}
 
     , decltype(_impl_.max_hp_) {}
@@ -7421,7 +10679,22 @@ StatsChanged::StatsChanged(const StatsChanged& from)
 
     , decltype(_impl_.tick_) {}
 
-    , /*decltype(_impl_._cached_size_)*/{}};
+    , decltype(_impl_.karma_) {}
+
+    , decltype(_impl_.pk_count_) {}
+
+    , decltype(_impl_.flag_until_tick_) {}
+
+    , decltype(_impl_.pvp_count_) {}
+
+    , decltype(_impl_.death_penalty_level_) {}
+
+    , decltype(_impl_.baseline_tick_) {}
+
+    , decltype(_impl_.baseline_) {}
+
+    , decltype(_impl_.incarnation_) {}
+  };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   _impl_.entity_.InitDefault();
@@ -7431,17 +10704,23 @@ StatsChanged::StatsChanged(const StatsChanged& from)
   if (!from._internal_entity().empty()) {
     _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
   }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.effective_stats_ = new ::nightfall::v1::EffectiveStats(*from._impl_.effective_stats_);
+  }
   ::memcpy(&_impl_.hp_, &from._impl_.hp_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.tick_) -
-    reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.tick_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.incarnation_) -
+    reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.incarnation_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.StatsChanged)
 }
 
 inline void StatsChanged::SharedCtor(::_pb::Arena* arena) {
   (void)arena;
   new (&_impl_) Impl_{
-      decltype(_impl_.entity_) {}
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.entity_) {}
 
+    , decltype(_impl_.effective_stats_){nullptr}
     , decltype(_impl_.hp_) { 0u }
 
     , decltype(_impl_.max_hp_) { 0u }
@@ -7468,7 +10747,22 @@ inline void StatsChanged::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.tick_) { ::uint64_t{0u} }
 
-    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.karma_) { 0u }
+
+    , decltype(_impl_.pk_count_) { 0u }
+
+    , decltype(_impl_.flag_until_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.pvp_count_) { 0u }
+
+    , decltype(_impl_.death_penalty_level_) { 0u }
+
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.baseline_) { false }
+
+    , decltype(_impl_.incarnation_) { 0u }
+
   };
   _impl_.entity_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -7488,6 +10782,7 @@ StatsChanged::~StatsChanged() {
 inline void StatsChanged::SharedDtor() {
   ABSL_DCHECK(GetArenaForAllocation() == nullptr);
   _impl_.entity_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.effective_stats_;
 }
 
 void StatsChanged::SetCachedSize(int size) const {
@@ -7501,14 +10796,21 @@ void StatsChanged::Clear() {
   (void) cached_has_bits;
 
   _impl_.entity_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.effective_stats_ != nullptr);
+    _impl_.effective_stats_->Clear();
+  }
   ::memset(&_impl_.hp_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.tick_) -
-      reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.tick_));
+      reinterpret_cast<char*>(&_impl_.incarnation_) -
+      reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.incarnation_));
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* StatsChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
@@ -7641,6 +10943,87 @@ const char* StatsChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* 
           goto handle_unusual;
         }
         continue;
+      // uint32 karma = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 120)) {
+          _impl_.karma_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 pk_count = 16;
+      case 16:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 128)) {
+          _impl_.pk_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 pvp_count = 17;
+      case 17:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 136)) {
+          _impl_.pvp_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 flag_until_tick = 18;
+      case 18:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 144)) {
+          _impl_.flag_until_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 death_penalty_level = 19;
+      case 19:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 152)) {
+          _impl_.death_penalty_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EffectiveStats effective_stats = 20;
+      case 20:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 162)) {
+          ptr = ctx->ParseMessage(_internal_mutable_effective_stats(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool baseline = 21;
+      case 21:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 168)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 22;
+      case 22:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 176)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 23;
+      case 23:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 184)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -7657,6 +11040,7 @@ const char* StatsChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* 
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -7769,6 +11153,70 @@ failure:
         14, this->_internal_tick(), target);
   }
 
+  // uint32 karma = 15;
+  if (this->_internal_karma() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        15, this->_internal_karma(), target);
+  }
+
+  // uint32 pk_count = 16;
+  if (this->_internal_pk_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        16, this->_internal_pk_count(), target);
+  }
+
+  // uint32 pvp_count = 17;
+  if (this->_internal_pvp_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        17, this->_internal_pvp_count(), target);
+  }
+
+  // uint64 flag_until_tick = 18;
+  if (this->_internal_flag_until_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        18, this->_internal_flag_until_tick(), target);
+  }
+
+  // uint32 death_penalty_level = 19;
+  if (this->_internal_death_penalty_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        19, this->_internal_death_penalty_level(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .nightfall.v1.EffectiveStats effective_stats = 20;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(20, _Internal::effective_stats(this),
+        _Internal::effective_stats(this).GetCachedSize(), target, stream);
+  }
+
+  // bool baseline = 21;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        21, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 22;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        22, this->_internal_baseline_tick(), target);
+  }
+
+  // uint32 incarnation = 23;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        23, this->_internal_incarnation(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -7789,6 +11237,14 @@ failure:
   if (!this->_internal_entity().empty()) {
     total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
                                     this->_internal_entity());
+  }
+
+  // .nightfall.v1.EffectiveStats effective_stats = 20;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 2 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.effective_stats_);
   }
 
   // uint32 hp = 2;
@@ -7869,6 +11325,53 @@ failure:
         this->_internal_tick());
   }
 
+  // uint32 karma = 15;
+  if (this->_internal_karma() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_karma());
+  }
+
+  // uint32 pk_count = 16;
+  if (this->_internal_pk_count() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt32Size(
+                                    this->_internal_pk_count());
+  }
+
+  // uint64 flag_until_tick = 18;
+  if (this->_internal_flag_until_tick() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt64Size(
+                                    this->_internal_flag_until_tick());
+  }
+
+  // uint32 pvp_count = 17;
+  if (this->_internal_pvp_count() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt32Size(
+                                    this->_internal_pvp_count());
+  }
+
+  // uint32 death_penalty_level = 19;
+  if (this->_internal_death_penalty_level() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt32Size(
+                                    this->_internal_death_penalty_level());
+  }
+
+  // uint64 baseline_tick = 22;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt64Size(
+                                    this->_internal_baseline_tick());
+  }
+
+  // bool baseline = 21;
+  if (this->_internal_baseline() != 0) {
+    total_size += 3;
+  }
+
+  // uint32 incarnation = 23;
+  if (this->_internal_incarnation() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt32Size(
+                                    this->_internal_incarnation());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -7889,6 +11392,10 @@ void StatsChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
 
   if (!from._internal_entity().empty()) {
     _this->_internal_set_entity(from._internal_entity());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_effective_stats()->::nightfall::v1::EffectiveStats::MergeFrom(
+        from._internal_effective_stats());
   }
   if (from._internal_hp() != 0) {
     _this->_internal_set_hp(from._internal_hp());
@@ -7929,6 +11436,30 @@ void StatsChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   if (from._internal_tick() != 0) {
     _this->_internal_set_tick(from._internal_tick());
   }
+  if (from._internal_karma() != 0) {
+    _this->_internal_set_karma(from._internal_karma());
+  }
+  if (from._internal_pk_count() != 0) {
+    _this->_internal_set_pk_count(from._internal_pk_count());
+  }
+  if (from._internal_flag_until_tick() != 0) {
+    _this->_internal_set_flag_until_tick(from._internal_flag_until_tick());
+  }
+  if (from._internal_pvp_count() != 0) {
+    _this->_internal_set_pvp_count(from._internal_pvp_count());
+  }
+  if (from._internal_death_penalty_level() != 0) {
+    _this->_internal_set_death_penalty_level(from._internal_death_penalty_level());
+  }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -7948,20 +11479,21 @@ void StatsChanged::InternalSwap(StatsChanged* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
                                        &other->_impl_.entity_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.tick_)
-      + sizeof(StatsChanged::_impl_.tick_)
-      - PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.hp_)>(
-          reinterpret_cast<char*>(&_impl_.hp_),
-          reinterpret_cast<char*>(&other->_impl_.hp_));
+      PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.incarnation_)
+      + sizeof(StatsChanged::_impl_.incarnation_)
+      - PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.effective_stats_)>(
+          reinterpret_cast<char*>(&_impl_.effective_stats_),
+          reinterpret_cast<char*>(&other->_impl_.effective_stats_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata StatsChanged::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[19]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[22]);
 }
 // ===================================================================
 
@@ -8227,7 +11759,7 @@ void XpGained::InternalSwap(XpGained* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata XpGained::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[20]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[23]);
 }
 // ===================================================================
 
@@ -8456,12 +11988,18 @@ void LevelUp::InternalSwap(LevelUp* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata LevelUp::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[21]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[24]);
 }
 // ===================================================================
 
 class TargetChanged::_Internal {
  public:
+  using HasBits = decltype(std::declval<TargetChanged>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(TargetChanged, _impl_._has_bits_);
+  static void set_has_target_incarnation(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
 TargetChanged::TargetChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena)
@@ -8473,11 +12011,20 @@ TargetChanged::TargetChanged(const TargetChanged& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   TargetChanged* const _this = this; (void)_this;
   new (&_impl_) Impl_{
-      decltype(_impl_.entity_) {}
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.entity_) {}
 
     , decltype(_impl_.target_) {}
 
-    , /*decltype(_impl_._cached_size_)*/{}};
+    , decltype(_impl_.baseline_tick_) {}
+
+    , decltype(_impl_.baseline_) {}
+
+    , decltype(_impl_.target_incarnation_) {}
+
+    , decltype(_impl_.tick_) {}
+  };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   _impl_.entity_.InitDefault();
@@ -8494,17 +12041,29 @@ TargetChanged::TargetChanged(const TargetChanged& from)
   if (!from._internal_target().empty()) {
     _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
   }
+  ::memcpy(&_impl_.baseline_tick_, &from._impl_.baseline_tick_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.tick_) -
+    reinterpret_cast<char*>(&_impl_.baseline_tick_)) + sizeof(_impl_.tick_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.TargetChanged)
 }
 
 inline void TargetChanged::SharedCtor(::_pb::Arena* arena) {
   (void)arena;
   new (&_impl_) Impl_{
-      decltype(_impl_.entity_) {}
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.entity_) {}
 
     , decltype(_impl_.target_) {}
 
-    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.baseline_) { false }
+
+    , decltype(_impl_.target_incarnation_) { 0u }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
   };
   _impl_.entity_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -8543,11 +12102,18 @@ void TargetChanged::Clear() {
 
   _impl_.entity_.ClearToEmpty();
   _impl_.target_.ClearToEmpty();
+  ::memset(&_impl_.baseline_tick_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.baseline_) -
+      reinterpret_cast<char*>(&_impl_.baseline_tick_)) + sizeof(_impl_.baseline_));
+  _impl_.target_incarnation_ = 0u;
+  _impl_.tick_ = ::uint64_t{0u};
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* TargetChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
@@ -8574,6 +12140,43 @@ const char* TargetChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext*
           goto handle_unusual;
         }
         continue;
+      // bool baseline = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint32 target_incarnation = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _Internal::set_has_target_incarnation(&has_bits);
+          _impl_.target_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -8590,6 +12193,7 @@ const char* TargetChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext*
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -8617,6 +12221,35 @@ failure:
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
         _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.TargetChanged.target");
     target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  // bool baseline = 3;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        3, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 4;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_baseline_tick(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional uint32 target_incarnation = 5;
+  if (cached_has_bits & 0x00000001u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_target_incarnation(), target);
+  }
+
+  // uint64 tick = 6;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        6, this->_internal_tick(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -8647,6 +12280,30 @@ failure:
                                     this->_internal_target());
   }
 
+  // uint64 baseline_tick = 4;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_baseline_tick());
+  }
+
+  // bool baseline = 3;
+  if (this->_internal_baseline() != 0) {
+    total_size += 2;
+  }
+
+  // optional uint32 target_incarnation = 5;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_incarnation());
+  }
+
+  // uint64 tick = 6;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -8671,6 +12328,18 @@ void TargetChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::
   if (!from._internal_target().empty()) {
     _this->_internal_set_target(from._internal_target());
   }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_target_incarnation(from._internal_target_incarnation());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -8690,16 +12359,23 @@ void TargetChanged::InternalSwap(TargetChanged* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
                                        &other->_impl_.entity_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
                                        &other->_impl_.target_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(TargetChanged, _impl_.tick_)
+      + sizeof(TargetChanged::_impl_.tick_)
+      - PROTOBUF_FIELD_OFFSET(TargetChanged, _impl_.baseline_tick_)>(
+          reinterpret_cast<char*>(&_impl_.baseline_tick_),
+          reinterpret_cast<char*>(&other->_impl_.baseline_tick_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata TargetChanged::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[22]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[25]);
 }
 // ===================================================================
 
@@ -8994,7 +12670,6733 @@ void ClassChanged::InternalSwap(ClassChanged* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata ClassChanged::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
-      file_level_metadata_nightfall_2fv1_2fworld_2eproto[23]);
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[26]);
+}
+// ===================================================================
+
+class ActiveEffect::_Internal {
+ public:
+  using HasBits = decltype(std::declval<ActiveEffect>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ActiveEffect, _impl_._has_bits_);
+  static void set_has_caster(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+  static void set_has_caster_incarnation(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
+};
+
+ActiveEffect::ActiveEffect(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ActiveEffect)
+}
+ActiveEffect::ActiveEffect(const ActiveEffect& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ActiveEffect* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.skill_level_) {}
+
+    , decltype(_impl_.remaining_ticks_) {}
+
+    , decltype(_impl_.is_debuff_) {}
+
+    , decltype(_impl_.caster_incarnation_) {}
+
+    , decltype(_impl_.effect_id_) {}
+
+    , decltype(_impl_.target_incarnation_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.caster_.Set(from._internal_caster(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.skill_id_, &from._impl_.skill_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.target_incarnation_) -
+    reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.target_incarnation_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ActiveEffect)
+}
+
+inline void ActiveEffect::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , decltype(_impl_.remaining_ticks_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.is_debuff_) { false }
+
+    , decltype(_impl_.caster_incarnation_) { 0u }
+
+    , decltype(_impl_.effect_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.target_incarnation_) { 0u }
+
+  };
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ActiveEffect::~ActiveEffect() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ActiveEffect)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ActiveEffect::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.caster_.Destroy();
+}
+
+void ActiveEffect::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ActiveEffect::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ActiveEffect)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    _impl_.caster_.ClearNonDefaultToEmpty();
+  }
+  ::memset(&_impl_.skill_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.is_debuff_) -
+      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.is_debuff_));
+  _impl_.caster_incarnation_ = 0u;
+  ::memset(&_impl_.effect_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.target_incarnation_) -
+      reinterpret_cast<char*>(&_impl_.effect_id_)) + sizeof(_impl_.target_incarnation_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ActiveEffect::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 skill_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 remaining_ticks = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.remaining_ticks_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool is_debuff = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.is_debuff_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional string caster = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
+          auto str = _internal_mutable_caster();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ActiveEffect.caster"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 effect_id = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.effect_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint32 caster_incarnation = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _Internal::set_has_caster_incarnation(&has_bits);
+          _impl_.caster_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 target_incarnation = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.target_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ActiveEffect::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ActiveEffect)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 2;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_skill_level(), target);
+  }
+
+  // uint64 remaining_ticks = 3;
+  if (this->_internal_remaining_ticks() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_remaining_ticks(), target);
+  }
+
+  // bool is_debuff = 4;
+  if (this->_internal_is_debuff() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        4, this->_internal_is_debuff(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional string caster = 5;
+  if (cached_has_bits & 0x00000001u) {
+    const std::string& _s = this->_internal_caster();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ActiveEffect.caster");
+    target = stream->WriteStringMaybeAliased(5, _s, target);
+  }
+
+  // uint64 effect_id = 6;
+  if (this->_internal_effect_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        6, this->_internal_effect_id(), target);
+  }
+
+  // optional uint32 caster_incarnation = 7;
+  if (cached_has_bits & 0x00000002u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_caster_incarnation(), target);
+  }
+
+  // uint32 target_incarnation = 8;
+  if (this->_internal_target_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_target_incarnation(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ActiveEffect)
+  return target;
+}
+
+::size_t ActiveEffect::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ActiveEffect)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // optional string caster = 5;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_caster());
+  }
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 skill_level = 2;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  // uint64 remaining_ticks = 3;
+  if (this->_internal_remaining_ticks() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_remaining_ticks());
+  }
+
+  // bool is_debuff = 4;
+  if (this->_internal_is_debuff() != 0) {
+    total_size += 2;
+  }
+
+  // optional uint32 caster_incarnation = 7;
+  if (cached_has_bits & 0x00000002u) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_caster_incarnation());
+  }
+
+  // uint64 effect_id = 6;
+  if (this->_internal_effect_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_effect_id());
+  }
+
+  // uint32 target_incarnation = 8;
+  if (this->_internal_target_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_incarnation());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ActiveEffect::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ActiveEffect::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ActiveEffect::GetClassData() const { return &_class_data_; }
+
+
+void ActiveEffect::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ActiveEffect*>(&to_msg);
+  auto& from = static_cast<const ActiveEffect&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ActiveEffect)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_caster(from._internal_caster());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  if (from._internal_remaining_ticks() != 0) {
+    _this->_internal_set_remaining_ticks(from._internal_remaining_ticks());
+  }
+  if (from._internal_is_debuff() != 0) {
+    _this->_internal_set_is_debuff(from._internal_is_debuff());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    _this->_internal_set_caster_incarnation(from._internal_caster_incarnation());
+  }
+  if (from._internal_effect_id() != 0) {
+    _this->_internal_set_effect_id(from._internal_effect_id());
+  }
+  if (from._internal_target_incarnation() != 0) {
+    _this->_internal_set_target_incarnation(from._internal_target_incarnation());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ActiveEffect::CopyFrom(const ActiveEffect& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ActiveEffect)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ActiveEffect::IsInitialized() const {
+  return true;
+}
+
+void ActiveEffect::InternalSwap(ActiveEffect* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.caster_, lhs_arena,
+                                       &other->_impl_.caster_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ActiveEffect, _impl_.target_incarnation_)
+      + sizeof(ActiveEffect::_impl_.target_incarnation_)
+      - PROTOBUF_FIELD_OFFSET(ActiveEffect, _impl_.skill_id_)>(
+          reinterpret_cast<char*>(&_impl_.skill_id_),
+          reinterpret_cast<char*>(&other->_impl_.skill_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ActiveEffect::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[27]);
+}
+// ===================================================================
+
+class SkillCastStarted::_Internal {
+ public:
+  using HasBits = decltype(std::declval<SkillCastStarted>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(SkillCastStarted, _impl_._has_bits_);
+  static void set_has_target(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+  static void set_has_target_incarnation(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
+};
+
+SkillCastStarted::SkillCastStarted(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillCastStarted)
+}
+SkillCastStarted::SkillCastStarted(const SkillCastStarted& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillCastStarted* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.skill_level_) {}
+
+    , decltype(_impl_.cast_id_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.complete_tick_) {}
+
+    , decltype(_impl_.caster_incarnation_) {}
+
+    , decltype(_impl_.target_incarnation_) {}
+
+    , decltype(_impl_.baseline_tick_) {}
+
+    , decltype(_impl_.launch_tick_) {}
+
+    , decltype(_impl_.start_tick_) {}
+
+    , decltype(_impl_.baseline_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_caster().empty()) {
+    _this->_impl_.caster_.Set(from._internal_caster(), _this->GetArenaForAllocation());
+  }
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.skill_id_, &from._impl_.skill_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.baseline_) -
+    reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.baseline_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillCastStarted)
+}
+
+inline void SkillCastStarted::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , decltype(_impl_.cast_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.complete_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.caster_incarnation_) { 0u }
+
+    , decltype(_impl_.target_incarnation_) { 0u }
+
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.launch_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.start_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.baseline_) { false }
+
+  };
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillCastStarted::~SkillCastStarted() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillCastStarted)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillCastStarted::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.caster_.Destroy();
+  _impl_.target_.Destroy();
+}
+
+void SkillCastStarted::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillCastStarted::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillCastStarted)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.caster_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    _impl_.target_.ClearNonDefaultToEmpty();
+  }
+  ::memset(&_impl_.skill_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.caster_incarnation_) -
+      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.caster_incarnation_));
+  _impl_.target_incarnation_ = 0u;
+  ::memset(&_impl_.baseline_tick_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.baseline_) -
+      reinterpret_cast<char*>(&_impl_.baseline_tick_)) + sizeof(_impl_.baseline_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillCastStarted::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string caster = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_caster();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCastStarted.caster"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional string target = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_target();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCastStarted.target"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_id = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 cast_id = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.cast_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 complete_tick = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.complete_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 caster_incarnation = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.caster_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint32 target_incarnation = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _Internal::set_has_target_incarnation(&has_bits);
+          _impl_.target_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool baseline = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 88)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 launch_tick = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 96)) {
+          _impl_.launch_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 start_tick = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 104)) {
+          _impl_.start_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillCastStarted::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillCastStarted)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string caster = 1;
+  if (!this->_internal_caster().empty()) {
+    const std::string& _s = this->_internal_caster();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCastStarted.caster");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional string target = 2;
+  if (cached_has_bits & 0x00000001u) {
+    const std::string& _s = this->_internal_target();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCastStarted.target");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  // uint32 skill_id = 3;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 4;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_skill_level(), target);
+  }
+
+  // uint64 cast_id = 5;
+  if (this->_internal_cast_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        5, this->_internal_cast_id(), target);
+  }
+
+  // uint64 tick = 6;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        6, this->_internal_tick(), target);
+  }
+
+  // uint64 complete_tick = 7;
+  if (this->_internal_complete_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        7, this->_internal_complete_tick(), target);
+  }
+
+  // uint32 caster_incarnation = 8;
+  if (this->_internal_caster_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_caster_incarnation(), target);
+  }
+
+  // optional uint32 target_incarnation = 9;
+  if (cached_has_bits & 0x00000002u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        9, this->_internal_target_incarnation(), target);
+  }
+
+  // bool baseline = 10;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        10, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 11;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        11, this->_internal_baseline_tick(), target);
+  }
+
+  // uint64 launch_tick = 12;
+  if (this->_internal_launch_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        12, this->_internal_launch_tick(), target);
+  }
+
+  // uint64 start_tick = 13;
+  if (this->_internal_start_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        13, this->_internal_start_tick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillCastStarted)
+  return target;
+}
+
+::size_t SkillCastStarted::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillCastStarted)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string caster = 1;
+  if (!this->_internal_caster().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_caster());
+  }
+
+  // optional string target = 2;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_target());
+  }
+
+  // uint32 skill_id = 3;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 skill_level = 4;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  // uint64 cast_id = 5;
+  if (this->_internal_cast_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_cast_id());
+  }
+
+  // uint64 tick = 6;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint64 complete_tick = 7;
+  if (this->_internal_complete_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_complete_tick());
+  }
+
+  // uint32 caster_incarnation = 8;
+  if (this->_internal_caster_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_caster_incarnation());
+  }
+
+  // optional uint32 target_incarnation = 9;
+  if (cached_has_bits & 0x00000002u) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_incarnation());
+  }
+
+  // uint64 baseline_tick = 11;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_baseline_tick());
+  }
+
+  // uint64 launch_tick = 12;
+  if (this->_internal_launch_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_launch_tick());
+  }
+
+  // uint64 start_tick = 13;
+  if (this->_internal_start_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_start_tick());
+  }
+
+  // bool baseline = 10;
+  if (this->_internal_baseline() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillCastStarted::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillCastStarted::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillCastStarted::GetClassData() const { return &_class_data_; }
+
+
+void SkillCastStarted::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillCastStarted*>(&to_msg);
+  auto& from = static_cast<const SkillCastStarted&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillCastStarted)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_caster().empty()) {
+    _this->_internal_set_caster(from._internal_caster());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_target(from._internal_target());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  if (from._internal_cast_id() != 0) {
+    _this->_internal_set_cast_id(from._internal_cast_id());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_complete_tick() != 0) {
+    _this->_internal_set_complete_tick(from._internal_complete_tick());
+  }
+  if (from._internal_caster_incarnation() != 0) {
+    _this->_internal_set_caster_incarnation(from._internal_caster_incarnation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    _this->_internal_set_target_incarnation(from._internal_target_incarnation());
+  }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
+  if (from._internal_launch_tick() != 0) {
+    _this->_internal_set_launch_tick(from._internal_launch_tick());
+  }
+  if (from._internal_start_tick() != 0) {
+    _this->_internal_set_start_tick(from._internal_start_tick());
+  }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillCastStarted::CopyFrom(const SkillCastStarted& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillCastStarted)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillCastStarted::IsInitialized() const {
+  return true;
+}
+
+void SkillCastStarted::InternalSwap(SkillCastStarted* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.caster_, lhs_arena,
+                                       &other->_impl_.caster_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
+                                       &other->_impl_.target_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillCastStarted, _impl_.baseline_)
+      + sizeof(SkillCastStarted::_impl_.baseline_)
+      - PROTOBUF_FIELD_OFFSET(SkillCastStarted, _impl_.skill_id_)>(
+          reinterpret_cast<char*>(&_impl_.skill_id_),
+          reinterpret_cast<char*>(&other->_impl_.skill_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillCastStarted::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[28]);
+}
+// ===================================================================
+
+class SkillTargetResult::_Internal {
+ public:
+};
+
+SkillTargetResult::SkillTargetResult(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillTargetResult)
+}
+SkillTargetResult::SkillTargetResult(const SkillTargetResult& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillTargetResult* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.applied_effect_ids_) { from._impl_.applied_effect_ids_ }
+    ,/* _impl_._applied_effect_ids_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.target_incarnation_) {}
+
+    , decltype(_impl_.resolution_kind_) {}
+
+    , decltype(_impl_.rolled_) {}
+
+    , decltype(_impl_.cp_absorbed_) {}
+
+    , decltype(_impl_.hp_removed_) {}
+
+    , decltype(_impl_.heal_) {}
+
+    , decltype(_impl_.outcome_) {}
+
+    , decltype(_impl_.target_hp_after_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_target().empty()) {
+    _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.tick_, &from._impl_.tick_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.target_hp_after_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.target_hp_after_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillTargetResult)
+}
+
+inline void SkillTargetResult::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.applied_effect_ids_) { arena }
+    ,/* _impl_._applied_effect_ids_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.target_incarnation_) { 0u }
+
+    , decltype(_impl_.resolution_kind_) { 0 }
+
+    , decltype(_impl_.rolled_) { 0u }
+
+    , decltype(_impl_.cp_absorbed_) { 0u }
+
+    , decltype(_impl_.hp_removed_) { 0u }
+
+    , decltype(_impl_.heal_) { 0u }
+
+    , decltype(_impl_.outcome_) { 0 }
+
+    , decltype(_impl_.target_hp_after_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillTargetResult::~SkillTargetResult() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillTargetResult)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillTargetResult::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.applied_effect_ids_.~RepeatedField();
+  _impl_.target_.Destroy();
+}
+
+void SkillTargetResult::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillTargetResult::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillTargetResult)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_applied_effect_ids()->Clear();
+  _impl_.target_.ClearToEmpty();
+  ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.target_hp_after_) -
+      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.target_hp_after_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillTargetResult::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string target = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_target();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillTargetResult.target"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 target_incarnation = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.target_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillResolutionKind resolution_kind = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_resolution_kind(static_cast<::nightfall::v1::SkillResolutionKind>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 rolled = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.rolled_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 cp_absorbed = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.cp_absorbed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hp_removed = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.hp_removed_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 heal = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.heal_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillOutcome outcome = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_outcome(static_cast<::nightfall::v1::SkillOutcome>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 target_hp_after = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.target_hp_after_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated uint64 applied_effect_ids = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt64Parser(_internal_mutable_applied_effect_ids(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 88) {
+          _internal_add_applied_effect_ids(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillTargetResult::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillTargetResult)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string target = 1;
+  if (!this->_internal_target().empty()) {
+    const std::string& _s = this->_internal_target();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillTargetResult.target");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 target_incarnation = 2;
+  if (this->_internal_target_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_target_incarnation(), target);
+  }
+
+  // uint64 tick = 3;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_tick(), target);
+  }
+
+  // .nightfall.v1.SkillResolutionKind resolution_kind = 4;
+  if (this->_internal_resolution_kind() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        4, this->_internal_resolution_kind(), target);
+  }
+
+  // uint32 rolled = 5;
+  if (this->_internal_rolled() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_rolled(), target);
+  }
+
+  // uint32 cp_absorbed = 6;
+  if (this->_internal_cp_absorbed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_cp_absorbed(), target);
+  }
+
+  // uint32 hp_removed = 7;
+  if (this->_internal_hp_removed() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_hp_removed(), target);
+  }
+
+  // uint32 heal = 8;
+  if (this->_internal_heal() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_heal(), target);
+  }
+
+  // .nightfall.v1.SkillOutcome outcome = 9;
+  if (this->_internal_outcome() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        9, this->_internal_outcome(), target);
+  }
+
+  // uint32 target_hp_after = 10;
+  if (this->_internal_target_hp_after() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        10, this->_internal_target_hp_after(), target);
+  }
+
+  // repeated uint64 applied_effect_ids = 11;
+  {
+    int byte_size = _impl_._applied_effect_ids_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt64Packed(11, _internal_applied_effect_ids(),
+                                                 byte_size, target);
+    }
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillTargetResult)
+  return target;
+}
+
+::size_t SkillTargetResult::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillTargetResult)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated uint64 applied_effect_ids = 11;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt64Size(
+        this->_internal_applied_effect_ids())
+    ;
+    _impl_._applied_effect_ids_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  // string target = 1;
+  if (!this->_internal_target().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_target());
+  }
+
+  // uint64 tick = 3;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint32 target_incarnation = 2;
+  if (this->_internal_target_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_incarnation());
+  }
+
+  // .nightfall.v1.SkillResolutionKind resolution_kind = 4;
+  if (this->_internal_resolution_kind() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_resolution_kind());
+  }
+
+  // uint32 rolled = 5;
+  if (this->_internal_rolled() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_rolled());
+  }
+
+  // uint32 cp_absorbed = 6;
+  if (this->_internal_cp_absorbed() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_cp_absorbed());
+  }
+
+  // uint32 hp_removed = 7;
+  if (this->_internal_hp_removed() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hp_removed());
+  }
+
+  // uint32 heal = 8;
+  if (this->_internal_heal() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_heal());
+  }
+
+  // .nightfall.v1.SkillOutcome outcome = 9;
+  if (this->_internal_outcome() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_outcome());
+  }
+
+  // uint32 target_hp_after = 10;
+  if (this->_internal_target_hp_after() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_hp_after());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillTargetResult::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillTargetResult::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillTargetResult::GetClassData() const { return &_class_data_; }
+
+
+void SkillTargetResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillTargetResult*>(&to_msg);
+  auto& from = static_cast<const SkillTargetResult&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillTargetResult)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_impl_.applied_effect_ids_.MergeFrom(from._impl_.applied_effect_ids_);
+  if (!from._internal_target().empty()) {
+    _this->_internal_set_target(from._internal_target());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_target_incarnation() != 0) {
+    _this->_internal_set_target_incarnation(from._internal_target_incarnation());
+  }
+  if (from._internal_resolution_kind() != 0) {
+    _this->_internal_set_resolution_kind(from._internal_resolution_kind());
+  }
+  if (from._internal_rolled() != 0) {
+    _this->_internal_set_rolled(from._internal_rolled());
+  }
+  if (from._internal_cp_absorbed() != 0) {
+    _this->_internal_set_cp_absorbed(from._internal_cp_absorbed());
+  }
+  if (from._internal_hp_removed() != 0) {
+    _this->_internal_set_hp_removed(from._internal_hp_removed());
+  }
+  if (from._internal_heal() != 0) {
+    _this->_internal_set_heal(from._internal_heal());
+  }
+  if (from._internal_outcome() != 0) {
+    _this->_internal_set_outcome(from._internal_outcome());
+  }
+  if (from._internal_target_hp_after() != 0) {
+    _this->_internal_set_target_hp_after(from._internal_target_hp_after());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillTargetResult::CopyFrom(const SkillTargetResult& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillTargetResult)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillTargetResult::IsInitialized() const {
+  return true;
+}
+
+void SkillTargetResult::InternalSwap(SkillTargetResult* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _impl_.applied_effect_ids_.InternalSwap(&other->_impl_.applied_effect_ids_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
+                                       &other->_impl_.target_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillTargetResult, _impl_.target_hp_after_)
+      + sizeof(SkillTargetResult::_impl_.target_hp_after_)
+      - PROTOBUF_FIELD_OFFSET(SkillTargetResult, _impl_.tick_)>(
+          reinterpret_cast<char*>(&_impl_.tick_),
+          reinterpret_cast<char*>(&other->_impl_.tick_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillTargetResult::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[29]);
+}
+// ===================================================================
+
+class SkillCastResult::_Internal {
+ public:
+  using HasBits = decltype(std::declval<SkillCastResult>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(SkillCastResult, _impl_._has_bits_);
+  static void set_has_effect_id(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+};
+
+SkillCastResult::SkillCastResult(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillCastResult)
+}
+SkillCastResult::SkillCastResult(const SkillCastResult& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillCastResult* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.targets_){from._impl_.targets_}
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.cast_id_) {}
+
+    , decltype(_impl_.caster_incarnation_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.effect_id_) {}
+
+    , decltype(_impl_.skill_level_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_caster().empty()) {
+    _this->_impl_.caster_.Set(from._internal_caster(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.cast_id_, &from._impl_.cast_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.skill_level_) -
+    reinterpret_cast<char*>(&_impl_.cast_id_)) + sizeof(_impl_.skill_level_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillCastResult)
+}
+
+inline void SkillCastResult::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.targets_){arena}
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.cast_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.caster_incarnation_) { 0u }
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.effect_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+  };
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillCastResult::~SkillCastResult() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillCastResult)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillCastResult::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_targets()->~RepeatedPtrField();
+  _impl_.caster_.Destroy();
+}
+
+void SkillCastResult::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillCastResult::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillCastResult)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_targets()->Clear();
+  _impl_.caster_.ClearToEmpty();
+  ::memset(&_impl_.cast_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.tick_) -
+      reinterpret_cast<char*>(&_impl_.cast_id_)) + sizeof(_impl_.tick_));
+  _impl_.effect_id_ = ::uint64_t{0u};
+  _impl_.skill_level_ = 0u;
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillCastResult::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string caster = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_caster();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCastResult.caster"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 caster_incarnation = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.caster_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 cast_id = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.cast_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_id = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.SkillTargetResult targets = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_targets(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<58>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint64 effect_id = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _Internal::set_has_effect_id(&has_bits);
+          _impl_.effect_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillCastResult::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillCastResult)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string caster = 1;
+  if (!this->_internal_caster().empty()) {
+    const std::string& _s = this->_internal_caster();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCastResult.caster");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 caster_incarnation = 2;
+  if (this->_internal_caster_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_caster_incarnation(), target);
+  }
+
+  // uint64 cast_id = 3;
+  if (this->_internal_cast_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_cast_id(), target);
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_tick(), target);
+  }
+
+  // uint32 skill_id = 5;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 6;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_skill_level(), target);
+  }
+
+  // repeated .nightfall.v1.SkillTargetResult targets = 7;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_targets_size()); i < n; i++) {
+    const auto& repfield = this->_internal_targets(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(7, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional uint64 effect_id = 8;
+  if (cached_has_bits & 0x00000001u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        8, this->_internal_effect_id(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillCastResult)
+  return target;
+}
+
+::size_t SkillCastResult::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillCastResult)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.SkillTargetResult targets = 7;
+  total_size += 1UL * this->_internal_targets_size();
+  for (const auto& msg : this->_internal_targets()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // string caster = 1;
+  if (!this->_internal_caster().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_caster());
+  }
+
+  // uint64 cast_id = 3;
+  if (this->_internal_cast_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_cast_id());
+  }
+
+  // uint32 caster_incarnation = 2;
+  if (this->_internal_caster_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_caster_incarnation());
+  }
+
+  // uint32 skill_id = 5;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // optional uint64 effect_id = 8;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_effect_id());
+  }
+
+  // uint32 skill_level = 6;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillCastResult::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillCastResult::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillCastResult::GetClassData() const { return &_class_data_; }
+
+
+void SkillCastResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillCastResult*>(&to_msg);
+  auto& from = static_cast<const SkillCastResult&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillCastResult)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_targets()->MergeFrom(from._internal_targets());
+  if (!from._internal_caster().empty()) {
+    _this->_internal_set_caster(from._internal_caster());
+  }
+  if (from._internal_cast_id() != 0) {
+    _this->_internal_set_cast_id(from._internal_cast_id());
+  }
+  if (from._internal_caster_incarnation() != 0) {
+    _this->_internal_set_caster_incarnation(from._internal_caster_incarnation());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_effect_id(from._internal_effect_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillCastResult::CopyFrom(const SkillCastResult& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillCastResult)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillCastResult::IsInitialized() const {
+  return true;
+}
+
+void SkillCastResult::InternalSwap(SkillCastResult* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_targets()->InternalSwap(other->_internal_mutable_targets());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.caster_, lhs_arena,
+                                       &other->_impl_.caster_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillCastResult, _impl_.skill_level_)
+      + sizeof(SkillCastResult::_impl_.skill_level_)
+      - PROTOBUF_FIELD_OFFSET(SkillCastResult, _impl_.cast_id_)>(
+          reinterpret_cast<char*>(&_impl_.cast_id_),
+          reinterpret_cast<char*>(&other->_impl_.cast_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillCastResult::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[30]);
+}
+// ===================================================================
+
+class SkillCastCancelled::_Internal {
+ public:
+};
+
+SkillCastCancelled::SkillCastCancelled(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillCastCancelled)
+}
+SkillCastCancelled::SkillCastCancelled(const SkillCastCancelled& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillCastCancelled* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.cast_id_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.reason_) {}
+
+    , decltype(_impl_.caster_incarnation_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_caster().empty()) {
+    _this->_impl_.caster_.Set(from._internal_caster(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.cast_id_, &from._impl_.cast_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.caster_incarnation_) -
+    reinterpret_cast<char*>(&_impl_.cast_id_)) + sizeof(_impl_.caster_incarnation_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillCastCancelled)
+}
+
+inline void SkillCastCancelled::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.cast_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.reason_) { 0 }
+
+    , decltype(_impl_.caster_incarnation_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillCastCancelled::~SkillCastCancelled() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillCastCancelled)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillCastCancelled::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.caster_.Destroy();
+}
+
+void SkillCastCancelled::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillCastCancelled::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillCastCancelled)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.caster_.ClearToEmpty();
+  ::memset(&_impl_.cast_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.caster_incarnation_) -
+      reinterpret_cast<char*>(&_impl_.cast_id_)) + sizeof(_impl_.caster_incarnation_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillCastCancelled::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string caster = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_caster();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCastCancelled.caster"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 cast_id = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.cast_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.CastCancelReason reason = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_reason(static_cast<::nightfall::v1::CastCancelReason>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 caster_incarnation = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.caster_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillCastCancelled::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillCastCancelled)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string caster = 1;
+  if (!this->_internal_caster().empty()) {
+    const std::string& _s = this->_internal_caster();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCastCancelled.caster");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint64 cast_id = 2;
+  if (this->_internal_cast_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        2, this->_internal_cast_id(), target);
+  }
+
+  // .nightfall.v1.CastCancelReason reason = 3;
+  if (this->_internal_reason() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        3, this->_internal_reason(), target);
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_tick(), target);
+  }
+
+  // uint32 caster_incarnation = 5;
+  if (this->_internal_caster_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_caster_incarnation(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillCastCancelled)
+  return target;
+}
+
+::size_t SkillCastCancelled::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillCastCancelled)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string caster = 1;
+  if (!this->_internal_caster().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_caster());
+  }
+
+  // uint64 cast_id = 2;
+  if (this->_internal_cast_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_cast_id());
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // .nightfall.v1.CastCancelReason reason = 3;
+  if (this->_internal_reason() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_reason());
+  }
+
+  // uint32 caster_incarnation = 5;
+  if (this->_internal_caster_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_caster_incarnation());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillCastCancelled::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillCastCancelled::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillCastCancelled::GetClassData() const { return &_class_data_; }
+
+
+void SkillCastCancelled::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillCastCancelled*>(&to_msg);
+  auto& from = static_cast<const SkillCastCancelled&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillCastCancelled)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_caster().empty()) {
+    _this->_internal_set_caster(from._internal_caster());
+  }
+  if (from._internal_cast_id() != 0) {
+    _this->_internal_set_cast_id(from._internal_cast_id());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_reason() != 0) {
+    _this->_internal_set_reason(from._internal_reason());
+  }
+  if (from._internal_caster_incarnation() != 0) {
+    _this->_internal_set_caster_incarnation(from._internal_caster_incarnation());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillCastCancelled::CopyFrom(const SkillCastCancelled& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillCastCancelled)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillCastCancelled::IsInitialized() const {
+  return true;
+}
+
+void SkillCastCancelled::InternalSwap(SkillCastCancelled* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.caster_, lhs_arena,
+                                       &other->_impl_.caster_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillCastCancelled, _impl_.caster_incarnation_)
+      + sizeof(SkillCastCancelled::_impl_.caster_incarnation_)
+      - PROTOBUF_FIELD_OFFSET(SkillCastCancelled, _impl_.cast_id_)>(
+          reinterpret_cast<char*>(&_impl_.cast_id_),
+          reinterpret_cast<char*>(&other->_impl_.cast_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillCastCancelled::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[31]);
+}
+// ===================================================================
+
+class EffectApplied::_Internal {
+ public:
+  using HasBits = decltype(std::declval<EffectApplied>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(EffectApplied, _impl_._has_bits_);
+  static void set_has_caster(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+  static void set_has_caster_incarnation(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
+};
+
+EffectApplied::EffectApplied(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.EffectApplied)
+}
+EffectApplied::EffectApplied(const EffectApplied& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  EffectApplied* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.abnormal_type_) {}
+
+    , decltype(_impl_.target_incarnation_) {}
+
+    , decltype(_impl_.caster_incarnation_) {}
+
+    , decltype(_impl_.effect_id_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.skill_level_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.end_tick_) {}
+
+    , decltype(_impl_.pool_) {}
+
+    , decltype(_impl_.abnormal_level_) {}
+
+    , decltype(_impl_.status_flags_) {}
+
+    , decltype(_impl_.baseline_tick_) {}
+
+    , decltype(_impl_.applied_tick_) {}
+
+    , decltype(_impl_.baseline_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_target().empty()) {
+    _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
+  }
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.caster_.Set(from._internal_caster(), _this->GetArenaForAllocation());
+  }
+  _impl_.abnormal_type_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.abnormal_type_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_abnormal_type().empty()) {
+    _this->_impl_.abnormal_type_.Set(from._internal_abnormal_type(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.target_incarnation_, &from._impl_.target_incarnation_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.baseline_) -
+    reinterpret_cast<char*>(&_impl_.target_incarnation_)) + sizeof(_impl_.baseline_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.EffectApplied)
+}
+
+inline void EffectApplied::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.abnormal_type_) {}
+
+    , decltype(_impl_.target_incarnation_) { 0u }
+
+    , decltype(_impl_.caster_incarnation_) { 0u }
+
+    , decltype(_impl_.effect_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.end_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.pool_) { 0 }
+
+    , decltype(_impl_.abnormal_level_) { 0u }
+
+    , decltype(_impl_.status_flags_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.applied_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.baseline_) { false }
+
+  };
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.abnormal_type_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.abnormal_type_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+EffectApplied::~EffectApplied() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.EffectApplied)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void EffectApplied::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.target_.Destroy();
+  _impl_.caster_.Destroy();
+  _impl_.abnormal_type_.Destroy();
+}
+
+void EffectApplied::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void EffectApplied::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.EffectApplied)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.target_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    _impl_.caster_.ClearNonDefaultToEmpty();
+  }
+  _impl_.abnormal_type_.ClearToEmpty();
+  _impl_.target_incarnation_ = 0u;
+  _impl_.caster_incarnation_ = 0u;
+  ::memset(&_impl_.effect_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.baseline_) -
+      reinterpret_cast<char*>(&_impl_.effect_id_)) + sizeof(_impl_.baseline_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* EffectApplied::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string target = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_target();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.EffectApplied.target"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 target_incarnation = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.target_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional string caster = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          auto str = _internal_mutable_caster();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.EffectApplied.caster"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint32 caster_incarnation = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _Internal::set_has_caster_incarnation(&has_bits);
+          _impl_.caster_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 effect_id = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.effect_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_id = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EffectPool pool = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_pool(static_cast<::nightfall::v1::EffectPool>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 end_tick = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.end_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string abnormal_type = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
+          auto str = _internal_mutable_abnormal_type();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.EffectApplied.abnormal_type"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 abnormal_level = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 96)) {
+          _impl_.abnormal_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 status_flags = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 104)) {
+          _impl_.status_flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool baseline = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 112)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 120)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 applied_tick = 16;
+      case 16:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 128)) {
+          _impl_.applied_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* EffectApplied::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.EffectApplied)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string target = 1;
+  if (!this->_internal_target().empty()) {
+    const std::string& _s = this->_internal_target();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.EffectApplied.target");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 target_incarnation = 2;
+  if (this->_internal_target_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_target_incarnation(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional string caster = 3;
+  if (cached_has_bits & 0x00000001u) {
+    const std::string& _s = this->_internal_caster();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.EffectApplied.caster");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
+  }
+
+  // optional uint32 caster_incarnation = 4;
+  if (cached_has_bits & 0x00000002u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_caster_incarnation(), target);
+  }
+
+  // uint64 effect_id = 5;
+  if (this->_internal_effect_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        5, this->_internal_effect_id(), target);
+  }
+
+  // uint32 skill_id = 6;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 7;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_skill_level(), target);
+  }
+
+  // .nightfall.v1.EffectPool pool = 8;
+  if (this->_internal_pool() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        8, this->_internal_pool(), target);
+  }
+
+  // uint64 tick = 9;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        9, this->_internal_tick(), target);
+  }
+
+  // uint64 end_tick = 10;
+  if (this->_internal_end_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        10, this->_internal_end_tick(), target);
+  }
+
+  // string abnormal_type = 11;
+  if (!this->_internal_abnormal_type().empty()) {
+    const std::string& _s = this->_internal_abnormal_type();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.EffectApplied.abnormal_type");
+    target = stream->WriteStringMaybeAliased(11, _s, target);
+  }
+
+  // uint32 abnormal_level = 12;
+  if (this->_internal_abnormal_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        12, this->_internal_abnormal_level(), target);
+  }
+
+  // uint64 status_flags = 13;
+  if (this->_internal_status_flags() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        13, this->_internal_status_flags(), target);
+  }
+
+  // bool baseline = 14;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        14, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 15;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        15, this->_internal_baseline_tick(), target);
+  }
+
+  // uint64 applied_tick = 16;
+  if (this->_internal_applied_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        16, this->_internal_applied_tick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.EffectApplied)
+  return target;
+}
+
+::size_t EffectApplied::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.EffectApplied)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string target = 1;
+  if (!this->_internal_target().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_target());
+  }
+
+  // optional string caster = 3;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_caster());
+  }
+
+  // string abnormal_type = 11;
+  if (!this->_internal_abnormal_type().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_abnormal_type());
+  }
+
+  // uint32 target_incarnation = 2;
+  if (this->_internal_target_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_incarnation());
+  }
+
+  // optional uint32 caster_incarnation = 4;
+  if (cached_has_bits & 0x00000002u) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_caster_incarnation());
+  }
+
+  // uint64 effect_id = 5;
+  if (this->_internal_effect_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_effect_id());
+  }
+
+  // uint32 skill_id = 6;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 skill_level = 7;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  // uint64 tick = 9;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint64 end_tick = 10;
+  if (this->_internal_end_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_end_tick());
+  }
+
+  // .nightfall.v1.EffectPool pool = 8;
+  if (this->_internal_pool() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_pool());
+  }
+
+  // uint32 abnormal_level = 12;
+  if (this->_internal_abnormal_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_abnormal_level());
+  }
+
+  // uint64 status_flags = 13;
+  if (this->_internal_status_flags() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_status_flags());
+  }
+
+  // uint64 baseline_tick = 15;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_baseline_tick());
+  }
+
+  // uint64 applied_tick = 16;
+  if (this->_internal_applied_tick() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt64Size(
+                                    this->_internal_applied_tick());
+  }
+
+  // bool baseline = 14;
+  if (this->_internal_baseline() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData EffectApplied::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    EffectApplied::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*EffectApplied::GetClassData() const { return &_class_data_; }
+
+
+void EffectApplied::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<EffectApplied*>(&to_msg);
+  auto& from = static_cast<const EffectApplied&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.EffectApplied)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_target().empty()) {
+    _this->_internal_set_target(from._internal_target());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_caster(from._internal_caster());
+  }
+  if (!from._internal_abnormal_type().empty()) {
+    _this->_internal_set_abnormal_type(from._internal_abnormal_type());
+  }
+  if (from._internal_target_incarnation() != 0) {
+    _this->_internal_set_target_incarnation(from._internal_target_incarnation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    _this->_internal_set_caster_incarnation(from._internal_caster_incarnation());
+  }
+  if (from._internal_effect_id() != 0) {
+    _this->_internal_set_effect_id(from._internal_effect_id());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_end_tick() != 0) {
+    _this->_internal_set_end_tick(from._internal_end_tick());
+  }
+  if (from._internal_pool() != 0) {
+    _this->_internal_set_pool(from._internal_pool());
+  }
+  if (from._internal_abnormal_level() != 0) {
+    _this->_internal_set_abnormal_level(from._internal_abnormal_level());
+  }
+  if (from._internal_status_flags() != 0) {
+    _this->_internal_set_status_flags(from._internal_status_flags());
+  }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
+  if (from._internal_applied_tick() != 0) {
+    _this->_internal_set_applied_tick(from._internal_applied_tick());
+  }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void EffectApplied::CopyFrom(const EffectApplied& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.EffectApplied)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool EffectApplied::IsInitialized() const {
+  return true;
+}
+
+void EffectApplied::InternalSwap(EffectApplied* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
+                                       &other->_impl_.target_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.caster_, lhs_arena,
+                                       &other->_impl_.caster_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.abnormal_type_, lhs_arena,
+                                       &other->_impl_.abnormal_type_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(EffectApplied, _impl_.baseline_)
+      + sizeof(EffectApplied::_impl_.baseline_)
+      - PROTOBUF_FIELD_OFFSET(EffectApplied, _impl_.target_incarnation_)>(
+          reinterpret_cast<char*>(&_impl_.target_incarnation_),
+          reinterpret_cast<char*>(&other->_impl_.target_incarnation_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata EffectApplied::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[32]);
+}
+// ===================================================================
+
+class EffectRemoved::_Internal {
+ public:
+};
+
+EffectRemoved::EffectRemoved(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.EffectRemoved)
+}
+EffectRemoved::EffectRemoved(const EffectRemoved& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  EffectRemoved* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.target_) {}
+
+    , decltype(_impl_.effect_id_) {}
+
+    , decltype(_impl_.target_incarnation_) {}
+
+    , decltype(_impl_.reason_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_target().empty()) {
+    _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.effect_id_, &from._impl_.effect_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.tick_) -
+    reinterpret_cast<char*>(&_impl_.effect_id_)) + sizeof(_impl_.tick_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.EffectRemoved)
+}
+
+inline void EffectRemoved::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.target_) {}
+
+    , decltype(_impl_.effect_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.target_incarnation_) { 0u }
+
+    , decltype(_impl_.reason_) { 0 }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+EffectRemoved::~EffectRemoved() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.EffectRemoved)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void EffectRemoved::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.target_.Destroy();
+}
+
+void EffectRemoved::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void EffectRemoved::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.EffectRemoved)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.target_.ClearToEmpty();
+  ::memset(&_impl_.effect_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.tick_) -
+      reinterpret_cast<char*>(&_impl_.effect_id_)) + sizeof(_impl_.tick_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* EffectRemoved::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string target = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_target();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.EffectRemoved.target"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 target_incarnation = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.target_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 effect_id = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.effect_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EffectRemoveReason reason = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_reason(static_cast<::nightfall::v1::EffectRemoveReason>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* EffectRemoved::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.EffectRemoved)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string target = 1;
+  if (!this->_internal_target().empty()) {
+    const std::string& _s = this->_internal_target();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.EffectRemoved.target");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 target_incarnation = 2;
+  if (this->_internal_target_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_target_incarnation(), target);
+  }
+
+  // uint64 effect_id = 3;
+  if (this->_internal_effect_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_effect_id(), target);
+  }
+
+  // .nightfall.v1.EffectRemoveReason reason = 4;
+  if (this->_internal_reason() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        4, this->_internal_reason(), target);
+  }
+
+  // uint64 tick = 5;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        5, this->_internal_tick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.EffectRemoved)
+  return target;
+}
+
+::size_t EffectRemoved::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.EffectRemoved)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string target = 1;
+  if (!this->_internal_target().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_target());
+  }
+
+  // uint64 effect_id = 3;
+  if (this->_internal_effect_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_effect_id());
+  }
+
+  // uint32 target_incarnation = 2;
+  if (this->_internal_target_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_incarnation());
+  }
+
+  // .nightfall.v1.EffectRemoveReason reason = 4;
+  if (this->_internal_reason() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_reason());
+  }
+
+  // uint64 tick = 5;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData EffectRemoved::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    EffectRemoved::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*EffectRemoved::GetClassData() const { return &_class_data_; }
+
+
+void EffectRemoved::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<EffectRemoved*>(&to_msg);
+  auto& from = static_cast<const EffectRemoved&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.EffectRemoved)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_target().empty()) {
+    _this->_internal_set_target(from._internal_target());
+  }
+  if (from._internal_effect_id() != 0) {
+    _this->_internal_set_effect_id(from._internal_effect_id());
+  }
+  if (from._internal_target_incarnation() != 0) {
+    _this->_internal_set_target_incarnation(from._internal_target_incarnation());
+  }
+  if (from._internal_reason() != 0) {
+    _this->_internal_set_reason(from._internal_reason());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void EffectRemoved::CopyFrom(const EffectRemoved& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.EffectRemoved)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool EffectRemoved::IsInitialized() const {
+  return true;
+}
+
+void EffectRemoved::InternalSwap(EffectRemoved* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
+                                       &other->_impl_.target_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(EffectRemoved, _impl_.tick_)
+      + sizeof(EffectRemoved::_impl_.tick_)
+      - PROTOBUF_FIELD_OFFSET(EffectRemoved, _impl_.effect_id_)>(
+          reinterpret_cast<char*>(&_impl_.effect_id_),
+          reinterpret_cast<char*>(&other->_impl_.effect_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata EffectRemoved::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[33]);
+}
+// ===================================================================
+
+class SkillReuse::_Internal {
+ public:
+};
+
+SkillReuse::SkillReuse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillReuse)
+}
+SkillReuse::SkillReuse(const SkillReuse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillReuse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.ready_tick_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.incarnation_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.ready_tick_, &from._impl_.ready_tick_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.tick_) -
+    reinterpret_cast<char*>(&_impl_.ready_tick_)) + sizeof(_impl_.tick_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillReuse)
+}
+
+inline void SkillReuse::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.ready_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.incarnation_) { 0u }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillReuse::~SkillReuse() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillReuse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillReuse::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+}
+
+void SkillReuse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillReuse::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillReuse)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  ::memset(&_impl_.ready_tick_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.tick_) -
+      reinterpret_cast<char*>(&_impl_.ready_tick_)) + sizeof(_impl_.tick_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillReuse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillReuse.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_id = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 ready_tick = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.ready_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillReuse::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillReuse)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillReuse.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 skill_id = 2;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_skill_id(), target);
+  }
+
+  // uint64 ready_tick = 3;
+  if (this->_internal_ready_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_ready_tick(), target);
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_tick(), target);
+  }
+
+  // uint32 incarnation = 5;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_incarnation(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillReuse)
+  return target;
+}
+
+::size_t SkillReuse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillReuse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // uint64 ready_tick = 3;
+  if (this->_internal_ready_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_ready_tick());
+  }
+
+  // uint32 skill_id = 2;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 incarnation = 5;
+  if (this->_internal_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_incarnation());
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillReuse::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillReuse::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillReuse::GetClassData() const { return &_class_data_; }
+
+
+void SkillReuse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillReuse*>(&to_msg);
+  auto& from = static_cast<const SkillReuse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillReuse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (from._internal_ready_tick() != 0) {
+    _this->_internal_set_ready_tick(from._internal_ready_tick());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillReuse::CopyFrom(const SkillReuse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillReuse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillReuse::IsInitialized() const {
+  return true;
+}
+
+void SkillReuse::InternalSwap(SkillReuse* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillReuse, _impl_.tick_)
+      + sizeof(SkillReuse::_impl_.tick_)
+      - PROTOBUF_FIELD_OFFSET(SkillReuse, _impl_.ready_tick_)>(
+          reinterpret_cast<char*>(&_impl_.ready_tick_),
+          reinterpret_cast<char*>(&other->_impl_.ready_tick_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillReuse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[34]);
+}
+// ===================================================================
+
+class SkillLearned::_Internal {
+ public:
+};
+
+SkillLearned::SkillLearned(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillLearned)
+}
+SkillLearned::SkillLearned(const SkillLearned& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillLearned* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.idempotency_key_) {}
+
+    , decltype(_impl_.skill_id_) {}
+
+    , decltype(_impl_.skill_level_) {}
+
+    , decltype(_impl_.sp_cost_) {}
+
+    , decltype(_impl_.sp_remaining_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.incarnation_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  _impl_.idempotency_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.idempotency_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_idempotency_key().empty()) {
+    _this->_impl_.idempotency_key_.Set(from._internal_idempotency_key(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.skill_id_, &from._impl_.skill_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.incarnation_) -
+    reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.incarnation_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillLearned)
+}
+
+inline void SkillLearned::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.idempotency_key_) {}
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , decltype(_impl_.sp_cost_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.sp_remaining_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.incarnation_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.idempotency_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.idempotency_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillLearned::~SkillLearned() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillLearned)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillLearned::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+  _impl_.idempotency_key_.Destroy();
+}
+
+void SkillLearned::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillLearned::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillLearned)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  _impl_.idempotency_key_.ClearToEmpty();
+  ::memset(&_impl_.skill_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.incarnation_) -
+      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.incarnation_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillLearned::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillLearned.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_id = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 sp_cost = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.sp_cost_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 sp_remaining = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.sp_remaining_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string idempotency_key = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          auto str = _internal_mutable_idempotency_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillLearned.idempotency_key"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillLearned::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillLearned)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillLearned.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 skill_id = 2;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 3;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_skill_level(), target);
+  }
+
+  // uint64 sp_cost = 4;
+  if (this->_internal_sp_cost() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_sp_cost(), target);
+  }
+
+  // uint64 sp_remaining = 5;
+  if (this->_internal_sp_remaining() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        5, this->_internal_sp_remaining(), target);
+  }
+
+  // string idempotency_key = 6;
+  if (!this->_internal_idempotency_key().empty()) {
+    const std::string& _s = this->_internal_idempotency_key();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillLearned.idempotency_key");
+    target = stream->WriteStringMaybeAliased(6, _s, target);
+  }
+
+  // uint64 tick = 7;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        7, this->_internal_tick(), target);
+  }
+
+  // uint32 incarnation = 8;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_incarnation(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillLearned)
+  return target;
+}
+
+::size_t SkillLearned::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillLearned)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // string idempotency_key = 6;
+  if (!this->_internal_idempotency_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_idempotency_key());
+  }
+
+  // uint32 skill_id = 2;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 skill_level = 3;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  // uint64 sp_cost = 4;
+  if (this->_internal_sp_cost() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_sp_cost());
+  }
+
+  // uint64 sp_remaining = 5;
+  if (this->_internal_sp_remaining() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_sp_remaining());
+  }
+
+  // uint64 tick = 7;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint32 incarnation = 8;
+  if (this->_internal_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_incarnation());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillLearned::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillLearned::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillLearned::GetClassData() const { return &_class_data_; }
+
+
+void SkillLearned::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillLearned*>(&to_msg);
+  auto& from = static_cast<const SkillLearned&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillLearned)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (!from._internal_idempotency_key().empty()) {
+    _this->_internal_set_idempotency_key(from._internal_idempotency_key());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  if (from._internal_sp_cost() != 0) {
+    _this->_internal_set_sp_cost(from._internal_sp_cost());
+  }
+  if (from._internal_sp_remaining() != 0) {
+    _this->_internal_set_sp_remaining(from._internal_sp_remaining());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillLearned::CopyFrom(const SkillLearned& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillLearned)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillLearned::IsInitialized() const {
+  return true;
+}
+
+void SkillLearned::InternalSwap(SkillLearned* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.idempotency_key_, lhs_arena,
+                                       &other->_impl_.idempotency_key_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillLearned, _impl_.incarnation_)
+      + sizeof(SkillLearned::_impl_.incarnation_)
+      - PROTOBUF_FIELD_OFFSET(SkillLearned, _impl_.skill_id_)>(
+          reinterpret_cast<char*>(&_impl_.skill_id_),
+          reinterpret_cast<char*>(&other->_impl_.skill_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillLearned::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[35]);
+}
+// ===================================================================
+
+class PvpStateChanged::_Internal {
+ public:
+};
+
+PvpStateChanged::PvpStateChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.PvpStateChanged)
+}
+PvpStateChanged::PvpStateChanged(const PvpStateChanged& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  PvpStateChanged* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.flag_until_tick_) {}
+
+    , decltype(_impl_.karma_) {}
+
+    , decltype(_impl_.pk_count_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.pvp_count_) {}
+
+    , decltype(_impl_.incarnation_) {}
+
+    , decltype(_impl_.baseline_tick_) {}
+
+    , decltype(_impl_.baseline_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.flag_until_tick_, &from._impl_.flag_until_tick_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.baseline_) -
+    reinterpret_cast<char*>(&_impl_.flag_until_tick_)) + sizeof(_impl_.baseline_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.PvpStateChanged)
+}
+
+inline void PvpStateChanged::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.flag_until_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.karma_) { 0u }
+
+    , decltype(_impl_.pk_count_) { 0u }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.pvp_count_) { 0u }
+
+    , decltype(_impl_.incarnation_) { 0u }
+
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.baseline_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+PvpStateChanged::~PvpStateChanged() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.PvpStateChanged)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void PvpStateChanged::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+}
+
+void PvpStateChanged::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void PvpStateChanged::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.PvpStateChanged)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  ::memset(&_impl_.flag_until_tick_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.baseline_) -
+      reinterpret_cast<char*>(&_impl_.flag_until_tick_)) + sizeof(_impl_.baseline_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* PvpStateChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.PvpStateChanged.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 flag_until_tick = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.flag_until_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 karma = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.karma_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 pk_count = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.pk_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 pvp_count = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.pvp_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool baseline = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* PvpStateChanged::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.PvpStateChanged)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.PvpStateChanged.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint64 flag_until_tick = 2;
+  if (this->_internal_flag_until_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        2, this->_internal_flag_until_tick(), target);
+  }
+
+  // uint32 karma = 3;
+  if (this->_internal_karma() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_karma(), target);
+  }
+
+  // uint32 pk_count = 4;
+  if (this->_internal_pk_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_pk_count(), target);
+  }
+
+  // uint32 pvp_count = 5;
+  if (this->_internal_pvp_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_pvp_count(), target);
+  }
+
+  // uint64 tick = 6;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        6, this->_internal_tick(), target);
+  }
+
+  // uint32 incarnation = 7;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_incarnation(), target);
+  }
+
+  // bool baseline = 8;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        8, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 9;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        9, this->_internal_baseline_tick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.PvpStateChanged)
+  return target;
+}
+
+::size_t PvpStateChanged::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.PvpStateChanged)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // uint64 flag_until_tick = 2;
+  if (this->_internal_flag_until_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_flag_until_tick());
+  }
+
+  // uint32 karma = 3;
+  if (this->_internal_karma() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_karma());
+  }
+
+  // uint32 pk_count = 4;
+  if (this->_internal_pk_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_pk_count());
+  }
+
+  // uint64 tick = 6;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint32 pvp_count = 5;
+  if (this->_internal_pvp_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_pvp_count());
+  }
+
+  // uint32 incarnation = 7;
+  if (this->_internal_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_incarnation());
+  }
+
+  // uint64 baseline_tick = 9;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_baseline_tick());
+  }
+
+  // bool baseline = 8;
+  if (this->_internal_baseline() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData PvpStateChanged::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    PvpStateChanged::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*PvpStateChanged::GetClassData() const { return &_class_data_; }
+
+
+void PvpStateChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<PvpStateChanged*>(&to_msg);
+  auto& from = static_cast<const PvpStateChanged&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.PvpStateChanged)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (from._internal_flag_until_tick() != 0) {
+    _this->_internal_set_flag_until_tick(from._internal_flag_until_tick());
+  }
+  if (from._internal_karma() != 0) {
+    _this->_internal_set_karma(from._internal_karma());
+  }
+  if (from._internal_pk_count() != 0) {
+    _this->_internal_set_pk_count(from._internal_pk_count());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_pvp_count() != 0) {
+    _this->_internal_set_pvp_count(from._internal_pvp_count());
+  }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void PvpStateChanged::CopyFrom(const PvpStateChanged& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.PvpStateChanged)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool PvpStateChanged::IsInitialized() const {
+  return true;
+}
+
+void PvpStateChanged::InternalSwap(PvpStateChanged* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(PvpStateChanged, _impl_.baseline_)
+      + sizeof(PvpStateChanged::_impl_.baseline_)
+      - PROTOBUF_FIELD_OFFSET(PvpStateChanged, _impl_.flag_until_tick_)>(
+          reinterpret_cast<char*>(&_impl_.flag_until_tick_),
+          reinterpret_cast<char*>(&other->_impl_.flag_until_tick_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata PvpStateChanged::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[36]);
+}
+// ===================================================================
+
+class ResurrectOffer::_Internal {
+ public:
+  using HasBits = decltype(std::declval<ResurrectOffer>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ResurrectOffer, _impl_._has_bits_);
+  static void set_has_caster(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+  static void set_has_caster_incarnation(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
+};
+
+ResurrectOffer::ResurrectOffer(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.ResurrectOffer)
+}
+ResurrectOffer::ResurrectOffer(const ResurrectOffer& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ResurrectOffer* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.offer_id_) {}
+
+    , decltype(_impl_.target_incarnation_) {}
+
+    , decltype(_impl_.caster_incarnation_) {}
+
+    , decltype(_impl_.restore_percent_q_) {}
+
+    , decltype(_impl_.recoverable_xp_) {}
+
+    , decltype(_impl_.expiry_tick_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.state_) {}
+  };
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_target().empty()) {
+    _this->_impl_.target_.Set(from._internal_target(), _this->GetArenaForAllocation());
+  }
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.caster_.Set(from._internal_caster(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.offer_id_, &from._impl_.offer_id_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.state_) -
+    reinterpret_cast<char*>(&_impl_.offer_id_)) + sizeof(_impl_.state_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.ResurrectOffer)
+}
+
+inline void ResurrectOffer::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.target_) {}
+
+    , decltype(_impl_.caster_) {}
+
+    , decltype(_impl_.offer_id_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.target_incarnation_) { 0u }
+
+    , decltype(_impl_.caster_incarnation_) { 0u }
+
+    , decltype(_impl_.restore_percent_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.recoverable_xp_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.expiry_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.state_) { 0 }
+
+  };
+  _impl_.target_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.target_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.caster_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.caster_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ResurrectOffer::~ResurrectOffer() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.ResurrectOffer)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ResurrectOffer::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.target_.Destroy();
+  _impl_.caster_.Destroy();
+}
+
+void ResurrectOffer::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ResurrectOffer::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.ResurrectOffer)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.target_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    _impl_.caster_.ClearNonDefaultToEmpty();
+  }
+  ::memset(&_impl_.offer_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.target_incarnation_) -
+      reinterpret_cast<char*>(&_impl_.offer_id_)) + sizeof(_impl_.target_incarnation_));
+  _impl_.caster_incarnation_ = 0u;
+  ::memset(&_impl_.restore_percent_q_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.state_) -
+      reinterpret_cast<char*>(&_impl_.restore_percent_q_)) + sizeof(_impl_.state_));
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ResurrectOffer::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string target = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_target();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ResurrectOffer.target"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 target_incarnation = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.target_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 offer_id = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.offer_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional string caster = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 34)) {
+          auto str = _internal_mutable_caster();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ResurrectOffer.caster"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint32 caster_incarnation = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _Internal::set_has_caster_incarnation(&has_bits);
+          _impl_.caster_incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 restore_percent_q = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.restore_percent_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 recoverable_xp = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.recoverable_xp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 expiry_tick = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.expiry_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ResurrectOfferState state = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_state(static_cast<::nightfall::v1::ResurrectOfferState>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ResurrectOffer::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.ResurrectOffer)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string target = 1;
+  if (!this->_internal_target().empty()) {
+    const std::string& _s = this->_internal_target();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ResurrectOffer.target");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 target_incarnation = 2;
+  if (this->_internal_target_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_target_incarnation(), target);
+  }
+
+  // uint64 offer_id = 3;
+  if (this->_internal_offer_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_offer_id(), target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional string caster = 4;
+  if (cached_has_bits & 0x00000001u) {
+    const std::string& _s = this->_internal_caster();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ResurrectOffer.caster");
+    target = stream->WriteStringMaybeAliased(4, _s, target);
+  }
+
+  // optional uint32 caster_incarnation = 5;
+  if (cached_has_bits & 0x00000002u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_caster_incarnation(), target);
+  }
+
+  // int64 restore_percent_q = 6;
+  if (this->_internal_restore_percent_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        6, this->_internal_restore_percent_q(), target);
+  }
+
+  // uint64 recoverable_xp = 7;
+  if (this->_internal_recoverable_xp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        7, this->_internal_recoverable_xp(), target);
+  }
+
+  // uint64 expiry_tick = 8;
+  if (this->_internal_expiry_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        8, this->_internal_expiry_tick(), target);
+  }
+
+  // .nightfall.v1.ResurrectOfferState state = 9;
+  if (this->_internal_state() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        9, this->_internal_state(), target);
+  }
+
+  // uint64 tick = 10;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        10, this->_internal_tick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.ResurrectOffer)
+  return target;
+}
+
+::size_t ResurrectOffer::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.ResurrectOffer)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string target = 1;
+  if (!this->_internal_target().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_target());
+  }
+
+  // optional string caster = 4;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_caster());
+  }
+
+  // uint64 offer_id = 3;
+  if (this->_internal_offer_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_offer_id());
+  }
+
+  // uint32 target_incarnation = 2;
+  if (this->_internal_target_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_target_incarnation());
+  }
+
+  // optional uint32 caster_incarnation = 5;
+  if (cached_has_bits & 0x00000002u) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_caster_incarnation());
+  }
+
+  // int64 restore_percent_q = 6;
+  if (this->_internal_restore_percent_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_restore_percent_q());
+  }
+
+  // uint64 recoverable_xp = 7;
+  if (this->_internal_recoverable_xp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_recoverable_xp());
+  }
+
+  // uint64 expiry_tick = 8;
+  if (this->_internal_expiry_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_expiry_tick());
+  }
+
+  // uint64 tick = 10;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // .nightfall.v1.ResurrectOfferState state = 9;
+  if (this->_internal_state() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_state());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ResurrectOffer::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ResurrectOffer::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ResurrectOffer::GetClassData() const { return &_class_data_; }
+
+
+void ResurrectOffer::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ResurrectOffer*>(&to_msg);
+  auto& from = static_cast<const ResurrectOffer&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.ResurrectOffer)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_target().empty()) {
+    _this->_internal_set_target(from._internal_target());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_caster(from._internal_caster());
+  }
+  if (from._internal_offer_id() != 0) {
+    _this->_internal_set_offer_id(from._internal_offer_id());
+  }
+  if (from._internal_target_incarnation() != 0) {
+    _this->_internal_set_target_incarnation(from._internal_target_incarnation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    _this->_internal_set_caster_incarnation(from._internal_caster_incarnation());
+  }
+  if (from._internal_restore_percent_q() != 0) {
+    _this->_internal_set_restore_percent_q(from._internal_restore_percent_q());
+  }
+  if (from._internal_recoverable_xp() != 0) {
+    _this->_internal_set_recoverable_xp(from._internal_recoverable_xp());
+  }
+  if (from._internal_expiry_tick() != 0) {
+    _this->_internal_set_expiry_tick(from._internal_expiry_tick());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_state() != 0) {
+    _this->_internal_set_state(from._internal_state());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ResurrectOffer::CopyFrom(const ResurrectOffer& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.ResurrectOffer)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ResurrectOffer::IsInitialized() const {
+  return true;
+}
+
+void ResurrectOffer::InternalSwap(ResurrectOffer* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_, lhs_arena,
+                                       &other->_impl_.target_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.caster_, lhs_arena,
+                                       &other->_impl_.caster_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ResurrectOffer, _impl_.state_)
+      + sizeof(ResurrectOffer::_impl_.state_)
+      - PROTOBUF_FIELD_OFFSET(ResurrectOffer, _impl_.offer_id_)>(
+          reinterpret_cast<char*>(&_impl_.offer_id_),
+          reinterpret_cast<char*>(&other->_impl_.offer_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ResurrectOffer::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[37]);
+}
+// ===================================================================
+
+class SpGained::_Internal {
+ public:
+};
+
+SpGained::SpGained(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SpGained)
+}
+SpGained::SpGained(const SpGained& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SpGained* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.amount_) {}
+
+    , decltype(_impl_.total_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.incarnation_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.amount_, &from._impl_.amount_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.incarnation_) -
+    reinterpret_cast<char*>(&_impl_.amount_)) + sizeof(_impl_.incarnation_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SpGained)
+}
+
+inline void SpGained::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.amount_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.total_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.incarnation_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SpGained::~SpGained() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SpGained)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SpGained::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+}
+
+void SpGained::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SpGained::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SpGained)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  ::memset(&_impl_.amount_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.incarnation_) -
+      reinterpret_cast<char*>(&_impl_.amount_)) + sizeof(_impl_.incarnation_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SpGained::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SpGained.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 amount = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.amount_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 total = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.total_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SpGained::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SpGained)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SpGained.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint64 amount = 2;
+  if (this->_internal_amount() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        2, this->_internal_amount(), target);
+  }
+
+  // uint64 total = 3;
+  if (this->_internal_total() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_total(), target);
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_tick(), target);
+  }
+
+  // uint32 incarnation = 5;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_incarnation(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SpGained)
+  return target;
+}
+
+::size_t SpGained::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SpGained)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // uint64 amount = 2;
+  if (this->_internal_amount() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_amount());
+  }
+
+  // uint64 total = 3;
+  if (this->_internal_total() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_total());
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint32 incarnation = 5;
+  if (this->_internal_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_incarnation());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SpGained::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SpGained::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SpGained::GetClassData() const { return &_class_data_; }
+
+
+void SpGained::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SpGained*>(&to_msg);
+  auto& from = static_cast<const SpGained&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SpGained)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (from._internal_amount() != 0) {
+    _this->_internal_set_amount(from._internal_amount());
+  }
+  if (from._internal_total() != 0) {
+    _this->_internal_set_total(from._internal_total());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SpGained::CopyFrom(const SpGained& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SpGained)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SpGained::IsInitialized() const {
+  return true;
+}
+
+void SpGained::InternalSwap(SpGained* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SpGained, _impl_.incarnation_)
+      + sizeof(SpGained::_impl_.incarnation_)
+      - PROTOBUF_FIELD_OFFSET(SpGained, _impl_.amount_)>(
+          reinterpret_cast<char*>(&_impl_.amount_),
+          reinterpret_cast<char*>(&other->_impl_.amount_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SpGained::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[38]);
+}
+// ===================================================================
+
+class LearnedSkillRank::_Internal {
+ public:
+};
+
+LearnedSkillRank::LearnedSkillRank(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.LearnedSkillRank)
+}
+LearnedSkillRank::LearnedSkillRank(const LearnedSkillRank& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _impl_(from._impl_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(
+      from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.LearnedSkillRank)
+}
+
+inline void LearnedSkillRank::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.skill_id_) { 0u }
+
+    , decltype(_impl_.skill_level_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+LearnedSkillRank::~LearnedSkillRank() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.LearnedSkillRank)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void LearnedSkillRank::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void LearnedSkillRank::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void LearnedSkillRank::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.LearnedSkillRank)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  ::memset(&_impl_.skill_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.skill_level_) -
+      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.skill_level_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* LearnedSkillRank::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 skill_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 skill_level = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.skill_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* LearnedSkillRank::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.LearnedSkillRank)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_skill_id(), target);
+  }
+
+  // uint32 skill_level = 2;
+  if (this->_internal_skill_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_skill_level(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.LearnedSkillRank)
+  return target;
+}
+
+::size_t LearnedSkillRank::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.LearnedSkillRank)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  // uint32 skill_level = 2;
+  if (this->_internal_skill_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_level());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData LearnedSkillRank::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    LearnedSkillRank::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*LearnedSkillRank::GetClassData() const { return &_class_data_; }
+
+
+void LearnedSkillRank::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<LearnedSkillRank*>(&to_msg);
+  auto& from = static_cast<const LearnedSkillRank&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.LearnedSkillRank)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  if (from._internal_skill_level() != 0) {
+    _this->_internal_set_skill_level(from._internal_skill_level());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void LearnedSkillRank::CopyFrom(const LearnedSkillRank& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.LearnedSkillRank)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool LearnedSkillRank::IsInitialized() const {
+  return true;
+}
+
+void LearnedSkillRank::InternalSwap(LearnedSkillRank* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(LearnedSkillRank, _impl_.skill_level_)
+      + sizeof(LearnedSkillRank::_impl_.skill_level_)
+      - PROTOBUF_FIELD_OFFSET(LearnedSkillRank, _impl_.skill_id_)>(
+          reinterpret_cast<char*>(&_impl_.skill_id_),
+          reinterpret_cast<char*>(&other->_impl_.skill_id_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata LearnedSkillRank::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[39]);
+}
+// ===================================================================
+
+class SkillReuseState::_Internal {
+ public:
+};
+
+SkillReuseState::SkillReuseState(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillReuseState)
+}
+SkillReuseState::SkillReuseState(const SkillReuseState& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _impl_(from._impl_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(
+      from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillReuseState)
+}
+
+inline void SkillReuseState::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.ready_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.skill_id_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+SkillReuseState::~SkillReuseState() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillReuseState)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillReuseState::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void SkillReuseState::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillReuseState::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillReuseState)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  ::memset(&_impl_.ready_tick_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.skill_id_) -
+      reinterpret_cast<char*>(&_impl_.ready_tick_)) + sizeof(_impl_.skill_id_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillReuseState::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint32 skill_id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.skill_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 ready_tick = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.ready_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillReuseState::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillReuseState)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        1, this->_internal_skill_id(), target);
+  }
+
+  // uint64 ready_tick = 2;
+  if (this->_internal_ready_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        2, this->_internal_ready_tick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillReuseState)
+  return target;
+}
+
+::size_t SkillReuseState::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillReuseState)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // uint64 ready_tick = 2;
+  if (this->_internal_ready_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_ready_tick());
+  }
+
+  // uint32 skill_id = 1;
+  if (this->_internal_skill_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_skill_id());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillReuseState::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillReuseState::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillReuseState::GetClassData() const { return &_class_data_; }
+
+
+void SkillReuseState::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillReuseState*>(&to_msg);
+  auto& from = static_cast<const SkillReuseState&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillReuseState)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from._internal_ready_tick() != 0) {
+    _this->_internal_set_ready_tick(from._internal_ready_tick());
+  }
+  if (from._internal_skill_id() != 0) {
+    _this->_internal_set_skill_id(from._internal_skill_id());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillReuseState::CopyFrom(const SkillReuseState& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillReuseState)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillReuseState::IsInitialized() const {
+  return true;
+}
+
+void SkillReuseState::InternalSwap(SkillReuseState* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillReuseState, _impl_.skill_id_)
+      + sizeof(SkillReuseState::_impl_.skill_id_)
+      - PROTOBUF_FIELD_OFFSET(SkillReuseState, _impl_.ready_tick_)>(
+          reinterpret_cast<char*>(&_impl_.ready_tick_),
+          reinterpret_cast<char*>(&other->_impl_.ready_tick_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillReuseState::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[40]);
+}
+// ===================================================================
+
+class SkillStateSync::_Internal {
+ public:
+};
+
+SkillStateSync::SkillStateSync(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.SkillStateSync)
+}
+SkillStateSync::SkillStateSync(const SkillStateSync& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SkillStateSync* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.learned_){from._impl_.learned_}
+    , decltype(_impl_.reuse_){from._impl_.reuse_}
+    , decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.sp_) {}
+
+    , decltype(_impl_.karma_) {}
+
+    , decltype(_impl_.pk_count_) {}
+
+    , decltype(_impl_.flag_until_tick_) {}
+
+    , decltype(_impl_.pvp_count_) {}
+
+    , decltype(_impl_.death_penalty_level_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.incarnation_) {}
+
+    , decltype(_impl_.baseline_) {}
+
+    , decltype(_impl_.baseline_tick_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.sp_, &from._impl_.sp_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.baseline_tick_) -
+    reinterpret_cast<char*>(&_impl_.sp_)) + sizeof(_impl_.baseline_tick_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillStateSync)
+}
+
+inline void SkillStateSync::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.learned_){arena}
+    , decltype(_impl_.reuse_){arena}
+    , decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.sp_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.karma_) { 0u }
+
+    , decltype(_impl_.pk_count_) { 0u }
+
+    , decltype(_impl_.flag_until_tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.pvp_count_) { 0u }
+
+    , decltype(_impl_.death_penalty_level_) { 0u }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.incarnation_) { 0u }
+
+    , decltype(_impl_.baseline_) { false }
+
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+SkillStateSync::~SkillStateSync() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.SkillStateSync)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void SkillStateSync::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_learned()->~RepeatedPtrField();
+  _internal_mutable_reuse()->~RepeatedPtrField();
+  _impl_.entity_.Destroy();
+}
+
+void SkillStateSync::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void SkillStateSync::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.SkillStateSync)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_learned()->Clear();
+  _internal_mutable_reuse()->Clear();
+  _impl_.entity_.ClearToEmpty();
+  ::memset(&_impl_.sp_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.baseline_tick_) -
+      reinterpret_cast<char*>(&_impl_.sp_)) + sizeof(_impl_.baseline_tick_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SkillStateSync::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillStateSync.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.LearnedSkillRank learned = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_learned(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated .nightfall.v1.SkillReuseState reuse = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_reuse(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 sp = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.sp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 karma = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.karma_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 pk_count = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.pk_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 pvp_count = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.pvp_count_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 flag_until_tick = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.flag_until_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 death_penalty_level = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 72)) {
+          _impl_.death_penalty_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 88)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool baseline = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 96)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 104)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* SkillStateSync::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.SkillStateSync)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillStateSync.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // repeated .nightfall.v1.LearnedSkillRank learned = 2;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_learned_size()); i < n; i++) {
+    const auto& repfield = this->_internal_learned(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(2, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // repeated .nightfall.v1.SkillReuseState reuse = 3;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_reuse_size()); i < n; i++) {
+    const auto& repfield = this->_internal_reuse(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(3, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // uint64 sp = 4;
+  if (this->_internal_sp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_sp(), target);
+  }
+
+  // uint32 karma = 5;
+  if (this->_internal_karma() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_karma(), target);
+  }
+
+  // uint32 pk_count = 6;
+  if (this->_internal_pk_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        6, this->_internal_pk_count(), target);
+  }
+
+  // uint32 pvp_count = 7;
+  if (this->_internal_pvp_count() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        7, this->_internal_pvp_count(), target);
+  }
+
+  // uint64 flag_until_tick = 8;
+  if (this->_internal_flag_until_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        8, this->_internal_flag_until_tick(), target);
+  }
+
+  // uint32 death_penalty_level = 9;
+  if (this->_internal_death_penalty_level() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        9, this->_internal_death_penalty_level(), target);
+  }
+
+  // uint64 tick = 10;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        10, this->_internal_tick(), target);
+  }
+
+  // uint32 incarnation = 11;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        11, this->_internal_incarnation(), target);
+  }
+
+  // bool baseline = 12;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        12, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 13;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        13, this->_internal_baseline_tick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.SkillStateSync)
+  return target;
+}
+
+::size_t SkillStateSync::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.SkillStateSync)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated .nightfall.v1.LearnedSkillRank learned = 2;
+  total_size += 1UL * this->_internal_learned_size();
+  for (const auto& msg : this->_internal_learned()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // repeated .nightfall.v1.SkillReuseState reuse = 3;
+  total_size += 1UL * this->_internal_reuse_size();
+  for (const auto& msg : this->_internal_reuse()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // uint64 sp = 4;
+  if (this->_internal_sp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_sp());
+  }
+
+  // uint32 karma = 5;
+  if (this->_internal_karma() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_karma());
+  }
+
+  // uint32 pk_count = 6;
+  if (this->_internal_pk_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_pk_count());
+  }
+
+  // uint64 flag_until_tick = 8;
+  if (this->_internal_flag_until_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_flag_until_tick());
+  }
+
+  // uint32 pvp_count = 7;
+  if (this->_internal_pvp_count() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_pvp_count());
+  }
+
+  // uint32 death_penalty_level = 9;
+  if (this->_internal_death_penalty_level() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_death_penalty_level());
+  }
+
+  // uint64 tick = 10;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint32 incarnation = 11;
+  if (this->_internal_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_incarnation());
+  }
+
+  // bool baseline = 12;
+  if (this->_internal_baseline() != 0) {
+    total_size += 2;
+  }
+
+  // uint64 baseline_tick = 13;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_baseline_tick());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SkillStateSync::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    SkillStateSync::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SkillStateSync::GetClassData() const { return &_class_data_; }
+
+
+void SkillStateSync::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SkillStateSync*>(&to_msg);
+  auto& from = static_cast<const SkillStateSync&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.SkillStateSync)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_learned()->MergeFrom(from._internal_learned());
+  _this->_internal_mutable_reuse()->MergeFrom(from._internal_reuse());
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (from._internal_sp() != 0) {
+    _this->_internal_set_sp(from._internal_sp());
+  }
+  if (from._internal_karma() != 0) {
+    _this->_internal_set_karma(from._internal_karma());
+  }
+  if (from._internal_pk_count() != 0) {
+    _this->_internal_set_pk_count(from._internal_pk_count());
+  }
+  if (from._internal_flag_until_tick() != 0) {
+    _this->_internal_set_flag_until_tick(from._internal_flag_until_tick());
+  }
+  if (from._internal_pvp_count() != 0) {
+    _this->_internal_set_pvp_count(from._internal_pvp_count());
+  }
+  if (from._internal_death_penalty_level() != 0) {
+    _this->_internal_set_death_penalty_level(from._internal_death_penalty_level());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SkillStateSync::CopyFrom(const SkillStateSync& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.SkillStateSync)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SkillStateSync::IsInitialized() const {
+  return true;
+}
+
+void SkillStateSync::InternalSwap(SkillStateSync* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _internal_mutable_learned()->InternalSwap(other->_internal_mutable_learned());
+  _internal_mutable_reuse()->InternalSwap(other->_internal_mutable_reuse());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SkillStateSync, _impl_.baseline_tick_)
+      + sizeof(SkillStateSync::_impl_.baseline_tick_)
+      - PROTOBUF_FIELD_OFFSET(SkillStateSync, _impl_.sp_)>(
+          reinterpret_cast<char*>(&_impl_.sp_),
+          reinterpret_cast<char*>(&other->_impl_.sp_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SkillStateSync::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[41]);
+}
+// ===================================================================
+
+class VitalsChanged::_Internal {
+ public:
+};
+
+VitalsChanged::VitalsChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:nightfall.v1.VitalsChanged)
+}
+VitalsChanged::VitalsChanged(const VitalsChanged& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  VitalsChanged* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.hp_) {}
+
+    , decltype(_impl_.max_hp_) {}
+
+    , decltype(_impl_.tick_) {}
+
+    , decltype(_impl_.incarnation_) {}
+
+    , decltype(_impl_.baseline_) {}
+
+    , decltype(_impl_.baseline_tick_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_entity().empty()) {
+    _this->_impl_.entity_.Set(from._internal_entity(), _this->GetArenaForAllocation());
+  }
+  ::memcpy(&_impl_.hp_, &from._impl_.hp_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.baseline_tick_) -
+    reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.baseline_tick_));
+  // @@protoc_insertion_point(copy_constructor:nightfall.v1.VitalsChanged)
+}
+
+inline void VitalsChanged::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.entity_) {}
+
+    , decltype(_impl_.hp_) { 0u }
+
+    , decltype(_impl_.max_hp_) { 0u }
+
+    , decltype(_impl_.tick_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.incarnation_) { 0u }
+
+    , decltype(_impl_.baseline_) { false }
+
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.entity_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.entity_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+VitalsChanged::~VitalsChanged() {
+  // @@protoc_insertion_point(destructor:nightfall.v1.VitalsChanged)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void VitalsChanged::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.entity_.Destroy();
+}
+
+void VitalsChanged::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void VitalsChanged::Clear() {
+// @@protoc_insertion_point(message_clear_start:nightfall.v1.VitalsChanged)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.entity_.ClearToEmpty();
+  ::memset(&_impl_.hp_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.baseline_tick_) -
+      reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.baseline_tick_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* VitalsChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string entity = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_entity();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.VitalsChanged.entity"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 hp = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 max_hp = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.max_hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 tick = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 incarnation = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _impl_.incarnation_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool baseline = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 56)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* VitalsChanged::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:nightfall.v1.VitalsChanged)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    const std::string& _s = this->_internal_entity();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.VitalsChanged.entity");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
+  }
+
+  // uint32 hp = 2;
+  if (this->_internal_hp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        2, this->_internal_hp(), target);
+  }
+
+  // uint32 max_hp = 3;
+  if (this->_internal_max_hp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        3, this->_internal_max_hp(), target);
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        4, this->_internal_tick(), target);
+  }
+
+  // uint32 incarnation = 5;
+  if (this->_internal_incarnation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_incarnation(), target);
+  }
+
+  // bool baseline = 6;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        6, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 7;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        7, this->_internal_baseline_tick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:nightfall.v1.VitalsChanged)
+  return target;
+}
+
+::size_t VitalsChanged::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:nightfall.v1.VitalsChanged)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string entity = 1;
+  if (!this->_internal_entity().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_entity());
+  }
+
+  // uint32 hp = 2;
+  if (this->_internal_hp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_hp());
+  }
+
+  // uint32 max_hp = 3;
+  if (this->_internal_max_hp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_max_hp());
+  }
+
+  // uint64 tick = 4;
+  if (this->_internal_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_tick());
+  }
+
+  // uint32 incarnation = 5;
+  if (this->_internal_incarnation() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_incarnation());
+  }
+
+  // bool baseline = 6;
+  if (this->_internal_baseline() != 0) {
+    total_size += 2;
+  }
+
+  // uint64 baseline_tick = 7;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_baseline_tick());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData VitalsChanged::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    VitalsChanged::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*VitalsChanged::GetClassData() const { return &_class_data_; }
+
+
+void VitalsChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<VitalsChanged*>(&to_msg);
+  auto& from = static_cast<const VitalsChanged&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:nightfall.v1.VitalsChanged)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_entity().empty()) {
+    _this->_internal_set_entity(from._internal_entity());
+  }
+  if (from._internal_hp() != 0) {
+    _this->_internal_set_hp(from._internal_hp());
+  }
+  if (from._internal_max_hp() != 0) {
+    _this->_internal_set_max_hp(from._internal_max_hp());
+  }
+  if (from._internal_tick() != 0) {
+    _this->_internal_set_tick(from._internal_tick());
+  }
+  if (from._internal_incarnation() != 0) {
+    _this->_internal_set_incarnation(from._internal_incarnation());
+  }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void VitalsChanged::CopyFrom(const VitalsChanged& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:nightfall.v1.VitalsChanged)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool VitalsChanged::IsInitialized() const {
+  return true;
+}
+
+void VitalsChanged::InternalSwap(VitalsChanged* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
+                                       &other->_impl_.entity_, rhs_arena);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(VitalsChanged, _impl_.baseline_tick_)
+      + sizeof(VitalsChanged::_impl_.baseline_tick_)
+      - PROTOBUF_FIELD_OFFSET(VitalsChanged, _impl_.hp_)>(
+          reinterpret_cast<char*>(&_impl_.hp_),
+          reinterpret_cast<char*>(&other->_impl_.hp_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata VitalsChanged::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_nightfall_2fv1_2fworld_2eproto_getter, &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
+      file_level_metadata_nightfall_2fv1_2fworld_2eproto[42]);
 }
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace v1
@@ -9027,6 +19429,18 @@ Arena::CreateMaybeMessage< ::nightfall::v1::StopAttackRequest >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::nightfall::v1::RespawnRequest*
 Arena::CreateMaybeMessage< ::nightfall::v1::RespawnRequest >(Arena* arena) {
   return Arena::CreateMessageInternal< ::nightfall::v1::RespawnRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::CastSkillRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::CastSkillRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::CastSkillRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::CancelCastRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::CancelCastRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::CancelCastRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::AcceptResurrectRequest*
+Arena::CreateMaybeMessage< ::nightfall::v1::AcceptResurrectRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::AcceptResurrectRequest >(arena);
 }
 template<> PROTOBUF_NOINLINE ::nightfall::v1::ServerMessage*
 Arena::CreateMaybeMessage< ::nightfall::v1::ServerMessage >(Arena* arena) {
@@ -9095,6 +19509,70 @@ Arena::CreateMaybeMessage< ::nightfall::v1::TargetChanged >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::nightfall::v1::ClassChanged*
 Arena::CreateMaybeMessage< ::nightfall::v1::ClassChanged >(Arena* arena) {
   return Arena::CreateMessageInternal< ::nightfall::v1::ClassChanged >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ActiveEffect*
+Arena::CreateMaybeMessage< ::nightfall::v1::ActiveEffect >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ActiveEffect >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillCastStarted*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillCastStarted >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillCastStarted >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillTargetResult*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillTargetResult >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillTargetResult >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillCastResult*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillCastResult >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillCastResult >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillCastCancelled*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillCastCancelled >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillCastCancelled >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::EffectApplied*
+Arena::CreateMaybeMessage< ::nightfall::v1::EffectApplied >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::EffectApplied >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::EffectRemoved*
+Arena::CreateMaybeMessage< ::nightfall::v1::EffectRemoved >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::EffectRemoved >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillReuse*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillReuse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillReuse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillLearned*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillLearned >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillLearned >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::PvpStateChanged*
+Arena::CreateMaybeMessage< ::nightfall::v1::PvpStateChanged >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::PvpStateChanged >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::ResurrectOffer*
+Arena::CreateMaybeMessage< ::nightfall::v1::ResurrectOffer >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::ResurrectOffer >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SpGained*
+Arena::CreateMaybeMessage< ::nightfall::v1::SpGained >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SpGained >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::LearnedSkillRank*
+Arena::CreateMaybeMessage< ::nightfall::v1::LearnedSkillRank >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::LearnedSkillRank >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillReuseState*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillReuseState >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillReuseState >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::SkillStateSync*
+Arena::CreateMaybeMessage< ::nightfall::v1::SkillStateSync >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::SkillStateSync >(arena);
+}
+template<> PROTOBUF_NOINLINE ::nightfall::v1::VitalsChanged*
+Arena::CreateMaybeMessage< ::nightfall::v1::VitalsChanged >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::nightfall::v1::VitalsChanged >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 // @@protoc_insertion_point(global_scope)

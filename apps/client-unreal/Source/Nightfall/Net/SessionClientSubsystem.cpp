@@ -93,6 +93,9 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 	}
 	Service->Connect();
 	Client = Service->MakeClient();
+	Client->OnListLearnableSkillsResponse.AddDynamic(this, &USessionClient::HandleListLearnableSkills);
+	Client->OnLearnSkillResponse.AddDynamic(this, &USessionClient::HandleLearnSkill);
+	Client->OnGetSkillCatalogResponse.AddDynamic(this, &USessionClient::HandleGetSkillCatalog);
 	Client->OnListClassesResponse.AddDynamic(this, &USessionClient::HandleListClasses);
 	Client->OnTransferOptionsResponse.AddDynamic(this, &USessionClient::HandleTransferOptions);
 	Client->OnChangeClassResponse.AddDynamic(this, &USessionClient::HandleChangeClass);
@@ -116,6 +119,9 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 void USessionClient::Deinitialize()
 {
 	// Callers may hold references captured in their callbacks; drop them without invoking.
+	PendingListLearnableSkills.Empty();
+	PendingLearnSkill.Empty();
+	PendingGetSkillCatalog.Empty();
 	PendingListClasses.Empty();
 	PendingTransferOptions.Empty();
 	PendingChangeClass.Empty();
@@ -366,4 +372,40 @@ void USessionClient::HandleTransferOptions(FGrpcContextHandle Handle, const FGrp
 void USessionClient::HandleChangeClass(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ChangeClassResponse& Response)
 {
 	Complete(PendingChangeClass, Handle.Value, Result, Response);
+}
+
+void USessionClient::ListLearnableSkills(const FGrpcNightfallV1ListLearnableSkillsRequest& Request, FLearnableCallback Callback)
+{
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1ListLearnableSkillsResponse()); })) return;
+	const FGrpcContextHandle Handle = Client->InitListLearnableSkills();
+	PendingListLearnableSkills.Add(Handle.Value, MoveTemp(Callback));
+	Client->ListLearnableSkills(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleListLearnableSkills(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListLearnableSkillsResponse& Response)
+{
+	Complete(PendingListLearnableSkills, Handle.Value, Result, Response);
+}
+
+void USessionClient::LearnSkill(const FGrpcNightfallV1LearnSkillRequest& Request, FLearnCallback Callback)
+{
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1LearnSkillResponse()); })) return;
+	const FGrpcContextHandle Handle = Client->InitLearnSkill();
+	PendingLearnSkill.Add(Handle.Value, MoveTemp(Callback));
+	Client->LearnSkill(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleLearnSkill(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1LearnSkillResponse& Response)
+{
+	Complete(PendingLearnSkill, Handle.Value, Result, Response);
+}
+
+void USessionClient::GetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogRequest& Request, FSkillCatalogCallback Callback)
+{
+	if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, FGrpcNightfallV1GetSkillCatalogResponse()); })) return;
+	const FGrpcContextHandle Handle = Client->InitGetSkillCatalog();
+	PendingGetSkillCatalog.Add(Handle.Value, MoveTemp(Callback));
+	Client->GetSkillCatalog(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGetSkillCatalog(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetSkillCatalogResponse& Response)
+{
+	Complete(PendingGetSkillCatalog, Handle.Value, Result, Response);
 }

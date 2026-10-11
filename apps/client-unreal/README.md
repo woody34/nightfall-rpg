@@ -1119,3 +1119,61 @@ client-object API with its own handle-to-callback map instead.
 `Nightfall.Combat.EndToEnd` walks a new character to the fixture keltir slot, fights it and checks
 the click/attack/StopAttack timing. Without a reachable API it is skipped with a `SKIPPED (no combat
 coverage)` warning; pass `-RequireCombatServer` to the editor to make that skip a failure.
+
+### Phase 3 skills and PvP presentation
+
+The native HUD renders received ranks and executable catalogue skills in slots 1–9.
+Cooldowns use a linear sweep from received ready ticks; cast bars retain original
+start/complete ticks. Buff, song/dance and debuff summaries show rank and remaining
+authoritative ticks. Own CP, SP, death penalty, target karma and white/purple/red
+flags come from server facts. The Skill trainer button opens server learning
+choices and errors. Learning retries preserve the selected rank's UUID; successful
+frozen receipts never replace current world resources. Death offers provide
+accept/decline actions. Existing floating damage/flinch cues provide placeholder
+feedback; there is no new art, skill-specific animation, particle or sound asset.
+
+Development bot commands: `nf.Cast <id> [target|self|UUID]`, `nf.CancelCast`,
+`nf.Learn <id> <rank> [UUID-key]`, `nf.LearnableSkills`, `nf.SkillCatalog`,
+`nf.AcceptResurrect [offer_id|latest] [accept|decline]`. Omitted cast target and
+`target` leave target binding to the server's selection at command execution.
+Explicit UUID targets support corpses without changing selection. `latest` uses the last received offer ID in the current admission, retained after
+consumption for duplicate-consent rejection tests; explicit IDs support server rejection/retry tests.
+Numeric comparisons accept exact unsigned integers and `== != < <= > >=`.
+Unknown evidence evaluates false and is printed as unknown where applicable.
+
+| Predicate | Authoritative message / fields |
+|---|---|
+| `skill_ready <id>`, `skill_reuse_remaining <id> op n` | Owner SkillStateSync ranks/reuse, SkillReuse.ready_tick, received stream tick |
+| `learned_rank <id> op n` | SkillStateSync.learned, SkillLearned (not historical RPC resources) |
+| `buff_active/inactive <id>`, `debuff_active <id>`, `effect_count op n` | Identity baseline plus EffectApplied.pool/end_tick and EffectRemoved.effect_id |
+| `entity_effect_active/inactive <own|self|target|UUID> <id>` | Visible identity/incarnation, EffectApplied/Removed stable IDs and deadlines |
+| `cast_state == idle|casting` | Identity baseline, SkillCastStarted original deadlines, SkillCastCancelled/Result, life changes |
+| `cast_starts/results/cancellations op n`, `cast_damage_results op n`, `observed_cast_results op n` | Accepted scoped cast IDs; hydration is excluded; damage kind is received result row; observer results counted once |
+| `own_flag`, `target_flag == none|pvp|chaotic` | Public EntitySpawn/PvpStateChanged, owner StatsChanged/SkillStateSync karma and flag_until_tick |
+| `own_karma/own_pk/own_pvp op n` | Received owner PvP values from same messages |
+| `own_sp op n`, `own_death_penalty op n` | Owner StatsChanged/SkillStateSync; SP also SkillLearned and SpGained |
+| `sp_gained_total/events op n`, `skill_learned_events op n` | Deduplicated owner SpGained / SkillLearned facts in current admission scope |
+| `own_mp_cost_matches <id>` | **UNKNOWN/false**: current catalogue and SkillStateSync contain no per-rank MP costs |
+| `learnable_contains <id> <rank>` | Successful ListLearnableSkills exact received row |
+| `learn_rpc_error == none|<canonical gRPC code>` | Completed LearnSkill status; underscore names or numeric codes 0–16 |
+| `learn_receipt_matches_first` | Entire successful frozen LearnSkill reply compared with first reply for same retry key |
+| `skill_rpc_done` | Completion of newest skill RPC, including failed calls |
+| `resurrect_offer_pending` | Owner ResurrectOffer ID/state/expiry, current death incarnation |
+| `vitals_max_hp <own|self|target|UUID> op n` | EntitySpawn.max_hp, StatsChanged.max_hp (owner), VitalsChanged.max_hp including final revival baseline |
+| `catalogue_skill_status <id> == executable|deferred` | GetSkillCatalog.effect_implemented |
+
+Identity baselines reset projections; ordinary deltas at/before them are rejected.
+Explicit hydration must match the identity tick and incarnation. Hidden reference
+pairs are omitted together. Transport/generation/life fences prevent stale state
+and historical receipts from becoming live facts. Expiry uses received ticks,
+never client wall time or gameplay formulas.
+
+`Nightfall.Skill.*`, `Nightfall.Pvp.*`, `Nightfall.Effect.*` include offline wire,
+fence, bot and UI tests and live admission smoke tests. Live tests skip only when
+Ping reports an unavailable API; reachable auth/runtime/admission failures fail.
+`Scripts/run-tests.sh --require-live-api` makes unavailable API tests fail too.
+Use `-Phase3LiveCharacter=<UUID>` for a prepared fixture character; otherwise live
+admission tests create a fresh character. Live gameplay scenarios and server
+oracle verification are architect/harness work. Additional harness oracle,
+death-record, retention-hook, AI-hate and causal trace predicates are **not
+implemented** and fail scenario parsing until their contracts/vectors are published.
