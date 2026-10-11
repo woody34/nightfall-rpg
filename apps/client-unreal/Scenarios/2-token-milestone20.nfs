@@ -13,10 +13,12 @@
 # misses do not acquire hate; a landed hit is required before sentinel retaliation.
 # L2Character.java:887,4336: player417 ->12tick interval, sentinel253 ->20ticks.
 # Fixture allowance64 player attempts +3 sentinel attempts, doubled travel bound
-# (6+2*300/32)/3.95s, +3s delivery, rounded up to30s =120s. Allowances are test policy;
+# 2*(6+2*300/32)/3.95s + (64*12+3*20)/10s +3s delivery =38841/395s
+# (~98.33s) baseline. Phase1a R1 (phase-1a-simulation-testing.md:245) requires
+# 3x before rounding up to30s: ~295.00s ->300s. Allowances are test policy;
 # arbitrary RNG is not guaranteed. Custom NPC P.Atk10000 fixture input still kills in
 # one landed blow (Formulas.java:665-738); NPC damage bypasses CP (PcStatus.java:185).
-# Both death waits and total Within include the extra110s each; exact XP/tokens unchanged.
+# Both death waits and total Within include the extra290s each; exact XP/tokens unchanged.
 nf.Login
 nf.WaitFor connected 15
 nf.ClassCatalogue
@@ -88,7 +90,7 @@ nf.WaitFor own_at 110 100 0.5 30
 nf.WaitFor template_target_available token_sentinel 15
 nf.Target template:token_sentinel
 nf.Attack
-nf.WaitFor own_dead 120
+nf.WaitFor own_dead 300
 nf.WaitFor death_xp_loss == 14329 5
 nf.WaitFor own_level == 19 5
 nf.WaitFor own_xp == 832278 5
@@ -185,7 +187,7 @@ nf.WaitFor own_at 110 100 0.5 30
 nf.WaitFor template_target_available token_sentinel 15
 nf.Target template:token_sentinel
 nf.Attack
-nf.WaitFor own_dead 120
+nf.WaitFor own_dead 300
 nf.WaitFor death_xp_loss == 14329 5
 nf.WaitFor own_level == 19 5
 nf.WaitFor own_xp == 828695 5
@@ -250,4 +252,4 @@ nf.Character
 nf.WaitFor class_rpc_error == none 15
 nf.Expect character_class == 1
 nf.Expect character_matches_world
-nf.Within 510
+nf.Within 870

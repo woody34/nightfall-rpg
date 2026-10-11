@@ -233,13 +233,16 @@ sim_bot_cmd() {
     local -a extra_args=()
     mapfile -d '' -t extra_args <"$args_file"
     rm -f "$args_file"
-    local extra_arg
-    for extra_arg in "${extra_args[@]}"; do
-      [[ "${extra_arg,,}" != -botoutdir=* ]] \
-        || sim_die "set SIM_SAVED_DIR instead of overriding -BotOutDir"
-    done
     SIM_BOT_CMD+=("${extra_args[@]}")
   fi
+  # BotScenarioRunner.cpp:65 uses FParse::Value with the bare BotOutDir= key.
+  # Reject case-insensitive matches anywhere in caller arguments, including
+  # bare, single/double-dash and embedded assignments accepted by FParse.
+  local bot_arg
+  for bot_arg in "${SIM_BOT_CMD[@]:1}"; do
+    [[ "${bot_arg,,}" != *botoutdir=* ]] \
+      || sim_die "set SIM_SAVED_DIR instead of overriding BotOutDir"
+  done
   # One unambiguous output argument keeps collection tied to this invocation.
   SIM_BOT_CMD+=("-BotOutDir=$SIM_SAVED_DIR")
   if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then

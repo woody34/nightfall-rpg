@@ -167,11 +167,34 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
         self.assertIn('-BotOutDir=' + str(self.root / 'owned'), result.stdout)
 
     def test_competing_bot_output_override_is_refused(self):
-        result = self.shell('sim_bot_cmd test.nfs', SIM_BOT_BIN='/bin/true',
-                            SIM_SAVED_DIR=str(self.root / 'owned'),
-                            SIM_BOT_ARGS_JSON='["-botoutdir=/tmp/foreign"]')
-        self.assertEqual(result.returncode, 2)
-        self.assertIn('set SIM_SAVED_DIR', result.stderr)
+        for prefix in ('', '-', '--', 'prefix'):
+            for key in ('BotOutDir', 'botoutdir', 'BOTOUTDIR', 'bOtOuTdIr'):
+                override = prefix + key + '=/tmp/foreign'
+                for direct in (False, True):
+                    with self.subTest(override=override, direct=direct):
+                        result = self.shell('sim_bot_cmd test.nfs "$OVERRIDE"' if direct
+                                            else 'sim_bot_cmd test.nfs',
+                                            SIM_BOT_BIN='/bin/true',
+                                            SIM_SAVED_DIR=str(self.root / 'owned'),
+                                            OVERRIDE=override if direct else '',
+                                            SIM_BOT_ARGS_JSON=json.dumps([] if direct else [override]))
+                        self.assertEqual(result.returncode, 2)
+                        self.assertIn('set SIM_SAVED_DIR', result.stderr)
+
+    def test_sim_workflow_allowance_matches_discovered_suite(self):
+        batches = ci.units(sorted((SCRIPTS.parent / 'Scenarios').rglob('*.nfs')))
+        allowance = sum(max(600, ci.phase2.scenario_budget(batch)) + 600 + 180
+                        for batch in batches)
+        workflow = (SCRIPTS.parents[2] / '.github/workflows/sim.yml').read_text()
+        import re
+        ceiling = int(re.search(r'timeout-minutes: ([0-9]+)', workflow)[1]) * 60
+        headroom = ceiling - allowance
+        self.assertEqual(len(batches), 59)
+        self.assertEqual(allowance, 86099)
+        self.assertGreaterEqual(headroom, 300)
+        self.assertIn(f'# {len(batches)} units:', workflow)
+        self.assertIn(f'{allowance:,}s', workflow)
+        self.assertIn(f'{headroom // 60}m{headroom % 60:02d}s', workflow)
 
     def test_fresh_flag_overrides_inherited_opt_out(self):
         args = self.ci_args() + ['--fresh-stack']

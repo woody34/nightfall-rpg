@@ -14,7 +14,10 @@ spec.loader.exec_module(oracle)
 
 def death_budget(player_speed, sentinel_speed, movement_speed):
     # Fixture policy: allow 64 player rolls and 3 sentinel rolls, with 3 seconds
-    # delivery grace; round the result up to a 30-second harness budget quantum.
+    # delivery grace. Phase 1a R1 (phase-1a-simulation-testing.md:245) requires
+    # a 3x margin on the complete baseline BEFORE rounding up to 30 seconds.
+    # For speeds 417/253/3.95 the baseline is 38841/395 seconds (~98.33s);
+    # 3x is 116523/395 seconds (~295.00s), rounded up to 300 seconds.
     # These are test allowances, not L2J constants or a guarantee for arbitrary RNG.
     # home separation6: token-fixtures.py overlay_zone_content/phase3-fixtures.py.
     # Drift per axis300/32 tiles: zone/ai.rs:24-30; inherited pinned MAX_DRIFT_RANGE.
@@ -23,7 +26,7 @@ def death_budget(player_speed, sentinel_speed, movement_speed):
     _, player_interval = oracle.calc_auto_timing_ticks(player_speed)
     _, npc_interval = oracle.calc_auto_timing_ticks(sentinel_speed)
     seconds = travel + F(64 * player_interval + 3 * npc_interval, 10) + 3
-    return 30 * oracle.ceil(seconds / 30)
+    return 30 * oracle.ceil(3 * seconds / 30)
 
 
 def verify(rows):

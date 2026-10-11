@@ -31,7 +31,11 @@ class TokenV5Tests(unittest.TestCase):
 
     def test_both_death_waits_and_total_budget_are_updated(self):
         budget = v5.death_budget(417, 253, F('3.95'))
-        self.assertEqual(budget, 120)
+        self.assertEqual(budget, 300)
+        baseline = 2 * (F(6) + 2 * F(300, 32)) / F("3.95") + F(64 * 12 + 3 * 20, 10) + 3
+        self.assertEqual(baseline, F(38841, 395))
+        self.assertGreaterEqual(budget, 3 * baseline)
+        self.assertLess(budget - 30, 3 * baseline)
         for level, previous in ((20, 290), (40, 310)):
             text = (SCRIPTS.parent / f'Scenarios/2-token-milestone{level}.nfs').read_text()
             self.assertEqual(text.count(f'nf.WaitFor own_dead {budget}\n'), 2)
