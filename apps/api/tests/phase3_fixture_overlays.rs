@@ -919,6 +919,13 @@ fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Re
                         entity: owner.character_id,
                     },
                 ),
+                input(
+                    peer.character_id,
+                    ZoneCommand::SetTarget {
+                        entity: peer.character_id,
+                        target: Some(npc),
+                    },
+                ),
             ])?;
             let mut wounded = false;
             for _ in 0..300 {
@@ -977,6 +984,28 @@ fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Re
                                     "re-entry lost wound"
                                 );
                                 ensure!(combat.swing.is_none(), "V5 identity has nested swing");
+                                // Design v3 §2 + C2: selection references follow the identity batch,
+                                // including a retained selection whose target re-enters AOI.
+                                let selection = events.iter().position(|e| matches!(e,
+                                    ObserverOutput::Event(ZoneEvent::TargetChanged {
+                                        entity, target: Some(target), phase3: Some(p), ..
+                                    }) if *entity == peer.character_id && *target == npc
+                                        && p.target_incarnation == Some(combat.incarnation)
+                                        && p.baseline.is_none()
+                                )).context("retained selection was not re-projected on target re-entry")?;
+                                let last_identity = events
+                                    .iter()
+                                    .rposition(|e| {
+                                        matches!(
+                                            e,
+                                            ObserverOutput::Event(ZoneEvent::EntitySpawn { .. })
+                                        )
+                                    })
+                                    .context("identity batch")?;
+                                ensure!(
+                                    selection > last_identity,
+                                    "selection precedes target identity"
+                                );
                                 baseline = true;
                             }
                         }
