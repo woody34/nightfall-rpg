@@ -27,6 +27,9 @@ pub enum MappingError {
     /// The `oneof intent` was empty.
     #[error("intent is required")]
     MissingIntent,
+    /// Phase 3 wire contract is present, but the actor runtime has not been integrated.
+    #[error("phase 3 runtime is not yet available")]
+    Phase3Unavailable,
     /// Target is neither empty nor a UUID.
     #[error("target must be a UUID or empty")]
     InvalidTarget,
@@ -44,6 +47,7 @@ impl MappingError {
     #[must_use]
     pub const fn reject_reason(self) -> pb::RejectReason {
         match self {
+            Self::Phase3Unavailable => pb::RejectReason::NotYetImplemented,
             Self::InvalidCoordinate => pb::RejectReason::OutOfBounds,
             Self::InvalidTarget | Self::MissingIntent | Self::MissingDestination => {
                 pb::RejectReason::Invalid
@@ -176,6 +180,9 @@ pub fn command_from_pb(
         pb::client_message::Intent::Attack(_) => Ok(ZoneCommand::Attack { entity }),
         pb::client_message::Intent::StopAttack(_) => Ok(ZoneCommand::StopAttack { entity }),
         pb::client_message::Intent::Respawn(_) => Ok(ZoneCommand::Respawn { entity }),
+        pb::client_message::Intent::CastSkill(_)
+        | pb::client_message::Intent::CancelCast(_)
+        | pb::client_message::Intent::AcceptResurrect(_) => Err(MappingError::Phase3Unavailable),
     }
 }
 
@@ -223,6 +230,7 @@ pub fn swing_to_pb(attacker: EntityId, s: &Swing) -> pb::AttackStarted {
         impact_tick: s.impact.0,
         ready_tick: s.ready.0,
         target_incarnation: s.target_incarnation,
+        ..Default::default()
     }
 }
 
@@ -359,6 +367,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             damage: *damage,
             target_hp_after: *target_hp_after,
             target_incarnation: *target_incarnation,
+            ..Default::default()
         }))],
         ZoneEvent::EntityDied {
             entity,
@@ -455,6 +464,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             token_tier_1_count: class.as_ref().map_or(0, |c| c.token_tier_1_count),
             token_tier_2_count: class.as_ref().map_or(0, |c| c.token_tier_2_count),
             tick: if class.is_some() { tick.0 } else { 0 },
+            ..Default::default()
         }))],
         ZoneEvent::XpGained {
             entity,
@@ -474,6 +484,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             vec![world(Event::TargetChanged(pb::TargetChanged {
                 entity: entity.to_string(),
                 target: target.map(|id| id.to_string()).unwrap_or_default(),
+                ..Default::default()
             }))]
         },
         ZoneEvent::EntityDespawn { entity, .. } => vec![despawn_to_pb(*entity)],
@@ -753,6 +764,7 @@ mod combat_tests {
                 damage: 25,
                 target_hp_after: 26,
                 target_incarnation: 4,
+                ..Default::default()
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
@@ -895,6 +907,7 @@ mod combat_tests {
             event: Some(Event::TargetChanged(pb::TargetChanged {
                 entity: id(1).to_string(),
                 target: id(2).to_string(),
+                ..Default::default()
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
@@ -967,6 +980,7 @@ mod combat_tests {
                 damage: 0,
                 target_hp_after: 100,
                 target_incarnation: 1,
+                ..Default::default()
             };
             assert_eq!(pb::AttackResult::decode(event.encode_to_vec().as_slice()).unwrap(), event);
         }

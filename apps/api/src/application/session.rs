@@ -240,6 +240,8 @@ pub struct SinkClosed;
 /// output instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SessionReject {
+    /// A recognized additive intent needs a runtime that is not yet integrated.
+    NotYetImplemented,
     /// Malformed: oversize, undecodable, not binary, no intent, missing field.
     Invalid,
     /// A coordinate is not a finite tile position.
