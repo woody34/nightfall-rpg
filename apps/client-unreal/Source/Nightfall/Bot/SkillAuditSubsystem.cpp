@@ -301,7 +301,16 @@ TOptional<uint64> USkillAuditSubsystem::Number(const FString& Name) const
  if(Name==TEXT("own_cp_damage_total"))return OwnCp;if(Name==TEXT("player_cp_damage_total"))return PlayerCp;if(Name==TEXT("resurrection_refunds"))return uint64(RefundedOffers.Num());
  if(Name==TEXT("players_attacking_me"))
  {
-  uint64 Count=0;for(const auto& S:Swings){const auto* I=Fence.Identities.Find(S.Key);if(I && I->Kind==1 && !I->bDead && S.Value.Target.Equals(Net->GetOwnEntityId(),ESearchCase::IgnoreCase))++Count;}return Count;
+  // A landed swing stays available for impact audits; StopAttack during recovery has no cancel frame.
+  const uint64 Tick=Net->GetLatestReceivedTick();uint64 Count=0;
+  for(const auto& S:Swings)
+  {
+   const auto* I=Fence.Identities.Find(S.Key);
+   if(I && I->Kind==1 && !I->bDead && S.Value.ReadyTick>Tick
+      && S.Value.Target.Equals(Net->GetOwnEntityId(),ESearchCase::IgnoreCase)
+      && Fence.Visible(S.Value.Target,S.Value.TargetIncarnation) && !Fence.Dead(S.Value.Target))++Count;
+  }
+  return Count;
  }
  return {};
 }
