@@ -332,33 +332,45 @@ Received cast/resource/effect/offer/target assertions remain in each scenario.
 Static registry audit passes all Phase 3 scenario files without an allowlist.
 That audit proves source compatibility only.
 
-The producer command is `nightfall-replay trace --file <unit.nfr> --session <entity>
---out <gate.trace.html> --evidence-out <gate.raw.json>` after an independent `check`
-on the same file. `SIM_PHASE3_EVIDENCE_CMD` overrides the CLI prefix for the producer
-handoff. Raw schema 1 has exactly `{schema_version, recording_sha256, zone, epoch,
-facts}`. Each fact has `{kind, entity, tick, skill_id, phase, inputs, actual}`.
-Kinds are exactly the twelve names in `phase3-evidence.py:FACTS`. Duplicate JSON
-keys or entity/tick facts, wrong recording/owner/skill/phase, missing observations,
-unsupported live oracle inputs and producer PASS flags fail closed. Formula rows
-require independent vector hash/index and exact input equality; raw outputs never
-supply an expected value. Regen/death/refund use Fraction arithmetic; hate uses
-recorded ledger inputs with independent damage/effectPoint and tie selection.
+The producer command is `nightfall-replay export --file <unit.nfr> --session
+<entity> --evidence-out <gate.raw.jsonl>` after an independent `check` on the same
+file. `SIM_PHASE3_EVIDENCE_CMD` overrides the CLI prefix. The exporter checks the
+whole recording before publishing a fresh destination. The binding JSONL schema,
+source anchors and private-data contract are in
+[replay-evidence.md](../../../docs/engineering/replay-evidence.md).
 
-**Unresolved producer dependency:** the integrated replay CLI does not implement
-`--evidence-out`, and its HTML/coverage omit the raw phase causes, death records,
-hook reconstruction and full ordered RNG/formula inputs required by C11. The
-architect inbox requests that producer. Thus the consumer and declarations are
-implemented and tested, while actual twelve-fact acceptance is blocked. No live
-scenario/oracle/evidence PASS is claimed. Numeric damage/effect/stat inputs outside
-the committed vector set require new independent vectors; they never inherit a
-passing declaration or a guessed expectation.
+The consumer requires a manifest bound to the exact recording SHA, consistent
+zone/epoch/snapshot tick/watermark, consecutive fact sequences in tick order and a
+complete trailer. Each fact has `{kind, entity, tick, sequence, data}`. Multiple
+facts of one kind/entity/tick are valid; sequence identifies them. Unknown fields
+or categories, duplicate JSON keys, non-exact numbers, invalid life bindings,
+producer acceptance flags and incomplete files fail closed. Standalone RNG draws
+are counted once; resolution slices must reference them in the same order without
+duplicates. A scheduled pulse cannot be counted twice at the same entity/tick.
 
-The schema 3 coverage consumer now matches the actual producer: `cast_states`,
-`effect_states`, `resurrection_offers`, `pvp_transitions`; reason/learning/CP/karma
-maps; `learning_committed`, `pk_credits`, `pvp_credits`. No invented pulse/hook
-counters substitute for the missing causal facts. Legacy schemas stay unchanged;
-all native fields survive merge/dedup and scalar totals are recomputed.
+| Declaration | Actual C14 facts and independent check |
+| --- | --- |
+| `regen_pulses`, `moving_regen_pulses` | `regen_pulse`, owner and Standing/Moving posture; distinct scheduled ticks, plus validation of the raw formula and resource credit. |
+| `regen_matches_oracle`, `moving_regen_matches_oracle` | `regen_pulse`; exact Fraction arithmetic over recorded base/stat/config inputs, ordered supported Funcs, whole grants, clamps and Q carries (game `Formulas.java:263,334,351,357,442`; binding D-R12). |
+| `death_record_matches_fixture` | Player `death_record`; recorded XP span/loss fraction and actual recoverable loss, incarnation, eligibility/penalty draw (Nightfall `domain/zone/progression.rs:42`; binding A15/design §3). |
+| `death_record_matches_before_disconnect` | Earlier reproduced `death_record` plus later `admission_reconstruction`; exact saved XP facts and rebinding to the new corpse incarnation. An initial snapshot or admission payload alone cannot prove before-disconnect equality. |
+| `restore_did_not_reapply_hooks` | `admission_reconstruction` with nonempty retained timed effects; exact source/rank/relative install order, paused periodic phase, explicit persisted resources and absence of hook execution. Cache reconstruction alone does not prove a reconnect (datapack `pump/MaxHp.java:50,83,98`; binding R4). |
+| `skill_hate_outcome_coherent` | NPC-subject `hate_delta` with the owner as contributor, correlated same-tick `formula_resolution`, then `hate_selection` or lethal ledger removal. Checks effectPoint, attacked notification, rolled-damage hate, ledger cap and tie selection (game `L2Character.java:4603`; `L2Attackable.java:571,606,658,666`; Nightfall `combat.rs:349`). |
+| `skill_damage_matches_oracle` | `damage_formula` and its unique enclosing skill/rank/caster/target/life/tick `formula_resolution`. Complete projected inputs must match an independent committed vector; unsupported spread/modifier inputs fail. |
+| `skill_effect_matches_oracle` | `effect_formula` and enclosing resolution; conditional land-rate and duration inputs must match independent vectors. Unconditional success cannot consume a success draw. |
+| `stat_matches_oracle active\|removed` | Actual timed-effect presence/removal in `modifier_reconstruction`, then independent base-stat vectors and supported ordered folds. Unmodified bootstrap stats and unsupported affected stats cannot pass. |
+| `resurrect_refund_matches_oracle` | Unique preceding `resurrection_offer`, caster resolution/WIT source profile and accepted `resurrection_refund`; source percent quirk, independent Math.round refund, one-time death-record consumption and incarnation transition (game `Formulas.java:1372`; `L2PcInstance.java:4702`). Declines are checked but cannot replace an accepted refund. |
 
-Portability audit: Scripts requires no `rg`/`fd` executable. Soak hook checks use
-`grep -E`; a regression supplies a PATH without ripgrep. `run-tests.sh` uses `jq`
-only in its optional, explicitly availability-checked Keycloak token fallback.
+The native regression builds `nightfall-replay` and exports the unchanged committed
+`phase3-gameplay-v5.nfr` twice. It checks native positive standing-regeneration,
+death, hate and accepted-refund facts, and keeps missing moving/admission/effect/stat
+transitions and unsupported damage-vector inputs red. The recording starts from
+an existing snapshot; earlier transitions are not invented. The tests also pass
+real replay exports through both wrappers per unit, including `--no-replay`, using
+stub bot/JUnit/health carriers. These are offline harness/recording checks, not
+Unreal scenario or live-service acceptance.
+
+The producer dependency is resolved. Full twelve-gate acceptance still requires
+recordings containing each scenario's actual transition and independently covered
+numeric inputs. Unsupported inputs never inherit a guessed oracle index or an
+acceptance flag; synthetic or corrupted test rows are not acceptance evidence.

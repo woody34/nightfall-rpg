@@ -19,15 +19,26 @@ TABLES = ('npc_intentions', 'player_attack_states')
 COUNTERS = ('life_incarnations', 'deaths', 'respawns', 'intent_rejected')
 V2_COUNTERS = ('class_transfer_commands', 'class_changes', 'class_transfer_effects')
 V2_SCALARS = ('owner_stats_updates',)
-# Producer handoff pending: design v3 §8.2 semantics, schema2 facts retained.
-V3_TABLES = ('player_cast_states', 'effect_states')
-V3_COUNTERS = ('cast_end_reasons', 'effect_remove_reasons', 'effect_pulses', 'stack_rejections',
-               'learn_skill_commands', 'skill_learned', 'resurrect_offers', 'cp_absorption',
-               'pvp_changes', 'karma_changes', 'regen_pulses', 'resurrections')
+# Exact schema3 producer contract (bin/replay/coverage_phase3.rs). Missing causal
+# facts belong in C11 evidence, never invented zero-valued coverage fields.
+V3_TABLES = ('cast_states', 'effect_states', 'resurrection_offers', 'pvp_transitions')
+V3_COUNTERS = ('cast_end_reasons', 'effect_remove_reasons', 'learning_commands',
+               'cp_absorption', 'karma_changes')
+V3_SCALARS = ('learning_committed', 'pk_credits', 'pvp_credits')
 V3_REACHABLE = {
-    'player_cast_states': ({'Idle', 'Casting'}, {('Idle', 'Casting'), ('Casting', 'Idle')}),
+    'cast_states': ({'Idle', 'Casting'}, {('Idle', 'Casting'), ('Casting', 'Idle')}),
     'effect_states': ({'Absent', 'Active', 'Removed'}, {('Absent', 'Active'), ('Active', 'Removed')}),
+    'resurrection_offers': ({'Absent', 'Offered', 'Accepted', 'Declined', 'Expired'},
+                            {('Absent', 'Offered'), ('Offered', 'Accepted'),
+                             ('Offered', 'Declined'), ('Offered', 'Expired')}),
+    'pvp_transitions': ({'Neutral', 'Flagged', 'Chaotic', 'ChaoticFlagged'},
+                        {(a, b) for a in ('Neutral', 'Flagged', 'Chaotic', 'ChaoticFlagged')
+                                for b in ('Neutral', 'Flagged', 'Chaotic', 'ChaoticFlagged') if a != b}),
 }
+
+
+def transition_scalars(data):
+    return (V2_SCALARS if data['schema_version'] >= 2 else ()) + (V3_SCALARS if data['schema_version'] == 3 else ())
 
 
 def transition_tables(data):
@@ -286,7 +297,7 @@ def transition_object(pairs):
 def transition_facts(data):
     fields = ('schema_version', *transition_tables(data), *transition_counters(data))
     if data['schema_version'] >= 2:
-        fields += V2_SCALARS
+        fields += transition_scalars(data)
     return {key: data[key] for key in fields}
 
 
@@ -327,7 +338,7 @@ def read_transitions(path):
             raise ValueError('incomplete transition catalogue')
     if data['schema_version'] == 1 and any(key in data for key in (*V2_COUNTERS, *V2_SCALARS)):
         raise ValueError('schema 1 cannot carry schema 2 coverage facts')
-    if data['schema_version'] < 3 and any(key in data for key in (*V3_TABLES, *V3_COUNTERS)):
+    if data['schema_version'] < 3 and any(key in data for key in (*V3_TABLES, *V3_COUNTERS, *V3_SCALARS)):
         raise ValueError('legacy schema cannot carry schema3 coverage facts')
     counters = transition_counters(data)
     for key in counters:
@@ -355,12 +366,12 @@ def read_transitions(path):
         if key in ('deaths', 'respawns') and set(values) != {'player', 'npc'}:
             raise ValueError('missing player/NPC lifecycle counters')
     if data['schema_version'] >= 2:
-        allowed = {'schema_version', *transition_tables(data), *transition_counters(data), *V2_SCALARS,
+        allowed = {'schema_version', *transition_tables(data), *transition_counters(data), *transition_scalars(data),
                    'recording_source', 'recording_sha256', 'group_capture',
                    'sources', 'source_provenance', 'summary'}
         if set(data) - allowed:
             raise ValueError(f'unknown schema {data["schema_version"]} transition fields cannot be merged without losing facts')
-        for key in V2_SCALARS:
+        for key in transition_scalars(data):
             count(data.get(key))
     if 'recording_sha256' in data and (not isinstance(data['recording_sha256'], str)
             or not re.fullmatch(r'[0-9a-f]{64}', data['recording_sha256'])):
@@ -428,7 +439,7 @@ def merge_transitions(paths, unique_recordings=False):
             for name, amount in data[key].items():
                 output[key][name] = output[key].get(name, 0) + amount
         if data['schema_version'] >= 2:
-            for key in V2_SCALARS:
+            for key in transition_scalars(data):
                 output[key] += data[key]
     output['sources'] = sources
     output['source_provenance'] = provenance
