@@ -334,6 +334,11 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
                 s.face = identity.appearance.face;
                 s.state_tick = tick.0;
             }
+            if combat.as_ref().is_some_and(|c| c.phase3.is_some()) {
+                if let Some(Event::Spawn(s)) = &mut spawn.event {
+                    s.state_tick = tick.0;
+                }
+            }
             match dest {
                 Some(_) => vec![
                     spawn,

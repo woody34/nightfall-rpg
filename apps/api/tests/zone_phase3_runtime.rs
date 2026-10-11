@@ -2753,3 +2753,92 @@ fn mutual_buff_cast_hydration_wire_follows_all_identities_without_replaying_muta
             && s.pending_swing.is_none()
             && s.active_effects.is_empty()));
 }
+
+#[test]
+fn npc_effect_hydration_wire_uses_identity_tick_without_changing_legacy_spawn_bytes(
+) -> anyhow::Result<()> {
+    use anyhow::Context as _;
+    use nightfall_api::interface::zone_mapping::{spawn_to_pb, world_event_to_pb};
+    use pb::world_event::Event;
+    use prost::Message as _;
+    let (mut zone, caster, npc) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1)],
+    );
+    finish_skill(&mut zone, caster, npc, 1040);
+    let viewer = EntityId::from_uuid(Uuid::from_u128(556));
+    let admission = spawn_observer_v5(&mut zone, caster, viewer, 11);
+    let events = wire_events_for(&admission, viewer);
+    let identity = events
+        .iter()
+        .find_map(|e| match e {
+            Event::Spawn(s) if s.entity_id == npc.to_string() => Some(s),
+            _ => None,
+        })
+        .context("NPC identity frame")?;
+    assert_eq!(identity.state_tick, admission.tick.0);
+    let effect = events
+        .iter()
+        .find_map(|e| match e {
+            Event::EffectApplied(e) if e.target == npc.to_string() && e.skill_id == 1040 => Some(e),
+            _ => None,
+        })
+        .context("existing NPC effect hydration frame")?;
+    assert!(effect.baseline);
+    assert_eq!(effect.target_incarnation, identity.life_incarnation);
+    assert_eq!((effect.tick, effect.baseline_tick), (identity.state_tick, identity.state_tick));
+    // Client fence contract (architecture-decisions C12): hydration upserts at the identity
+    // tick; ordinary deltas need a strictly newer tick. The client owner tests its projection.
+    assert!(effect.baseline && effect.baseline_tick == identity.state_tick);
+    let last_identity = events
+        .iter()
+        .rposition(|e| matches!(e, Event::Spawn(_)))
+        .context("identity batch")?;
+    let effect_index = events
+        .iter()
+        .position(|e| matches!(e, Event::EffectApplied(e) if e.effect_id == effect.effect_id))
+        .context("hydration index")?;
+    assert!(effect_index > last_identity);
+
+    // Reproject the actual NPC producer with its legacy combat policy. The previous spawn
+    // mapper's exact bytes are preserved; absent player metadata cannot imply a V5 baseline.
+    let mut legacy = admission
+        .outputs
+        .get(&viewer)
+        .context("viewer outputs")?
+        .iter()
+        .find_map(|o| match o {
+            ObserverOutput::Event(e @ ZoneEvent::EntitySpawn { entity, .. }) if *entity == npc => {
+                Some(e.clone())
+            },
+            _ => None,
+        })
+        .context("NPC domain identity")?;
+    if let ZoneEvent::EntitySpawn {
+        combat: Some(c), ..
+    } = &mut legacy
+    {
+        c.phase3 = None;
+    }
+    if let ZoneEvent::EntitySpawn {
+        entity,
+        kind,
+        name,
+        pos,
+        generation,
+        combat,
+        ..
+    } = &legacy
+    {
+        let previous = spawn_to_pb(*entity, *kind, name, *pos, *generation, combat.as_ref());
+        let mapped = world_event_to_pb(&legacy, admission.server_time_ms)
+            .into_iter()
+            .next()
+            .context("legacy spawn mapping")?;
+        assert_eq!(mapped.encode_to_vec(), previous.encode_to_vec());
+        let decoded = pb::WorldEvent::decode(mapped.encode_to_vec().as_slice())?;
+        assert!(matches!(decoded.event, Some(Event::Spawn(s)) if s.state_tick == 0));
+    }
+    Ok(())
+}
