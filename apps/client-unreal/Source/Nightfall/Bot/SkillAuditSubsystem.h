@@ -39,6 +39,7 @@ private:
   uint64 TerminalTick=0,SeenTick=0;
   bool bIdentityOk=true;
   TOptional<uint32> HpAtStart,CpAtStart;
+  TOptional<uint64> FirstTargetDamageTick;
   TOptional<FSkillReuse> ReuseAtCancel;
   uint64 TargetFlagAtStart=0;
  };

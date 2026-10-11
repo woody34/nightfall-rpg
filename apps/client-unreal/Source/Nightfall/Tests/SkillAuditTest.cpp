@@ -126,12 +126,42 @@ bool FPeaceCancelRegenTest::RunTest(const FString& Parameters)
  {
   FWorldEvent E;FSkillCastCancelled C;C.Caster=TEXT("peer");C.CasterIncarnation=1;C.CastId=2;C.Tick=1488;C.Reason=9;E.SkillCastCancelled=C;Send(E);
  };
+ // Synthetic removal rows mutate the captured sequence, not gameplay formulas.
+ auto Damage=[&](bool Skill,uint64 Tick,uint32 Hp,uint32 Cp,const TCHAR* Target=TEXT("owner"),uint32 Inc=1)
+ {
+  FWorldEvent E;
+  if(Skill)
+  {
+   FSkillCastResult R;R.Caster=TEXT("peer");R.CasterIncarnation=1;R.CastId=99;R.Tick=Tick;
+   FSkillTargetResult T;T.Target=Target;T.TargetIncarnation=Inc;T.Tick=Tick;T.HpRemoved=Hp;T.CpAbsorbed=Cp;T.Rolled=1;T.TargetHpAfter=236;R.Targets.Add(T);E.SkillCastResult=R;
+  }
+  else {FAttackResult R;R.Attacker=TEXT("peer");R.Target=Target;R.TargetIncarnation=Inc;R.Tick=Tick;R.Damage=Hp;R.CpDamage=Cp;R.TargetHpAfter=236;E.AttackResult=R;}
+  Send(E);
+ };
  Begin();TestFalse(TEXT("start alone is unknown"),Check().IsSet());Resources(1462,237,127);Cancel();TestFalse(TEXT("requires resource witness after cancellation"),Check().IsSet());Resources(1492,240,130);
  TestTrue(TEXT("captured regen is retained exactly as received"),Check().Get(false));Cancel();TestTrue(TEXT("duplicate cancellation does not count twice"),Check().Get(false));
  Resources(1500,200,100);TestTrue(TEXT("later unrelated combat cannot rewrite the witnessed interval"),Check().Get(false));
  Begin();Resources(1462,233,127);Cancel();Resources(1492,240,130);TestFalse(TEXT("HP loss cannot be masked by later regen"),Check().Get(true));
  Begin();Resources(1462,237,124);Cancel();Resources(1492,240,130);TestFalse(TEXT("CP loss cannot be masked by later regen"),Check().Get(true));
- Begin();Resources(1462,237,127);Cancel();Resources(1492,240,130);FWorldEvent E;FSkillCastResult R;R.Caster=TEXT("peer");R.CasterIncarnation=1;R.CastId=2;R.Tick=1492;R.SkillId=1177;R.SkillLevel=5;E.SkillCastResult=R;Send(E);TestFalse(TEXT("contradictory result fails"),Check().Get(true));
+ for(bool Skill:{false,true})for(bool Cp:{false,true})
+ {
+  Begin();Resources(1462,Cp?237:236,Cp?126:127);Damage(Skill,1462,Cp?0:1,Cp?1:0);Cancel();Resources(1492,240,130);
+  const auto Result=Check();TestTrue(TEXT("positive HP/CP removal fails even when same-tick regen masks it"),Result.IsSet() && !*Result);
+  Damage(Skill,1462,Cp?0:1,Cp?1:0);TestFalse(TEXT("duplicate damage cannot clear failure"),Check().Get(true));
+  Begin();Damage(Skill,1462,Cp?0:1,Cp?1:0);Resources(1462,Cp?237:236,Cp?126:127);Cancel();Resources(1492,240,130);
+  TestFalse(TEXT("damage before resource samples also fails"),Check().Get(true));
+  for(uint64 Tick:{uint64(1452),uint64(1488),uint64(1492)})
+  {
+   Begin();Resources(1462,237,127);Cancel();Resources(1492,240,130);Damage(Skill,Tick,Cp?0:1,Cp?1:0);
+   TestFalse(TEXT("start, cancellation and first post-cancel sample are inside the damage interval"),Check().Get(true));
+  }
+  Begin();Damage(Skill,1451,Cp?0:1,Cp?1:0);Resources(1462,237,127);Cancel();Resources(1492,240,130);Damage(Skill,1493,Cp?0:1,Cp?1:0);
+  TestTrue(TEXT("damage outside the witnessed interval is unrelated"),Check().Get(false));
+  Begin();Damage(Skill,1462,Cp?0:1,Cp?1:0,TEXT("peer"));Damage(Skill,1462,Cp?0:1,Cp?1:0,TEXT("owner"),0);Damage(Skill,1462,0,0);Resources(1462,237,127);Cancel();Resources(1492,240,130);
+  TestTrue(TEXT("other target, stale life and zero removal do not invalidate peace evidence"),Check().Get(false));
+ }
+ Begin();Resources(1462,237,127);Cancel();Resources(1492,240,130);FWorldEvent E;FSkillCastResult R;R.Caster=TEXT("peer");R.CasterIncarnation=1;R.CastId=2;R.Tick=1492;R.SkillId=1177;R.SkillLevel=5;E.SkillCastResult=R;Send(E);
+ const auto Contradiction=Check();TestTrue(TEXT("contradictory result is explicit false, not UNKNOWN"),Contradiction.IsSet() && !*Contradiction);
  A->Disconnected(TEXT("test"));TestFalse(TEXT("transport loss clears evidence"),Check().IsSet());
  return true;
 }

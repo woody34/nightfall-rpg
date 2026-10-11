@@ -144,6 +144,19 @@ void USkillAuditSubsystem::Impact(const FString& Attacker,const FString& Target,
 }
 void USkillAuditSubsystem::Observe(const FWorldEvent& E)
 {
+ // Damage is evidence even without a matching received attacker/cast start.
+ const auto NoteTargetDamage=[this](const FString& Target,uint32 Inc,uint64 Tick,uint32 Hp,uint32 Cp)
+ {
+  if((!Hp && !Cp) || !Fence.Accept(Target,Inc,Tick))return;
+  for(auto& Pair:Casts)
+  {
+   auto& C=Pair.Value;
+   if(!C.Start.Target.IsSet() || !C.Start.TargetIncarnation.IsSet() || *C.Start.TargetIncarnation!=Inc || !C.Start.Target->Equals(Target,ESearchCase::IgnoreCase) || Tick<C.Start.StartTick)continue;
+   if(!C.FirstTargetDamageTick.IsSet() || Tick<*C.FirstTargetDamageTick)C.FirstTargetDamageTick=Tick;
+  }
+ };
+ if(E.AttackResult.IsSet()){const auto& R=*E.AttackResult;NoteTargetDamage(R.Target,R.TargetIncarnation,R.Tick,R.Damage,R.CpDamage);}
+ if(E.SkillCastResult.IsSet())for(const auto& T:E.SkillCastResult->Targets)NoteTargetDamage(T.Target,T.TargetIncarnation,T.Tick,T.HpRemoved,T.CpAbsorbed);
  if(E.Spawn.IsSet())
  {
   const auto& S=*E.Spawn;
@@ -463,17 +476,20 @@ TOptional<bool> USkillAuditSubsystem::Check(const FString& Name) const
  if(Name==TEXT("peace_impact_has_no_damage"))
  {
   const FCastEvidence* Last=nullptr;for(const auto& Pair:Casts)if(Pair.Value.Reason==9 && Pair.Value.Terminals && (!Last || Pair.Value.TerminalTick>Last->TerminalTick))Last=&Pair.Value;
-  if(!Last || !Net || Net->GetLatestReceivedTick()<=Last->TerminalTick || !Fence.Visible(Last->Start.Caster,Last->Start.CasterIncarnation) || !Last->bIdentityOk || !Last->Start.Target.IsSet() || !Last->Start.TargetIncarnation.IsSet() || !Last->HpAtStart.IsSet())return {};
+  if(!Last)return {};
+  if(!Last->bIdentityOk)return false;
+  if(!Net || Net->GetLatestReceivedTick()<=Last->TerminalTick || !Fence.Visible(Last->Start.Caster,Last->Start.CasterIncarnation) || !Last->Start.Target.IsSet() || !Last->Start.TargetIncarnation.IsSet() || !Last->HpAtStart.IsSet())return {};
   const auto* V=Vitals.Find(Last->Start.Target->ToLower());if(!V || V->Incarnation!=*Last->Start.TargetIncarnation || !Fence.Visible(*Last->Start.Target,*Last->Start.TargetIncarnation))return {};
   // Public-only observers cannot assert the victim's private CP. Exact CP proof is owner-scoped.
   if(!Net || !Net->IsOwnEntity(*Last->Start.Target) || !Last->CpAtStart.IsSet() || !Stats.IsSet() || Stats->Incarnation!=*Last->Start.TargetIncarnation)return {};
   if(!bSamplesComplete)return {};
-  // Regen may raise either resource during the cast. Every received sample must
-  // retain resources; exact regen/cancellation causality is checked by replay (C11/C15).
+  // Regen may mask damage in absolute samples. Reject received removal as well;
+  // exact regen/cancellation causality is checked by replay (C11/C15).
   uint32 Hp=*Last->HpAtStart,Cp=*Last->CpAtStart;bool After=false;
   for(const auto& Sample:ResourceSamples)
   {
    if(Sample.Incarnation!=*Last->Start.TargetIncarnation || Sample.Tick<Last->Start.StartTick)continue;
+   if(Last->FirstTargetDamageTick.IsSet() && *Last->FirstTargetDamageTick<=Sample.Tick)return false;
    if(Sample.Hp<Hp || Sample.Cp<Cp)return false;
    Hp=Sample.Hp;Cp=Sample.Cp;
    if(Sample.Tick>Last->TerminalTick){After=true;break;}
