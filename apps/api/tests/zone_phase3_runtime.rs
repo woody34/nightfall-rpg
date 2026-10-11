@@ -2281,3 +2281,197 @@ fn high_level_npc_skill_penalty_is_live_and_midcast_snapshot_keeps_the_rules() {
     assert_eq!(penalized, 0);
     assert!(control > 0);
 }
+
+#[test]
+#[allow(clippy::too_many_lines)] // One live recording checks full, digest-only, and baseline suffix coverage.
+fn schema_three_coverage_counts_live_lifecycles_once_and_verifies_the_suffix() {
+    use nightfall_api::application::replay_log::{Watermark, WatermarkReason};
+    use nightfall_api::infrastructure::eventlog::Recording;
+
+    fn skill_cast(player: EntityId, target: EntityId, skill_id: u32) -> ZoneInput {
+        let mut input = cast(player, target);
+        input.command = ZoneCommand::CastSkill {
+            entity: player,
+            target: Some(target),
+            skill_id: SkillId(skill_id),
+        };
+        input
+    }
+    fn cancel(player: EntityId, target: EntityId) -> ZoneInput {
+        let mut input = cast(player, target);
+        input.command = ZoneCommand::CancelCast {
+            entity: player,
+            cast_id: None,
+        };
+        input
+    }
+    fn record(zone: &mut ZoneState, rec: &mut Recording, inputs: Vec<ZoneInput>) -> AppliedTick {
+        let applied = zone.run_tick(zone.draft(inputs)).unwrap();
+        rec.records
+            .push(AppliedTickRecord::from_applied(rec.snapshot.seed.zone, &applied));
+        rec.watermark.last_tick = Some(applied.tick);
+        rec.watermark.records = u64::try_from(rec.records.len()).unwrap();
+        applied
+    }
+    fn cover(rec: &Recording) -> Result<serde_json::Value, String> {
+        let prefix = std::env::temp_dir().join(format!("phase3-coverage-{}", Uuid::new_v4()));
+        let file = prefix.with_extension("nfr");
+        let out = prefix.with_extension("json");
+        rec.write(&file).unwrap();
+        let result = std::process::Command::new(env!("CARGO_BIN_EXE_nightfall-replay"))
+            .arg("coverage")
+            .arg("--file")
+            .arg(&file)
+            .arg("--out")
+            .arg(&out)
+            .output()
+            .unwrap();
+        std::fs::remove_file(file).unwrap();
+        if !result.status.success() {
+            assert!(!out.exists(), "diverged coverage must not publish a report");
+            return Err(String::from_utf8_lossy(&result.stderr).into_owned());
+        }
+        let json = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+        std::fs::remove_file(out).unwrap();
+        Ok(json)
+    }
+    fn count(report: &serde_json::Value, table: &str, from: &str, to: &str) -> u64 {
+        report[table]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["from"] == from && row["to"] == to)
+            .unwrap()["count"]
+            .as_u64()
+            .unwrap()
+    }
+    let (mut zone, player, npc) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1), (1177, 1)],
+    );
+    let mut rec = Recording {
+        snapshot: zone.snapshot(),
+        watermark: Watermark {
+            zone: ZoneId(1),
+            epoch: zone.snapshot().seed.epoch,
+            last_tick: None,
+            records: 0,
+            reason: WatermarkReason::Capture,
+        },
+        records: Vec::new(),
+    };
+    let mut suffix_start = None;
+    for number in 0..2 {
+        let start = record(&mut zone, &mut rec, vec![skill_cast(player, npc, 1040)]);
+        assert!(start
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::SkillCastStarted { .. })));
+        if number == 1 {
+            suffix_start = Some((zone.snapshot(), rec.records.len()));
+        }
+        loop {
+            let applied = record(&mut zone, &mut rec, vec![]);
+            if applied
+                .events
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::SkillCastResult { .. }))
+            {
+                break;
+            }
+        }
+        for _ in 0..25 {
+            record(&mut zone, &mut rec, vec![]);
+        }
+    }
+    // AOI entry hydrates the existing effect but must not count another installation.
+    let load = match combat(&zone, player).role {
+        CombatRole::Player { progression, .. } => {
+            let mut load = PlayerLoad::fresh("human_mystic");
+            load.progression = progression;
+            load
+        },
+        CombatRole::Npc { .. } => panic!("player"),
+    };
+    let observer = EntityId::from_uuid(Uuid::from_u128(900));
+    let joined = record(
+        &mut zone,
+        &mut rec,
+        vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+            entity: observer,
+            name: "Observer".into(),
+            pos: Vec2Fixed::from_tiles(11, 10),
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(1),
+            load: Some(Box::new(load)),
+        })],
+    );
+    assert!(joined.dispositions.is_empty());
+    assert!(joined.outputs[&observer].iter().any(|output| matches!(
+        output,
+        ObserverOutput::Event(ZoneEvent::EffectApplied {
+            baseline: Some(_),
+            ..
+        })
+    )));
+    let start = record(&mut zone, &mut rec, vec![cast(player, npc)]);
+    assert!(start.dispositions.is_empty(), "{:?}", start.dispositions);
+    record(&mut zone, &mut rec, vec![cancel(player, npc)]);
+    // Same-tick staged cancellation has no accepted start or terminal cast fact.
+    record(&mut zone, &mut rec, vec![cast(player, npc), cancel(player, npc)]);
+    record(&mut zone, &mut rec, vec![skill_cast(player, npc, u32::MAX)]);
+    let report = cover(&rec).unwrap();
+    assert_eq!(report["schema_version"], 3);
+    assert_eq!(count(&report, "cast_states", "Idle", "Casting"), 3);
+    assert_eq!(count(&report, "cast_states", "Casting", "Idle"), 3);
+    assert_eq!(report["cast_end_reasons"], serde_json::json!({"Completed": 2, "Stopped": 1}));
+    assert_eq!(count(&report, "effect_states", "Absent", "Active"), 2);
+    assert_eq!(count(&report, "effect_states", "Active", "Removed"), 1);
+    assert_eq!(report["effect_remove_reasons"], serde_json::json!({"Replaced": 1}));
+    assert_eq!(report["intent_rejected"]["SkillUnknown"], 1);
+    assert_eq!(report["learning_committed"], 0);
+    assert_eq!(report["cp_absorption"], serde_json::json!({}));
+    for table in ["cast_states", "effect_states"] {
+        for row in report[table].as_array().unwrap() {
+            if row["reachable"] == false {
+                assert_eq!(row["count"], 0);
+            }
+        }
+    }
+    let mut digests = rec.clone();
+    digests.records = digests
+        .records
+        .iter()
+        .map(AppliedTickRecord::with_output_digests)
+        .collect();
+    assert_eq!(cover(&digests).unwrap(), report);
+    let (snapshot, index) = suffix_start.unwrap();
+    let mut suffix = rec.clone();
+    suffix.snapshot = snapshot;
+    suffix.records.drain(..index);
+    suffix.watermark.records = u64::try_from(suffix.records.len()).unwrap();
+    let report = cover(&suffix).unwrap();
+    assert_eq!(count(&report, "cast_states", "Idle", "Casting"), 1);
+    assert_eq!(count(&report, "cast_states", "Casting", "Idle"), 2);
+    assert_eq!(count(&report, "effect_states", "Absent", "Active"), 1);
+    assert_eq!(count(&report, "effect_states", "Active", "Removed"), 1);
+    // A validly encoded event mutation is still rejected before coverage is emitted.
+    let mut bad = rec;
+    let first = bad.records.first_mut().unwrap();
+    let mut facts = nightfall_api::application::replay_log::decode_events(&first.events).unwrap();
+    let started = facts
+        .iter_mut()
+        .find(|e| matches!(e, ZoneEvent::SkillCastStarted { .. }))
+        .unwrap();
+    if let ZoneEvent::SkillCastStarted { complete_at, .. } = started {
+        *complete_at = complete_at.next();
+    }
+    first.events = nightfall_api::application::replay_log::encode_events(&facts);
+    assert!(cover(&bad).unwrap_err().contains("divergence"));
+    let first = digests.records.first_mut().unwrap();
+    let mut bytes = first.events.to_vec();
+    bytes[0] ^= 1;
+    first.events = bytes.into();
+    assert!(cover(&digests).unwrap_err().contains("divergence"));
+}
