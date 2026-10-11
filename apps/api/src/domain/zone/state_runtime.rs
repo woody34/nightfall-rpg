@@ -439,19 +439,17 @@ impl ZoneState {
     fn execute_v5(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
         // Rollout remains fenced at actor bootstrap. Unimplemented policy combinations fail
         // before mutation rather than passing through legacy combat as if it were V5.
-        if !self.slots.is_empty()
-            || draft.commands.iter().any(|c| {
-                matches!(
-                    c.command,
-                    ZoneCommand::Attack { .. }
-                        | ZoneCommand::AddAggro { .. }
-                        | ZoneCommand::AcceptResurrect { .. }
-                        | ZoneCommand::LearnSkill { .. }
-                        | ZoneCommand::ChangeClass { .. }
-                        | ZoneCommand::Respawn { .. }
-                )
-            })
-        {
+        if draft.commands.iter().any(|c| {
+            matches!(
+                c.command,
+                ZoneCommand::Attack { .. }
+                    | ZoneCommand::AddAggro { .. }
+                    | ZoneCommand::AcceptResurrect { .. }
+                    | ZoneCommand::LearnSkill { .. }
+                    | ZoneCommand::ChangeClass { .. }
+                    | ZoneCommand::Respawn { .. }
+            )
+        }) {
             return Err(TickError::Phase3NotReady);
         }
         let tick = draft.tick;
@@ -473,6 +471,7 @@ impl ZoneState {
             }
             self.next_ordinal = Ordinal(command.ordinal.0.checked_add(1).ok_or_else(missing)?);
         }
+        self.spawn_phase_v5(tick, &mut events)?;
         self.expire_effects_v5(tick, &mut events)?;
         self.expire_reuse_v5(tick, &mut events)?;
         self.pulse_effects_v5(tick, &mut events)?;
@@ -499,6 +498,14 @@ impl ZoneState {
                 });
             }
         }
+        self.drain_ai_v5(tick, &mut events);
+        self.ai_phase(tick, &mut events);
+        self.drain_ai_v5(tick, &mut events);
+        self.phase3
+            .as_mut()
+            .ok_or_else(missing)?
+            .forced_this_tick
+            .clear();
         self.flush_progression(tick, &mut events);
         self.final_resources_v5(tick, &before, &mut events)?;
         self.phase3
@@ -541,23 +548,11 @@ impl ZoneState {
             ..
         } = &command.command
         {
-            let profile = self
-                .phase3
-                .as_ref()
-                .and_then(|p| p.canonical.rules.profiles().npcs.get(&spec.template))
-                .ok_or(RejectReason::InvalidLoad)?;
-            let raw = &profile.physical;
-            if spec.stats.level != raw.level
-                || spec.stats.max_hp != raw.max_hp
-                || spec.stats.max_mp != raw.max_mp
-                || spec.stats.p_atk.raw() != raw.p_atk_q
-                || spec.stats.p_def.raw() != raw.p_def_q
-                || spec.stats.attack_speed.raw() != i64::from(raw.attack_speed).saturating_mul(Q)
-                || *speed != raw.move_speed
-            {
+            if !self.npc_profile_v5(spec, *speed) {
                 return Err(RejectReason::InvalidLoad);
             }
         }
+
         if let ZoneCommand::MoveTo { entity, .. } = &command.command {
             use crate::domain::zone::effects::StatusFlags as F;
             if self
@@ -1133,6 +1128,8 @@ impl ZoneState {
                         Self::dispel_handler_v5
                     } else if matches!(handler.name.as_str(), "Heal" | "HpPerMax" | "Mp" | "Cp") {
                         Self::restore_handler_v5
+                    } else if matches!(handler.name.as_str(), "GetAgro" | "AddHate") {
+                        Self::agro_handler_v5
                     } else {
                         Self::magic_handler_v5
                     };
@@ -2017,7 +2014,10 @@ fn hostile_skill(skill: &SkillDef) -> bool {
     skill.abnormal.as_ref().is_some_and(|a| a.is_debuff)
         || skill.effect_point.iter().any(|value| *value < 0)
         || skill.effects.iter().any(|h| {
-            matches!(h.name.as_str(), "MagicalAttack" | "MagicalAttackRange" | "PhysicalAttack")
+            matches!(
+                h.name.as_str(),
+                "MagicalAttack" | "MagicalAttackRange" | "PhysicalAttack" | "GetAgro" | "AddHate"
+            )
         })
 }
 fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
@@ -2034,7 +2034,14 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
                 && skill.effects.iter().all(|h| {
                     matches!(
                         h.name.as_str(),
-                        "Heal" | "HpPerMax" | "Mp" | "Cp" | "DispelBySlot" | "DispelByCategory"
+                        "Heal"
+                            | "HpPerMax"
+                            | "Mp"
+                            | "Cp"
+                            | "DispelBySlot"
+                            | "DispelByCategory"
+                            | "GetAgro"
+                            | "AddHate"
                     )
                 })
             || skill.abnormal.is_some()
@@ -2061,4 +2068,232 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
                 && (!matches!(h.name.as_str(), "MaxHp" | "MaxMp")
                     || (skill.effects.len() == 1 && h.stat_children.is_empty()))
         })
+}
+
+impl ZoneState {
+    fn npc_profile_v5(&self, spec: &NpcCombat, speed: Speed) -> bool {
+        let Some(profile) = self
+            .phase3
+            .as_ref()
+            .and_then(|p| p.canonical.rules.profiles().npcs.get(&spec.template))
+        else {
+            return false;
+        };
+        let raw = &profile.physical;
+        spec.stats.level == raw.level
+            && spec.stats.max_hp == raw.max_hp
+            && spec.stats.max_mp == raw.max_mp
+            && spec.stats.p_atk.raw() == raw.p_atk_q
+            && spec.stats.p_def.raw() == raw.p_def_q
+            && spec.stats.attack_speed.raw() == i64::from(raw.attack_speed).saturating_mul(Q)
+            && speed == raw.move_speed
+    }
+
+    #[allow(clippy::wildcard_enum_match_arm)] // Only lifecycle facts allocate/remove sidecars.
+    fn spawn_phase_v5(&mut self, tick: Tick, events: &mut Vec<ZoneEvent>) -> Result<(), TickError> {
+        if self
+            .slots
+            .iter()
+            .any(|slot| !self.npc_profile_v5(&slot.combat, slot.speed))
+        {
+            return Err(TickError::Phase3NotReady);
+        }
+        let mut spawned = Vec::new();
+        self.spawn_phase(tick, &mut spawned);
+        for event in &spawned {
+            match event {
+                ZoneEvent::EntityDespawn { entity, .. } => {
+                    self.phase3
+                        .as_mut()
+                        .ok_or_else(missing)?
+                        .canonical
+                        .entities
+                        .remove(entity);
+                },
+                ZoneEvent::EntitySpawn { entity, .. } => self.attach_v5(tick, *entity, None)?,
+                _ => {},
+            }
+        }
+        events.extend(spawned);
+        Ok(())
+    }
+
+    /// Hard control suppresses AI actions; ROOT still allows in-range intention changes.
+    pub(super) fn npc_action_v5(&self, npc: EntityId) -> bool {
+        use crate::domain::zone::effects::StatusFlags as F;
+        self.entities
+            .get(&npc)
+            .is_some_and(|e| e.kind == EntityKind::Npc && !e.targeting.dead)
+            && self.effective(npc).is_ok_and(|s| {
+                !s.flags
+                    .intersects(F::STUN.union(F::SLEEP).union(F::PARALYZE))
+            })
+    }
+
+    pub(super) fn npc_pair_v5(&self, tick: Tick, npc: EntityId, target: EntityId) -> bool {
+        match (self.binding(npc), self.binding(target)) {
+            (Some(a), Some(b)) => self.hostility_v5(tick, a, b).is_ok(),
+            _ => false,
+        }
+    }
+
+    pub(super) fn npc_can_walk_v5(&self, npc: EntityId) -> bool {
+        use crate::domain::zone::effects::StatusFlags as F;
+        self.npc_action_v5(npc)
+            && self
+                .effective(npc)
+                .is_ok_and(|s| !s.flags.intersects(F::ROOT))
+    }
+
+    fn most_hated_v5(&self, tick: Tick, npc: EntityId) -> Option<EntityId> {
+        let current = self.entities.get(&npc)?.targeting.target;
+        self.hate
+            .get(&npc)?
+            .most_hated(current, |target| self.npc_pair_v5(tick, npc, target))
+    }
+
+    /// Immediate ledger mutation records its selection; physical intention changes wait
+    /// until phase nine. Design F11 / GetAgro.java:49-54.
+    pub(super) fn reselect_v5(&mut self, tick: Tick, npc: EntityId) {
+        let Some(binding) = self.binding(npc) else {
+            return;
+        };
+        let target = self
+            .most_hated_v5(tick, npc)
+            .and_then(|id| self.binding(id));
+        if let Some(phase) = &mut self.phase3 {
+            phase
+                .ai_requests
+                .push(crate::domain::zone::phase3::AiRequest {
+                    npc: binding,
+                    target,
+                    force: false,
+                });
+        }
+    }
+
+    fn drain_ai_v5(&mut self, tick: Tick, events: &mut Vec<ZoneEvent>) {
+        loop {
+            let requests = self
+                .phase3
+                .as_mut()
+                .map(|p| std::mem::take(&mut p.ai_requests))
+                .unwrap_or_default();
+            if requests.is_empty() {
+                break;
+            }
+            for request in requests {
+                let npc = request.npc.entity;
+                if self.binding(npc) != Some(request.npc)
+                    || !self.npc_action_v5(npc)
+                    || request.target.is_some_and(|target| {
+                        self.binding(target.entity) != Some(target)
+                            || !self.npc_pair_v5(tick, npc, target.entity)
+                    })
+                {
+                    continue;
+                }
+                let chosen = request.target.map(|t| t.entity);
+                let current = self.entities.get(&npc).and_then(|e| e.targeting.target);
+                if chosen != current {
+                    self.disengage(tick, npc, SwingCancel::TargetChanged, events);
+                    if let Some(e) = self.entities.get_mut(&npc) {
+                        e.targeting.target = chosen;
+                    }
+                    events.push(ZoneEvent::TargetChanged {
+                        tick,
+                        entity: npc,
+                        target: chosen,
+                    });
+                }
+                if let Some(c) = self.entities.get_mut(&npc).and_then(|e| e.combat.as_mut()) {
+                    c.auto_attack = chosen.is_some();
+                }
+                if let Some(phase) = &mut self.phase3 {
+                    if request.force {
+                        phase.forced_this_tick.insert(npc);
+                    } else {
+                        phase.forced_this_tick.remove(&npc);
+                    }
+                }
+                self.ai_target_changed(tick, npc, chosen, events);
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn agro_handler_v5(
+        &mut self,
+        tick: Tick,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        handler: &crate::domain::zone::skill::SkillHandler,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<SkillTargetResult, TickError> {
+        let entity = self.entities.get(&target.entity).ok_or_else(missing)?;
+        let hp = entity.combat.as_ref().ok_or_else(missing)?.hp;
+        if entity.kind == EntityKind::Npc && hp != 0 {
+            if handler.name == "GetAgro" {
+                if entity.ai.is_some()
+                    && self.most_hated_v5(tick, target.entity) != Some(caster.entity)
+                {
+                    self.phase3.as_mut().ok_or_else(missing)?.ai_requests.push(
+                        crate::domain::zone::phase3::AiRequest {
+                            npc: target,
+                            target: Some(caster),
+                            force: true,
+                        },
+                    );
+                }
+            } else {
+                let power = handler
+                    .params
+                    .get("power")
+                    .and_then(|p| p.at(rank, skill.max_level))
+                    .map_or("0", String::as_str);
+                let power = ExactRatio::parse_literal(power).map_err(invariant)?;
+                let signed = power.parts().0;
+                let amount = power
+                    .trunc()
+                    .map_err(invariant)?
+                    .saturating_abs()
+                    .min(i128::from(i32::MAX));
+                // Pinned quirk: AddHate.java:54-59 passes positive -power to reduceHate;
+                // L2Attackable.java:662-669 and AggroInfo.java:51-53 ADD it to an existing
+                // row. Preserve that behavior; a missing row is a no-op on this branch.
+                if signed > 0
+                    || (signed < 0
+                        && self
+                            .hate
+                            .get(&target.entity)
+                            .and_then(|l| l.get(caster.entity))
+                            .is_some())
+                {
+                    self.add_hate(
+                        tick,
+                        target.entity,
+                        caster.entity,
+                        super::super::HateEntry {
+                            hate: u64::try_from(amount).map_err(invariant)?,
+                            damage: 0,
+                        },
+                        events,
+                    );
+                }
+            }
+        }
+        Ok(SkillTargetResult {
+            target,
+            resolution_kind: SkillResolutionKind::Effect,
+            outcome: SkillOutcome::Hit,
+            rolled: 0,
+            cp_absorbed: 0,
+            hp_removed: 0,
+            heal: 0,
+            target_hp_after: hp,
+            applied_effect_ids: Vec::new(),
+        })
+    }
 }

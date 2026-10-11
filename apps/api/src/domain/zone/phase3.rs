@@ -326,6 +326,17 @@ pub(super) struct Phase3Zone {
     pub(super) canonical: Phase3Snapshot,
     pub(super) schedule: super::state_effects::Phase3Schedule,
     pub(super) vitals_dirty: std::collections::BTreeSet<super::EntityId>,
+    pub(super) ai_requests: Vec<AiRequest>,
+    pub(super) forced_this_tick: BTreeSet<super::EntityId>,
+}
+
+/// Tick-local emission order, never persisted. The selected life is captured when hate
+/// changes, not recomputed from a later ledger while phase nine drains the requests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct AiRequest {
+    pub(super) npc: super::effects::TargetBinding,
+    pub(super) target: Option<super::effects::TargetBinding>,
+    pub(super) force: bool,
 }
 
 impl Phase3Zone {
@@ -337,6 +348,8 @@ impl Phase3Zone {
             canonical,
             schedule,
             vitals_dirty: std::collections::BTreeSet::new(),
+            ai_requests: Vec::new(),
+            forced_this_tick: BTreeSet::new(),
         })
     }
 }

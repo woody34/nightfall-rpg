@@ -22,6 +22,7 @@ use nightfall_api::infrastructure::{
     zone_data::{parse_zone, TEST_ZONE_TOML},
 };
 use nightfall_api::interface::{grpc::pb, zone_mapping::observer_output_to_pb};
+use std::fmt::Write as _;
 use uuid::Uuid;
 
 fn setup() -> (ZoneState, EntityId, EntityId) {
@@ -1154,4 +1155,354 @@ fn cancellation_live_reverse_order_rng_and_midcast_replay() {
         }
     }
     panic!("cancellation did not complete");
+}
+
+fn ai_test_rules() -> Phase3Rules {
+    let mut source = Phase3DataSource::embedded();
+    for (id, handler, params) in [
+        (1177, "GetAgro", "{}"),
+        (1040, "AddHate", "{ power = \"500\" }"),
+    ] {
+        let text = source
+            .skills
+            .0
+            .get_mut(&format!("skills/{id}.toml"))
+            .unwrap();
+        let rank_count: usize = if id == 1177 { 5 } else { 3 };
+        let zeros = format!("[{}]", vec!["0"; rank_count].join(", "));
+        *text = text
+            .lines()
+            .take_while(|l| *l != "[[effects]]")
+            .filter(|l| !l.starts_with("abnormal ="))
+            .map(|l| {
+                if l.starts_with("operate_type =") {
+                    "operate_type = \"A1\"".into()
+                } else if l.starts_with("hit_time_ms =") {
+                    "hit_time_ms = 1000".into()
+                } else if l.starts_with("reuse_ms =") {
+                    "reuse_ms = 0".into()
+                } else if l.starts_with("activate_rate =") {
+                    "activate_rate = -1".into()
+                } else if let Some(key) = ["effect_point", "mp_consume_start", "mp_consume_end"]
+                    .iter()
+                    .find(|key| l.starts_with(&format!("{key} =")))
+                {
+                    format!("{key} = {zeros}")
+                } else {
+                    l.to_owned()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        write!(text, "\n[[effects]]\nsection = \"effects\"\nname = \"{handler}\"\nparams = {params}\nstat_children = []\n").unwrap();
+    }
+    load_phase3_rules(&source, &[]).unwrap()
+}
+
+fn setup_ai_rules(rules: Phase3Rules) -> (ZoneState, EntityId, EntityId, EntityId) {
+    let (mut zone, first, bare) = setup_with_rules(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1), (1177, 1)],
+        rules,
+    );
+    zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::Despawn { entity: bare })]))
+        .unwrap();
+    let data = parse_zone(TEST_ZONE_TOML).unwrap();
+    let template = &data.npc_templates[0];
+    let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
+    let mut slot = SpawnSlotSpec::new(
+        &SpawnSlot {
+            id: "phase3-ai".into(),
+            template: template.id.clone(),
+            home: Vec2Fixed::from_tiles(12, 10),
+            count: 1,
+            respawn_delay_secs: 30,
+            respawn_random_secs: 0,
+        },
+        template,
+        NpcCombat::from_template(&stats, template).unwrap(),
+    );
+    slot.brain.aggressive = false;
+    slot.brain.clan = None;
+    zone = zone.with_spawn_slots(vec![slot]);
+    let second = EntityId::from_uuid(Uuid::from_u128(900));
+    let CombatRole::Player { progression, .. } = combat(&zone, first).role else {
+        panic!("player")
+    };
+    let mut load = PlayerLoad::fresh("human_mystic");
+    load.progression = progression;
+    let applied = zone
+        .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+            entity: second,
+            name: "Second".into(),
+            pos: Vec2Fixed::from_tiles(10, 11),
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(1),
+            load: Some(Box::new(load)),
+        })]))
+        .unwrap();
+    assert!(applied.dispositions.is_empty());
+    let npc = zone
+        .snapshot()
+        .entities
+        .iter()
+        .find(|e| e.kind == EntityKind::Npc)
+        .unwrap()
+        .id;
+    // Keep the NPC engaged throughout the ordering scenarios so no random-walk draw
+    // contaminates the handler ledger; source skill18/28 remain deferred in real data.
+    finish_skill(&mut zone, first, npc, 1040);
+    (zone, first, second, npc)
+}
+
+#[test]
+fn get_agro_live_forces_intention_without_hate_and_yields_on_later_think() {
+    let (mut zone, first, second, npc) = setup_ai_rules(ai_test_rules());
+    let before = zone.snapshot();
+    let result = finish_skill(&mut zone, second, npc, 1177);
+    assert_eq!(zone.entity(npc).unwrap().targeting.target, Some(second));
+    assert_eq!(zone.snapshot().hate, before.hate, "GetAgro does not manufacture hate");
+    assert!(!result
+        .events
+        .iter()
+        .any(|e| matches!(e, ZoneEvent::HateChanged { .. })));
+    assert_eq!(zone.snapshot().rng, before.rng, "GetAgro has no intrinsic RNG");
+    let final_result = result
+        .events
+        .iter()
+        .position(|e| matches!(e, ZoneEvent::SkillCastResult { .. }))
+        .unwrap();
+    let intention = result.events.iter().position(|e| matches!(e, ZoneEvent::TargetChanged { entity, target: Some(target), .. } if *entity == npc && *target == second)).unwrap();
+    assert!(final_result < intention, "AI drains after impacts and starts");
+    let mut restored = ZoneState::from_snapshot(
+        decode_snapshot(&encode_snapshot(&zone.snapshot()).unwrap()).unwrap(),
+    )
+    .unwrap();
+    for _ in 0..11 {
+        let draft = zone.draft(vec![]);
+        assert_eq!(zone.run_tick(draft.clone()).unwrap(), restored.run_tick(draft).unwrap());
+    }
+    assert_eq!(
+        zone.entity(npc).unwrap().targeting.target,
+        Some(first),
+        "force has no persistent lock"
+    );
+}
+
+fn edit_skill_rules(
+    rules: &Phase3Rules,
+    edit: impl FnOnce(&mut std::collections::BTreeMap<SkillId, skill::SkillDef>),
+) -> Phase3Rules {
+    let mut skills = rules.skills().skills().clone();
+    edit(&mut skills);
+    Phase3Rules::try_new(
+        skill::SkillRegistry::try_new(skills).unwrap(),
+        rules.pvp().clone(),
+        rules.regen().clone(),
+        rules.constants().clone(),
+        rules.profiles().clone(),
+        rules.geometry().clone(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn get_agro_and_hate_requests_keep_emission_order_in_the_live_tick() {
+    for force_last in [false, true] {
+        let rules = edit_skill_rules(&ai_test_rules(), |skills| {
+            let mut hate = skills[&SkillId(1040)].effects[0].clone();
+            hate.params
+                .insert("power".into(), skill::RankValue::Scalar("1".into()));
+            let effects = &mut skills.get_mut(&SkillId(1177)).unwrap().effects;
+            if force_last {
+                effects.insert(0, hate);
+            } else {
+                effects.push(hate);
+            }
+        });
+        let (mut zone, first, second, npc) = setup_ai_rules(rules);
+        let before = zone.snapshot().rng;
+        let result = finish_skill(&mut zone, second, npc, 1177);
+        let expected = if force_last { second } else { first };
+        assert_eq!(zone.entity(npc).unwrap().targeting.target, Some(expected));
+        assert_eq!(zone.hate_ledger(npc).unwrap().get(first).unwrap().hate, 500);
+        assert_eq!(zone.hate_ledger(npc).unwrap().get(second).unwrap().hate, 1);
+        assert_eq!(zone.snapshot().rng, before);
+        let targets: Vec<_> = result
+            .events
+            .iter()
+            .filter_map(|event| match event {
+                ZoneEvent::TargetChanged { entity, target, .. } if *entity == npc => *target,
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            targets,
+            if force_last {
+                vec![second]
+            } else {
+                vec![second, first]
+            }
+        );
+        ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    }
+}
+
+#[test]
+fn get_agro_most_hated_noop_and_add_hate_negative_source_quirk_are_live() {
+    let rules = edit_skill_rules(&ai_test_rules(), |skills| {
+        skills.get_mut(&SkillId(1177)).unwrap().effects = vec![{
+            let mut effect = skills[&SkillId(1040)].effects[0].clone();
+            effect
+                .params
+                .insert("power".into(), skill::RankValue::Scalar("-132".into()));
+            effect
+        }];
+    });
+    let (mut zone, first, second, npc) = setup_ai_rules(rules);
+    let rng = zone.snapshot().rng;
+    finish_skill(&mut zone, second, npc, 1177);
+    assert!(
+        zone.hate_ledger(npc).unwrap().get(second).is_none(),
+        "negative branch does not create a row"
+    );
+    finish_skill(&mut zone, first, npc, 1177);
+    assert_eq!(
+        zone.hate_ledger(npc).unwrap().get(first).unwrap().hate,
+        632,
+        "pinned reduceHate adds positive magnitude"
+    );
+    assert_eq!(zone.snapshot().rng, rng);
+
+    let (mut zone, first, _, npc) = setup_ai_rules(ai_test_rules());
+    let before = zone.snapshot();
+    let result = finish_skill(&mut zone, first, npc, 1177);
+    assert_eq!(zone.snapshot().hate, before.hate);
+    assert!(!result
+        .events
+        .iter()
+        .any(|e| matches!(e, ZoneEvent::TargetChanged { .. } | ZoneEvent::HateChanged { .. })));
+}
+
+#[test]
+fn two_get_agro_completions_use_entity_ordinals_and_force_beats_same_tick_think() {
+    let (mut zone, first, second, npc) = setup_ai_rules(ai_test_rules());
+    let third = EntityId::from_uuid(Uuid::from_u128(3)); // UUID order differs from admission order.
+    let CombatRole::Player { progression, .. } = combat(&zone, first).role else {
+        panic!("player")
+    };
+    let mut load = PlayerLoad::fresh("human_mystic");
+    load.progression = progression;
+    zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+        entity: third,
+        name: "Third".into(),
+        pos: Vec2Fixed::from_tiles(11, 11),
+        speed: Speed::DEFAULT,
+        generation: SessionGeneration(1),
+        load: Some(Box::new(load)),
+    })]))
+    .unwrap();
+    // Read a real cast's duration from an isolated replay branch, then align the actual
+    // two completions with this NPC's scheduled think tick (no guessed cast-speed math).
+    let mut probe = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    let start = probe
+        .run_tick(probe.draft(vec![cast(second, npc)]))
+        .unwrap();
+    let offset = start
+        .events
+        .iter()
+        .find_map(|e| match e {
+            ZoneEvent::SkillCastStarted {
+                start, complete_at, ..
+            } => Some(complete_at.0.checked_sub(start.0).unwrap()),
+            _ => None,
+        })
+        .unwrap();
+    while zone.next_tick().0.checked_add(offset).unwrap() % 10 != NpcAi::think_phase(npc) {
+        zone.run_tick(zone.draft(vec![])).unwrap();
+    }
+    let before = zone.snapshot();
+    let start = zone
+        .run_tick(zone.draft(vec![cast(third, npc), cast(second, npc)]))
+        .unwrap();
+    assert!(start.dispositions.is_empty());
+    let end = start
+        .events
+        .iter()
+        .find_map(|e| match e {
+            ZoneEvent::SkillCastStarted { complete_at, .. } => Some(*complete_at),
+            _ => None,
+        })
+        .unwrap();
+    while zone.next_tick() < end {
+        zone.run_tick(zone.draft(vec![])).unwrap();
+    }
+    let applied = zone.run_tick(zone.draft(vec![])).unwrap();
+    let casters: Vec<_> = applied
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            ZoneEvent::SkillCastResult { caster, .. } => Some(caster.entity),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(casters, vec![second, third]);
+    let targets: Vec<_> = applied
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            ZoneEvent::TargetChanged { entity, target, .. } if *entity == npc => *target,
+            _ => None,
+        })
+        .collect();
+    assert_eq!(targets, vec![second, third]);
+    assert_eq!(zone.entity(npc).unwrap().targeting.target, Some(third));
+    assert_eq!(zone.snapshot().hate, before.hate);
+    assert_eq!(zone.snapshot().rng, before.rng);
+    assert_eq!(applied.tick.0 % 10, NpcAi::think_phase(npc));
+}
+
+#[test]
+fn v5_slot_death_respawn_reconstructs_new_sidecar_and_replays() {
+    let rules = edit_skill_rules(&ai_test_rules(), |skills| {
+        let source = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        skills.insert(SkillId(1177), source.skills().get(SkillId(1177)).unwrap().clone());
+    });
+    let (mut zone, caster, _, npc) = setup_ai_rules(rules);
+    let original = zone.snapshot().phase3.as_ref().unwrap().entities[&npc].ordinal;
+    for _ in 0..10 {
+        finish_skill(&mut zone, caster, npc, 1177);
+        if combat(&zone, npc).hp == 0 {
+            break;
+        }
+        for _ in 0..30 {
+            zone.run_tick(zone.draft(vec![])).unwrap();
+        }
+    }
+    assert_eq!(combat(&zone, npc).hp, 0);
+    let corpse = zone.snapshot();
+    let previous_incarnation = combat(&zone, npc).incarnation;
+    let mut replay =
+        ZoneState::from_snapshot(decode_snapshot(&encode_snapshot(&corpse).unwrap()).unwrap())
+            .unwrap();
+    for _ in 0..400 {
+        let draft = zone.draft(vec![]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, replay.run_tick(draft).unwrap());
+        if zone
+            .entity(npc)
+            .and_then(|e| e.combat.as_ref())
+            .is_some_and(|c| c.incarnation > previous_incarnation)
+        {
+            let snapshot = zone.snapshot();
+            let side = &snapshot.phase3.as_ref().unwrap().entities[&npc];
+            assert!(side.ordinal > original);
+            assert_eq!(side.effects.entries().len(), 0);
+            assert_eq!(side.regen.next_at, Some(Tick(applied.tick.0.checked_add(30).unwrap())));
+            ZoneState::from_snapshot(snapshot).unwrap();
+            return;
+        }
+    }
+    panic!("slot did not respawn");
 }

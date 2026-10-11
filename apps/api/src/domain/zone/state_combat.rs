@@ -250,6 +250,10 @@ impl ZoneState {
     /// Points `npc` at its most hated eligible entity (ties keep the current target, then the
     /// lowest id) and enables auto-attack; with nobody eligible it stands down.
     pub(super) fn reselect(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
+        if self.phase3_enabled() {
+            self.reselect_v5(tick, npc);
+            return;
+        }
         let Some(me) = self.entities.get(&npc) else {
             return;
         };

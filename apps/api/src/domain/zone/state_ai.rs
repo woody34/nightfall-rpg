@@ -179,6 +179,9 @@ impl ZoneState {
             .map(|e| e.id)
             .collect();
         for id in npcs {
+            if self.phase3_enabled() && !self.npc_action_v5(id) {
+                continue;
+            }
             match self.intention(id) {
                 Some(Intention::Attack) => self.check_attack(tick, id, events),
                 Some(Intention::ReturnHome) => self.check_return(tick, id, events),
@@ -324,6 +327,7 @@ impl ZoneState {
     /// Before movement in `ReturnHome`, and again on destination arrival: at home → full HP,
     /// attackable, `Active`; otherwise keep heading home. Arrival never draws RNG or thinks.
     pub(super) fn check_return(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
+        let can_walk = !self.phase3_enabled() || self.npc_can_walk_v5(npc);
         let Some(e) = self.entities.get_mut(&npc) else {
             return;
         };
@@ -331,7 +335,7 @@ impl ZoneState {
             return;
         };
         if e.pos != home {
-            if e.dest != Some(home) {
+            if can_walk && e.dest != Some(home) {
                 e.dest = Some(home);
             }
             return;
@@ -339,6 +343,14 @@ impl ZoneState {
         e.dest = None;
         e.targeting.attackable = true;
         if let Some(c) = e.combat.as_mut() {
+            if let Some(phase) = &mut self.phase3 {
+                if c.hp != c.sheet.max_hp() {
+                    phase.vitals_dirty.insert(npc);
+                }
+                if let Some(side) = phase.canonical.entities.get_mut(&npc) {
+                    side.fractions = super::super::ResourceFractions::default();
+                }
+            }
             c.hp = c.sheet.max_hp();
             c.mp = c.sheet.max_mp();
         }
@@ -365,7 +377,15 @@ impl ZoneState {
                 }
             },
             // Re-evaluate: the most hated eligible target, ties keeping the current one.
-            Some(Intention::Attack) => self.reselect(tick, npc, events),
+            Some(Intention::Attack) => {
+                if !self
+                    .phase3
+                    .as_ref()
+                    .is_some_and(|p| p.forced_this_tick.contains(&npc))
+                {
+                    self.reselect(tick, npc, events);
+                }
+            },
             Some(Intention::ReturnHome | Intention::Dead) | None => {},
         }
     }
@@ -386,6 +406,9 @@ impl ZoneState {
         let Some(e) = self.entities.get(&npc) else {
             return;
         };
+        if self.phase3_enabled() && !self.npc_can_walk_v5(npc) {
+            return;
+        }
         if e.speed.milli_tiles_per_tick() == 0 {
             return;
         }
@@ -440,6 +463,7 @@ impl ZoneState {
             .filter(|p| {
                 p.kind == EntityKind::Player
                     && may_attack(me, p)
+                    && (!self.phase3_enabled() || self.npc_pair_v5(tick, npc, p.id))
                     && !p.combat.as_ref().is_some_and(|c| c.protected_at(tick))
                     && me.pos.within(p.pos, range)
             })
@@ -508,6 +532,8 @@ impl ZoneState {
                     })
                     && a.pos.within(me.pos, range)
                     && may_attack(a, target)
+                    && (!self.phase3_enabled()
+                        || (self.npc_action_v5(a.id) && self.npc_pair_v5(tick, a.id, target.id)))
             })
             .map(|a| a.id)
             .collect();
