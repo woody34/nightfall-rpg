@@ -2,6 +2,38 @@
 use super::*;
 
 impl ZoneState {
+    fn npc_penalty_v5(
+        &self,
+        caster: EntityId,
+        target: EntityId,
+        path: crate::domain::zone::skill_npc::NpcPenaltyPath,
+    ) -> Result<ExactRatio, TickError> {
+        use crate::domain::zone::skill_npc::NpcPenaltyContext;
+        let source = self.entities.get(&caster).ok_or_else(missing)?;
+        let victim = self.entities.get(&target).ok_or_else(missing)?;
+        let context = NpcPenaltyContext {
+            target_level: victim.combat.as_ref().ok_or_else(missing)?.sheet.level(),
+            acting_player_level: if source.kind == EntityKind::Player {
+                Some(source.combat.as_ref().ok_or_else(missing)?.sheet.level())
+            } else {
+                None
+            },
+            attackable: victim.kind == EntityKind::Npc && victim.targeting.attackable,
+            l2attackable: victim.kind == EntityKind::Npc && victim.combat.is_some(),
+            // The current admitted NPC profile has no raid/minion kind (Phase3 scope).
+            raid: false,
+            raid_minion: false,
+        };
+        self.phase3
+            .as_ref()
+            .ok_or_else(missing)?
+            .canonical
+            .rules
+            .npc()
+            .penalty
+            .multiplier(context, path)
+            .map_err(invariant)
+    }
     fn damage_stat_v5(
         &self,
         id: EntityId,
@@ -143,8 +175,8 @@ impl ZoneState {
             .and_then(|p| p.at(rank, skill.max_level))
             .map_or(Ok(ExactRatio::whole(0)), |s| ExactRatio::parse_literal(s))
             .map_err(invariant)?;
-        // Formulas.java:774-809: no shots/shield/facing equipment in Phase 3. The
-        // validated NPC bundle is the level-one keltir, below NPC penalty branches.
+        // Formulas.java:774-809: no shots/shield/facing equipment in Phase 3.
+        // Penalty uses acting-player level and precedes the max(1) and caller critical.
         // physicalSkillPower has no supported provider in the capability manifest.
         let damage = skill_math::physical_skill_base(
             power,
@@ -159,6 +191,12 @@ impl ZoneState {
         .checked_mul(skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?)
         .map_err(invariant)?
         .checked_mul(self.spread_v5(a.physical.random_damage())?)
+        .map_err(invariant)?
+        .checked_mul(self.npc_penalty_v5(
+            caster.entity,
+            target.entity,
+            crate::domain::zone::skill_npc::NpcPenaltyPath::PhysicalSkill { critical },
+        )?)
         .map_err(invariant)?;
         let damage = if damage
             .checked_cmp(ExactRatio::whole(1))
@@ -225,7 +263,11 @@ impl ZoneState {
             .ok_or_else(missing)?;
         let rate = skill_math::magic_success_rate(
             difference,
-            ExactRatio::whole(1),
+            self.npc_penalty_v5(
+                caster.entity,
+                target.entity,
+                crate::domain::zone::skill_npc::NpcPenaltyPath::MagicFailure,
+            )?,
             self.damage_stat_v5(target.entity, &b, "magicSuccRes", Q)?,
         )
         .map_err(invariant)?;
@@ -260,6 +302,8 @@ impl ZoneState {
         .checked_mul(spread).map_err(invariant)?
         // Unelemented starter equipment returns 1 before skill attributePower is read.
         .checked_mul(skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?)
+        .map_err(invariant)?
+        .checked_mul(self.npc_penalty_v5(caster.entity, target.entity, crate::domain::zone::skill_npc::NpcPenaltyPath::Magical)?)
         .map_err(invariant)?;
         let positive = damage
             .checked_cmp(ExactRatio::whole(0))

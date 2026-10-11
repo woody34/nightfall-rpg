@@ -42,6 +42,7 @@ mod progression;
 mod scaled;
 pub mod skill;
 pub mod skill_math;
+pub mod skill_npc;
 pub mod skill_profiles;
 pub mod skill_rules;
 pub mod stat_functions;
@@ -115,13 +116,14 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 45] = [
+    const SOURCES: [(&str, &str); 46] = [
         ("mod.rs", include_str!("mod.rs")),
         ("effects.rs", include_str!("effects.rs")),
         ("effective_stats.rs", include_str!("effective_stats.rs")),
         ("skill_profiles.rs", include_str!("skill_profiles.rs")),
         ("skill.rs", include_str!("skill.rs")),
         ("skill_math.rs", include_str!("skill_math.rs")),
+        ("skill_npc.rs", include_str!("skill_npc.rs")),
         ("skill_rules.rs", include_str!("skill_rules.rs")),
         ("phase3.rs", include_str!("phase3.rs")),
         ("phase3_checkpoint.rs", include_str!("phase3_checkpoint.rs")),

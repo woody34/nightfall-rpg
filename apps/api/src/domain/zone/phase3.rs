@@ -57,12 +57,14 @@ pub struct Phase3Rules {
     constants: super::skill_rules::Phase3Constants,
     profiles: super::skill_profiles::SkillProfiles,
     geometry: super::state_pvp::Phase3Geometry,
+    npc: super::skill_npc::NpcSkillRules,
     hash: [u8; 32],
 }
 
 impl Phase3Rules {
     /// Assemble a validated immutable rules bundle. The timer policy is explicitly paused
     /// offline (version one); this constructor cannot promote legacy snapshots.
+    #[allow(clippy::too_many_arguments)] // Every immutable source bundle is explicit and required.
     pub fn try_new(
         skills: super::skill::SkillRegistry,
         pvp: super::skill_rules::PvpRules,
@@ -70,6 +72,7 @@ impl Phase3Rules {
         constants: super::skill_rules::Phase3Constants,
         profiles: super::skill_profiles::SkillProfiles,
         geometry: super::state_pvp::Phase3Geometry,
+        npc: super::skill_npc::NpcSkillRules,
     ) -> Result<Self, Vec<String>> {
         let errors: Vec<_> = [
             pvp.validate(),
@@ -77,6 +80,7 @@ impl Phase3Rules {
             constants.validate(),
             profiles.validate(),
             geometry.validate(),
+            npc.validate(),
         ]
         .into_iter()
         .filter_map(Result::err)
@@ -96,6 +100,7 @@ impl Phase3Rules {
             &constants,
             &profiles,
             &geometry,
+            &npc,
             50_u64,
             100_u64,
             600_u64,
@@ -113,6 +118,7 @@ impl Phase3Rules {
             constants,
             profiles,
             geometry,
+            npc,
             hash: hash.finalize().into(),
         })
     }
@@ -172,6 +178,10 @@ impl Phase3Rules {
     pub const fn regen(&self) -> &super::skill_rules::RegenRules {
         &self.regen
     }
+    /// Pinned NPC penalties and hit-condition data, independently validated and hashed.
+    pub const fn npc(&self) -> &super::skill_npc::NpcSkillRules {
+        &self.npc
+    }
     /// Explicit architect-configured peace geometry, included in the V5 policy hash.
     pub const fn geometry(&self) -> &super::state_pvp::Phase3Geometry {
         &self.geometry
@@ -190,6 +200,7 @@ impl<'de> Deserialize<'de> for Phase3Rules {
             constants: super::skill_rules::Phase3Constants,
             profiles: super::skill_profiles::SkillProfiles,
             geometry: super::state_pvp::Phase3Geometry,
+            npc: super::skill_npc::NpcSkillRules,
             hash: [u8; 32],
         }
         let snapshot = Snapshot::deserialize(deserializer)?;
@@ -200,6 +211,7 @@ impl<'de> Deserialize<'de> for Phase3Rules {
             snapshot.constants,
             snapshot.profiles,
             snapshot.geometry,
+            snapshot.npc,
         )
         .map_err(|errors| serde::de::Error::custom(errors.join("; ")))?;
         if snapshot.timer_policy_version != rules.timer_policy_version

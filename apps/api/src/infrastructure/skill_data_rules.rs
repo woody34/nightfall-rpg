@@ -24,6 +24,10 @@ pub struct Phase3DataSource {
     pub profiles: ProfileDataSource,
     /// Additive `zones/test_zone_phase3.toml` (never part of the legacy zone hash).
     pub geometry: String,
+    /// Additive high-level NPC coefficients; excluded from historical table hashes.
+    pub npc_penalty: String,
+    /// Source hit-condition getter inputs (flat/day/front for current live characters).
+    pub hit_condition: String,
 }
 
 impl Phase3DataSource {
@@ -35,6 +39,14 @@ impl Phase3DataSource {
             pvp: include_str!("../../../../packages/data/tables/pvp.toml").into(),
             regen: include_str!("../../../../packages/data/tables/regen.toml").into(),
             formulas: include_str!("../../../../packages/data/tables/formulas.toml").into(),
+            npc_penalty: include_str!(
+                "../../../../packages/data/tables-phase3/npc_level_penalty.toml"
+            )
+            .into(),
+            hit_condition: include_str!(
+                "../../../../packages/data/tables-phase3/hit_condition_bonus.toml"
+            )
+            .into(),
             geometry: include_str!("../../../../packages/data/zones/test_zone_phase3.toml").into(),
         }
     }
@@ -46,6 +58,12 @@ impl Phase3DataSource {
             pvp: std::fs::read_to_string(root.join("tables/pvp.toml"))?,
             regen: std::fs::read_to_string(root.join("tables/regen.toml"))?,
             formulas: std::fs::read_to_string(root.join("tables/formulas.toml"))?,
+            npc_penalty: std::fs::read_to_string(
+                root.join("tables-phase3/npc_level_penalty.toml"),
+            )?,
+            hit_condition: std::fs::read_to_string(
+                root.join("tables-phase3/hit_condition_bonus.toml"),
+            )?,
             geometry: std::fs::read_to_string(root.join("zones/test_zone_phase3.toml"))?,
         })
     }
@@ -79,6 +97,14 @@ pub fn load_phase3_rules(
         toml::from_str(&source.geometry).map_err(|error| {
             SkillDataError(vec![format!("zones/test_zone_phase3.toml: {error}")])
         })?,
+        crate::domain::zone::skill_npc::NpcSkillRules {
+            penalty: toml::from_str(&source.npc_penalty).map_err(|e| {
+                SkillDataError(vec![format!("tables-phase3/npc_level_penalty.toml: {e}")])
+            })?,
+            hit_condition: toml::from_str(&source.hit_condition).map_err(|e| {
+                SkillDataError(vec![format!("tables-phase3/hit_condition_bonus.toml: {e}")])
+            })?,
+        },
     )
     .map_err(SkillDataError)
 }
@@ -87,6 +113,43 @@ pub fn load_phase3_rules(
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn npc_tables_are_required_strict_and_part_of_the_epoch_hash() {
+        let source = Phase3DataSource::embedded();
+        let rules = load_phase3_rules(&source, &[]).unwrap();
+        let mut changed = source.clone();
+        changed.npc_penalty = changed
+            .npc_penalty
+            .replace("[\"78\"]", "[\"79\"]")
+            .replace("78000000", "79000000");
+        assert_ne!(load_phase3_rules(&changed, &[]).unwrap().hash(), rules.hash());
+        changed = source.clone();
+        changed.hit_condition = changed
+            .hit_condition
+            .replace("\npercent = 10\n", "\npercent = 11\n");
+        assert_ne!(load_phase3_rules(&changed, &[]).unwrap().hash(), rules.hash());
+        for bad in [
+            String::new(),
+            source.npc_penalty.replace("schema = 1", "schema = 2"),
+            source.npc_penalty.replace("700000", "700001"),
+            source.npc_penalty.replace("0.7", "0.0"),
+            source.npc_penalty.replace("physical_q =", "unknown_q ="),
+        ] {
+            changed = source.clone();
+            changed.npc_penalty = bad;
+            assert!(load_phase3_rules(&changed, &[]).is_err());
+        }
+        changed = source.clone();
+        changed.hit_condition.clear();
+        assert!(load_phase3_rules(&changed, &[]).is_err());
+        let mut forged = serde_json::to_value(&rules).unwrap();
+        forged["npc"]["hit_condition"]["rows"][0]["percent"] = 11.into();
+        assert!(serde_json::from_value::<Phase3Rules>(forged).is_err());
+        changed = source;
+        changed.npc_penalty.push_str("\n# no semantic change\n");
+        assert_eq!(load_phase3_rules(&changed, &[]).unwrap().hash(), rules.hash());
+    }
 
     #[test]
     fn geometry_is_required_strict_separately_hashed_and_bounded() {

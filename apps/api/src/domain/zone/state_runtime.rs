@@ -299,20 +299,7 @@ impl ZoneState {
     pub(super) fn validate_damage_profiles_v5(
         rules: &crate::domain::zone::Phase3Rules,
     ) -> Result<(), SnapshotError> {
-        // Pinned npc.properties:54 and Formulas.java:776,887,1289. The current
-        // bundle has only level1 keltir; refuse the unrepresented penalty branch
-        // until the data owner supplies its separately hashed coefficient table.
-        if rules
-            .profiles()
-            .npcs
-            .values()
-            .any(|p| p.physical.level >= 78)
-        {
-            return Err(SnapshotError::Rules(
-                "Phase3 NPC damage penalty coefficients are not supplied for level78+".into(),
-            ));
-        }
-        Ok(())
+        rules.npc().validate().map_err(SnapshotError::Rules)
     }
     #[allow(clippy::too_many_lines)] // Full context validation stays adjacent to reconstruction.
     pub(super) fn validate_runtime_v5(&self) -> Result<(), SnapshotError> {

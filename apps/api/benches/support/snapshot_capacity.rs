@@ -67,6 +67,7 @@ pub(super) fn run() -> bool {
         base.constants().clone(),
         base.profiles().clone(),
         base.geometry().clone(),
+        base.npc().clone(),
     )
     .unwrap();
     let stat_rules = load_rules(&RulesSource::embedded()).unwrap().rules;

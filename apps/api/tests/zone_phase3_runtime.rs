@@ -50,9 +50,13 @@ fn setup_with_rules(
     rules: Phase3Rules,
 ) -> (ZoneState, EntityId, EntityId) {
     let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
-    let npc =
+    let mut npc =
         NpcCombat::from_template(&stats, &parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0])
             .unwrap();
+    let profile = &rules.profiles().npcs["keltir"].physical;
+    npc.stats.level = profile.level;
+    npc.stats.max_hp = profile.max_hp;
+    npc.stats.max_mp = profile.max_mp;
     let mut zone = ZoneState::new_phase3(
         ZoneSeed {
             zone: ZoneId(1),
@@ -1303,6 +1307,7 @@ fn edit_skill_rules(
         rules.constants().clone(),
         rules.profiles().clone(),
         rules.geometry().clone(),
+        rules.npc().clone(),
     )
     .unwrap()
 }
@@ -2014,7 +2019,7 @@ fn mixed_magic_continuous_success_precedes_instant_and_stronger_stack_keeps_dama
 }
 
 #[test]
-fn unrepresented_high_level_npc_damage_policy_is_refused_at_epoch_boundary() {
+fn hashed_high_level_npc_damage_policy_is_admitted_at_epoch_boundary() {
     let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
     let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
     let base = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
@@ -2027,6 +2032,7 @@ fn unrepresented_high_level_npc_damage_policy_is_refused_at_epoch_boundary() {
         base.constants().clone(),
         profiles,
         base.geometry().clone(),
+        base.npc().clone(),
     )
     .unwrap();
     let result = ZoneState::new_phase3(
@@ -2040,9 +2046,9 @@ fn unrepresented_high_level_npc_damage_policy_is_refused_at_epoch_boundary() {
         classes,
         rules,
     );
-    assert!(
-        matches!(result,Err(SnapshotError::Rules(message)) if message.contains("NPC damage penalty coefficients"))
-    );
+    let zone = result.unwrap();
+    ZoneState::from_snapshot(decode_snapshot(&encode_snapshot(&zone.snapshot()).unwrap()).unwrap())
+        .unwrap();
 }
 
 #[test]
@@ -2163,4 +2169,115 @@ async fn experimental_actor_does_not_hold_unsupported_intents_at_fifo_head() {
         driver.step().await.unwrap(),
         nightfall_api::application::zone_actor::TickOutcome::Ran(tick.tick.next())
     );
+}
+
+#[test]
+fn high_level_npc_skill_penalty_is_live_and_midcast_snapshot_keeps_the_rules() {
+    fn run(penalties: bool, physical: bool, boundary: bool) -> (u32, SkillOutcome) {
+        let base = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        let mut profiles = base.profiles().clone();
+        let profile = profiles.npcs.get_mut("keltir").unwrap();
+        profile.physical.level = 78;
+        profile.physical.max_hp = 1_000_000;
+        let mut npc = base.npc().clone();
+        if !penalties {
+            let minimum = npc
+                .penalty
+                .config
+                .get_mut("MinNPCLevelForDmgPenalty")
+                .unwrap();
+            minimum.values = vec!["99".into()];
+            minimum.values_q = vec![99_000_000];
+        }
+        let base = Phase3Rules::try_new(
+            base.skills().clone(),
+            base.pvp().clone(),
+            base.regen().clone(),
+            base.constants().clone(),
+            profiles,
+            base.geometry().clone(),
+            npc,
+        )
+        .unwrap();
+        let rules = edit_skill_rules(&base, |skills| {
+            let skill = skills.get_mut(&SkillId(1177)).unwrap();
+            skill.magic_level[0] = 78;
+            if physical {
+                skill.is_magic = 0;
+                skill.effects[0].name = "PhysicalAttack".into();
+                skill.effects[0].params.clear();
+            }
+            skill.effects[0]
+                .params
+                .insert("power".into(), skill::RankValue::Scalar("100".into()));
+        });
+        let (mut zone, player, npc) = setup_with_rules(
+            Vec2Fixed::from_tiles(10, 10),
+            Vec2Fixed::from_tiles(12, 10),
+            &[(1177, 1)],
+            rules,
+        );
+        if boundary {
+            let mut ledger = zone.clone();
+            let mut found = false;
+            for _ in 0..1000 {
+                let mut probe = ledger.clone();
+                probe.roll_below(1000);
+                if (96..99).contains(&probe.roll_below(100)) {
+                    let mut snapshot = zone.snapshot();
+                    snapshot.rng = ledger.snapshot().rng;
+                    zone = ZoneState::from_snapshot(snapshot).unwrap();
+                    found = true;
+                    break;
+                }
+                ledger.roll_below(100);
+            }
+            assert!(found, "source chance boundary seed");
+        }
+        let applied = zone.run_tick(zone.draft(vec![cast(player, npc)])).unwrap();
+        assert!(applied.dispositions.is_empty());
+        let snapshot = zone.snapshot();
+        let mut replay = ZoneState::from_snapshot(
+            decode_snapshot(&encode_snapshot(&snapshot).unwrap()).unwrap(),
+        )
+        .unwrap();
+        for _ in 0..100 {
+            let draft = zone.draft(vec![]);
+            let applied = zone.run_tick(draft.clone()).unwrap();
+            assert_eq!(applied, replay.run_tick(draft).unwrap());
+            if let Some(row) = applied.events.iter().find_map(|e| match e {
+                ZoneEvent::SkillCastResult { targets, .. } => targets.first(),
+                _ => None,
+            }) {
+                assert_eq!(row.hp_removed, row.rolled);
+                return (row.rolled, row.outcome);
+            }
+        }
+        panic!("no skill completion");
+    }
+    for (physical, numerator, denominator) in [(false, 62_u64, 100_u64), (true, 341, 1000)] {
+        let (penalized, outcome) = run(true, physical, false);
+        let (control, control_outcome) = run(false, physical, false);
+        assert_eq!(outcome, control_outcome);
+        assert!(matches!(outcome, SkillOutcome::Hit | SkillOutcome::Crit));
+        assert!(penalized > 0 && penalized < control);
+        // Saturated magic factor0.62; physical skill additionally takes normal factor0.55.
+        // Whole intervals prove the factor without multiplying an already truncated value.
+        let lower = u64::from(control).checked_mul(numerator).unwrap() / denominator;
+        let upper = u64::from(control)
+            .checked_add(1)
+            .unwrap()
+            .checked_mul(numerator)
+            .unwrap()
+            / denominator;
+        assert!((lower..=upper).contains(&u64::from(penalized)));
+    }
+    // magicLvl78 isolates failure scaling from the acting-player gap77. The same source
+    // roll96..98 is accepted at99 without the NPC penalty and rejected at96 with it.
+    let (penalized, outcome) = run(true, false, true);
+    let (control, control_outcome) = run(false, false, true);
+    assert_eq!(outcome, SkillOutcome::Resist);
+    assert!(matches!(control_outcome, SkillOutcome::Hit | SkillOutcome::Crit));
+    assert_eq!(penalized, 0);
+    assert!(control > 0);
 }
