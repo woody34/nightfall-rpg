@@ -96,8 +96,50 @@ profile!(NpcSkillTemplate {
 });
 profile!(NpcSkillProfile {
     sp_reward: u64,
+    physical: NpcPhysicalProfile,
     template: NpcSkillTemplate
 });
+/// Canonical unmodified Nightfall NPC inputs. These are the validated tunable template's
+/// final physical bases, before Phase3 effects, not an already modified combat projection.
+/// Source contract: npcs/keltir.toml:1-5; magic/regen keep their separate pinned template.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct NpcPhysicalProfile {
+    pub level: u32,
+    pub max_hp: u32,
+    pub max_mp: u32,
+    pub p_atk_q: i64,
+    pub p_def_q: i64,
+    pub attack_speed: u32,
+    pub move_speed: super::Speed,
+}
+impl NpcPhysicalProfile {
+    /// Preserve the actual validated template, including tunable fractional attack/defence.
+    pub fn from_template(template: &super::NpcTemplate) -> Self {
+        Self {
+            level: u32::from(template.level),
+            max_hp: template.max_hp,
+            max_mp: template.max_mp,
+            p_atk_q: template.p_atk_q,
+            p_def_q: template.p_def_q,
+            attack_speed: template.attack_speed,
+            move_speed: template.move_speed,
+        }
+    }
+    /// Reject invalid raw physical inputs at rules load and again on snapshot decode.
+    pub fn validate(&self) -> Result<(), String> {
+        if !(1..=85).contains(&self.level)
+            || self.max_hp == 0
+            || self.p_atk_q < 0
+            || self.p_def_q <= 0
+            || self.attack_speed == 0
+        {
+            return Err("invalid Phase3 NPC physical bases".into());
+        }
+        Ok(())
+    }
+}
 profile!(SkillProfiles { classes: BTreeMap<ClassId, ClassSkillProfile>, npcs: BTreeMap<String, NpcSkillProfile>, starter_weapon: StarterWeaponProfile, limits: EffectiveLimitProfile });
 /// Pinned source provenance for the weapon calculator's insertion/replacement semantics.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -426,6 +468,7 @@ impl SkillProfiles {
         }
         for (id, profile) in &self.npcs {
             profile.template.validate()?;
+            profile.physical.validate()?;
             if id.is_empty() || i64::try_from(profile.sp_reward).is_err() {
                 return Err("invalid Phase3 NPC identity/reward".into());
             }

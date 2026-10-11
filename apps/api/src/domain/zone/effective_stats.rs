@@ -157,6 +157,111 @@ impl PlayerStatInputs {
     }
 }
 
+/// Cold NPC calculator inputs. Physical template values are already the tuned unmodified
+/// bases: never apply player CON/STR/DEX/level multipliers to them a second time. Magic,
+/// accuracy/evasion/critical getters still execute their pinned builtins.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct NpcStatInputs {
+    pub bases: EffectiveStatBases,
+    pub functions: Vec<StatFunction>,
+    pub limits: EffectiveStatLimits,
+}
+impl NpcStatInputs {
+    /// Reconstruct from the rules' canonical original template, not `CombatState.sheet`.
+    /// `CharStat.java:270` initializes magic critical to1; the NPC builtin and getter each
+    /// apply their separate x10 factors (`FuncMAtkCritical.java:42-44`).
+    pub fn from_profile(
+        stats: &super::StatRules,
+        rules: &Phase3Rules,
+        template: &str,
+    ) -> Result<Self, StatError> {
+        let profile = rules
+            .profiles()
+            .npcs
+            .get(template)
+            .ok_or(StatError::Overflow)?;
+        profile
+            .physical
+            .validate()
+            .map_err(|_| StatError::Overflow)?;
+        let physical = &profile.physical;
+        let magic = &profile.template.template;
+        let base = profile.template.base_stats.values();
+        let constants = &rules.profiles().limits.constants;
+        let q = |n: u32| Scaled::from_int(i64::from(n)).map(Scaled::raw);
+        // Original milli-tiles/tick -> L2 units/second, retaining Q precision. The inverse
+        // EffectiveStats::movement_speed roundtrip is exact before any speed modifiers.
+        let run_speed_q =
+            narrow(mul(i128::from(physical.move_speed.milli_tiles_per_tick()), 320_000)?)?;
+        let mut functions = super::stat_functions::standard_functions(
+            &base,
+            stats.bonus(),
+            super::level_mod(stats.constants(), physical.level)?,
+            physical.level,
+            false,
+            false,
+        )?;
+        functions.retain(|f| {
+            matches!(
+                f.key.stat.as_str(),
+                "mAtk" | "mDef" | "mAtkSpd" | "mCritRate" | "accCombat" | "rEvas" | "critRate"
+            )
+        });
+        Ok(Self {
+            bases: EffectiveStatBases {
+                level: physical.level,
+                player: false,
+                max_hp_q: q(physical.max_hp)?,
+                max_mp_q: q(physical.max_mp)?,
+                max_cp_q: 0,
+                p_atk_q: physical.p_atk_q,
+                p_def_q: physical.p_def_q,
+                m_atk_q: q(magic.m_atk)?,
+                m_def_q: q(magic.m_def)?,
+                attack_speed_q: q(physical.attack_speed)?,
+                cast_speed_q: q(magic.m_atk_speed)?,
+                run_speed_q,
+                accuracy_q: q(profile.template.combat_getter_bases.accuracy)?,
+                evasion_q: q(profile.template.combat_getter_bases.evasion)?,
+                crit_q: q(super::NPC_BASE_CRIT)?,
+                magic_crit_q: Q,
+                random_damage: super::fist_random_damage(stats.constants(), physical.level)?,
+                elf: false,
+                run_boost_q: 0,
+            },
+            functions,
+            limits: EffectiveStatLimits {
+                physical_crit: stats.constants().crit_cap_permille,
+                magic_crit: constants.max_magic_crit.value,
+                run_speed_q: q(constants.max_run_speed.value)?,
+            },
+        })
+    }
+    /// Install canonical timed sources without callback/RNG/resource mutation. NPCs have
+    /// no learned passive, player CP, or Death Penalty ledger.
+    pub fn derive(
+        &self,
+        entity: &Phase3Entity,
+        rules: &Phase3Rules,
+    ) -> Result<EffectiveStats, StatError> {
+        if entity.player.is_some() || entity.fractions.cp != 0 {
+            return Err(StatError::Overflow);
+        }
+        derive_effective_stats(
+            &self.bases,
+            self.functions.clone(),
+            entity,
+            rules,
+            self.limits,
+            FunctionConditions {
+                weapon_kind: "NONE",
+                can_resurrect: false,
+            },
+        )
+    }
+}
+
 /// Derived trait state; counts distinguish no provider from a neutral-valued provider.
 /// Defence immunity is independent of a multiplicative provider (DefenceTrait.java:81-91).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -545,6 +650,65 @@ mod tests {
             operation,
             conditions: vec![],
         }
+    }
+    #[test]
+    fn npc_cold_rebuild_uses_original_tuned_bases_and_source_magic_getters() {
+        let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let inputs = NpcStatInputs::from_profile(&stats, &rules, "keltir").unwrap();
+        let mut npc = blank();
+        npc.player = None;
+        let original = inputs.derive(&npc, &rules).unwrap();
+        assert_eq!(original.physical.max_hp(), 44);
+        assert_eq!(original.physical.max_mp(), 20);
+        assert_eq!(original.physical.p_atk().raw(), 8_800_000);
+        assert_eq!(original.physical.p_def().raw(), 26_900_000);
+        assert_eq!(original.physical.attack_speed().raw(), 253 * Q);
+        assert_eq!(original.movement_speed().unwrap().milli_tiles_per_tick(), 400);
+        assert_eq!(original.max_cp, 0);
+        let base = rules.profiles().npcs["keltir"].template.base_stats.values();
+        let lm = super::super::level_mod(stats.constants(), 1).unwrap();
+        let ratio = |q: i64| ExactRatio::new(i128::from(q), i128::from(Q)).unwrap();
+        let bonus =
+            |kind: StatKind| ratio(stats.bonus().bonus(kind, kind.of(&base)).unwrap().raw());
+        assert_eq!(
+            original.m_atk_q,
+            skill_math::magic_attack_mod(
+                ExactRatio::whole(5),
+                bonus(StatKind::Int),
+                ratio(lm.raw())
+            )
+            .unwrap()
+            .to_q()
+            .unwrap()
+        );
+        assert_eq!(
+            original.m_def_q,
+            skill_math::magic_defence_mod(
+                ExactRatio::whole(29),
+                bonus(StatKind::Men),
+                ratio(lm.raw())
+            )
+            .unwrap()
+            .to_q()
+            .unwrap()
+        );
+        let effect = source_effect(&rules, 1, 1040);
+        let id = effect.id;
+        npc.effects = EffectList::from_entries([(id, effect)].into()).unwrap();
+        npc.modifier_install_order
+            .insert(1, RestoredModifierSource::Effect(id));
+        let buffed = inputs.derive(&npc, &rules).unwrap();
+        assert_eq!(buffed.physical.p_def().raw(), 29_052_000); //26.9*1.08, once.
+        let decoded: Phase3Entity =
+            serde_json::from_slice(&serde_json::to_vec(&npc).unwrap()).unwrap();
+        assert_eq!(inputs.derive(&decoded, &rules).unwrap(), buffed);
+        assert_eq!(inputs.derive(&npc, &rules).unwrap(), buffed);
+        npc.effects.remove(id);
+        npc.modifier_install_order.clear();
+        assert_eq!(inputs.derive(&npc, &rules).unwrap(), original);
+        assert!(NpcStatInputs::from_profile(&stats, &rules, "missing").is_err());
+        assert!(inputs.derive(&blank(), &rules).is_err());
     }
     #[test]
     fn cold_effect_reconstruction_uses_source_modifiers_without_replaying_hooks() {

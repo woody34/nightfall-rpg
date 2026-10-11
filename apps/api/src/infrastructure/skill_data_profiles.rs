@@ -1,7 +1,7 @@
 //! Strict source profile loading; every source value is retained in the V5 rules hash.
 use super::super::SkillDataError;
 use crate::domain::zone::skill_profiles::{
-    ClassSkillProfile, NpcSkillProfile, NpcSkillTemplate, SkillProfiles,
+    ClassSkillProfile, NpcPhysicalProfile, NpcSkillProfile, NpcSkillTemplate, SkillProfiles,
 };
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -98,9 +98,8 @@ pub(super) fn load_profiles(source: &ProfileDataSource) -> Result<SkillProfiles,
         let npc: NpcFile =
             toml::from_str(text).map_err(|e| SkillDataError(vec![format!("{path}: {e}")]))?;
         let mut errors = Vec::new();
-        if crate::infrastructure::npc_data::parse_template(&npc.id, text, &mut errors).is_none() {
-            return Err(SkillDataError(errors));
-        }
+        let physical = crate::infrastructure::npc_data::parse_template(&npc.id, text, &mut errors)
+            .ok_or(SkillDataError(errors))?;
         if path != &format!("npcs/{}.toml", npc.id)
             || profiles
                 .npcs
@@ -108,6 +107,7 @@ pub(super) fn load_profiles(source: &ProfileDataSource) -> Result<SkillProfiles,
                     npc.id,
                     NpcSkillProfile {
                         sp_reward: npc.sp_reward,
+                        physical: NpcPhysicalProfile::from_template(&physical),
                         template: npc.phase3,
                     },
                 )
@@ -124,6 +124,28 @@ pub(super) fn load_profiles(source: &ProfileDataSource) -> Result<SkillProfiles,
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
     use crate::infrastructure::skill_data::{load_phase3_rules, Phase3DataSource};
+    #[test]
+    fn npc_physical_inputs_are_canonical_and_independently_validated() {
+        let source = Phase3DataSource::embedded();
+        let original = load_phase3_rules(&source, &[]).unwrap();
+        let mut changed = source.clone();
+        let text = changed.profiles.npcs.get_mut("npcs/keltir.toml").unwrap();
+        *text = text.replace("p_atk = \"8.8\"", "p_atk = \"9.1\"");
+        let changed = load_phase3_rules(&changed, &[]).unwrap();
+        assert_ne!(changed.hash(), original.hash());
+        assert_eq!(changed.profiles().npcs["keltir"].physical.p_atk_q, 9_100_000);
+        let encoded = serde_json::to_vec(&original).unwrap();
+        let restored: crate::domain::zone::Phase3Rules = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(
+            restored.profiles().npcs["keltir"].physical,
+            original.profiles().npcs["keltir"].physical
+        );
+        for field in ["level", "max_hp", "p_def_q", "attack_speed"] {
+            let mut value = serde_json::to_value(&original).unwrap();
+            value["profiles"]["npcs"]["keltir"]["physical"][field] = 0.into();
+            assert!(serde_json::from_value::<crate::domain::zone::Phase3Rules>(value).is_err());
+        }
+    }
     #[test]
     fn profiles_are_complete_linked_hashed_and_reject_invalid_getter_casts() {
         let source = Phase3DataSource::embedded();
