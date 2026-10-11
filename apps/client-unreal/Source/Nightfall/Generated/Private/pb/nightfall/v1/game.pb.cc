@@ -787,6 +787,23 @@ template <typename>
 PROTOBUF_CONSTEXPR SkillCatalogEntry::SkillCatalogEntry(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_.deferred_reasons_)*/{}
+  , /*decltype(_impl_.mp_consume_start_)*/ {}
+  ,/* _impl_._mp_consume_start_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.mp_consume_end_)*/ {}
+  ,/* _impl_._mp_consume_end_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.hp_consume_)*/ {}
+  ,/* _impl_._hp_consume_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.reuse_ms_)*/ {}
+  ,/* _impl_._reuse_ms_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.hit_time_ms_)*/ {}
+  ,/* _impl_._hit_time_ms_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.target_type_)*/{}
+  , /*decltype(_impl_.affect_scope_)*/{}
   , /*decltype(_impl_.key_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
@@ -804,6 +821,8 @@ PROTOBUF_CONSTEXPR SkillCatalogEntry::SkillCatalogEntry(
   , /*decltype(_impl_.max_level_)*/ 0u
 
   , /*decltype(_impl_.effect_implemented_)*/ false
+
+  , /*decltype(_impl_.operate_type_)*/ 0
 
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct SkillCatalogEntryDefaultTypeInternal {
@@ -872,7 +891,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 }  // namespace v1
 }  // namespace nightfall
 static ::_pb::Metadata file_level_metadata_nightfall_2fv1_2fgame_2eproto[33];
-static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fgame_2eproto[3];
+static const ::_pb::EnumDescriptor* file_level_enum_descriptors_nightfall_2fv1_2fgame_2eproto[4];
 static constexpr const ::_pb::ServiceDescriptor**
     file_level_service_descriptors_nightfall_2fv1_2fgame_2eproto = nullptr;
 const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(
@@ -1348,6 +1367,14 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_S
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.effect_implemented_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.deferred_reasons_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.l2_ref_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.mp_consume_start_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.mp_consume_end_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.hp_consume_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.reuse_ms_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.hit_time_ms_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.operate_type_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.target_type_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::SkillCatalogEntry, _impl_.affect_scope_),
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GetSkillCatalogResponse, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -1411,8 +1438,8 @@ static const ::_pbi::MigrationSchema
         { 412, 434, -1, sizeof(::nightfall::v1::LearnSkillResponse)},
         { 448, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogRequest)},
         { 456, -1, -1, sizeof(::nightfall::v1::SkillCatalogEntry)},
-        { 471, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogResponse)},
-        { 481, -1, -1, sizeof(::nightfall::v1::EffectiveStats)},
+        { 479, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogResponse)},
+        { 489, -1, -1, sizeof(::nightfall::v1::EffectiveStats)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -1553,53 +1580,66 @@ const char descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto[] PROTOBUF_SE
     "\016\n\006max_cp\030\013 \001(\r\022\024\n\014character_id\030\014 \001(\t\0225\n"
     "\017effective_stats\030\r \001(\0132\034.nightfall.v1.Ef"
     "fectiveStats\022\023\n\013incarnation\030\016 \001(\r\"\030\n\026Get"
-    "SkillCatalogRequest\"\241\001\n\021SkillCatalogEntr"
+    "SkillCatalogRequest\"\357\002\n\021SkillCatalogEntr"
     "y\022\020\n\010skill_id\030\001 \001(\r\022\013\n\003key\030\002 \001(\t\022\024\n\014disp"
     "lay_name\030\003 \001(\t\022\021\n\tmax_level\030\004 \001(\r\022\032\n\022eff"
     "ect_implemented\030\005 \001(\010\022\030\n\020deferred_reason"
-    "s\030\006 \003(\t\022\016\n\006l2_ref\030\007 \001(\t\"`\n\027GetSkillCatal"
-    "ogResponse\022\024\n\014data_version\030\001 \001(\t\022/\n\006skil"
-    "ls\030\002 \003(\0132\037.nightfall.v1.SkillCatalogEntr"
-    "y\"\315\001\n\016EffectiveStats\022\017\n\007p_atk_q\030\001 \001(\003\022\017\n"
-    "\007p_def_q\030\002 \001(\003\022\017\n\007m_atk_q\030\003 \001(\003\022\017\n\007m_def"
-    "_q\030\004 \001(\003\022\024\n\014attack_speed\030\005 \001(\r\022\022\n\ncast_s"
-    "peed\030\006 \001(\r\022\017\n\007speed_q\030\007 \001(\003\022\022\n\naccuracy_"
-    "q\030\010 \001(\003\022\021\n\tevasion_q\030\t \001(\003\022\025\n\rcrit_permi"
-    "lle\030\n \001(\r*k\n\004Race\022\024\n\020RACE_UNSPECIFIED\020\000\022"
-    "\016\n\nRACE_HUMAN\020\001\022\014\n\010RACE_ELF\020\002\022\021\n\rRACE_DA"
-    "RK_ELF\020\003\022\014\n\010RACE_ORC\020\004\022\016\n\nRACE_DWARF\020\005*8"
-    "\n\003Sex\022\023\n\017SEX_UNSPECIFIED\020\000\022\014\n\010SEX_MALE\020\001"
-    "\022\016\n\nSEX_FEMALE\020\002*S\n\tArchetype\022\031\n\025ARCHETY"
-    "PE_UNSPECIFIED\020\000\022\025\n\021ARCHETYPE_FIGHTER\020\001\022"
-    "\024\n\020ARCHETYPE_MYSTIC\020\0022\362\006\n\013GameService\022=\n"
-    "\004Ping\022\031.nightfall.v1.PingRequest\032\032.night"
-    "fall.v1.PingResponse\022J\n\014GetCharacter\022!.n"
-    "ightfall.v1.GetCharacterRequest\032\027.nightf"
-    "all.v1.Character\022P\n\017CreateCharacter\022$.ni"
-    "ghtfall.v1.CreateCharacterRequest\032\027.nigh"
-    "tfall.v1.Character\022a\n\020ListMyCharacters\022%"
-    ".nightfall.v1.ListMyCharactersRequest\032&."
-    "nightfall.v1.ListMyCharactersResponse\022R\n"
-    "\013ListClasses\022 .nightfall.v1.ListClassesR"
-    "equest\032!.nightfall.v1.ListClassesRespons"
-    "e\022^\n\017TransferOptions\022$.nightfall.v1.Tran"
-    "sferOptionsRequest\032%.nightfall.v1.Transf"
-    "erOptionsResponse\022R\n\013ChangeClass\022 .night"
-    "fall.v1.ChangeClassRequest\032!.nightfall.v"
-    "1.ChangeClassResponse\022j\n\023ListLearnableSk"
-    "ills\022(.nightfall.v1.ListLearnableSkillsR"
-    "equest\032).nightfall.v1.ListLearnableSkill"
-    "sResponse\022O\n\nLearnSkill\022\037.nightfall.v1.L"
-    "earnSkillRequest\032 .nightfall.v1.LearnSki"
-    "llResponse\022^\n\017GetSkillCatalog\022$.nightfal"
-    "l.v1.GetSkillCatalogRequest\032%.nightfall."
-    "v1.GetSkillCatalogResponseb\006proto3"
+    "s\030\006 \003(\t\022\016\n\006l2_ref\030\007 \001(\t\022\030\n\020mp_consume_st"
+    "art\030\010 \003(\r\022\026\n\016mp_consume_end\030\t \003(\r\022\022\n\nhp_"
+    "consume\030\n \003(\r\022\020\n\010reuse_ms\030\013 \003(\r\022\023\n\013hit_t"
+    "ime_ms\030\014 \003(\r\0224\n\014operate_type\030\r \001(\0162\036.nig"
+    "htfall.v1.SkillOperateType\022\023\n\013target_typ"
+    "e\030\016 \003(\t\022\024\n\014affect_scope\030\017 \003(\t\"`\n\027GetSkil"
+    "lCatalogResponse\022\024\n\014data_version\030\001 \001(\t\022/"
+    "\n\006skills\030\002 \003(\0132\037.nightfall.v1.SkillCatal"
+    "ogEntry\"\315\001\n\016EffectiveStats\022\017\n\007p_atk_q\030\001 "
+    "\001(\003\022\017\n\007p_def_q\030\002 \001(\003\022\017\n\007m_atk_q\030\003 \001(\003\022\017\n"
+    "\007m_def_q\030\004 \001(\003\022\024\n\014attack_speed\030\005 \001(\r\022\022\n\n"
+    "cast_speed\030\006 \001(\r\022\017\n\007speed_q\030\007 \001(\003\022\022\n\nacc"
+    "uracy_q\030\010 \001(\003\022\021\n\tevasion_q\030\t \001(\003\022\025\n\rcrit"
+    "_permille\030\n \001(\r*k\n\004Race\022\024\n\020RACE_UNSPECIF"
+    "IED\020\000\022\016\n\nRACE_HUMAN\020\001\022\014\n\010RACE_ELF\020\002\022\021\n\rR"
+    "ACE_DARK_ELF\020\003\022\014\n\010RACE_ORC\020\004\022\016\n\nRACE_DWA"
+    "RF\020\005*8\n\003Sex\022\023\n\017SEX_UNSPECIFIED\020\000\022\014\n\010SEX_"
+    "MALE\020\001\022\016\n\nSEX_FEMALE\020\002*S\n\tArchetype\022\031\n\025A"
+    "RCHETYPE_UNSPECIFIED\020\000\022\025\n\021ARCHETYPE_FIGH"
+    "TER\020\001\022\024\n\020ARCHETYPE_MYSTIC\020\002*\226\002\n\020SkillOpe"
+    "rateType\022\"\n\036SKILL_OPERATE_TYPE_UNSPECIFI"
+    "ED\020\000\022%\n!SKILL_OPERATE_TYPE_ACTIVE_INSTAN"
+    "T\020\001\0220\n,SKILL_OPERATE_TYPE_ACTIVE_INSTANT"
+    "_CONTINUOUS\020\002\022(\n$SKILL_OPERATE_TYPE_ACTI"
+    "VE_CONTINUOUS\020\003\022\036\n\032SKILL_OPERATE_TYPE_PA"
+    "SSIVE\020\004\022\035\n\031SKILL_OPERATE_TYPE_TOGGLE\020\005\022\034"
+    "\n\030SKILL_OPERATE_TYPE_OTHER\020\0062\362\006\n\013GameSer"
+    "vice\022=\n\004Ping\022\031.nightfall.v1.PingRequest\032"
+    "\032.nightfall.v1.PingResponse\022J\n\014GetCharac"
+    "ter\022!.nightfall.v1.GetCharacterRequest\032\027"
+    ".nightfall.v1.Character\022P\n\017CreateCharact"
+    "er\022$.nightfall.v1.CreateCharacterRequest"
+    "\032\027.nightfall.v1.Character\022a\n\020ListMyChara"
+    "cters\022%.nightfall.v1.ListMyCharactersReq"
+    "uest\032&.nightfall.v1.ListMyCharactersResp"
+    "onse\022R\n\013ListClasses\022 .nightfall.v1.ListC"
+    "lassesRequest\032!.nightfall.v1.ListClasses"
+    "Response\022^\n\017TransferOptions\022$.nightfall."
+    "v1.TransferOptionsRequest\032%.nightfall.v1"
+    ".TransferOptionsResponse\022R\n\013ChangeClass\022"
+    " .nightfall.v1.ChangeClassRequest\032!.nigh"
+    "tfall.v1.ChangeClassResponse\022j\n\023ListLear"
+    "nableSkills\022(.nightfall.v1.ListLearnable"
+    "SkillsRequest\032).nightfall.v1.ListLearnab"
+    "leSkillsResponse\022O\n\nLearnSkill\022\037.nightfa"
+    "ll.v1.LearnSkillRequest\032 .nightfall.v1.L"
+    "earnSkillResponse\022^\n\017GetSkillCatalog\022$.n"
+    "ightfall.v1.GetSkillCatalogRequest\032%.nig"
+    "htfall.v1.GetSkillCatalogResponseb\006proto"
+    "3"
 };
 static ::absl::once_flag descriptor_table_nightfall_2fv1_2fgame_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fgame_2eproto = {
     false,
     false,
-    5714,
+    6201,
     descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto,
     "nightfall/v1/game.proto",
     &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
@@ -1673,6 +1713,24 @@ bool Archetype_IsValid(int value) {
     case 0:
     case 1:
     case 2:
+      return true;
+    default:
+      return false;
+  }
+}
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* SkillOperateType_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_nightfall_2fv1_2fgame_2eproto);
+  return file_level_enum_descriptors_nightfall_2fv1_2fgame_2eproto[3];
+}
+bool SkillOperateType_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
       return true;
     default:
       return false;
@@ -11039,6 +11097,23 @@ SkillCatalogEntry::SkillCatalogEntry(const SkillCatalogEntry& from)
   SkillCatalogEntry* const _this = this; (void)_this;
   new (&_impl_) Impl_{
       decltype(_impl_.deferred_reasons_){from._impl_.deferred_reasons_}
+    , decltype(_impl_.mp_consume_start_) { from._impl_.mp_consume_start_ }
+    ,/* _impl_._mp_consume_start_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.mp_consume_end_) { from._impl_.mp_consume_end_ }
+    ,/* _impl_._mp_consume_end_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.hp_consume_) { from._impl_.hp_consume_ }
+    ,/* _impl_._hp_consume_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.reuse_ms_) { from._impl_.reuse_ms_ }
+    ,/* _impl_._reuse_ms_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.hit_time_ms_) { from._impl_.hit_time_ms_ }
+    ,/* _impl_._hit_time_ms_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.target_type_){from._impl_.target_type_}
+    , decltype(_impl_.affect_scope_){from._impl_.affect_scope_}
     , decltype(_impl_.key_) {}
 
     , decltype(_impl_.display_name_) {}
@@ -11050,6 +11125,8 @@ SkillCatalogEntry::SkillCatalogEntry(const SkillCatalogEntry& from)
     , decltype(_impl_.max_level_) {}
 
     , decltype(_impl_.effect_implemented_) {}
+
+    , decltype(_impl_.operate_type_) {}
 
     , /*decltype(_impl_._cached_size_)*/{}};
 
@@ -11076,8 +11153,8 @@ SkillCatalogEntry::SkillCatalogEntry(const SkillCatalogEntry& from)
     _this->_impl_.l2_ref_.Set(from._internal_l2_ref(), _this->GetArenaForAllocation());
   }
   ::memcpy(&_impl_.skill_id_, &from._impl_.skill_id_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.effect_implemented_) -
-    reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.effect_implemented_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.operate_type_) -
+    reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.operate_type_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.SkillCatalogEntry)
 }
 
@@ -11085,6 +11162,23 @@ inline void SkillCatalogEntry::SharedCtor(::_pb::Arena* arena) {
   (void)arena;
   new (&_impl_) Impl_{
       decltype(_impl_.deferred_reasons_){arena}
+    , decltype(_impl_.mp_consume_start_) { arena }
+    ,/* _impl_._mp_consume_start_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.mp_consume_end_) { arena }
+    ,/* _impl_._mp_consume_end_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.hp_consume_) { arena }
+    ,/* _impl_._hp_consume_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.reuse_ms_) { arena }
+    ,/* _impl_._reuse_ms_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.hit_time_ms_) { arena }
+    ,/* _impl_._hit_time_ms_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.target_type_){arena}
+    , decltype(_impl_.affect_scope_){arena}
     , decltype(_impl_.key_) {}
 
     , decltype(_impl_.display_name_) {}
@@ -11096,6 +11190,8 @@ inline void SkillCatalogEntry::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.max_level_) { 0u }
 
     , decltype(_impl_.effect_implemented_) { false }
+
+    , decltype(_impl_.operate_type_) { 0 }
 
     , /*decltype(_impl_._cached_size_)*/{}
   };
@@ -11125,6 +11221,13 @@ SkillCatalogEntry::~SkillCatalogEntry() {
 inline void SkillCatalogEntry::SharedDtor() {
   ABSL_DCHECK(GetArenaForAllocation() == nullptr);
   _internal_mutable_deferred_reasons()->~RepeatedPtrField();
+  _impl_.mp_consume_start_.~RepeatedField();
+  _impl_.mp_consume_end_.~RepeatedField();
+  _impl_.hp_consume_.~RepeatedField();
+  _impl_.reuse_ms_.~RepeatedField();
+  _impl_.hit_time_ms_.~RepeatedField();
+  _internal_mutable_target_type()->~RepeatedPtrField();
+  _internal_mutable_affect_scope()->~RepeatedPtrField();
   _impl_.key_.Destroy();
   _impl_.display_name_.Destroy();
   _impl_.l2_ref_.Destroy();
@@ -11141,12 +11244,19 @@ void SkillCatalogEntry::Clear() {
   (void) cached_has_bits;
 
   _internal_mutable_deferred_reasons()->Clear();
+  _internal_mutable_mp_consume_start()->Clear();
+  _internal_mutable_mp_consume_end()->Clear();
+  _internal_mutable_hp_consume()->Clear();
+  _internal_mutable_reuse_ms()->Clear();
+  _internal_mutable_hit_time_ms()->Clear();
+  _internal_mutable_target_type()->Clear();
+  _internal_mutable_affect_scope()->Clear();
   _impl_.key_.ClearToEmpty();
   _impl_.display_name_.ClearToEmpty();
   _impl_.l2_ref_.ClearToEmpty();
   ::memset(&_impl_.skill_id_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.effect_implemented_) -
-      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.effect_implemented_));
+      reinterpret_cast<char*>(&_impl_.operate_type_) -
+      reinterpret_cast<char*>(&_impl_.skill_id_)) + sizeof(_impl_.operate_type_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -11228,6 +11338,108 @@ const char* SkillCatalogEntry::_InternalParse(const char* ptr, ::_pbi::ParseCont
           ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
           CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCatalogEntry.l2_ref"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated uint32 mp_consume_start = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 66)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt32Parser(_internal_mutable_mp_consume_start(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 64) {
+          _internal_add_mp_consume_start(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated uint32 mp_consume_end = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt32Parser(_internal_mutable_mp_consume_end(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 72) {
+          _internal_add_mp_consume_end(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated uint32 hp_consume = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 82)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt32Parser(_internal_mutable_hp_consume(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 80) {
+          _internal_add_hp_consume(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated uint32 reuse_ms = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt32Parser(_internal_mutable_reuse_ms(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 88) {
+          _internal_add_reuse_ms(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated uint32 hit_time_ms = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 98)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt32Parser(_internal_mutable_hit_time_ms(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 96) {
+          _internal_add_hit_time_ms(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SkillOperateType operate_type = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 104)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_operate_type(static_cast<::nightfall::v1::SkillOperateType>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated string target_type = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 114)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_target_type();
+            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(ptr);
+            CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCatalogEntry.target_type"));
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<114>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // repeated string affect_scope = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 122)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_affect_scope();
+            ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(ptr);
+            CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.SkillCatalogEntry.affect_scope"));
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<122>(ptr));
         } else {
           goto handle_unusual;
         }
@@ -11314,6 +11526,74 @@ failure:
     target = stream->WriteStringMaybeAliased(7, _s, target);
   }
 
+  // repeated uint32 mp_consume_start = 8;
+  {
+    int byte_size = _impl_._mp_consume_start_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt32Packed(8, _internal_mp_consume_start(),
+                                                 byte_size, target);
+    }
+  }
+
+  // repeated uint32 mp_consume_end = 9;
+  {
+    int byte_size = _impl_._mp_consume_end_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt32Packed(9, _internal_mp_consume_end(),
+                                                 byte_size, target);
+    }
+  }
+
+  // repeated uint32 hp_consume = 10;
+  {
+    int byte_size = _impl_._hp_consume_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt32Packed(10, _internal_hp_consume(),
+                                                 byte_size, target);
+    }
+  }
+
+  // repeated uint32 reuse_ms = 11;
+  {
+    int byte_size = _impl_._reuse_ms_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt32Packed(11, _internal_reuse_ms(),
+                                                 byte_size, target);
+    }
+  }
+
+  // repeated uint32 hit_time_ms = 12;
+  {
+    int byte_size = _impl_._hit_time_ms_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt32Packed(12, _internal_hit_time_ms(),
+                                                 byte_size, target);
+    }
+  }
+
+  // .nightfall.v1.SkillOperateType operate_type = 13;
+  if (this->_internal_operate_type() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        13, this->_internal_operate_type(), target);
+  }
+
+  // repeated string target_type = 14;
+  for (int i = 0, n = this->_internal_target_type_size(); i < n; ++i) {
+    const auto& s = this->_internal_target_type(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        s.data(), static_cast<int>(s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCatalogEntry.target_type");
+    target = stream->WriteString(14, s, target);
+  }
+
+  // repeated string affect_scope = 15;
+  for (int i = 0, n = this->_internal_affect_scope_size(); i < n; ++i) {
+    const auto& s = this->_internal_affect_scope(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        s.data(), static_cast<int>(s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.SkillCatalogEntry.affect_scope");
+    target = stream->WriteString(15, s, target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -11335,6 +11615,90 @@ failure:
   for (int i = 0, n = _internal_deferred_reasons().size(); i < n; ++i) {
     total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
         _internal_deferred_reasons().Get(i));
+  }
+
+  // repeated uint32 mp_consume_start = 8;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt32Size(
+        this->_internal_mp_consume_start())
+    ;
+    _impl_._mp_consume_start_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  // repeated uint32 mp_consume_end = 9;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt32Size(
+        this->_internal_mp_consume_end())
+    ;
+    _impl_._mp_consume_end_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  // repeated uint32 hp_consume = 10;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt32Size(
+        this->_internal_hp_consume())
+    ;
+    _impl_._hp_consume_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  // repeated uint32 reuse_ms = 11;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt32Size(
+        this->_internal_reuse_ms())
+    ;
+    _impl_._reuse_ms_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  // repeated uint32 hit_time_ms = 12;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt32Size(
+        this->_internal_hit_time_ms())
+    ;
+    _impl_._hit_time_ms_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  // repeated string target_type = 14;
+  total_size += 1 * ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_internal_target_type().size());
+  for (int i = 0, n = _internal_target_type().size(); i < n; ++i) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        _internal_target_type().Get(i));
+  }
+
+  // repeated string affect_scope = 15;
+  total_size += 1 * ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(_internal_affect_scope().size());
+  for (int i = 0, n = _internal_affect_scope().size(); i < n; ++i) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        _internal_affect_scope().Get(i));
   }
 
   // string key = 2;
@@ -11372,6 +11736,12 @@ failure:
     total_size += 2;
   }
 
+  // .nightfall.v1.SkillOperateType operate_type = 13;
+  if (this->_internal_operate_type() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_operate_type());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -11391,6 +11761,13 @@ void SkillCatalogEntry::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, cons
   (void) cached_has_bits;
 
   _this->_internal_mutable_deferred_reasons()->MergeFrom(from._internal_deferred_reasons());
+  _this->_impl_.mp_consume_start_.MergeFrom(from._impl_.mp_consume_start_);
+  _this->_impl_.mp_consume_end_.MergeFrom(from._impl_.mp_consume_end_);
+  _this->_impl_.hp_consume_.MergeFrom(from._impl_.hp_consume_);
+  _this->_impl_.reuse_ms_.MergeFrom(from._impl_.reuse_ms_);
+  _this->_impl_.hit_time_ms_.MergeFrom(from._impl_.hit_time_ms_);
+  _this->_internal_mutable_target_type()->MergeFrom(from._internal_target_type());
+  _this->_internal_mutable_affect_scope()->MergeFrom(from._internal_affect_scope());
   if (!from._internal_key().empty()) {
     _this->_internal_set_key(from._internal_key());
   }
@@ -11408,6 +11785,9 @@ void SkillCatalogEntry::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, cons
   }
   if (from._internal_effect_implemented() != 0) {
     _this->_internal_set_effect_implemented(from._internal_effect_implemented());
+  }
+  if (from._internal_operate_type() != 0) {
+    _this->_internal_set_operate_type(from._internal_operate_type());
   }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
@@ -11430,6 +11810,15 @@ void SkillCatalogEntry::InternalSwap(SkillCatalogEntry* other) {
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   _internal_mutable_deferred_reasons()->InternalSwap(
       other->_internal_mutable_deferred_reasons());
+  _impl_.mp_consume_start_.InternalSwap(&other->_impl_.mp_consume_start_);
+  _impl_.mp_consume_end_.InternalSwap(&other->_impl_.mp_consume_end_);
+  _impl_.hp_consume_.InternalSwap(&other->_impl_.hp_consume_);
+  _impl_.reuse_ms_.InternalSwap(&other->_impl_.reuse_ms_);
+  _impl_.hit_time_ms_.InternalSwap(&other->_impl_.hit_time_ms_);
+  _internal_mutable_target_type()->InternalSwap(
+      other->_internal_mutable_target_type());
+  _internal_mutable_affect_scope()->InternalSwap(
+      other->_internal_mutable_affect_scope());
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.key_, lhs_arena,
                                        &other->_impl_.key_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.display_name_, lhs_arena,
@@ -11437,8 +11826,8 @@ void SkillCatalogEntry::InternalSwap(SkillCatalogEntry* other) {
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.l2_ref_, lhs_arena,
                                        &other->_impl_.l2_ref_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(SkillCatalogEntry, _impl_.effect_implemented_)
-      + sizeof(SkillCatalogEntry::_impl_.effect_implemented_)
+      PROTOBUF_FIELD_OFFSET(SkillCatalogEntry, _impl_.operate_type_)
+      + sizeof(SkillCatalogEntry::_impl_.operate_type_)
       - PROTOBUF_FIELD_OFFSET(SkillCatalogEntry, _impl_.skill_id_)>(
           reinterpret_cast<char*>(&_impl_.skill_id_),
           reinterpret_cast<char*>(&other->_impl_.skill_id_));

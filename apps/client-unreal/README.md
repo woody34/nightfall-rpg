@@ -1122,7 +1122,16 @@ coverage)` warning; pass `-RequireCombatServer` to the editor to make that skip 
 
 ### Phase 3 skills and PvP presentation
 
-The native HUD renders received ranks and executable catalogue skills in slots 1–9.
+The native HUD renders received ranks in nine stable, configurable key slots.
+The Skill trainer dialog includes an all-skills picker for assigning learned active
+skills, including choices beyond nine; assigning a skill moves its previous binding.
+Maps persist per character in Saved/Config/NightfallHotbar.ini and survive reconnects
+and rank changes. Slot eligibility requires the authoritative catalogue operate
+type as well as effect_implemented and the received learned rank. GetSkillCatalog's
+ACTIVE_INSTANT, ACTIVE_INSTANT_CONTINUOUS and ACTIVE_CONTINUOUS entries can be
+assigned and cast. Passive, toggle, other, absent and unknown types stay out of
+cast slots. Trainer rows show that received classification; eligible passive ranks
+can still be learned. The console Cast command remains subject to server validation.
 Cooldowns use a linear sweep from received ready ticks; cast bars retain original
 start/complete ticks. Buff, song/dance and debuff summaries show rank and remaining
 authoritative ticks. Own CP, SP, death penalty, target karma and white/purple/red
@@ -1153,7 +1162,7 @@ Unknown evidence evaluates false and is printed as unknown where applicable.
 | `own_karma/own_pk/own_pvp op n` | Received owner PvP values from same messages |
 | `own_sp op n`, `own_death_penalty op n` | Owner StatsChanged/SkillStateSync; SP also SkillLearned and SpGained |
 | `sp_gained_total/events op n`, `skill_learned_events op n` | Deduplicated owner SpGained / SkillLearned facts in current admission scope |
-| `own_mp_cost_matches <id>` | **UNKNOWN/false**: current catalogue and SkillStateSync contain no per-rank MP costs |
+| `own_mp_cost_matches <id>` | Exact received C6 catalogue rank MP1/MP2 costs versus owner StatsChanged stage deltas around matched SkillCastStarted/Result; missing metadata or samples is UNKNOWN |
 | `learnable_contains <id> <rank>` | Successful ListLearnableSkills exact received row |
 | `learn_rpc_error == none|<canonical gRPC code>` | Completed LearnSkill status; underscore names or numeric codes 0–16 |
 | `learn_receipt_matches_first` | Entire successful frozen LearnSkill reply compared with first reply for same retry key |
@@ -1161,6 +1170,14 @@ Unknown evidence evaluates false and is printed as unknown where applicable.
 | `resurrect_offer_pending` | Owner ResurrectOffer ID/state/expiry, current death incarnation |
 | `vitals_max_hp <own|self|target|UUID> op n` | EntitySpawn.max_hp, StatsChanged.max_hp (owner), VitalsChanged.max_hp including final revival baseline |
 | `catalogue_skill_status <id> == executable|deferred` | GetSkillCatalog.effect_implemented |
+| `entity_alive/dead/in_view <own|self|target|UUID>` | Known EntitySpawn identity, EntityDied/Respawned and accepted public absolute HP; absent identity stays unknown |
+| `entity_at <entity> <x> <y> <tol>` | Newest received EntitySpawn/EntityMove position sample, gated by current known identity |
+| `entity_casting <entity> <id>` | Current SkillCastStarted skill ID, including identity hydration; terminal Result/Cancelled clears it |
+| `initial_hp/mp/cp op n` | First owner EntitySpawn HP and first accepted StatsChanged MP/CP in the current admission; later updates do not rewrite these samples |
+| `target_flag_remaining op n` | Received PvpStateChanged.flag_until_tick minus newest received tick, clamped at zero |
+| `cast_cancel_reason/observed_cast_cancel_reason == <reason>` | Last accepted SkillCastCancelled.reason with caster life/cast ID fences; observed includes the owner |
+| `buff_replacements op n`, `replacement_remove_before_apply` | Known buff EffectRemoved(reason=REPLACED) followed by same target/skill/pool EffectApplied with a new effect ID; duplicates/baselines excluded |
+| `effect_remove_reason == <reason>` | Last accepted EffectRemoved.reason for a previously known stable effect ID |
 
 Identity baselines reset projections; ordinary deltas at/before them are rejected.
 Explicit hydration must match the identity tick and incarnation. Hidden reference
@@ -1174,6 +1191,13 @@ Ping reports an unavailable API; reachable auth/runtime/admission failures fail.
 `Scripts/run-tests.sh --require-live-api` makes unavailable API tests fail too.
 Use `-Phase3LiveCharacter=<UUID>` for a prepared fixture character; otherwise live
 admission tests create a fresh character. Live gameplay scenarios and server
-oracle verification are architect/harness work. Additional harness oracle,
-death-record, retention-hook, AI-hate and causal trace predicates are **not
-implemented** and fail scenario parsing until their contracts/vectors are published.
+oracle verification are architect/harness work. All canonical and nested Phase 3 scenario command/predicate names now bind in the native registry. Received-history checks and exact frozen E1 karma/revival input lookups are documented in [PHASE3_PREDICATES.md](PHASE3_PREDICATES.md). Twelve predicates requiring regen causes, full death records, ordered modifiers, hate ledgers or RNG/credit traces remain **evidence-blocked**: they parse but always evaluate false with an explicit UNKNOWN reason. The strict harness source audit still rejects their uses. The peace no-damage check additionally needs the victim owner's private CP, and frozen lookups need a matching input vector. Parsing and authored offline dispatch fixtures do not attest live gameplay or server precision. The client never selects an arbitrary vector with a matching output or infers regeneration from an HP increase.
+
+Casting soak uses `-SoakRoleManifest=<roles.json>` and
+`-SoakScenarioSeconds=360`. Each role's process allowance is `SoakSeconds +
+SoakScenarioSeconds + 60` for boot and a final complete scenario; Gauntlet adds
+30 seconds for collection. Both process and Gauntlet deadlines use this allowance.
+Manifest paths, casting mode, role order/count and private token permissions are
+validated before launching. A manifest/build pass does not prove a casting soak.
+
+Round 3 UI corrections: clicking a visible player corpse selects its received identity locally; a hotbar click or number key sends that corpse explicitly in CastSkill. Despawn, replacement generation, revival/new incarnation, a live selection, ground click, or transport reset clears it. This selection does not issue auto-attack. Catalogue replies survive owner admission and use an independent request lifetime; a transport reset still discards outdated callbacks. Native automation exercises the production mouse-hit resolver and key delegate, HUD cast progress/terminal state, effect countdown/pool/expiry, PvP colours and the actual accept/decline button delegates. These are headless state/input checks, not rendered screenshots or live gameplay proof.

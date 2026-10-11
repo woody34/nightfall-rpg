@@ -327,6 +327,10 @@ struct FGrpcNightfallV1MoveToRequest : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1Position Destination;
+
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasDestination = false;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.StopMoveRequest"))
@@ -575,6 +579,10 @@ struct FGrpcNightfallV1EntitySpawn : public FGrpcMessage
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1Position Position;
 
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasPosition = false;
+
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     EGrpcNightfallV1EntityKind Kind = static_cast<EGrpcNightfallV1EntityKind>(0);
 
@@ -660,8 +668,16 @@ struct FGrpcNightfallV1EntityMove : public FGrpcMessage
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1Position Position;
 
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasPosition = false;
+
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1Position Destination;
+
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasDestination = false;
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     float Speed = 0;
@@ -815,6 +831,10 @@ struct FGrpcNightfallV1EntityRespawned : public FGrpcMessage
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1Position Position;
 
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasPosition = false;
+
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 Hp = 0;
 
@@ -887,6 +907,10 @@ struct FGrpcNightfallV1StatsChanged : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1EffectiveStats EffectiveStats;
+
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasEffectiveStats = false;
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     bool Baseline = false;

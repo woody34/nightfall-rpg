@@ -31,6 +31,18 @@ enum class EGrpcNightfallV1Archetype : uint8
     ARCHETYPE_MYSTIC=2,
 };
 
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.SkillOperateType", ScriptName="EGrpcNightfallV1SkillOperateType"))
+enum class EGrpcNightfallV1SkillOperateType : uint8
+{
+    SKILL_OPERATE_TYPE_UNSPECIFIED=0,
+    SKILL_OPERATE_TYPE_ACTIVE_INSTANT=1,
+    SKILL_OPERATE_TYPE_ACTIVE_INSTANT_CONTINUOUS=2,
+    SKILL_OPERATE_TYPE_ACTIVE_CONTINUOUS=3,
+    SKILL_OPERATE_TYPE_PASSIVE=4,
+    SKILL_OPERATE_TYPE_TOGGLE=5,
+    SKILL_OPERATE_TYPE_OTHER=6,
+};
+
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.CreateCharacterRequest._base_class_id", ScriptName="EGrpcNightfallV1CreateCharacterRequest_base_class_id"))
 enum class EGrpcNightfallV1CreateCharacterRequest_base_class_id : uint8
 {
@@ -184,6 +196,10 @@ struct FGrpcNightfallV1Character : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1BaseStats Stats;
+
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasStats = false;
 
     TSharedPtr<FGrpcNightfallV1Position> Position;
 
@@ -355,6 +371,10 @@ struct FGrpcNightfallV1ClassInfo : public FGrpcMessage
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1BaseStats BaseStats;
 
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasBaseStats = false;
+
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     bool SubclassAllowed = false;
 
@@ -451,6 +471,10 @@ struct FGrpcNightfallV1ClassMasterInfo : public FGrpcMessage
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1Position Position;
 
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasPosition = false;
+
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     float InteractionRadius = 0;
 };
@@ -485,6 +509,10 @@ struct FGrpcNightfallV1ListClassesResponse : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1ClassMasterInfo ClassMaster;
+
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasClassMaster = false;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.TransferOptionsRequest"))
@@ -557,6 +585,10 @@ struct FGrpcNightfallV1ChangeClassResponse : public FGrpcMessage
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1Character Character;
 
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasCharacter = false;
+
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     TArray<FString> GrantedSkillKeys;
 
@@ -585,6 +617,10 @@ struct FGrpcNightfallV1LearnableSkill : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1SkillLearnInfo Skill;
+
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasSkill = false;
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     bool Learned = false;
@@ -720,6 +756,30 @@ struct FGrpcNightfallV1SkillCatalogEntry : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FString L2Ref = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> MpConsumeStart;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> MpConsumeEnd;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> HpConsume;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> ReuseMs;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FUInt32> HitTimeMs;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1SkillOperateType OperateType = static_cast<EGrpcNightfallV1SkillOperateType>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FString> TargetType;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FString> AffectScope;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.GetSkillCatalogResponse"))

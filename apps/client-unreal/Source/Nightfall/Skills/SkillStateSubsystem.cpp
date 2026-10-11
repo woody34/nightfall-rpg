@@ -3,6 +3,9 @@
 #include "Combat/CombatStateSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Misc/Guid.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 void USkillStateSubsystem::Initialize(FSubsystemCollectionBase& C)
 {
@@ -40,17 +43,20 @@ void USkillStateSubsystem::Deinitialize()
 bool USkillStateSubsystem::IsOwn(const FString& Id) const { return Net && Net->IsOwnEntity(Id); }
 void USkillStateSubsystem::ClearOwner()
 {
+	SelectedCorpse.Reset();
 	++OperationSerial; bBusy = false; bRpcDone = false; FirstReceipts.Reset(); bReceiptMatches.Reset(); Counts.Reset(); bLearnDone = false; bLearnableKnown = false; Learnable = {}; LearnReceipt = {};
-	LastOfferId=0; Learned.Reset(); Reuse.Reset(); Sp.Reset(); Offer.Reset(); LearnedEvents.Reset(); SpGainEvents.Reset(); OwnerTick = 0;
+	InitialHp.Reset(); InitialMp.Reset(); InitialCp.Reset(); ObservedCancel.Reset();
+ LastOfferId=0; Learned.Reset(); Reuse.Reset(); Sp.Reset(); Offer.Reset(); LearnedEvents.Reset(); SpGainEvents.Reset(); OwnerTick = 0;
 	SyncTick = StatsTick = SpTick = LastSpGainTick = OfferTick = SpGainedTotal = 0; DeathPenalty = 0;
 	bOwnerKnown = bSyncKnown = bStatsKnown = bSpGainKnown = false;
 }
-void USkillStateSubsystem::Reset() { Fence.Reset(); Pvp.Reset(); Casts.Reset(); Swings.Reset(); ClearOwner(); CastTransitions = 0; OnChanged.Broadcast(); }
+void USkillStateSubsystem::Reset() { ++CatalogSerial; bCatalogBusy = false; Fence.Reset(); Pvp.Reset(); Casts.Reset(); Swings.Reset(); ClearOwner(); CastTransitions = 0; OnChanged.Broadcast(); }
 void USkillStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 {
 	if (!Fence.Spawn(S)) return;
+	if (SelectedCorpse.IsSet() && SelectedCorpse->EntityId.Equals(S.EntityId, ESearchCase::IgnoreCase)) SelectedCorpse.Reset();
 	Casts.Remove(S.EntityId.ToLower()); Swings.Remove(S.EntityId.ToLower());
-	if (IsOwn(S.EntityId)) ClearOwner();
+	if (IsOwn(S.EntityId)) { ClearOwner(); InitialHp=S.Hp; }
 	FPvpStateChanged P; P.Entity = S.EntityId; P.Incarnation = S.LifeIncarnation; P.Karma = S.Karma; P.PkCount = S.PkCount; P.PvpCount = S.PvpCount; P.FlagUntilTick = S.FlagUntilTick; P.Tick = S.StateTick;
 	Pvp.Add(S.EntityId.ToLower(), P);
 	if(S.PendingSwing.IsSet()){auto Swing=*S.PendingSwing;Swing.bBaseline=true;Swing.Tick=Swing.BaselineTick=S.StateTick;ApplySwing(Swing);}
@@ -59,6 +65,7 @@ void USkillStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 }
 void USkillStateSubsystem::ApplyDespawn(const FEntityDespawn& D)
 {
+	if (SelectedCorpse.IsSet() && SelectedCorpse->EntityId.Equals(D.EntityId, ESearchCase::IgnoreCase)) SelectedCorpse.Reset();
 	Fence.Despawn(D.EntityId); Casts.Remove(D.EntityId.ToLower()); Swings.Remove(D.EntityId.ToLower()); Pvp.Remove(D.EntityId.ToLower()); if (IsOwn(D.EntityId)) ClearOwner(); OnChanged.Broadcast();
 }
 void USkillStateSubsystem::ApplyDied(const FEntityDied& D)
@@ -68,6 +75,7 @@ void USkillStateSubsystem::ApplyDied(const FEntityDied& D)
 void USkillStateSubsystem::ApplyRespawn(const FEntityRespawned& R)
 {
 	if (!Fence.Respawn(R)) return;
+	if (SelectedCorpse.IsSet() && SelectedCorpse->EntityId.Equals(R.Entity, ESearchCase::IgnoreCase)) SelectedCorpse.Reset();
 	Casts.Remove(R.Entity.ToLower()); Swings.Remove(R.Entity.ToLower()); if (auto* P = Pvp.Find(R.Entity.ToLower())) { P->Incarnation = R.Incarnation; P->Tick = R.Tick; }
 	if (IsOwn(R.Entity)) { Offer.Reset(); OfferTick = R.Tick; }
 	OnChanged.Broadcast();
@@ -79,7 +87,7 @@ void USkillStateSubsystem::ApplySync(const FSkillStateSync& S)
 	for (const auto& R : S.Reuse) Reuse.Add(R.SkillId, { R.ReadyTick, S.Tick });
 	Sp = S.Sp; SpTick = S.Tick; DeathPenalty = S.DeathPenaltyLevel; SyncTick = S.Tick; OwnerTick = S.Tick; bSyncKnown = bOwnerKnown = true;
 	FPvpStateChanged P; P.Entity = S.Entity; P.Incarnation = S.Incarnation; P.Tick = S.Tick; P.Karma = S.Karma; P.PkCount = S.PkCount; P.PvpCount = S.PvpCount; P.FlagUntilTick = S.FlagUntilTick; P.bBaseline = S.bBaseline; P.BaselineTick = S.BaselineTick; ApplyPvp(P);
-	Fence.Tick = FMath::Max(Fence.Tick, S.Tick); OnChanged.Broadcast();
+	Fence.Tick = FMath::Max(Fence.Tick, S.Tick); EnsureHotbar(); OnChanged.Broadcast();
 }
 void USkillStateSubsystem::ApplyReuse(const FSkillReuse& R)
 {
@@ -94,12 +102,13 @@ void USkillStateSubsystem::ApplyLearned(const FSkillLearned& L)
 	if (LearnedEvents.Contains(Key)) return; LearnedEvents.Add(Key); ++Counts.FindOrAdd(TEXT("skill_learned_events")); OwnerTick = FMath::Max(OwnerTick, L.Tick);
 	Learned.FindOrAdd(L.SkillId) = FMath::Max(Learned.FindRef(L.SkillId), L.SkillLevel);
 	if (!Sp.IsSet() || L.Tick >= SpTick) { Sp = L.SpRemaining; SpTick = L.Tick; }
-	Fence.Tick = FMath::Max(Fence.Tick, L.Tick); OnChanged.Broadcast();
+	Fence.Tick = FMath::Max(Fence.Tick, L.Tick); EnsureHotbar(); OnChanged.Broadcast();
 }
 void USkillStateSubsystem::ApplyStats(const FStatsChanged& S)
 {
 	if (!IsOwn(S.Entity) || !Fence.Accept(S.Entity, S.Incarnation, S.Tick, S.bBaseline, S.BaselineTick) || (bStatsKnown && S.Tick <= StatsTick)) return;
-	if (!Sp.IsSet() || S.Tick >= SpTick) { Sp = S.Sp; SpTick = S.Tick; }
+	if(!InitialMp.IsSet())InitialMp=S.Mp; if(!InitialCp.IsSet())InitialCp=S.Cp;
+ if (!Sp.IsSet() || S.Tick >= SpTick) { Sp = S.Sp; SpTick = S.Tick; }
 	DeathPenalty = S.DeathPenaltyLevel; StatsTick = S.Tick; OwnerTick = FMath::Max(OwnerTick, S.Tick); bStatsKnown = bOwnerKnown = true;
 	FPvpStateChanged P; P.Entity = S.Entity; P.Incarnation = S.Incarnation; P.Tick = S.Tick; P.Karma = S.Karma; P.PkCount = S.PkCount; P.PvpCount = S.PvpCount; P.FlagUntilTick = S.FlagUntilTick; P.bBaseline = S.bBaseline; P.BaselineTick = S.BaselineTick; ApplyPvp(P);
 	Fence.Tick = FMath::Max(Fence.Tick, S.Tick); OnChanged.Broadcast();
@@ -157,7 +166,7 @@ void USkillStateSubsystem::ApplyResult(const FSkillCastResult& R)
 void USkillStateSubsystem::ApplyCancel(const FSkillCastCancelled& C)
 {
  const int32 Before=CastTransitions;FinishCast(C.Caster,C.CasterIncarnation,C.CastId,C.Tick,C.Reason);
- if(CastTransitions!=Before && IsOwn(C.Caster))++Counts.FindOrAdd(TEXT("cast_cancellations"));
+ if(CastTransitions!=Before){ObservedCancel=C;if(IsOwn(C.Caster))++Counts.FindOrAdd(TEXT("cast_cancellations"));}
 }
 TOptional<uint64> USkillStateSubsystem::ReuseRemaining(uint32 Id) const
 {
@@ -172,17 +181,24 @@ bool USkillStateSubsystem::OfferPending() const { return Net && Fence.Dead(Net->
 
 uint64 USkillStateSubsystem::GetTick() const { return FMath::Max(Fence.Tick, Net ? Net->GetLatestReceivedTick() : uint64(0)); }
 
-void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R) { Catalog = R; bCatalogKnown = true; OnChanged.Broadcast(); }
+void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R) { Catalog = R; bCatalogKnown = true; EnsureHotbar(); OnChanged.Broadcast(); }
 void USkillStateSubsystem::ApplyLearnable(const FGrpcNightfallV1ListLearnableSkillsResponse& R) { Learnable = R; bLearnableKnown = true; OnChanged.Broadcast(); }
 void USkillStateSubsystem::LoadCatalog(FDone Done)
 {
-	if (!Session || bBusy) return;
-	bBusy = true; bRpcDone = false; bCatalogKnown = false; const uint64 Serial = ++OperationSerial;
-	Session->GetSkillCatalog({}, [Weak = TWeakObjectPtr<USkillStateSubsystem>(this), Serial, Done](const FNetResult& Result, const FGrpcNightfallV1GetSkillCatalogResponse& R)
-	{
-		if (!Weak.IsValid() || Serial != Weak->OperationSerial) return;
-		Weak->bBusy = false; Weak->bRpcDone = true; Weak->LastResult = Result; if (Result.IsOk()) Weak->ApplyCatalog(R); Weak->OnChanged.Broadcast(); if (Done) Done(Result);
-	});
+ if ((!Session && !CatalogProvider) || bCatalogBusy) return;
+ bCatalogBusy = true; bRpcDone = false; bCatalogKnown = false;
+ const uint64 Serial = ++CatalogSerial, OwnerOperation = OperationSerial;
+ USessionClient::FSkillCatalogCallback Callback = [Weak = TWeakObjectPtr<USkillStateSubsystem>(this), Serial, OwnerOperation, Done](const FNetResult& Result, const FGrpcNightfallV1GetSkillCatalogResponse& R)
+ {
+  if (!Weak.IsValid() || Serial != Weak->CatalogSerial) return;
+  Weak->bCatalogBusy = false; Weak->bRpcDone = true;
+  if (OwnerOperation == Weak->OperationSerial) Weak->LastResult = Result;
+  // Immutable catalogue is independent of owner admission/learning operations.
+  if (Result.IsOk()) Weak->ApplyCatalog(R);
+  Weak->OnChanged.Broadcast(); if (Done) Done(Result);
+ };
+ if (CatalogProvider) CatalogProvider(MoveTemp(Callback));
+ else Session->GetSkillCatalog({}, MoveTemp(Callback));
 }
 void USkillStateSubsystem::LoadLearnable(FDone Done)
 {
@@ -223,15 +239,66 @@ const FGrpcNightfallV1SkillCatalogEntry* USkillStateSubsystem::FindSkill(uint32 
 {
 	if (bCatalogKnown) for (const auto& Skill : Catalog.Skills) if (Skill.SkillId.Value == Id) return &Skill; return nullptr;
 }
+bool USkillStateSubsystem::IsCastable(uint32 Id) const
+{
+ const auto* Skill = FindSkill(Id);
+ if (!Skill || !Skill->EffectImplemented || !Learned.FindRef(Id)) return false;
+ // C7 registry classification (game.proto:340-372); older/unknown types do not authorize casts.
+ using E = EGrpcNightfallV1SkillOperateType;
+ return Skill->OperateType == E::SKILL_OPERATE_TYPE_ACTIVE_INSTANT
+  || Skill->OperateType == E::SKILL_OPERATE_TYPE_ACTIVE_INSTANT_CONTINUOUS
+  || Skill->OperateType == E::SKILL_OPERATE_TYPE_ACTIVE_CONTINUOUS;
+}
+TArray<uint32> USkillStateSubsystem::AvailableSkills() const
+{
+ TArray<uint32> Out; for (const auto& Pair : Learned) if (IsCastable(Pair.Key)) Out.Add(Pair.Key);
+ Out.Sort(); return Out;
+}
+FString USkillStateSubsystem::HotbarConfigFile() const { return HotbarConfigOverride.IsEmpty() ? FPaths::Combine(FPaths::GeneratedConfigDir(),TEXT("NightfallHotbar.ini")) : HotbarConfigOverride; }
+void USkillStateSubsystem::SaveHotbar()
+{
+ if (!Net) return;
+ const auto* Slots = SlotMaps.Find(Net->GetOwnEntityId().ToLower()); if (!Slots) return;
+ TArray<FString> Values; for (uint32 Id : *Slots) Values.Add(FString::Printf(TEXT("%u"), Id));
+ const FString File=HotbarConfigFile(); FConfigFile Config; Config.Read(File); Config.bCanSaveAllSections=true;
+ Config.SetArray(TEXT("Nightfall.Hotbar"), *Net->GetOwnEntityId().ToLower(), Values);
+ IFileManager::Get().MakeDirectory(*FPaths::GetPath(File),true); Config.Write(File);
+}
+void USkillStateSubsystem::EnsureHotbar()
+{
+ if (!Net || Net->GetOwnEntityId().IsEmpty() || !bSyncKnown || SlotMaps.Contains(Net->GetOwnEntityId().ToLower())) return;
+ TArray<FString> Saved;
+ FConfigFile Config; Config.Read(HotbarConfigFile()); Config.GetArray(TEXT("Nightfall.Hotbar"), *Net->GetOwnEntityId().ToLower(), Saved);
+ TArray<uint32> Slots; Slots.Init(0, 9);
+ if (Saved.Num() == 9)
+ {
+  for (int32 I=0; I<9; ++I) if (Saved[I].IsNumeric()) { const uint64 Id=FCString::Strtoui64(*Saved[I],nullptr,10); if (Id<=MAX_uint32) Slots[I]=uint32(Id); }
+ }
+ else
+ {
+  const auto Choices = AvailableSkills(); if (Choices.IsEmpty()) return;
+  for (int32 I=0; I<FMath::Min(9,Choices.Num()); ++I) Slots[I]=Choices[I];
+ }
+ SlotMaps.Add(Net->GetOwnEntityId().ToLower(),Slots); SaveHotbar();
+}
+bool USkillStateSubsystem::AssignSlot(int32 Index, uint32 Id)
+{
+ if (!Net || Index<0 || Index>=9 || !bSyncKnown || (Id && !IsCastable(Id))) return false;
+ EnsureHotbar(); auto& Slots=SlotMaps.FindOrAdd(Net->GetOwnEntityId().ToLower()); if (Slots.Num()!=9) Slots.Init(0,9);
+ if (Id) for (auto& Held : Slots) if (Held==Id) Held=0;
+ Slots[Index]=Id; SaveHotbar(); OnChanged.Broadcast(); return true;
+}
 TArray<uint32> USkillStateSubsystem::Hotbar() const
 {
-	TArray<uint32> Out; for (const auto& Pair : Learned) { const auto* Skill = FindSkill(Pair.Key); if (Skill && Skill->EffectImplemented) Out.Add(Pair.Key); }
-	Out.Sort(); if (Out.Num() > 9) Out.SetNum(9); return Out;
+ TArray<uint32> Out; Out.Init(0,9);
+ const auto* Slots=Net ? SlotMaps.Find(Net->GetOwnEntityId().ToLower()) : nullptr;
+ if (Slots) for (int32 I=0; I<FMath::Min(9,Slots->Num()); ++I) if (IsCastable((*Slots)[I])) Out[I]=(*Slots)[I];
+ return Out;
 }
 uint32 USkillStateSubsystem::CastSlot(int32 Index)
 {
-	const auto Slots = Hotbar(); if (!Net || !Slots.IsValidIndex(Index)) return 0;
-	return Net->SendCastSkill(Slots[Index]);
+	const auto Slots = Hotbar(); if (!Net || !Slots.IsValidIndex(Index) || !Slots[Index]) return 0;
+	return Net->SendCastSkill(Slots[Index], CorpseTarget());
 }
 
 TOptional<uint64> USkillStateSubsystem::History(const FString& Name) const { return bOwnerKnown ? TOptional<uint64>(Counts.FindRef(Name)) : TOptional<uint64>(); }
@@ -255,4 +322,18 @@ float USkillStateSubsystem::CooldownFraction(uint32 Id) const
 {
  const auto* R=Reuse.Find(Id);if(!R || R->ReadyTick<=R->Tick || GetTick()>=R->ReadyTick)return 0.f;
  return FMath::Clamp(float(R->ReadyTick-GetTick())/float(R->ReadyTick-R->Tick),0.f,1.f);
+}
+
+bool USkillStateSubsystem::SelectCorpse(const FString& Entity)
+{
+ const auto* S = Fence.Identities.Find(Entity.ToLower());
+ if (!S || S->Kind != 1 || !S->bDead || IsOwn(Entity)) return false;
+ SelectedCorpse = *S; OnChanged.Broadcast(); return true;
+}
+TOptional<FString> USkillStateSubsystem::CorpseTarget() const
+{
+ if (!SelectedCorpse.IsSet()) return {};
+ const auto* S = Fence.Identities.Find(SelectedCorpse->EntityId.ToLower());
+ return S && S->bDead && S->Kind == 1 && S->LifeIncarnation == SelectedCorpse->LifeIncarnation && S->SessionGeneration == SelectedCorpse->SessionGeneration
+  ? TOptional<FString>(S->EntityId) : TOptional<FString>();
 }

@@ -41,10 +41,16 @@ public:
  const FSwingView* FindSwing(const FString& Id) const { return Swings.Find(Id.ToLower()); }
  TOptional<uint64> History(const FString& Name) const;
  TOptional<bool> ReceiptMatchesFirst() const { return bReceiptMatches; }
+ const TOptional<uint32>& GetInitialHp() const { return InitialHp; }
+ const TOptional<uint32>& GetInitialMp() const { return InitialMp; }
+ const TOptional<uint32>& GetInitialCp() const { return InitialCp; }
+ const TOptional<FSkillCastCancelled>& GetObservedCancel() const { return ObservedCancel; }
  uint64 GetOperationSerial() const { return OperationSerial; }
- bool RpcDone() const { return bRpcDone && !bBusy; }
+ bool RpcDone() const { return bRpcDone && !IsBusy(); }
 	uint64 GetTick() const;
+	bool IsHydrated(const FString& Entity) const { return Fence.Hydrated(Entity, GetTick()); }
 	bool HasOwnerState() const { return bOwnerKnown; }
+ bool HasSkillBaseline() const { return bSyncKnown; }
 	const TMap<uint32, uint32>& GetLearned() const { return Learned; }
 	const TOptional<uint64>& GetSp() const { return Sp; }
 	uint64 GetSpGainedTotal() const { return SpGainedTotal; }
@@ -59,6 +65,8 @@ public:
  uint64 GetLastOfferId() const { return LastOfferId; }
 	int32 GetCastTransitions() const { return CastTransitions; }
 	using FDone = TFunction<void(const FNetResult&)>;
+	using FCatalogProvider = TFunction<void(USessionClient::FSkillCatalogCallback)>;
+	void SetCatalogProviderForTesting(FCatalogProvider Provider) { CatalogProvider = MoveTemp(Provider); }
 	void LoadCatalog(FDone Done = nullptr);
 	void LoadLearnable(FDone Done = nullptr);
 	void Learn(uint32 Id, uint32 Rank, FDone Done = nullptr, const FString& Key = FString());
@@ -69,30 +77,48 @@ public:
 	const FGrpcNightfallV1LearnSkillResponse& GetLearnReceipt() const { return LearnReceipt; }
 	const FNetResult& GetLastResult() const { return LastResult; }
 	const FNetResult& GetLearnResult() const { return LearnResult; }
-	bool IsBusy() const { return bBusy; }
+	bool IsBusy() const { return bBusy || bCatalogBusy; }
 	bool HasCatalog() const { return bCatalogKnown; }
 	bool HasLearnable() const { return bLearnableKnown; }
 	bool HasLearnResult() const { return bLearnDone && !bBusy; }
 	const FGrpcNightfallV1SkillCatalogEntry* FindSkill(uint32 Id) const;
 	TArray<uint32> Hotbar() const;
+	TArray<uint32> AvailableSkills() const;
+	bool IsCastable(uint32 Id) const;
+	bool AssignSlot(int32 Index, uint32 Id);
+	void SetHotbarConfigForTesting(const FString& Path) { HotbarConfigOverride = Path; SlotMaps.Reset(); }
 	uint32 CastSlot(int32 Index);
+	bool SelectCorpse(const FString& Entity);
+	void ClearCorpseSelection() { SelectedCorpse.Reset(); }
+	TOptional<FString> CorpseTarget() const;
 	const FString& GetLastLearnKey() const { return LastLearnKey; }
 	void CompleteLearn(uint64 Serial, const FNetResult& Result, const FGrpcNightfallV1LearnSkillResponse& R, FDone Done);
 	FOnSkillStateChanged OnChanged;
 private:
 	bool IsOwn(const FString& Id) const;
 	void ClearOwner();
+	void EnsureHotbar();
+	void SaveHotbar();
+	FString HotbarConfigFile() const;
 	void FinishCast(const FString& Caster, uint32 Inc, uint64 Id, uint64 Tick, uint32 Reason);
 	UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
 	UPROPERTY() TObjectPtr<USessionClient> Session;
 	uint64 OperationSerial = 0;
+	uint64 CatalogSerial = 0;
+	bool bCatalogBusy = false;
+	FCatalogProvider CatalogProvider;
+	TOptional<FEntitySpawn> SelectedCorpse;
  bool bRpcDone = false;
  TMap<FString,FString> FirstReceipts;
  TOptional<bool> bReceiptMatches;
  TMap<FString,uint64> Counts;
+ TOptional<uint32> InitialHp, InitialMp, InitialCp;
+ TOptional<FSkillCastCancelled> ObservedCancel;
  TMap<FString,FSwingView> Swings;
 	bool bBusy = false, bCatalogKnown = false, bLearnableKnown = false, bLearnDone = false;
 	FGrpcNightfallV1GetSkillCatalogResponse Catalog;
+	TMap<FString,TArray<uint32>> SlotMaps;
+	FString HotbarConfigOverride;
 	FGrpcNightfallV1ListLearnableSkillsResponse Learnable;
 	FGrpcNightfallV1LearnSkillResponse LearnReceipt;
 	FNetResult LastResult, LearnResult;

@@ -12,6 +12,7 @@ class UCanvasPanelSlot;
 class UProgressBar;
 class UTextBlock;
 class UVerticalBox;
+class UNightfallHotbarClick;
 
 /**
  * The in-world combat HUD (E5.2 / E5.3), built in code like the login screen: own HP / MP bars,
@@ -43,6 +44,15 @@ public:
 	/** Builds the code layout if no Blueprint supplied one. NativeOnInitialized calls it; tests call it without a player. */
 	void EnsureLayout();
 
+	void RefreshPresentation();
+	float CastProgress() const;
+	FString EffectLabel() const;
+	FString CastStatus() const;
+	FLinearColor OwnFlagColor() const;
+	FLinearColor TargetFlagColor() const;
+	UButton* AcceptControl() const { return AcceptOffer; }
+	UButton* DeclineControl() const { return DeclineOffer; }
+	UButton* HotbarControl(int32 Slot) const { return HotbarButtons.IsValidIndex(Slot) ? HotbarButtons[Slot] : nullptr; }
 	int32 NumDamageNumbers() const { return Numbers.Num(); }
 	int32 NumFloatingBars() const { return Bars.Num(); }
 
@@ -78,6 +88,21 @@ private:
 	UFUNCTION() void HandleStatus(const FString& Status);
 	UFUNCTION() void HandleRespawnClicked();
 	UFUNCTION() void HandleClassesClicked();
+ UFUNCTION() void HandleSkillsClicked();
+ UFUNCTION() void AcceptResurrect();
+ UFUNCTION() void DeclineResurrect();
+ void UpdateSkills();
+ UPROPERTY() TArray<TObjectPtr<UNightfallHotbarClick>> HotbarClicks;
+ UPROPERTY() TArray<TObjectPtr<UButton>> HotbarButtons;
+ UPROPERTY() TArray<TObjectPtr<UTextBlock>> HotbarLabels;
+ UPROPERTY() TArray<TObjectPtr<UProgressBar>> Cooldowns;
+ UPROPERTY() TObjectPtr<UTextBlock> SkillResources;
+ UPROPERTY() TObjectPtr<UTextBlock> EffectsText;
+ UPROPERTY() TObjectPtr<UTextBlock> CastLabel;
+ UPROPERTY() TObjectPtr<UProgressBar> CastBar;
+ UPROPERTY() TObjectPtr<UTextBlock> OfferLabel;
+ UPROPERTY() TObjectPtr<UButton> AcceptOffer;
+ UPROPERTY() TObjectPtr<UButton> DeclineOffer;
 
 	UPROPERTY() TObjectPtr<UCanvasPanel> Root;
 	UPROPERTY() TObjectPtr<UCanvasPanel> FloatLayer;
@@ -106,4 +131,13 @@ private:
 	TArray<FFloatingNumber> Numbers;
 	float StatusAge = 0.f;
 	FDelegateHandle DamageHandle;
+};
+
+UCLASS()
+class NIGHTFALL_API UNightfallHotbarClick : public UObject
+{
+ GENERATED_BODY()
+public:
+ int32 Index=0;
+ UFUNCTION() void Click();
 };

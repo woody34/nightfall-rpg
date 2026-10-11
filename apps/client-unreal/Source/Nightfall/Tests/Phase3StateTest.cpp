@@ -44,7 +44,10 @@ bool FSkillStateFencesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("revival final maxHP accepted at baseline"), C->FindEntity(TEXT("other"))->MaxHp, uint32(150)); TestEqual(TEXT("revival final HP"), C->FindEntity(TEXT("other"))->Hp, uint32(72));
 	V.Incarnation = 1; V.Tick = 14; V.bBaseline = false; V.MaxHp = 999; E.VitalsChanged = V; Send(N,E); TestEqual(TEXT("old life vitals ignored"), C->FindEntity(TEXT("other"))->MaxHp, uint32(150));
 	auto Replacement = Spawn(TEXT("owner"),1,20); Replacement.SessionGeneration = 2; E = {}; E.Spawn = Replacement; Send(N,E); TestFalse(TEXT("generation replacement invalidates owner baseline"), S->GetSp().IsSet());
-	E = {}; E.SkillStateSync = Sync; Send(N,E); TestFalse(TEXT("old baseline rejected after replacement"), S->GetSp().IsSet()); N->OnDisconnected.Broadcast(TEXT("test")); TestTrue(TEXT("disconnect clears public state"), S->FindPvp(TEXT("other")) == nullptr);
+	E = {}; E.SkillStateSync = Sync; Send(N,E); TestFalse(TEXT("old baseline rejected after replacement"), S->GetSp().IsSet()); FSkillCastResult Stale;Stale.Caster=TEXT("other");Stale.CasterIncarnation=1;Stale.Tick=21;
+ FSkillTargetResult Bad;Bad.Target=TEXT("other");Bad.TargetIncarnation=2;Bad.Tick=21;Bad.TargetHpAfter=0;Stale.Targets.Add(Bad);
+ C->ApplySkillResult(Stale);TestEqual(TEXT("stale caster cannot overwrite valid target life"),C->FindEntity(TEXT("other"))->Hp,uint32(72));
+ N->OnDisconnected.Broadcast(TEXT("test")); TestTrue(TEXT("disconnect clears public state"), S->FindPvp(TEXT("other")) == nullptr);
 	return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEffectHydrationTest, "Nightfall.Effect.Hydration", Phase3StateTests::Flags)

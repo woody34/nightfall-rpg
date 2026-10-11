@@ -370,7 +370,7 @@ struct FStatsChanged
 	uint32 PvpCount = 0; // 17
 	uint64 FlagUntilTick = 0; // 18
 	uint32 DeathPenaltyLevel = 0; // 19
-	FEffectiveStats EffectiveStats; // 20
+	TOptional<FEffectiveStats> EffectiveStats; // 20: absent remains UNKNOWN
 	bool bBaseline = false; // 21
 	uint64 BaselineTick = 0; // 22
 	uint32 Incarnation = 0; // 23

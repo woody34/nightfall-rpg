@@ -333,6 +333,43 @@ inline bool Archetype_Parse(absl::string_view name, Archetype* value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<Archetype>(
       Archetype_descriptor(), name, value);
 }
+enum SkillOperateType : int {
+  SKILL_OPERATE_TYPE_UNSPECIFIED = 0,
+  SKILL_OPERATE_TYPE_ACTIVE_INSTANT = 1,
+  SKILL_OPERATE_TYPE_ACTIVE_INSTANT_CONTINUOUS = 2,
+  SKILL_OPERATE_TYPE_ACTIVE_CONTINUOUS = 3,
+  SKILL_OPERATE_TYPE_PASSIVE = 4,
+  SKILL_OPERATE_TYPE_TOGGLE = 5,
+  SKILL_OPERATE_TYPE_OTHER = 6,
+  SkillOperateType_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::min(),
+  SkillOperateType_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      std::numeric_limits<::int32_t>::max(),
+};
+
+bool SkillOperateType_IsValid(int value);
+constexpr SkillOperateType SkillOperateType_MIN = static_cast<SkillOperateType>(0);
+constexpr SkillOperateType SkillOperateType_MAX = static_cast<SkillOperateType>(6);
+constexpr int SkillOperateType_ARRAYSIZE = 6 + 1;
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
+SkillOperateType_descriptor();
+template <typename T>
+const std::string& SkillOperateType_Name(T value) {
+  static_assert(std::is_same<T, SkillOperateType>::value ||
+                    std::is_integral<T>::value,
+                "Incorrect type passed to SkillOperateType_Name().");
+  return SkillOperateType_Name(static_cast<SkillOperateType>(value));
+}
+template <>
+inline const std::string& SkillOperateType_Name(SkillOperateType value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<SkillOperateType_descriptor,
+                                                 0, 6>(
+      static_cast<int>(value));
+}
+inline bool SkillOperateType_Parse(absl::string_view name, SkillOperateType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<SkillOperateType>(
+      SkillOperateType_descriptor(), name, value);
+}
 
 // ===================================================================
 
@@ -6940,12 +6977,20 @@ class SkillCatalogEntry final :
 
   enum : int {
     kDeferredReasonsFieldNumber = 6,
+    kMpConsumeStartFieldNumber = 8,
+    kMpConsumeEndFieldNumber = 9,
+    kHpConsumeFieldNumber = 10,
+    kReuseMsFieldNumber = 11,
+    kHitTimeMsFieldNumber = 12,
+    kTargetTypeFieldNumber = 14,
+    kAffectScopeFieldNumber = 15,
     kKeyFieldNumber = 2,
     kDisplayNameFieldNumber = 3,
     kL2RefFieldNumber = 7,
     kSkillIdFieldNumber = 1,
     kMaxLevelFieldNumber = 4,
     kEffectImplementedFieldNumber = 5,
+    kOperateTypeFieldNumber = 13,
   };
   // repeated string deferred_reasons = 6;
   int deferred_reasons_size() const;
@@ -6975,6 +7020,166 @@ class SkillCatalogEntry final :
   std::string* _internal_add_deferred_reasons();
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& _internal_deferred_reasons() const;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* _internal_mutable_deferred_reasons();
+
+  public:
+  // repeated uint32 mp_consume_start = 8;
+  int mp_consume_start_size() const;
+  private:
+  int _internal_mp_consume_start_size() const;
+
+  public:
+  void clear_mp_consume_start() ;
+  ::uint32_t mp_consume_start(int index) const;
+  void set_mp_consume_start(int index, ::uint32_t value);
+  void add_mp_consume_start(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& mp_consume_start() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* mutable_mp_consume_start();
+
+  private:
+  ::uint32_t _internal_mp_consume_start(int index) const;
+  void _internal_add_mp_consume_start(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& _internal_mp_consume_start() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* _internal_mutable_mp_consume_start();
+
+  public:
+  // repeated uint32 mp_consume_end = 9;
+  int mp_consume_end_size() const;
+  private:
+  int _internal_mp_consume_end_size() const;
+
+  public:
+  void clear_mp_consume_end() ;
+  ::uint32_t mp_consume_end(int index) const;
+  void set_mp_consume_end(int index, ::uint32_t value);
+  void add_mp_consume_end(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& mp_consume_end() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* mutable_mp_consume_end();
+
+  private:
+  ::uint32_t _internal_mp_consume_end(int index) const;
+  void _internal_add_mp_consume_end(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& _internal_mp_consume_end() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* _internal_mutable_mp_consume_end();
+
+  public:
+  // repeated uint32 hp_consume = 10;
+  int hp_consume_size() const;
+  private:
+  int _internal_hp_consume_size() const;
+
+  public:
+  void clear_hp_consume() ;
+  ::uint32_t hp_consume(int index) const;
+  void set_hp_consume(int index, ::uint32_t value);
+  void add_hp_consume(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& hp_consume() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* mutable_hp_consume();
+
+  private:
+  ::uint32_t _internal_hp_consume(int index) const;
+  void _internal_add_hp_consume(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& _internal_hp_consume() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* _internal_mutable_hp_consume();
+
+  public:
+  // repeated uint32 reuse_ms = 11;
+  int reuse_ms_size() const;
+  private:
+  int _internal_reuse_ms_size() const;
+
+  public:
+  void clear_reuse_ms() ;
+  ::uint32_t reuse_ms(int index) const;
+  void set_reuse_ms(int index, ::uint32_t value);
+  void add_reuse_ms(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& reuse_ms() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* mutable_reuse_ms();
+
+  private:
+  ::uint32_t _internal_reuse_ms(int index) const;
+  void _internal_add_reuse_ms(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& _internal_reuse_ms() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* _internal_mutable_reuse_ms();
+
+  public:
+  // repeated uint32 hit_time_ms = 12;
+  int hit_time_ms_size() const;
+  private:
+  int _internal_hit_time_ms_size() const;
+
+  public:
+  void clear_hit_time_ms() ;
+  ::uint32_t hit_time_ms(int index) const;
+  void set_hit_time_ms(int index, ::uint32_t value);
+  void add_hit_time_ms(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& hit_time_ms() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* mutable_hit_time_ms();
+
+  private:
+  ::uint32_t _internal_hit_time_ms(int index) const;
+  void _internal_add_hit_time_ms(::uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& _internal_hit_time_ms() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* _internal_mutable_hit_time_ms();
+
+  public:
+  // repeated string target_type = 14;
+  int target_type_size() const;
+  private:
+  int _internal_target_type_size() const;
+
+  public:
+  void clear_target_type() ;
+  const std::string& target_type(int index) const;
+  std::string* mutable_target_type(int index);
+  void set_target_type(int index, const std::string& value);
+  void set_target_type(int index, std::string&& value);
+  void set_target_type(int index, const char* value);
+  void set_target_type(int index, const char* value, std::size_t size);
+  void set_target_type(int index, absl::string_view value);
+  std::string* add_target_type();
+  void add_target_type(const std::string& value);
+  void add_target_type(std::string&& value);
+  void add_target_type(const char* value);
+  void add_target_type(const char* value, std::size_t size);
+  void add_target_type(absl::string_view value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& target_type() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* mutable_target_type();
+
+  private:
+  const std::string& _internal_target_type(int index) const;
+  std::string* _internal_add_target_type();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& _internal_target_type() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* _internal_mutable_target_type();
+
+  public:
+  // repeated string affect_scope = 15;
+  int affect_scope_size() const;
+  private:
+  int _internal_affect_scope_size() const;
+
+  public:
+  void clear_affect_scope() ;
+  const std::string& affect_scope(int index) const;
+  std::string* mutable_affect_scope(int index);
+  void set_affect_scope(int index, const std::string& value);
+  void set_affect_scope(int index, std::string&& value);
+  void set_affect_scope(int index, const char* value);
+  void set_affect_scope(int index, const char* value, std::size_t size);
+  void set_affect_scope(int index, absl::string_view value);
+  std::string* add_affect_scope();
+  void add_affect_scope(const std::string& value);
+  void add_affect_scope(std::string&& value);
+  void add_affect_scope(const char* value);
+  void add_affect_scope(const char* value, std::size_t size);
+  void add_affect_scope(absl::string_view value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& affect_scope() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* mutable_affect_scope();
+
+  private:
+  const std::string& _internal_affect_scope(int index) const;
+  std::string* _internal_add_affect_scope();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& _internal_affect_scope() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* _internal_mutable_affect_scope();
 
   public:
   // string key = 2;
@@ -7067,6 +7272,16 @@ class SkillCatalogEntry final :
   void _internal_set_effect_implemented(bool value);
 
   public:
+  // .nightfall.v1.SkillOperateType operate_type = 13;
+  void clear_operate_type() ;
+  ::nightfall::v1::SkillOperateType operate_type() const;
+  void set_operate_type(::nightfall::v1::SkillOperateType value);
+
+  private:
+  ::nightfall::v1::SkillOperateType _internal_operate_type() const;
+  void _internal_set_operate_type(::nightfall::v1::SkillOperateType value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.SkillCatalogEntry)
  private:
   class _Internal;
@@ -7076,12 +7291,25 @@ class SkillCatalogEntry final :
   typedef void DestructorSkippable_;
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> deferred_reasons_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t> mp_consume_start_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _mp_consume_start_cached_byte_size_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t> mp_consume_end_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _mp_consume_end_cached_byte_size_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t> hp_consume_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _hp_consume_cached_byte_size_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t> reuse_ms_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _reuse_ms_cached_byte_size_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t> hit_time_ms_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _hit_time_ms_cached_byte_size_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> target_type_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> affect_scope_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr key_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr display_name_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr l2_ref_;
     ::uint32_t skill_id_;
     ::uint32_t max_level_;
     bool effect_implemented_;
+    int operate_type_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -12745,6 +12973,432 @@ inline void SkillCatalogEntry::set_allocated_l2_ref(std::string* value) {
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.SkillCatalogEntry.l2_ref)
 }
 
+// repeated uint32 mp_consume_start = 8;
+inline int SkillCatalogEntry::_internal_mp_consume_start_size() const {
+  return _impl_.mp_consume_start_.size();
+}
+inline int SkillCatalogEntry::mp_consume_start_size() const {
+  return _internal_mp_consume_start_size();
+}
+inline void SkillCatalogEntry::clear_mp_consume_start() {
+  _internal_mutable_mp_consume_start()->Clear();
+}
+inline ::uint32_t SkillCatalogEntry::mp_consume_start(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCatalogEntry.mp_consume_start)
+  return _internal_mp_consume_start(index);
+}
+inline void SkillCatalogEntry::set_mp_consume_start(int index, ::uint32_t value) {
+  _internal_mutable_mp_consume_start()->Set(index, value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.mp_consume_start)
+}
+inline void SkillCatalogEntry::add_mp_consume_start(::uint32_t value) {
+  _internal_add_mp_consume_start(value);
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.mp_consume_start)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::mp_consume_start() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillCatalogEntry.mp_consume_start)
+  return _internal_mp_consume_start();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::mutable_mp_consume_start() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillCatalogEntry.mp_consume_start)
+  return _internal_mutable_mp_consume_start();
+}
+
+inline ::uint32_t SkillCatalogEntry::_internal_mp_consume_start(int index) const {
+  return _internal_mp_consume_start().Get(index);
+}
+inline void SkillCatalogEntry::_internal_add_mp_consume_start(::uint32_t value) {
+  _internal_mutable_mp_consume_start()->Add(value);
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::_internal_mp_consume_start() const {
+  return _impl_.mp_consume_start_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::_internal_mutable_mp_consume_start() {
+  return &_impl_.mp_consume_start_;
+}
+
+// repeated uint32 mp_consume_end = 9;
+inline int SkillCatalogEntry::_internal_mp_consume_end_size() const {
+  return _impl_.mp_consume_end_.size();
+}
+inline int SkillCatalogEntry::mp_consume_end_size() const {
+  return _internal_mp_consume_end_size();
+}
+inline void SkillCatalogEntry::clear_mp_consume_end() {
+  _internal_mutable_mp_consume_end()->Clear();
+}
+inline ::uint32_t SkillCatalogEntry::mp_consume_end(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCatalogEntry.mp_consume_end)
+  return _internal_mp_consume_end(index);
+}
+inline void SkillCatalogEntry::set_mp_consume_end(int index, ::uint32_t value) {
+  _internal_mutable_mp_consume_end()->Set(index, value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.mp_consume_end)
+}
+inline void SkillCatalogEntry::add_mp_consume_end(::uint32_t value) {
+  _internal_add_mp_consume_end(value);
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.mp_consume_end)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::mp_consume_end() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillCatalogEntry.mp_consume_end)
+  return _internal_mp_consume_end();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::mutable_mp_consume_end() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillCatalogEntry.mp_consume_end)
+  return _internal_mutable_mp_consume_end();
+}
+
+inline ::uint32_t SkillCatalogEntry::_internal_mp_consume_end(int index) const {
+  return _internal_mp_consume_end().Get(index);
+}
+inline void SkillCatalogEntry::_internal_add_mp_consume_end(::uint32_t value) {
+  _internal_mutable_mp_consume_end()->Add(value);
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::_internal_mp_consume_end() const {
+  return _impl_.mp_consume_end_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::_internal_mutable_mp_consume_end() {
+  return &_impl_.mp_consume_end_;
+}
+
+// repeated uint32 hp_consume = 10;
+inline int SkillCatalogEntry::_internal_hp_consume_size() const {
+  return _impl_.hp_consume_.size();
+}
+inline int SkillCatalogEntry::hp_consume_size() const {
+  return _internal_hp_consume_size();
+}
+inline void SkillCatalogEntry::clear_hp_consume() {
+  _internal_mutable_hp_consume()->Clear();
+}
+inline ::uint32_t SkillCatalogEntry::hp_consume(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCatalogEntry.hp_consume)
+  return _internal_hp_consume(index);
+}
+inline void SkillCatalogEntry::set_hp_consume(int index, ::uint32_t value) {
+  _internal_mutable_hp_consume()->Set(index, value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.hp_consume)
+}
+inline void SkillCatalogEntry::add_hp_consume(::uint32_t value) {
+  _internal_add_hp_consume(value);
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.hp_consume)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::hp_consume() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillCatalogEntry.hp_consume)
+  return _internal_hp_consume();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::mutable_hp_consume() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillCatalogEntry.hp_consume)
+  return _internal_mutable_hp_consume();
+}
+
+inline ::uint32_t SkillCatalogEntry::_internal_hp_consume(int index) const {
+  return _internal_hp_consume().Get(index);
+}
+inline void SkillCatalogEntry::_internal_add_hp_consume(::uint32_t value) {
+  _internal_mutable_hp_consume()->Add(value);
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::_internal_hp_consume() const {
+  return _impl_.hp_consume_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::_internal_mutable_hp_consume() {
+  return &_impl_.hp_consume_;
+}
+
+// repeated uint32 reuse_ms = 11;
+inline int SkillCatalogEntry::_internal_reuse_ms_size() const {
+  return _impl_.reuse_ms_.size();
+}
+inline int SkillCatalogEntry::reuse_ms_size() const {
+  return _internal_reuse_ms_size();
+}
+inline void SkillCatalogEntry::clear_reuse_ms() {
+  _internal_mutable_reuse_ms()->Clear();
+}
+inline ::uint32_t SkillCatalogEntry::reuse_ms(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCatalogEntry.reuse_ms)
+  return _internal_reuse_ms(index);
+}
+inline void SkillCatalogEntry::set_reuse_ms(int index, ::uint32_t value) {
+  _internal_mutable_reuse_ms()->Set(index, value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.reuse_ms)
+}
+inline void SkillCatalogEntry::add_reuse_ms(::uint32_t value) {
+  _internal_add_reuse_ms(value);
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.reuse_ms)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::reuse_ms() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillCatalogEntry.reuse_ms)
+  return _internal_reuse_ms();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::mutable_reuse_ms() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillCatalogEntry.reuse_ms)
+  return _internal_mutable_reuse_ms();
+}
+
+inline ::uint32_t SkillCatalogEntry::_internal_reuse_ms(int index) const {
+  return _internal_reuse_ms().Get(index);
+}
+inline void SkillCatalogEntry::_internal_add_reuse_ms(::uint32_t value) {
+  _internal_mutable_reuse_ms()->Add(value);
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::_internal_reuse_ms() const {
+  return _impl_.reuse_ms_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::_internal_mutable_reuse_ms() {
+  return &_impl_.reuse_ms_;
+}
+
+// repeated uint32 hit_time_ms = 12;
+inline int SkillCatalogEntry::_internal_hit_time_ms_size() const {
+  return _impl_.hit_time_ms_.size();
+}
+inline int SkillCatalogEntry::hit_time_ms_size() const {
+  return _internal_hit_time_ms_size();
+}
+inline void SkillCatalogEntry::clear_hit_time_ms() {
+  _internal_mutable_hit_time_ms()->Clear();
+}
+inline ::uint32_t SkillCatalogEntry::hit_time_ms(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCatalogEntry.hit_time_ms)
+  return _internal_hit_time_ms(index);
+}
+inline void SkillCatalogEntry::set_hit_time_ms(int index, ::uint32_t value) {
+  _internal_mutable_hit_time_ms()->Set(index, value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.hit_time_ms)
+}
+inline void SkillCatalogEntry::add_hit_time_ms(::uint32_t value) {
+  _internal_add_hit_time_ms(value);
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.hit_time_ms)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::hit_time_ms() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillCatalogEntry.hit_time_ms)
+  return _internal_hit_time_ms();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::mutable_hit_time_ms() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillCatalogEntry.hit_time_ms)
+  return _internal_mutable_hit_time_ms();
+}
+
+inline ::uint32_t SkillCatalogEntry::_internal_hit_time_ms(int index) const {
+  return _internal_hit_time_ms().Get(index);
+}
+inline void SkillCatalogEntry::_internal_add_hit_time_ms(::uint32_t value) {
+  _internal_mutable_hit_time_ms()->Add(value);
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>& SkillCatalogEntry::_internal_hit_time_ms() const {
+  return _impl_.hit_time_ms_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint32_t>* SkillCatalogEntry::_internal_mutable_hit_time_ms() {
+  return &_impl_.hit_time_ms_;
+}
+
+// .nightfall.v1.SkillOperateType operate_type = 13;
+inline void SkillCatalogEntry::clear_operate_type() {
+  _impl_.operate_type_ = 0;
+}
+inline ::nightfall::v1::SkillOperateType SkillCatalogEntry::operate_type() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCatalogEntry.operate_type)
+  return _internal_operate_type();
+}
+inline void SkillCatalogEntry::set_operate_type(::nightfall::v1::SkillOperateType value) {
+   _internal_set_operate_type(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.operate_type)
+}
+inline ::nightfall::v1::SkillOperateType SkillCatalogEntry::_internal_operate_type() const {
+  return static_cast<::nightfall::v1::SkillOperateType>(_impl_.operate_type_);
+}
+inline void SkillCatalogEntry::_internal_set_operate_type(::nightfall::v1::SkillOperateType value) {
+  ;
+  _impl_.operate_type_ = value;
+}
+
+// repeated string target_type = 14;
+inline int SkillCatalogEntry::_internal_target_type_size() const {
+  return _impl_.target_type_.size();
+}
+inline int SkillCatalogEntry::target_type_size() const {
+  return _internal_target_type_size();
+}
+inline void SkillCatalogEntry::clear_target_type() {
+  _internal_mutable_target_type()->Clear();
+}
+inline std::string* SkillCatalogEntry::add_target_type() {
+  std::string* _s = _internal_add_target_type();
+  // @@protoc_insertion_point(field_add_mutable:nightfall.v1.SkillCatalogEntry.target_type)
+  return _s;
+}
+inline const std::string& SkillCatalogEntry::target_type(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCatalogEntry.target_type)
+  return _internal_target_type(index);
+}
+inline std::string* SkillCatalogEntry::mutable_target_type(int index) {
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillCatalogEntry.target_type)
+  return _internal_mutable_target_type()->Mutable(index);
+}
+inline void SkillCatalogEntry::set_target_type(int index, const std::string& value) {
+  _internal_mutable_target_type()->Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::set_target_type(int index, std::string&& value) {
+  _internal_mutable_target_type()->Mutable(index)->assign(std::move(value));
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::set_target_type(int index, const char* value) {
+  ABSL_DCHECK(value != nullptr);
+  _internal_mutable_target_type()->Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set_char:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::set_target_type(int index, const char* value,
+                              std::size_t size) {
+  _internal_mutable_target_type()->Mutable(index)->assign(
+      reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::set_target_type(int index, absl::string_view value) {
+  _internal_mutable_target_type()->Mutable(index)->assign(value.data(),
+                                                     value.size());
+  // @@protoc_insertion_point(field_set_string_piece:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::add_target_type(const std::string& value) {
+  _internal_mutable_target_type()->Add()->assign(value);
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::add_target_type(std::string&& value) {
+  _internal_mutable_target_type()->Add(std::move(value));
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::add_target_type(const char* value) {
+  ABSL_DCHECK(value != nullptr);
+  _internal_mutable_target_type()->Add()->assign(value);
+  // @@protoc_insertion_point(field_add_char:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::add_target_type(const char* value, std::size_t size) {
+  _internal_mutable_target_type()->Add()->assign(
+      reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_add_pointer:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline void SkillCatalogEntry::add_target_type(absl::string_view value) {
+  _internal_mutable_target_type()->Add()->assign(value.data(), value.size());
+  // @@protoc_insertion_point(field_add_string_piece:nightfall.v1.SkillCatalogEntry.target_type)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
+SkillCatalogEntry::target_type() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillCatalogEntry.target_type)
+  return _internal_target_type();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* SkillCatalogEntry::mutable_target_type() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillCatalogEntry.target_type)
+  return _internal_mutable_target_type();
+}
+inline const std::string& SkillCatalogEntry::_internal_target_type(int index) const {
+  return _internal_target_type().Get(index);
+}
+inline std::string* SkillCatalogEntry::_internal_add_target_type() {
+  return _internal_mutable_target_type()->Add();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
+SkillCatalogEntry::_internal_target_type() const {
+  return _impl_.target_type_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>*
+SkillCatalogEntry::_internal_mutable_target_type() {
+  return &_impl_.target_type_;
+}
+
+// repeated string affect_scope = 15;
+inline int SkillCatalogEntry::_internal_affect_scope_size() const {
+  return _impl_.affect_scope_.size();
+}
+inline int SkillCatalogEntry::affect_scope_size() const {
+  return _internal_affect_scope_size();
+}
+inline void SkillCatalogEntry::clear_affect_scope() {
+  _internal_mutable_affect_scope()->Clear();
+}
+inline std::string* SkillCatalogEntry::add_affect_scope() {
+  std::string* _s = _internal_add_affect_scope();
+  // @@protoc_insertion_point(field_add_mutable:nightfall.v1.SkillCatalogEntry.affect_scope)
+  return _s;
+}
+inline const std::string& SkillCatalogEntry::affect_scope(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.SkillCatalogEntry.affect_scope)
+  return _internal_affect_scope(index);
+}
+inline std::string* SkillCatalogEntry::mutable_affect_scope(int index) {
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.SkillCatalogEntry.affect_scope)
+  return _internal_mutable_affect_scope()->Mutable(index);
+}
+inline void SkillCatalogEntry::set_affect_scope(int index, const std::string& value) {
+  _internal_mutable_affect_scope()->Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::set_affect_scope(int index, std::string&& value) {
+  _internal_mutable_affect_scope()->Mutable(index)->assign(std::move(value));
+  // @@protoc_insertion_point(field_set:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::set_affect_scope(int index, const char* value) {
+  ABSL_DCHECK(value != nullptr);
+  _internal_mutable_affect_scope()->Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set_char:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::set_affect_scope(int index, const char* value,
+                              std::size_t size) {
+  _internal_mutable_affect_scope()->Mutable(index)->assign(
+      reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::set_affect_scope(int index, absl::string_view value) {
+  _internal_mutable_affect_scope()->Mutable(index)->assign(value.data(),
+                                                     value.size());
+  // @@protoc_insertion_point(field_set_string_piece:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::add_affect_scope(const std::string& value) {
+  _internal_mutable_affect_scope()->Add()->assign(value);
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::add_affect_scope(std::string&& value) {
+  _internal_mutable_affect_scope()->Add(std::move(value));
+  // @@protoc_insertion_point(field_add:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::add_affect_scope(const char* value) {
+  ABSL_DCHECK(value != nullptr);
+  _internal_mutable_affect_scope()->Add()->assign(value);
+  // @@protoc_insertion_point(field_add_char:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::add_affect_scope(const char* value, std::size_t size) {
+  _internal_mutable_affect_scope()->Add()->assign(
+      reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_add_pointer:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline void SkillCatalogEntry::add_affect_scope(absl::string_view value) {
+  _internal_mutable_affect_scope()->Add()->assign(value.data(), value.size());
+  // @@protoc_insertion_point(field_add_string_piece:nightfall.v1.SkillCatalogEntry.affect_scope)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
+SkillCatalogEntry::affect_scope() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.SkillCatalogEntry.affect_scope)
+  return _internal_affect_scope();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* SkillCatalogEntry::mutable_affect_scope() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.SkillCatalogEntry.affect_scope)
+  return _internal_mutable_affect_scope();
+}
+inline const std::string& SkillCatalogEntry::_internal_affect_scope(int index) const {
+  return _internal_affect_scope().Get(index);
+}
+inline std::string* SkillCatalogEntry::_internal_add_affect_scope() {
+  return _internal_mutable_affect_scope()->Add();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
+SkillCatalogEntry::_internal_affect_scope() const {
+  return _impl_.affect_scope_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>*
+SkillCatalogEntry::_internal_mutable_affect_scope() {
+  return &_impl_.affect_scope_;
+}
+
 // -------------------------------------------------------------------
 
 // GetSkillCatalogResponse
@@ -13076,6 +13730,12 @@ struct is_proto_enum<::nightfall::v1::Archetype> : std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::Archetype>() {
   return ::nightfall::v1::Archetype_descriptor();
+}
+template <>
+struct is_proto_enum<::nightfall::v1::SkillOperateType> : std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor<::nightfall::v1::SkillOperateType>() {
+  return ::nightfall::v1::SkillOperateType_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE

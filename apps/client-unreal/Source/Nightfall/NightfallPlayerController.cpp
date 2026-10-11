@@ -2,6 +2,10 @@
 #include "Character/ClassStateSubsystem.h"
 #include "World/ClassMasterActor.h"
 #include "UI/NightfallClassDialog.h"
+#include "UI/NightfallSkillDialog.h"
+#include "Skills/SkillStateSubsystem.h"
+#include "Components/InputComponent.h"
+#include "InputCoreTypes.h"
 #include "Net/NetClientSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -41,6 +45,7 @@ void ANightfallPlayerController::BeginPlay()
 		if (Hud) Hud->AddToViewport(0);
 	}
 	LoadClassCatalogue();
+	if(IsLocalController())if(auto* Skills=GetGameInstance()->GetSubsystem<USkillStateSubsystem>())Skills->LoadCatalog();
 	UE_LOG(LogNightfall, Log, TEXT("click-to-move ready: mapping context %s, action %s"),
 		*GetNameSafe(DefaultMappingContext), *GetNameSafe(ClickMoveAction));
 	if (ULocalPlayer* LP = GetLocalPlayer())
@@ -55,15 +60,45 @@ void ANightfallPlayerController::BeginPlay()
 void ANightfallPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+ BindSkillKeys();
 	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
 	{
 		if (ClickMoveAction) EIC->BindAction(ClickMoveAction, ETriggerEvent::Started, this, &ANightfallPlayerController::OnClickMove);
 	}
 }
 
+void ANightfallPlayerController::BindSkillKeys()
+{
+ const FKey Keys[]={EKeys::One,EKeys::Two,EKeys::Three,EKeys::Four,EKeys::Five,EKeys::Six,EKeys::Seven,EKeys::Eight,EKeys::Nine};
+ if(InputComponent)for(int32 Index=0;Index<9;++Index)
+ {
+  FInputKeyBinding Binding(FInputChord(Keys[Index]),IE_Pressed);
+  Binding.KeyDelegate.GetDelegateForManualSet().BindWeakLambda(this,[this,Index]()
+  {
+   if((ClassDialog && ClassDialog->IsInViewport()) || (SkillDialog && SkillDialog->IsInViewport()))return;
+   auto* Combat=GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();if(Combat && Combat->IsOwnDead())return;
+   if(auto* Skills=GetGameInstance()->GetSubsystem<USkillStateSubsystem>())Skills->CastSlot(Index);
+  });
+  InputComponent->KeyBindings.Add(Binding);
+ }
+}
+
+bool ANightfallPlayerController::ClickEntityProxy(const FString& EntityId)
+{
+ auto* Combat = GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();
+ if (!Combat || Combat->IsOwnDead()) return false;
+ if (auto* Skills = GetGameInstance()->GetSubsystem<USkillStateSubsystem>())
+ {
+  // PC_BODY uses a local identity-fenced selection, never the live auto-attack path.
+  if (Skills->SelectCorpse(EntityId)) return true;
+  Skills->ClearCorpseSelection();
+ }
+ return Combat->ClickEntity(EntityId);
+}
+
 void ANightfallPlayerController::OnClickMove()
 {
-	if (ClassDialog && ClassDialog->IsInViewport()) return;
+	if ((ClassDialog && ClassDialog->IsInViewport()) || (SkillDialog && SkillDialog->IsInViewport())) return;
 	UE_LOG(LogNightfall, Log, TEXT("click"));
 	UCombatStateSubsystem* Combat = GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();
 	if (Combat && Combat->IsOwnDead()) return;   // the dead overlay owns the screen
@@ -78,7 +113,7 @@ void ANightfallPlayerController::OnClickMove()
 	{
 		if (Cast<AClassMasterActor>(Hit.GetActor())) { ShowClassMaster(); return; }
 		const ARemoteEntityActor* Proxy = Cast<ARemoteEntityActor>(Hit.GetActor());
-		if (Proxy && Combat && Combat->ClickEntity(Proxy->EntityId))
+		if (Proxy && ClickEntityProxy(Proxy->EntityId))
 		{
 			UE_LOG(LogNightfall, Log, TEXT("click: target %s"), *Proxy->EntityId);
 			return;
@@ -106,6 +141,7 @@ void ANightfallPlayerController::OnClickMove()
 
 uint32 ANightfallPlayerController::ClickGroundLocation(const FVector& Target)
 {
+	if (auto* Skills = GetGameInstance()->GetSubsystem<USkillStateSubsystem>()) Skills->ClearCorpseSelection();
 	// A move ends the attack on the server; say so explicitly first so the order is unambiguous.
 	if (UCombatStateSubsystem* Combat = GetGameInstance()->GetSubsystem<UCombatStateSubsystem>())
 	{
@@ -181,7 +217,14 @@ void ANightfallPlayerController::LoadClassCatalogue()
 
 void ANightfallPlayerController::ShowClassMaster()
 {
-	if (ClassDialog && ClassDialog->IsInViewport()) return;
+	if ((ClassDialog && ClassDialog->IsInViewport()) || (SkillDialog && SkillDialog->IsInViewport())) return;
 	ClassDialog = CreateWidget<UNightfallClassDialog>(this, UNightfallClassDialog::StaticClass());
 	if (ClassDialog) { ClassDialog->AddToViewport(20); ClassDialog->ActivateWidget(); }
+}
+
+void ANightfallPlayerController::OpenSkillDialog()
+{
+ if((SkillDialog && SkillDialog->IsInViewport()) || (ClassDialog && ClassDialog->IsInViewport()))return;
+ SkillDialog=CreateWidget<UNightfallSkillDialog>(this,UNightfallSkillDialog::StaticClass());
+ if(SkillDialog){SkillDialog->AddToViewport(20);SkillDialog->ActivateWidget();}
 }

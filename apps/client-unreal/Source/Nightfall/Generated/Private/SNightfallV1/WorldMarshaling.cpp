@@ -119,12 +119,15 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ClientMessage* in, ::nightfall::v1:
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::MoveToRequest* in, FGrpcNightfallV1MoveToRequest* out)
 {
-    GRPC_TO_TURBOLINK(&(in->destination()), &(out->Destination));
+    out->HasDestination = in->has_destination();
+    out->Destination = {};
+    if (out->HasDestination) GRPC_TO_TURBOLINK(&(in->destination()), &(out->Destination));
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1MoveToRequest* in, ::nightfall::v1::MoveToRequest* out)
 {
-    TURBOLINK_TO_GRPC(&(in->Destination), out->mutable_destination());
+    if (in->HasDestination) TURBOLINK_TO_GRPC(&(in->Destination), out->mutable_destination());
+    else out->clear_destination();
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::StopMoveRequest* in, FGrpcNightfallV1StopMoveRequest* out)
@@ -589,7 +592,9 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntitySpawn* in, FGrpcNightfallV1E
 {
     out->EntityId=StringCast<TCHAR>((const UTF8CHAR*)(in->entity_id().c_str())).Get();
     out->Name=StringCast<TCHAR>((const UTF8CHAR*)(in->name().c_str())).Get();
-    GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
+    out->HasPosition = in->has_position();
+    out->Position = {};
+    if (out->HasPosition) GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
     out->Kind=StaticCast<EGrpcNightfallV1EntityKind>(in->kind());
     out->SessionGeneration=in->session_generation();
     out->Combatant=in->combatant();
@@ -634,7 +639,8 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::E
 {
     out->set_entity_id((const char*)StringCast<UTF8CHAR>(*(in->EntityId)).Get());
     out->set_name((const char*)StringCast<UTF8CHAR>(*(in->Name)).Get());
-    TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
+    if (in->HasPosition) TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
+    else out->clear_position();
     out->set_kind(::nightfall::v1::EntityKind(static_cast<uint8>(in->Kind)));
     out->set_session_generation(in->SessionGeneration);
     out->set_combatant(in->Combatant);
@@ -667,8 +673,12 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::E
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityMove* in, FGrpcNightfallV1EntityMove* out)
 {
     out->EntityId=StringCast<TCHAR>((const UTF8CHAR*)(in->entity_id().c_str())).Get();
-    GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
-    GRPC_TO_TURBOLINK(&(in->destination()), &(out->Destination));
+    out->HasPosition = in->has_position();
+    out->Position = {};
+    if (out->HasPosition) GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
+    out->HasDestination = in->has_destination();
+    out->Destination = {};
+    if (out->HasDestination) GRPC_TO_TURBOLINK(&(in->destination()), &(out->Destination));
     out->Speed=in->speed();
     out->ServerTimeMs=in->server_time_ms();
     out->Tick=in->tick();
@@ -677,8 +687,10 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityMove* in, FGrpcNightfallV1En
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityMove* in, ::nightfall::v1::EntityMove* out)
 {
     out->set_entity_id((const char*)StringCast<UTF8CHAR>(*(in->EntityId)).Get());
-    TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
-    TURBOLINK_TO_GRPC(&(in->Destination), out->mutable_destination());
+    if (in->HasPosition) TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
+    else out->clear_position();
+    if (in->HasDestination) TURBOLINK_TO_GRPC(&(in->Destination), out->mutable_destination());
+    else out->clear_destination();
     out->set_speed(in->Speed);
     out->set_server_time_ms(in->ServerTimeMs);
     out->set_tick(in->Tick);
@@ -790,7 +802,9 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityRespawned* in, FGrpcNightfal
 {
     out->Entity=StringCast<TCHAR>((const UTF8CHAR*)(in->entity().c_str())).Get();
     out->Tick=in->tick();
-    GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
+    out->HasPosition = in->has_position();
+    out->Position = {};
+    if (out->HasPosition) GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
     out->Hp=in->hp();
     out->Incarnation=in->incarnation();
 }
@@ -799,7 +813,8 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntityRespawned* in, ::nightfall::v
 {
     out->set_entity((const char*)StringCast<UTF8CHAR>(*(in->Entity)).Get());
     out->set_tick(in->Tick);
-    TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
+    if (in->HasPosition) TURBOLINK_TO_GRPC(&(in->Position), out->mutable_position());
+    else out->clear_position();
     out->set_hp(in->Hp);
     out->set_incarnation(in->Incarnation);
 }
@@ -825,7 +840,9 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::StatsChanged* in, FGrpcNightfallV1
     out->PvpCount=in->pvp_count();
     out->FlagUntilTick=in->flag_until_tick();
     out->DeathPenaltyLevel=in->death_penalty_level();
-    GRPC_TO_TURBOLINK(&(in->effective_stats()), &(out->EffectiveStats));
+    out->HasEffectiveStats = in->has_effective_stats();
+    out->EffectiveStats = {};
+    if (out->HasEffectiveStats) GRPC_TO_TURBOLINK(&(in->effective_stats()), &(out->EffectiveStats));
     out->Baseline=in->baseline();
     out->BaselineTick=in->baseline_tick();
     out->Incarnation=in->incarnation();
@@ -852,7 +869,8 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StatsChanged* in, ::nightfall::v1::
     out->set_pvp_count(in->PvpCount);
     out->set_flag_until_tick(in->FlagUntilTick);
     out->set_death_penalty_level(in->DeathPenaltyLevel);
-    TURBOLINK_TO_GRPC(&(in->EffectiveStats), out->mutable_effective_stats());
+    if (in->HasEffectiveStats) TURBOLINK_TO_GRPC(&(in->EffectiveStats), out->mutable_effective_stats());
+    else out->clear_effective_stats();
     out->set_baseline(in->Baseline);
     out->set_baseline_tick(in->BaselineTick);
     out->set_incarnation(in->Incarnation);

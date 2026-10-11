@@ -123,6 +123,7 @@ void UEntityAnimationComponent::Bind(UNetClientSubsystem* InNet, const FString& 
 	SpawnHandle = InNet->OnEntitySpawn.AddUObject(this, &UEntityAnimationComponent::ApplySpawn);
 	MoveHandle = InNet->OnEntityMove.AddUObject(this, &UEntityAnimationComponent::ApplyMove);
 	AttackHandle = InNet->OnAttackResult.AddUObject(this, &UEntityAnimationComponent::ApplyAttackResult);
+ InNet->OnSkillCastResult.AddUObject(this,&UEntityAnimationComponent::ApplySkillResult);
 	DiedHandle = InNet->OnEntityDied.AddUObject(this, &UEntityAnimationComponent::ApplyDied);
 	RespawnedHandle = InNet->OnEntityRespawned.AddUObject(this, &UEntityAnimationComponent::ApplyRespawned);
 	for (const TPair<FString, FEntitySpawn>& Known : InNet->GetKnownEntities())
@@ -138,6 +139,7 @@ void UEntityAnimationComponent::Unbind()
 		N->OnEntitySpawn.Remove(SpawnHandle);
 		N->OnEntityMove.Remove(MoveHandle);
 		N->OnAttackResult.Remove(AttackHandle);
+ N->OnSkillCastResult.RemoveAll(this);
 		N->OnEntityDied.Remove(DiedHandle);
 		N->OnEntityRespawned.Remove(RespawnedHandle);
 	}
@@ -166,8 +168,13 @@ int64 UEntityAnimationComponent::TickToMs(uint64 Tick) const
 void UEntityAnimationComponent::ApplySpawn(const FEntitySpawn& Spawn)
 {
 	if (!Matches(Spawn.EntityId)) return;
-	if (Spawn.LifeIncarnation != 0 && Spawn.LifeIncarnation < Incarnation) return;   // an earlier life, late
-	Incarnation = FMath::Max(Incarnation, Spawn.LifeIncarnation);
+	if(Spawn.SessionGeneration<SessionGeneration)return;
+ if (Spawn.SessionGeneration==SessionGeneration && Spawn.LifeIncarnation != 0 && Spawn.LifeIncarnation < Incarnation) return;   // an earlier life, late
+	if(const auto* N=Net.Get();N && N->IsPhase3Projection())
+ {
+  const auto Timing=Machine.GetTiming();Machine={};Machine.SetTiming(Timing);LastLifeTick=Spawn.StateTick;
+ }
+ SessionGeneration=Spawn.SessionGeneration;IdentityBaselineTick=Spawn.StateTick;Incarnation=Spawn.LifeIncarnation;
 	if (Spawn.bCombatant && Spawn.bDead) Machine.NoteSpawnedDead();   // late AOI entry: already a corpse
 	else Machine.NoteAlive(RenderTimeMs());
 }
@@ -179,7 +186,8 @@ void UEntityAnimationComponent::ApplyMove(const FEntityMove& Move)
 
 void UEntityAnimationComponent::ApplyAttackResult(const FAttackResult& Result)
 {
-	if (Matches(Result.Attacker)) Machine.NoteAttack(TickToMs(Result.Tick));
+	if(const auto* N=Net.Get();N && N->IsPhase3Projection() && Result.Tick<=IdentityBaselineTick)return;
+ if (Matches(Result.Attacker)) Machine.NoteAttack(TickToMs(Result.Tick));
 	const bool bOlderLife = Result.TargetIncarnation != 0 && Result.TargetIncarnation < Incarnation;
 	if (Matches(Result.Target) && !bOlderLife && (Result.Outcome == ENetAttackOutcome::Hit || Result.Outcome == ENetAttackOutcome::Crit))
 	{
@@ -190,7 +198,8 @@ void UEntityAnimationComponent::ApplyAttackResult(const FAttackResult& Result)
 void UEntityAnimationComponent::ApplyDied(const FEntityDied& Died)
 {
 	if (!Matches(Died.Entity)) return;
-	if (Died.Incarnation != 0 && Died.Incarnation < Incarnation) return;   // an earlier life's death
+	if(const auto* N=Net.Get();N && N->IsPhase3Projection() && (Died.Incarnation!=Incarnation || Died.Tick<=IdentityBaselineTick))return;
+ if (Died.Incarnation != 0 && Died.Incarnation < Incarnation) return;   // an earlier life's death
 	if (Died.Tick < LastLifeTick) return;
 	LastLifeTick = Died.Tick;
 	Incarnation = FMath::Max(Incarnation, Died.Incarnation);
@@ -200,7 +209,8 @@ void UEntityAnimationComponent::ApplyDied(const FEntityDied& Died)
 void UEntityAnimationComponent::ApplyRespawned(const FEntityRespawned& Respawned)
 {
 	if (!Matches(Respawned.Entity) || Respawned.Tick < LastLifeTick) return;   // a replayed, older respawn
-	LastLifeTick = Respawned.Tick;
+	if(const auto* N=Net.Get();N && N->IsPhase3Projection()){if(Respawned.Incarnation<=Incarnation)return;IdentityBaselineTick=Respawned.Tick;Incarnation=Respawned.Incarnation;}
+ LastLifeTick = Respawned.Tick;
 	Machine.NoteAlive(TickToMs(Respawned.Tick));
 }
 
@@ -222,4 +232,11 @@ void UEntityAnimationComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	LastPose = Pose;
 	if (UEntityAnimInstance* Instance = AnimInstance.Get()) Instance->SetPose(Pose);
 	Machine.Prune(Now);
+}
+
+void UEntityAnimationComponent::ApplySkillResult(const FSkillCastResult& R)
+{
+ if(Matches(R.Caster) && R.CasterIncarnation==Incarnation && R.Tick>IdentityBaselineTick)Machine.NoteAttack(TickToMs(R.Tick));
+ for(const auto& T:R.Targets)
+  if(Matches(T.Target) && T.TargetIncarnation==Incarnation && T.Tick>IdentityBaselineTick && (T.HpRemoved || T.CpAbsorbed))Machine.NoteHit(TickToMs(T.Tick));
 }

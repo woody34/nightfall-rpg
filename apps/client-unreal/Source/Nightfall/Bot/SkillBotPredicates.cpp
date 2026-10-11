@@ -1,5 +1,6 @@
 #include "SkillBotPredicates.h"
 #include "BotPredicates.h"
+#include "SkillAuditSubsystem.h"
 #include "BotScenarioRunner.h"
 #include "Skills/SkillStateSubsystem.h"
 #include "Effects/EffectStateSubsystem.h"
@@ -55,15 +56,92 @@ bool SkillBotPredicates::ParseUnsigned(const FString& Text, uint64& Out)
 void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 {
 	using namespace SkillBotDetail;
+ for (const FString& Name : {FString(TEXT("cast_result_for")),FString(TEXT("cast_terminal_once_for")),FString(TEXT("observed_cast_baseline_for"))})
+  R.Register({Name,Name+TEXT(" <own|uuid> <skill_id>"),TEXT("Correlated received caster/incarnation/skill/cast identity"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+  {
+   uint32 Skill;if(A.Num()!=2 || !EntityArg(A[0]) || !Id(A[1],Skill)){Error=TEXT("needs an entity and positive skill ID");return nullptr;}
+   return [Name,Arg=A[0],Skill](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->CastFor(Entity(C,Arg),Skill,Name):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("matched cast identity")):FString(TEXT("cast identity mismatch"))):FString(TEXT("unknown: designated start/baseline/result not witnessed"))};};
+  }});
+ R.Register({TEXT("entity_not_in_view"),TEXT("entity_not_in_view <uuid>"),TEXT("Previously known identity departed in this transport"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+ {if(A.Num()!=1 || !EntityArg(A[0])){Error=TEXT("needs an entity");return nullptr;}return [Arg=A[0]](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->NotInView(Entity(C,Arg)):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("departed")):FString(TEXT("visible"))):FString(TEXT("unknown: no witnessed departure"))};};}});
+
+ // Register the handoff grammar without inventing missing authoritative evidence.
+ for (const FString& Name : {FString(TEXT("regen_pulses")),FString(TEXT("moving_regen_pulses")),FString(TEXT("regen_matches_oracle")),FString(TEXT("moving_regen_matches_oracle")),FString(TEXT("death_record_matches_fixture")),FString(TEXT("death_record_matches_before_disconnect")),FString(TEXT("restore_did_not_reapply_hooks")),FString(TEXT("skill_hate_outcome_coherent")),FString(TEXT("skill_damage_matches_oracle")),FString(TEXT("skill_effect_matches_oracle")),FString(TEXT("stat_matches_oracle")),FString(TEXT("resurrect_refund_matches_oracle"))})
+  R.Register({Name,Name,TEXT("Wire/actor evidence blocked; always UNKNOWN"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+  {
+   const bool Numeric=Name==TEXT("regen_pulses") || Name==TEXT("moving_regen_pulses");
+   const bool Skill=Name==TEXT("skill_damage_matches_oracle") || Name==TEXT("skill_effect_matches_oracle");
+   uint64 N=0;uint32 I=0;
+   if(Numeric?A.Num()!=2 || !Operator(A[0]) || !SkillBotPredicates::ParseUnsigned(A[1],N):Skill?A.Num()!=1 || !Id(A[0],I):!A.IsEmpty()){Error=TEXT("invalid evidence predicate arguments");return nullptr;}
+   return [Name](const FBotContext&)->FBotPredicateValue
+   {
+    if(Name==TEXT("regen_pulses")) return {false,TEXT("unknown: regen pulse/cause is absent from the wire")};
+    if(Name==TEXT("moving_regen_pulses")) return {false,TEXT("unknown: regen pulse/movement cause is absent from the wire")};
+    if(Name==TEXT("regen_matches_oracle")) return {false,TEXT("unknown: regen pulse inputs/cause are absent from the wire")};
+    if(Name==TEXT("moving_regen_matches_oracle")) return {false,TEXT("unknown: regen movement branch and pulse inputs are absent from the wire")};
+    if(Name==TEXT("death_record_matches_fixture")) return {false,TEXT("unknown: complete DeathRecord is absent from the wire")};
+    if(Name==TEXT("death_record_matches_before_disconnect")) return {false,TEXT("unknown: complete persisted DeathRecord is absent from the wire")};
+    if(Name==TEXT("restore_did_not_reapply_hooks")) return {false,TEXT("unknown: modifier installation order and periodic phase require actor evidence")};
+    if(Name==TEXT("skill_hate_outcome_coherent")) return {false,TEXT("unknown: full hate ledger and credit inputs require actor evidence")};
+    if(Name==TEXT("skill_damage_matches_oracle")) return {false,TEXT("unknown: exact damage inputs and RNG trace require actor evidence")};
+    if(Name==TEXT("skill_effect_matches_oracle")) return {false,TEXT("unknown: exact effect inputs and RNG trace require actor evidence")};
+    if(Name==TEXT("stat_matches_oracle")) return {false,TEXT("unknown: ordered modifiers and base stat inputs require actor evidence")};
+    if(Name==TEXT("resurrect_refund_matches_oracle")) return {false,TEXT("unknown: stored death loss and restore-percent inputs are absent from the wire")};
+    return {false,TEXT("unknown: no authoritative evidence")};
+   };
+  }});
+
+ R.Register({TEXT("cancelled_cast_costs_retained"),TEXT("cancelled_cast_costs_retained"),TEXT("Received cancelled cast retains start MP and SkillReuse deadline"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+ {if(!A.IsEmpty()){Error=TEXT("takes no arguments");return nullptr;}return [](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->CancelledCostsRetained():TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("retained")):FString(TEXT("refunded or mismatched"))):FString(TEXT("unknown: cancelled cast, catalogue, resource or reuse evidence missing"))};};}});
+
+ for (const FString& Name : {FString(TEXT("cast_dispositions_once")),FString(TEXT("spawn_before_skill_references")),FString(TEXT("owner_skill_baseline_coherent")),FString(TEXT("observer_skill_baseline_coherent")),FString(TEXT("public_vitals_coherent")),FString(TEXT("public_revival_vitals_coherent")),FString(TEXT("pvp_private_stats_coherent")),FString(TEXT("cp_absorption_matches_received")),FString(TEXT("effect_identity_coherent")),FString(TEXT("death_penalty_matches_before_disconnect")),FString(TEXT("resurrect_offer_matches_death")),FString(TEXT("own_flag_deadline_matches_received")),FString(TEXT("npc_target_is_owner")),FString(TEXT("own_flag_expired_at_last_impact")),FString(TEXT("target_flag_expired_at_last_impact")),FString(TEXT("victim_flag_not_refreshed")),FString(TEXT("peace_rejection_has_no_start")),FString(TEXT("impact_counter_uses_received_flag")),FString(TEXT("flagged_kill_matches_received")),FString(TEXT("karma_gain_matches_oracle")),FString(TEXT("karma_decay_matches_oracle")),FString(TEXT("death_xp_matches_fixture")),FString(TEXT("town_respawn_vitals_match_fixture")),FString(TEXT("resurrection_vitals_match_fixture")),FString(TEXT("retained_effect_identity_coherent")),FString(TEXT("peace_impact_has_no_damage"))})
+  R.Register({Name,Name,TEXT("Witnessed authoritative event history; missing evidence fails closed"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+  {
+   if(!A.IsEmpty()){Error=TEXT("takes no arguments");return nullptr;}
+   return [Name](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->Check(Name):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("coherent")):FString(TEXT("incoherent"))):FString(TEXT("unknown: no correlated received evidence"))};};
+  }});
+ for (const FString& Name : {FString(TEXT("own_cp_damage_total")),FString(TEXT("player_cp_damage_total")),FString(TEXT("players_attacking_me")),FString(TEXT("resurrection_refunds"))})
+  Number(R,Name,0,[Name](const FBotContext& C,const auto&)->TOptional<uint64>{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;return S?S->Number(Name):TOptional<uint64>();});
+ R.RegisterEquality(TEXT("resurrect_offer_state"),TEXT("resurrect_offer_state == offered|declined|expired|accepted"),TEXT("Newest witnessed owner offer including terminal states"),[](const FString& V,FString& Error){if(V==TEXT("offered") || V==TEXT("declined") || V==TEXT("expired") || V==TEXT("accepted"))return true;Error=TEXT("invalid offer state");return false;},[](const FBotContext& C,const FString& V,FString& O){static const TCHAR* States[]={TEXT("unknown"),TEXT("offered"),TEXT("declined"),TEXT("expired"),TEXT("accepted")};const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto State=S?S->OfferState():TOptional<uint32>();O=State.IsSet() && *State<UE_ARRAY_COUNT(States)?States[*State]:TEXT("unknown");return O!=TEXT("unknown") && O==V;});
+
+ for (const FString& Name : {FString(TEXT("initial_hp")),FString(TEXT("initial_mp")),FString(TEXT("initial_cp"))})
+  Number(R,Name,0,[Name](const FBotContext& C,const auto&)->TOptional<uint64>{const auto* S=State(C);if(!S)return {};const auto V=Name==TEXT("initial_hp")?S->GetInitialHp():Name==TEXT("initial_mp")?S->GetInitialMp():S->GetInitialCp();return V.IsSet()?TOptional<uint64>(*V):TOptional<uint64>();});
+ Number(R,TEXT("target_flag_remaining"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{const auto* S=State(C);const auto* P=S?S->FindPvp(Entity(C,TEXT("target"))):nullptr;return P?TOptional<uint64>(P->FlagUntilTick>S->GetTick()?P->FlagUntilTick-S->GetTick():0):TOptional<uint64>();});
+ for (const FString& Name : {FString(TEXT("entity_alive")),FString(TEXT("entity_dead")),FString(TEXT("entity_in_view"))})
+  R.Register({Name,Name+TEXT(" <own|target|uuid>"),TEXT("Known authoritative entity life"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+  {
+   if(A.Num()!=1 || !EntityArg(A[0])){Error=TEXT("needs an entity");return nullptr;}
+   return [Name,Arg=A[0]](const FBotContext& C)->FBotPredicateValue{const auto* E=C.Combat()?C.Combat()->FindEntity(Entity(C,Arg)):nullptr;return {E && (Name==TEXT("entity_in_view") || (Name==TEXT("entity_dead")?E->bDead:!E->bDead && E->Hp>0)),!E?FString(TEXT("unknown")):E->bDead?FString(TEXT("dead")):FString(TEXT("alive"))};};
+  }});
+ R.Register({TEXT("entity_at"),TEXT("entity_at <entity> <x> <y> <tol>"),TEXT("Newest received position sample"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+ {
+  double X=0,Y=0,Tol=0;if(A.Num()!=4 || !EntityArg(A[0]) || !LexTryParseString(X,*A[1]) || !LexTryParseString(Y,*A[2]) || !LexTryParseString(Tol,*A[3]) || !FMath::IsFinite(X) || !FMath::IsFinite(Y) || !FMath::IsFinite(Tol) || Tol<0){Error=TEXT("needs entity, finite x/y and nonnegative tolerance");return nullptr;}
+  return [Arg=A[0],X,Y,Tol](const FBotContext& C)->FBotPredicateValue{FVector2D Pos;const FString Id=Entity(C,Arg);const bool Known=C.Combat() && C.Combat()->FindEntity(Id) && BotPredicates::EntityPosition(C,Id,Pos);return {Known && FVector2D::Distance(Pos,FVector2D(X,Y))<=Tol,Known?FString::Printf(TEXT("(%.2f, %.2f)"),Pos.X,Pos.Y):FString(TEXT("unknown"))};};
+ }});
+ R.Register({TEXT("entity_casting"),TEXT("entity_casting <entity> <skill_id>"),TEXT("Current received cast including admission hydration"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
+ {
+  uint32 Skill;if(A.Num()!=2 || !EntityArg(A[0]) || !Id(A[1],Skill)){Error=TEXT("needs entity and positive skill id");return nullptr;}
+  return [Arg=A[0],Skill](const FBotContext& C)->FBotPredicateValue{const auto* S=State(C);const FString Id=Entity(C,Arg);const auto* V=S?S->FindCast(Id):nullptr;const bool Known=C.Combat() && C.Combat()->FindEntity(Id);return {Known && V && V->Cast.IsSet() && V->Cast->SkillId==Skill,!Known?FString(TEXT("unknown")):V && V->Cast.IsSet()?FString::FromInt(V->Cast->SkillId):FString(TEXT("idle"))};};
+ }});
+ for (const FString& Name : {FString(TEXT("cast_cancel_reason")),FString(TEXT("observed_cast_cancel_reason"))})
+  R.RegisterEquality(Name,Name+TEXT(" == <reason>"),TEXT("Most recent accepted cast cancellation"),[](const FString& V,FString& Error){for(const TCHAR* Reason:{TEXT("stopped"),TEXT("moved"),TEXT("damage"),TEXT("incapacitated"),TEXT("target_lost"),TEXT("out_of_range"),TEXT("resources"),TEXT("caster_died"),TEXT("peace_zone"),TEXT("transfer")})if(V==Reason)return true;Error=TEXT("invalid cast cancellation reason");return false;},[Name](const FBotContext& C,const FString& V,FString& O)
+  {
+   static const TCHAR* Reasons[]={TEXT("unknown"),TEXT("stopped"),TEXT("moved"),TEXT("damage"),TEXT("incapacitated"),TEXT("target_lost"),TEXT("out_of_range"),TEXT("resources"),TEXT("caster_died"),TEXT("peace_zone"),TEXT("transfer")};
+   const auto* S=State(C);uint32 Reason=0;if(S){if(Name==TEXT("observed_cast_cancel_reason") && S->GetObservedCancel().IsSet())Reason=S->GetObservedCancel()->Reason;else if(Name==TEXT("cast_cancel_reason") && C.Net()){if(const auto* Cast=S->FindCast(C.Net()->GetOwnEntityId()))Reason=Cast->CancelReason;}}
+   O=Reason<UE_ARRAY_COUNT(Reasons)?Reasons[Reason]:TEXT("unknown");return Reason>0 && O==V;
+  });
 	auto ValidId = [](const TArray<FString>& A) { uint32 I; return Id(A[0],I); };
 	Number(R,TEXT("skill_reuse_remaining"),1,[](const FBotContext& C,const TArray<FString>& A)->TOptional<uint64> { const auto* S=State(C); return S ? S->ReuseRemaining(uint32(FCString::Strtoui64(*A[0],nullptr,10))) : TOptional<uint64>(); },ValidId);
-	Number(R,TEXT("learned_rank"),1,[](const FBotContext& C,const TArray<FString>& A)->TOptional<uint64> { const auto* S=State(C); return S && S->HasOwnerState() ? TOptional<uint64>(S->GetLearned().FindRef(uint32(FCString::Strtoui64(*A[0],nullptr,10)))) : TOptional<uint64>(); },ValidId);
+	Number(R,TEXT("learned_rank"),1,[](const FBotContext& C,const TArray<FString>& A)->TOptional<uint64> { const auto* S=State(C); return S && S->HasSkillBaseline() ? TOptional<uint64>(S->GetLearned().FindRef(uint32(FCString::Strtoui64(*A[0],nullptr,10)))) : TOptional<uint64>(); },ValidId);
 	for (const FString& Name : {FString(TEXT("own_karma")),FString(TEXT("own_pk")),FString(TEXT("own_pvp"))})
 		Number(R,Name,0,[Name](const FBotContext& C,const auto&)->TOptional<uint64> { const auto* S=State(C); const auto* P=S && C.Net() ? S->FindPvp(C.Net()->GetOwnEntityId()) : nullptr; return P ? TOptional<uint64>(Name==TEXT("own_karma") ? P->Karma : Name==TEXT("own_pk") ? P->PkCount : P->PvpCount) : TOptional<uint64>(); });
 	Number(R,TEXT("own_sp"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=State(C); return S ? S->GetSp() : TOptional<uint64>(); });
 	Number(R,TEXT("sp_gained_total"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=State(C); return S && S->HasOwnerState() ? TOptional<uint64>(S->GetSpGainedTotal()) : TOptional<uint64>(); });
 	Number(R,TEXT("own_death_penalty"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=State(C); return S && S->HasOwnerState() ? TOptional<uint64>(S->GetDeathPenalty()) : TOptional<uint64>(); });
-	Number(R,TEXT("effect_count"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=Effects(C); const auto* N=C.Net(); return S && N && N->GetKnownEntities().Contains(N->GetOwnEntityId()) ? TOptional<uint64>(S->Active(N->GetOwnEntityId()).Num()) : TOptional<uint64>(); });
+ Number(R,TEXT("buff_replacements"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{const auto* S=Effects(C);return S && C.Net()?S->Replacements(C.Net()->GetOwnEntityId()):TOptional<uint64>();});
+ R.RegisterFlag(TEXT("replacement_remove_before_apply"),TEXT("Witnessed replacement removal followed by a new effect ID for same skill/pool"),[](const FBotContext& C){const auto* S=Effects(C);return S && S->ReplacementOrdered().IsSet() && *S->ReplacementOrdered();});
+ R.RegisterEquality(TEXT("effect_remove_reason"),TEXT("effect_remove_reason == <reason>"),TEXT("Accepted removal of a known effect ID"),[](const FString& V,FString& Error){for(const TCHAR* Reason:{TEXT("expired"),TEXT("replaced"),TEXT("overflow"),TEXT("dispelled"),TEXT("damage"),TEXT("death"),TEXT("transfer")})if(V==Reason)return true;Error=TEXT("invalid effect removal reason");return false;},[](const FBotContext& C,const FString& V,FString& O){static const TCHAR* Names[]={TEXT("unknown"),TEXT("expired"),TEXT("replaced"),TEXT("overflow"),TEXT("dispelled"),TEXT("damage"),TEXT("death"),TEXT("transfer")};const auto* S=Effects(C);const auto Reason=S?S->GetRemoveReason():TOptional<uint32>();O=Reason.IsSet() && *Reason<UE_ARRAY_COUNT(Names)?Names[*Reason]:TEXT("unknown");return Reason.IsSet() && *Reason>0 && O==V;});
+	Number(R,TEXT("effect_count"),0,[](const FBotContext& C,const auto&)->TOptional<uint64>{ const auto* S=Effects(C); const auto* N=C.Net(); return S && N && S->IsHydrated(N->GetOwnEntityId()) ? TOptional<uint64>(S->Active(N->GetOwnEntityId()).Num()) : TOptional<uint64>(); });
 	Number(R,TEXT("vitals_max_hp"),1,[](const FBotContext& C,const TArray<FString>& A)->TOptional<uint64>{ const auto* E=C.Combat() ? C.Combat()->FindEntity(Entity(C,A[0])) : nullptr; return E ? TOptional<uint64>(E->MaxHp) : TOptional<uint64>(); },[](const auto& A){return EntityArg(A[0]);});
 	for (const FString& Name : {FString(TEXT("skill_ready")),FString(TEXT("buff_active")),FString(TEXT("buff_inactive")),FString(TEXT("debuff_active")),FString(TEXT("own_mp_cost_matches"))})
 		R.Register({Name,Name+TEXT(" <skill_id>"),TEXT("Received skill/effect state"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
@@ -71,9 +149,10 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 			uint32 Skill; if(A.Num()!=1 || !Id(A[0],Skill)){Error=TEXT("needs a positive uint32 skill id");return nullptr;}
 			return [Name,Skill](const FBotContext& C)->FBotPredicateValue
 			{
-				if(Name==TEXT("own_mp_cost_matches")) return {false,TEXT("unknown: catalogue/SkillStateSync contract has no per-rank MP costs")};
+				if(Name==TEXT("own_mp_cost_matches"))
+    {const auto* Audit=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=Audit?Audit->MpCostMatches(Skill):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("received MP stage deltas match exact-rank catalogue")):FString(TEXT("received MP delta mismatch"))):FString(TEXT("unknown: exact-rank catalogue or cast/resource samples missing"))};}
 				if(Name==TEXT("skill_ready")){ const auto* S=State(C); const auto V=S ? S->ReuseRemaining(Skill) : TOptional<uint64>(); return {V.IsSet() && *V==0,V.IsSet()?FString::Printf(TEXT("remaining %llu ticks"),*V):FString(TEXT("unknown"))}; }
-				const auto* S=Effects(C); const auto* N=C.Net(); const bool Known=N && N->GetKnownEntities().Contains(N->GetOwnEntityId()); const auto Rows=S && N ? S->Active(N->GetOwnEntityId()) : TArray<FEffectApplied>(); bool Active=false;
+				const auto* S=Effects(C); const auto* N=C.Net(); const bool Known=S && N && S->IsHydrated(N->GetOwnEntityId()); const auto Rows=S && N ? S->Active(N->GetOwnEntityId()) : TArray<FEffectApplied>(); bool Active=false;
 				for(const auto& E:Rows) if(E.SkillId==Skill && (Name==TEXT("debuff_active") ? E.Pool==3 : E.Pool==1 || E.Pool==2)) Active=true;
 				return {Known && (Name==TEXT("buff_inactive")?!Active:Active),Known?(Active?FString(TEXT("active")):FString(TEXT("absent"))):FString(TEXT("unknown"))};
 			};
@@ -82,7 +161,7 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 		R.Register({Name,Name+TEXT(" <own|target|uuid> <skill_id>"),TEXT("Visible entity effects"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
 		{
 			uint32 Skill; if(A.Num()!=2 || !EntityArg(A[0]) || !Id(A[1],Skill)){Error=TEXT("needs entity and positive skill id");return nullptr;}
-			return [Arg=A[0],Skill,Name](const FBotContext& C)->FBotPredicateValue { const auto* S=Effects(C); const FString Id=Entity(C,Arg); const bool Known=C.Combat() && C.Combat()->FindEntity(Id); const bool Active=S && S->Has(Id,Skill); return {Known && (Name==TEXT("entity_effect_active") ? Active : !Active), !Known?FString(TEXT("unknown")):Active?FString(TEXT("active")):FString(TEXT("absent"))}; };
+			return [Arg=A[0],Skill,Name](const FBotContext& C)->FBotPredicateValue { const auto* S=Effects(C); const FString Id=Entity(C,Arg); const bool Known=S && S->IsHydrated(Id) && C.Combat() && C.Combat()->FindEntity(Id); const bool Active=S && S->Has(Id,Skill); return {Known && (Name==TEXT("entity_effect_active") ? Active : !Active), !Known?FString(TEXT("unknown")):Active?FString(TEXT("active")):FString(TEXT("absent"))}; };
 		}});
 	R.Register({TEXT("learnable_contains"),TEXT("learnable_contains <id> <rank>"),TEXT("Actual ListLearnableSkills row"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
 	{
@@ -96,7 +175,7 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
 	}});
 	for (const FString& Name : {FString(TEXT("own_flag")),FString(TEXT("target_flag"))})
 		R.RegisterEquality(Name,Name+TEXT(" == none|pvp|chaotic"),TEXT("Received karma and flag deadline"),[](const FString& V,FString& E){ if(V==TEXT("none") || V==TEXT("pvp") || V==TEXT("chaotic")) return true; E=TEXT("invalid flag"); return false; },[Name](const FBotContext& C,const FString& V,FString& O){const auto* S=State(C); O=S ? S->Flag(Entity(C,Name==TEXT("own_flag")?TEXT("own"):TEXT("target"))) : TEXT("unknown"); return O!=TEXT("unknown") && O==V;});
-	R.RegisterEquality(TEXT("cast_state"),TEXT("cast_state == idle|casting"),TEXT("Received owner cast lifecycle"),[](const FString& V,FString& E){if(V==TEXT("idle") || V==TEXT("casting")) return true; E=TEXT("invalid cast state");return false;},[](const FBotContext& C,const FString& V,FString& O){const auto* S=State(C); const auto* N=C.Net(); const bool Known=S && N && C.Combat() && C.Combat()->FindOwnEntity(); const auto* Cast=Known?S->FindCast(N->GetOwnEntityId()):nullptr; O=!Known?TEXT("unknown"):Cast && Cast->Cast.IsSet()?TEXT("casting"):TEXT("idle");return Known && O==V;});
+	R.RegisterEquality(TEXT("cast_state"),TEXT("cast_state == idle|casting"),TEXT("Received owner cast lifecycle"),[](const FString& V,FString& E){if(V==TEXT("idle") || V==TEXT("casting")) return true; E=TEXT("invalid cast state");return false;},[](const FBotContext& C,const FString& V,FString& O){const auto* S=State(C); const auto* N=C.Net(); const bool Known=S && N && S->IsHydrated(N->GetOwnEntityId()) && C.Combat() && C.Combat()->FindOwnEntity(); const auto* Cast=Known?S->FindCast(N->GetOwnEntityId()):nullptr; O=!Known?TEXT("unknown"):Cast && Cast->Cast.IsSet()?TEXT("casting"):TEXT("idle");return Known && O==V;});
 	R.RegisterEquality(TEXT("learn_rpc_error"),TEXT("learn_rpc_error == <canonical code|0-16>"),TEXT("Completed LearnSkill canonical status"),[](const FString& V,FString& E){for(uint8 I=0;I<=16;++I)if(ErrorMatches(V,static_cast<ENetError>(I)))return true;E=TEXT("invalid gRPC code");return false;},[](const FBotContext& C,const FString& V,FString& O){const auto* S=State(C);O=S && S->HasLearnResult()?ErrorName(S->GetLearnResult().Error):TEXT("pending");return S && S->HasLearnResult() && ErrorMatches(V,S->GetLearnResult().Error);});
 	R.RegisterFlag(TEXT("resurrect_offer_pending"),TEXT("Received unexpired offered resurrection"),[](const FBotContext& C){const auto* S=State(C);return S && S->OfferPending();});
  for(const FString& Name:{FString(TEXT("cast_starts")),FString(TEXT("cast_results")),FString(TEXT("cast_cancellations")),FString(TEXT("observed_cast_results")),FString(TEXT("cast_damage_results")),FString(TEXT("skill_learned_events")),FString(TEXT("sp_gained_events"))})
@@ -131,8 +210,10 @@ namespace SkillBotCommands
 	}));
 	FAutoConsoleCommandWithWorldAndArgs Cancel(TEXT("nf.CancelCast"),TEXT("Cancel current cast"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.CancelCast"),A))return;if(auto* N=Net(W))N->SendCancelCast();}));
 	FAutoConsoleCommandWithWorldAndArgs Learn(TEXT("nf.Learn"),TEXT("nf.Learn <id> <rank> [idempotency_uuid]"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.Learn"),A))return;if(auto* S=State(W))S->Learn(uint32(FCString::Strtoui64(*A[0],nullptr,10)),uint32(FCString::Strtoui64(*A[1],nullptr,10)),RpcLog,A.Num()==3?A[2]:FString());}));
-	FAutoConsoleCommandWithWorldAndArgs Learnable(TEXT("nf.LearnableSkills"),TEXT("List received learnable rows"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.LearnableSkills"),A))return;if(auto* S=State(W))S->LoadLearnable(RpcLog);}));
-	FAutoConsoleCommandWithWorldAndArgs Catalog(TEXT("nf.SkillCatalog"),TEXT("Load skill catalogue"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.SkillCatalog"),A))return;if(auto* S=State(W))S->LoadCatalog(RpcLog);}));
+	FAutoConsoleCommandWithWorldAndArgs Learnable(TEXT("nf.LearnableSkills"),TEXT("List received learnable rows"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.LearnableSkills"),A))return;if(auto* S=State(W))S->LoadLearnable([Weak=TWeakObjectPtr<USkillStateSubsystem>(S)](const FNetResult& R)
+ {RpcLog(R);if(R.IsOk() && Weak.IsValid())for(const auto& Row:Weak->GetLearnable().Skills)UE_LOG(LogNightfallBot,Display,TEXT("skill %u rank %u SP %llu eligible=%d trainer=%d %s"),Row.Skill.SkillId.Value,Row.Skill.SkillLevel.Value,Row.Skill.SpCost.Value,Row.Eligible,Row.TrainerRequired,*FString::Join(Row.Unmet,TEXT(", ")));});}));
+	FAutoConsoleCommandWithWorldAndArgs Catalog(TEXT("nf.SkillCatalog"),TEXT("Load skill catalogue"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.SkillCatalog"),A))return;if(auto* S=State(W))S->LoadCatalog([Weak=TWeakObjectPtr<USkillStateSubsystem>(S)](const FNetResult& R)
+ {RpcLog(R);if(R.IsOk() && Weak.IsValid())for(const auto& Row:Weak->GetCatalog().Skills)UE_LOG(LogNightfallBot,Display,TEXT("skill %u %s %s %s"),Row.SkillId.Value,*Row.DisplayName,Row.EffectImplemented?TEXT("executable"):TEXT("deferred"),*FString::Join(Row.DeferredReasons,TEXT(", ")));});}));
 	FAutoConsoleCommandWithWorldAndArgs Resurrect(TEXT("nf.AcceptResurrect"),TEXT("nf.AcceptResurrect [offer_id|latest] [accept|decline]"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W)
 	{
 		if(!Args(TEXT("nf.AcceptResurrect"),A))return;auto* S=State(W);auto* N=Net(W);if(!S || !N)return;uint64 Offer=0;

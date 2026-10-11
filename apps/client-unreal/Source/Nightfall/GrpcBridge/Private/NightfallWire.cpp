@@ -4,6 +4,23 @@
 
 namespace NightfallWire
 {
+	void EncodeSkillCatalogResponse(const FGrpcNightfallV1GetSkillCatalogResponse& In, TArray<uint8>& Out)
+	{
+		::nightfall::v1::GetSkillCatalogResponse Msg;
+		TURBOLINK_TO_GRPC(&In, &Msg);
+		Out.SetNumUninitialized(static_cast<int32>(Msg.ByteSizeLong()));
+		Msg.SerializeWithCachedSizesToArray(Out.GetData());
+	}
+
+	bool DecodeSkillCatalogResponse(const uint8* Data, int32 Size, FGrpcNightfallV1GetSkillCatalogResponse& Out)
+	{
+		Out = {};
+		::nightfall::v1::GetSkillCatalogResponse Msg;
+		if (Size < 0 || (Size > 0 && !Data) || !Msg.ParseFromArray(Data, Size)) return false;
+		GRPC_TO_TURBOLINK(&Msg, &Out);
+		return true;
+	}
+
 	void EncodeClientMessage(const FGrpcNightfallV1ClientMessage& In, TArray<uint8>& Out)
 	{
 		// TurboLink's oneof structs have no "not set" case (the default is the first member), and its
@@ -48,6 +65,15 @@ namespace NightfallWire
 		if (Size < 0 || (Size > 0 && !Data) || !Msg.ParseFromArray(Data, Size)) return false;
 		GRPC_TO_TURBOLINK(&Msg, &Out);
 
+		return true;
+	}
+
+	bool DecodeClientMessage(const uint8* Data, int32 Size, FGrpcNightfallV1ClientMessage& Out)
+	{
+		Out = {};
+		::nightfall::v1::ClientMessage Msg;
+		if (Size < 0 || (Size > 0 && !Data) || !Msg.ParseFromArray(Data, Size)) return false;
+		GRPC_TO_TURBOLINK(&Msg, &Out);
 		return true;
 	}
 

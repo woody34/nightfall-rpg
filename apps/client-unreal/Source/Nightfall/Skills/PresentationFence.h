@@ -37,6 +37,11 @@ struct FPresentationFence
 		if (!S || !Accept(D.Entity, D.Incarnation, D.Tick)) return false;
 		S->bDead = true; Tick = FMath::Max(Tick, D.Tick); return true;
 	}
+	// V5 has no end-of-hydration marker. Only a later ordered stream tick proves empty/idle.
+	bool Hydrated(const FString& Id, uint64 StreamTick) const
+	{
+		const auto* S = Identities.Find(Id.ToLower()); return S && StreamTick > S->StateTick;
+	}
 	bool Dead(const FString& Id) const { const auto* S = Identities.Find(Id.ToLower()); return S && S->bDead; }
 	bool Visible(const FString& Id, uint32 Inc) const
 	{

@@ -332,7 +332,7 @@ namespace
 		Out.PvpCount = S.PvpCount;
 		Out.FlagUntilTick = S.FlagUntilTick;
 		Out.DeathPenaltyLevel = S.DeathPenaltyLevel;
-		Out.EffectiveStats = FromGrpc(S.EffectiveStats);
+		if (S.HasEffectiveStats) Out.EffectiveStats = FromGrpc(S.EffectiveStats);
 		Out.bBaseline = S.Baseline;
 		Out.BaselineTick = S.BaselineTick;
 		Out.Incarnation = S.Incarnation;
@@ -505,6 +505,7 @@ namespace NightfallProto
 		if (In.MoveTo.IsSet())
 		{
 			TSharedPtr<FGrpcNightfallV1MoveToRequest> MoveTo = MakeShared<FGrpcNightfallV1MoveToRequest>();
+			MoveTo->HasDestination = true;
 			MoveTo->Destination.X = In.MoveTo->Destination.X;
 			MoveTo->Destination.Y = In.MoveTo->Destination.Y;
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MoveTo;
