@@ -93,10 +93,15 @@ fn commit(
         idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
         class_state: Some(ledger),
     };
-    let events = vec![DomainEvent::CharacterLeveled {
+    let events = vec![DomainEvent::CharacterSkillLearned {
         metadata: EventMetadata::default(),
         character_id: c.id,
-        level: c.level,
+        skill_id: skill.id.0,
+        skill_level: skill.rank,
+        sp_spent: receipt.result.sp_spent,
+        sp_remaining: receipt.result.sp_remaining,
+        tick: receipt.result.tick.0,
+        request_key: key.as_uuid(),
     }];
     (cp, receipt, events)
 }
@@ -133,7 +138,7 @@ async fn round_trip<R: CharacterRepository + LearningCheckpointRepository>(repo:
         repo.checkpoint_learning(&cp, &events, &receipt)
             .await
             .unwrap(),
-        LearningCheckpointOutcome::ReceiptReplayed(receipt.result.clone())
+        LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(1))
     );
     let mut later = cp.clone();
     later.revision_seen = 1;
@@ -279,9 +284,10 @@ async fn concurrency<R: CharacterRepository + LearningCheckpointRepository>(
         .count();
     assert_eq!(applied, 1);
     if same_key && !different_body {
-        assert!([a.as_ref(), b.as_ref()]
-            .iter()
-            .any(|r| matches!(r, Ok(LearningCheckpointOutcome::ReceiptReplayed(_)))));
+        assert!([a.as_ref(), b.as_ref()].iter().any(|r| matches!(
+            r,
+            Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(1)))
+        )));
     } else if same_key {
         assert!([a.as_ref(), b.as_ref()]
             .iter()

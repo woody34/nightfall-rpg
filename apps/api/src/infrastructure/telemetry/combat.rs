@@ -195,6 +195,9 @@ impl TickTelemetry for CombatConsumer {
 mod tests;
 
 impl crate::application::checkpoint::CheckpointMetrics for Metrics {
+    fn skill_learned(&self) {
+        self.record_skill_learn_committed();
+    }
     fn token_granted(&self, tier: u8, source: crate::domain::character_progression::TokenSource) {
         use crate::domain::character_progression::TokenSource;
         let tier = match tier {
