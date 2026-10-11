@@ -35,6 +35,7 @@ class ParserAudit(unittest.TestCase):
             self.assertEqual(audit['failures'], expected, path.name)
             self.assertEqual(result.returncode, int(bool(expected)), path.name)
             self.assertEqual(audit['compatible'], not expected)
+        self.assertEqual(checker.validate(paths), [])
         # No list of expected missing names can turn an incompatibility into PASS.
         # Running the same CLI over all scenarios is the strict integration gate.
 

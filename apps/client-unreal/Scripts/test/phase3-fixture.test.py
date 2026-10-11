@@ -60,6 +60,18 @@ class Phase3Tests(unittest.TestCase):
                 self.assertEqual(seed['roles']['owner']['class_id'], 10)
                 self.assertNotIn('1016', seed['roles']['owner']['learned_ranks'])
 
+    def test_missing_replay_producer_fails_both_wrappers_even_with_green_client_reports(self):
+        for paired in (False, True):
+            a = self.scenario('gated-a' if paired else 'gated', 'phase3-trainer')
+            a.write_text(a.read_text() + '# replay-gate: death_record_matches_fixture\n')
+            batch = [a, self.scenario('gated-b', 'phase3-trainer')] if paired else [a]
+            result, artifacts = self.run_wrapper(batch, multi=paired, SIM_PHASE3_SEEDER=str(SEEDER),
+                                                  SIM_PHASE3_EVIDENCE_CMD='false')
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            verdict = json.loads((artifacts / 'pipeline-verdict.json').read_text())
+            self.assertTrue(any('phase3_replay_evidence' in error for error in verdict['infrastructure_failures']))
+            self.assertFalse((artifacts / a.stem / 'phase3-evidence.json').exists())
+
     def test_seeder_dry_run_guards_reject_default_external_and_ambiguous_databases(self):
         env = dict(os.environ, AUTH_DEV_TOKENS='1', NIGHTFALL_PHASE3_FIXTURE='1')
         command = [sys.executable, str(SEEDER), '--fixture', 'phase3-trainer', '--owner-account',

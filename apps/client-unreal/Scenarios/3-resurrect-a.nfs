@@ -15,6 +15,19 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor own_sp >= 0 3
+# Cleric lineage receipt and Resurrection rank purchased through authoritative RPCs.
+# Class15/tree1016 rank1: professions/cleric.toml:5,310-318 (level20, SP3300).
+nf.ClassCatalogue
+nf.WaitFor class_rpc_error == none 15
+nf.Expect at_class_master
+nf.ChangeClass 15
+nf.WaitFor class_rpc_error == none 15
+nf.WaitFor world_class == 15 3
+nf.Learn 1016 1
+nf.WaitFor learn_rpc_error == none 15
+nf.WaitFor learned_rank 1016 == 1 3
+nf.ClickMove 110 100
+nf.WaitFor own_at 110 100 1 30
 nf.WaitFor entity_dead 01970000-0000-7000-8000-000000000031 90
 nf.Cast 1016 01970000-0000-7000-8000-000000000031
 nf.WaitFor cast_results >= 1 18
@@ -22,4 +35,4 @@ nf.WaitFor entity_alive 01970000-0000-7000-8000-000000000031 180
 nf.Expect public_revival_vitals_coherent
 nf.Expect private_stats_leaks == 0
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
-nf.Within 351
+nf.Within 432

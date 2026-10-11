@@ -31,7 +31,7 @@ nf.WaitFor reconnects >= 1 15
 nf.WaitFor in_world 15
 nf.Expect own_dead
 nf.Expect death_penalty_matches_before_disconnect
-nf.Expect death_record_matches_before_disconnect
+# replay-gate: death_record_matches_before_disconnect
 nf.Respawn
 nf.WaitFor own_hp > 0 3
 nf.Expect town_respawn_vitals_match_fixture

@@ -151,7 +151,7 @@
       "fixture": "phase3-penalty-cap",
       "assertions": [
         "nf.Expect own_death_penalty == 5",
-        "nf.Expect death_record_matches_before_disconnect"
+        "# replay-gate: death_record_matches_before_disconnect"
       ]
     },
     {
