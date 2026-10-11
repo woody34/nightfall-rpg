@@ -498,14 +498,20 @@ mod tests {
     }
 
     #[test]
-    fn boundary_refuses_unintegrated_policy_before_mutation() {
+    fn boundary_records_unintegrated_policy_without_gameplay_mutation() {
         let mut zone = state();
         let before = zone.snapshot();
         let draft = zone.draft(vec![ZoneInput::system(ZoneCommand::Attack {
             entity: EntityId::from_uuid(uuid::Uuid::from_u128(1)),
         })]);
-        assert_eq!(zone.run_tick(draft), Err(TickError::Phase3NotReady));
-        assert_eq!(zone.snapshot(), before);
+        let applied = zone.run_tick(draft).unwrap();
+        assert_eq!(applied.dispositions.len(), 1);
+        assert_eq!(applied.dispositions[0].reason, RejectReason::NotYetImplemented);
+        let after = zone.snapshot();
+        assert_eq!(after.entities, before.entities);
+        assert_eq!(after.phase3, before.phase3);
+        assert_eq!(after.rng, before.rng);
+        assert_eq!(after.tick, before.tick.next());
     }
     #[test]
     fn admission_policy_is_required_validated_and_digest_bound() {

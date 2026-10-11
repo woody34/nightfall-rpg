@@ -2044,3 +2044,123 @@ fn unrepresented_high_level_npc_damage_policy_is_refused_at_epoch_boundary() {
         matches!(result,Err(SnapshotError::Rules(message)) if message.contains("NPC damage penalty coefficients"))
     );
 }
+
+#[test]
+fn unsupported_v5_intents_are_recorded_without_holding_supported_commands() {
+    let (mut zone, player, npc) = setup();
+    let mut replay = ZoneState::from_snapshot(
+        decode_snapshot(&encode_snapshot(&zone.snapshot()).unwrap()).unwrap(),
+    )
+    .unwrap();
+    let source = CommandSource::Session {
+        entity: player,
+        generation: SessionGeneration(1),
+    };
+    let commands = [
+        ZoneCommand::Attack { entity: player },
+        ZoneCommand::Respawn { entity: player },
+        ZoneCommand::AcceptResurrect {
+            entity: player,
+            offer_id: OfferId(1),
+            accept: true,
+        },
+        ZoneCommand::ChangeClass {
+            entity: player,
+            account: AccountId::from_uuid(Uuid::from_u128(2)),
+            request_key: Uuid::from_u128(400),
+            target: ClassId(11),
+        },
+    ];
+    let mut inputs: Vec<_> = commands
+        .into_iter()
+        .enumerate()
+        .map(|(index, command)| ZoneInput {
+            source,
+            seq: Some(u32::try_from(index).unwrap()),
+            command,
+        })
+        .collect();
+    inputs.push(ZoneInput::system(ZoneCommand::AddAggro {
+        npc,
+        target: player,
+    }));
+    inputs.push(ZoneInput {
+        source: CommandSource::Session {
+            entity: player,
+            generation: SessionGeneration(0),
+        },
+        seq: Some(10),
+        command: ZoneCommand::Attack { entity: player },
+    });
+    inputs.push(ZoneInput::system(ZoneCommand::AcceptResurrect {
+        entity: player,
+        offer_id: OfferId(1),
+        accept: true,
+    }));
+    inputs.push(cast(player, npc));
+    let before_rng = zone.snapshot().rng;
+    let draft = zone.draft(inputs);
+    let applied = zone.run_tick(draft.clone()).unwrap();
+    assert_eq!(applied.dispositions.len(), 7);
+    assert_eq!(zone.snapshot().rng, before_rng);
+    assert_eq!(
+        applied.outputs[&player]
+            .iter()
+            .filter(|output| matches!(output, ObserverOutput::Rejected(_)))
+            .count(),
+        4
+    );
+    assert!(applied.dispositions[..5]
+        .iter()
+        .all(|d| d.reason == RejectReason::NotYetImplemented));
+    assert_eq!(applied.dispositions[5].reason, RejectReason::StaleSession);
+    assert_eq!(applied.dispositions[6].reason, RejectReason::NotPermitted);
+    assert!(applied.events.iter().any(|e| matches!(e,
+        ZoneEvent::SkillCastStarted { caster, .. } if caster.entity == player)));
+    assert_eq!(
+        AppliedTickRecord::from_applied(ZoneId(1), &applied).encode(),
+        AppliedTickRecord::from_applied(ZoneId(1), &replay.run_tick(draft).unwrap()).encode()
+    );
+    // A refused command does not remain at the head of a replayed or live command stream.
+    let next = zone.run_tick(zone.draft(vec![])).unwrap();
+    assert!(next.dispositions.is_empty());
+    assert_eq!(next.tick, applied.tick.next());
+}
+
+#[tokio::test]
+async fn experimental_actor_does_not_hold_unsupported_intents_at_fifo_head() {
+    use nightfall_api::application::zone_actor::{manual_ticks, OpenGate, ZoneActor};
+    let (state, player, npc) = setup();
+    let (ticks, driver) = manual_ticks();
+    let actor = ZoneActor::spawn_gated(state, ticks, OpenGate);
+    let mut output = actor.subscribe();
+    actor
+        .send(ZoneInput::session(
+            player,
+            SessionGeneration(1),
+            1,
+            ZoneCommand::AcceptResurrect {
+                entity: player,
+                offer_id: OfferId(1),
+                accept: true,
+            },
+        ))
+        .unwrap();
+    actor.send(cast(player, npc)).unwrap();
+    driver.step().await.unwrap();
+    let tick = tokio::time::timeout(std::time::Duration::from_secs(3), output.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(tick.commands.len(), 2);
+    assert_eq!(tick.dispositions.len(), 1);
+    assert_eq!(tick.dispositions[0].reason, RejectReason::NotYetImplemented);
+    assert!(tick.events.iter().any(|event| matches!(event,
+        ZoneEvent::SkillCastStarted { caster, .. } if caster.entity == player)));
+    // Idle ticks deliberately suppress broadcasts; the driver acknowledgement proves
+    // progress without requiring an output that the actor never promises to publish.
+    assert_eq!(
+        driver.step().await.unwrap(),
+        nightfall_api::application::zone_actor::TickOutcome::Ran(tick.tick.next())
+    );
+}

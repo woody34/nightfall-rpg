@@ -460,20 +460,6 @@ impl ZoneState {
     }
     #[allow(clippy::too_many_lines)] // Ordered live phase barriers remain visible in one driver.
     fn execute_v5(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
-        // Rollout remains fenced at actor bootstrap. Unimplemented policy combinations fail
-        // before mutation rather than passing through legacy combat as if it were V5.
-        if draft.commands.iter().any(|c| {
-            matches!(
-                c.command,
-                ZoneCommand::Attack { .. }
-                    | ZoneCommand::AddAggro { .. }
-                    | ZoneCommand::AcceptResurrect { .. }
-                    | ZoneCommand::ChangeClass { .. }
-                    | ZoneCommand::Respawn { .. }
-            )
-        }) {
-            return Err(TickError::Phase3NotReady);
-        }
         let tick = draft.tick;
         let before = self.entities.clone();
         let known = self.known.clone();
@@ -629,17 +615,19 @@ impl ZoneState {
                 self.cancel_v5(tick, *entity, *cast_id, CastCancelReason::Stopped, events);
             },
             ZoneCommand::LearnSkill { .. } => self.learn_v5(tick, command, staged, events)?,
+            // Capability refusals belong to this command's recorded disposition. Holding
+            // the whole draft would permanently block an experimental actor's FIFO.
             ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::ChangeClass { .. }
-            | ZoneCommand::Despawn { .. }
+            | ZoneCommand::Attack { .. }
+            | ZoneCommand::Respawn { .. }
+            | ZoneCommand::AddAggro { .. } => return Err(RejectReason::NotYetImplemented),
+            ZoneCommand::Despawn { .. }
             | ZoneCommand::ReplaceSession { .. }
             | ZoneCommand::MoveTo { .. }
             | ZoneCommand::SetTarget { .. }
-            | ZoneCommand::Attack { .. }
             | ZoneCommand::StopAttack { .. }
-            | ZoneCommand::Respawn { .. }
-            | ZoneCommand::StopMove { .. }
-            | ZoneCommand::AddAggro { .. } => {
+            | ZoneCommand::StopMove { .. } => {
                 let applied = self.apply(tick, command)?;
                 events.extend(applied);
                 match command.command {
