@@ -42,7 +42,9 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         ZoneEvent::EntityRespawned { .. } => Some(("respawn", "↥")),
         ZoneEvent::NpcIntentionChanged { .. } => Some(("intention", "◇")),
         ZoneEvent::TargetChanged { .. } => Some(("target", "◎")),
-        ZoneEvent::SkillCastStarted { .. }
+        ZoneEvent::EffectApplied { .. }
+        | ZoneEvent::EffectRemoved { .. }
+        | ZoneEvent::SkillCastStarted { .. }
         | ZoneEvent::SkillCastResult { .. }
         | ZoneEvent::SkillCastCancelled { .. }
         | ZoneEvent::SkillStateSync { .. }
@@ -118,6 +120,8 @@ impl Projection {
                 self.break_path(entity);
             },
             ZoneEvent::ClassChanged { .. }
+            | ZoneEvent::EffectApplied { .. }
+            | ZoneEvent::EffectRemoved { .. }
             | ZoneEvent::SkillCastStarted { .. }
             | ZoneEvent::SkillCastResult { .. }
             | ZoneEvent::SkillCastCancelled { .. }
@@ -210,7 +214,9 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
             "Progression checkpoint: {} · tick {} (private state hidden)",
             delta.entity, delta.tick.0
         ),
-        ZoneEvent::SkillCastStarted { .. }
+        ZoneEvent::EffectApplied { .. }
+        | ZoneEvent::EffectRemoved { .. }
+        | ZoneEvent::SkillCastStarted { .. }
         | ZoneEvent::SkillCastResult { .. }
         | ZoneEvent::SkillCastCancelled { .. }
         | ZoneEvent::SkillStateSync { .. }

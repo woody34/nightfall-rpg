@@ -224,6 +224,10 @@ impl DurableTickGate {
 }
 
 impl TickGate for DurableTickGate {
+    fn max_record_bytes(&self) -> Option<usize> {
+        Some(self.log.max_record_bytes())
+    }
+
     fn durable(&self) -> bool {
         true
     }

@@ -528,7 +528,10 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         gate: G,
         telemetry: Option<Box<dyn TickTelemetry>>,
     ) -> ZoneHandle {
-        let policy = state.phase3_enabled().then(RecordAdmissionPolicy::default);
+        let policy = state
+            .phase3_admission_policy()
+            .copied()
+            .and_then(|policy| RecordAdmissionPolicy::try_from(policy).ok());
         Self::spawn_with_policy(state, ticks, gate, telemetry, policy)
     }
 
@@ -545,6 +548,15 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             .or_else(|| (!gate.durable()).then_some(usize::MAX))
             .ok_or(super::replay_log::AdmissionSizingError::InvalidBudget)?;
         policy.validate(ceiling)?;
+        if state.phase3_enabled()
+            && state
+                .phase3_admission_policy()
+                .copied()
+                .and_then(|p| RecordAdmissionPolicy::try_from(p).ok())
+                != Some(policy)
+        {
+            return Err(super::replay_log::AdmissionSizingError::InvalidBudget);
+        }
         if observer_count(&state) > policy.max_observers {
             return Err(super::replay_log::AdmissionSizingError::InvalidBudget);
         }
@@ -558,12 +570,18 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         telemetry: Option<Box<dyn TickTelemetry>>,
         admission_policy: Option<RecordAdmissionPolicy>,
     ) -> ZoneHandle {
-        let invalid_policy = admission_policy.is_some_and(|policy| {
-            gate.max_record_bytes()
-                .or_else(|| (!gate.durable()).then_some(usize::MAX))
-                .is_none_or(|ceiling| policy.validate(ceiling).is_err())
-                || observer_count(&state) > policy.max_observers
-        });
+        let recorded = state
+            .phase3_admission_policy()
+            .copied()
+            .and_then(|policy| RecordAdmissionPolicy::try_from(policy).ok());
+        let invalid_policy = (state.phase3_enabled()
+            && (recorded.is_none() || admission_policy != recorded))
+            || admission_policy.is_some_and(|policy| {
+                gate.max_record_bytes()
+                    .or_else(|| (!gate.durable()).then_some(usize::MAX))
+                    .is_none_or(|ceiling| policy.validate(ceiling).is_err())
+                    || observer_count(&state) > policy.max_observers
+            });
         let (admission_failures, _) = broadcast::channel(COMMAND_QUEUE);
         let (cmd_tx, cmd_rx) = mpsc::channel(COMMAND_QUEUE);
         let (snap_tx, snap_rx) = mpsc::channel(8);

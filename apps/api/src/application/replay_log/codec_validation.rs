@@ -10,6 +10,7 @@ pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
                 if matches!(
                     key.as_str(),
                     "phase3"
+                        | "phase3_admission_policy"
                         | "active_effects"
                         | "pending_cast"
                         | "cp_damage"
@@ -343,7 +344,7 @@ fn phase3_field(node: &str, tag: u32) -> Option<(u64, Option<&'static str>, bool
         ("PbCommand", 17) => (2, Some("PbCancelCast"), false),
         ("PbCommand", 18) => (2, Some("PbAcceptResurrect"), false),
         ("PbCommand", 19) => (2, Some("PbLearnSkill"), false),
-        ("PbOutput", 20 | 21 | 22 | 25 | 29 | 31)
+        ("PbOutput", 20 | 21 | 22 | 23 | 24 | 25 | 29 | 31)
         | ("PbCastSkill", 1 | 3)
         | ("PbCancelCast" | "PbAcceptResurrect", 1)
         | ("PbLearnSkill", 1..=3) => (2, None, false),

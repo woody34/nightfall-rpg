@@ -7,6 +7,44 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Recorded pre-draft admission policy (design v3 §3/F2). These fixed-width values
+/// are epoch inputs. The actor additionally proves the exact encoded envelope against
+/// the durable gate ceiling with `validate_record_budget` before accepting any input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct Phase3AdmissionPolicy {
+    pub version: u32,
+    pub record_budget: u64,
+    pub max_command_bytes: u64,
+    pub max_observers: u32,
+}
+impl Phase3AdmissionPolicy {
+    /// Explicit version-one defaults shared with actor admission; never synthesized for
+    /// legacy or missing V5 metadata. The log retains 4096 bytes below its 1-MiB ceiling.
+    #[must_use]
+    pub const fn version_one() -> Self {
+        Self {
+            version: 1,
+            record_budget: 1_044_480,
+            max_command_bytes: 262_144,
+            max_observers: 1_000,
+        }
+    }
+
+    /// Portable structural checks. Exact protobuf framing/recipient feasibility and the
+    /// backend ceiling remain application-layer checks; this module has no codec dependency.
+    #[must_use]
+    pub const fn is_valid(self) -> bool {
+        self.version == 1
+            && self.max_command_bytes > 0
+            && self.max_command_bytes <= 262_144
+            && self.record_budget > self.max_command_bytes
+            && self.record_budget <= u32::MAX as u64
+            && self.max_observers > 0
+    }
+}
+
 /// Immutable Phase 3 policy, separately hashed from historical stat/class registries.
 /// Construction validates every registry capability and policy table; snapshot decoding
 /// performs the same checks without loading any external files.
@@ -286,6 +324,7 @@ impl Phase3Snapshot {
 pub(super) struct Phase3Zone {
     pub(super) canonical: Phase3Snapshot,
     pub(super) schedule: super::state_effects::Phase3Schedule,
+    pub(super) vitals_dirty: std::collections::BTreeSet<super::EntityId>,
 }
 
 impl Phase3Zone {
@@ -296,6 +335,7 @@ impl Phase3Zone {
         Ok(Self {
             canonical,
             schedule,
+            vitals_dirty: std::collections::BTreeSet::new(),
         })
     }
 }
@@ -350,6 +390,7 @@ mod tests {
                     candidate.meta.digest_version = digest;
                     if !phase3 {
                         candidate.phase3 = None;
+                        candidate.meta.phase3_admission_policy = None;
                     }
                     let accepted = matches!(
                         (schema, digest, phase3),
@@ -400,6 +441,7 @@ mod tests {
         }
         let mut legacy = snapshot;
         legacy.phase3 = None;
+        legacy.meta.phase3_admission_policy = None;
         legacy.meta.schema_version = 8;
         legacy.meta.digest_version = StateDigestVersion::BinaryV4;
         assert_ne!(ZoneState::from_snapshot(legacy).unwrap().state_digest(), zone.state_digest());
@@ -410,6 +452,7 @@ mod tests {
         let zone = state();
         let mut snapshot = zone.snapshot();
         snapshot.phase3 = None;
+        snapshot.meta.phase3_admission_policy = None;
         for schema in 4..=8 {
             snapshot.meta.schema_version = schema;
             snapshot.meta.digest_version = StateDigestVersion::JsonV1;
@@ -419,6 +462,7 @@ mod tests {
                 for path in [
                     vec!["phase3"],
                     vec!["meta", "phase3"],
+                    vec!["meta", "phase3_admission_policy"],
                     vec!["checkpoints", "latest", "phase3"],
                     vec!["spawn_slots", "profile", "phase3"],
                     vec!["entities", "combat", "progression", "phase3"],
@@ -448,5 +492,47 @@ mod tests {
         })]);
         assert_eq!(zone.run_tick(draft), Err(TickError::Phase3NotReady));
         assert_eq!(zone.snapshot(), before);
+    }
+    #[test]
+    fn admission_policy_is_required_validated_and_digest_bound() {
+        let state = state();
+        let snapshot = state.snapshot();
+        assert_eq!(state.phase3_admission_policy(), Some(&Phase3AdmissionPolicy::version_one()));
+        let mut absent = snapshot.clone();
+        absent.meta.phase3_admission_policy = None;
+        assert!(ZoneState::from_snapshot(absent.clone()).is_err());
+        assert!(encode_snapshot(&absent).is_err());
+        for field in 0..4 {
+            let mut bad = snapshot.clone();
+            let policy = bad.meta.phase3_admission_policy.as_mut().unwrap();
+            match field {
+                0 => policy.version = 2,
+                1 => policy.record_budget = policy.max_command_bytes,
+                2 => policy.max_command_bytes = 262_145,
+                _ => policy.max_observers = 0,
+            }
+            assert!(ZoneState::from_snapshot(bad).is_err());
+        }
+        for field in 0..3 {
+            let mut changed = snapshot.clone();
+            let policy = changed.meta.phase3_admission_policy.as_mut().unwrap();
+            match field {
+                0 => policy.record_budget -= 1,
+                1 => policy.max_command_bytes -= 1,
+                _ => policy.max_observers -= 1,
+            }
+            assert_ne!(
+                ZoneState::from_snapshot(changed).unwrap().state_digest(),
+                state.state_digest()
+            );
+        }
+        let mut legacy = snapshot;
+        legacy.phase3 = None;
+        legacy.meta.schema_version = 8;
+        legacy.meta.digest_version = StateDigestVersion::BinaryV4;
+        assert!(
+            ZoneState::from_snapshot(legacy).is_err(),
+            "legacy cannot carry V5 admission inputs"
+        );
     }
 }

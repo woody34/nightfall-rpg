@@ -1244,3 +1244,17 @@ mod tests {
         assert!(serde_json::from_str::<FrozenRatio>("\"2/4\"").is_err());
     }
 }
+
+/// Stable source lifecycle removal causes; replacement allocates a different `EffectId`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum EffectRemoveReason {
+    Expired,
+    Replaced,
+    Overflow,
+    Dispelled,
+    Damage,
+    Death,
+    Transfer,
+}

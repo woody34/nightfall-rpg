@@ -10,7 +10,7 @@ use super::replay_log::{
 };
 use crate::domain::zone::{CommandSource, EntityId, SessionGeneration, ZoneCommand, ZoneInput};
 
-/// Frozen V5 ingress policy. Production remains fenced until this is in epoch metadata.
+/// Checked platform representation of the V5 policy recorded in epoch metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordAdmissionPolicy {
     /// Version of this byte-admission algorithm.
@@ -31,6 +31,23 @@ impl Default for RecordAdmissionPolicy {
             max_command_bytes: 262_144,
             max_observers: 1000,
         }
+    }
+}
+
+impl TryFrom<crate::domain::zone::Phase3AdmissionPolicy> for RecordAdmissionPolicy {
+    type Error = AdmissionSizingError;
+
+    fn try_from(policy: crate::domain::zone::Phase3AdmissionPolicy) -> Result<Self, Self::Error> {
+        let invalid = |_| AdmissionSizingError::InvalidBudget;
+        if !policy.is_valid() {
+            return Err(AdmissionSizingError::InvalidBudget);
+        }
+        Ok(Self {
+            version: policy.version,
+            record_budget: usize::try_from(policy.record_budget).map_err(invalid)?,
+            max_command_bytes: usize::try_from(policy.max_command_bytes).map_err(invalid)?,
+            max_observers: usize::try_from(policy.max_observers).map_err(invalid)?,
+        })
     }
 }
 
