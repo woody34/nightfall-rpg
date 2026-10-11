@@ -17,9 +17,11 @@ import tomllib
 import xml.etree.ElementTree as ET
 
 try:
+    import gen_npc_phase3
     import gen_classes as legacy
     from skill_oracle import binary_nearest, format_fraction
 except ModuleNotFoundError:  # unittest/package imports from the repository root
+    from packages.data.scripts import gen_npc_phase3
     from packages.data.scripts import gen_classes as legacy
     from packages.data.scripts.skill_oracle import binary_nearest, format_fraction
 
@@ -244,14 +246,15 @@ def phase3_constants(game: Path) -> str:
 
 def generate(dp_root: Path, game: Path) -> tuple[dict[str, str], str]:
     dp = legacy.Datapack(dp_root)
-    admit(dp_root, legacy.DATAPACK_REVISION, [NPC, WEAPON])
-    admit(game, GAME_REV, [GAME_SRC, "src/main/resources/config/character.properties"])
+    admit(dp_root, legacy.DATAPACK_REVISION, [NPC, WEAPON, gen_npc_phase3.HIT_XML])
+    admit(game, GAME_REV, [GAME_SRC, "src/main/resources/config/character.properties", gen_npc_phase3.NPC_CONFIG])
     classes, _ = legacy.collect_classes_and_growth(dp)
     defaults = game_defaults(game)
     files = {f"classes-phase3/{c['key']}.toml": class_profile(c, dp_root, defaults)
              for c in classes.values()}
     files['tables-phase3/starter_weapon.toml'] = weapon_profile(dp_root, game)
     files['tables-phase3/constants.toml'] = phase3_constants(game)
+    files.update(gen_npc_phase3.generate(game, dp_root, source))
     # TOML round-trip admission before writing anything.
     for content in files.values():
         tomllib.loads(content)

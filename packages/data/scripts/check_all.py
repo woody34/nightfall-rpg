@@ -67,6 +67,7 @@ def main() -> int:
         ("skill_oracle.py", []),
         ("skill_oracle.py", ["--class-phase3"]),
         ("starter_weapon_oracle.py", []),
+        ("npc_phase3/skill_oracle.py", []),
         ("oracle.py", []),
     ]
     failures = []

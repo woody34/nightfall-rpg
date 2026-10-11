@@ -1,0 +1,4664 @@
+{
+  "schema": 1,
+  "source_revisions": {
+    "l2j_game": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+    "l2j_datapack": "3ca488dd2bd0bfaca43e378886a3c2e37968153a"
+  },
+  "inputs_sha256": {
+    "scripts/npc_phase3/skill_oracle.py": "2f7f99dda5e04a0199d452232d1686605a290ecbd27c95b7c679e08693f0e3b5",
+    "scripts/skill_oracle.py": "99d2ecab8d729fa66698e826eb3aa12a3fe067cd5169da62ac3852c25dee45ad",
+    "tables-phase3/hit_condition_bonus.toml": "3230dfeec2a9f862da3e0ab78355395918ef2bb469e0cdede0ec340e1dd7eb53",
+    "tables-phase3/npc_level_penalty.toml": "7a4c59e1c06e1131b2f02f0d94c262070f8543c99b2ecc08da0a155df69594be"
+  },
+  "formulas": {
+    "calcPhysDam_npcLevelPenalty": [
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 86,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 86,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 85,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 85,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 84,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 84,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 83,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "3/5",
+        "multiplier_q": 600000,
+        "exact_rational": "3003/5",
+        "whole_damage": 600,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 83,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "13/20",
+        "multiplier_q": 650000,
+        "exact_rational": "13013/20",
+        "whole_damage": 650,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 82,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "3/5",
+        "multiplier_q": 600000,
+        "exact_rational": "3003/5",
+        "whole_damage": 600,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 82,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "3/5",
+        "multiplier_q": 600000,
+        "exact_rational": "3003/5",
+        "whole_damage": 600,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 81,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 3,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 81,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 3,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 4,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 4,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 79,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 5,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 79,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 5,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 78,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 6,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 78,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 6,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 77,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 7,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 77,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 7,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 8,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 8,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 9,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 9,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 74,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 10,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 74,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 10,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 73,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 11,
+        "exact_multiplier": "11/20",
+        "multiplier_q": 550000,
+        "exact_rational": "11011/20",
+        "whole_damage": 550,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 73,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 11,
+        "exact_multiplier": "29/50",
+        "multiplier_q": 580000,
+        "exact_rational": "29029/50",
+        "whole_damage": 580,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 77,
+          "acting_player_level": 70,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 77,
+          "acting_player_level": 70,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "3/5",
+        "multiplier_q": 600000,
+        "exact_rational": "3003/5",
+        "whole_damage": 600,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "13/20",
+        "multiplier_q": 650000,
+        "exact_rational": "13013/20",
+        "whole_damage": 650,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "3/5",
+        "multiplier_q": 600000,
+        "exact_rational": "3003/5",
+        "whole_damage": 600,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "3/5",
+        "multiplier_q": 600000,
+        "exact_rational": "3003/5",
+        "whole_damage": 600,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": false,
+          "is_l2attackable": false,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": false,
+          "is_l2attackable": false,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": true,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": true,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": true,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": true,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": false,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": false,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:713-731",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      }
+    ],
+    "calcSkillPhysDam_npcLevelPenalty": [
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 86,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 86,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 85,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 85,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 84,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 84,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 83,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "21/50",
+        "multiplier_q": 420000,
+        "exact_rational": "21021/50",
+        "whole_damage": 420,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 83,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "91/200",
+        "multiplier_q": 455000,
+        "exact_rational": "91091/200",
+        "whole_damage": 455,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 82,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "39/100",
+        "multiplier_q": 390000,
+        "exact_rational": "39039/100",
+        "whole_damage": 390,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 82,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "39/100",
+        "multiplier_q": 390000,
+        "exact_rational": "39039/100",
+        "whole_damage": 390,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 81,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 3,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 81,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 3,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 4,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 4,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 79,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 5,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 79,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 5,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 78,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 6,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 78,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 6,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 77,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 7,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 77,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 7,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 8,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 8,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 9,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 9,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 74,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 10,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 74,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 10,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 73,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 11,
+        "exact_multiplier": "341/1000",
+        "multiplier_q": 341000,
+        "exact_rational": "341341/1000",
+        "whole_damage": 341,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 73,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 11,
+        "exact_multiplier": "899/2500",
+        "multiplier_q": 359600,
+        "exact_rational": "899899/2500",
+        "whole_damage": 359,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 77,
+          "acting_player_level": 70,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 77,
+          "acting_player_level": 70,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "21/50",
+        "multiplier_q": 420000,
+        "exact_rational": "21021/50",
+        "whole_damage": 420,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "91/200",
+        "multiplier_q": 455000,
+        "exact_rational": "91091/200",
+        "whole_damage": 455,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "39/100",
+        "multiplier_q": 390000,
+        "exact_rational": "39039/100",
+        "whole_damage": 390,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "39/100",
+        "multiplier_q": 390000,
+        "exact_rational": "39039/100",
+        "whole_damage": 390,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": false,
+          "is_l2attackable": false,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": false,
+          "is_l2attackable": false,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": true,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": true,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": true,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": true,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": false,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": false,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:776-800",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      }
+    ],
+    "calcMagicDam_npcLevelPenalty": [
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 86,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 86,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 85,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 85,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 84,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 84,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 83,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "7/10",
+        "multiplier_q": 700000,
+        "exact_rational": "7007/10",
+        "whole_damage": 700,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 83,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "7/10",
+        "multiplier_q": 700000,
+        "exact_rational": "7007/10",
+        "whole_damage": 700,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 82,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "13/20",
+        "multiplier_q": 650000,
+        "exact_rational": "13013/20",
+        "whole_damage": 650,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 82,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "13/20",
+        "multiplier_q": 650000,
+        "exact_rational": "13013/20",
+        "whole_damage": 650,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 81,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 3,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 81,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 3,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 4,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 4,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 79,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 5,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 79,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 5,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 78,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 6,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 78,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 6,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 77,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 7,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 77,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 7,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 8,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 8,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 9,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 9,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 74,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 10,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 74,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 10,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 73,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 11,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 73,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 11,
+        "exact_multiplier": "31/50",
+        "multiplier_q": 620000,
+        "exact_rational": "31031/50",
+        "whole_damage": 620,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 77,
+          "acting_player_level": 70,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 77,
+          "acting_player_level": 70,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "7/10",
+        "multiplier_q": 700000,
+        "exact_rational": "7007/10",
+        "whole_damage": 700,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "7/10",
+        "multiplier_q": 700000,
+        "exact_rational": "7007/10",
+        "whole_damage": 700,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "13/20",
+        "multiplier_q": 650000,
+        "exact_rational": "13013/20",
+        "whole_damage": 650,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "13/20",
+        "multiplier_q": 650000,
+        "exact_rational": "13013/20",
+        "whole_damage": 650,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": false,
+          "is_l2attackable": false,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": false,
+          "is_l2attackable": false,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": true,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": true,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": true,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": true,
+          "has_acting_player": true,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": false,
+          "rolls": [],
+          "critical": false,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": false,
+          "rolls": [],
+          "critical": true,
+          "incoming_damage": 1001
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:887-898",
+          "config/npc.properties:54,61-63"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1001",
+        "whole_damage": 1001,
+        "rounding_rule": "Exact penalty-stage Fraction; whole truncation evidence only. No earlier-stage rounding or Java binary64 equivalence claim."
+      }
+    ],
+    "calcMagicSuccess_npcChancePenalty": [
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 86,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 85,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 84,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 83,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 82,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 96
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "3",
+        "multiplier_q": 3000000,
+        "exact_rational": "3",
+        "success_rate": 97,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 81,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 96
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 2,
+        "exact_multiplier": "13/4",
+        "multiplier_q": 3250000,
+        "exact_rational": "13/4",
+        "success_rate": 97,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 95
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 3,
+        "exact_multiplier": "7/2",
+        "multiplier_q": 3500000,
+        "exact_rational": "7/2",
+        "success_rate": 96,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 79,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 95
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 4,
+        "exact_multiplier": "7/2",
+        "multiplier_q": 3500000,
+        "exact_rational": "7/2",
+        "success_rate": 96,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 78,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 95
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 5,
+        "exact_multiplier": "7/2",
+        "multiplier_q": 3500000,
+        "exact_rational": "7/2",
+        "success_rate": 96,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 77,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 95
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 6,
+        "exact_multiplier": "7/2",
+        "multiplier_q": 3500000,
+        "exact_rational": "7/2",
+        "success_rate": 96,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 95
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 7,
+        "exact_multiplier": "7/2",
+        "multiplier_q": 3500000,
+        "exact_rational": "7/2",
+        "success_rate": 96,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 95
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 8,
+        "exact_multiplier": "7/2",
+        "multiplier_q": 3500000,
+        "exact_rational": "7/2",
+        "success_rate": 96,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 74,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 95
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 9,
+        "exact_multiplier": "7/2",
+        "multiplier_q": 3500000,
+        "exact_rational": "7/2",
+        "success_rate": 96,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 73,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 95
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 10,
+        "exact_multiplier": "7/2",
+        "multiplier_q": 3500000,
+        "exact_rational": "7/2",
+        "success_rate": 96,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 77,
+          "acting_player_level": 70,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 77,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 76,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 78,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 78,
+          "acting_player_level": 75,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 78,
+          "resist_modifier": "1",
+          "roll": 96
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": true,
+        "lookup_index": 1,
+        "exact_multiplier": "3",
+        "multiplier_q": 3000000,
+        "exact_rational": "3",
+        "success_rate": 97,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": false,
+          "is_l2attackable": false,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": true,
+          "is_raid_minion": false,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": true,
+          "has_acting_player": true,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      },
+      {
+        "inputs": {
+          "target_level": 85,
+          "acting_player_level": 80,
+          "is_attackable": true,
+          "is_l2attackable": true,
+          "is_raid": false,
+          "is_raid_minion": false,
+          "has_acting_player": false,
+          "rolls": [],
+          "skill_magic_level": 85,
+          "resist_modifier": "1",
+          "roll": 98
+        },
+        "source_lines": [
+          "model/stats/Formulas.java:1286-1314",
+          "config/npc.properties:54,70,74"
+        ],
+        "eligible": false,
+        "lookup_index": -1,
+        "exact_multiplier": "1",
+        "multiplier_q": 1000000,
+        "exact_rational": "1",
+        "success_rate": 99,
+        "lands_below_rate": true,
+        "lands_at_rate": false,
+        "rounding_rule": "Math.round binary32 failure subtrahend; Rnd.get(100) < rate. magicLvl isolates targetModifier; separate magic threshold unused."
+      }
+    ],
+    "getConditionBonus": [
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": false,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "97/100",
+        "multiplier_q": 970000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": false,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "97/100",
+        "multiplier_q": 970000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": false,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "51/50",
+        "multiplier_q": 1020000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": false,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "51/50",
+        "multiplier_q": 1020000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": false,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "107/100",
+        "multiplier_q": 1070000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": false,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "107/100",
+        "multiplier_q": 1070000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": true,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "87/100",
+        "multiplier_q": 870000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": true,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "87/100",
+        "multiplier_q": 870000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": true,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "23/25",
+        "multiplier_q": 920000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": true,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "23/25",
+        "multiplier_q": 920000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": true,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "97/100",
+        "multiplier_q": 970000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -51,
+          "night": true,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "97/100",
+        "multiplier_q": 970000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": false,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": false,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": false,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "21/20",
+        "multiplier_q": 1050000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": false,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "21/20",
+        "multiplier_q": 1050000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": false,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "11/10",
+        "multiplier_q": 1100000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": false,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "11/10",
+        "multiplier_q": 1100000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": true,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "9/10",
+        "multiplier_q": 900000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": true,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "9/10",
+        "multiplier_q": 900000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": true,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "19/20",
+        "multiplier_q": 950000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": true,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "19/20",
+        "multiplier_q": 950000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": true,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": -50,
+          "night": true,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": false,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": false,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": false,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "21/20",
+        "multiplier_q": 1050000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": false,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "21/20",
+        "multiplier_q": 1050000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": false,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "11/10",
+        "multiplier_q": 1100000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": false,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "11/10",
+        "multiplier_q": 1100000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": true,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "9/10",
+        "multiplier_q": 900000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": true,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "9/10",
+        "multiplier_q": 900000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": true,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "19/20",
+        "multiplier_q": 950000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": true,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "19/20",
+        "multiplier_q": 950000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": true,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 0,
+          "night": true,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": false,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": false,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": false,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "21/20",
+        "multiplier_q": 1050000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": false,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "21/20",
+        "multiplier_q": 1050000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": false,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "11/10",
+        "multiplier_q": 1100000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": false,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "11/10",
+        "multiplier_q": 1100000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": true,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "9/10",
+        "multiplier_q": 900000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": true,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "9/10",
+        "multiplier_q": 900000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": true,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "19/20",
+        "multiplier_q": 950000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": true,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "19/20",
+        "multiplier_q": 950000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": true,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 50,
+          "night": true,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "1",
+        "multiplier_q": 1000000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": false,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "103/100",
+        "multiplier_q": 1030000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": false,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "103/100",
+        "multiplier_q": 1030000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": false,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "27/25",
+        "multiplier_q": 1080000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": false,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "27/25",
+        "multiplier_q": 1080000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": false,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "113/100",
+        "multiplier_q": 1130000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": false,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "113/100",
+        "multiplier_q": 1130000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": true,
+          "position": "front",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "93/100",
+        "multiplier_q": 930000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": true,
+          "position": "front",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "93/100",
+        "multiplier_q": 930000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": true,
+          "position": "side",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "49/50",
+        "multiplier_q": 980000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": true,
+          "position": "side",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "49/50",
+        "multiplier_q": 980000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": true,
+          "position": "back",
+          "rain": false
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "103/100",
+        "multiplier_q": 1030000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      },
+      {
+        "inputs": {
+          "z_difference": 51,
+          "night": true,
+          "position": "back",
+          "rain": true
+        },
+        "source_lines": [
+          "data/xml/impl/HitConditionBonusData.java:92-118",
+          "stats/hitConditionBonus.xml:3-9"
+        ],
+        "exact_rational": "103/100",
+        "multiplier_q": 1030000,
+        "rounding_rule": "Exact percentage sum divided by 100, lower bound zero; rain ignored by source."
+      }
+    ]
+  },
+  "vector_set_sha256": "d5c8db0de47bd9caf3d804a6fc76a69703ce39ea86393120b4d75373a51bdccf"
+}
