@@ -2,14 +2,14 @@
 """Fail-closed C11 gates over verified C14 export JSON Lines.
 
 Every sim unit exports its own recording; raw facts never carry acceptance flags.
-Absent transitions and live inputs outside independent oracle vectors fail closed.
+Absent transitions and unsupported independent oracle inputs fail closed.
 """
 import argparse
 from fractions import Fraction
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
-from math import isqrt
 import shlex
 import subprocess
 import sys
@@ -18,6 +18,10 @@ import xml.etree.ElementTree as ET
 
 SCRIPTS = Path(__file__).resolve().parent
 REPO = SCRIPTS.parents[2]
+ORACLE_SPEC = importlib.util.spec_from_file_location(
+    'phase3_skill_oracle', REPO / 'packages/data/scripts/skill_oracle.py')
+oracle = importlib.util.module_from_spec(ORACLE_SPEC)
+ORACLE_SPEC.loader.exec_module(oracle)
 FACTS = frozenset(('regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle',
     'moving_regen_matches_oracle', 'death_record_matches_fixture',
     'death_record_matches_before_disconnect', 'restore_did_not_reapply_hooks',
@@ -227,31 +231,18 @@ def requirements(path):
 
 
 def fold(initial, functions, stat):
-    # Calculator.java:110,117; StatFunction.java:24 and FuncTemplate.java:48.
-    # D-R12 stores Q between Funcs. Unsupported conditional/builtin folds refuse.
+    modifiers = []
     for function in functions:
         if function['key']['stat'] != stat:
             continue
         if function['conditions']:
-            raise ValueError('independent conditional modifier vector required')
+            raise ValueError('unsupported independent conditional modifier inputs')
         operation = function['operation']
         if len(operation) != 1:
             raise ValueError('one modifier operation required')
         kind, value = next(iter(operation.items()))
-        if kind == 'Set':
-            initial = ratio(value) / 1_000_000
-        elif kind == 'Add':
-            initial += ratio(value) / 1_000_000
-        elif kind == 'Sub':
-            initial -= ratio(value) / 1_000_000
-        elif kind in ('Mul', 'Product'):
-            initial *= ratio(value) / (1_000_000 if kind == 'Mul' else 1)
-        elif kind == 'Div':
-            initial /= ratio(value) / 1_000_000
-        else:
-            raise ValueError(f'independent modifier vector required for {kind}')
-        initial = Fraction(rounded(initial * 1_000_000), 1_000_000)
-    return initial
+        modifiers.append((kind, ratio(value) / (1 if kind == 'Product' else 1_000_000)))
+    return oracle.fold_stat(initial, modifiers)
 
 
 def regen(row, manifest, facts):
@@ -263,21 +254,22 @@ def regen(row, manifest, facts):
     rules = data['rules']
     result = {'fractions': {}}
     amounts = {}
-    for resource, stat in (('hp', 'hpRegen'), ('mp', 'mpRegen'), ('cp', 'cpRegen')):
+    for resource, stat in (('hp', 'regHp'), ('mp', 'regMp'), ('cp', 'regCp')):
         if resource == 'cp' and not inputs['player']:
             amounts['cp_q'], result['cp'], result['cp_granted'] = 0, None, 0
             result['fractions']['cp'] = 0
             continue
         # Formulas.java:263-351,357-442,442-450; min-before-Funcs, then config/posture.
-        initial = ratio(inputs['base_' + resource])
-        if inputs['player']:
-            initial *= ratio(inputs['level_mod']) * ratio(inputs['men_bonus' if resource == 'mp' else 'con_bonus'])
-        initial = max(ratio(rules['rules']['min_initial_regen']), initial)
+        initial = oracle.calc_regen_initial(
+            ratio(inputs['base_' + resource]),
+            ratio(inputs['level_mod']) if inputs['player'] else Fraction(1),
+            ratio(inputs['men_bonus' if resource == 'mp' else 'con_bonus']) if inputs['player'] else Fraction(1),
+            ratio(rules['rules']['min_initial_regen']))
         initial = Fraction(int(initial * 1_000_000), 1_000_000)
         credit = fold(initial, data['functions'], stat)
-        credit *= ratio(rules['character_multipliers'][resource + '_regen_multiplier'])
-        if inputs['player']:
-            credit *= ratio(rules['movement_multipliers'][inputs['posture'].lower()])
+        credit = oracle.calc_regen_credit(
+            credit, ratio(rules['character_multipliers'][resource + '_regen_multiplier']),
+            ratio(rules['movement_multipliers'][inputs['posture'].lower()]) if inputs['player'] else Fraction(1))
         amount = int(credit * 1_000_000)
         amounts[resource + '_q'] = integer(amount)
         if resource == 'cp':
@@ -322,6 +314,24 @@ def death(row, manifest, facts):
     same(data['after']['death_penalty_level'], penalty)
 
 
+def preceding_mutation(row, facts, death_record=False):
+    # Admission itself is a reconstruction, never the mutation it must preserve.
+    prior_admissions = [r for r in facts if r['entity'] == row['entity']
+                        and r['kind'] == 'admission_reconstruction' and r['sequence'] < row['sequence']]
+    start = prior_admissions[-1]['sequence'] if prior_admissions else -1
+    before = [r for r in facts if start < r['sequence'] < row['sequence'] and r['tick'] < row['tick']]
+    if death_record:
+        candidates = [r for r in before if r['entity'] == row['entity'] and r['kind'] == 'death_record'
+                      and r['data']['after'] is not None]
+    else:
+        applications = {effect_id for r in before if r['kind'] == 'formula_resolution'
+                        for outcome in r['data']['outcomes'] if outcome['target']['entity'] == row['entity']
+                        for effect_id in outcome['applied_effect_ids']}
+        candidates = [r for r in before if r['entity'] == row['entity'] and r['kind'] == 'modifier_reconstruction'
+                      and applications.intersection(map(int, r['data']['after']['phase3']['effects']['entries']))]
+    return candidates[-1] if candidates else None
+
+
 def admission_death(row, manifest, facts):
     data, after = row['data'], row['data']['after']
     checkpoint = data['load']['phase3']
@@ -332,13 +342,11 @@ def admission_death(row, manifest, facts):
     same(after['phase3']['player']['last_death'], retained | {'incarnation': incarnation})
     same(after['phase3']['player']['death_penalty_level'], checkpoint['death_penalty_level'])
     # A checkpoint supplied by admission alone cannot attest before-disconnect equality.
-    before = [r for r in facts if r['entity'] == row['entity'] and r['sequence'] < row['sequence']
-              and r['kind'] == 'death_record' and r['data']['after'] is not None]
-    if not before:
+    before = preceding_mutation(row, facts, True)
+    if before is None:
         raise ValueError('missing recorded death before disconnect')
-    same(before[-1]['data']['after']['last_death'], retained)
-    if incarnation <= retained['incarnation']:
-        raise ValueError('new admission incarnation required')
+    same(before['data']['after']['last_death'], retained)
+    same(before['data']['after']['death_penalty_level'], checkpoint['death_penalty_level'])
 
 
 def reconstruction(row, manifest, facts):
@@ -349,6 +357,20 @@ def reconstruction(row, manifest, facts):
     retained = checkpoint['effect_remainders']
     if not retained:
         raise ValueError('nonempty retained timed effect required')
+    before = preceding_mutation(row, facts)
+    if before is None:
+        raise ValueError('missing recorded effect before disconnect')
+    previous = before['data']['after']
+    original = sorted(previous['phase3']['effects']['entries'].values(), key=lambda e: (e['applied_at'], e['id']))
+    for retained_effect in retained:
+        matches = [e for e in original if all(e[key] == retained_effect[key]
+                   for key in ('skill', 'source', 'pool', 'abnormal_type', 'abnormal_level', 'flags'))]
+        if len(matches) != 1:
+            raise ValueError('retained effect not bound to unique preceding mutation')
+        old = matches[0]
+        if retained_effect['remaining_ticks'] > old['expires_at'] - before['tick']:
+            raise ValueError('retained duration increased before disconnect')
+        same([h['xml_ordinal'] for h in old['handlers']], [h['xml_ordinal'] for h in retained_effect['handlers']])
     live = sorted(sidecar['effects']['entries'].values(), key=lambda e: (e['applied_at'], e['id']))
     same(len(live), len(retained))
     for old, new in zip(retained, live):
@@ -513,35 +535,35 @@ def hate(row, manifest, facts):
         chosen = selected['current_target'] if selected['current_target'] in tied else tied[0]
         binding(selected['most_hated'])
         same(selected['most_hated']['entity'], chosen)
-def normalized(value):
-    if type(value) is bool or value is None:
-        return value
-    if type(value) is int:
-        return 'ratio:' + str(ratio(value))
-    if isinstance(value, str):
-        try:
-            return 'ratio:' + str(ratio(value))
-        except ValueError:
-            return value
-    if isinstance(value, dict):
-        return {key: normalized(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [normalized(item) for item in value]
-    raise ValueError('non-exact oracle input')
 
 
-def vector(formula, inputs):
-    # Search locally by COMPLETE independently derived inputs, never producer indices.
-    path = REPO / 'packages/data/fixtures/skill-oracle.json'
-    oracle = json.loads(path.read_text(), parse_float=no_float, parse_constant=no_float)
-    matched = [v for v in oracle['formulas'][formula] if normalized(v['inputs']) == normalized(inputs)]
-    if not matched:
-        raise ValueError(f'unsupported independent oracle inputs for {formula}')
-    first = matched[0]
-    for candidate in matched[1:]:
-        for key in ('q_result', 'rounded_result', 'ticks_result'):
-            same(candidate.get(key), first.get(key))
-    return first
+def one_draw(draws, callsite, bound):
+    selected = [d for d in draws if d['callsite'] == callsite]
+    if len(selected) != 1:
+        raise ValueError('unique ' + callsite + ' draw required')
+    same(selected[0]['bound'], bound)
+    value = integer(selected[0]['value'])
+    if value >= bound:
+        raise ValueError('draw outside exclusive bound')
+    return value
+
+
+def exact_root(actual, offset, coefficient, radicand):
+    # Compare exact algebra, including perfect-square roots and alternate scaling.
+    if isinstance(actual, dict):
+        same(sorted(actual), ['coefficient', 'offset', 'radicand'])
+        same(str(ratio(actual['offset'])), str(offset))
+        if ratio(actual['radicand']) < 0:
+            raise ValueError('negative exact root radicand')
+        other = ratio(actual['coefficient'])
+        if (other < 0) != (coefficient < 0):
+            raise ValueError('root coefficient sign mismatch')
+        same(str(other**2 * ratio(actual['radicand'])), str(coefficient**2 * radicand))
+    else:
+        difference = ratio(actual) - offset
+        if (difference < 0) != (coefficient < 0):
+            raise ValueError('root coefficient sign mismatch')
+        same(str(difference**2), str(coefficient**2 * radicand))
 
 
 def resolution_for(row, facts):
@@ -570,14 +592,18 @@ def damage(row, manifest, facts):
     skill = inputs['skill']
     same(skill, manifest['phase3_rules']['skills']['skills'][str(data['skill_id'])])
     caster, target = inputs['caster']['effective'], inputs['target']['effective']
-    if any(f['key']['install_sequence'] != 0 for c in (caster, target) for f in c['calculator']):
-        raise ValueError('unsupported independent oracle inputs: retained damage modifiers')
+    supported = {'pAtk', 'pDef', 'mAtk', 'mDef', 'mAtkSpd', 'rEvas', 'runSpd',
+                 'regHp', 'regMp', 'regCp', 'magicSuccRes'}
+    changed = {f['key']['stat'] for c in (caster, target) for f in c['calculator']
+               if f['key']['install_sequence'] != 0}
+    if changed - supported:
+        raise ValueError('unsupported independent damage modifiers')
     outcomes = [o for o in resolution['outcomes'] if o['target'] == data['target'] and o['resolution_kind'] in ('magical', 'physical')]
     if len(outcomes) != 1:
         raise ValueError('independent multi-handler damage vector required')
     outcome = outcomes[0]
     same(outcome['rolled'], data['rolled_damage'])
-    # Vectors include no runtime spread/extra Funcs. Never discard them to find a match.
+    # Formulas.java:867-898: use the recipient's recorded branch draws and spread.
     draws = resolution['rng_draws']
     spread = [d for d in draws if d['callsite'] == 'Spread']
     if len(spread) != 1:
@@ -585,28 +611,68 @@ def damage(row, manifest, facts):
     radius = integer(caster['physical']['random_damage'])
     same(spread[0]['bound'], radius * 2 + 1)
     multiplier = Fraction(100 + spread[0]['value'] - radius, 100)
-    if multiplier != 1:
-        raise ValueError('unsupported independent oracle inputs: non-neutral damage spread')
+    handlers = [h for h in skill['effects'] if h['name'] in ('MagicalAttack', 'MagicalAttackRange', 'PhysicalAttack')]
+    if len(handlers) != 1:
+        raise ValueError('independent single damage handler required')
+    powers = handlers[0]['params']['power']
+    power = powers[data['rank']-1] if isinstance(powers, list) else powers
+    same(str(ratio(data['power'])), str(ratio(power)))
+    # Unsupported high-level NPC penalties are refused rather than treated as neutral.
+    target_level = target['physical']['level']
+    caster_level = caster['physical']['level']
+    minimum = ratio(manifest['phase3_rules']['npc']['penalty']['config']['MinNPCLevelForDmgPenalty']['values'][0])
+    if inputs['caster']['phase3']['player'] is not None and inputs['target']['phase3']['player'] is None and target_level >= minimum and target_level - caster_level >= 2:
+        raise ValueError('unsupported independent high-level NPC penalty inputs')
     if data['formula'] == 'calcMagicDam':
         same(data['m_atk_q'], caster['m_atk_q'])
         same(data['m_def_q'], target['m_def_q'])
         same(str(ratio(data['spread'])), str(multiplier))
-        source = {'power': ratio(data['power']), 'm_atk': Fraction(data['m_atk_q'], 1_000_000),
-                  'm_def': Fraction(data['m_def_q'], 1_000_000),
-                  'is_pvp': inputs['caster']['phase3']['player'] is not None and inputs['target']['phase3']['player'] is not None,
-                  'mcrit': data['critical'], 'magic_failure': data['resolution'] != 'Success',
-                  'second_success': data['resolution'] == 'Half',
-                  'lvl_diff': data['magic_level_difference'], 'attribute_bonus': '1'}
-        # ExactRatio values are converted to fraction strings for input comparison.
-        source = {k: str(v) if isinstance(v, Fraction) else v for k, v in source.items()}
+        magic_level = skill['magic_level'][data['rank']-1]
+        difference = target_level - (magic_level if magic_level > 0 else caster_level)
+        same(data['magic_level_difference'], difference)
+        resistance = fold(Fraction(1), target['calculator'], 'magicSuccRes')
+        rate = oracle.calc_magic_success(difference, resistance)
+        same(data['magic_success_rate'], rate)
+        critical = one_draw(draws, 'MagicCritical', 1000) < caster['magic_crit']
+        same(data['critical'], critical)
+        success = one_draw(draws, 'MagicSuccess', 100) < rate
+        failure_draws = [d for d in draws if d['callsite'] == 'MagicFailure']
+        player = inputs['caster']['phase3']['player'] is not None
+        if not success and player:
+            second = one_draw(draws, 'MagicFailure', 100) < rate
+        else:
+            if failure_draws:
+                raise ValueError('unexpected second magic success draw')
+            second = False
+        branch = 'Success' if success else ('Half' if player and second and target_level - caster_level <= 9 else 'Resist')
+        same(data['resolution'], branch)
+        is_pvp = player and inputs['target']['phase3']['player'] is not None
+        lo, hi = oracle.calc_magic_damage_bounds(
+            ratio(data['power']), Fraction(data['m_atk_q'], 1_000_000),
+            Fraction(data['m_def_q'], 1_000_000), is_pvp, critical, not success,
+            branch == 'Half', target_level - caster_level, spread=multiplier)
+        if branch == 'Resist':
+            offset, coefficient, radicand = multiplier, Fraction(0), Fraction(0)
+        else:
+            coefficient = Fraction(91) * ratio(data['power']) / Fraction(data['m_def_q'], 1_000_000) * multiplier
+            coefficient *= Fraction(1, 2) if branch == 'Half' else (Fraction(5, 2) if critical and is_pvp else 3 if critical else 1)
+            offset, radicand = Fraction(0), Fraction(data['m_atk_q'], 1_000_000)
+        exact_root(data['exact_damage'], offset, coefficient, radicand)
+        if oracle.floor(lo) != oracle.floor(hi):
+            raise ValueError('ambiguous independent damage rounding')
+        expected = oracle.floor(lo)
     else:
         same(data['p_atk_q'], caster['physical']['p_atk'])
         same(data['p_def_q'], target['physical']['p_def'])
-        source = {'power': str(ratio(data['power'])), 'p_atk': str(Fraction(data['p_atk_q'], 1_000_000)),
-                  'defence': str(Fraction(data['p_def_q'], 1_000_000)), 'proximity': 'front',
-                  'soulshot': False, 'crit': data['critical']}
-    independent = vector(data['formula'], source)
-    same(data['rolled_damage'], independent['rounded_result'])
+        if any(t['attack_providers'] or t['defence_providers'] or t['immunity_providers']
+               for c in (caster, target) for t in c['traits'].values()):
+            raise ValueError('unsupported independent physical trait inputs')
+        expected_exact = oracle.calc_skill_phys_damage(
+            ratio(data['power']), Fraction(data['p_atk_q'], 1_000_000),
+            Fraction(data['p_def_q'], 1_000_000), crit=data['critical'], spread=multiplier)
+        same(str(ratio(data['exact_damage'])), str(expected_exact))
+        expected = oracle.floor(expected_exact)
+    same(data['rolled_damage'], expected)
 
 
 def effect(row, manifest, facts):
@@ -614,6 +680,8 @@ def effect(row, manifest, facts):
     resolution = resolution_for(row, facts)
     skill = resolution['inputs']['skill']
     same(skill, manifest['phase3_rules']['skills']['skills'][str(data['skill_id'])])
+    inputs = resolution['inputs']
+    caster, target = inputs['caster']['effective'], inputs['target']['effective']
     success = data['chance_evaluation']
     if success is None:
         if skill['activate_rate'] != -1 and skill['basic_property'] != 'NONE':
@@ -623,6 +691,15 @@ def effect(row, manifest, facts):
             raise ValueError('unconditional effect consumed success draw')
     else:
         src = success['inputs']
+        same(src['magic_level'], skill['magic_level'][data['rank']-1])
+        same(src['target_level'], target['physical']['level'])
+        same(src['activate_rate'], skill['activate_rate'])
+        same(src['level_bonus_rate'], skill['level_bonus_rate'])
+        same(src['is_magic'], skill['is_magic'] == 1)
+        for key in ('min_chance', 'max_chance'):
+            same(src[key], skill[key])
+        same(str(ratio(src['magic_attack'])), str(Fraction(caster['m_atk_q'], 1_000_000)))
+        same(str(ratio(src['magic_defence'])), str(Fraction(target['m_def_q'], 1_000_000)))
         projected = {'magic_level': src['magic_level'], 'target_level': src['target_level'],
                      'activate_rate': src['activate_rate'], 'lvl_bonus_rate': src['level_bonus_rate'],
                      'target_base_stat': src['target_base_stat'], 'basic_property': skill['basic_property'],
@@ -630,28 +707,37 @@ def effect(row, manifest, facts):
                      'trait_mod': src['trait_modifier'], 'element_mod': src['element_modifier'],
                      'buff_debuff_mod': src['buff_debuff_modifier'], 'min_chance': src['min_chance'],
                      'max_chance': src['max_chance']}
-        independent = vector('calcEffectSuccess', projected)
-        chance = success['chance']
-        if isinstance(chance, dict):
-            radicand = ratio(chance['radicand'])
-            numerator, denominator = isqrt(radicand.numerator), isqrt(radicand.denominator)
-            if numerator*numerator != radicand.numerator or denominator*denominator != radicand.denominator:
-                raise ValueError('unsupported independent irrational chance vector')
-            chance = ratio(chance['offset']) + ratio(chance['coefficient']) * Fraction(numerator, denominator)
-        chance = chance if isinstance(chance, Fraction) else ratio(chance)
-        same(str(chance), str(ratio(independent['exact_rational'])))
-        rolls = [d for d in data['rng_draws'] if d['callsite'] == 'EffectSuccess']
-        if len(rolls) != 1:
-            raise ValueError('one conditional effect success draw required')
-        same(data['landed'], ratio(independent['exact_rational']) > rolls[0]['value'])
+        lo, hi = oracle.calc_effect_success_bounds(**projected)
+        src_level = projected['target_level'] + 3 if projected['magic_level'] <= -1 else projected['magic_level']
+        coefficient = ratio((src_level - projected['target_level'] + 3) * projected['lvl_bonus_rate']
+                            + projected['activate_rate'] + 30 - projected['target_base_stat'])
+        coefficient *= ratio(projected['trait_mod']) * ratio(projected['element_mod']) * ratio(projected['buff_debuff_mod'])
+        radicand = Fraction(1)
+        if projected['is_magic']:
+            coefficient *= Fraction(11) / ratio(projected['m_def'])
+            radicand = ratio(projected['m_atk'])
+        if lo == hi:
+            exact_root(success['chance'], lo, Fraction(0), Fraction(0))
+        else:
+            exact_root(success['chance'], Fraction(0), coefficient, radicand)
+        roll = one_draw(data['rng_draws'], 'EffectSuccess', 100)
+        if (lo > roll) != (hi > roll):
+            raise ValueError('ambiguous independent effect chance comparison')
+        same(data['landed'], lo > roll)
     src = data['duration_inputs']
+    same(src['base_seconds'], skill['abnormal']['time_s'][data['rank']-1])
+    same(src['is_debuff'], skill['abnormal']['is_debuff'])
+    same(src['magic_level'], skill['magic_level'][data['rank']-1])
+    same(src['caster_level'], caster['physical']['level'])
+    same(src['target_level'], target['physical']['level'])
+    same(src['level_bonus_rate'], skill['level_bonus_rate'])
     projected = {'abnormal_time': src['base_seconds'], 'is_debuff': src['is_debuff'],
                  'magic_level': src['magic_level'], 'attacker_level': src['caster_level'],
                  'target_level': src['target_level'], 'lvl_bonus_rate': src['level_bonus_rate'],
                  'stat_bonus': src['stat_bonus'], 'trait_mod': src['trait_modifier'],
                  'element_mod': src['element_modifier']}
-    independent = vector('effect_duration', projected)
-    same(data['duration_seconds'] * 10, independent['ticks_result'])
+    seconds = oracle.ceil(oracle.calc_effect_duration(**projected))
+    same(data['duration_seconds'], seconds)
     same(resolution['continuous'], [data['landed'], data['duration_seconds']])
 
 
@@ -670,21 +756,24 @@ def stats(row, manifest, facts):
                     and r['data']['after']['phase3']['effects']['entries'])
     changed = {f['key']['stat'] for c in contexts for f in c['effective']['calculator']
                if f['key']['install_sequence'] != 0}
-    unsupported = changed - {'mAtk', 'mDef', 'mAtkSpd', 'rEvas'}
+    unsupported = changed - {'mAtk', 'mDef', 'mAtkSpd', 'rEvas', 'pAtk', 'pDef'}
     if unsupported:
-        raise ValueError('unsupported independent affected-stat vectors: ' + ','.join(sorted(unsupported)))
+        raise ValueError('unsupported independent affected stats: ' + ','.join(sorted(unsupported)))
     weapon = manifest['phase3_rules']['profiles']['starter_weapon']['functions']
     sets = [w for w in weapon if w['stat'] == 'mAtk' and w['operation'] == 'SET']
     if len(sets) != 1:
         raise ValueError('independent weapon MAtk baseline required')
-    # Independent base vectors precede the retained Func fold; never trust supplied Product.
+    # Independent source formulas precede the retained Func fold; never trust supplied Product.
     for formula, stat, source, actual in (
         ('FuncMAtkMod', 'mAtk', {'init_val': sets[0]['value'], 'level': level, 'int_stat': base_stats['int']}, effective['m_atk_q']),
         ('FuncMDefMod', 'mDef', {'value': magical['base_m_def'], 'level': level, 'men_stat': base_stats['men']}, effective['m_def_q']),
         ('FuncMAtkSpeed', 'mAtkSpd', {'init_val': magical['base_m_atk_speed'], 'wit_stat': base_stats['wit'],
-         'max_m_atk_speed': manifest['phase3_rules']['constants']['MaxMAtkSpeed']}, effective['cast_speed'])):
-        independent = vector(formula, source)
-        initial = Fraction(independent['q_result'], 1_000_000)
+         'max_m_atk_speed': manifest['phase3_rules']['constants']['MaxMAtkSpeed']['value']}, effective['cast_speed'])):
+        value = source.get('init_val', source.get('value'))
+        stat_value = source.get('int_stat', source.get('men_stat', source.get('wit_stat')))
+        exact = oracle.calc_stat_base(formula, ratio(value), level, stat_value,
+                                      source.get('max_m_atk_speed'))
+        initial = Fraction(oracle.rounded(exact * 1_000_000), 1_000_000)
         extras = [f for f in effective['calculator'] if f['key']['stat'] == stat and f['key']['install_sequence'] != 0]
         derived = fold(initial, extras, stat)
         expected = (int(min(derived, source['max_m_atk_speed'])) if formula == 'FuncMAtkSpeed'
@@ -692,9 +781,22 @@ def stats(row, manifest, facts):
         same(actual, expected)
     if any(f['key']['stat'] == 'rEvas' and f['key']['install_sequence'] != 0 for f in effective['calculator']):
         raise ValueError('independent modified evasion vector required')
-    independent = vector('FuncAtkEvasion', {'level': level, 'dex': base_stats['dex'], 'is_player': True,
-                                          'modifier': {'op': 'none', 'val': '0'}})
-    same(effective['physical']['evasion'], independent['rounded_result']['evasion_with_intermediate_cast'] * 1_000_000)
+    independent = oracle.calc_evasion_base(level, base_stats['dex'])
+    same(effective['physical']['evasion'], independent * 1_000_000)
+    # FuncPAtkMod.java:43-44; FuncPDefMod.java:45-70; weapon SET precedes builtin.
+    atk_sets = [w for w in weapon if w['stat'] == 'pAtk' and w['operation'] == 'SET']
+    if len(atk_sets) != 1:
+        raise ValueError('independent weapon PAtk baseline required')
+    physical_profile = next((p for p in manifest['rules']['classes'] if p['id'] == role['class']), None)
+    if physical_profile is None:
+        raise ValueError('independent physical class profile required')
+    for formula, stat, value, actual in (
+        ('FuncPAtk', 'pAtk', atk_sets[0]['value'], effective['physical']['p_atk']),
+        ('FuncPDef', 'pDef', Fraction(physical_profile['p_def_unarmoured'], 1_000_000), effective['physical']['p_def'])):
+        exact = oracle.calc_stat_base(formula, value if isinstance(value, Fraction) else ratio(value), level, base_stats['str'])
+        initial = Fraction(oracle.rounded(exact * 1_000_000), 1_000_000)
+        extras = [f for f in effective['calculator'] if f['key']['stat'] == stat and f['key']['install_sequence'] != 0]
+        same(actual, oracle.rounded(fold(initial, extras, stat) * 1_000_000))
 
 
 def evaluate(rows, recording, entity, gates):
@@ -715,7 +817,9 @@ def evaluate(rows, recording, entity, gates):
             matched = [r for r in owner if r['kind'] == 'death_record' and r['data']['after'] is not None]
             check = death
         elif kind in ('death_record_matches_before_disconnect', 'restore_did_not_reapply_hooks'):
-            matched = [r for r in owner if r['kind'] == 'admission_reconstruction' and r['data']['load'] is not None]
+            matched = [r for r in owner if r['kind'] == 'admission_reconstruction'
+                       and r['data']['load'] is not None
+                       and preceding_mutation(r, facts, kind.startswith('death_')) is not None]
             check = admission_death if kind.startswith('death_') else reconstruction
         elif kind == 'resurrect_refund_matches_oracle':
             matched = [r for r in owner if r['kind'] == 'resurrection_refund']
@@ -734,7 +838,8 @@ def evaluate(rows, recording, entity, gates):
                 if row['kind'] != 'modifier_reconstruction':
                     continue
                 active = set(row['data']['after']['phase3']['effects']['entries'])
-                if (args[0] == 'active' and active) or (args[0] == 'removed' and previous_effects - active):
+                admission_tick = any(r['kind'] == 'admission_reconstruction' and r['tick'] == row['tick'] for r in owner)
+                if not admission_tick and ((args[0] == 'active' and active) or (args[0] == 'removed' and previous_effects - active)):
                     matched.append(row)
                 previous_effects = active
             check = stats
