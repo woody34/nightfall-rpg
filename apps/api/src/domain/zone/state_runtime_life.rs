@@ -110,6 +110,13 @@ impl ZoneState {
                 .as_mut()
                 .ok_or_else(missing)?
                 .resurrect_offer = Some(offer.clone());
+            if self.evidence.is_some() {
+                self.evidence_fact("resurrection_offer", target.entity, serde_json::json!({
+                    "offer": offer, "wit_bonus": wit, "skill": skill,
+                    "definition": rules.skills().get(skill.id),
+                    "death": self.sidecar(target.entity)?.player.as_ref().and_then(|p| p.last_death.as_ref())
+                }));
+            }
             events.push(offer_event(
                 tick,
                 target.entity,
@@ -245,6 +252,14 @@ impl ZoneState {
             if let Some(note) = candidate.progress.get_mut(&entity) {
                 note.respawned = true;
             }
+        }
+        if candidate.evidence.is_some() {
+            candidate.evidence_fact("resurrection_refund", entity, serde_json::json!({
+                "offer": mutation.offer, "accepted": accept, "xp_before": xp,
+                "xp_after": mutation.xp_after, "expected_xp_refund": mutation.xp_restored,
+                "incarnation_after": mutation.incarnation,
+                "after": candidate.sidecar(entity).map_err(|_| RejectReason::InvalidLoad)?.player
+            }));
         }
         *self = candidate;
         Ok(events)
@@ -382,6 +397,11 @@ impl ZoneState {
         } else {
             None
         };
+        let penalty_before = self
+            .sidecar(target.entity)?
+            .player
+            .as_ref()
+            .map(|p| p.death_penalty_level);
         self.cancel_v5(tick, target.entity, None, CastCancelReason::CasterDied, events);
         let death = prepare_death(
             self.sidecar(target.entity)?,
@@ -401,6 +421,15 @@ impl ZoneState {
             .canonical
             .next_install_sequence = death.next_install_sequence;
         *self.sidecar_mut(target.entity)? = death.phase3;
+        if self.evidence.is_some() {
+            self.evidence_fact("death_record", target.entity, serde_json::json!({
+                "incarnation": target.incarnation, "pre_death_xp": pre_death_xp,
+                "loss": xp_lost, "level": c.sheet.level(), "killer": request.source,
+                "inside_peace": context.inside_peace, "victim_classification": victim_pvp.map(|v| format!("{v:?}")),
+                "penalty_before": penalty_before, "penalty_roll": roll,
+                "after": self.sidecar(target.entity)?.player
+            }));
+        }
         for old in death.removed_effects {
             events.push(ZoneEvent::EffectRemoved {
                 tick,

@@ -9,7 +9,7 @@ use super::skill_math::{evasion_builtin, ExactRatio, RootExpression};
 use super::{StatError, Q};
 
 /// Stable key across passive and timed sources. Sequence zero is reserved for builtins.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 #[allow(missing_docs)]
 pub struct FunctionKey {
     pub stat: String,
@@ -20,7 +20,7 @@ pub struct FunctionKey {
 }
 
 /// Reconstructed operation; integer casts inside builtins are distinct from getter casts.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum FunctionOp {
     /// Source SET (priority zero unless overridden).
     Set(i64),
@@ -95,7 +95,7 @@ impl FunctionOp {
 }
 
 /// Declarative function. Hook-owned function ordinal zero precedes XML functions 1..n.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[allow(missing_docs)]
 pub struct StatFunction {
     pub key: FunctionKey,
@@ -150,6 +150,11 @@ impl FunctionConditions<'_> {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StatCalculator {
     functions: BTreeMap<FunctionKey, StatFunction>,
+}
+impl serde::Serialize for StatCalculator {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.functions.values())
+    }
 }
 impl StatCalculator {
     /// Restore all declarative functions, preserving exact priority and insertion order.

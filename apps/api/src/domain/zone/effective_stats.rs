@@ -264,7 +264,7 @@ impl NpcStatInputs {
 
 /// Derived trait state; counts distinguish no provider from a neutral-valued provider.
 /// Defence immunity is independent of a multiplicative provider (DefenceTrait.java:81-91).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[allow(missing_docs)]
 pub struct EffectiveTrait {
     pub attack: ExactRatio,
@@ -287,7 +287,7 @@ impl Default for EffectiveTrait {
 
 /// Rebuildable cache. No member is separately serialized or hashed as authority; the
 /// physical projection is compared with CombatState.sheet when restoring live snapshots.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[allow(missing_docs)]
 pub struct EffectiveStats {
     pub physical: StatSheet,

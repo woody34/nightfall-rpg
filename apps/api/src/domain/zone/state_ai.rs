@@ -551,7 +551,8 @@ impl ZoneState {
         self.set_intention(tick, npc, Intention::ReturnHome, events);
         self.disengage(tick, npc, SwingCancel::TargetLost, events);
         if let Some(ledger) = self.hate.remove(&npc) {
-            for (target, _) in ledger.iter() {
+            for (target, row) in ledger.iter() {
+                self.evidence_hate_removal(npc, target, row, "return_home");
                 events.push(ZoneEvent::HateChanged {
                     tick,
                     npc,
