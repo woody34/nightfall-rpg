@@ -2457,7 +2457,7 @@ fn schema_three_coverage_counts_live_lifecycles_once_and_verifies_the_suffix() {
     assert_eq!(count(&report, "effect_states", "Absent", "Active"), 1);
     assert_eq!(count(&report, "effect_states", "Active", "Removed"), 1);
     // A validly encoded event mutation is still rejected before coverage is emitted.
-    let mut bad = rec;
+    let mut bad = rec.clone();
     let first = bad.records.first_mut().unwrap();
     let mut facts = nightfall_api::application::replay_log::decode_events(&first.events).unwrap();
     let started = facts
@@ -2474,4 +2474,8 @@ fn schema_three_coverage_counts_live_lifecycles_once_and_verifies_the_suffix() {
     bytes[0] ^= 1;
     first.events = bytes.into();
     assert!(cover(&digests).unwrap_err().contains("divergence"));
+    // Explicit offline generator only; ordinary tests never rewrite a committed fixture.
+    if let Some(path) = std::env::var_os("NIGHTFALL_V5_RECORDING_OUT") {
+        rec.write(std::path::Path::new(&path)).unwrap();
+    }
 }

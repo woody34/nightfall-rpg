@@ -1601,3 +1601,45 @@ async fn live_capture_refuses_gaps() {
         .unwrap_err();
     assert!(error.to_string().contains("invalid live prefix"));
 }
+
+#[tokio::test]
+async fn v5_cast_fixture_replays_encoded_and_digest_only_and_refuses_changed_facts() {
+    use nightfall_api::application::replay_log::{decode_events, encode_events};
+    use nightfall_api::domain::zone::StateDigestVersion;
+    let rec = Recording::read(&fixture_path().with_file_name("phase3-casts-v5.nfr")).unwrap();
+    assert_eq!(rec.snapshot.meta.schema_version, 9);
+    assert!(rec.snapshot.phase3.is_some());
+    assert!(rec
+        .records
+        .iter()
+        .all(|r| r.digest_version == StateDigestVersion::BinaryV5));
+    replay(rec.clone()).await.unwrap();
+    let mut digests = rec.clone();
+    digests.records = digests
+        .records
+        .iter()
+        .map(nightfall_api::application::replay_log::AppliedTickRecord::with_output_digests)
+        .collect();
+    replay(digests).await.unwrap();
+    let mut altered = rec;
+    let record = altered
+        .records
+        .iter_mut()
+        .find(|record| {
+            decode_events(&record.events)
+                .unwrap()
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::SkillCastStarted { .. }))
+        })
+        .unwrap();
+    let mut facts = decode_events(&record.events).unwrap();
+    let event = facts
+        .iter_mut()
+        .find(|e| matches!(e, ZoneEvent::SkillCastStarted { .. }))
+        .unwrap();
+    if let ZoneEvent::SkillCastStarted { complete_at, .. } = event {
+        *complete_at = complete_at.next();
+    }
+    record.events = encode_events(&facts);
+    assert!(matches!(replay(altered).await, Err(VerifyError::Diverged(_))));
+}
