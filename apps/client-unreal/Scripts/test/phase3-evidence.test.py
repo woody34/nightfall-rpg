@@ -85,7 +85,15 @@ class ReplayEvidence(unittest.TestCase):
         for epoch in (1, 2, 3):
             recording = self.generated / f'late-{epoch}.nfr'
             rows = evidence.read_jsonl(self.generated / f'late-{epoch}.jsonl')
-            self.assertTrue(self.check('late_entry_hp_continuity keltir_durable', observer, rows, recording)['passed'])
+            result = self.check('late_entry_hp_continuity keltir_durable', observer, rows, recording)
+            baseline = next(r for r in rows if r.get('sequence') == result['gates'][0]['sequences'][0])
+            # All three retain exact HP/life continuity. Epoch1 starts on entry;
+            # only epochs2/3 prove receipt of a swing already in flight.
+            evidence.late_entry_hp(baseline, rows[0], rows[1:-1], 'keltir_durable')
+            self.assertEqual(result['passed'], epoch != 1)
+            if epoch == 1:
+                self.assertEqual(len(result['gates'][0]['errors']), 1)
+                self.assertTrue(result['gates'][0]['errors'][0].endswith('swing did not start before re-entry'))
             if epoch == 3:
                 pulses = {(r['entity'], r['tick']) for r in rows if r['kind'] == 'regen_pulse'}
                 baselines = [r for r in rows if r['kind'] == 'observer_combat' and r['entity'] == observer
@@ -117,7 +125,84 @@ class ReplayEvidence(unittest.TestCase):
                                 event['combat']['hp'] = event['combat']['max_hp']
                         if category == 'hit' and event['type'] == 'attack_result':
                             event['target_hp_after'] += 1
-                self.assertFalse(self.check('late_entry_hp_continuity keltir_durable', observer, altered, recording)['passed'], category)
+                corrupted = self.check('late_entry_hp_continuity keltir_durable', observer, altered, recording)
+                self.assertFalse(corrupted['passed'], category)
+                self.assertNotEqual(corrupted['gates'][0]['errors'], result['gates'][0]['errors'], category)
+
+    def test_late_entry_requires_received_original_swing_after_all_identities(self):
+        observer = '00000000-0000-0000-0000-0000000003e5'
+        for epoch in (1, 2, 3):
+            recording = self.generated / f'late-{epoch}.nfr'
+            rows = evidence.read_jsonl(self.generated / f'late-{epoch}.jsonl')
+            altered = copy.deepcopy(rows)
+            for row in altered:
+                if row['kind'] == 'observer_combat' and row['entity'] == observer:
+                    row['data']['events'] = [e for e in row['data']['events'] if e['type'] != 'attack_started']
+            result = self.check('late_entry_hp_continuity keltir_durable', observer, altered, recording)
+            self.assertFalse(result['passed'])
+            self.assertTrue(result['gates'][0]['errors'][0].endswith('missing or duplicate re-entry swing hydration'))
+            if epoch == 1:
+                continue
+            positive = self.check('late_entry_hp_continuity keltir_durable', observer, rows, recording)
+            self.assertTrue(positive['passed'])
+            sequence = positive['gates'][0]['sequences'][0]
+            for category in ('missing', 'duplicate', 'ordinary', 'baseline_tick', 'start',
+                             'start_at_entry', 'impact', 'impact_at_entry', 'ready', 'attacker_life',
+                             'target_life', 'hidden_target', 'unknown_target', 'other_npc',
+                             'before_attacker_identity', 'before_last_identity', 'other_tick',
+                             'other_observer', 'initial_entry_only', 'identity_target_life', 'native_swing'):
+                with self.subTest(epoch=epoch, category=category):
+                    altered = copy.deepcopy(rows)
+                    row = next(r for r in altered if r.get('sequence') == sequence)
+                    events = row['data']['events']
+                    event = next(e for e in events if e['type'] == 'attack_started' and e['phase3']['baseline'] is not None)
+                    if category == 'missing':
+                        events.remove(event)
+                    elif category == 'duplicate':
+                        events.append(copy.deepcopy(event))
+                    elif category == 'ordinary':
+                        event['phase3']['baseline'] = None
+                    elif category == 'baseline_tick':
+                        event['phase3']['baseline'] -= 1
+                    elif category in ('start', 'impact', 'ready'):
+                        event['tick' if category == 'start' else category] += 1
+                    elif category == 'start_at_entry':
+                        event['tick'] = row['tick']
+                    elif category == 'impact_at_entry':
+                        event['impact'] = row['tick']
+                    elif category == 'attacker_life':
+                        event['phase3']['attacker_incarnation'] += 1
+                    elif category == 'target_life':
+                        event['target_incarnation'] += 1
+                    elif category == 'hidden_target':
+                        event['phase3']['target_visible'] = False
+                    elif category == 'unknown_target':
+                        event['target'] = FIRST
+                    elif category == 'other_npc':
+                        event['attacker'] = next(e['entity'] for e in events if e['type'] == 'entity_spawn' and e['combat']['template'] == 'keltir_static')
+                    elif category.startswith('before_'):
+                        if category == 'before_attacker_identity':
+                            events.remove(event)
+                            index = next(i for i, e in enumerate(events) if e['type'] == 'entity_spawn' and e['entity'] == event['attacker'])
+                            events.insert(index, event)
+                        else:
+                            identity = next(e for e in events if e['type'] == 'entity_spawn' and e['combat']['template'] == 'keltir_static')
+                            events.remove(identity)
+                            events.append(identity)  # Attacker known, identity batch still incomplete.
+                    elif category in ('other_tick', 'other_observer', 'initial_entry_only'):
+                        events.remove(event)
+                        destination = next(r for r in altered if r['kind'] == 'observer_combat'
+                                           and (r['tick'] == row['tick'] and r['entity'] != observer if category == 'other_observer'
+                                                else r['entity'] == observer and (r['tick'] == 1 if category == 'initial_entry_only' else r['tick'] > row['tick'])))
+                        destination['data']['events'].append(event)
+                    elif category == 'identity_target_life':
+                        next(e for e in events if e['type'] == 'entity_spawn' and e['entity'] == event['target'])['combat']['incarnation'] += 1
+                    elif category == 'native_swing':
+                        next(r for r in altered if r['kind'] == 'auto_attack_resolution' and r['entity'] == event['attacker']
+                             and r['tick'] == event['impact'])['data']['inputs']['swing']['start'] += 1
+                    result = self.check('late_entry_hp_continuity keltir_durable', observer, altered, recording)
+                    self.assertFalse(result['passed'])
+                    self.assertEqual(result['gates'][0]['sequences'], [sequence])
 
     def test_actual_export_is_deterministic_and_all_categories_are_retained(self):
         second = self.root / 'second.jsonl'

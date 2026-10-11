@@ -75,7 +75,15 @@ def verify(recording, raw, observer):
     gates = [{'kind': 'late_entry_hp_continuity', 'args': ['keltir_durable'], 'line': 1}]
     rows = evidence.read_jsonl(raw)
     result = evidence.evaluate(rows, recording, observer, gates)
-    if not result['passed']:
+    # Offline fixture regression only: phase3_fixture_overlays.rs:944-948 offsets
+    # epoch1's re-entry onto the NPC's start tick; epochs2/3 enter an older swing.
+    # Keep that same-tick start as a required NEGATIVE, never live gate acceptance.
+    expected_negative = rows[0]['epoch'] == 1
+    errors = result['gates'][0]['errors']
+    if expected_negative:
+        if result['passed'] or len(errors) != 1 or not errors[0].endswith('swing did not start before re-entry'):
+            raise ValueError('epoch1 must fail only the pre-entry swing requirement', result)
+    elif not result['passed']:
         raise ValueError(result)
     # Negative control: a forged wounded spawn must fail the same actual-input gate.
     altered = copy.deepcopy(rows)
@@ -85,7 +93,8 @@ def verify(recording, raw, observer):
         for event in row['data']['events']:
             if event['type'] == 'entity_spawn' and event['combat']['hp'] < event['combat']['max_hp'] and not event['combat']['dead']:
                 event['combat']['hp'] -= 1
-    if evidence.evaluate(altered, recording, observer, gates)['passed']:
+    corrupted = evidence.evaluate(altered, recording, observer, gates)
+    if corrupted['passed'] or corrupted['gates'][0]['errors'] == errors:
         raise ValueError('corrupted baseline accepted')
     return result
 

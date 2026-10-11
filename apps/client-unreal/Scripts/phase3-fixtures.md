@@ -298,6 +298,27 @@ brief, but the added impact/initial-resource/causal predicates and oracle/death/
 retention/AI assertions remain handoffs. Integrate and reconcile the final client
 M3 commit before running scenarios; unsupported names must continue to fail parsing.
 
+Late-entry swing coverage (triage review #4): `late_entry_hp_continuity
+keltir_durable` requires both the existing exact wounded-HP/regen/first-hit check
+and a received `AttackStarted` for that durable NPC in its same-life AOI re-entry
+batch. Hydration must follow **all** identity spawns, carry the batch's baseline
+tick, bind visible matching attacker/target incarnations, and preserve the native
+start/impact/ready ticks with `start < baseline < impact <= ready`. The native
+`auto_attack_resolution.inputs.swing` supplies the independent timing/life join
+(`apps/api/src/domain/zone/state_runtime_observe.rs:185-199`,
+`apps/api/src/domain/zone/state_combat.rs:1036-1060`). Ordinary starts, initial
+admission, unrelated NPCs or another observer's receipt cannot substitute.
+
+The offline fixture regression's phase offsets
+(`apps/api/tests/phase3_fixture_overlays.rs:944-948`) put epoch1's start on the
+entry tick: its HP check still passes, but the combined live gate **fails**.
+`late-entry-v5-oracle.py` verifies that expected negative explicitly; its returned
+report retains `passed:false`. Epochs2/3 are native positives for the combined
+gate. `Scripts/test/phase3-evidence.test.py` removes all observer AttackStarted
+carriers in every epoch and requires failure, then corrupts each timing/baseline,
+life, visibility, identity-batch order and native join from passing epochs.
+These are offline replay regressions; live packaged acceptance needs a rerun.
+
 Observer correlation correction: canonical A/B both wait for `cast_result_for`
 Wind Strike1177, then `cast_terminal_once_for` on the same received identity.
 A remains admitted until B's post-result Might1068 self-buff is received. The

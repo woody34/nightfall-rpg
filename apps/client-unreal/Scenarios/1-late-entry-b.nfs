@@ -33,6 +33,9 @@ nf.WaitFor late_spawn_projection_ok >= 1 3   # the projection shows the wounded 
 nf.Expect late_spawn_projection_bad == 0
 # The replay gate proves exact first-hit continuity including regeneration BEFORE an impact
 # on the same tick (the wire emits final VitalsChanged, not that intermediate HP).
+# It also REQUIRES the durable NPC's baseline AttackStarted after all identity spawns,
+# with matching lives and native start < re-entry < impact, preserving impact/ready ticks
+# (C2/design-review-2 finding1; state_runtime_observe.rs:185-199).
 nf.Mark
 nf.WaitFor target_hits_since_mark >= 1 15
 nf.Expect target_wounded

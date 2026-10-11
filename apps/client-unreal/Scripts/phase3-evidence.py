@@ -844,7 +844,66 @@ def karma_decay(row, manifest, facts):
         raise ValueError('karma credit must join one actual NPC death')
 
 
-def late_entry_continuity(row, manifest, facts, template):
+def late_entry_swing(row, facts, template):
+    """Require a received pre-entry swing, after the complete identity batch.
+
+    C2/design-review-2 finding 1: state_runtime_observe.rs:185-199 preserves
+    the original swing times; auto_attack_resolution.inputs is the native join.
+    """
+    events = row['data']['events']
+    last_identity = max(i for i, e in enumerate(events) if e['type'] == 'entity_spawn')
+    known = {}
+    for prior in facts:
+        if prior['sequence'] > row['sequence']:
+            break
+        if prior['kind'] != 'observer_combat' or prior['entity'] != row['entity']:
+            continue
+        for event in prior['data']['events']:
+            if event['type'] == 'entity_despawn':
+                known.pop(event['entity'], None)
+            elif event['type'] == 'entity_spawn':
+                known[event['entity']] = event['combat']['incarnation']
+    for spawn in events:
+        if spawn['type'] != 'entity_spawn' or spawn['kind'] != 'npc' or spawn['combat']['template'] != template:
+            continue
+        same(spawn['combat']['swing'], None)
+        hydrated = [(i, e) for i, e in enumerate(events) if e['type'] == 'attack_started'
+                    and e['attacker'] == spawn['entity'] and e['phase3'] is not None
+                    and e['phase3']['baseline'] is not None]
+        if len(hydrated) != 1:
+            raise ValueError('missing or duplicate re-entry swing hydration')
+        index, event = hydrated[0]
+        if index <= last_identity:
+            raise ValueError('swing hydration precedes the complete identity batch')
+        same(event['phase3']['baseline'], row['tick'])
+        same(event['phase3']['target_visible'], True)
+        same(event['phase3']['attacker_incarnation'], spawn['combat']['incarnation'])
+        same(known[event['attacker']], event['phase3']['attacker_incarnation'])
+        same(known[event['target']], event['target_incarnation'])
+        start, impact, ready = (integer(event[k]) for k in ('tick', 'impact', 'ready'))
+        if start >= row['tick']:
+            raise ValueError('swing did not start before re-entry')
+        if not row['tick'] < impact <= ready:
+            raise ValueError('re-entry swing is not pending impact')
+        resolutions = [r for r in facts if r['kind'] == 'auto_attack_resolution'
+                       and r['entity'] == event['attacker'] and r['tick'] == impact]
+        if len(resolutions) != 1:
+            raise ValueError('hydrated swing has no unique native resolution')
+        inputs = resolutions[0]['data']['inputs']
+        source = inputs['source']['entity']
+        same(source['id'], event['attacker'])
+        same(source['combat']['incarnation'], event['phase3']['attacker_incarnation'])
+        same(inputs['swing'], {'start': start, 'impact': impact, 'ready': ready,
+                              'target': event['target'], 'target_incarnation': event['target_incarnation']})
+        target = inputs['target']
+        if target is None:
+            raise ValueError('hydrated swing target missing at native impact')
+        target = target.get('entity', target)
+        same(target['id'], event['target'])
+        same(target['combat']['incarnation'], event['target_incarnation'])
+
+
+def late_entry_hp(row, manifest, facts, template):
     """Exact first delivered hit after every wounded NPC identity baseline.
 
     C11: same-tick regen precedes impacts; only final vitals reach the client.
@@ -905,6 +964,11 @@ def late_entry_continuity(row, manifest, facts, template):
             raise ValueError('wounded baseline has no subsequent delivered hit')
     if not matched:
         raise ValueError('no wounded NPC baseline with a continued hit')
+
+
+def late_entry_continuity(row, manifest, facts, template):
+    late_entry_hp(row, manifest, facts, template)
+    late_entry_swing(row, facts, template)
 
 
 def evaluate(rows, recording, entity, gates):
