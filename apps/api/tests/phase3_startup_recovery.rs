@@ -1,4 +1,4 @@
-//! Prepared V5 startup and crash recovery against owned PostgreSQL and `JetStream`.
+//! Normal V5 startup and crash recovery against owned PostgreSQL and `JetStream`.
 //! Dependencies are required: these acceptance tests never count a self-skip as a pass.
 #![allow(missing_docs, clippy::unwrap_used, clippy::expect_used)]
 mod common;
@@ -40,6 +40,7 @@ use std::{
 use uuid::Uuid;
 
 struct Fixture {
+    nats_url: String,
     cfg: ZoneRuntimeConfig,
     pool: sqlx::PgPool,
     repo: Arc<PgCharacterRepository>,
@@ -89,6 +90,7 @@ async fn fixture() -> Fixture {
     );
     let store = Arc::new(PgZoneSnapshotStore::new(db.clone()));
     Fixture {
+        nats_url: url,
         cfg,
         pool,
         repo,
@@ -100,38 +102,12 @@ async fn fixture() -> Fixture {
     }
 }
 
-// Explicit immutable construction uses the same durable bootstrap/checkpoint/service
-// components as the prepared production composition. The normal switch stays fenced
-// while Z's independent review is unresolved; this helper asserts no production enablement.
-async fn explicit_v5(
+async fn normal_v5(
     f: &Fixture,
     deps: &Dependencies,
 ) -> anyhow::Result<api::application::zone_bootstrap::RunningZone> {
-    let classes = deps.classes.as_ref().unwrap();
-    let bundle = f.cfg.prepare_phase3(classes.clone())?.unwrap();
-    let mut checkpoints = api::application::checkpoint::CheckpointService::new(
-        deps.characters.clone(),
-        deps.audit.clone(),
-        Arc::new(deps.metrics.clone()),
-    )
-    .with_learning(deps.learning.as_ref().unwrap().clone());
-    checkpoints
-        .recover_indexed(f.log.as_ref(), f.store.as_ref(), f.zone)
-        .await?;
-    checkpoints = checkpoints.with_durability(f.log.clone(), f.store.clone());
-    let running = ZoneBootstrap::new(
-        f.log.clone(),
-        Some(f.store.clone()),
-        deps.clock.clone(),
-        Arc::new(deps.metrics.clone()),
-    )
-    .with_rules(bundle.physical)
-    .with_classes(classes.registry.clone(), classes.config_hash.clone())
-    .with_phase3_rules(bundle.phase3)
-    .start(&bundle.zone, api::application::zone_actor::IntervalTicks::new())
-    .await?;
-    running.handle().checkpoints.install(checkpoints);
-    Ok(running)
+    api::zone_runtime::start(&f.cfg, Some(&f.nats_url), Some(connection_from_pool(&f.pool)), deps)
+        .await
 }
 
 async fn baseline(f: &Fixture, epoch: u64) -> api::domain::zone::ZoneSnapshot {
@@ -146,7 +122,7 @@ async fn baseline(f: &Fixture, epoch: u64) -> api::domain::zone::ZoneSnapshot {
 async fn fresh_v5_start_and_restart_publish_matching_pg_nats_baselines_and_normal_rpcs() {
     let f = fixture().await;
     for expected in 1..=2 {
-        let running = explicit_v5(&f, &f.deps).await.unwrap();
+        let running = normal_v5(&f, &f.deps).await.unwrap();
         assert_eq!(running.epoch(), expected);
         let snapshot = baseline(&f, expected).await;
         assert_eq!(snapshot.meta.schema_version, 9);
@@ -213,7 +189,7 @@ async fn unfinished_legacy_epoch_is_verified_durably_closed_then_replaced_by_v5(
     ));
     // Simulate the old process exiting without its graceful shutdown watermark.
     drop(legacy);
-    let running = explicit_v5(&f, &f.deps).await.unwrap();
+    let running = normal_v5(&f, &f.deps).await.unwrap();
     assert_eq!(running.epoch(), 2);
     assert_eq!(baseline(&f, 2).await.meta.schema_version, 9);
     let watermark = match f.log.epoch_status(f.zone, 1).await.unwrap() {
@@ -320,7 +296,7 @@ async fn lost_paid_checkpoint_ack_recovers_once_before_fresh_v5_admission() {
     let mut deps = f.deps.clone();
     deps.characters = fault.clone();
     deps.learning = Some(fault);
-    let failed = explicit_v5(&f, &deps).await.unwrap();
+    let failed = normal_v5(&f, &deps).await.unwrap();
     let registry = SessionRegistry::with_characters(deps.characters.clone());
     let entity = EntityId::from_uuid(c.id.as_uuid());
     registry
@@ -400,7 +376,7 @@ async fn lost_paid_checkpoint_ack_recovers_once_before_fresh_v5_admission() {
         .phase3
         .is_some());
     drop(failed);
-    let recovered = explicit_v5(&f, &f.deps).await.unwrap();
+    let recovered = normal_v5(&f, &f.deps).await.unwrap();
     assert_eq!(recovered.epoch(), 2);
     assert!(matches!(f.log.epoch_status(f.zone, 1).await.unwrap(), EpochStatus::Complete(_)));
     assert_eq!(

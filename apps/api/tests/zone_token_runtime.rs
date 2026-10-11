@@ -120,8 +120,8 @@ async fn persistent_startup_with_real_broker_persists_current_policy_before_retu
     assert_eq!(epoch, 1);
     let row = store.get(zone, epoch).await.unwrap().unwrap();
     let baseline = decode_snapshot(&row.snapshot).unwrap();
-    assert_eq!(baseline.meta.schema_version, 8);
-    assert_eq!(baseline.meta.digest_version, StateDigestVersion::BinaryV4);
+    assert_eq!(baseline.meta.schema_version, 9);
+    assert_eq!(baseline.meta.digest_version, StateDigestVersion::BinaryV5);
     assert!(baseline.classes.is_some());
     assert_eq!(store.unresolved(zone).await.unwrap().len(), 1);
     let client = async_nats::connect(&url).await.unwrap();
@@ -131,7 +131,7 @@ async fn persistent_startup_with_real_broker_persists_current_policy_before_retu
     let recorded = log.read_snapshot(zone, epoch).await.unwrap().unwrap();
     assert_eq!(recorded.snapshot, baseline);
     let live = running.handle().snapshot().await.unwrap();
-    assert_eq!(live.meta.digest_version, StateDigestVersion::BinaryV4);
+    assert_eq!(live.meta.digest_version, StateDigestVersion::BinaryV5);
     running.shutdown(WatermarkReason::Shutdown).await.unwrap();
     assert!(store.unresolved(zone).await.unwrap().is_empty());
     assert!(matches!(log.epoch_status(zone, epoch).await.unwrap(), EpochStatus::Complete(_)));

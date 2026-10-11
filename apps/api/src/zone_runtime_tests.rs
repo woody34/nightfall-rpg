@@ -353,9 +353,9 @@ async fn persistent_database_without_nats_is_refused_before_adapter_or_epoch_wor
 }
 
 #[test]
-fn phase3_switch_retains_production_fence_and_refuses_truthy_values() {
-    assert!(!config(&[]).phase3_requested().unwrap());
-    assert!(!config(&[("AUTH_DEV_TOKENS", "1")])
+fn phase3_switch_defaults_normal_startup_to_v5_and_refuses_truthy_values() {
+    assert!(config(&[]).phase3_requested().unwrap());
+    assert!(config(&[("AUTH_DEV_TOKENS", "1")])
         .phase3_requested()
         .unwrap());
     assert!(!config(&[("PHASE3_ENABLED", "0")])

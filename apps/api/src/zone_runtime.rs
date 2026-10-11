@@ -33,9 +33,9 @@ pub struct ZoneRuntimeConfig {
     pub simulation_fixture: Option<String>,
     /// Simulation fixtures require the same exact `AUTH_DEV_TOKENS=1` opt-in as dev auth.
     pub auth_dev_tokens: bool,
-    /// `PHASE3_ENABLED`: unset/0 retains the legacy production policy while the
-    /// domain-ready review is unresolved. Exact 1 validates V5 inputs then refuses
-    /// before broker/recovery/epoch work. Malformed values refuse startup.
+    /// `PHASE3_ENABLED`: normal startup defaults to the validated V5 bundle. Exact0
+    /// selects legacy new epochs; exact1 explicitly requests V5. Simulation fixtures
+    /// retain legacy policy unless explicitly selected. Malformed values refuse startup.
     pub phase3_enabled: Option<String>,
 }
 
@@ -64,18 +64,17 @@ impl ZoneRuntimeConfig {
 
     fn phase3_requested(&self) -> anyhow::Result<bool> {
         match self.phase3_enabled.as_deref() {
-            None | Some("0") => Ok(false),
+            None => Ok(self.simulation_fixture.is_none()),
+            Some("0") => Ok(false),
             Some("1") => Ok(true),
             Some(_) => anyhow::bail!("PHASE3_ENABLED must be unset, 0 or 1"),
         }
     }
 
-    /// Production refuses activation until the independent domain review is resolved.
-    /// Called before adapter connections as well as before epoch recovery; no environment
-    /// variable or caller-supplied readiness assertion can override the review fence.
+    /// Validates the compiled epoch selection before adapter connections and recovery.
+    /// Full bundle validation remains required whenever V5 is selected.
     pub fn validate_production_selection(&self) -> anyhow::Result<()> {
-        anyhow::ensure!(!self.phase3_requested()?, "PHASE3_ENABLED=1 refused: DOMAIN READY 8c35873 withdrawn pending engine-review-1 fixes");
-        Ok(())
+        self.phase3_requested().map(|_| ())
     }
 
     /// Loads the complete V5 bundle before adapters connect or epochs recover. The
