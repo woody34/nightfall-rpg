@@ -44,6 +44,25 @@ pub enum DomainEvent {
         /// Client mutation UUID.
         request_key: uuid::Uuid,
     },
+    /// A paid skill purchase, committed with the final checkpoint and frozen receipt.
+    CharacterSkillLearned {
+        /// Stable event identity and aggregate order.
+        metadata: EventMetadata,
+        /// Owning character.
+        character_id: CharacterId,
+        /// Purchased skill and exact rank.
+        skill_id: u32,
+        /// Purchased rank.
+        skill_level: u32,
+        /// SP charged by this purchase.
+        sp_spent: u64,
+        /// Final tick SP balance.
+        sp_remaining: u64,
+        /// Deterministic purchase tick.
+        tick: u64,
+        /// Client mutation UUID.
+        request_key: uuid::Uuid,
+    },
     /// A character died.
     CharacterDied {
         /// Stable identity and aggregate order of this fact.
@@ -87,6 +106,7 @@ impl DomainEvent {
     #[must_use]
     pub const fn subject(&self) -> &'static str {
         match self {
+            DomainEvent::CharacterSkillLearned { .. } => "nightfall.character.skill_learned",
             DomainEvent::CharacterTokenGranted { .. } => "nightfall.character.token_granted",
             DomainEvent::CharacterCreated { .. } => "nightfall.character.created",
             DomainEvent::CharacterLeveled { .. } => "nightfall.character.leveled",
@@ -115,6 +135,27 @@ mod tests {
         assert_eq!(json["race"], "elf");
         let back: DomainEvent = serde_json::from_value(json).unwrap();
         assert_eq!(back, ev);
+    }
+
+    #[test]
+    fn learned_purchase_round_trips_as_its_own_fact() {
+        let fact = DomainEvent::CharacterSkillLearned {
+            metadata: EventMetadata {
+                event_id: Uuid::from_u128(1),
+                sequence: (7, 2),
+            },
+            character_id: CharacterId::from_uuid(Uuid::from_u128(3)),
+            skill_id: 3,
+            skill_level: 1,
+            sp_spent: 50,
+            sp_remaining: 200,
+            tick: u64::MAX,
+            request_key: Uuid::from_u128(4),
+        };
+        assert_eq!(fact.subject(), "nightfall.character.skill_learned");
+        let json = serde_json::to_value(&fact).unwrap();
+        assert_eq!(json["type"], "character_skill_learned");
+        assert_eq!(serde_json::from_value::<DomainEvent>(json).unwrap(), fact);
     }
 
     #[test]

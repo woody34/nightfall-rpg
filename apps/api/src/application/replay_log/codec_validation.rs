@@ -6,6 +6,13 @@ use super::record::CodecError;
 pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
     match value {
         serde_json::Value::Object(fields) => {
+            if fields.get("type").and_then(serde_json::Value::as_str)
+                == Some("character_skill_learned")
+            {
+                return Err(CodecError(
+                    "Phase 3 event character_skill_learned in legacy payload".into(),
+                ));
+            }
             for (key, child) in fields {
                 if matches!(
                     key.as_str(),

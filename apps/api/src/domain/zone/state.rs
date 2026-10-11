@@ -416,6 +416,16 @@ impl ZoneSnapshot {
                             lane.latest
                                 .as_ref()
                                 .is_none_or(|request| request.phase3.is_none())
+                                && lane.events.iter().all(|event| {
+                                    matches!(
+                                        event.subject(),
+                                        "nightfall.character.created"
+                                            | "nightfall.character.leveled"
+                                            | "nightfall.character.class_changed"
+                                            | "nightfall.character.died"
+                                            | "nightfall.character.token_granted"
+                                    )
+                                })
                         })
                 },
                 (9, BinaryV5, true) => {

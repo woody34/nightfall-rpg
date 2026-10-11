@@ -521,6 +521,29 @@ impl PgCharacterRepository {
         let phase3_seen = original.phase3_timer_policy_version.is_some();
         let original = model_to_character(original)?;
         let account = original.account_id.as_uuid();
+        // An exact immutable checkpoint retry proves this draft committed, even after
+        // another revision. A receipt alone proves only that some purchase won the key.
+        if receipt.is_some() {
+            if let Some(stored) = super::entities::idempotency_keys::Entity::find_by_id((
+                cp.idempotency.1.as_uuid(),
+                account,
+                cp.idempotency.0.clone(),
+            ))
+            .one(&tx)
+            .await
+            .map_err(other)?
+            {
+                if stored.fingerprint != fingerprint {
+                    return Err(CheckpointError::KeyReused);
+                }
+                let result: StoredCheckpoint =
+                    serde_json::from_value(stored.response).map_err(anyhow::Error::from)?;
+                tx.rollback().await.map_err(other)?;
+                return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
+                    result.revision,
+                )));
+            }
+        }
         if let Some(receipt) = receipt {
             if let Some(result) = claim_learning(&tx, cp, original.account_id, receipt).await? {
                 tx.rollback().await.map_err(other)?;

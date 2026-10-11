@@ -282,11 +282,30 @@ pub struct ActorStopped;
 struct Queued {
     input: ZoneInput,
     trace: Option<TraceCarrier>,
-    reply: Option<
+    reply: Option<MutationReply>,
+}
+
+#[derive(Debug)]
+enum MutationReply {
+    Transfer(
         oneshot::Sender<
             Result<crate::domain::character_progression::FrozenTransferResult, super::AppError>,
         >,
-    >,
+    ),
+    Learn(oneshot::Sender<Result<super::ports::FrozenLearnResult, super::AppError>>),
+}
+
+impl MutationReply {
+    fn fail(self, error: super::AppError) {
+        match self {
+            Self::Transfer(reply) => {
+                let _ = reply.send(Err(error));
+            },
+            Self::Learn(reply) => {
+                let _ = reply.send(Err(error));
+            },
+        }
+    }
 }
 
 /// Cheap, cloneable access to a running zone.
@@ -430,7 +449,7 @@ impl ZoneHandle {
         self.enqueue(Queued {
             input,
             trace: None,
-            reply: Some(reply),
+            reply: Some(MutationReply::Transfer(reply)),
         })
         .map_err(|e| match e {
             ZoneSendError::AdmissionTooLarge(_) => {
@@ -438,6 +457,31 @@ impl ZoneHandle {
             },
             ZoneSendError::Full(_) => {
                 super::AppError::ResourceExhausted("zone command queue is full".into())
+            },
+            ZoneSendError::Paused(_) | ZoneSendError::Closed(_) => {
+                super::AppError::Unavailable("zone is unavailable".into())
+            },
+        })?;
+        Ok(receiver)
+    }
+
+    /// Queues exact-rank learning; success awaits the atomic durable receipt transaction.
+    pub fn enqueue_learn_skill(
+        &self,
+        input: ZoneInput,
+    ) -> Result<super::ports::LearnSkillReply, super::AppError> {
+        if !self.phase3 {
+            return Err(super::AppError::Unavailable("phase 3 runtime unavailable".into()));
+        }
+        let (reply, receiver) = oneshot::channel();
+        self.enqueue(Queued {
+            input,
+            trace: None,
+            reply: Some(MutationReply::Learn(reply)),
+        })
+        .map_err(|error| match error {
+            ZoneSendError::Full(_) | ZoneSendError::AdmissionTooLarge(_) => {
+                super::AppError::ResourceExhausted("learning queue unavailable".into())
             },
             ZoneSendError::Paused(_) | ZoneSendError::Closed(_) => {
                 super::AppError::Unavailable("zone is unavailable".into())
@@ -483,12 +527,7 @@ pub struct ZoneActor<T, G> {
     failed: bool,
     admission_policy: Option<RecordAdmissionPolicy>,
     admission_failures: broadcast::Sender<AdmissionFailure>,
-    replies: BTreeMap<
-        Ordinal,
-        oneshot::Sender<
-            Result<crate::domain::character_progression::FrozenTransferResult, super::AppError>,
-        >,
-    >,
+    replies: BTreeMap<Ordinal, MutationReply>,
     audit_next_tick: watch::Sender<Tick>,
     checkpoints: super::checkpoint::CheckpointLane,
     final_snapshot: Arc<parking_lot::RwLock<Option<ZoneSnapshot>>>,
@@ -721,20 +760,22 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             },
         };
         let tick = record.tick;
-        // The domain producer is available before the receipt/outbox actor integration.
-        // Neither OpenGate nor an ordinary checkpoint lane may release a paid purchase
-        // without that atomic learning transaction. C replaces this bridge with its typed
-        // durable learning path; raw send() cannot bypass it in the meantime.
         if record
             .events
             .iter()
             .any(|event| matches!(event, crate::domain::zone::ZoneEvent::SkillLearned { .. }))
         {
-            tracing::error!("learning receipt integration is not enabled; zone fenced");
-            self.failed = true;
-            self.fail_replies();
-            self.publish_stats(tick, started, 0);
-            return TickOutcome::Held(tick);
+            let enabled = match self.checkpoints.service() {
+                Some(service) => service.lock().await.learning_enabled(),
+                None => false,
+            };
+            if !self.gate.durable() || !enabled {
+                tracing::error!("learning requires durable log and typed receipt lane");
+                self.failed = true;
+                self.fail_replies();
+                self.publish_stats(tick, started, 0);
+                return TickOutcome::Held(tick);
+            }
         }
         if self.admission_policy.is_some_and(|policy| {
             super::replay_log::AppliedTickRecord::from_applied(self.state.seed().zone, &record)
@@ -815,6 +856,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     async fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
         let admitted = loop {
             let selected = self.select_admitted();
+            if self.preflight_learning(&selected).await? {
+                continue;
+            }
             let transfer = selected.iter().find_map(|i| {
                 self.pending.get(*i).and_then(|q| {
                     if let crate::domain::zone::ZoneCommand::ChangeClass {
@@ -881,7 +925,16 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             if let Some(result) = result {
                 if let Some(mut queued) = self.pending.remove(index) {
                     if let Some(reply) = queued.reply.take() {
-                        let _ = reply.send(result);
+                        match reply {
+                            MutationReply::Transfer(reply) => {
+                                let _ = reply.send(result);
+                            },
+                            MutationReply::Learn(reply) => {
+                                let _ = reply.send(Err(super::AppError::Unavailable(
+                                    "invalid RPC envelope".into(),
+                                )));
+                            },
+                        }
                     }
                 }
             } else {
@@ -938,6 +991,104 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         self.audit_next_tick.send_replace(self.state.next_tick());
         trace_applied(&record, &traces);
         Ok((Arc::new(record), applied))
+    }
+
+    // Recheck account-wide receipt before any generation or eligibility check. One purchase
+    // ends selection, so draining a known duplicate cannot reorder another mutation.
+    async fn preflight_learning(&mut self, selected: &[usize]) -> Result<bool, (Tick, TickError)> {
+        let Some((index, entity, account, request_key, skill)) =
+            selected.iter().find_map(|index| {
+                let queued = self.pending.get(*index)?;
+                if let crate::domain::zone::ZoneCommand::LearnSkill {
+                    entity,
+                    account,
+                    request_key,
+                    skill_id,
+                    skill_level,
+                } = queued.input.command
+                {
+                    Some((
+                        *index,
+                        entity,
+                        account,
+                        request_key,
+                        crate::domain::zone::skill::SkillRef {
+                            id: skill_id,
+                            rank: skill_level,
+                        },
+                    ))
+                } else {
+                    None
+                }
+            })
+        else {
+            return Ok(false);
+        };
+        let Some(service) = self.checkpoints.service() else {
+            return Err((self.state.next_tick(), TickError::PersistenceFence));
+        };
+        let lane = service.lock().await;
+        if !self.gate.durable() || !lane.learning_enabled() {
+            return Err((self.state.next_tick(), TickError::PersistenceFence));
+        }
+        let key = super::IdempotencyKey::from_uuid(request_key);
+        let fp = super::ports::learn_skill_fingerprint(
+            crate::domain::CharacterId::from_uuid(entity.as_uuid()),
+            skill,
+        );
+        let result = match lane.learn_receipt_lookup(account, &key, &fp).await {
+            Ok(super::ports::LearnReceiptLookup::Known(result)) => Some(Ok(result)),
+            Ok(super::ports::LearnReceiptLookup::Conflict) => {
+                Some(Err(super::AppError::IdempotencyConflict))
+            },
+            Err(_) => {
+                Some(Err(super::AppError::Unavailable("learning receipt lookup failed".into())))
+            },
+            Ok(super::ports::LearnReceiptLookup::Unknown) => {
+                let validation = self
+                    .pending
+                    .get(index)
+                    .ok_or((self.state.next_tick(), TickError::PersistenceFence))
+                    .map(|queued| match queued.input.source {
+                        CommandSource::Session {
+                            entity: source,
+                            generation,
+                        } if source == entity => self
+                            .state
+                            .validate_learn_skill(entity, account, generation, skill)
+                            .map_err(class_error),
+                        CommandSource::System | CommandSource::Session { .. } => {
+                            Err(super::AppError::PermissionDenied(
+                                "learning requires authenticated session".into(),
+                            ))
+                        },
+                    })?;
+                if validation.is_ok() && !lane.transfer_ready(entity) {
+                    return Err((self.state.next_tick(), TickError::PersistenceFence));
+                }
+                // Gameplay refusals remain deterministic recorded dispositions.
+                None
+            },
+        };
+        drop(lane);
+        if let Some(result) = result {
+            if let Some(mut queued) = self.pending.remove(index) {
+                if let Some(reply) = queued.reply.take() {
+                    match reply {
+                        MutationReply::Learn(reply) => {
+                            let _ = reply.send(result);
+                        },
+                        MutationReply::Transfer(reply) => {
+                            let _ = reply.send(Err(super::AppError::Unavailable(
+                                "invalid RPC envelope".into(),
+                            )));
+                        },
+                    }
+                }
+            }
+            return Ok(true);
+        }
+        Ok(false)
     }
 
     /// Moves queued inputs into `pending`, up to [`PENDING_LIMIT`].
@@ -1055,9 +1206,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 log_admission_failure(&queued.input, &notice);
                 let _ = self.admission_failures.send(notice);
                 if let Some(reply) = queued.reply.take() {
-                    let _ = reply.send(Err(super::AppError::ResourceExhausted(
-                        "ADMISSION_TOO_LARGE".into(),
-                    )));
+                    reply.fail(super::AppError::ResourceExhausted("ADMISSION_TOO_LARGE".into()));
                 }
             }
         }
@@ -1067,21 +1216,65 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     fn fail_replies(&mut self) {
         for queued in &mut self.pending {
             if let Some(reply) = queued.reply.take() {
-                let _ = reply.send(Err(super::AppError::Unavailable(
+                reply.fail(super::AppError::Unavailable(
                     "checkpoint fenced; retry the same key after recovery".into(),
-                )));
+                ));
             }
         }
         for (_, reply) in std::mem::take(&mut self.replies) {
-            let _ = reply.send(Err(super::AppError::Unavailable(
+            reply.fail(super::AppError::Unavailable(
                 "checkpoint fenced; retry the same key after recovery".into(),
-            )));
+            ));
         }
     }
 
+    #[allow(clippy::wildcard_enum_match_arm)] // Search only this private success fact; other facts do not settle RPC replies.
     fn complete_replies(&mut self, record: &AppliedTick) {
         for command in &record.commands {
             let Some(reply) = self.replies.remove(&command.ordinal) else {
+                continue;
+            };
+            if let MutationReply::Learn(reply) = reply {
+                let result = if let Some(d) = record
+                    .dispositions
+                    .iter()
+                    .find(|d| d.ordinal == command.ordinal)
+                {
+                    Err(class_error(d.reason))
+                } else if let crate::domain::zone::ZoneCommand::LearnSkill {
+                    entity,
+                    account,
+                    request_key,
+                    ..
+                } = command.command
+                {
+                    record
+                        .events
+                        .iter()
+                        .find_map(|event| match event {
+                            crate::domain::zone::ZoneEvent::SkillLearned {
+                                entity: who,
+                                account: owner,
+                                request_key: key,
+                                result,
+                                ..
+                            } if *who == entity && *owner == account && *key == request_key => {
+                                Some(Ok(result.as_ref().clone()))
+                            },
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| {
+                            Err(super::AppError::Unavailable(
+                                "committed learning fact missing".into(),
+                            ))
+                        })
+                } else {
+                    Err(super::AppError::Unavailable("invalid RPC envelope".into()))
+                };
+                let _ = reply.send(result);
+                continue;
+            }
+            let MutationReply::Transfer(reply) = reply else {
                 continue;
             };
             let result = if let Some(d) = record

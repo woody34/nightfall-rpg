@@ -2237,6 +2237,24 @@ mod phase3_boundary_tests {
     }
 
     #[test]
+    fn legacy_record_json_payloads_reject_nested_learning_outbox() {
+        let json = br#"{"checkpoints":[{"events":[{"type":"character_skill_learned"}]}]}"#;
+        for schema in 5..=6 {
+            for injection in [
+                nested(5, &nested(4, &nested(6, &nested(8, json)))),
+                nested(5, &nested(15, json)),
+                nested(9, &nested(1, &nested(18, json))),
+                nested(7, &nested(2, &nested(1, &nested(18, json)))),
+            ] {
+                let mut bytes = empty(schema).encode_to_vec();
+                bytes.extend(injection);
+                let error = decode_record(&bytes).unwrap_err();
+                assert!(error.0.contains("Phase 3 event character_skill_learned"), "{error}");
+            }
+        }
+    }
+
+    #[test]
     fn phase3_event_slots_reject_wrong_variants_and_unknown_nested_extensions() {
         let event = ZoneEvent::SkillCastResult {
             tick: Tick(4),

@@ -503,3 +503,112 @@ impl SessionOutRecord {
         codec::decode_session_out(bytes)
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod legacy_learning_boundary_tests {
+    use super::*;
+    use std::io::Write as _;
+
+    #[test]
+    fn legacy_snapshots_reject_nested_learning_outbox_before_typed_decode() {
+        for schema in 4..=8 {
+            // Deliberately minimal event proves raw presence rejection before typed
+            // DomainEvent decoding (including before the C-owned variant is integrated).
+            let value = serde_json::json!({
+                "meta": {"schema_version":schema},
+                "checkpoints":[{"events":[{"type":"character_skill_learned"}]}]
+            });
+            let json = serde_json::to_vec(&value).unwrap();
+            let error = decode_snapshot(&json).unwrap_err();
+            assert!(error.0.contains("Phase 3 event character_skill_learned"), "{error}");
+            let mut compressor =
+                flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+            compressor.write_all(&json).unwrap();
+            let compressed = compressor.finish().unwrap();
+            for magic in [SNAPSHOT_MAGIC, TOKEN_SNAPSHOT_MAGIC] {
+                let mut envelope = magic.to_vec();
+                envelope.extend_from_slice(&u32::try_from(json.len()).unwrap().to_le_bytes());
+                envelope.extend_from_slice(&compressed);
+                let error = decode_snapshot(&envelope).unwrap_err();
+                assert!(error.0.contains("Phase 3 event character_skill_learned"), "{error}");
+            }
+        }
+    }
+
+    #[test]
+    fn every_legacy_pair_refuses_typed_learning_facts_in_all_snapshot_boundaries() {
+        use crate::domain::zone::{
+            CheckpointSnapshot, StateDigestVersion as V, Vec2Fixed, ZoneBounds, ZoneSeed, ZoneState,
+        };
+        use crate::infrastructure::{
+            class_data::{load_classes, ClassSource},
+            rules_data::{load_rules, RulesSource},
+        };
+        let rules = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
+        for (schema, version, profession) in [
+            (4, V::JsonV1, false),
+            (5, V::JsonV1, false),
+            (6, V::JsonV1, false),
+            (6, V::BinaryV2, false),
+            (7, V::JsonV1, false),
+            (7, V::BinaryV2, false),
+            (7, V::BinaryV3, true),
+            (8, V::JsonV1, false),
+            (8, V::BinaryV2, false),
+            (8, V::BinaryV4, true),
+        ] {
+            let mut state = ZoneState::new(
+                ZoneSeed {
+                    zone: ZoneId(1),
+                    epoch: 1,
+                },
+                ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256))
+                    .unwrap(),
+                0,
+            )
+            .with_rules(rules.clone());
+            if profession {
+                state = state.with_classes(classes.clone()).unwrap();
+            }
+            let mut snapshot = state.snapshot();
+            snapshot.meta.schema_version = schema;
+            snapshot.meta.digest_version = version;
+            ZoneState::from_snapshot(snapshot.clone()).unwrap();
+            snapshot.checkpoints.push(CheckpointSnapshot {
+                entity: EntityId::from_uuid(Uuid::nil()),
+                revision: 1,
+                last_saved: Tick(0),
+                dirty: true,
+                fenced: false,
+                latest: None,
+                events: vec![crate::domain::DomainEvent::CharacterSkillLearned {
+                    metadata: crate::domain::EventMetadata::default(),
+                    character_id: crate::domain::CharacterId::from_uuid(Uuid::nil()),
+                    skill_id: 3,
+                    skill_level: 1,
+                    sp_spent: 60,
+                    sp_remaining: 0,
+                    tick: 0,
+                    request_key: Uuid::nil(),
+                }],
+            });
+            assert!(snapshot.validate_version().is_err());
+            assert!(encode_snapshot(&snapshot).is_err());
+            assert!(decode_snapshot(&serde_json::to_vec(&snapshot).unwrap()).is_err());
+            assert!(ZoneState::from_snapshot(snapshot).is_err());
+        }
+    }
+
+    #[test]
+    fn raw_learning_guard_is_versioned_and_does_not_match_player_text() {
+        let allowed = serde_json::json!({"meta":{"schema_version":9},
+            "checkpoints":[{"events":[{"type":"character_skill_learned"}]}]});
+        validate_snapshot_json(&serde_json::to_vec(&allowed).unwrap()).unwrap();
+        let legacy = serde_json::json!({"meta":{"schema_version":8},
+            "entities":[{"name":"character_skill_learned"}],
+            "checkpoints":[{"events":[{"type":"character_class_changed"}]}]});
+        validate_snapshot_json(&serde_json::to_vec(&legacy).unwrap()).unwrap();
+    }
+}

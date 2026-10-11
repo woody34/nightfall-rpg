@@ -322,6 +322,15 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
         if receipt.account_id != owner {
             return Err(CheckpointError::Constraint("character_learn_receipt_valid".into()));
         }
+        let fingerprint = receipt.checkpoint_fingerprint(checkpoint, events)?;
+        let scoped = (owner, checkpoint.idempotency.0.clone(), checkpoint.idempotency.1);
+        if let Some((stored, revision)) = state.checkpoint_keys.get(&scoped) {
+            return if *stored == fingerprint {
+                Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(*revision)))
+            } else {
+                Err(CheckpointError::KeyReused)
+            };
+        }
         if let Some((stored, result)) = state.learn_receipts.get(&(receipt.account_id, receipt.key))
         {
             return if *stored == receipt.request_fingerprint {
@@ -331,7 +340,6 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
             };
         }
         receipt.validate(checkpoint, owner)?;
-        let fingerprint = receipt.checkpoint_fingerprint(checkpoint, events)?;
         let outcome = self.checkpoint_locked(&mut state, checkpoint, events, fingerprint)?;
         if matches!(outcome, CheckpointOutcome::Applied(_) | CheckpointOutcome::Replayed(_)) {
             state.learn_receipts.insert(
