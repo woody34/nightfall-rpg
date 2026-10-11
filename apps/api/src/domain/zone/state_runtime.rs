@@ -1761,24 +1761,38 @@ impl ZoneState {
     ) -> Result<(), TickError> {
         // Replace intermediate owner resource facts with final values; never broadcast MP/CP.
         events.retain(|e| !matches!(e, ZoneEvent::StatsChanged { .. }));
+        // These facts do not change while final projections are appended. Index once,
+        // preserving life-qualified damage even when a later heal restores the old HP.
+        let mut effects_changed = std::collections::BTreeSet::new();
+        let mut damaged = std::collections::BTreeSet::new();
+        for event in events.iter() {
+            if let ZoneEvent::EffectApplied { target, .. }
+            | ZoneEvent::EffectRemoved { target, .. } = event
+            {
+                effects_changed.insert(target.entity);
+            }
+            if let ZoneEvent::SkillCastResult { targets, .. } = event {
+                damaged.extend(
+                    targets
+                        .iter()
+                        .filter(|row| row.hp_removed != 0)
+                        .map(|row| (row.target.entity, row.target.incarnation)),
+                );
+            }
+        }
         for (id, e) in &self.entities {
             let Some(c) = &e.combat else { continue };
             let old = before.get(id).and_then(|e| e.combat.as_ref());
-            let effects_changed = events.iter().any(|event| matches!(event,
-                ZoneEvent::EffectApplied { target, .. } | ZoneEvent::EffectRemoved { target, .. } if target.entity == *id));
-            if e.kind == EntityKind::Player && (old != Some(c) || effects_changed) {
+            if e.kind == EntityKind::Player && (old != Some(c) || effects_changed.contains(id)) {
                 events.push(self.owner_stats_v5(tick, *id, None)?);
             }
             // A regen pulse followed by damage can return HP to its starting value;
             // landed removal still marks the public pair dirty for one final projection.
-            let damaged = events.iter().any(|event| matches!(event,
-                ZoneEvent::SkillCastResult { targets, .. } if targets.iter().any(|row|
-                    row.target.entity == *id && row.target.incarnation == c.incarnation && row.hp_removed != 0)));
             if old.is_some_and(|old| {
                 old.hp != c.hp
                     || old.sheet.max_hp() != c.sheet.max_hp()
                     || old.incarnation != c.incarnation
-                    || damaged
+                    || damaged.contains(&(*id, c.incarnation))
                     || self
                         .phase3
                         .as_ref()
@@ -1808,12 +1822,40 @@ impl ZoneState {
         // Reuse only AOI identity/movement and legacy facts. Phase3 facts are recursively
         // filtered against the complete identity batch below.
         let mut outputs = self.observe(tick, responses, events);
+        // Ordinary movement/legacy facts were already routed by the indexed observer
+        // pass. Only these new variants need the recursive Phase3 reference filter.
+        let phase3_events: Vec<_> = events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    ZoneEvent::EffectApplied { .. }
+                        | ZoneEvent::EffectRemoved { .. }
+                        | ZoneEvent::SkillCastStarted { .. }
+                        | ZoneEvent::SkillCastResult { .. }
+                        | ZoneEvent::SkillCastCancelled { .. }
+                        | ZoneEvent::SkillLearned { .. }
+                        | ZoneEvent::SpGained { .. }
+                        | ZoneEvent::SkillReuse { .. }
+                        | ZoneEvent::VitalsChanged { .. }
+                )
+            })
+            .collect();
         for (observer, (_, known)) in &self.known {
             let sees = |id: EntityId| id == *observer || known.binary_search(&id).is_ok();
             let out = outputs.entry(*observer).or_default();
             // Replacement resets the observer cache during phase0 even though this id was
             // known in the tick-start copy. Detect its actual identity batch too.
             let owner_baseline = out.iter().any(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntitySpawn { entity, .. }) if entity == observer));
+            let hydrate = owner_baseline
+                || previous
+                    .get(observer)
+                    .is_none_or(|(_, old)| old.as_ref() != known.as_ref());
+            if !hydrate && phase3_events.is_empty() {
+                // The existing indexed pass already produced responses then ordinary
+                // facts. With no new identities or Phase3 deltas, that is final order.
+                continue;
+            }
             let knew = |id: EntityId| {
                 !owner_baseline
                     && previous
@@ -1823,7 +1865,9 @@ impl ZoneState {
             // Legacy observe already establishes the final AOI. Move its ordinary facts
             // behind the complete V5 hydration batch without changing their relative order.
             let mut ordinary = Vec::new();
-            out.retain(|output| {
+            let routed = std::mem::take(out);
+            out.reserve(routed.len());
+            for output in routed {
                 if matches!(
                     output,
                     ObserverOutput::Accepted { .. }
@@ -1832,12 +1876,11 @@ impl ZoneState {
                             ZoneEvent::EntitySpawn { .. } | ZoneEvent::EntityDespawn { .. }
                         )
                 ) {
-                    true
+                    out.push(output);
                 } else {
-                    ordinary.push(output.clone());
-                    false
+                    ordinary.push(output);
                 }
-            });
+            }
             if owner_baseline && self.binding(*observer).is_some() {
                 ordinary.retain(|o| !matches!(o, ObserverOutput::Event(ZoneEvent::StatsChanged { entity, .. }) if entity == observer));
                 out.push(ObserverOutput::Event(self.owner_stats_v5(
@@ -1847,28 +1890,35 @@ impl ZoneState {
                 )?));
                 out.push(ObserverOutput::Event(self.owner_sync_v5(tick, *observer)?));
             }
-            for id in known.iter().filter(|id| !knew(**id)) {
-                if let Ok(side) = self.sidecar(*id) {
-                    for effect in side.effects.entries().values() {
-                        let mut event = self.effect_applied_v5(tick, *id, effect, Some(tick))?;
-                        if let ZoneEvent::EffectApplied { source, .. } = &mut event {
-                            *source = source
-                                .filter(|s| sees(s.entity) && self.binding(s.entity) == Some(*s));
+            // Equal sorted known sets have no new hydration subjects. Replacement
+            // still forces the whole baseline, even if every entity ID is unchanged.
+            if hydrate {
+                for id in known.iter().filter(|id| !knew(**id)) {
+                    if let Ok(side) = self.sidecar(*id) {
+                        for effect in side.effects.entries().values() {
+                            let mut event =
+                                self.effect_applied_v5(tick, *id, effect, Some(tick))?;
+                            if let ZoneEvent::EffectApplied { source, .. } = &mut event {
+                                *source = source.filter(|s| {
+                                    sees(s.entity) && self.binding(s.entity) == Some(*s)
+                                });
+                            }
+                            out.push(ObserverOutput::Event(event));
                         }
-                        out.push(ObserverOutput::Event(event));
-                    }
-                    if let CastState::Casting(cast) = &side.cast {
-                        let mut event = cast_started(tick, *id, cast, Some(tick));
-                        if let ZoneEvent::SkillCastStarted { target, .. } = &mut event {
-                            *target = target
-                                .filter(|t| sees(t.entity) && self.binding(t.entity) == Some(*t));
+                        if let CastState::Casting(cast) = &side.cast {
+                            let mut event = cast_started(tick, *id, cast, Some(tick));
+                            if let ZoneEvent::SkillCastStarted { target, .. } = &mut event {
+                                *target = target.filter(|t| {
+                                    sees(t.entity) && self.binding(t.entity) == Some(*t)
+                                });
+                            }
+                            out.push(ObserverOutput::Event(event));
                         }
-                        out.push(ObserverOutput::Event(event));
                     }
                 }
             }
             out.extend(ordinary);
-            for event in events {
+            for event in phase3_events.iter().copied() {
                 let projected = match event {
                     ZoneEvent::EffectApplied { target, source, .. }
                         if sees(target.entity) && knew(target.entity) =>
