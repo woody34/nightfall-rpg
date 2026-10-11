@@ -2,7 +2,9 @@
 //! `cargo bench -p nightfall-api --bench phase3_effects -- --test` prints repeatable workload
 //! means. `--snapshot-capacity` instead measures a synthetic maximum-pool snapshot and
 //! exits unsuccessfully if the unchanged production codec refuses it. The existing
-//! `zone_step` acceptance budgets remain unchanged and run separately.
+//! `zone_step` acceptance budgets remain unchanged and run separately. `--live-tick-budget`
+//! runs actual V5 ticks with 1,000 admitted combatants and zero effects against the same
+//! 2ms NPC / 10ms player mean ceilings; it fails if either ceiling is exceeded.
 
 #![allow(
     missing_docs,
@@ -11,6 +13,8 @@
     clippy::arithmetic_side_effects
 )]
 
+#[path = "support/live_tick_budget.rs"]
+mod live_tick_budget;
 #[path = "support/snapshot_capacity.rs"]
 mod snapshot_capacity;
 
@@ -145,6 +149,13 @@ fn report(name: &str, mut operation: impl FnMut()) {
     println!("{name}: mean {:?} ({ITERATIONS} iterations)", started.elapsed() / ITERATIONS);
 }
 fn main() -> std::process::ExitCode {
+    if std::env::args().any(|arg| arg == "--live-tick-budget") {
+        return if live_tick_budget::run() {
+            std::process::ExitCode::SUCCESS
+        } else {
+            std::process::ExitCode::FAILURE
+        };
+    }
     if std::env::args().any(|argument| argument == "--snapshot-capacity") {
         return if snapshot_capacity::run() {
             std::process::ExitCode::SUCCESS
