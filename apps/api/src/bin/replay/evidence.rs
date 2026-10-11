@@ -4,7 +4,9 @@ use std::path::Path;
 
 use anyhow::{bail, Context as _};
 use nightfall_api::application::replay_log::AppliedTickRecord;
-use nightfall_api::domain::zone::{AppliedTickDraft, ZoneEvent, ZoneState};
+use nightfall_api::domain::zone::{
+    AppliedTick, AppliedTickDraft, ObserverOutput, ZoneEvent, ZoneState,
+};
 use nightfall_api::infrastructure::eventlog::Recording;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -12,6 +14,52 @@ use sha2::{Digest, Sha256};
 fn line(out: &mut Vec<u8>, value: &impl serde::Serialize) -> anyhow::Result<()> {
     serde_json::to_writer(&mut *out, value)?;
     out.push(b'\n');
+    Ok(())
+}
+
+// Observer-specific identity and combat carriers are evidence, never simulation state.
+fn observer_combat(
+    out: &mut Vec<u8>,
+    applied: &AppliedTick,
+    count: &mut u64,
+) -> anyhow::Result<()> {
+    if applied.digest_version != nightfall_api::domain::zone::StateDigestVersion::BinaryV5 {
+        return Ok(());
+    }
+    for (observer, outputs) in &applied.outputs {
+        let events: Vec<_> = outputs
+            .iter()
+            .filter_map(|output| match output {
+                ObserverOutput::Event(event)
+                    if matches!(
+                        event,
+                        ZoneEvent::EntitySpawn {
+                            combat: Some(_),
+                            ..
+                        } | ZoneEvent::EntityDespawn { .. }
+                            | ZoneEvent::AttackStarted { .. }
+                            | ZoneEvent::AttackResult { .. }
+                    ) =>
+                {
+                    Some(event)
+                },
+                ObserverOutput::Event(_)
+                | ObserverOutput::Accepted { .. }
+                | ObserverOutput::Rejected(_) => None,
+            })
+            .collect();
+        if events.is_empty() {
+            continue;
+        }
+        line(
+            out,
+            &json!({"kind": "observer_combat", "entity": observer,
+            "tick": applied.tick, "sequence": count, "data": {"events": events}}),
+        )?;
+        *count = count
+            .checked_add(1)
+            .context("evidence sequence exhausted")?;
+    }
     Ok(())
 }
 
@@ -65,6 +113,7 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
                 .checked_add(1)
                 .context("evidence sequence exhausted")?;
         }
+        observer_combat(&mut out, &applied, &mut count)?;
         for event in &applied.events {
             if let ZoneEvent::SkillLearned {
                 tick,

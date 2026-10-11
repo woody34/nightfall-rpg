@@ -855,3 +855,201 @@ fn token_sentinel_kills_v5_milestone_classes_with_oracle_verified_damage() -> an
     std::fs::remove_dir_all(&work)?;
     result
 }
+
+#[test]
+#[allow(clippy::too_many_lines)] // Real movement/attack/observe pipeline, including the replay consumer.
+fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Result<()> {
+    use nightfall_api::domain::zone::{CombatRole, ObserverOutput, ZoneEvent};
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .context("repo")?;
+    let work = std::env::temp_dir().join(format!("nightfall-triage-late-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir(&work)?;
+    let result = (|| -> anyhow::Result<()> {
+        let generated = std::process::Command::new("python3")
+            .arg(repo.join("apps/client-unreal/Scripts/phase3-validation-inputs.py"))
+            .arg(&work)
+            .status()?;
+        ensure!(generated.success(), "fixture generation failed");
+        let roles: BTreeMap<String, Role> =
+            serde_json::from_slice(&std::fs::read(work.join("token-v5-roles.json"))?)?;
+        let mut owner = roles.get("20-0").context("fighter role")?.clone();
+        owner.level = 1;
+        owner.xp = 0;
+        owner.position = [103, 102];
+        let mut peer = owner.clone();
+        peer.character_id = EntityId::from_uuid(uuid::Uuid::from_u128(997));
+        peer.position = [70, 90];
+        let data = work.join("phase1a-late-entry");
+        let prepared = prepare_phase3_bootstrap(
+            &Phase3DataSource::from_dir(&data)?,
+            load_rules_dir(&data)?,
+            load_classes(&ClassSource::from_dir(&data)?)?,
+            load_zone(&data.join("zones/test_zone.toml"))?,
+        )?;
+        let mut hydrated = false;
+        for epoch in 1..=3 {
+            let mut rec = EvidenceRecording::new(prepared.state(
+                ZoneSeed {
+                    zone: prepared.zone.zone,
+                    epoch,
+                },
+                0,
+            )?);
+            rec.spawn(&owner, evidence_load(&owner, 1))?;
+            rec.spawn(&peer, evidence_load(&peer, 2))?;
+            let npc = rec.state.snapshot().entities.iter().find_map(|e| {
+                matches!(e.combat.as_ref().map(|c| &c.role), Some(CombatRole::Npc { template, .. })
+                    if template == "keltir_durable").then_some(e.id)
+            }).context("durable NPC")?;
+            let input =
+                |entity, command| ZoneInput::session(entity, SessionGeneration(1), 1, command);
+            rec.tick(vec![
+                input(
+                    owner.character_id,
+                    ZoneCommand::SetTarget {
+                        entity: owner.character_id,
+                        target: Some(npc),
+                    },
+                ),
+                input(
+                    owner.character_id,
+                    ZoneCommand::Attack {
+                        entity: owner.character_id,
+                    },
+                ),
+            ])?;
+            let mut wounded = false;
+            for _ in 0..300 {
+                let tick = rec.tick(Vec::new())?;
+                if tick.events.iter().any(|e| matches!(e, ZoneEvent::AttackResult { target, damage, .. } if *target == npc && *damage > 0)) {
+                    wounded = true;
+                    break;
+                }
+            }
+            ensure!(wounded, "fixture never wounded");
+            rec.tick(vec![
+                input(
+                    owner.character_id,
+                    ZoneCommand::StopAttack {
+                        entity: owner.character_id,
+                    },
+                ),
+                input(
+                    peer.character_id,
+                    ZoneCommand::MoveTo {
+                        entity: peer.character_id,
+                        dest: Vec2Fixed::from_tiles(62, 90),
+                    },
+                ),
+            ])?;
+            let mut departed = false;
+            for _ in 0..30 {
+                let tick = rec.tick(Vec::new())?;
+                departed |= tick.outputs.get(&peer.character_id).is_some_and(|events| events.iter()
+                    .any(|e| matches!(e, ObserverOutput::Event(ZoneEvent::EntityDespawn { entity, .. }) if *entity == npc)));
+            }
+            ensure!(departed, "peer never left NPC visibility");
+            // Offset the actual re-entry across different NPC swing/regen phases.
+            rec.wait(epoch * 4)?;
+            rec.tick(vec![input(
+                peer.character_id,
+                ZoneCommand::MoveTo {
+                    entity: peer.character_id,
+                    dest: Vec2Fixed::from_tiles(70, 90),
+                },
+            )])?;
+            let mut baseline = false;
+            for _ in 0..30 {
+                let tick = rec.tick(Vec::new())?;
+                if let Some(events) = tick.outputs.get(&peer.character_id) {
+                    for event in events {
+                        if let ObserverOutput::Event(ZoneEvent::EntitySpawn {
+                            entity,
+                            combat: Some(combat),
+                            ..
+                        }) = event
+                        {
+                            if *entity == npc {
+                                ensure!(
+                                    !combat.dead && combat.hp < combat.max_hp,
+                                    "re-entry lost wound"
+                                );
+                                ensure!(combat.swing.is_none(), "V5 identity has nested swing");
+                                baseline = true;
+                            }
+                        }
+                        if let ObserverOutput::Event(ZoneEvent::AttackStarted {
+                            phase3: Some(p),
+                            ..
+                        }) = event
+                        {
+                            if p.baseline.is_some() {
+                                let last_identity = events
+                                    .iter()
+                                    .rposition(|e| {
+                                        matches!(
+                                            e,
+                                            ObserverOutput::Event(ZoneEvent::EntitySpawn { .. })
+                                        )
+                                    })
+                                    .context("identity batch")?;
+                                ensure!(
+                                    events.iter().skip(last_identity + 1).any(|e| e == event),
+                                    "swing before identities"
+                                );
+                                hydrated = true;
+                            }
+                        }
+                    }
+                }
+            }
+            ensure!(baseline, "no wounded late baseline");
+            if epoch == 3 {
+                // Exercise regeneration and the first post-baseline impact in one tick.
+                rec.wait(1)?;
+            }
+
+            rec.tick(vec![input(
+                owner.character_id,
+                ZoneCommand::Attack {
+                    entity: owner.character_id,
+                },
+            )])?;
+            rec.wait(30)?;
+            let recording = work.join(format!("late-{epoch}.nfr"));
+            let evidence = work.join(format!("late-{epoch}.jsonl"));
+            rec.recording.write(&recording)?;
+            let export = std::process::Command::new(env!("CARGO_BIN_EXE_nightfall-replay"))
+                .args(["export", "--file"])
+                .arg(&recording)
+                .arg("--evidence-out")
+                .arg(&evidence)
+                .output()?;
+            ensure!(export.status.success(), "export: {}", String::from_utf8_lossy(&export.stderr));
+            if let Some(out) = std::env::var_os("NIGHTFALL_HARNESS_EVIDENCE_DIR") {
+                let out = Path::new(&out);
+                std::fs::create_dir_all(out)?;
+                std::fs::copy(&recording, out.join(format!("late-{epoch}.nfr")))?;
+                std::fs::copy(&evidence, out.join(format!("late-{epoch}.jsonl")))?;
+            }
+            let checked = std::process::Command::new("python3")
+                .arg(repo.join("apps/client-unreal/Scripts/late-entry-v5-oracle.py"))
+                .arg(&recording)
+                .arg(&evidence)
+                .arg(peer.character_id.to_string())
+                .output()?;
+            ensure!(
+                checked.status.success(),
+                "late-entry oracle: {} {}",
+                String::from_utf8_lossy(&checked.stdout),
+                String::from_utf8_lossy(&checked.stderr)
+            );
+        }
+        ensure!(hydrated, "no in-flight swing exercised on re-entry");
+        Ok(())
+    })();
+    std::fs::remove_dir_all(&work)?;
+    result
+}

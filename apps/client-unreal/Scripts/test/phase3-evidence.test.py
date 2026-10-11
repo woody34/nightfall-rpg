@@ -47,6 +47,11 @@ class ReplayEvidence(unittest.TestCase):
                         '--', '--exact'], cwd=REPO, check=True, capture_output=True, text=True,
                        env=dict(os.environ, NIGHTFALL_HARNESS_EVIDENCE_DIR=str(cls.generated)))
 
+        subprocess.run(['cargo', 'test', '--offline', '-p', 'nightfall-api', '--test',
+                        'phase3_fixture_overlays', 'late_entry_handshake_preserves_wounded_baseline_and_first_hit',
+                        '--', '--exact'], cwd=REPO, check=True, capture_output=True, text=True,
+                       env=dict(os.environ, NIGHTFALL_HARNESS_EVIDENCE_DIR=str(cls.generated)))
+
     @classmethod
     def export(cls, out):
         subprocess.run([str(cls.binary), 'export', '--file', str(RECORDING), '--evidence-out', str(out)],
@@ -68,12 +73,45 @@ class ReplayEvidence(unittest.TestCase):
 
     def test_exact_twelve_declarations_remain_outside_client_predicates(self):
         kinds = set()
-        for path in (SCRIPTS.parent / 'Scenarios').rglob('3-*.nfs'):
+        for path in (SCRIPTS.parent / 'Scenarios').rglob('*.nfs'):
             kinds.update(g['kind'] for g in evidence.requirements(path))
             for line in path.read_text().splitlines():
                 if line.startswith(('nf.Expect ', 'nf.WaitFor ')):
                     self.assertNotIn(line.split()[1], evidence.FACTS, path.name)
         self.assertEqual(kinds, evidence.FACTS)
+
+    def test_late_entry_exact_continuity_including_same_tick_regen(self):
+        observer = '00000000-0000-0000-0000-0000000003e5'
+        for epoch in (1, 2, 3):
+            recording = self.generated / f'late-{epoch}.nfr'
+            rows = evidence.read_jsonl(self.generated / f'late-{epoch}.jsonl')
+            self.assertTrue(self.check('late_entry_hp_continuity', observer, rows, recording)['passed'])
+            if epoch == 3:
+                pulses = {(r['entity'], r['tick']) for r in rows if r['kind'] == 'regen_pulse'}
+                baselines = [r for r in rows if r['kind'] == 'observer_combat' and r['entity'] == observer
+                             and any(e['type'] == 'entity_spawn' and e['kind'] == 'npc'
+                                     and e['combat']['hp'] < e['combat']['max_hp'] for e in r['data']['events'])]
+                baseline = baselines[-1]
+                hit = next(e for r in rows if r['kind'] == 'observer_combat' and r['entity'] == observer
+                           and r['tick'] > baseline['tick'] for e in r['data']['events']
+                           if e['type'] == 'attack_result' and e['attacker'].endswith('0030'))
+                self.assertIn((hit['target'], hit['tick']), pulses)
+            for category in ('baseline', 'hit', 'regen', 'missing'):
+                altered = copy.deepcopy(rows)
+                for row in altered[1:-1]:
+                    if category == 'regen' and row['kind'] == 'regen_pulse':
+                        row['data']['amounts']['hp_q'] += 1
+                    if row['kind'] != 'observer_combat' or row['entity'] != observer:
+                        continue
+                    for event in row['data']['events']:
+                        if event['type'] == 'entity_spawn' and event['kind'] == 'npc':
+                            if category == 'baseline' and event['combat']['hp']:
+                                event['combat']['hp'] -= 1
+                            if category == 'missing':
+                                event['combat']['hp'] = event['combat']['max_hp']
+                        if category == 'hit' and event['type'] == 'attack_result':
+                            event['target_hp_after'] += 1
+                self.assertFalse(self.check('late_entry_hp_continuity', observer, altered, recording)['passed'], category)
 
     def test_actual_export_is_deterministic_and_all_categories_are_retained(self):
         second = self.root / 'second.jsonl'

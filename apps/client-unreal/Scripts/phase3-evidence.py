@@ -22,12 +22,13 @@ ORACLE_SPEC = importlib.util.spec_from_file_location(
     'phase3_skill_oracle', REPO / 'packages/data/scripts/skill_oracle.py')
 oracle = importlib.util.module_from_spec(ORACLE_SPEC)
 ORACLE_SPEC.loader.exec_module(oracle)
-FACTS = frozenset(('regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle',
+FACTS = frozenset(('late_entry_hp_continuity', 'regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle',
     'moving_regen_matches_oracle', 'death_record_matches_fixture',
     'death_record_matches_before_disconnect', 'restore_did_not_reapply_hooks',
     'skill_hate_outcome_coherent', 'skill_damage_matches_oracle',
     'skill_effect_matches_oracle', 'stat_matches_oracle', 'resurrect_refund_matches_oracle', 'resurrection_vitals_match_fixture', 'karma_decay_matches_oracle'))
 RAW_FIELDS = {
+    'observer_combat': 'events',
     'karma_decay': 'target xp_before xp_after pre_award_level karma_before karma_after',
     'regen_pulse': 'actual amounts before cause fractions_before functions inputs max_hp max_mp rules',
     'death_record': 'after incarnation inside_peace killer level loss penalty_before penalty_roll pre_death_xp victim_classification',
@@ -257,7 +258,7 @@ def regen(row, manifest, facts):
     amounts = {}
     for resource, stat in (('hp', 'regHp'), ('mp', 'regMp'), ('cp', 'regCp')):
         if resource == 'cp' and not inputs['player']:
-            amounts['cp_q'], result['cp'], result['cp_granted'] = 0, None, 0
+            amounts['cp_q'], result['cp'], result['cp_granted'] = None, None, 0
             result['fractions']['cp'] = 0
             continue
         # Formulas.java:263-351,357-442,442-450; min-before-Funcs, then config/posture.
@@ -840,6 +841,67 @@ def karma_decay(row, manifest, facts):
         raise ValueError('karma credit must join one actual NPC death')
 
 
+def late_entry_continuity(row, manifest, facts):
+    """Exact first delivered hit after every wounded NPC identity baseline.
+
+    C11: same-tick regen precedes impacts; only final vitals reach the client.
+    Check each intervening pulse with the independent Fraction oracle, then join
+    the actual pre-impact HP and delivered result. No tolerance or skipped mismatch.
+    """
+    matched = False
+    for spawn in row['data']['events']:
+        if spawn['type'] != 'entity_spawn':
+            continue
+        combat = spawn['combat']
+        if spawn['kind'] != 'npc' or combat['dead'] or combat['hp'] >= combat['max_hp']:
+            continue
+        target, life, hp = spawn['entity'], combat['incarnation'], combat['hp']
+        for later in facts:
+            if later['tick'] <= row['tick']:
+                continue  # identity contains FINAL state of its admission tick
+            data = later['data']
+            if later['kind'] == 'regen_pulse' and later['entity'] == target:
+                if data['before']['hp'] != hp:
+                    raise ValueError(f"regen continuity: tick {later['tick']} before {data['before']['hp']} expected {hp}")
+                regen(later, manifest, facts)
+                hp = data['actual']['hp']
+            if later['kind'] == 'auto_attack_resolution':
+                victim = data['inputs']['target']
+                if victim is None:
+                    continue
+                victim = victim.get('entity', victim)
+                if victim['id'] == target:
+                    same(victim['combat']['incarnation'], life)
+                    if victim['combat']['hp'] != hp:
+                        raise ValueError(f"impact continuity: tick {later['tick']} before {victim['combat']['hp']} expected {hp}")
+            if later['kind'] != 'observer_combat' or later['entity'] != row['entity']:
+                continue
+            for event in data['events']:
+                if event['type'] == 'entity_despawn' and event['entity'] == target:
+                    raise ValueError('wounded baseline left visibility before a continued hit')
+                if event['type'] != 'attack_result' or event['target'] != target:
+                    continue
+                same(event['target_incarnation'], life)
+                expected = max(0, hp - integer(event['damage']))
+                if event['target_hp_after'] != expected:
+                    raise ValueError(f"delivered hit: tick {later['tick']} HP {event['target_hp_after']} expected {expected}")
+                # The delivered carrier must equal a real resolution in this tick.
+                resolutions = [r for r in facts if r['kind'] == 'auto_attack_resolution'
+                               and r['tick'] == later['tick']
+                               and event in r['data']['events']]
+                if len(resolutions) != 1:
+                    raise ValueError('first delivered hit has no unique native resolution')
+                matched = True
+                break
+            else:
+                continue
+            break
+        else:
+            raise ValueError('wounded baseline has no subsequent delivered hit')
+    if not matched:
+        raise ValueError('no wounded NPC baseline with a continued hit')
+
+
 def evaluate(rows, recording, entity, gates):
     entity = str(uuid.UUID(entity))
     manifest, facts = validate(rows, recording)
@@ -850,7 +912,21 @@ def evaluate(rows, recording, entity, gates):
     for gate in gates:
         kind, args = gate['kind'], gate['args']
         check = None
-        if kind in ('regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle', 'moving_regen_matches_oracle'):
+        if kind == 'late_entry_hp_continuity':
+            # Select the last wounded baseline per life. Earlier observation used only
+            # to coordinate leaving AOI is superseded by the actual late-entry baseline.
+            baselines = {}
+            for row in owner:
+                if row['kind'] != 'observer_combat':
+                    continue
+                for event in row['data']['events']:
+                    if event['type'] == 'entity_spawn':
+                        combat = event['combat']
+                        if event['kind'] == 'npc' and not combat['dead'] and combat['hp'] < combat['max_hp']:
+                            baselines[(event['entity'], combat['incarnation'])] = row
+            matched = list({r['sequence']: r for r in baselines.values()}.values())
+            check = late_entry_continuity
+        elif kind in ('regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle', 'moving_regen_matches_oracle'):
             matched = [r for r in owner if r['kind'] == 'regen_pulse'
                        and (not kind.startswith('moving_') or r['data']['inputs']['posture'] == 'Moving')]
             check = regen
