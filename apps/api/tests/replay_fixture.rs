@@ -1606,40 +1606,71 @@ async fn live_capture_refuses_gaps() {
 async fn v5_cast_fixture_replays_encoded_and_digest_only_and_refuses_changed_facts() {
     use nightfall_api::application::replay_log::{decode_events, encode_events};
     use nightfall_api::domain::zone::StateDigestVersion;
-    let rec = Recording::read(&fixture_path().with_file_name("phase3-casts-v5.nfr")).unwrap();
-    assert_eq!(rec.snapshot.meta.schema_version, 9);
-    assert!(rec.snapshot.phase3.is_some());
-    assert!(rec
-        .records
-        .iter()
-        .all(|r| r.digest_version == StateDigestVersion::BinaryV5));
-    replay(rec.clone()).await.unwrap();
-    let mut digests = rec.clone();
-    digests.records = digests
-        .records
-        .iter()
-        .map(nightfall_api::application::replay_log::AppliedTickRecord::with_output_digests)
-        .collect();
-    replay(digests).await.unwrap();
-    let mut altered = rec;
-    let record = altered
-        .records
-        .iter_mut()
-        .find(|record| {
-            decode_events(&record.events)
-                .unwrap()
-                .iter()
-                .any(|e| matches!(e, ZoneEvent::SkillCastStarted { .. }))
-        })
-        .unwrap();
-    let mut facts = decode_events(&record.events).unwrap();
-    let event = facts
-        .iter_mut()
-        .find(|e| matches!(e, ZoneEvent::SkillCastStarted { .. }))
-        .unwrap();
-    if let ZoneEvent::SkillCastStarted { complete_at, .. } = event {
-        *complete_at = complete_at.next();
+    for file in ["phase3-casts-v5.nfr", "phase3-gameplay-v5.nfr"] {
+        let rec = Recording::read(&fixture_path().with_file_name(file)).unwrap();
+        assert_eq!(rec.snapshot.meta.schema_version, 9);
+        assert!(rec.snapshot.phase3.is_some());
+        assert!(rec
+            .records
+            .iter()
+            .all(|r| r.digest_version == StateDigestVersion::BinaryV5));
+        replay(rec.clone()).await.unwrap();
+        let mut digests = rec.clone();
+        digests.records = digests
+            .records
+            .iter()
+            .map(nightfall_api::application::replay_log::AppliedTickRecord::with_output_digests)
+            .collect();
+        replay(digests).await.unwrap();
+        let mut altered = rec;
+        let record = altered
+            .records
+            .iter_mut()
+            .find(|record| {
+                decode_events(&record.events)
+                    .unwrap()
+                    .iter()
+                    .any(|e| matches!(e, ZoneEvent::SkillCastStarted { .. }))
+            })
+            .unwrap();
+        let mut facts = decode_events(&record.events).unwrap();
+        let event = facts
+            .iter_mut()
+            .find(|e| matches!(e, ZoneEvent::SkillCastStarted { .. }))
+            .unwrap();
+        if let ZoneEvent::SkillCastStarted { complete_at, .. } = event {
+            *complete_at = complete_at.next();
+        }
+        record.events = encode_events(&facts);
+        assert!(matches!(replay(altered).await, Err(VerifyError::Diverged(_))));
     }
-    record.events = encode_events(&facts);
-    assert!(matches!(replay(altered).await, Err(VerifyError::Diverged(_))));
+}
+
+#[test]
+fn gameplay_coverage_tracks_canonical_offers_cp_and_pvp_without_hydration_duplicates() {
+    let report = coverage_json(&fixture_path().with_file_name("phase3-gameplay-v5.nfr"));
+    assert_eq!(report["schema_version"], 3);
+    assert_pairs(
+        &report["resurrection_offers"],
+        &["Absent", "Offered", "Accepted", "Declined", "Expired"],
+        &[
+            ("Absent", "Offered", 2),
+            ("Offered", "Accepted", 1),
+            ("Offered", "Declined", 1),
+        ],
+    );
+    assert_pairs(
+        &report["pvp_transitions"],
+        &["Neutral", "Flagged", "Chaotic", "ChaoticFlagged"],
+        &[("Neutral", "Flagged", 1), ("Flagged", "ChaoticFlagged", 1)],
+    );
+    assert_eq!(report["pk_credits"], 1);
+    assert_eq!(report["pvp_credits"], 0);
+    assert_eq!(report["karma_changes"], serde_json::json!({"increase": 1}));
+    assert_eq!(
+        report["cp_absorption"],
+        serde_json::json!({"auto_resolutions": 5, "skill_resolutions": 4, "whole_removed": 37})
+    );
+    assert_eq!(report["deaths"], serde_json::json!({"player": 1, "npc": 1}));
+    assert_eq!(report["respawns"], serde_json::json!({"player": 2, "npc": 0}));
 }

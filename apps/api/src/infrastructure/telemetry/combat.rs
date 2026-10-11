@@ -279,7 +279,9 @@ impl TickTelemetry for CombatConsumer {
                         self.record_effect(skill, super::SkillEffectChange::Removed);
                     }
                 },
-                ZoneEvent::SkillStateSync { .. }
+                ZoneEvent::PvpStateChanged { .. }
+                | ZoneEvent::ResurrectOffer { .. }
+                | ZoneEvent::SkillStateSync { .. }
                 | ZoneEvent::SkillLearned { .. }
                 | ZoneEvent::SpGained { .. }
                 | ZoneEvent::SkillReuse { .. }

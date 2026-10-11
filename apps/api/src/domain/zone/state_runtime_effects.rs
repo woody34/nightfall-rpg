@@ -55,6 +55,11 @@ impl ZoneState {
         self.sidecar_mut(id)?.modifier_install_order.retain(
             |_, source| !matches!(source, RestoredModifierSource::Effect(old) if *old == effect),
         );
+        self.phase3
+            .as_mut()
+            .ok_or_else(missing)?
+            .effective
+            .remove(&id);
         events.push(ZoneEvent::EffectRemoved {
             tick,
             target: self.binding(id).ok_or_else(missing)?,
@@ -68,11 +73,12 @@ impl ZoneState {
         tick: Tick,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
+        self.refresh_schedule_v5()?;
         let due = self
             .phase3
             .as_ref()
             .ok_or_else(missing)?
-            .canonical
+            .schedule
             .effect_expiries(tick);
         for work in due {
             self.remove_effect_v5(
@@ -535,13 +541,13 @@ impl ZoneState {
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
         use effects::PeriodicResource;
+        self.refresh_schedule_v5()?;
         let due = self
             .phase3
             .as_ref()
             .ok_or_else(missing)?
-            .canonical
-            .effect_pulses(tick)
-            .map_err(invariant)?;
+            .schedule
+            .effect_pulses(tick);
         for work in due {
             let Some(effect) = self
                 .sidecar(work.target)?

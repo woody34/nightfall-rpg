@@ -5,6 +5,7 @@
 use super::effects::{EffectError, EffectId};
 use super::{CastId, CastState, EntityId, EntityOrdinal, Phase3Entity, Phase3Snapshot, Tick};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 /// Derived deadline indexes. Only due entries are visited at a tick boundary. Exact
 /// reverse keys make removal/replacement bounded by one entity's live handlers; canceled
@@ -15,12 +16,12 @@ use std::collections::{BTreeMap, BTreeSet};
 /// callbacks, and refresh after advancing a pulse, launching/canceling a cast or death.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Phase3Schedule {
-    entities: BTreeMap<EntityId, EntitySchedule>,
-    expiries: BTreeSet<EffectExpiry>,
-    pulses: BTreeSet<EffectPulse>,
-    regen: BTreeSet<(Tick, EntityOrdinal, EntityId)>,
-    launches: BTreeSet<CastWork>,
-    impacts: BTreeSet<CastWork>,
+    entities: Arc<BTreeMap<EntityId, EntitySchedule>>,
+    expiries: Arc<BTreeSet<EffectExpiry>>,
+    pulses: Arc<BTreeSet<EffectPulse>>,
+    regen: Arc<BTreeSet<(Tick, EntityOrdinal, EntityId)>>,
+    launches: Arc<BTreeSet<CastWork>>,
+    impacts: Arc<BTreeSet<CastWork>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -101,30 +102,33 @@ impl Phase3Schedule {
         entity: Option<&Phase3Entity>,
     ) -> Result<(), EffectError> {
         let next = entity.map(|e| EntitySchedule::build(id, e)).transpose()?;
-        if let Some(old) = self.entities.remove(&id) {
+        if self.entities.get(&id) == next.as_ref() {
+            return Ok(());
+        }
+        if let Some(old) = Arc::make_mut(&mut self.entities).remove(&id) {
             for key in old.expiries {
-                self.expiries.remove(&key);
+                Arc::make_mut(&mut self.expiries).remove(&key);
             }
             for key in old.pulses {
-                self.pulses.remove(&key);
+                Arc::make_mut(&mut self.pulses).remove(&key);
             }
             if let Some(key) = old.regen {
-                self.regen.remove(&key);
+                Arc::make_mut(&mut self.regen).remove(&key);
             }
             if let Some(key) = old.launch {
-                self.launches.remove(&key);
+                Arc::make_mut(&mut self.launches).remove(&key);
             }
             if let Some(key) = old.impact {
-                self.impacts.remove(&key);
+                Arc::make_mut(&mut self.impacts).remove(&key);
             }
         }
         if let Some(next) = next {
-            self.expiries.extend(next.expiries.iter().copied());
-            self.pulses.extend(next.pulses.iter().copied());
-            self.regen.extend(next.regen);
-            self.launches.extend(next.launch);
-            self.impacts.extend(next.impact);
-            self.entities.insert(id, next);
+            Arc::make_mut(&mut self.expiries).extend(next.expiries.iter().copied());
+            Arc::make_mut(&mut self.pulses).extend(next.pulses.iter().copied());
+            Arc::make_mut(&mut self.regen).extend(next.regen);
+            Arc::make_mut(&mut self.launches).extend(next.launch);
+            Arc::make_mut(&mut self.impacts).extend(next.impact);
+            Arc::make_mut(&mut self.entities).insert(id, next);
         }
         Ok(())
     }
@@ -139,8 +143,7 @@ impl Phase3Schedule {
         handler_ordinal: u32,
         entity: &Phase3Entity,
     ) -> Result<(), EffectError> {
-        let keys = self
-            .entities
+        let keys = Arc::make_mut(&mut self.entities)
             .get_mut(&target)
             .ok_or(EffectError::Invalid("missing scheduled entity"))?;
         let index = keys
@@ -177,10 +180,10 @@ impl Phase3Schedule {
         // All fallible work precedes removal. The reverse vector is bounded by the live
         // handler count and removal preserves its canonical container/XML order.
         let old = keys.pulses.remove(index);
-        self.pulses.remove(&old);
+        Arc::make_mut(&mut self.pulses).remove(&old);
         if let Some(next) = next {
             keys.pulses.insert(index, next);
-            self.pulses.insert(next);
+            Arc::make_mut(&mut self.pulses).insert(next);
         }
         Ok(())
     }
@@ -416,6 +419,8 @@ mod tests {
         snapshot.entities.insert(id(10), entity(&snapshot, 2, 2));
         let mut indexed = Phase3Schedule::rebuild(&snapshot.entities).unwrap();
         for now in 0..=25 {
+            let frozen = (snapshot.clone(), indexed.clone());
+            let frozen_bytes = serde_json::to_vec(&frozen.0.entities).unwrap();
             let now = Tick(now);
             // The real phase order removes all expiry containers before selecting pulses.
             let expiries = indexed.effect_expiries(now);
@@ -472,6 +477,8 @@ mod tests {
             })
             .unwrap();
             assert_eq!(restored_zone.schedule, indexed);
+            assert_eq!(frozen.1, Phase3Schedule::rebuild(&frozen.0.entities).unwrap());
+            assert_eq!(serde_json::to_vec(&frozen.0.entities).unwrap(), frozen_bytes);
         }
     }
 

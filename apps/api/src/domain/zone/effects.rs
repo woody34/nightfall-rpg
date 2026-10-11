@@ -6,6 +6,7 @@ use super::skill_math::{periodic_amount, ExactRatio};
 use super::{EntityId, StatError, Tick};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 /// Zone-wide monotonically allocated effect identity. Zero is not a live effect.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -413,11 +414,18 @@ pub enum EffectAdmission {
 /// Canonical entries plus rebuildable stack/age indexes. Only entries serialize or hash.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
 pub struct EffectList {
-    entries: BTreeMap<EffectId, ActiveEffect>,
+    #[serde(serialize_with = "serialize_entries")]
+    entries: Arc<BTreeMap<EffectId, ActiveEffect>>,
     #[serde(skip)]
-    stacks: BTreeMap<StackKey, EffectId>,
+    stacks: Arc<BTreeMap<StackKey, EffectId>>,
     #[serde(skip)]
-    age: BTreeSet<(EffectPool, Tick, EffectId)>,
+    age: Arc<BTreeSet<(EffectPool, Tick, EffectId)>>,
+}
+fn serialize_entries<S: serde::Serializer>(
+    entries: &Arc<BTreeMap<EffectId, ActiveEffect>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    entries.as_ref().serialize(serializer)
 }
 impl EffectList {
     /// Restore structural state without replaying any onStart hook, RNG or one-time heal.
@@ -433,7 +441,7 @@ impl EffectList {
         Ok(result)
     }
     /// Canonical `EffectId` order, independent of derived indexes.
-    pub const fn entries(&self) -> &BTreeMap<EffectId, ActiveEffect> {
+    pub fn entries(&self) -> &BTreeMap<EffectId, ActiveEffect> {
         &self.entries
     }
     /// Explicit check after rebuilding effective slot-capacity inputs.
@@ -452,16 +460,15 @@ impl EffectList {
             .count()
     }
     fn insert(&mut self, effect: ActiveEffect) {
-        self.stacks.insert(effect.stack_key(), effect.id);
-        self.age.insert((effect.pool, effect.applied_at, effect.id));
-        self.entries.insert(effect.id, effect);
+        Arc::make_mut(&mut self.stacks).insert(effect.stack_key(), effect.id);
+        Arc::make_mut(&mut self.age).insert((effect.pool, effect.applied_at, effect.id));
+        Arc::make_mut(&mut self.entries).insert(effect.id, effect);
     }
     /// Remove exactly one application, updating all derived indexes together.
     pub fn remove(&mut self, id: EffectId) -> Option<ActiveEffect> {
-        let effect = self.entries.remove(&id)?;
-        self.stacks.remove(&effect.stack_key());
-        self.age
-            .remove(&(effect.pool, effect.applied_at, effect.id));
+        let effect = Arc::make_mut(&mut self.entries).remove(&id)?;
+        Arc::make_mut(&mut self.stacks).remove(&effect.stack_key());
+        Arc::make_mut(&mut self.age).remove(&(effect.pool, effect.applied_at, effect.id));
         Some(effect)
     }
     /// Stronger-stack rejection changes nothing. Equal/higher replaces the whole container
@@ -554,7 +561,7 @@ impl EffectList {
     }
     /// Advance one canonical callback after either resolution or suppression.
     pub fn advance_pulse(&mut self, id: EffectId, ordinal: u32) -> Result<(), EffectError> {
-        self.entries
+        Arc::make_mut(&mut self.entries)
             .get_mut(&id)
             .and_then(|effect| {
                 effect
@@ -1132,7 +1139,10 @@ mod tests {
             .unwrap();
         assert!(list.pulses(Tick(6)).unwrap().is_empty());
         assert_eq!(list.pulses(Tick(7)).unwrap(), vec![(Tick(7), EffectId(1), 0)]);
+        let frozen = list.clone();
         list.advance_pulse(EffectId(1), 0).unwrap();
+        assert_eq!(frozen.pulses(Tick(7)).unwrap(), vec![(Tick(7), EffectId(1), 0)]);
+        assert!(list.pulses(Tick(7)).unwrap().is_empty());
         assert_eq!(list.expired(Tick(14)), vec![(Tick(14), EffectId(1))]);
         assert!(list.pulses(Tick(14)).unwrap().is_empty());
         let mut schedule = PulseSchedule::new(Tick(100), 666).unwrap();
@@ -1154,8 +1164,8 @@ mod tests {
         assert!(EffectList::from_entries(BTreeMap::from([(EffectId(2), first.clone())])).is_err());
         let mut list = EffectList::from_entries(BTreeMap::from([(EffectId(1), first)])).unwrap();
         let canonical = serde_json::to_vec(&list).unwrap();
-        list.age.clear();
-        list.stacks.clear();
+        Arc::make_mut(&mut list.age).clear();
+        Arc::make_mut(&mut list.stacks).clear();
         assert_eq!(serde_json::to_vec(&list).unwrap(), canonical);
         let restored: EffectList = serde_json::from_slice(&canonical).unwrap();
         assert_eq!(restored.age.len(), 1);

@@ -11,6 +11,11 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub(super) struct Stats {
+    pub(super) resurrection_offers: Vec<Transition>,
+    pub(super) pvp_transitions: Vec<Transition>,
+    pub(super) karma_changes: BTreeMap<String, u64>,
+    pub(super) pk_credits: u64,
+    pub(super) pvp_credits: u64,
     pub(super) cast_states: Vec<Transition>,
     pub(super) cast_end_reasons: BTreeMap<String, u64>,
     pub(super) effect_states: Vec<Transition>,
@@ -22,6 +27,35 @@ pub(super) struct Stats {
 impl Stats {
     pub(super) fn new() -> Self {
         Self {
+            resurrection_offers: table(
+                &["Absent", "Offered", "Accepted", "Declined", "Expired"],
+                &[
+                    ("Absent", "Offered"),
+                    ("Offered", "Accepted"),
+                    ("Offered", "Declined"),
+                    ("Offered", "Expired"),
+                ],
+            ),
+            pvp_transitions: table(
+                &["Neutral", "Flagged", "Chaotic", "ChaoticFlagged"],
+                &[
+                    ("Neutral", "Flagged"),
+                    ("Neutral", "Chaotic"),
+                    ("Neutral", "ChaoticFlagged"),
+                    ("Flagged", "Neutral"),
+                    ("Flagged", "Chaotic"),
+                    ("Flagged", "ChaoticFlagged"),
+                    ("Chaotic", "Neutral"),
+                    ("Chaotic", "Flagged"),
+                    ("Chaotic", "ChaoticFlagged"),
+                    ("ChaoticFlagged", "Neutral"),
+                    ("ChaoticFlagged", "Flagged"),
+                    ("ChaoticFlagged", "Chaotic"),
+                ],
+            ),
+            karma_changes: BTreeMap::new(),
+            pk_credits: 0,
+            pvp_credits: 0,
             cast_states: table(&["Idle", "Casting"], &[("Idle", "Casting"), ("Casting", "Idle")]),
             cast_end_reasons: BTreeMap::new(),
             effect_states: table(
@@ -38,6 +72,8 @@ impl Stats {
 
 #[derive(Default)]
 pub(super) struct Tracker {
+    offers: BTreeSet<(EntityId, u32, nightfall_api::domain::zone::OfferId)>,
+    pvp: BTreeMap<EntityId, nightfall_api::domain::zone::PvpState>,
     casts: BTreeMap<EntityId, (u32, CastId)>,
     effects: BTreeSet<(EntityId, u32, EffectId)>,
 }
@@ -47,6 +83,14 @@ impl Tracker {
         let mut tracker = Self::default();
         if let Some(phase) = &snapshot.phase3 {
             for (id, side) in &phase.entities {
+                if let Some(player) = &side.player {
+                    tracker.pvp.insert(*id, player.pvp.clone());
+                    if let Some(offer) = &player.resurrect_offer {
+                        tracker
+                            .offers
+                            .insert((*id, offer.target_incarnation, offer.id));
+                    }
+                }
                 if let CastState::Casting(cast) = &side.cast {
                     tracker
                         .casts
@@ -78,12 +122,77 @@ impl Tracker {
     }
 
     #[allow(clippy::wildcard_enum_match_arm)] // Other verified facts do not change these lifecycles.
+    #[allow(clippy::too_many_lines)] // Each recorded lifecycle has an explicit transition arm.
     pub(super) fn facts(&mut self, report: &mut Coverage, events: &[ZoneEvent]) {
         let Some(report) = &mut report.phase3 else {
             return;
         };
         for event in events {
             match event {
+                ZoneEvent::AttackResult {
+                    phase3: Some(p), ..
+                } if p.cp_absorbed > 0 => {
+                    increment(&mut report.cp_absorption, "auto_resolutions".into());
+                    let whole = report
+                        .cp_absorption
+                        .entry("whole_removed".into())
+                        .or_default();
+                    *whole = whole.saturating_add(u64::from(p.cp_absorbed));
+                },
+                ZoneEvent::PvpStateChanged {
+                    entity,
+                    pvp,
+                    baseline: Some(_),
+                    ..
+                } => {
+                    self.pvp.insert(*entity, pvp.clone());
+                },
+                ZoneEvent::PvpStateChanged {
+                    entity,
+                    pvp,
+                    baseline: None,
+                    ..
+                } => {
+                    if let Some(old) = self.pvp.insert(*entity, pvp.clone()) {
+                        transition(&mut report.pvp_transitions, pvp_color(&old), pvp_color(pvp));
+                        if pvp.karma != old.karma {
+                            increment(
+                                &mut report.karma_changes,
+                                if pvp.karma > old.karma {
+                                    "increase"
+                                } else {
+                                    "decay"
+                                }
+                                .into(),
+                            );
+                        }
+                        report.pk_credits = report
+                            .pk_credits
+                            .saturating_add(u64::from(pvp.pk_count.saturating_sub(old.pk_count)));
+                        report.pvp_credits = report
+                            .pvp_credits
+                            .saturating_add(u64::from(pvp.pvp_count.saturating_sub(old.pvp_count)));
+                    }
+                },
+                ZoneEvent::ResurrectOffer {
+                    target,
+                    offer_id,
+                    state,
+                    ..
+                } => {
+                    let key = (target.entity, target.incarnation, *offer_id);
+                    if *state == nightfall_api::domain::zone::ResurrectOfferState::Offered {
+                        if self.offers.insert(key) {
+                            transition(&mut report.resurrection_offers, "Absent", "Offered");
+                        }
+                    } else if self.offers.remove(&key) {
+                        transition(
+                            &mut report.resurrection_offers,
+                            "Offered",
+                            &format!("{state:?}"),
+                        );
+                    }
+                },
                 ZoneEvent::SkillCastStarted {
                     caster,
                     cast_id,
@@ -166,9 +275,20 @@ impl Tracker {
                     // Departure ends our observation of these identities. Do not invent
                     // EffectRemoved facts or an expiry/death reason for this boundary.
                     self.effects.retain(|(id, _, _)| id != entity);
+                    self.offers.retain(|(id, _, _)| id != entity);
+                    self.pvp.remove(entity);
                 },
                 _ => {},
             }
         }
+    }
+}
+
+fn pvp_color(pvp: &nightfall_api::domain::zone::PvpState) -> &'static str {
+    match (pvp.karma > 0, pvp.flag_until.is_some()) {
+        (false, false) => "Neutral",
+        (false, true) => "Flagged",
+        (true, false) => "Chaotic",
+        (true, true) => "ChaoticFlagged",
     }
 }

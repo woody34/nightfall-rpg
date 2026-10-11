@@ -24,6 +24,8 @@ pub enum DamageCause {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum DamageRollSite {
+    AutoHit,
+    AutoCritical,
     PhysicalEvasion,
     PhysicalCritical,
     MagicCritical,

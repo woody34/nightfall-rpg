@@ -50,6 +50,8 @@ impl Phase3AdmissionPolicy {
 /// performs the same checks without loading any external files.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Phase3Rules {
+    #[serde(skip_serializing_if = "legacy_runtime")]
+    runtime_revision: u32,
     timer_policy_version: u32,
     skills: super::skill::SkillRegistry,
     pvp: super::skill_rules::PvpRules,
@@ -59,6 +61,14 @@ pub struct Phase3Rules {
     geometry: super::state_pvp::Phase3Geometry,
     npc: super::skill_npc::NpcSkillRules,
     hash: [u8; 32],
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)] // serde predicate signature
+const fn legacy_runtime(value: &u32) -> bool {
+    *value == 1
+}
+const fn original_runtime() -> u32 {
+    1
 }
 
 impl Phase3Rules {
@@ -74,6 +84,23 @@ impl Phase3Rules {
         geometry: super::state_pvp::Phase3Geometry,
         npc: super::skill_npc::NpcSkillRules,
     ) -> Result<Self, Vec<String>> {
+        Self::try_new_revision(skills, pvp, regen, constants, profiles, geometry, npc, 2)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn try_new_revision(
+        skills: super::skill::SkillRegistry,
+        pvp: super::skill_rules::PvpRules,
+        regen: super::skill_rules::RegenRules,
+        constants: super::skill_rules::Phase3Constants,
+        profiles: super::skill_profiles::SkillProfiles,
+        geometry: super::state_pvp::Phase3Geometry,
+        npc: super::skill_npc::NpcSkillRules,
+        runtime_revision: u32,
+    ) -> Result<Self, Vec<String>> {
+        if !matches!(runtime_revision, 1 | 2) {
+            return Err(vec!["unsupported Phase3 runtime revision".into()]);
+        }
         let errors: Vec<_> = [
             pvp.validate(),
             regen.validate(),
@@ -110,7 +137,12 @@ impl Phase3Rules {
         let mut hash = Sha256::new();
         hash.update(b"nightfall.phase3.rules.1\0");
         hash.update(bytes);
+        if runtime_revision != 1 {
+            hash.update(b"nightfall.phase3.runtime\0");
+            hash.update(runtime_revision.to_le_bytes());
+        }
         Ok(Self {
+            runtime_revision,
             timer_policy_version,
             skills,
             pvp,
@@ -148,6 +180,12 @@ impl Phase3Rules {
             return Err("Phase3 rules missing system skill 5076".into());
         }
         Ok(())
+    }
+
+    /// Recorded gameplay policy. Revision one preserves the experimental cast recording;
+    /// revision two adds autos, public `PvP`, resurrection and final identity hydration.
+    pub const fn runtime_revision(&self) -> u32 {
+        self.runtime_revision
     }
 
     /// Stable hash of the full rules bundle, including provenance and engine policy.
@@ -193,6 +231,8 @@ impl<'de> Deserialize<'de> for Phase3Rules {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Snapshot {
+            #[serde(default = "original_runtime")]
+            runtime_revision: u32,
             timer_policy_version: u32,
             skills: super::skill::SkillRegistry,
             pvp: super::skill_rules::PvpRules,
@@ -204,7 +244,7 @@ impl<'de> Deserialize<'de> for Phase3Rules {
             hash: [u8; 32],
         }
         let snapshot = Snapshot::deserialize(deserializer)?;
-        let rules = Self::try_new(
+        let rules = Self::try_new_revision(
             snapshot.skills,
             snapshot.pvp,
             snapshot.regen,
@@ -212,6 +252,7 @@ impl<'de> Deserialize<'de> for Phase3Rules {
             snapshot.profiles,
             snapshot.geometry,
             snapshot.npc,
+            snapshot.runtime_revision,
         )
         .map_err(|errors| serde::de::Error::custom(errors.join("; ")))?;
         if snapshot.timer_policy_version != rules.timer_policy_version
@@ -337,6 +378,10 @@ impl Phase3Snapshot {
 pub(super) struct Phase3Zone {
     pub(super) canonical: Phase3Snapshot,
     pub(super) schedule: super::state_effects::Phase3Schedule,
+    /// Derived effective sheets; rebuilt on modifier/class/level changes, never persisted.
+    pub(super) effective:
+        BTreeMap<super::EntityId, std::sync::Arc<super::effective_stats::EffectiveStats>>,
+    pub(super) schedule_dirty: BTreeSet<super::EntityId>,
     pub(super) vitals_dirty: std::collections::BTreeSet<super::EntityId>,
     pub(super) ai_requests: Vec<AiRequest>,
     pub(super) forced_this_tick: BTreeSet<super::EntityId>,
@@ -360,6 +405,8 @@ impl Phase3Zone {
         Ok(Self {
             canonical,
             schedule,
+            effective: BTreeMap::new(),
+            schedule_dirty: BTreeSet::new(),
             vitals_dirty: std::collections::BTreeSet::new(),
             ai_requests: Vec::new(),
             forced_this_tick: BTreeSet::new(),
@@ -381,6 +428,37 @@ mod tests {
         class_data::{load_classes, ClassSource},
         rules_data::{load_rules, RulesSource},
     };
+
+    #[test]
+    fn runtime_revision_is_hashed_and_original_rules_keep_their_exact_encoding() {
+        let current = crate::infrastructure::skill_data::load_phase3_rules(
+            &crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+            &[],
+        )
+        .unwrap();
+        let original = Phase3Rules::try_new_revision(
+            current.skills().clone(),
+            current.pvp().clone(),
+            current.regen().clone(),
+            current.constants().clone(),
+            current.profiles().clone(),
+            current.geometry().clone(),
+            current.npc().clone(),
+            1,
+        )
+        .unwrap();
+        assert_eq!(current.runtime_revision(), 2);
+        assert_ne!(original.hash(), current.hash());
+        let old_json = serde_json::to_value(&original).unwrap();
+        assert!(old_json.get("runtime_revision").is_none());
+        assert_eq!(serde_json::from_value::<Phase3Rules>(old_json).unwrap(), original);
+        let mut json = serde_json::to_value(&current).unwrap();
+        json.as_object_mut().unwrap().remove("runtime_revision");
+        assert!(serde_json::from_value::<Phase3Rules>(json).is_err());
+        let mut json = serde_json::to_value(&current).unwrap();
+        json["runtime_revision"] = serde_json::json!(3);
+        assert!(serde_json::from_value::<Phase3Rules>(json).is_err());
+    }
 
     fn state() -> ZoneState {
         ZoneState::new_phase3(
@@ -512,7 +590,7 @@ mod tests {
     }
 
     #[test]
-    fn boundary_records_unintegrated_policy_without_gameplay_mutation() {
+    fn boundary_records_missing_actor_without_gameplay_mutation() {
         let mut zone = state();
         let before = zone.snapshot();
         let draft = zone.draft(vec![ZoneInput::system(ZoneCommand::Attack {
@@ -520,7 +598,7 @@ mod tests {
         })]);
         let applied = zone.run_tick(draft).unwrap();
         assert_eq!(applied.dispositions.len(), 1);
-        assert_eq!(applied.dispositions[0].reason, RejectReason::NotYetImplemented);
+        assert_eq!(applied.dispositions[0].reason, RejectReason::UnknownEntity);
         let after = zone.snapshot();
         assert_eq!(after.entities, before.entities);
         assert_eq!(after.phase3, before.phase3);

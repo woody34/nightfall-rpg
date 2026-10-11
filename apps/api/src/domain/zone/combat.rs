@@ -138,6 +138,7 @@ impl CombatState {
     #[must_use]
     pub fn view(&self, dead: bool, attackable: bool) -> CombatView {
         CombatView {
+            phase3: None,
             template: match &self.role {
                 CombatRole::Npc { template, .. } => Some(template.clone()),
                 CombatRole::Player { .. } => None,
@@ -158,6 +159,9 @@ impl CombatState {
 /// travel in `StatsChanged` / `XpGained`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CombatView {
+    /// Explicit V5 public policy. Legacy snapshots never synthesize this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase3: Option<super::CombatViewPhase3>,
     /// NPC template id; `None` for players.
     pub template: Option<String>,
     /// Life counter.

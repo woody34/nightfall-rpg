@@ -81,6 +81,8 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::SkillCastResult { .. }
                 | ZoneEvent::SkillCastCancelled { .. }
                 | ZoneEvent::SkillLearned { .. }
+                | ZoneEvent::PvpStateChanged { .. }
+                | ZoneEvent::ResurrectOffer { .. }
                 | ZoneEvent::SkillStateSync { .. }
                 | ZoneEvent::SpGained { .. }
                 | ZoneEvent::SkillReuse { .. }
@@ -718,6 +720,7 @@ fn targeting_validates_before_mutation_and_repeats_are_silent() {
     assert_eq!(
         t.events,
         vec![ZoneEvent::TargetChanged {
+            phase3: None,
             tick: t.tick,
             entity: id(1),
             target: Some(npc)
@@ -961,7 +964,8 @@ proptest::proptest! {
             // owner facts whose target is outside that owner's final AOI.
             events.push(ZoneEvent::XpGained { tick, entity, amount: 1, total: 1 });
             events.push(ZoneEvent::EntityDied { tick, entity, killer: None, incarnation: 1 });
-            events.push(ZoneEvent::TargetChanged { tick, entity, target: Some(id(0)) });
+            events.push(ZoneEvent::TargetChanged {
+            phase3: None, tick, entity, target: Some(id(0)) });
             events.push(ZoneEvent::AttackCancelled {
                 tick, attacker: entity, target: id(0), reason: SwingCancel::TargetLost,
             });

@@ -48,6 +48,8 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         | ZoneEvent::SkillCastResult { .. }
         | ZoneEvent::SkillCastCancelled { .. }
         | ZoneEvent::SkillLearned { .. }
+        | ZoneEvent::PvpStateChanged { .. }
+        | ZoneEvent::ResurrectOffer { .. }
         | ZoneEvent::SkillStateSync { .. }
         | ZoneEvent::SpGained { .. }
         | ZoneEvent::SkillReuse { .. }
@@ -127,6 +129,8 @@ impl Projection {
             | ZoneEvent::SkillCastResult { .. }
             | ZoneEvent::SkillCastCancelled { .. }
             | ZoneEvent::SkillLearned { .. }
+            | ZoneEvent::PvpStateChanged { .. }
+            | ZoneEvent::ResurrectOffer { .. }
             | ZoneEvent::SkillStateSync { .. }
             | ZoneEvent::SpGained { .. }
             | ZoneEvent::SkillReuse { .. }
@@ -176,6 +180,10 @@ impl Projection {
 // Private state is shown only in the selected owner's recorded output, never in off-AOI facts.
 fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
     match event {
+        ZoneEvent::ResurrectOffer { target, tick, .. } if owner != Some(target.entity) => format!(
+            "Resurrection offer: {} · tick {} (owner-private fields hidden)",
+            target.entity, tick.0
+        ),
         ZoneEvent::SkillLearned {
             entity,
             tick,
@@ -233,6 +241,8 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
         | ZoneEvent::SkillCastStarted { .. }
         | ZoneEvent::SkillCastResult { .. }
         | ZoneEvent::SkillCastCancelled { .. }
+        | ZoneEvent::PvpStateChanged { .. }
+        | ZoneEvent::ResurrectOffer { .. }
         | ZoneEvent::SkillStateSync { .. }
         | ZoneEvent::SpGained { .. }
         | ZoneEvent::SkillReuse { .. }

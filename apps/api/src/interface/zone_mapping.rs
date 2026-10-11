@@ -222,6 +222,9 @@ pub fn spawn_to_pb(
         spawn.max_hp = c.max_hp;
         spawn.level = c.level;
         spawn.pending_swing = c.swing.map(|s| swing_to_pb(entity, &s));
+        if let Some(public) = &c.phase3 {
+            phase3_identity_to_pb(&mut spawn, public.flag_until, public.karma);
+        }
     }
     world(Event::Spawn(spawn))
 }
@@ -360,6 +363,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             damage,
             target_hp_after,
             target_incarnation,
+            phase3,
         } => vec![world(Event::AttackResult(pb::AttackResult {
             attacker: attacker.to_string(),
             target: target.to_string(),
@@ -373,7 +377,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             damage: *damage,
             target_hp_after: *target_hp_after,
             target_incarnation: *target_incarnation,
-            ..Default::default()
+            cp_damage: phase3.as_ref().map_or(0, |p| p.cp_absorbed),
         }))],
         ZoneEvent::EntityDied {
             entity,
@@ -393,16 +397,31 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             target_incarnation,
             impact,
             ready,
-        } => vec![world(Event::AttackStarted(swing_to_pb(
-            *attacker,
-            &Swing {
+            phase3,
+        } => {
+            let swing = Swing {
                 target: *target,
                 target_incarnation: *target_incarnation,
                 start: *tick,
                 impact: *impact,
                 ready: *ready,
-            },
-        )))],
+            };
+            let started = phase3.as_ref().map_or_else(
+                || swing_to_pb(*attacker, &swing),
+                |p| {
+                    phase3_swing_to_pb(
+                        crate::domain::zone::effects::TargetBinding {
+                            entity: *attacker,
+                            incarnation: p.attacker_incarnation,
+                        },
+                        &swing,
+                        p.target_visible,
+                        p.baseline,
+                    )
+                },
+            );
+            vec![world(Event::AttackStarted(started))]
+        },
         ZoneEvent::AttackCancelled {
             tick,
             attacker,
@@ -533,13 +552,88 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             entity: entity.to_string(),
             level: *level,
         }))],
-        ZoneEvent::TargetChanged { entity, target, .. } => {
-            vec![world(Event::TargetChanged(pb::TargetChanged {
-                entity: entity.to_string(),
-                target: target.map(|id| id.to_string()).unwrap_or_default(),
-                ..Default::default()
-            }))]
+        ZoneEvent::TargetChanged {
+            entity,
+            target,
+            tick,
+            phase3,
+        } => {
+            let selection = phase3.as_ref().map_or_else(
+                || pb::TargetChanged {
+                    entity: entity.to_string(),
+                    target: target.map(|id| id.to_string()).unwrap_or_default(),
+                    ..Default::default()
+                },
+                |p| {
+                    phase3_selection_to_pb(
+                        *entity,
+                        *tick,
+                        target
+                            .zip(p.target_incarnation)
+                            .map(|(entity, incarnation)| {
+                                crate::domain::zone::effects::TargetBinding {
+                                    entity,
+                                    incarnation,
+                                }
+                            }),
+                        p.baseline,
+                    )
+                },
+            );
+            vec![world(Event::TargetChanged(selection))]
         },
+        ZoneEvent::PvpStateChanged {
+            tick,
+            entity,
+            incarnation,
+            pvp,
+            baseline,
+        } => {
+            vec![world(Event::PvpStateChanged(pvp_state_to_pb(
+                crate::domain::zone::effects::TargetBinding {
+                    entity: *entity,
+                    incarnation: *incarnation,
+                },
+                *tick,
+                pvp,
+                *baseline,
+            )))]
+        },
+        ZoneEvent::ResurrectOffer {
+            tick,
+            target,
+            offer_id,
+            caster,
+            restore_percent_q,
+            recoverable_xp,
+            expires_at,
+            state,
+        } => vec![world(Event::ResurrectOffer(pb::ResurrectOffer {
+            target: target.entity.to_string(),
+            target_incarnation: target.incarnation,
+            offer_id: offer_id.0,
+            caster: caster.map(|c| c.entity.to_string()),
+            caster_incarnation: caster.map(|c| c.incarnation),
+            restore_percent_q: *restore_percent_q,
+            recoverable_xp: *recoverable_xp,
+            expiry_tick: expires_at.0,
+            tick: tick.0,
+            state: match state {
+                crate::domain::zone::ResurrectOfferState::Offered => {
+                    pb::ResurrectOfferState::Offered
+                },
+                crate::domain::zone::ResurrectOfferState::Declined => {
+                    pb::ResurrectOfferState::Declined
+                },
+                crate::domain::zone::ResurrectOfferState::Expired => {
+                    pb::ResurrectOfferState::Expired
+                },
+                crate::domain::zone::ResurrectOfferState::Accepted => {
+                    pb::ResurrectOfferState::Accepted
+                },
+            }
+            .into(),
+        }))],
         ZoneEvent::SkillCastStarted {
             tick,
             caster,
@@ -1108,6 +1202,7 @@ mod combat_tests {
     #[test]
     fn attack_result_all_fields_round_trip() {
         let event = ZoneEvent::AttackResult {
+            phase3: None,
             attacker: id(1),
             target: id(2),
             tick: Tick(31),
@@ -1260,6 +1355,7 @@ mod combat_tests {
     #[test]
     fn target_changed_all_fields_round_trip() {
         let event = ZoneEvent::TargetChanged {
+            phase3: None,
             tick: Tick(31),
             entity: id(1),
             target: Some(id(2)),
