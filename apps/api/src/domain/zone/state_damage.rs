@@ -19,6 +19,23 @@ pub enum DamageCause {
     HpConsumption,
 }
 
+/// Bounded source callsites for injected caller traces. No ID-labelled telemetry and no
+/// alternate production generator: all calls draw from the enclosing zone's seeded RNG.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub enum DamageRollSite {
+    PhysicalEvasion,
+    PhysicalCritical,
+    MagicCritical,
+    MagicSuccess,
+    MagicFailure,
+    Spread,
+    AttackBreak,
+    PhysicalVengeance,
+    MagicVengeance,
+    StunRemoval,
+}
+
 /// Complete caller attribution, including a departed periodic source's frozen kind/life.
 /// Direct callers capture this from live state; retained pulses carry the effect source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

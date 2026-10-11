@@ -15,7 +15,8 @@ use crate::domain::zone::skill::SkillDef;
 use crate::domain::zone::skill_math::{self, ExactRatio, MagicResolution};
 use crate::domain::zone::stat_functions::FunctionConditions;
 use crate::domain::zone::state_damage::{
-    self, DamageCause, DamageMaxima, DamageOutcome, DamageReduction, DamageRequest, DamageResources,
+    self, DamageCause, DamageMaxima, DamageOutcome, DamageReduction, DamageRequest,
+    DamageResources, DamageRollSite,
 };
 use crate::domain::zone::state_pvp::{
     hostility_allowed, HostilityClassification, HostilityEndpoint, HostilityError,
@@ -39,6 +40,49 @@ fn missing() -> TickError {
 }
 fn q(value: i64) -> Result<ExactRatio, StatError> {
     ExactRatio::new(i128::from(value), i128::from(Q))
+}
+// Every production caller uses the zone generator. Tests inject values at these same
+// callsites while advancing that generator, exposing both ordering and the word cursor.
+type DamageRoll<'a> =
+    dyn FnMut(&mut ZoneState, DamageRollSite, TargetBinding, u32) -> Result<u32, StatError> + 'a;
+fn draw_damage_v5(
+    zone: &mut ZoneState,
+    _site: DamageRollSite,
+    _target: TargetBinding,
+    bound: u32,
+) -> Result<u32, StatError> {
+    if bound == 0 {
+        return Err(StatError::Overflow);
+    }
+    Ok(zone.roll_below(bound))
+}
+fn derive_effective_v5(
+    stats: &StatRules,
+    classes: &crate::domain::class::ClassRegistry,
+    rules: &crate::domain::zone::Phase3Rules,
+    entity: &Entity,
+    sidecar: &Phase3Entity,
+) -> Result<EffectiveStats, StatError> {
+    let combat = entity.combat.as_ref().ok_or(StatError::Overflow)?;
+    match &combat.role {
+        CombatRole::Player {
+            progression: Some(p),
+            ..
+        } => PlayerStatInputs::from_class(
+            stats,
+            classes,
+            rules,
+            p.class_state.current_class_id,
+            combat.sheet.level(),
+        )?
+        .derive(sidecar, rules, true),
+        CombatRole::Npc { template, .. } => {
+            NpcStatInputs::from_profile(stats, rules, template)?.derive(sidecar, rules)
+        },
+        CombatRole::Player {
+            progression: None, ..
+        } => Err(StatError::Overflow),
+    }
 }
 fn unsupported_player_pulse(
     resource: crate::domain::zone::effects::PeriodicResource,
@@ -102,33 +146,18 @@ impl ZoneState {
         e: &Entity,
         sidecar: &Phase3Entity,
     ) -> Result<EffectiveStats, StatError> {
-        let stats = self.rules.as_deref().ok_or(StatError::Overflow)?;
-        let rules = &self
-            .phase3
-            .as_ref()
-            .ok_or(StatError::Overflow)?
-            .canonical
-            .rules;
-        let combat = e.combat.as_ref().ok_or(StatError::Overflow)?;
-        match &combat.role {
-            CombatRole::Player {
-                progression: Some(p),
-                ..
-            } => PlayerStatInputs::from_class(
-                stats,
-                self.classes.as_deref().ok_or(StatError::Overflow)?,
-                rules,
-                p.class_state.current_class_id,
-                combat.sheet.level(),
-            )?
-            .derive(sidecar, rules, true),
-            CombatRole::Npc { template, .. } => {
-                NpcStatInputs::from_profile(stats, rules, template)?.derive(sidecar, rules)
-            },
-            CombatRole::Player {
-                progression: None, ..
-            } => Err(StatError::Overflow),
-        }
+        derive_effective_v5(
+            self.rules.as_deref().ok_or(StatError::Overflow)?,
+            self.classes.as_deref().ok_or(StatError::Overflow)?,
+            &self
+                .phase3
+                .as_ref()
+                .ok_or(StatError::Overflow)?
+                .canonical
+                .rules,
+            e,
+            sidecar,
+        )
     }
     fn effective(&self, id: EntityId) -> Result<EffectiveStats, TickError> {
         self.effective_for(self.entities.get(&id).ok_or_else(missing)?, self.sidecar(id)?)
@@ -367,7 +396,14 @@ impl ZoneState {
                         || p.pvp.pk_count != 0
                         || p.pvp.pvp_count != 0
                 })
-                || matches!(&side.cast, CastState::Casting(cast) if phase.canonical.rules.skills().get(cast.skill.id).is_none_or(|s| !supported_cast(s, cast.skill.rank)))
+                || matches!(&side.cast, CastState::Casting(cast) if
+                    e.kind != EntityKind::Player || phase.canonical.rules.skills().get(cast.skill.id).is_none_or(|skill|
+                        !supported_cast(skill, cast.skill.rank) || (hostile_skill(skill) && cast.targets.iter().any(|target|
+                            self.entities.get(&target.entity).is_some_and(|target_entity|
+                                target_entity.kind == EntityKind::Player && self.binding(target.entity) == Some(*target))
+                        ))
+                    )
+                )
             {
                 return Err(SnapshotError::CombatMismatch);
             }
@@ -1386,7 +1422,8 @@ impl ZoneState {
             request.target.entity,
             source.entity,
             super::super::HateEntry {
-                hate,
+                // L2Attackable.java:606-621 adds one more hate when computed aggro is zero.
+                hate: hate.max(1),
                 damage: u64::from(damage),
             },
             events,
@@ -1394,12 +1431,22 @@ impl ZoneState {
         Ok(())
     }
 
-    #[allow(clippy::too_many_lines)] // One recipient transaction preserves status/RNG/death order.
     fn apply_damage_v5(
         &mut self,
         tick: Tick,
         request: DamageRequest,
         events: &mut Vec<ZoneEvent>,
+    ) -> Result<DamageOutcome, TickError> {
+        self.apply_damage_rolled_v5(tick, request, events, &mut draw_damage_v5)
+    }
+
+    #[allow(clippy::too_many_lines)] // One recipient transaction preserves status/RNG/death order.
+    fn apply_damage_rolled_v5(
+        &mut self,
+        tick: Tick,
+        request: DamageRequest,
+        events: &mut Vec<ZoneEvent>,
+        draw: &mut DamageRoll<'_>,
     ) -> Result<DamageOutcome, TickError> {
         let DamageRequest {
             source: attribution,
@@ -1427,7 +1474,8 @@ impl ZoneState {
         };
         let side = self.sidecar(target.entity)?.clone();
         let rules = Arc::clone(&self.phase3.as_ref().ok_or_else(missing)?.canonical.rules);
-        let mut rng = self.rng.clone();
+        let stats = Arc::clone(self.rules.as_ref().ok_or_else(missing)?);
+        let classes = Arc::clone(self.classes.as_ref().ok_or_else(missing)?);
         let mutation = state_damage::prepare_hp_reduction(
             &side,
             DamageResources {
@@ -1443,22 +1491,9 @@ impl ZoneState {
                 rolled_damage,
             },
             &rules,
-            |bound| {
-                let span = 1_u64 << 32;
-                let bound = u64::from(bound);
-                let limit = span
-                    .checked_sub(span.checked_rem(bound).ok_or(StatError::Overflow)?)
-                    .ok_or(StatError::Overflow)?;
-                loop {
-                    let n = u64::from(rng.next_u32());
-                    if n < limit {
-                        return u32::try_from(n.checked_rem(bound).ok_or(StatError::Overflow)?)
-                            .map_err(|_| StatError::Overflow);
-                    }
-                }
-            },
+            |bound| draw(self, DamageRollSite::StunRemoval, target, bound),
             |side| {
-                let effective = self.effective_for(&recipient, side)?;
+                let effective = derive_effective_v5(&stats, &classes, &rules, &recipient, side)?;
                 Ok(DamageMaxima {
                     hp: effective.physical.max_hp(),
                     mp: effective.physical.max_mp(),
@@ -1480,7 +1515,6 @@ impl ZoneState {
                 .vitals_dirty
                 .insert(target.entity);
         }
-        self.rng = rng;
         *self.sidecar_mut(target.entity)? = mutation.phase3;
         for old in &mutation.removed_effects {
             events.push(ZoneEvent::EffectRemoved {

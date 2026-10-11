@@ -2,6 +2,80 @@
 use super::*;
 
 impl ZoneState {
+    fn project_damage_v5(&self, tick: Tick, request: DamageRequest) -> Result<u32, TickError> {
+        let c = self
+            .entities
+            .get(&request.target.entity)
+            .and_then(|e| e.combat.as_ref())
+            .ok_or_else(missing)?;
+        let cp = match &c.role {
+            CombatRole::Player {
+                progression: Some(p),
+                ..
+            } => Some(p.class_state.cp),
+            CombatRole::Player {
+                progression: None, ..
+            }
+            | CombatRole::Npc { .. } => None,
+        };
+        state_damage::projected_absorption(
+            DamageResources {
+                hp: c.hp,
+                mp: c.mp,
+                cp,
+            },
+            DamageReduction {
+                cause: request.cause,
+                source_kind: request.source.kind,
+                classification: self.damage_classification_v5(tick, request)?,
+                awake: true,
+                rolled_damage: request.rolled_damage,
+            },
+        )
+        .map_err(invariant)
+    }
+
+    /// Formulas.java:992-1025 then L2Character.java:4191-4198: consume the chance draw
+    /// before checking the cast kind/cutoff. `ATTACK_CANCEL` has no admitted modifier provider.
+    fn attack_break_v5(
+        &mut self,
+        tick: Tick,
+        target: TargetBinding,
+        absorbed: u32,
+        events: &mut Vec<ZoneEvent>,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<(), TickError> {
+        if self.binding(target.entity) != Some(target) {
+            return Ok(());
+        }
+        let CastState::Casting(cast) = self.sidecar(target.entity)?.cast.clone() else {
+            return Ok(());
+        };
+        let (_, men) = self.base_property_v5(target.entity, "MEN")?;
+        let chance = skill_math::attack_break_base(absorbed, men)
+            .and_then(|v| v.clamp(ExactRatio::whole(1), ExactRatio::whole(99)))
+            .map_err(invariant)?;
+        let roll = draw(self, DamageRollSite::AttackBreak, target, 100).map_err(invariant)?;
+        let success = chance
+            .checked_cmp(ExactRatio::whole(i64::from(roll)))
+            .map_err(invariant)?
+            .is_gt();
+        let rules = Arc::clone(&self.phase3.as_ref().ok_or_else(missing)?.canonical.rules);
+        let skill = rules.skills().get(cast.skill.id).ok_or_else(missing)?;
+        if let Some(cast) = self
+            .sidecar_mut(target.entity)?
+            .interrupt_cast(tick, success, skill)
+        {
+            events.push(ZoneEvent::SkillCastCancelled {
+                tick,
+                caster: target,
+                cast_id: cast.id,
+                reason: CastCancelReason::Damage,
+            });
+        }
+        Ok(())
+    }
+
     fn npc_penalty_v5(
         &self,
         caster: EntityId,
@@ -59,17 +133,26 @@ impl ZoneState {
         .map_err(invariant)
     }
 
-    fn spread_v5(&mut self, radius: u32) -> Result<ExactRatio, TickError> {
+    fn spread_v5(
+        &mut self,
+        radius: u32,
+        target: TargetBinding,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<ExactRatio, TickError> {
         let spread = if radius == 0 {
             0
         } else {
             i64::from(
-                self.roll_below(
+                draw(
+                    self,
+                    DamageRollSite::Spread,
+                    target,
                     radius
                         .checked_mul(2)
                         .and_then(|v| v.checked_add(1))
                         .ok_or_else(missing)?,
-                ),
+                )
+                .map_err(invariant)?,
             )
             .checked_sub(i64::from(radius))
             .ok_or_else(missing)?
@@ -131,6 +214,30 @@ impl ZoneState {
         handler: &crate::domain::zone::skill::SkillHandler,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<SkillTargetResult, TickError> {
+        self.physical_handler_rolled_v5(
+            tick,
+            caster,
+            target,
+            skill,
+            rank,
+            handler,
+            events,
+            &mut draw_damage_v5,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Source caller with injectable rolls, same production path.
+    fn physical_handler_rolled_v5(
+        &mut self,
+        tick: Tick,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        handler: &crate::domain::zone::skill::SkillHandler,
+        events: &mut Vec<ZoneEvent>,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<SkillTargetResult, TickError> {
         let a = self.effective(caster.entity)?;
         let b = self.effective(target.entity)?;
         let mut result = SkillTargetResult {
@@ -163,7 +270,18 @@ impl ZoneState {
             evasion,
             chance,
             strength,
-            |bound| Ok(self.roll_below(bound)),
+            |bound| {
+                draw(
+                    self,
+                    if bound == 100 {
+                        DamageRollSite::PhysicalEvasion
+                    } else {
+                        DamageRollSite::PhysicalCritical
+                    },
+                    target,
+                    bound,
+                )
+            },
         )
         .map_err(invariant)?
         else {
@@ -190,7 +308,7 @@ impl ZoneState {
         .map_err(invariant)?
         .checked_mul(skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?)
         .map_err(invariant)?
-        .checked_mul(self.spread_v5(a.physical.random_damage())?)
+        .checked_mul(self.spread_v5(a.physical.random_damage(), target, draw)?)
         .map_err(invariant)?
         .checked_mul(self.npc_penalty_v5(
             caster.entity,
@@ -211,7 +329,7 @@ impl ZoneState {
             .checked_mul(ExactRatio::whole(if critical { 2 } else { 1 }))
             .map_err(invariant)?;
         result.rolled = u32::try_from(damage.trunc().map_err(invariant)?).map_err(invariant)?;
-        let damage = self.apply_damage_v5(
+        let damage = self.apply_damage_rolled_v5(
             tick,
             DamageRequest {
                 source: self.damage_source_v5(caster)?,
@@ -220,6 +338,7 @@ impl ZoneState {
                 cause: DamageCause::Direct,
             },
             events,
+            draw,
         )?;
         result.cp_absorbed = damage.cp_absorbed;
         result.hp_removed = damage.hp_removed;
@@ -238,7 +357,7 @@ impl ZoneState {
                 .ok_or_else(missing)?
                 <= 40
         {
-            self.roll_below(100);
+            draw(self, DamageRollSite::PhysicalVengeance, target, 100).map_err(invariant)?;
         }
         Ok(result)
     }
@@ -254,9 +373,35 @@ impl ZoneState {
         handler: &crate::domain::zone::skill::SkillHandler,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<SkillTargetResult, TickError> {
+        self.magic_handler_rolled_v5(
+            tick,
+            caster,
+            target,
+            skill,
+            rank,
+            handler,
+            events,
+            &mut draw_damage_v5,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Source caller with injectable rolls, same production path.
+    fn magic_handler_rolled_v5(
+        &mut self,
+        tick: Tick,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        handler: &crate::domain::zone::skill::SkillHandler,
+        events: &mut Vec<ZoneEvent>,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<SkillTargetResult, TickError> {
         let a = self.effective(caster.entity)?;
         let b = self.effective(target.entity)?;
-        let critical = self.roll_below(1000) < a.magic_crit;
+        let critical = draw(self, DamageRollSite::MagicCritical, target, 1000)
+            .map_err(invariant)?
+            < a.magic_crit;
         let magic_level = *skill
             .magic_level
             .get(usize::try_from(rank.saturating_sub(1)).map_err(invariant)?)
@@ -279,17 +424,21 @@ impl ZoneState {
             self.damage_stat_v5(target.entity, &b, "magicSuccRes", Q)?,
         )
         .map_err(invariant)?;
-        let success = i64::from(self.roll_below(100)) < i64::from(rate);
+        let success =
+            i64::from(draw(self, DamageRollSite::MagicSuccess, target, 100).map_err(invariant)?)
+                < i64::from(rate);
         let resolution = if success {
             MagicResolution::Success
-        } else if i64::from(self.roll_below(100)) < i64::from(rate)
+        } else if self.sidecar(caster.entity)?.player.is_some()
+            && i64::from(draw(self, DamageRollSite::MagicFailure, target, 100).map_err(invariant)?)
+                < i64::from(rate)
             && b.physical.level().saturating_sub(a.physical.level()) <= 9
         {
             MagicResolution::Half
         } else {
             MagicResolution::Resist
         };
-        let spread = self.spread_v5(a.physical.random_damage())?;
+        let spread = self.spread_v5(a.physical.random_damage(), target, draw)?;
         let power = ExactRatio::parse_literal(
             handler
                 .params
@@ -304,7 +453,7 @@ impl ZoneState {
             q(b.m_def_q).map_err(invariant)?,
             resolution,
             critical,
-            self.sidecar(target.entity)?.player.is_some(),
+            self.sidecar(caster.entity)?.player.is_some() && self.sidecar(target.entity)?.player.is_some(),
         )
         .map_err(invariant)?
         .checked_mul(spread).map_err(invariant)?
@@ -322,23 +471,20 @@ impl ZoneState {
         } else {
             0
         };
-        // MagicalAttackRange.java:83,89: attack-break (idle -> no draw), then vengeance
-        // even at zero chance, then recipient status/stun/resource/death processing.
-        if matches!(self.sidecar(target.entity)?.cast, CastState::Casting(_)) {
-            return Err(missing());
-        }
+        // MagicalAttackRange.java:83,89: attack-break precedes vengeance, and both
+        // precede recipient status/CP/HP. Whole-zero positive source damage keeps the tail.
         let result = if positive {
-            self.roll_below(100);
-            self.apply_damage_v5(
-                tick,
-                DamageRequest {
-                    source: self.damage_source_v5(caster)?,
-                    target,
-                    rolled_damage: rolled,
-                    cause: DamageCause::Direct,
-                },
-                events,
-            )?
+            let request = DamageRequest {
+                source: self.damage_source_v5(caster)?,
+                target,
+                rolled_damage: rolled,
+                cause: DamageCause::Direct,
+            };
+            let absorbed = self.project_damage_v5(tick, request)?;
+            self.attack_break_v5(tick, target, absorbed, events, draw)?;
+            // The executable manifest has no vengeance provider: retain its zero-chance draw.
+            draw(self, DamageRollSite::MagicVengeance, target, 100).map_err(invariant)?;
+            self.apply_damage_rolled_v5(tick, request, events, draw)?
         } else {
             DamageOutcome {
                 cp_absorbed: 0,
@@ -374,6 +520,7 @@ impl ZoneState {
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,
+    clippy::expect_used,
     clippy::panic,
     clippy::indexing_slicing,
     clippy::wildcard_enum_match_arm
@@ -596,5 +743,466 @@ mod tests {
         );
         zone.note_hits_v5(Tick(1)).unwrap();
         assert!(zone.phase3.as_ref().unwrap().landed_hits.is_empty());
+    }
+    type Trace = Vec<(DamageRollSite, TargetBinding, u32, u32, u128)>;
+    fn scripted<'a>(
+        expected: &'a [(DamageRollSite, u32, u32)],
+        trace: &'a mut Trace,
+    ) -> impl FnMut(&mut ZoneState, DamageRollSite, TargetBinding, u32) -> Result<u32, StatError> + 'a
+    {
+        let mut values = expected.iter();
+        move |zone, site, target, bound| {
+            let &(expected_site, expected_bound, value) = values.next().expect("unexpected draw");
+            assert_eq!((site, bound), (expected_site, expected_bound));
+            assert!(value < bound);
+            zone.roll_below(bound);
+            trace.push((site, target, bound, value, zone.rng.get_word_pos()));
+            Ok(value)
+        }
+    }
+    fn start_cast(zone: &mut ZoneState, caster: TargetBinding, target: TargetBinding) {
+        let c = zone
+            .entities
+            .get_mut(&caster.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut c.role
+        else {
+            panic!("player")
+        };
+        p.class_state.learned_skills = vec![crate::domain::subclass::LearnedSkill {
+            key: "l2.skill.1177".into(),
+            level: 1,
+        }];
+        let tick = zone
+            .run_tick(zone.draft(vec![ZoneInput {
+                source: CommandSource::Session {
+                    entity: caster.entity,
+                    generation: SessionGeneration(1),
+                },
+                seq: Some(1),
+                command: ZoneCommand::CastSkill {
+                    entity: caster.entity,
+                    skill_id: crate::domain::zone::skill::SkillId(1177),
+                    target: Some(target.entity),
+                },
+            }]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty());
+        assert!(matches!(zone.sidecar(caster.entity).unwrap().cast, CastState::Casting(_)));
+    }
+    fn add_stun(zone: &mut ZoneState, target: TargetBinding) {
+        let rules = Arc::clone(&zone.phase3.as_ref().unwrap().canonical.rules);
+        let mut stun = crate::domain::zone::phase3_entity::tests::source_effect(&rules, 1, 100);
+        stun.target_incarnation = target.incarnation;
+        let side = zone.sidecar_mut(target.entity).unwrap();
+        side.effects = EffectList::from_entries([(stun.id, stun)].into()).unwrap();
+        side.modifier_install_order
+            .insert(1, RestoredModifierSource::Effect(effects::EffectId(1)));
+    }
+
+    #[test]
+    fn injected_magic_tail_interrupts_before_vengeance_and_recipient_stun_cp() {
+        use DamageRollSite as R;
+        let (original, source, target, npc) = fixture();
+        for outside_window in [false, true] {
+            let mut zone = original.clone();
+            start_cast(&mut zone, target, npc);
+            // A unit-level recipient status fixture preserves the existing cast deliberately
+            // to exercise source ordering; normal stun installation cancels it immediately.
+            add_stun(&mut zone, target);
+            set_resources(&mut zone, target, 50, 1000);
+            let CastState::Casting(cast) = zone.sidecar(target.entity).unwrap().cast.clone() else {
+                panic!("cast")
+            };
+            let tick = if outside_window {
+                cast.interrupt_until
+            } else {
+                cast.start_at
+            };
+            let skill = zone
+                .phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .rules
+                .skills()
+                .get(crate::domain::zone::skill::SkillId(1177))
+                .unwrap()
+                .clone();
+            let handler = skill
+                .effects
+                .iter()
+                .find(|h| h.name == "MagicalAttackRange")
+                .unwrap();
+            let radius = zone
+                .effective(source.entity)
+                .unwrap()
+                .physical
+                .random_damage();
+            let expected = [
+                (R::MagicCritical, 1000, 999),
+                (R::MagicSuccess, 100, 0),
+                (R::Spread, radius.saturating_mul(2).saturating_add(1), radius),
+                (R::AttackBreak, 100, 0),
+                (R::MagicVengeance, 100, 99),
+                (R::StunRemoval, 10, 0),
+            ];
+            let mut trace = Vec::new();
+            let before_cursor = zone.rng.get_word_pos();
+            let mut events = Vec::new();
+            let row = zone
+                .magic_handler_rolled_v5(
+                    tick,
+                    source,
+                    target,
+                    &skill,
+                    1,
+                    handler,
+                    &mut events,
+                    &mut scripted(&expected, &mut trace),
+                )
+                .unwrap();
+            assert_eq!(trace.len(), expected.len());
+            assert!(trace.iter().all(|r| r.1 == target));
+            assert!(trace.windows(2).all(|w| w[0].4 < w[1].4));
+            assert!(trace[0].4 > before_cursor);
+            assert!(row.cp_absorbed > 0);
+            assert_eq!(row.hp_removed, 0);
+            let canceled = events.iter().position(|e| {
+                matches!(
+                    e,
+                    ZoneEvent::SkillCastCancelled {
+                        reason: CastCancelReason::Damage,
+                        ..
+                    }
+                )
+            });
+            let removed = events
+                .iter()
+                .position(|e| matches!(e, ZoneEvent::EffectRemoved { .. }))
+                .unwrap();
+            assert_eq!(canceled.is_some(), !outside_window);
+            if let Some(canceled) = canceled {
+                assert!(canceled < removed);
+            }
+            assert_eq!(
+                matches!(zone.sidecar(target.entity).unwrap().cast, CastState::Casting(_)),
+                outside_window
+            );
+        }
+    }
+
+    #[test]
+    fn injected_magic_failure_second_roll_is_player_only_and_idle_skips_break() {
+        use DamageRollSite as R;
+        let (original, player, target, npc) = fixture();
+        for source in [player, npc] {
+            let mut zone = original.clone();
+            set_resources(&mut zone, target, 50, 1000);
+            let skill = zone
+                .phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .rules
+                .skills()
+                .get(crate::domain::zone::skill::SkillId(1177))
+                .unwrap()
+                .clone();
+            let handler = skill
+                .effects
+                .iter()
+                .find(|h| h.name == "MagicalAttackRange")
+                .unwrap();
+            let radius = zone
+                .effective(source.entity)
+                .unwrap()
+                .physical
+                .random_damage();
+            let mut expected = vec![(R::MagicCritical, 1000, 999), (R::MagicSuccess, 100, 99)];
+            if source == player {
+                expected.push((R::MagicFailure, 100, 0));
+            }
+            if radius > 0 {
+                expected.push((R::Spread, radius.saturating_mul(2).saturating_add(1), radius));
+            }
+            expected.push((R::MagicVengeance, 100, 99));
+            let mut trace = Vec::new();
+            let row = zone
+                .magic_handler_rolled_v5(
+                    Tick(1),
+                    source,
+                    target,
+                    &skill,
+                    1,
+                    handler,
+                    &mut Vec::new(),
+                    &mut scripted(&expected, &mut trace),
+                )
+                .unwrap();
+            assert_eq!(trace.len(), expected.len());
+            assert_eq!(
+                row.outcome,
+                if source == player {
+                    SkillOutcome::Half
+                } else {
+                    SkillOutcome::Resist
+                }
+            );
+            assert_eq!(row.cp_absorbed > 0, source == player);
+        }
+    }
+
+    #[test]
+    fn injected_physical_recipient_stun_precedes_zero_chance_vengeance_without_attack_break() {
+        use DamageRollSite as R;
+        let (mut zone, source, target, npc) = fixture();
+        start_cast(&mut zone, target, npc);
+        add_stun(&mut zone, target);
+        set_resources(&mut zone, target, 5000, 1000);
+        let skill = zone
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .rules
+            .skills()
+            .get(crate::domain::zone::skill::SkillId(3))
+            .unwrap()
+            .clone();
+        let handler = skill
+            .effects
+            .iter()
+            .find(|h| h.name == "PhysicalAttack")
+            .unwrap();
+        let radius = zone
+            .effective(source.entity)
+            .unwrap()
+            .physical
+            .random_damage();
+        let chance: i32 = handler
+            .params
+            .get("criticalChance")
+            .and_then(|p| p.at(1, skill.max_level))
+            .map_or(0, |value| value.parse().unwrap());
+        let mut expected = vec![(R::PhysicalEvasion, 100, 99)];
+        if chance > 0 {
+            expected.push((R::PhysicalCritical, 100_000_000, 99_999_999));
+        }
+        expected.extend([
+            (R::Spread, radius.saturating_mul(2).saturating_add(1), radius),
+            (R::StunRemoval, 10, 0),
+            (R::PhysicalVengeance, 100, 99),
+        ]);
+        let mut trace = Vec::new();
+        let row = zone
+            .physical_handler_rolled_v5(
+                Tick(2),
+                source,
+                target,
+                &skill,
+                1,
+                handler,
+                &mut Vec::new(),
+                &mut scripted(&expected, &mut trace),
+            )
+            .unwrap();
+        assert_eq!(trace.len(), expected.len());
+        assert!(row.cp_absorbed > 0);
+        assert!(matches!(zone.sidecar(target.entity).unwrap().cast, CastState::Casting(_)));
+    }
+
+    #[test]
+    fn injected_periodic_has_no_stun_break_or_reflection_even_at_hp_one() {
+        let (mut zone, source, target, _) = fixture();
+        add_stun(&mut zone, target);
+        set_resources(&mut zone, target, 1, 20);
+        let mut trace = Vec::new();
+        let result = zone
+            .apply_damage_rolled_v5(
+                Tick(1),
+                DamageRequest {
+                    source: zone.damage_source_v5(source).unwrap(),
+                    target,
+                    cause: DamageCause::Periodic,
+                    rolled_damage: 1000,
+                },
+                &mut Vec::new(),
+                &mut scripted(&[], &mut trace),
+            )
+            .unwrap();
+        assert_eq!((result.cp_absorbed, result.hp_removed), (0, 0));
+        assert_eq!(zone.sidecar(target.entity).unwrap().effects.entries().len(), 1);
+        assert!(trace.is_empty());
+    }
+    #[test]
+    fn injected_attack_break_draw_survives_physical_kind_and_cutoff_refusals() {
+        use DamageRollSite as R;
+        let (original, _, target, npc) = fixture();
+        for (physical, expired, roll, cancels) in [
+            (false, false, 0, true),
+            (false, false, 99, false),
+            (true, false, 0, false),
+            (false, true, 0, false),
+        ] {
+            let mut zone = original.clone();
+            start_cast(&mut zone, target, npc);
+            let CastState::Casting(cast) = &mut zone.sidecar_mut(target.entity).unwrap().cast
+            else {
+                panic!("cast")
+            };
+            if physical {
+                cast.skill.id = crate::domain::zone::skill::SkillId(3);
+            }
+            let tick = if expired {
+                cast.interrupt_until
+            } else {
+                cast.start_at
+            };
+            let expected = [(R::AttackBreak, 100, roll)];
+            let mut trace = Vec::new();
+            let mut events = Vec::new();
+            zone.attack_break_v5(
+                tick,
+                target,
+                1,
+                &mut events,
+                &mut scripted(&expected, &mut trace),
+            )
+            .unwrap();
+            assert_eq!(trace.len(), 1);
+            assert_eq!(
+                matches!(zone.sidecar(target.entity).unwrap().cast, CastState::Idle),
+                cancels
+            );
+            assert_eq!(!events.is_empty(), cancels);
+        }
+    }
+
+    #[test]
+    fn injected_full_magic_resist_keeps_zero_whole_damage_tail_and_breaks_sleep() {
+        use DamageRollSite as R;
+        let (mut zone, source, target, _) = fixture();
+        let rules = Arc::clone(&zone.phase3.as_ref().unwrap().canonical.rules);
+        let mut sleep = crate::domain::zone::phase3_entity::tests::source_effect(&rules, 1, 1069);
+        sleep.target_incarnation = target.incarnation;
+        let side = zone.sidecar_mut(target.entity).unwrap();
+        side.effects = EffectList::from_entries([(sleep.id, sleep)].into()).unwrap();
+        side.modifier_install_order
+            .insert(1, RestoredModifierSource::Effect(effects::EffectId(1)));
+        set_resources(&mut zone, target, 50, 20);
+        let skill = rules
+            .skills()
+            .get(crate::domain::zone::skill::SkillId(1177))
+            .unwrap();
+        let handler = skill
+            .effects
+            .iter()
+            .find(|h| h.name == "MagicalAttackRange")
+            .unwrap();
+        let radius = zone
+            .effective(source.entity)
+            .unwrap()
+            .physical
+            .random_damage();
+        assert!(radius > 0);
+        let expected = [
+            (R::MagicCritical, 1000, 999),
+            (R::MagicSuccess, 100, 99),
+            (R::MagicFailure, 100, 99),
+            (R::Spread, radius.saturating_mul(2).saturating_add(1), 0),
+            (R::MagicVengeance, 100, 99),
+        ];
+        let mut trace = Vec::new();
+        let mut events = Vec::new();
+        let row = zone
+            .magic_handler_rolled_v5(
+                Tick(1),
+                source,
+                target,
+                skill,
+                1,
+                handler,
+                &mut events,
+                &mut scripted(&expected, &mut trace),
+            )
+            .unwrap();
+        assert_eq!(trace.len(), expected.len());
+        assert_eq!(row.outcome, SkillOutcome::Resist);
+        assert_eq!((row.rolled, row.hp_removed, row.cp_absorbed), (0, 0, 0));
+        assert!(zone
+            .sidecar(target.entity)
+            .unwrap()
+            .effects
+            .entries()
+            .is_empty());
+        assert!(events.iter().any(|e| matches!(
+            e,
+            ZoneEvent::EffectRemoved {
+                reason: effects::EffectRemoveReason::Damage,
+                ..
+            }
+        )));
+    }
+    #[test]
+    fn cold_cast_cannot_bypass_the_live_hostile_player_policy_fence() {
+        let (mut zone, source, target, npc) = fixture();
+        start_cast(&mut zone, source, npc);
+        let mut snapshot = zone.snapshot();
+        assert!(ZoneState::from_snapshot(snapshot.clone()).is_ok());
+        let CastState::Casting(cast) = &mut snapshot
+            .phase3
+            .as_mut()
+            .unwrap()
+            .entities
+            .get_mut(&source.entity)
+            .unwrap()
+            .cast
+        else {
+            panic!("cast")
+        };
+        cast.target = Some(target);
+        cast.targets = vec![target];
+        assert!(ZoneState::from_snapshot(snapshot).is_err());
+    }
+    #[test]
+    fn zero_damage_gets_attacked_hate_and_the_source_zero_aggro_fallback() {
+        let (mut zone, player, _, npc) = fixture();
+        let mut events = Vec::new();
+        let before_hp = zone.entities[&npc.entity].combat.as_ref().unwrap().hp;
+        let result = zone
+            .apply_damage_v5(
+                Tick(1),
+                DamageRequest {
+                    source: zone.damage_source_v5(player).unwrap(),
+                    target: npc,
+                    cause: DamageCause::Periodic,
+                    rolled_damage: 0,
+                },
+                &mut events,
+            )
+            .unwrap();
+        assert_eq!((result.hp_removed, result.hp_after), (0, before_hp));
+        assert_eq!(
+            zone.hate[&npc.entity].get(player.entity).unwrap(),
+            crate::domain::zone::HateEntry { hate: 2, damage: 0 }
+        );
+        let hates: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let ZoneEvent::HateChanged { hate, .. } = event {
+                    Some(*hate)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(hates, [1, 2]);
     }
 }
