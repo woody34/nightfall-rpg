@@ -1088,3 +1088,171 @@ impl super::ports::ClassTransferRuntime for SessionContext {
         })
     }
 }
+
+#[async_trait::async_trait]
+impl super::ports::Phase3Runtime for SessionContext {
+    async fn generation(
+        &self,
+        caller: crate::domain::AccountId,
+        character: crate::domain::CharacterId,
+    ) -> Result<crate::domain::SessionGeneration, super::AppError> {
+        if !self.zone.phase3_enabled() {
+            return Err(super::AppError::Unavailable("phase 3 runtime unavailable".into()));
+        }
+        let entity = EntityId::from_uuid(character.as_uuid());
+        let generation = {
+            let live = self.registry.live.lock().await;
+            live.get(&entity)
+                .ok_or_else(|| {
+                    super::AppError::FailedPrecondition("character must be online".into())
+                })?
+                .generation
+        };
+        let snapshot = self
+            .zone
+            .snapshot()
+            .await
+            .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
+        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot)
+            .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
+        state
+            .class_player(entity, caller, generation)
+            .map_err(super::zone_actor::class_error)?;
+        crate::domain::SessionGeneration::new(i32::try_from(generation.0).map_err(|_| {
+            super::AppError::FailedPrecondition("session generation exceeds ticket range".into())
+        })?)
+        .ok_or_else(|| super::AppError::FailedPrecondition("invalid session generation".into()))
+    }
+
+    async fn learnable_skills(
+        &self,
+        caller: crate::domain::AccountId,
+        character: crate::domain::CharacterId,
+        generation: crate::domain::SessionGeneration,
+    ) -> Result<super::ports::LearnableSkillsState, super::AppError> {
+        let entity = EntityId::from_uuid(character.as_uuid());
+        let snapshot = self
+            .zone
+            .snapshot()
+            .await
+            .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
+        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot.clone())
+            .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
+        let player = state
+            .class_player(entity, caller, zone_generation(generation))
+            .map_err(super::zone_actor::class_error)?;
+        let phase = snapshot
+            .phase3
+            .as_ref()
+            .ok_or_else(|| super::AppError::Unavailable("phase 3 runtime unavailable".into()))?;
+        let classes = snapshot
+            .classes
+            .as_ref()
+            .ok_or_else(|| super::AppError::Unavailable("class registry unavailable".into()))?;
+        let level = snapshot
+            .entities
+            .iter()
+            .find(|e| e.id == entity)
+            .and_then(|e| e.combat.as_ref())
+            .ok_or_else(|| super::AppError::Unavailable("player combat state missing".into()))?
+            .sheet
+            .level();
+        let mut next = BTreeMap::new();
+        for row in classes
+            .skill_tree(player.class_state.current_class_id)
+            .map_err(|_| super::AppError::Unavailable("invalid class lineage".into()))?
+        {
+            let learned = player
+                .class_state
+                .learned_skills
+                .iter()
+                .find(|entry| entry.key == row.key)
+                .map_or(0, |entry| entry.level);
+            if row.auto_get
+                || row.required_level > level
+                || learned.checked_add(1) != Some(row.skill_level)
+            {
+                continue;
+            }
+            let skill = crate::domain::zone::skill::SkillRef {
+                id: crate::domain::zone::skill::SkillId(row.skill_id),
+                rank: row.skill_level,
+            };
+            let validation =
+                state.validate_learn_skill(entity, caller, zone_generation(generation), skill);
+            next.entry((row.skill_id, row.skill_level))
+                .or_insert_with(|| super::ports::LearnableSkill {
+                    skill: row.clone(),
+                    learned: false,
+                    affordable: player.class_state.sp >= row.sp_cost,
+                    trainer_required: true,
+                    eligible: validation.is_ok(),
+                    unmet: validation
+                        .err()
+                        .map(|reason| vec![reason.detail().to_owned()])
+                        .unwrap_or_default(),
+                    effect_implemented: phase.rules.skills().get(skill.id).is_some_and(
+                        |definition| {
+                            definition.runtime_status
+                                == crate::domain::class::RuntimeSkillStatus::Executable
+                        },
+                    ),
+                });
+        }
+        Ok(super::ports::LearnableSkillsState {
+            skills: next.into_values().collect(),
+            current_class_id: player.class_state.current_class_id,
+            sp: player.class_state.sp,
+        })
+    }
+
+    async fn enqueue_learn_skill(
+        &self,
+        caller: crate::domain::AccountId,
+        character: crate::domain::CharacterId,
+        generation: crate::domain::SessionGeneration,
+        key: super::IdempotencyKey,
+        skill: crate::domain::zone::skill::SkillRef,
+    ) -> Result<super::ports::LearnSkillReply, super::AppError> {
+        let entity = EntityId::from_uuid(character.as_uuid());
+        let live = self.registry.live.lock().await;
+        let current = live.get(&entity).ok_or_else(|| {
+            super::AppError::FailedPrecondition("character must be online".into())
+        })?;
+        if current.generation != zone_generation(generation) {
+            return Err(super::AppError::FailedPrecondition("session generation changed".into()));
+        }
+        self.zone.enqueue_learn_skill(ZoneInput {
+            source: CommandSource::Session {
+                entity,
+                generation: zone_generation(generation),
+            },
+            seq: None,
+            command: ZoneCommand::LearnSkill {
+                entity,
+                account: caller,
+                request_key: key.as_uuid(),
+                skill_id: skill.id,
+                skill_level: skill.rank,
+            },
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl super::ports::LearnReceiptRepository for SessionContext {
+    async fn learn_receipt_lookup(
+        &self,
+        caller: crate::domain::AccountId,
+        key: &super::IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<super::ports::LearnReceiptLookup> {
+        let lane = self
+            .zone
+            .checkpoints
+            .service()
+            .ok_or_else(|| anyhow::anyhow!("learning persistence unavailable"))?;
+        let service = lane.lock().await;
+        service.learn_receipt_lookup(caller, key, fingerprint).await
+    }
+}

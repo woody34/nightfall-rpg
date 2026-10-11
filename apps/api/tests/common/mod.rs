@@ -125,7 +125,7 @@ impl TestApp {
         customize: impl FnOnce(&mut Dependencies),
         zone: ZoneHandle,
     ) -> Self {
-        Self::spawn_with_handle_config(customize, zone, None).await
+        Self::spawn_with_handle_config(customize, zone, None, false).await
     }
 
     /// Installs test use cases through the real service without changing production startup.
@@ -137,14 +137,38 @@ impl TestApp {
             crate::common::fixture_zone(),
             IntervalTicks::new(),
         );
-        Self::spawn_with_handle_config(move |deps| deps.characters = repo, zone, Some(use_cases))
-            .await
+        Self::spawn_with_handle_config(
+            move |deps| deps.characters = repo,
+            zone,
+            Some(use_cases),
+            false,
+        )
+        .await
+    }
+
+    /// Explicit real experimental endpoints, preserving the actor's preinstalled typed lane.
+    pub async fn spawn_experimental_phase3(
+        repo: Arc<dyn CharacterRepository>,
+        zone: ZoneHandle,
+        metrics: Metrics,
+    ) -> Self {
+        Self::spawn_with_handle_config(
+            move |deps| {
+                deps.characters = repo;
+                deps.metrics = metrics;
+            },
+            zone,
+            None,
+            true,
+        )
+        .await
     }
 
     async fn spawn_with_handle_config(
         customize: impl FnOnce(&mut Dependencies),
         zone: ZoneHandle,
         phase3: Option<nightfall_api::interface::grpc::Phase3UseCases>,
+        experimental: bool,
     ) -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
         let accounts = Arc::new(InMemoryAccountRepository::default());
@@ -161,6 +185,7 @@ impl TestApp {
         deps.tokens = Arc::new(TestTokenVerifier) as Arc<dyn TokenVerifier>;
         deps.audit = audit.clone();
         customize(&mut deps);
+        let metrics = deps.metrics.clone();
         let zones = ZoneRegistry::from_handle(zone);
         let zone = zones.fixture().clone();
         let sessions_shutdown = CancellationToken::new();
@@ -169,6 +194,16 @@ impl TestApp {
             deps.class_transfers = Some(realtime.sessions.clone());
         }
         let mut services = build_grpc_services(&deps).unwrap();
+        if experimental {
+            services.game = services.game.with_phase3(
+                nightfall_api::interface::grpc::Phase3UseCases::experimental(
+                    deps.characters.clone(),
+                    realtime.sessions.clone(),
+                )
+                .await
+                .unwrap(),
+            );
+        }
         if let Some(use_cases) = phase3 {
             services.game = services.game.with_phase3(use_cases);
         }

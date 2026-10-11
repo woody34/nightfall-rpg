@@ -40,6 +40,38 @@ labels! {
         DispelBySlot => "dispel_by_slot", DispelByCategory => "dispel_by_category", DefenceTrait => "defence_trait", AttackTrait => "attack_trait", Passive => "passive"
     }
 }
+impl SkillEffectKind {
+    /// Fixed source-name mapping. Unknown metadata cannot create a metric label.
+    pub(super) fn from_handler_name(name: &str) -> Option<Self> {
+        match name {
+            "PhysicalAttack" => Some(Self::PhysicalAttack),
+            "MagicalAttack" => Some(Self::MagicalAttack),
+            "MagicalAttackRange" => Some(Self::MagicalAttackRange),
+            "Stun" => Some(Self::Stun),
+            "Sleep" => Some(Self::Sleep),
+            "Root" => Some(Self::Root),
+            "Buff" => Some(Self::Buff),
+            "Debuff" => Some(Self::Debuff),
+            "TickHp" => Some(Self::TickHp),
+            "TickMp" => Some(Self::TickMp),
+            "Heal" => Some(Self::Heal),
+            "HpPerMax" => Some(Self::HpPerMax),
+            "MaxHp" => Some(Self::MaxHp),
+            "MaxMp" => Some(Self::MaxMp),
+            "Mp" => Some(Self::Mp),
+            "Cp" => Some(Self::Cp),
+            "Resurrection" => Some(Self::Resurrection),
+            "GetAgro" => Some(Self::GetAgro),
+            "AddHate" => Some(Self::AddHate),
+            "DispelBySlot" => Some(Self::DispelBySlot),
+            "DispelByCategory" => Some(Self::DispelByCategory),
+            "DefenceTrait" => Some(Self::DefenceTrait),
+            "AttackTrait" => Some(Self::AttackTrait),
+            "Passive" => Some(Self::Passive),
+            _ => None,
+        }
+    }
+}
 labels! {
     /// Effect transitions; excludes restore and AOI hydration.
     SkillEffectChange { Applied => "applied", Removed => "removed" }
