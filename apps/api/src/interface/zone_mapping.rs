@@ -619,6 +619,8 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             recoverable_xp: *recoverable_xp,
             expiry_tick: expires_at.0,
             tick: tick.0,
+            baseline: false,
+            baseline_tick: 0,
             state: match state {
                 crate::domain::zone::ResurrectOfferState::Offered => {
                     pb::ResurrectOfferState::Offered

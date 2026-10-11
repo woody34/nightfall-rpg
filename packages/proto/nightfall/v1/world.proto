@@ -576,6 +576,11 @@ message ResurrectOffer {
   uint64 expiry_tick = 8;
   ResurrectOfferState state = 9;
   uint64 tick = 10;
+  // Retained owner offer on identity hydration/replacement; upsert without a new-offer
+  // transition. Accept at tick == baseline_tick == the target identity state_tick.
+  // Ordinary offer lifecycle deltas require tick > the identity baseline.
+  bool baseline = 11;
+  uint64 baseline_tick = 12;
 }
 
 // Owner only; actual credited SP after signed-bigint cap, not requested reward.
