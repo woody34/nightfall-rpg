@@ -28,11 +28,27 @@ class Coverage3Tests(unittest.TestCase):
                                    'count': int((a, b) in reachable)} for a in sorted(states) for b in sorted(states)]
         for key in gates.V3_COUNTERS:
             self.current[key] = {'Completed': 2}
+        for key in gates.V3_SCALARS:
+            self.current[key] = 2
 
     def save(self, name, data):
         path = self.root / (name + '.json')
         path.write_text(json.dumps(data))
         return path
+
+    def test_actual_native_v5_coverage_matches_the_consumer_contract(self):
+        repo = SCRIPTS.parents[2]
+        output = self.root / 'native.json'
+        result = subprocess.run(['cargo', 'run', '--offline', '--quiet', '--bin', 'nightfall-replay', '--',
+                                 'coverage', '--file', str(repo / 'apps/api/fixtures/sessions/phase3-gameplay-v5.nfr'),
+                                 '--out', str(output)], cwd=repo, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        native = gates.read_transitions(output)
+        self.assertEqual(native['schema_version'], 3)
+        merged = gates.merge_transitions([output])
+        self.assertEqual(gates.transition_facts(native), gates.transition_facts(merged))
+        for key in gates.V3_SCALARS:
+            self.assertEqual(merged[key], native[key])
 
     def test_merge_preserves_all_v2_and_v3_facts_and_recomputes_totals(self):
         a = self.save('a', self.current)
@@ -41,23 +57,23 @@ class Coverage3Tests(unittest.TestCase):
         for key in gates.transition_counters(self.current):
             self.assertEqual(merged[key], {name: count * 2 for name, count in self.current[key].items()})
         self.assertEqual(merged['owner_stats_updates'], self.old['owner_stats_updates'] * 2)
-        self.assertEqual(merged['summary']['player_cast_states']['covered'], 2)
+        self.assertEqual(merged['summary']['cast_states']['covered'], 2)
         self.assertEqual(merged['summary']['effect_states']['total'], 2)
         self.assertEqual(gates.read_transitions(self.save('merged', merged)), merged)
         self.assertEqual(gates.read_transitions(self.save('old', self.old)), self.old)
 
     def test_missing_unknown_negative_self_pair_and_resurrection_of_effect_id_fail_closed(self):
-        for key in (*gates.V3_TABLES, *gates.V3_COUNTERS):
+        for key in (*gates.V3_TABLES, *gates.V3_COUNTERS, *gates.V3_SCALARS):
             data = copy.deepcopy(self.current)
             del data[key]
             with self.assertRaises((ValueError, KeyError)): gates.read_transitions(self.save('missing', data))
         for change in (lambda d: d.update(unknown_future_fact=1),
                        lambda d: d['effect_states'][0].update(unknown_handler_fact=1),
-                       lambda d: d['regen_pulses'].update(HP=-1),
+                       lambda d: d['cp_absorption'].update(HP=-1),
                        lambda d: d['effect_states'][0].update(count=1),
                        lambda d: d['effect_states'][-2].update(reachable=True),
-                       lambda d: d['player_cast_states'][0].update(reachable=True),
-                       lambda d: d['effect_pulses'].update({'uuid-123': 1})):
+                       lambda d: d['cast_states'][0].update(reachable=True),
+                       lambda d: d['cast_end_reasons'].update({'uuid-123': 1})):
             data = copy.deepcopy(self.current)
             change(data)
             with self.assertRaises(ValueError): gates.read_transitions(self.save('bad', data))
@@ -83,7 +99,7 @@ class Coverage3Tests(unittest.TestCase):
                                 capture_output=True, text=True, check=True)
         self.assertIn('Transition schema 2', result.stdout)
         self.assertIn('Transition schema 3', result.stdout)
-        self.assertIn('player_cast_states: 2/2', result.stdout)
+        self.assertIn('cast_states: 2/2', result.stdout)
         self.assertIn('effect_states: 2/2', result.stdout)
 
 

@@ -131,6 +131,7 @@ class CastingSoakTests(unittest.TestCase):
             coverage[table] = [{'from': a, 'to': b, 'reachable': (a, b) in reachable,
                                 'count': int((a, b) in reachable)} for a in sorted(states) for b in sorted(states)]
         for key in gates.V3_COUNTERS: coverage[key] = {}
+        for key in gates.V3_SCALARS: coverage[key] = 0
         (self.out / 'soak.nfr').write_bytes(b'synthetic report-link fixture, never native evidence')
         coverage['recording_sha256'] = hashlib.sha256((self.out / 'soak.nfr').read_bytes()).hexdigest()
         (self.out / 'coverage.transitions.json').write_text(json.dumps(coverage))
@@ -166,6 +167,27 @@ class CastingSoakTests(unittest.TestCase):
         result = json.loads((self.out / 'report.json').read_text())
         self.assertEqual(result['workload'], 'legacy-attacks')
         self.assertFalse(result['phase3_acceptance'])
+
+    def test_soak_hooks_need_only_documented_commands_without_ripgrep(self):
+        project = self.out / 'project'
+        scripts = project / 'Scripts'
+        scripts.mkdir(parents=True)
+        client = project / 'Build/Scripts'
+        client.mkdir(parents=True)
+        for name in ('run-soak.sh', 'sim-lib.sh'):
+            shutil.copy(SCRIPTS / name, scripts / name)
+        (client / 'NightfallSoak.cs').write_text('// no role hook')
+        tools = self.out / 'bin'
+        tools.mkdir()
+        for name in ('bash', 'dirname', 'mkdir', 'find', 'grep'):
+            (tools / name).symlink_to(shutil.which(name))
+        env = dict(os.environ, PATH=str(tools))
+        result = subprocess.run([str(tools / 'bash'), str(scripts / 'run-soak.sh'),
+                                 '--artifacts', str(self.out / 'reports')],
+                                env=env, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('SoakRoleManifest support', result.stderr)
+        self.assertNotIn('command not found', result.stderr)
 
     def test_missing_client_hook_fails_before_any_build_or_infrastructure(self):
         scripts = self.out / 'repo/apps/client-unreal/Scripts'

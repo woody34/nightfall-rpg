@@ -27,9 +27,9 @@ OUT="$(cd "$OUT" && pwd)"
 [[ -z "$(find "$OUT" -mindepth 1 -maxdepth 1 -print -quit)" ]] || sim_die "artifacts directory must be empty; choose a fresh directory"
 if ((CASTING)); then
   # Client-owned Gauntlet role wiring is an explicit integration dependency.
-  rg -q 'SoakRoleManifest' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
+  grep -Eq 'SoakRoleManifest' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
     || sim_die "casting soak requires client Gauntlet SoakRoleManifest support; see phase3-fixtures.md"
-  rg -q 'SoakScenarioSeconds' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
+  grep -Eq 'SoakScenarioSeconds' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
     || sim_die "casting soak requires client SoakScenarioSeconds budget support; see phase3-fixtures.md"
 fi
 sim_resolve_env
@@ -107,6 +107,7 @@ WS_PUBLIC_URL="ws://localhost:$HTTP_PORT/ws" AUTH_DEV_TOKENS=1 WS_MAX_SESSIONS_P
 OIDC_ISSUER="http://localhost:$((8080 + OFFSET))/realms/nightfall" OIDC_AUDIENCE=nightfall-api \
 OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:$((4317 + OFFSET))" OTEL_SERVICE_NAME=nightfall-api \
 ZONE_FILE="$OUT/fixtures/data/zones/test_zone.toml" RULES_DIR="$OUT/fixtures/data" \
+PHASE3_ENABLED="$CASTING" \
 "$SOAK_API_BIN" >"$OUT/api.log" 2>&1 &
 API_PID=$!
 for ((i=0; i<180; i++)); do

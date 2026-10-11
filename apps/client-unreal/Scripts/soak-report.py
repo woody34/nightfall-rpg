@@ -70,7 +70,7 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
                 raise ValueError('casting soak requires native schema3 coverage')
             if coverage.get('recording_sha256') != hashlib.sha256((out / 'soak.nfr').read_bytes()).hexdigest():
                 raise ValueError('casting coverage does not identify this replay-verified recording')
-            for table, pair in (('player_cast_states', ('Idle', 'Casting')), ('effect_states', ('Absent', 'Active'))):
+            for table, pair in (('cast_states', ('Idle', 'Casting')), ('effect_states', ('Absent', 'Active'))):
                 if not any((r['from'], r['to']) == pair and r['count'] > 0 for r in coverage[table]):
                     raise ValueError('casting soak lacks committed ' + table + ' transition')
         except (OSError, ValueError, KeyError, TypeError) as exc:
