@@ -23,11 +23,14 @@ nf.WaitFor resurrect_offer_pending 180 # includes caster transfer/learning prepa
 nf.Expect resurrect_offer_matches_death
 nf.AcceptResurrect latest accept
 nf.WaitFor own_hp > 0 3
-nf.Expect resurrection_vitals_match_fixture
+nf.Expect resurrection_vitals_coherent
+# replay-gate: resurrection_vitals_match_fixture
 # replay-gate: resurrect_refund_matches_oracle
 nf.Expect public_revival_vitals_coherent
 nf.AcceptResurrect latest accept
 nf.WaitFor rejected == no_resurrect_offer 3
-nf.Expect resurrection_refunds == 1
+# Pinned skill1016 rank1 power=0 (01000-01099.xml:547): revival restores no XP.
+# Replay independently checks exact zero refund and one offer acceptance.
+nf.Expect resurrection_refunds == 0
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 342

@@ -26,8 +26,9 @@ FACTS = frozenset(('regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle'
     'moving_regen_matches_oracle', 'death_record_matches_fixture',
     'death_record_matches_before_disconnect', 'restore_did_not_reapply_hooks',
     'skill_hate_outcome_coherent', 'skill_damage_matches_oracle',
-    'skill_effect_matches_oracle', 'stat_matches_oracle', 'resurrect_refund_matches_oracle'))
+    'skill_effect_matches_oracle', 'stat_matches_oracle', 'resurrect_refund_matches_oracle', 'resurrection_vitals_match_fixture', 'karma_decay_matches_oracle'))
 RAW_FIELDS = {
+    'karma_decay': 'target xp_before xp_after pre_award_level karma_before karma_after',
     'regen_pulse': 'actual amounts before cause fractions_before functions inputs max_hp max_mp rules',
     'death_record': 'after incarnation inside_peace killer level loss penalty_before penalty_roll pre_death_xp victim_classification',
     'modifier_reconstruction': 'after before functions ordered_sources word_cursor_after',
@@ -39,7 +40,7 @@ RAW_FIELDS = {
     'auto_attack_resolution': 'events inputs rng_draws',
     'rng_draw': 'bound callsite target value word_after word_before',
     'resurrection_offer': 'death definition offer skill wit_bonus',
-    'resurrection_refund': 'accepted after expected_xp_refund incarnation_after offer xp_after xp_before',
+    'resurrection_refund': 'accepted after expected_xp_refund incarnation_after offer xp_after xp_before vitals_before vitals_after',
     'learning_commit': 'account request_key result',
 }
 
@@ -467,6 +468,26 @@ def refund(row, manifest, facts):
     same(len(other), 1)
 
 
+def revival_vitals(row, manifest, facts):
+    refund(row, manifest, facts)
+    data = row['data']
+    same(data['accepted'], True)
+    before, after = data['vitals_before'], data['vitals_after']
+    same(before['id'], row['entity'])
+    same(after['id'], row['entity'])
+    same(before['combat']['incarnation'], data['offer']['target_incarnation'])
+    same(after['combat']['incarnation'], data['incarnation_after'])
+    old, new = before['combat'], after['combat']
+    # doRevive runs at the corpse; MP/CP are retained. Actual maxima are replay inputs.
+    expected = oracle.do_revive(new['sheet']['max_hp'], old['hp'], old['mp'],
+                               old['role']['progression']['class_state']['cp'])
+    same(new['hp'], expected['hp'])
+    same(new['mp'], expected['mp'])
+    same(new['role']['progression']['class_state']['cp'], expected['cp'])
+    same(after['pos'], before['pos'])
+    same(new['protected_until'], None)
+
+
 def hate(row, manifest, facts):
     data = row['data']
     if data['direction'] != 'add':
@@ -799,6 +820,26 @@ def stats(row, manifest, facts):
         same(actual, oracle.rounded(fold(initial, extras, stat) * 1_000_000))
 
 
+def karma_decay(row, manifest, facts):
+    # abfde049 Formulas.java:1814-1821: actual credited XP, pre-award level,
+    # binary64 at each Java division, then truncation. No finite-vector lookup.
+    data = row['data']
+    rules = manifest['phase3_rules']['pvp']['karma_lost']
+    credited = integer(data['xp_after']) - integer(data['xp_before'])
+    integer(credited, 1)
+    level = integer(data['pre_award_level'], 1)
+    lost = oracle.calculate_karma_lost(credited, ratio(rules['multipliers'][level-1]),
+                                       ratio(rules['rate_karma_lost']))
+    before = integer(data['karma_before'])
+    same(integer(data['karma_after']), max(0, before-lost))
+    deaths = [r for r in facts if r['kind'] == 'death_record' and r['tick'] == row['tick']
+              and r['entity'] == data['target']['entity'] and r['data']['victim_classification'] is None
+              and r['data']['incarnation'] == data['target']['incarnation']
+              and r['data']['killer']['binding']['entity'] == row['entity']]
+    if len(deaths) != 1:
+        raise ValueError('karma credit must join one actual NPC death')
+
+
 def evaluate(rows, recording, entity, gates):
     entity = str(uuid.UUID(entity))
     manifest, facts = validate(rows, recording)
@@ -810,8 +851,8 @@ def evaluate(rows, recording, entity, gates):
         kind, args = gate['kind'], gate['args']
         check = None
         if kind in ('regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle', 'moving_regen_matches_oracle'):
-            posture = 'Moving' if kind.startswith('moving_') else 'Standing'
-            matched = [r for r in owner if r['kind'] == 'regen_pulse' and r['data']['inputs']['posture'] == posture]
+            matched = [r for r in owner if r['kind'] == 'regen_pulse'
+                       and (not kind.startswith('moving_') or r['data']['inputs']['posture'] == 'Moving')]
             check = regen
         elif kind == 'death_record_matches_fixture':
             matched = [r for r in owner if r['kind'] == 'death_record' and r['data']['after'] is not None]
@@ -821,9 +862,13 @@ def evaluate(rows, recording, entity, gates):
                        and r['data']['load'] is not None
                        and preceding_mutation(r, facts, kind.startswith('death_')) is not None]
             check = admission_death if kind.startswith('death_') else reconstruction
-        elif kind == 'resurrect_refund_matches_oracle':
-            matched = [r for r in owner if r['kind'] == 'resurrection_refund']
-            check = refund
+        elif kind in ('resurrect_refund_matches_oracle', 'resurrection_vitals_match_fixture'):
+            matched = [r for r in owner if r['kind'] == 'resurrection_refund'
+                       and (kind == 'resurrect_refund_matches_oracle' or r['data']['accepted'])]
+            check = refund if kind == 'resurrect_refund_matches_oracle' else revival_vitals
+        elif kind == 'karma_decay_matches_oracle':
+            matched = [r for r in owner if r['kind'] == 'karma_decay']
+            check = karma_decay
         elif kind == 'skill_hate_outcome_coherent':
             matched = [r for r in facts if r['kind'] == 'hate_delta' and r['data']['source'] == entity and r['data']['direction'] == 'add']
             check = hate
@@ -863,6 +908,8 @@ def evaluate(rows, recording, entity, gates):
         # The accepted branch must occur to attest one-time refunds, even if declines verify.
         if kind == 'resurrect_refund_matches_oracle' and not any(r['data']['accepted'] is True for r in matched):
             errors.append('missing accepted resurrection refund')
+        if kind == 'karma_decay_matches_oracle' and not any(r['data']['karma_before'] > r['data']['karma_after'] for r in matched):
+            errors.append('missing positive NPC-XP karma decay')
         results.append(gate | {'ticks': [r['tick'] for r in matched],
                               'sequences': [r['sequence'] for r in matched],
                               'raw_kinds': sorted({r['kind'] for r in matched}), 'errors': errors})

@@ -17,18 +17,33 @@ nf.WaitFor in_world 15
 nf.WaitFor own_sp >= 0 3
 nf.WaitFor entity_in_view 01970000-0000-7000-8000-000000000031 30
 nf.Target 01970000-0000-7000-8000-000000000031
+# Formulas.java:665-743/263-486: starter melee competes with HP/CP regen.
+# Use learned Wind Strike rank5 (power21, skills/01100-01199.xml) while attacking.
+# Exact kill/CP/karma assertions remain; replay checks actual skill damage.
 nf.Attack
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+# replay-gate: skill_damage_matches_oracle 1177
 nf.WaitFor own_pk == 1 90
 nf.StopAttack
 nf.Expect own_karma > 0
 nf.Expect own_pvp == 0
 nf.Expect karma_gain_matches_oracle
-nf.Target template:keltir
+# Formulas.java:1814-1821: level14 keltir XP truncates to zero karma loss.
+# Dedicated HP1/rawXP1000 fixture preserves production keltir and exact formula.
+nf.Target template:karma_reward
 nf.WaitFor target != none 3
 nf.Attack
 nf.WaitFor sp_gained_total == 2 30
 nf.StopAttack
-nf.Expect karma_decay_matches_oracle
+nf.WaitFor karma_decay_coherent 3
+# replay-gate: karma_decay_matches_oracle
 nf.Expect own_pk == 1
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
-nf.Within 216
+nf.Within 240

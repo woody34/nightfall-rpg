@@ -181,7 +181,7 @@ def compose_config(db, password, ports):
         'postgres': {'image': 'postgres:16-alpine', 'environment': {
             'POSTGRES_USER': 'nightfall', 'POSTGRES_PASSWORD': password, 'POSTGRES_DB': db},
             'ports': [f'127.0.0.1:{pg}:5432'], 'volumes': ['pgdata:/var/lib/postgresql/data'],
-            'healthcheck': {'test': ['CMD-SHELL', f'pg_isready -U nightfall -d {db}'],
+            'healthcheck': {'test': ['CMD-SHELL', f'pg_isready -h 127.0.0.1 -U nightfall -d {db}'],
                             'interval': '2s', 'timeout': '3s', 'retries': 30}},
         'nats': {'image': 'nats:2.11-alpine',
                  'command': ['--jetstream', '--store_dir', '/data', '--http_port', '8222'],
@@ -284,6 +284,7 @@ def provision(folder, batch):
         elif selected in token_fixtures.TOKEN_CROSSING:
             overlay_data = folder / 'data'
             token_fixtures.create_overlay(overlay_data, selected, REPO)
+            phase3.upgrade_npc_overlays(overlay_data, REPO)
             zone_file = overlay_data / 'zones/test_zone.toml'
             rules_dir = overlay_data
         else:
@@ -294,7 +295,7 @@ def provision(folder, batch):
             'NATS_URL': f'nats://127.0.0.1:{nats}', 'HTTP_ADDR': f'127.0.0.1:{http}',
             'GRPC_ADDR': f'127.0.0.1:{grpc}', 'WS_PUBLIC_URL': f'ws://127.0.0.1:{http}/ws',
             'AUTH_DEV_TOKENS': '1', f'NIGHTFALL_PHASE{version}_FIXTURE': '1',
-            'PHASE3_ENABLED': '1' if selected in PHASE3 else '0',
+            'PHASE3_ENABLED': '1',
             'ZONE_FILE': str(zone_file),
             'RULES_DIR': str(rules_dir)}
         roles = {path.stem: {'account_id': observer if paired and phase3.observer_role(path) else owner,

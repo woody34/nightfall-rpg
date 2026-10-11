@@ -32,7 +32,7 @@ nf.WaitFor cast_state == casting 12
 nf.CancelCast
 nf.WaitFor cast_cancellations >= 1 3
 nf.Expect cast_state == idle
-nf.Expect cancelled_cast_costs_retained
+nf.WaitFor cancelled_cast_costs_retained 3
 nf.Expect cast_dispositions_once
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
-nf.Within 132
+nf.Within 135

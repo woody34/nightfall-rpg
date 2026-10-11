@@ -17,6 +17,13 @@ def generate(destination):
     profiles = {pack: packs.profiles(pack, REPO, True) for pack in sorted(packs.PHASE3)}
     profiles['casting-soak'] = {'owner': packs.soak_profile(REPO, packs.OWNER, packs.OBSERVER)}
     (destination / 'packs.json').write_text(json.dumps(profiles, sort_keys=True))
+    token_spec = importlib.util.spec_from_file_location('tokens', SCRIPTS / 'token-fixtures.py')
+    tokens = importlib.util.module_from_spec(token_spec)
+    token_spec.loader.exec_module(tokens)
+    for pack in sorted(tokens.TOKEN_CROSSING):
+        root = destination / pack
+        tokens.create_overlay(root, pack, REPO)
+        packs.upgrade_npc_overlays(root, REPO)
 
 
 if __name__ == '__main__':

@@ -60,6 +60,19 @@ class Phase3Tests(unittest.TestCase):
                 self.assertEqual(seed['roles']['owner']['class_id'], 10)
                 self.assertNotIn('1016', seed['roles']['owner']['learned_ranks'])
 
+    def test_phase2_overlay_is_validated_production_policy(self):
+        for pack in sorted(fixture.token_fixtures.TOKEN_CROSSING):
+            dest = self.root / pack
+            fixture.token_fixtures.create_overlay(dest, pack, fixture.REPO)
+            fixture.phase3.upgrade_npc_overlays(dest, fixture.REPO)
+            shipped = tomllib.loads((fixture.REPO / 'packages/data/npcs/keltir.toml').read_text())
+            for name in ('token_oracle', 'token_sentinel'):
+                npc = tomllib.loads((dest / f'npcs/{name}.toml').read_text())
+                self.assertEqual(npc['phase3'], shipped['phase3'])
+            self.assertEqual(tomllib.loads((dest / 'npcs/token_oracle.toml').read_text())['max_hp'], 1)
+        health = fixture.compose_config('test', 'unused', [15432, 14222])['services']['postgres']['healthcheck']
+        self.assertIn('-h 127.0.0.1', health['test'][1])
+
     def test_missing_replay_producer_fails_both_wrappers_even_with_green_client_reports(self):
         for paired in (False, True):
             a = self.scenario('gated-a' if paired else 'gated', 'phase3-trainer')

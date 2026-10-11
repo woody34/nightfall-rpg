@@ -105,6 +105,24 @@ class ReplayEvidence(unittest.TestCase):
         self.fact('regen_pulse', FIRST)['data']['amounts']['hp_q'] += 1
         self.assertFalse(self.check('regen_pulses >= 3')['passed'])
 
+    def test_generic_regen_counts_moving_without_changing_exact_oracle(self):
+        row = self.fact('regen_pulse', FIRST)
+        row['data']['inputs']['posture'] = 'Moving'
+        # Counts include both postures; the input mutation must still fail exact math.
+        report = self.check('regen_pulses >= 3')
+        self.assertIn(row['sequence'], report['gates'][0]['sequences'])
+        self.assertFalse(report['passed'])
+
+    def test_actual_resurrection_vitals_are_not_limited_to_vector_table(self):
+        row = next(r for r in self.data[1:-1] if r['kind'] == 'resurrection_refund' and r['data']['accepted'])
+        owner = row['entity']
+        self.assertTrue(self.check('resurrection_vitals_match_fixture', owner)['passed'])
+        for resource in ('hp', 'mp'):
+            saved = row['data']['vitals_after']['combat'][resource]
+            row['data']['vitals_after']['combat'][resource] += 1
+            self.assertFalse(self.check('resurrection_vitals_match_fixture', owner)['passed'])
+            row['data']['vitals_after']['combat'][resource] = saved
+
     def test_same_tick_distinct_facts_are_valid_but_duplicate_pulses_do_not_count(self):
         self.assertTrue(self.check('skill_hate_outcome_coherent')['passed'])
         pulse = self.fact('regen_pulse', FIRST)
@@ -208,6 +226,19 @@ class ReplayEvidence(unittest.TestCase):
         altered[active['sequence'] + 1]['data']['after']['effective']['calculator'].append(
             {'key': dict(modifier['key'], stat='unsupportedStat'), 'conditions': [], 'operation': {'Mul': 1080000}})
         self.assertFalse(self.check('stat_matches_oracle active', owner, altered, recording)['passed'])
+
+    def test_karma_decay_uses_actual_credited_xp_and_pre_award_level(self):
+        recording, rows, owner = self.generated_case('pvp-inputs')
+        result = self.check('karma_decay_matches_oracle', owner, rows, recording)
+        self.assertTrue(result['passed'], result)
+        row = next(r for r in rows if r['kind'] == 'karma_decay')
+        self.assertEqual(row['data']['pre_award_level'], 14)
+        self.assertGreater(row['data']['karma_before'], row['data']['karma_after'])
+        for field in ('karma_after', 'xp_after', 'pre_award_level'):
+            altered = copy.deepcopy(rows)
+            # One XP may fall within the same integer bucket; force the next bucket.
+            altered[row['sequence']+1]['data'][field] += {'xp_after': 1000, 'pre_award_level': 70, 'karma_after': 1}[field]
+            self.assertFalse(self.check('karma_decay_matches_oracle', owner, altered, recording)['passed'], field)
 
     def test_committed_cast_fixture_continuous_effect_uses_callable_duration_oracle(self):
         result = self.check('skill_effect_matches_oracle 1040', data=self.casts, recording=self.casts_recording)

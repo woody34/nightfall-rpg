@@ -1,0 +1,3 @@
+LogTurboLink | CallRpcError: FailedPrecondition:skill rank must be the learned rank plus one | Deliberate learning rejection; status and unchanged learned/SP state asserted (C16).
+LogTurboLink | CallRpcError: FailedPrecondition:skill is not manually learnable in this class lineage | Deliberate learning rejection; status and unchanged learned/SP state asserted (C16).
+LogTurboLink | CallRpcError: FailedPrecondition:class master is more than three tiles away | Deliberate learning rejection; status and unchanged learned/SP state asserted (C16).

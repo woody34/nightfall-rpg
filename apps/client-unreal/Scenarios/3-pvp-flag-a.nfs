@@ -22,7 +22,7 @@ nf.Attack
 nf.WaitFor own_flag == pvp 3
 nf.WaitFor player_cp_damage_total > 0 12
 nf.StopAttack
-nf.Expect victim_flag_not_refreshed
+nf.WaitFor victim_flag_not_refreshed 3
 nf.Expect own_flag_deadline_matches_received
 nf.WaitFor own_flag == none 360
 nf.Expect own_pk == 0
@@ -43,11 +43,25 @@ nf.WaitFor cast_state == casting 12
 # Peer crosses only two tiles after observing Started. Assert the server cancellation
 # and the target's received HP history; no local HP prediction or timer simulation.
 nf.WaitFor cast_cancel_reason == peace_zone 12
-nf.Expect peace_impact_has_no_damage
+# C4: victim CP is private. Required peer role asserts exact HP/CP retention
+# for this cancellation; caster asserts the received cancellation/disposition.
 nf.Expect cast_dispositions_once
 nf.WaitFor entity_at 01970000-0000-7000-8000-000000000031 115 116 0.5 30
 nf.WaitFor target_flag == pvp 30
+# Pinned starter melee competes with HP/CP regen; use learned skills to finish.
 nf.Attack
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
 nf.WaitFor own_pvp == 1 90
 nf.StopAttack
 nf.Expect own_pk == 0
@@ -64,10 +78,22 @@ nf.WaitFor target_flag_remaining <= 10 360
 nf.WaitFor skill_ready 1177 12
 nf.Cast 1177
 nf.WaitFor target_flag_expired_at_last_impact 12
-nf.Expect impact_counter_uses_received_flag
+nf.WaitFor impact_counter_uses_received_flag 3
 nf.Expect entity_alive 01970000-0000-7000-8000-000000000031
 # Finish the same neutral victim through ordinary combat, then verify the PK branch.
 nf.Attack
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
+nf.CastIf 1177 target_alive
+nf.Sleep 5
 nf.WaitFor own_pk == 1 90
 nf.StopAttack
 nf.Expect own_pvp == 1

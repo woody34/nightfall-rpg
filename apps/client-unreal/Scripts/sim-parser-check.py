@@ -61,6 +61,8 @@ def phase3_arguments(tokens):
             return False
     if head == 'nf.cast':
         return len(args) in (1, 2) and positive(args[0], 2**32-1) and (len(args) == 1 or args[1] in ('self', 'target') or guid(args[1]))
+    if head == 'nf.castif':
+        return len(args) == 2 and positive(args[0], 2**32-1) and args[1] in ('target_alive', 'effect_absent')
     if head == 'nf.learn':
         return len(args) in (2, 3) and all(positive(a, 2**32-1) for a in args[:2]) and (len(args) == 2 or guid(args[2]))
     if head in ('nf.cancelcast', 'nf.learnableskills', 'nf.skillcatalog'):

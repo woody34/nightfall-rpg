@@ -27,6 +27,10 @@ nf.Expect options_tier1_tokens == 0
 nf.Expect options_tier2_tokens == 0
 nf.Expect transfer_option 1 blocked
 # Single massive oracle kill: direct multi-level milestone jump from 19 to 40
+# C16 production peace square [116,136] forbids combat at the trainer.
+# Travel to the fixture arena; XP/token/death oracle assertions are unchanged.
+nf.ClickMove 110 100
+nf.WaitFor own_at 110 100 0.5 30
 nf.WaitFor template_target_available token_oracle 15
 nf.Target template:token_oracle
 nf.Attack
@@ -136,4 +140,4 @@ nf.Expect world_class == 2
 nf.Expect class_state_matches_mark
 nf.Expect own_tier1_tokens == 0
 nf.Expect own_tier2_tokens == 0
-nf.Within 120
+nf.Within 270

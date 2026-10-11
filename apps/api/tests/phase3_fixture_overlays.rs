@@ -147,6 +147,19 @@ fn generated_overlay_and_all_seed_roles_pass_real_admission() -> anyhow::Result<
         let root = temporary.join("data");
         let manifest = temporary.join("packs.json");
         validate(&root, &manifest)?;
+        for pack in [
+            "phase2-token-level20",
+            "phase2-token-level40",
+            "phase2-token-jump19-40",
+        ] {
+            let data = temporary.join(pack);
+            let _ = prepare_phase3_bootstrap(
+                &Phase3DataSource::from_dir(&data)?,
+                load_rules_dir(&data)?,
+                load_classes(&ClassSource::from_dir(&data)?)?,
+                load_zone(&data.join("zones/test_zone.toml"))?,
+            )?;
+        }
         let target = root.join("npcs/skill_target.toml");
         let source = std::fs::read_to_string(&target)?;
         let (prefix, _) = source
@@ -343,7 +356,7 @@ impl EvidenceRecording {
 #[test]
 #[allow(clippy::too_many_lines)] // One production recorder exercises the consumer seam without external services.
 fn actual_scenario_inputs_record_for_independent_evidence() -> anyhow::Result<()> {
-    use nightfall_api::domain::zone::skill::SkillId;
+    use nightfall_api::domain::zone::{skill::SkillId, CombatRole, ZoneEvent};
     let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(Path::parent)
@@ -442,7 +455,119 @@ fn actual_scenario_inputs_record_for_independent_evidence() -> anyhow::Result<()
         pvp.spawn(pvp_owner, evidence_load(pvp_owner, 1))?;
         pvp.spawn(&peer, evidence_load(&peer, 2))?;
         pvp.cast(pvp_owner.character_id, peer.character_id, 1177)?;
+        // Live r5 used starter melee against simultaneous HP/CP regen. Prove the
+        // same victim dies under actual learned skill damage (Formulas.java:815-925),
+        // without changing health, defence, regeneration, or the kill requirement.
+        for _ in 0..3 {
+            if pvp
+                .state
+                .entity(peer.character_id)
+                .context("victim")?
+                .targeting
+                .dead
+            {
+                break;
+            }
+            pvp.cast(pvp_owner.character_id, peer.character_id, 1177)?;
+        }
+        ensure!(
+            pvp.state
+                .entity(peer.character_id)
+                .context("victim")?
+                .targeting
+                .dead,
+            "normal learned skill damage must kill the live-suite victim"
+        );
+        let karma_before = pvp
+            .state
+            .snapshot()
+            .phase3
+            .context("phase3")?
+            .entities
+            .get(&pvp_owner.character_id)
+            .context("owner")?
+            .player
+            .as_ref()
+            .context("player")?
+            .pvp
+            .karma;
+        let reward = pvp
+            .state
+            .snapshot()
+            .entities
+            .iter()
+            .find_map(|entity| {
+                matches!(entity.combat.as_ref().map(|c| &c.role),
+                Some(CombatRole::Npc { template, .. }) if template == "karma_reward")
+                .then_some(entity.id)
+            })
+            .context("karma reward NPC")?;
+        pvp.cast(pvp_owner.character_id, reward, 1177)?;
+        let karma_after = pvp
+            .state
+            .snapshot()
+            .phase3
+            .context("phase3")?
+            .entities
+            .get(&pvp_owner.character_id)
+            .context("owner")?
+            .player
+            .as_ref()
+            .context("player")?
+            .pvp
+            .karma;
+        ensure!(karma_before > karma_after, "actual NPC XP must decrease karma");
         pvp.recording.write(&out.join("pvp-inputs.nfr"))?;
+        // L2Attackable.java:232-274,556-572: skill damage adds hate and requests
+        // attack intention. Keep the caster admitted through an actual NPC impact.
+        let npc = pvp
+            .state
+            .snapshot()
+            .entities
+            .iter()
+            .find_map(|entity| {
+                matches!(entity.combat.as_ref().map(|c| &c.role),
+                Some(CombatRole::Npc { template, .. }) if template == "skill_target")
+                .then_some(entity.id)
+            })
+            .context("durable skill target")?;
+        pvp.cast(pvp_owner.character_id, npc, 1177)?;
+        let mut engaged = false;
+        for _ in 0..100 {
+            let tick = pvp.tick(Vec::new())?;
+            engaged |= tick.events.iter().any(|event| {
+                matches!(event,
+                ZoneEvent::AttackResult { attacker, target, .. }
+                if *attacker == npc && *target == pvp_owner.character_id)
+            });
+            if engaged {
+                break;
+            }
+        }
+        ensure!(engaged, "skill hate never led to an NPC impact");
+        // Formulas.java:1158-1245: a resisted continuous component is valid. The
+        // fixed-seed repeated public casts must nevertheless install the slow.
+        let mut landed = false;
+        for _ in 0..6 {
+            pvp.cast(pvp_owner.character_id, npc, 1184)?;
+            let snapshot = pvp.state.snapshot();
+            landed = snapshot
+                .phase3
+                .as_ref()
+                .context("phase3")?
+                .entities
+                .get(&npc)
+                .context("NPC sidecar")?
+                .effects
+                .entries()
+                .values()
+                .any(|effect| effect.skill.id == SkillId(1184));
+            if landed {
+                break;
+            }
+        }
+        ensure!(landed, "repeated Ice Bolt never installed its continuous effect");
+
         // Independent regeneration regression uses the real Regeneration skill, whose
         // regHp modifier is in datapack 01000-01099.xml (skill1044), not invented credit.
         let mut regeneration_owner = packs

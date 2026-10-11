@@ -31,7 +31,7 @@ nf.WaitFor entity_casting 01970000-0000-7000-8000-000000000030 1177 12
 nf.ClickMove 117 116
 nf.WaitFor own_at 117 116 0.5 6
 nf.WaitFor observed_cast_cancel_reason == peace_zone 12
-nf.Expect peace_impact_has_no_damage
+nf.WaitFor peace_impact_has_no_damage 3
 nf.ClickMove 115 116
 nf.WaitFor own_at 115 116 0.5 6
 # Purple victim: source rule chooses600ticks; assertion compares received deadlines.
@@ -54,7 +54,7 @@ nf.Attack
 nf.WaitFor own_flag == pvp 3
 nf.StopAttack
 nf.WaitFor own_flag_expired_at_last_impact 360
-nf.Expect impact_counter_uses_received_flag
+nf.WaitFor impact_counter_uses_received_flag 3
 nf.WaitFor own_dead 90
 nf.Expect own_karma == 0
 nf.Expect pvp_private_stats_coherent

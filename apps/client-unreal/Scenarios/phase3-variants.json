@@ -60,7 +60,7 @@
       "fixture": "phase3-trainer",
       "assertions": [
         "nf.WaitFor cast_cancel_reason == moved 3",
-        "nf.Expect cancelled_cast_costs_retained",
+        "nf.WaitFor cancelled_cast_costs_retained 3",
         "nf.Expect cast_results == 0"
       ]
     },

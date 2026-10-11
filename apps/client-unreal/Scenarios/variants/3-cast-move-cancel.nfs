@@ -21,8 +21,8 @@ nf.WaitFor cast_state == casting 12
 nf.ClickMove 110 102
 nf.WaitFor cast_cancel_reason == moved 3
 nf.Expect cast_cancellations == 1
-nf.Expect cancelled_cast_costs_retained
+nf.WaitFor cancelled_cast_costs_retained 3
 nf.Expect cast_dispositions_once
 nf.Expect cast_results == 0
 # Total sum of waits plus30s exit grace.
-nf.Within 111
+nf.Within 114

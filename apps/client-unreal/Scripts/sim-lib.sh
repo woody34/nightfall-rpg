@@ -151,9 +151,9 @@ sim_api_prepare() {
         cd "$SIM_REPO"
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
         if [[ -n "${SIM_API_BIN:-}" ]]; then
-          AUTH_DEV_TOKENS=1 exec "$SIM_API_BIN"
+          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 exec "$SIM_API_BIN"
         fi
-        AUTH_DEV_TOKENS=1 exec cargo run --quiet -p nightfall-api
+        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 exec cargo run --quiet -p nightfall-api
       ) >"${SIM_API_LOG:-/dev/null}" 2>&1 &
       SIM_STARTED_API_PID=$!
       trap sim_exit_cleanup EXIT

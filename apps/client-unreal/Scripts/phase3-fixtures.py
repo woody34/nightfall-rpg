@@ -140,6 +140,22 @@ def data_hashes(repo):
     return tree_hashes(repo / 'packages/data')
 
 
+def upgrade_npc_overlays(destination, repo):
+    """C16: fixture NPCs use the validated shipped V5 profile, preserving physical inputs."""
+    keltir = (repo / 'packages/data/npcs/keltir.toml').read_text()
+    suffix = keltir[keltir.index('# BEGIN GENERATED PHASE3 TEMPLATE'):]
+    reward = tomllib.loads(keltir)['sp_reward']
+    # Production peace square is [116,136] inclusive. Move both combat fixtures
+    # outside it; the trainer and town safe point retain their production locations.
+    zone = destination / 'zones/test_zone.toml'
+    zone.write_text(zone.read_text().replace('home = [126, 125]', 'home = [110, 100]')
+                    .replace('home = [130, 126]', 'home = [110, 106]'))
+    for npc in sorted((destination / 'npcs').glob('*.toml')):
+        text = npc.read_text()
+        if 'phase3' not in tomllib.loads(text):
+            npc.write_text(text.rstrip() + f'\nsp_reward = {reward}\n\n' + suffix)
+
+
 def create_overlay(destination, repo):
     """Copy shipped rules only; no synthesized skill powers, costs, or durations."""
     shutil.copytree(repo / 'packages/data', destination)
@@ -165,6 +181,12 @@ def create_overlay(destination, repo):
     (destination / 'npcs/skill_sentinel.toml').write_text(with_phase3(sentinel))
     dummy = token.oracle_template_content(0).replace('token_oracle', 'skill_target').replace('max_hp = 1\n', 'max_hp = 1000000\n')
     (destination / 'npcs/skill_target.toml').write_text(with_phase3(dummy))
+    # Formulas.java:1814-1821 truncates each kill's XP-based karma decay.
+    # Keltir's 28 raw XP produces zero decay at fixture level14. A separate
+    # one-HP reward input exercises positive decay without altering shipped NPCs.
+    reward = token.oracle_template_content(1000).replace('token_oracle', 'karma_reward')
+    (destination / 'npcs/karma_reward.toml').write_text(with_phase3(reward))
+    text += '\n[[spawn_slots]]\nid = "karma_reward"\ntemplate = "karma_reward"\nhome = [108, 104]\ncount = 1\n'
     text += '\n[[spawn_slots]]\nid = "skill_target"\ntemplate = "skill_target"\nhome = [108, 100]\ncount = 1\n'
     text += '\n[[spawn_slots]]\nid = "skill_sentinel"\ntemplate = "skill_sentinel"\nhome = [110, 106]\ncount = 1\n'
     # Preserve reward/template values; passive fixture isolates deliberate combat.

@@ -23,7 +23,9 @@ nf.WaitFor cast_results >= 1 12
 nf.WaitFor npc_target_is_owner 12
 nf.Expect npc_target_is_owner
 nf.Expect cast_damage_results >= 1
+# Keep the attacker admitted until the peer has witnessed an actual NPC impact.
+nf.WaitFor entity_not_in_view 01970000-0000-7000-8000-000000000031 90
 # replay-gate: skill_hate_outcome_coherent
 # replay-gate: skill_damage_matches_oracle 1177
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
-nf.Within 120
+nf.Within 210

@@ -608,6 +608,7 @@ if [[ "$1" == metadata ]]; then echo '{{"target_directory":"{self.root}/target"}
             folder = artifacts / scenario.stem / 'fixture'
             manifest = json.loads((folder / 'manifest.json').read_text())
             state = json.loads((folder / 'state.json').read_text())
+            self.assertEqual(state['env']['PHASE3_ENABLED'], '1')
             env = state['env']
             self.assertEqual(manifest['fixture'], pack)
             self.assertEqual(manifest['roles'][scenario.stem]['character_id'], fixture.OWNER)

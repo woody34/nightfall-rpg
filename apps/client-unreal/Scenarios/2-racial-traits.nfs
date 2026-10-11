@@ -1,5 +1,7 @@
 # covers: 2 E1.3, 2 E1.5, 2 E1.6, 2 E2.1, 2 E5.2, 2 E5.4, 2 E5.5
-# Fresh account. Exact external oracle: Elf fighter125+racial3 =>4.000 wire tiles/s;
+# C16 V5 oracle: FuncMoveSpeed.java:43, stat_bonus.toml DEX35=1.15 / DEX30=1.10.
+# Elf floor((125*1.15+3)*1000/320)*10=4580 wire milli-tiles/s;
+# Human floor(115*1.10*1000/320)*10=3950. Independent Fraction arithmetic.
 # Human keltir28 XP with5%bonus floors to29. No gameplay formula runs in the client.
 # Evasion/critical-damage numeric effects require the server's independent vector tests.
 nf.Login
@@ -12,7 +14,7 @@ nf.WaitFor class_rpc_error == none 15
 nf.EnterCreated
 nf.WaitFor in_world 15
 nf.ClickMove 12 9
-nf.WaitFor own_move_milli_speed == 4000 5
+nf.WaitFor own_move_milli_speed == 4580 5
 nf.WaitFor own_at 12 9 1 15
 nf.WaitFor own_max_cp > 0 3
 nf.CreateClass 1 0 1
@@ -20,7 +22,7 @@ nf.WaitFor class_rpc_error == none 15
 nf.EnterCreated
 nf.WaitFor world_class == 0 15
 nf.ClickMove 40 40
-nf.WaitFor own_move_milli_speed == 3590 5
+nf.WaitFor own_move_milli_speed == 3950 5
 nf.WaitFor own_at 40 40 1 35
 nf.ClickMove 80 85
 nf.WaitFor own_at 80 85 1 35

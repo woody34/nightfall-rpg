@@ -16,12 +16,14 @@ nf.ClickMove 110 100
 nf.WaitFor own_at 110 100 1 30
 nf.Target template:skill_target
 nf.WaitFor target != none 3
-nf.ClickMove 145 100
-nf.WaitFor own_at 145 100 1 30
+# Fixture home108,100 + maximum drift200L2/32=6.25tiles (ai.rs).
+# At155,100 with1tile arrival tolerance, distance >=39.75 > castRange900/32.
+nf.ClickMove 155 100
+nf.WaitFor own_at 155 100 1 45
 nf.Expect target_distance > 30
 nf.Cast 1177
 nf.WaitFor rejected == out_of_range 3
 nf.Expect cast_starts == 0
 nf.Expect cast_results == 0
 # Total sum of waits plus30s exit grace.
-nf.Within 129
+nf.Within 144

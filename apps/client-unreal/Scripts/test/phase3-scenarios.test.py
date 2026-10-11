@@ -58,7 +58,11 @@ class ScenarioContracts(unittest.TestCase):
                           'cast_cancel_reason == peace_zone', 'target_flag_expired_at_last_impact'):
             self.assertIn(assertion, owner)
         self.assertLess(peer.index('nf.WaitFor entity_casting'), peer.index('nf.WaitFor observed_cast_cancel_reason'))
-        self.assertNotIn('nf.Sleep', owner + peer)
+        # Timed flag boundary must still use received deadlines; bounded attack retries
+        # may wait between commands but cannot substitute for the expiry proof.
+        boundary = owner.split('nf.WaitFor target_flag_remaining <= 10')[1].split('# Finish')[0]
+        self.assertNotIn('nf.Sleep', boundary)
+        self.assertNotIn('nf.Sleep', peer)
 
     def test_budget_handles_bot_inline_comments_and_rejects_duplicate_or_invalid_limits(self):
         with tempfile.TemporaryDirectory() as tmp:

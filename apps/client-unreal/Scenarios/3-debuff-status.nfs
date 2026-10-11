@@ -22,10 +22,24 @@ nf.WaitFor target != none 3
 nf.Cast 1184
 nf.WaitFor cast_results >= 1 12
 # replay-gate: skill_damage_matches_oracle 1184
+# Formulas.java:1158-1245: EffectSuccess is probabilistic, capped at90%.
+# Up to six normal casts, stopping on a received active effect. No chance/roll override.
+# 5s between attempts exceeds Ice Bolt base3100ms; receipt still guards cast/reuse.
+# Every result remains oracle-checked, and a received active effect is required.
+nf.Sleep 5
+nf.CastIf 1184 effect_absent
+nf.Sleep 5
+nf.CastIf 1184 effect_absent
+nf.Sleep 5
+nf.CastIf 1184 effect_absent
+nf.Sleep 5
+nf.CastIf 1184 effect_absent
+nf.Sleep 5
+nf.CastIf 1184 effect_absent
 nf.WaitFor entity_effect_active target 1184 12
 # replay-gate: skill_effect_matches_oracle 1184
 nf.Expect effect_identity_coherent
 nf.WaitFor entity_effect_inactive target 1184 180
 nf.Expect effect_remove_reason == expired
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
-nf.Within 300
+nf.Within 360
