@@ -337,6 +337,10 @@ impl Phase3Snapshot {
 pub(super) struct Phase3Zone {
     pub(super) canonical: Phase3Snapshot,
     pub(super) schedule: super::state_effects::Phase3Schedule,
+    /// Derived effective sheets; rebuilt on modifier/class/level changes, never persisted.
+    pub(super) effective:
+        BTreeMap<super::EntityId, std::sync::Arc<super::effective_stats::EffectiveStats>>,
+    pub(super) schedule_dirty: BTreeSet<super::EntityId>,
     pub(super) vitals_dirty: std::collections::BTreeSet<super::EntityId>,
     pub(super) ai_requests: Vec<AiRequest>,
     pub(super) forced_this_tick: BTreeSet<super::EntityId>,
@@ -360,6 +364,8 @@ impl Phase3Zone {
         Ok(Self {
             canonical,
             schedule,
+            effective: BTreeMap::new(),
+            schedule_dirty: BTreeSet::new(),
             vitals_dirty: std::collections::BTreeSet::new(),
             ai_requests: Vec::new(),
             forced_this_tick: BTreeSet::new(),

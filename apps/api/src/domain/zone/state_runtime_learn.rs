@@ -262,6 +262,8 @@ impl ZoneState {
         let phase = self.phase3.as_mut().ok_or(RejectReason::InvalidLoad)?;
         phase.canonical.next_install_sequence = prepared.next_sequence;
         phase.canonical.entities.insert(entity, prepared.sidecar);
+        phase.effective.remove(&entity);
+        phase.schedule_dirty.insert(entity);
         if vitals_changed {
             phase.vitals_dirty.insert(entity);
         }

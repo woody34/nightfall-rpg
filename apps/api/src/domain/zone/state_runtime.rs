@@ -130,6 +130,11 @@ impl ZoneState {
     fn sidecar_mut(&mut self, id: EntityId) -> Result<&mut Phase3Entity, TickError> {
         self.phase3
             .as_mut()
+            .ok_or_else(missing)?
+            .schedule_dirty
+            .insert(id);
+        self.phase3
+            .as_mut()
             .and_then(|p| p.canonical.entities.get_mut(&id))
             .ok_or_else(missing)
     }
@@ -161,12 +166,24 @@ impl ZoneState {
             sidecar,
         )
     }
-    fn effective(&self, id: EntityId) -> Result<EffectiveStats, TickError> {
+    fn effective(&self, id: EntityId) -> Result<Arc<EffectiveStats>, TickError> {
+        if let Some(cached) = self.phase3.as_ref().and_then(|p| p.effective.get(&id)) {
+            return Ok(Arc::clone(cached));
+        }
         self.effective_for(self.entities.get(&id).ok_or_else(missing)?, self.sidecar(id)?)
+            .map(Arc::new)
             .map_err(invariant)
     }
     fn rebuild_v5(&mut self, id: EntityId) -> Result<(), TickError> {
-        let effective = self.effective(id)?;
+        let effective = Arc::new(
+            self.effective_for(self.entities.get(&id).ok_or_else(missing)?, self.sidecar(id)?)
+                .map_err(invariant)?,
+        );
+        self.phase3
+            .as_mut()
+            .ok_or_else(missing)?
+            .effective
+            .insert(id, Arc::clone(&effective));
         if self
             .entities
             .get(&id)
@@ -489,6 +506,26 @@ impl ZoneState {
     #[allow(clippy::too_many_lines)] // Ordered live phase barriers remain visible in one driver.
     fn execute_v5(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
         let tick = draft.tick;
+        // A restored snapshot carries only canonical inputs. Warm missing sheets once;
+        // subsequent reads share them until a modifier, level or class mutation rebuilds.
+        let cold: Vec<_> = self
+            .phase3
+            .as_ref()
+            .ok_or_else(missing)?
+            .canonical
+            .entities
+            .keys()
+            .filter(|id| {
+                !self
+                    .phase3
+                    .as_ref()
+                    .is_some_and(|p| p.effective.contains_key(id))
+            })
+            .copied()
+            .collect();
+        for id in cold {
+            self.rebuild_v5(id)?;
+        }
         let before = self.entities.clone();
         let known = self.known.clone();
         let mut events = Vec::new();
@@ -555,10 +592,7 @@ impl ZoneState {
         let responses = responses(tick, &draft.commands, &dispositions);
         let outputs = self.observe_v5(tick, responses, &events, &known)?;
         self.next_tick = tick.next();
-        let phase = self.phase3.as_mut().ok_or_else(missing)?;
-        phase.schedule =
-            crate::domain::zone::state_effects::Phase3Schedule::rebuild(&phase.canonical.entities)
-                .map_err(invariant)?;
+        self.refresh_schedule_v5()?;
         Ok(AppliedTick {
             epoch: draft.epoch,
             tick,
@@ -570,6 +604,16 @@ impl ZoneState {
             state_digest: self.state_digest(),
             digest_version: self.meta.digest_version,
         })
+    }
+    fn refresh_schedule_v5(&mut self) -> Result<(), TickError> {
+        let phase = self.phase3.as_mut().ok_or_else(missing)?;
+        for id in std::mem::take(&mut phase.schedule_dirty) {
+            phase
+                .schedule
+                .refresh(id, phase.canonical.entities.get(&id))
+                .map_err(invariant)?;
+        }
+        Ok(())
     }
     fn command_v5(
         &mut self,
@@ -667,6 +711,8 @@ impl ZoneState {
                     ZoneCommand::Despawn { entity } => {
                         if let Some(p) = &mut self.phase3 {
                             p.canonical.entities.remove(&entity);
+                            p.effective.remove(&entity);
+                            p.schedule_dirty.insert(entity);
                         }
                     },
                     ZoneCommand::CastSkill { .. }
@@ -757,11 +803,7 @@ impl ZoneState {
         reason: CastCancelReason,
         events: &mut Vec<ZoneEvent>,
     ) {
-        let Some(side) = self
-            .phase3
-            .as_mut()
-            .and_then(|p| p.canonical.entities.get_mut(&entity))
-        else {
+        let Ok(side) = self.sidecar_mut(entity) else {
             return;
         };
         if let Some(cast) = side.cancel_cast(id) {
@@ -1086,11 +1128,12 @@ impl ZoneState {
         tick: Tick,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
+        self.refresh_schedule_v5()?;
         let launches = self
             .phase3
             .as_ref()
             .ok_or_else(missing)?
-            .canonical
+            .schedule
             .cast_launches(tick);
         for work in launches {
             let CastState::Casting(cast) = self.sidecar(work.caster)?.cast.clone() else {
@@ -1112,11 +1155,12 @@ impl ZoneState {
             self.sidecar_mut(work.caster)?
                 .launch_cast(tick, work.cast, |target| targets.contains(&target));
         }
+        self.refresh_schedule_v5()?;
         let impacts = self
             .phase3
             .as_ref()
             .ok_or_else(missing)?
-            .canonical
+            .schedule
             .cast_impacts(tick);
         for work in impacts {
             let CastState::Casting(cast) = self.sidecar(work.caster)?.cast.clone() else {
@@ -1179,10 +1223,12 @@ impl ZoneState {
                 },
             )
             .map_err(invariant)?;
-            let side = self
-                .phase3
-                .as_mut()
-                .and_then(|p| p.canonical.entities.get_mut(&work.caster))
+            let phase = self.phase3.as_mut().ok_or_else(missing)?;
+            phase.schedule_dirty.insert(work.caster);
+            let side = phase
+                .canonical
+                .entities
+                .get_mut(&work.caster)
                 .ok_or_else(missing)?;
             let c = self
                 .entities
@@ -1685,11 +1731,12 @@ impl ZoneState {
             regen_amounts, restore_regen, RegenInputs, RegenPosture, RegenResource,
         };
         let rules = Arc::clone(&self.phase3.as_ref().ok_or_else(missing)?.canonical.rules);
+        self.refresh_schedule_v5()?;
         let due = self
             .phase3
             .as_ref()
             .ok_or_else(missing)?
-            .canonical
+            .schedule
             .regen_candidates(tick);
         for (_, id) in due {
             let effective = self.effective(id)?;
@@ -2261,12 +2308,10 @@ impl ZoneState {
         for event in &spawned {
             match event {
                 ZoneEvent::EntityDespawn { entity, .. } => {
-                    self.phase3
-                        .as_mut()
-                        .ok_or_else(missing)?
-                        .canonical
-                        .entities
-                        .remove(entity);
+                    let phase = self.phase3.as_mut().ok_or_else(missing)?;
+                    phase.canonical.entities.remove(entity);
+                    phase.effective.remove(entity);
+                    phase.schedule_dirty.insert(*entity);
                 },
                 ZoneEvent::EntitySpawn { entity, .. } => self.attach_v5(tick, *entity, None)?,
                 _ => {},

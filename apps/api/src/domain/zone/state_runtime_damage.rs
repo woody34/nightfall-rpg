@@ -606,6 +606,35 @@ mod tests {
         (zone, first, second, npc)
     }
 
+    #[test]
+    fn derived_cache_and_due_indexes_match_cold_reconstruction_after_every_tick() {
+        let (mut warm, caster, _, npc) = fixture();
+        start_cast(&mut warm, caster, npc);
+        let mut cold = ZoneState::from_snapshot(warm.snapshot()).unwrap();
+        let cached = warm.effective(caster.entity).unwrap();
+        assert!(Arc::ptr_eq(&cached, &warm.effective(caster.entity).unwrap()));
+        for _ in 0..90 {
+            let actual = warm.run_tick(warm.draft(Vec::new())).unwrap();
+            let rebuilt = cold.run_tick(cold.draft(Vec::new())).unwrap();
+            assert_eq!(actual, rebuilt);
+            let phase = warm.phase3.as_ref().unwrap();
+            assert_eq!(
+                phase.schedule,
+                crate::domain::zone::state_effects::Phase3Schedule::rebuild(
+                    &phase.canonical.entities
+                )
+                .unwrap()
+            );
+            for (id, side) in &phase.canonical.entities {
+                assert_eq!(
+                    *warm.effective(*id).unwrap(),
+                    warm.effective_for(&warm.entities[id], side).unwrap()
+                );
+            }
+            cold = ZoneState::from_snapshot(cold.snapshot()).unwrap();
+        }
+    }
+
     fn set_resources(zone: &mut ZoneState, target: TargetBinding, hp: u32, cp: u32) {
         let c = zone
             .entities
@@ -1013,6 +1042,7 @@ mod tests {
         side.effects = EffectList::from_entries([(stun.id, stun)].into()).unwrap();
         side.modifier_install_order
             .insert(1, RestoredModifierSource::Effect(effects::EffectId(1)));
+        zone.rebuild_v5(target.entity).unwrap();
     }
 
     #[test]
