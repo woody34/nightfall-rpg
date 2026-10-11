@@ -28,6 +28,7 @@ public:
  TOptional<bool> CastFor(const FString& Entity,uint32 Skill,const FString& Predicate) const;
  TOptional<bool> NotInView(const FString& Entity) const;
  const TOptional<FStatsChanged>& OwnerStats() const { return Stats; }
+ const FAttackStarted* SwingFor(const FString& Id) const { return Swings.Find(Id.ToLower()); }
 private:
  struct FCastEvidence
  {
@@ -82,6 +83,7 @@ private:
  TMap<FString,uint64> SwingTicks;
  TMap<FString,FVitalsChanged> Vitals;
  TMap<FString,FEntityRespawned> Revivals;
+ TSet<FString> PairedRevivals;
  TMap<FString,TMap<uint64,FEffectApplied>> Effects;
  TMap<FString,uint64> EffectTicks;
  TSet<FString> RemovedEffects;

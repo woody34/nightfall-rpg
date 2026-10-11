@@ -1306,6 +1306,8 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ResurrectOffer* in, FGrpcNightfall
     out->ExpiryTick=in->expiry_tick();
     out->State=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: return StaticCast<EGrpcNightfallV1ResurrectOfferState>(value); default: return EGrpcNightfallV1ResurrectOfferState::RESURRECT_OFFER_STATE_UNSPECIFIED; } }(static_cast<int>(in->state()));
     out->Tick=in->tick();
+    out->Baseline=in->baseline();
+    out->BaselineTick=in->baseline_tick();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ResurrectOffer* in, ::nightfall::v1::ResurrectOffer* out)
@@ -1330,6 +1332,8 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ResurrectOffer* in, ::nightfall::v1
     out->set_expiry_tick(in->ExpiryTick);
     out->set_state(::nightfall::v1::ResurrectOfferState(static_cast<uint8>(in->State)));
     out->set_tick(in->Tick);
+    out->set_baseline(in->Baseline);
+    out->set_baseline_tick(in->BaselineTick);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::SpGained* in, FGrpcNightfallV1SpGained* out)

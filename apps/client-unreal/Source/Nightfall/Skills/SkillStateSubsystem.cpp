@@ -130,7 +130,7 @@ void USkillStateSubsystem::ApplyPvp(const FPvpStateChanged& P)
 }
 void USkillStateSubsystem::ApplyOffer(const FResurrectOffer& O)
 {
-	if (!IsOwn(O.Target) || !Fence.Accept(O.Target, O.TargetIncarnation, O.Tick) || O.Tick < OfferTick || !O.OfferId || !Fence.Dead(O.Target)) return;
+	if (!IsOwn(O.Target) || !Fence.Accept(O.Target, O.TargetIncarnation, O.Tick, O.bBaseline, O.BaselineTick) || O.Tick < OfferTick || !O.OfferId || !Fence.Dead(O.Target)) return;
 	if (Offer.IsSet() && ((O.OfferId != Offer->OfferId && O.State != 1) || (O.OfferId == Offer->OfferId && Offer->State != 1))) return;
 	Offer = O; LastOfferId=O.OfferId; OfferTick = O.Tick;
 	if (!Offer->Caster.IsSet() || !Offer->CasterIncarnation.IsSet() || !Fence.Visible(*Offer->Caster, *Offer->CasterIncarnation)) { Offer->Caster.Reset(); Offer->CasterIncarnation.Reset(); }

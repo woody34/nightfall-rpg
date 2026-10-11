@@ -14,7 +14,7 @@ bool FResurrectionOrderTest::RunTest(const FString& Parameters)
  auto Offer=[&](const FResurrectOffer& V){FWorldEvent E;E.ResurrectOffer=V;Send(E);};
  uint32 Generation=0;
  auto Setup=[&]{Audit->Reset();FEntitySpawn S;S.EntityId=TEXT("owner");S.Kind=1;S.LifeIncarnation=1;S.SessionGeneration=++Generation;S.StateTick=10;S.Hp=S.MaxHp=100;FWorldEvent E;E.Spawn=S;Send(E);Stats(1,10,100,1000,true);FEntityDied D;D.Entity=TEXT("owner");D.Incarnation=1;D.Tick=11;E={};E.EntityDied=D;Send(E);Stats(1,11,0,900);Offer(O);};
- auto Revive=[&]{FEntityRespawned R;R.Entity=TEXT("owner");R.Incarnation=2;R.Tick=20;R.Hp=65;FWorldEvent E;E.EntityRespawned=R;Send(E);};
+ auto Revive=[&]{FEntityRespawned R;R.Entity=TEXT("owner");R.Incarnation=2;R.Tick=20;R.Hp=65;FWorldEvent E;E.EntityRespawned=R;Send(E);FVitalsChanged V;V.Entity=R.Entity;V.Incarnation=R.Incarnation;V.Tick=V.BaselineTick=R.Tick;V.bBaseline=true;V.Hp=R.Hp;V.MaxHp=100;E={};E.VitalsChanged=V;Send(E);Send(E);};
  auto Refunds=[&]{return Audit->Number(TEXT("resurrection_refunds")).Get(MAX_uint64);};
  auto Accepted=O;Accepted.State=4;Accepted.Tick=20;
  // Actual producer order: new identity + owner resource baseline, then the old-corpse terminal.

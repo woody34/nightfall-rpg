@@ -214,6 +214,8 @@ namespace
 		Out.ExpiryTick = S.ExpiryTick;
 		Out.State = static_cast<uint32>(S.State);
 		Out.Tick = S.Tick;
+		Out.bBaseline = S.Baseline;
+		Out.BaselineTick = S.BaselineTick;
 		return Out;
 	}
 

@@ -47,7 +47,7 @@ void USkillAuditSubsystem::Deinitialize()
 void USkillAuditSubsystem::Reset(){ClearTransport();PriorPenalty.Reset();PriorOwner.Reset();PriorEffects.Reset();bPriorEffectsKnown=false;}
 void USkillAuditSubsystem::ClearTransport()
 {
- Fence.Reset();Stats.Reset();BeforeDeath.Reset();DeadResources.Reset();AfterRevival.Reset();bSkillRevival=false;TownRequest.Reset();KarmaGainChange.Reset();KarmaLossChange.Reset();XpCredit.Reset();Deaths.Reset();SwingTargetsAtStart.Reset();ResourceSamples.Reset();Reuse.Reset();bSamplesComplete=bBaselineOk=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Departed.Reset();Swings.Reset();SwingTicks.Reset();Vitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();RemovedEffects.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
+ Fence.Reset();Stats.Reset();BeforeDeath.Reset();DeadResources.Reset();AfterRevival.Reset();bSkillRevival=false;TownRequest.Reset();KarmaGainChange.Reset();KarmaLossChange.Reset();XpCredit.Reset();Deaths.Reset();SwingTargetsAtStart.Reset();ResourceSamples.Reset();Reuse.Reset();bSamplesComplete=bBaselineOk=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Departed.Reset();Swings.Reset();SwingTicks.Reset();Vitals.Reset();Revivals.Reset();PairedRevivals.Reset();Effects.Reset();EffectTicks.Reset();RemovedEffects.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
  OwnCp=PlayerCp=0;References=PublicPairs=RevivalPairs=PvpPairs=CpPairs=EffectSamples=0;
  bReferencesOk=bVitalsOk=bPvpOk=bCpOk=bEffectsOk=bDispositionOk=true;
  bOwnerStatsBaseline=bOwnerSyncBaseline=bObserverBaseline=false;
@@ -121,7 +121,7 @@ void USkillAuditSubsystem::StatsInput(const FStatsChanged& S)
 bool USkillAuditSubsystem::RevivalTerminal(const FResurrectOffer& O) const
 {
  // Only the retained corpse offer may cross the life fence. All other old-life frames stay stale.
- if(!Net || !Net->IsOwnEntity(O.Target) || O.State!=4 || !Offer.IsSet() || Offer->OfferId!=O.OfferId || Offer->TargetIncarnation!=O.TargetIncarnation || !Offer->Target.Equals(O.Target,ESearchCase::IgnoreCase) || Offer->State!=1 || O.Tick<Offer->Tick)return false;
+ if(!Net || !Net->IsOwnEntity(O.Target) || O.State!=4 || O.bBaseline || !Offer.IsSet() || Offer->OfferId!=O.OfferId || Offer->TargetIncarnation!=O.TargetIncarnation || !Offer->Target.Equals(O.Target,ESearchCase::IgnoreCase) || Offer->State!=1 || O.Tick<Offer->Tick)return false;
  const auto* R=Revivals.Find(O.Target.ToLower());
  return R && R->Tick==O.Tick && R->Incarnation>O.TargetIncarnation && Fence.Visible(O.Target,R->Incarnation) && !Fence.Dead(O.Target);
 }
@@ -189,7 +189,12 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   const auto& V=*E.VitalsChanged;if(!Fence.Accept(V.Entity,V.Incarnation,V.Tick,V.bBaseline,V.BaselineTick))return;
   const FString Id=V.Entity.ToLower();if(const auto* Old=Vitals.Find(Id);Old && Old->Tick>V.Tick)return;
   ++PublicPairs;
-  if(const auto* R=Revivals.Find(Id);R && R->Tick==V.Tick && R->Incarnation==V.Incarnation && V.bBaseline){++RevivalPairs;bVitalsOk &= V.MaxHp>0;Revivals.Remove(Id);}
+  if(const auto* R=Revivals.Find(Id);R && R->Tick==V.Tick && R->Incarnation==V.Incarnation && V.bBaseline)
+  {
+   // Public vitals arrive before the old-corpse terminal. Retain the life transition for correlation.
+   const FString Key=CastKey(Id,R->Incarnation,R->Tick);
+   if(!PairedRevivals.Contains(Key)){++RevivalPairs;bVitalsOk &= V.MaxHp>0;PairedRevivals.Add(Key);}
+  }
   Vitals.Add(Id,V);Fence.Tick=FMath::Max(Fence.Tick,V.Tick);return;
  }
  if(E.SkillCastStarted.IsSet())
@@ -274,9 +279,9 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  {
   const auto& O=*E.ResurrectOffer;
   const bool AcrossLife=RevivalTerminal(O);
-  if(!AcrossLife && !AuditSubject(O.Target,O.TargetIncarnation,O.Tick))return;
+  if(!AcrossLife && !AuditSubject(O.Target,O.TargetIncarnation,O.Tick,O.bBaseline,O.BaselineTick))return;
   Reference(O.Caster,O.CasterIncarnation);
-  if(!Net || !Net->IsOwnEntity(O.Target) || (!AcrossLife && (!Fence.Accept(O.Target,O.TargetIncarnation,O.Tick) || !Fence.Dead(O.Target))))return;
+  if(!Net || !Net->IsOwnEntity(O.Target) || (!AcrossLife && (!Fence.Accept(O.Target,O.TargetIncarnation,O.Tick,O.bBaseline,O.BaselineTick) || !Fence.Dead(O.Target))))return;
   if(!O.OfferId || (O.State!=1 && (!Offer.IsSet() || O.OfferId!=Offer->OfferId)))return;
   if(Offer.IsSet() && (O.Tick<Offer->Tick || (O.OfferId==Offer->OfferId && Offer->State!=1)))return;
   Offer=O;CompleteResurrectionAudit();return;
