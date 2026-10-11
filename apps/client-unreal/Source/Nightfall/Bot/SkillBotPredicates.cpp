@@ -68,7 +68,7 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
  R.Register({TEXT("cancelled_cast_costs_retained"),TEXT("cancelled_cast_costs_retained"),TEXT("Received cancelled cast retains start MP and SkillReuse deadline"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
  {if(!A.IsEmpty()){Error=TEXT("takes no arguments");return nullptr;}return [](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->CancelledCostsRetained():TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("retained")):FString(TEXT("refunded or mismatched"))):FString(TEXT("unknown: cancelled cast, catalogue, resource or reuse evidence missing"))};};}});
 
- for (const FString& Name : {FString(TEXT("cast_dispositions_once")),FString(TEXT("spawn_before_skill_references")),FString(TEXT("owner_skill_baseline_coherent")),FString(TEXT("observer_skill_baseline_coherent")),FString(TEXT("public_vitals_coherent")),FString(TEXT("public_revival_vitals_coherent")),FString(TEXT("pvp_private_stats_coherent")),FString(TEXT("cp_absorption_matches_received")),FString(TEXT("effect_identity_coherent")),FString(TEXT("death_penalty_matches_before_disconnect")),FString(TEXT("resurrect_offer_matches_death")),FString(TEXT("own_flag_deadline_matches_received")),FString(TEXT("npc_target_is_owner")),FString(TEXT("own_flag_expired_at_last_impact")),FString(TEXT("target_flag_expired_at_last_impact")),FString(TEXT("victim_flag_not_refreshed")),FString(TEXT("peace_rejection_has_no_start")),FString(TEXT("impact_counter_uses_received_flag")),FString(TEXT("flagged_kill_matches_received")),FString(TEXT("karma_gain_matches_oracle")),FString(TEXT("karma_decay_matches_oracle")),FString(TEXT("death_xp_matches_fixture")),FString(TEXT("town_respawn_vitals_match_fixture")),FString(TEXT("resurrection_vitals_match_fixture")),FString(TEXT("retained_effect_identity_coherent")),FString(TEXT("peace_impact_has_no_damage"))})
+ for (const FString& Name : {FString(TEXT("cast_dispositions_once")),FString(TEXT("spawn_before_skill_references")),FString(TEXT("owner_skill_baseline_coherent")),FString(TEXT("observer_skill_baseline_coherent")),FString(TEXT("public_vitals_coherent")),FString(TEXT("public_revival_vitals_coherent")),FString(TEXT("pvp_private_stats_coherent")),FString(TEXT("cp_absorption_matches_received")),FString(TEXT("effect_identity_coherent")),FString(TEXT("death_penalty_matches_before_disconnect")),FString(TEXT("resurrect_offer_matches_death")),FString(TEXT("own_flag_deadline_matches_received")),FString(TEXT("npc_target_is_owner")),FString(TEXT("own_flag_expired_at_last_impact")),FString(TEXT("target_flag_expired_at_last_impact")),FString(TEXT("victim_flag_not_refreshed")),FString(TEXT("peace_rejection_has_no_start")),FString(TEXT("impact_counter_uses_received_flag")),FString(TEXT("flagged_kill_matches_received")),FString(TEXT("karma_gain_matches_oracle")),FString(TEXT("karma_decay_coherent")),FString(TEXT("death_xp_matches_fixture")),FString(TEXT("town_respawn_vitals_match_fixture")),FString(TEXT("resurrection_vitals_coherent")),FString(TEXT("retained_effect_identity_coherent")),FString(TEXT("peace_impact_has_no_damage"))})
   R.Register({Name,Name,TEXT("Witnessed authoritative event history; missing evidence fails closed"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
   {
    if(!A.IsEmpty()){Error=TEXT("takes no arguments");return nullptr;}
@@ -164,6 +164,7 @@ bool SkillBotPredicates::ValidateCommand(const TArray<FString>& T, FString& Erro
 	if(T.IsEmpty())return true; const FString Name=T[0].ToLower(); uint32 Skill=0,Rank=0; uint64 OfferId=0; FGuid Guid;
 	bool Valid=true;
 	if(Name==TEXT("nf.cast")) Valid=(T.Num()==2 || T.Num()==3) && Id(T[1],Skill) && (T.Num()==2 || T[2]==TEXT("self") || T[2]==TEXT("target") || FGuid::Parse(T[2],Guid));
+	else if(Name==TEXT("nf.castif")) Valid=T.Num()==3 && Id(T[1],Skill) && (T[2]==TEXT("target_alive") || T[2]==TEXT("effect_absent"));
 	else if(Name==TEXT("nf.cancelcast") || Name==TEXT("nf.learnableskills") || Name==TEXT("nf.skillcatalog")) Valid=T.Num()==1;
 	else if(Name==TEXT("nf.learn")) Valid=(T.Num()==3 || T.Num()==4) && Id(T[1],Skill) && Id(T[2],Rank) && (T.Num()==3 || FGuid::Parse(T[3],Guid));
 	else if(Name==TEXT("nf.acceptresurrect")) Valid=T.Num()<=3 && (T.Num()<2 || T[1]==TEXT("latest") || (ParseUnsigned(T[1],OfferId) && OfferId)) && (T.Num()<3 || T[2]==TEXT("accept") || T[2]==TEXT("decline"));
@@ -181,6 +182,18 @@ namespace SkillBotCommands
 		if(!Args(TEXT("nf.Cast"),A))return;auto* N=Net(W);if(!N)return;TOptional<FString> Target;
 		if(A.Num()==2){if(A[1]==TEXT("self"))Target=N->GetOwnEntityId();else if(A[1]!=TEXT("target"))Target=A[1];}
 		UE_LOG(LogNightfallBot,Display,TEXT("nf.Cast seq %u"),N->SendCastSkill(uint32(FCString::Strtoui64(*A[0],nullptr,10)),Target));
+	}));
+	FAutoConsoleCommandWithWorldAndArgs CastIf(TEXT("nf.CastIf"),TEXT("nf.CastIf <skill_id> target_alive|effect_absent: bounded scenario retry from received state"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W)
+	{
+		if(!Args(TEXT("nf.CastIf"),A))return;auto* N=Net(W);auto* S=State(W);if(!N || !S || !W->GetGameInstance())return;
+		const auto* Combat=W->GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();
+		const auto* Effects=W->GetGameInstance()->GetSubsystem<UEffectStateSubsystem>();
+		if(!Combat)return;const FString Target=Combat->GetOwn().TargetId;
+		const auto* Victim=Combat->FindEntity(Target);const auto* Cast=S->FindCast(N->GetOwnEntityId());
+		const uint32 Skill=uint32(FCString::Strtoui64(*A[0],nullptr,10));
+		if(!Victim || Victim->bDead || (Cast && Cast->Cast.IsSet()) || !S->ReuseRemaining(Skill).IsSet() || *S->ReuseRemaining(Skill)>0)return;
+		if(A[1]==TEXT("effect_absent") && (!Effects || !Effects->IsHydrated(Target) || Effects->Has(Target,Skill)))return;
+		UE_LOG(LogNightfallBot,Display,TEXT("nf.CastIf seq %u"),N->SendCastSkill(Skill,Target));
 	}));
 	FAutoConsoleCommandWithWorldAndArgs Cancel(TEXT("nf.CancelCast"),TEXT("Cancel current cast"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.CancelCast"),A))return;if(auto* N=Net(W))N->SendCancelCast();}));
 	FAutoConsoleCommandWithWorldAndArgs Learn(TEXT("nf.Learn"),TEXT("nf.Learn <id> <rank> [idempotency_uuid]"),FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& A,UWorld* W){if(!Args(TEXT("nf.Learn"),A))return;if(auto* S=State(W))S->Learn(uint32(FCString::Strtoui64(*A[0],nullptr,10)),uint32(FCString::Strtoui64(*A[1],nullptr,10)),RpcLog,A.Num()==3?A[2]:FString());}));

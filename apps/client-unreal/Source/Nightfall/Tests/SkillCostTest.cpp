@@ -45,7 +45,7 @@ bool FSkillCancelClosureTest::RunTest(const FString& Parameters)
  {
   FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<USkillStateSubsystem>();auto* A=Scope.Get<USkillAuditSubsystem>();N->SetOwnEntityId(TEXT("owner"));
   auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};FWorldEvent E;
-  FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Row=Catalog.Skills.AddDefaulted_GetRef();Row.SkillId=3;Row.MaxLevel=1;Row.MpConsumeStart={FUInt32(2)};Row.MpConsumeEnd={FUInt32(5)};S->ApplyCatalog(Catalog);
+  FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Row=Catalog.Skills.AddDefaulted_GetRef();Row.SkillId=3;Row.MaxLevel=1;Row.ReuseMs={FUInt32(1000)};Row.MpConsumeStart={FUInt32(2)};Row.MpConsumeEnd={FUInt32(5)};S->ApplyCatalog(Catalog);
   FEntitySpawn Spawn;Spawn.EntityId=TEXT("owner");Spawn.LifeIncarnation=1;Spawn.StateTick=10;E.Spawn=Spawn;Send(E);
   FStatsChanged Stats;Stats.Entity=TEXT("owner");Stats.Incarnation=1;Stats.Tick=Stats.BaselineTick=10;Stats.bBaseline=true;Stats.Mp=100;E={};E.StatsChanged=Stats;Send(E);
   FSkillCastStarted Cast;Cast.Caster=TEXT("owner");Cast.CasterIncarnation=1;Cast.CastId=1;Cast.SkillId=3;Cast.SkillLevel=1;Cast.Tick=11;E={};E.SkillCastStarted=Cast;Send(E);
@@ -59,6 +59,29 @@ bool FSkillCancelClosureTest::RunTest(const FString& Parameters)
   FEntityRespawned Respawn;Respawn.Entity=TEXT("owner");Respawn.Incarnation=2;Respawn.Tick=14;E={};E.EntityRespawned=Respawn;Send(E);
   TestFalse(TEXT("replacement life cannot certify old cast costs"),A->CancelledCostsRetained().IsSet());
  }
+ return true;
+}
+#endif
+
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSkillZeroReuseCancelTest,"Nightfall.Skill.ZeroReuseCancellation",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FSkillZeroReuseCancelTest::RunTest(const FString& Parameters)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<USkillStateSubsystem>();auto* A=Scope.Get<USkillAuditSubsystem>();N->SetOwnEntityId(TEXT("owner"));
+ auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};FWorldEvent E;
+ FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Row=Catalog.Skills.AddDefaulted_GetRef();Row.SkillId=1177;Row.MaxLevel=1;Row.MpConsumeStart={FUInt32(2)};Row.MpConsumeEnd={FUInt32(5)};Row.ReuseMs={FUInt32(0)};S->ApplyCatalog(Catalog);
+ FEntitySpawn Spawn;Spawn.EntityId=TEXT("owner");Spawn.LifeIncarnation=1;Spawn.StateTick=10;E.Spawn=Spawn;Send(E);
+ FStatsChanged Stats;Stats.Entity=TEXT("owner");Stats.Incarnation=1;Stats.Tick=Stats.BaselineTick=10;Stats.bBaseline=true;Stats.Mp=100;E={};E.StatsChanged=Stats;Send(E);
+ FIntentRejected Rejected;Rejected.Seq=1;N->OnIntentRejected.Broadcast(Rejected);
+ TestFalse(TEXT("rejected intent is never a cancelled cast"),A->CancelledCostsRetained().IsSet());
+ FSkillCastStarted Cast;Cast.Caster=TEXT("owner");Cast.CasterIncarnation=1;Cast.CastId=1;Cast.SkillId=1177;Cast.SkillLevel=1;Cast.Tick=11;E={};E.SkillCastStarted=Cast;Send(E);
+ Stats.Tick=11;Stats.bBaseline=false;Stats.Mp=98;E={};E.StatsChanged=Stats;Send(E);
+ FSkillCastCancelled Cancel;Cancel.Caster=TEXT("owner");Cancel.CasterIncarnation=1;Cancel.CastId=1;Cancel.Tick=12;Cancel.Reason=2;E={};E.SkillCastCancelled=Cancel;Send(E);
+ TestFalse(TEXT("terminal still requires ordered stream closure"),A->CancelledCostsRetained().IsSet());
+ FServerMessage Close;Close.Ack=FAck{2,13};N->DispatchServerMessage(Close);
+ TestTrue(TEXT("explicit zero reuse needs no absent reuse event"),A->CancelledCostsRetained().Get(false));
+ Stats.Tick=12;Stats.Mp=100;E={};E.StatsChanged=Stats;Send(E);
+ TestFalse(TEXT("zero reuse does not excuse an MP refund"),A->CancelledCostsRetained().Get(true));
  return true;
 }
 #endif

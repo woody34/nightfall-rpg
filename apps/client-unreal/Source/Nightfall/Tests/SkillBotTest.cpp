@@ -22,6 +22,9 @@ bool FSkillPredicatesTest::RunTest(const FString& Parameters)
  {
   auto P=R.Parse(FBotPredicateRegistry::Tokenize(Text),Error);TestTrue(TEXT("predicate registered"),bool(P));if(P)TestFalse(TEXT("unknown scope cannot pass"),P(C).bTrue);
  }
+ TestTrue(TEXT("conditional retry uses received life"),SkillBotPredicates::ValidateCommand({TEXT("nf.CastIf"),TEXT("1177"),TEXT("target_alive")},Error));
+ TestTrue(TEXT("conditional retry uses received effect"),SkillBotPredicates::ValidateCommand({TEXT("nf.CastIf"),TEXT("1184"),TEXT("effect_absent")},Error));
+ TestFalse(TEXT("unsupported conditional cannot become a blind cast"),SkillBotPredicates::ValidateCommand({TEXT("nf.CastIf"),TEXT("1184"),TEXT("always")},Error));
  FBotScenario Scenario;TArray<FString> Errors;
  TestFalse(TEXT("invalid rank fails scenario parse"),BotScenario::Parse(TEXT("bad"),TEXT("nf.Learn 3 1.2"),R,[](const FString&){return true;},Scenario,Errors));
  Errors.Reset();TestTrue(TEXT("retry key and explicit corpse accepted"),BotScenario::Parse(TEXT("good"),TEXT("nf.Learn 3 2 01970000-0000-7000-8000-000000000030\nnf.Cast 1016 01970000-0000-7000-8000-000000000031\nnf.AcceptResurrect latest decline"),R,[](const FString&){return true;},Scenario,Errors));

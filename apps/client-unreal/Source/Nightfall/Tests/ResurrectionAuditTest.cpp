@@ -20,7 +20,7 @@ bool FResurrectionOrderTest::RunTest(const FString& Parameters)
  // Actual producer order: new identity + owner resource baseline, then the old-corpse terminal.
  Setup();Revive();Stats(2,20,65,950,true);TestEqual(TEXT("stats alone do not prove a skill refund"),Refunds(),uint64(0));
  Offer(Accepted);TestEqual(TEXT("old-corpse accepted terminal completes refund"),Refunds(),uint64(1));TestEqual(TEXT("terminal retained for predicates"),Audit->OfferState().Get(0),uint32(4));
- TestTrue(TEXT("revival vitals are classified after late terminal"),Audit->Check(TEXT("resurrection_vitals_match_fixture")).Get(false));Offer(Accepted);TestEqual(TEXT("terminal retransmission counts once"),Refunds(),uint64(1));
+ TestTrue(TEXT("revival vitals are classified after late terminal"),Audit->Check(TEXT("resurrection_vitals_coherent")).Get(false));Offer(Accepted);TestEqual(TEXT("terminal retransmission counts once"),Refunds(),uint64(1));
  Stats(2,21,70,960);Offer(Accepted);TestEqual(TEXT("later XP does not add refunds"),Refunds(),uint64(1));
  Setup();Revive();Offer(Accepted);TestEqual(TEXT("terminal waits for resources"),Refunds(),uint64(0));Stats(2,20,65,950,true);TestEqual(TEXT("either order completes same offer"),Refunds(),uint64(1));
  for(int32 Case=0;Case<4;++Case)
@@ -30,7 +30,7 @@ bool FResurrectionOrderTest::RunTest(const FString& Parameters)
   Offer(Bad);TestEqual(TEXT("unrelated old-life terminal cannot correlate"),Refunds(),uint64(0));
  }
  Setup();auto Declined=O;Declined.State=2;Declined.Tick=13;Offer(Declined);Revive();Stats(2,20,65,950,true);Offer(Accepted);TestEqual(TEXT("decline cannot become a refund"),Refunds(),uint64(0));
- Setup();Revive();Stats(2,20,65,900,true);Offer(Accepted);TestEqual(TEXT("accepted no-XP revival has no witnessed refund"),Refunds(),uint64(0));TestTrue(TEXT("no-XP accepted revival still classifies vitals"),Audit->Check(TEXT("resurrection_vitals_match_fixture")).Get(false));
+ Setup();Revive();Stats(2,20,65,900,true);Offer(Accepted);TestEqual(TEXT("accepted no-XP revival has no witnessed refund"),Refunds(),uint64(0));TestTrue(TEXT("no-XP accepted revival still classifies vitals"),Audit->Check(TEXT("resurrection_vitals_coherent")).Get(false));
  Setup();Revive();Stats(2,20,65,950,true);FEntityDied D;D.Entity=TEXT("owner");D.Incarnation=2;D.Tick=21;FWorldEvent E;E.EntityDied=D;Send(E);Stats(2,21,0,850);Offer(Accepted);TestEqual(TEXT("later death cannot reuse old accepted terminal"),Refunds(),uint64(0));
  return true;
 }

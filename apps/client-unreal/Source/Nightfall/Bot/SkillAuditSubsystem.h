@@ -95,8 +95,8 @@ private:
  TMap<uint32,uint32> SentSkills;
  TMap<uint32,uint64> AcceptedSeqs;
  TOptional<uint32> PeaceRejectSeq;
- TMap<uint32,uint32> SentStartCounts;
- uint32 OwnStartCount=0;
+ TMap<uint32,uint32> SentStartCounts, SentSwingCounts;
+ uint32 OwnStartCount=0, OwnSwingStartCount=0;
  uint64 OwnCp=0,PlayerCp=0;
  uint32 References=0,PublicPairs=0,RevivalPairs=0,PvpPairs=0,CpPairs=0,EffectSamples=0;
  bool bReferencesOk=true,bVitalsOk=true,bPvpOk=true,bCpOk=true,bEffectsOk=true,bDispositionOk=true;

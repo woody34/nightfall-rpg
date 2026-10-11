@@ -340,6 +340,17 @@ void GrpcContext_GameService_GetSkillCatalog::Call(const FGrpcNightfallV1GetSkil
 
 void GrpcContext_GameService_GetSkillCatalog::OnRpcEvent(bool Ok, const void* EventTag)
 {
+	// C16: optional catalogue unavailability is warning-level; deliver the failure unchanged.
+	if (Ok && RpcStatus.error_code() == grpc::StatusCode::UNAVAILABLE)
+	{
+		const FGrpcResult Result = GrpcContext::MakeGrpcResult(RpcStatus);
+		UE_LOG(LogTurboLink, Warning, TEXT("GetSkillCatalog unavailable: %s"), *Result.GetMessageString());
+		UGameServiceClient* GameClient = (UGameServiceClient*)Client;
+		FGrpcNightfallV1GetSkillCatalogResponse Response;
+		GameClient->OnGetSkillCatalogResponse.Broadcast(Handle, Result, Response);
+		UpdateState(EGrpcContextState::Done);
+		return;
+	}
 	Super::OnRpcEventInternal(Ok, EventTag,
 		[this](const FGrpcResult& _Result, ::nightfall::v1::GetSkillCatalogResponse* _RpcResponse)
 		{
