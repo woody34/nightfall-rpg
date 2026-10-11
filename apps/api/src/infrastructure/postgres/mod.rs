@@ -9,6 +9,7 @@ mod character_repository;
 pub mod entities;
 mod idempotency;
 mod migrations;
+mod phase3_checkpoint;
 mod session_repository;
 mod zone_snapshot_store;
 

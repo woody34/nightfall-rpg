@@ -25,6 +25,10 @@ pub struct Model {
     pub stay_on_subclass_change: bool,
     #[sea_orm(column_type = "JsonBinary")]
     pub handlers: Json,
+    pub target_incarnation: i64,
+    pub removed_on_damage: bool,
+    pub removed_on_action_except_move: bool,
+    pub irreplaceable: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -215,6 +215,7 @@ impl CheckpointService {
                         fenced: p.fenced,
                         events: p.events.clone(),
                         latest: p.latest.as_ref().map(|cp| CharacterCheckpoint {
+                            phase3: None,
                             class_state: cp.class_state.clone(),
                             character_id: CharacterId::from_uuid(p.entity.as_uuid()),
                             revision_seen: cp.revision_seen,
@@ -287,6 +288,10 @@ impl CheckpointService {
         tick: &AppliedTick,
         snapshot: &ZoneSnapshot,
     ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            snapshot.phase3.is_none(),
+            "Phase3 checkpoint snapshot export is not yet integrated"
+        );
         if self
             .last
             .is_some_and(|last| last >= (tick.epoch, tick.tick))
@@ -347,6 +352,7 @@ impl CheckpointService {
                 continue;
             };
             let mut cp = CharacterCheckpoint {
+                phase3: None,
                 class_state: match &combat.role {
                     CombatRole::Player { progression, .. } => {
                         progression.as_ref().map(|p| p.class_state.clone())

@@ -62,7 +62,15 @@ fn commit(
         max_cp: 40,
         effective_stats: LearnedEffectiveStats {
             p_atk_q: 7_000_001,
-            ..Default::default()
+            p_def_q: 0,
+            m_atk_q: 0,
+            m_def_q: 0,
+            attack_speed: 0,
+            cast_speed: 0,
+            speed_q: 0,
+            accuracy_q: 0,
+            evasion_q: 0,
+            crit_permille: 0,
         },
         incarnation: 4,
     };
@@ -73,6 +81,7 @@ fn commit(
         result,
     };
     let cp = CharacterCheckpoint {
+        phase3: None,
         character_id: c.id,
         revision_seen: 0,
         level: c.level,
@@ -417,14 +426,12 @@ fn receipt_binding_and_frozen_checkpoint_fingerprints_are_typed_and_sensitive() 
 }
 
 #[tokio::test]
-#[ignore = "requires Z's version-aware Phase3 manual-learn ClassState validator"]
-async fn paid_skill_checkpoint_round_trip_pending_phase3_ledger_validator() {
+async fn paid_skill_checkpoint_round_trip_with_phase3_ledger_validator() {
     paid_round_trip(&InMemoryCharacterRepository::default()).await;
 }
 
 #[tokio::test]
-#[ignore = "requires Z's version-aware Phase3 manual-learn ClassState validator"]
-async fn postgres_paid_skill_checkpoint_round_trip_pending_phase3_ledger_validator() {
+async fn postgres_paid_skill_checkpoint_round_trip_with_phase3_ledger_validator() {
     let Some(pool) = common::pg::migrated_pool().await else {
         return;
     };
@@ -446,6 +453,7 @@ async fn paid_round_trip<R: CharacterRepository + LearningCheckpointRepository>(
             key: "l2.skill.3".into(),
             level: 1,
         }]);
+    cp.phase3 = Some(nightfall_api::domain::zone::Phase3Checkpoint::new());
     receipt.result.skill.id = SkillId(3);
     receipt.request_fingerprint = learn_skill_fingerprint(c.id, receipt.result.skill);
     assert_eq!(

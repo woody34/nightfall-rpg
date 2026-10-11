@@ -14,6 +14,7 @@ mod m20261008_000005_character_progression;
 mod m20261009_000006_zone_epochs;
 mod m20261009_000007_character_classes;
 mod m20261010_000008_phase3_combat;
+mod m20261010_000009_phase3_effect_identity;
 
 /// All migrations in application order.
 #[derive(Debug, Clone, Copy)]
@@ -31,6 +32,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261009_000006_zone_epochs::Migration),
             Box::new(m20261009_000007_character_classes::Migration),
             Box::new(m20261010_000008_phase3_combat::Migration),
+            Box::new(m20261010_000009_phase3_effect_identity::Migration),
         ]
     }
 }
