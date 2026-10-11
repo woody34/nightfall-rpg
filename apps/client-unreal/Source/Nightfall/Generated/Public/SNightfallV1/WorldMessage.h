@@ -1504,6 +1504,12 @@ struct FGrpcNightfallV1ResurrectOffer : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt64 Tick = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool Baseline = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 BaselineTick = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.SpGained"))

@@ -6,22 +6,23 @@ never modify admitted characters. `SIM_PHASE3_SEEDER` selects the published seed
 the default is `infra/scripts/seed-phase3-fixture.py`. Only explicit dev-token opt-in
 plus a loopback `nf_phase3_fixture_*` DB on a non-5432 port allows a seed.
 
-**Integration status:** Schema reconciled to migration 000008 in API commit
-`0a37fb3f6c69c9b3dc3f9b9b4d1fe8291262cb5f`. Seeds set timer policy1, zero
-fractions/counters/penalty, absent death record, empty modifier order and timer/
-effect children. Existing 000007 SP/slots/ranks remain the only learned ledger.
-The candidate migrator must contain 000008, now merged into this worktree;
-an older candidate binary fails the child-table guard. Transaction failure rolls back the entire seed,
-and a failed/mismatched seed never permits API startup. Retained typed payloads,
-live admission and gameplay are still pending the engine/API handoff. No live
-seed, scenario, Unreal build, API/Compose launch or packaged soak has been run
-by this worker.
+**Integration fix status:** Every generated NPC now inherits `sp_reward` and the
+complete committed keltir Phase 3 suffix, including provenance. The capped penalty
+pack stores the typed `{"kind":"death_penalty"}` installation source in
+`characters.modifier_install_order`; other fresh packs retain empty modifier order.
+`PHASE3_ENABLED=1` selects Phase 3 packs, and `0` explicitly selects older packs.
+The Rust regression `apps/api/tests/phase3_fixture_overlays.rs` invokes the Python
+generator, validates the complete overlay via `prepare_phase3_bootstrap`, and tests
+all packs/paired roles plus casting soak through actual `stage_restore`,
+`SpawnPlayer`, and cold snapshot restore. Missing profile/SP/penalty source are
+negative cases. Postgres-backed admission and live Unreal/soak remain unrun in this
+fix session because Docker access is unavailable.
 
 | Exact header | Roles and persisted inputs |
 |---|---|
 | `# fixture: phase3-trainer` | Human Mystic class10/base10, level14, SP10000, at126,128. Wind Strike1177 rank1, Ice Bolt1184/Might1068/Shield1040/Curse Weakness1164 rank1. **1177 rank2 is unlearned**, cost240/required level7 from professions/human_mystic.toml. Optional matching A/B observer pair. |
 | `# fixture: phase3-pvp` | Two distinct Human Mystic accounts level14 at110,100 and112,100, outside inclusive peace square116..136. Owner SP10000,1177 rank5/1184 rank4/1068 rank1. Peer SP0,1177 rank1,HP100,CP10. |
-| `# fixture: phase3-resurrect` | Cleric class15/base10 level30 with1016 rank1 and1069/1068/1216 rank1 at110,100; distinct living peer level14 at112,100,HP100,CP10. Peer dies through ordinary sentinel retaliation; no precreated offer or fabricated death loss. |
+| `# fixture: phase3-resurrect` | Human Mystic class10/base10 level30 at126,128 with1068/1216 rank1; caster performs real Cleric15 transfer and learns1016 rank1 before moving to110,100; distinct living peer level14 at112,100,HP100,CP10. Peer dies through ordinary sentinel retaliation; no precreated offer or fabricated death loss. |
 | `# fixture: phase3-regen` | Human Mystic level14,SP0,HP/MP/CP1 at126,128;1177 rank1. |
 
 All unconfigured HP/MP are NULL (server derives maxima); CP defaults0. XP comes
@@ -39,7 +40,7 @@ renamed. Template construction reuses token-fixtures.py's audited inputs; neithe
 is a gameplay formula/oracle. Class Master stays126,128. Numeric fixture inputs
 are test choices, not claims about pinned gameplay. Source skill durations/costs
 remain unchanged. Oracle assertions require independent, hash-pinned E1 vectors;
-those vectors have not landed in this worktree and no oracle pass is claimed.
+committed skill-oracle.json is available, but live replay formula inputs and ordered draw evidence are still a required producer handoff; no live oracle pass is claimed.
 
 The 17 matrix files retain their stable names. Two additional `-peer.nfs` files
 provide real cooperating clients for the solo-named karma/aggro stories.
@@ -54,17 +55,17 @@ both paths. Source-duration waits remain full length: Might1200s →3600s timeou
 regen30ticks×100ms×3→9s/pulse; flag1200ticks×100ms×3→360s. Each scenario's global
 budget contains the sum of its per-step waits plus exit grace. Wrappers/CI extend
 process budgets to at least `nf.Within +30s`, retaining all final evidence gates.
-No duration or cost is recomputed from client combat stats in Python/Bash.
+Client waits use source budgets. Post-run replay oracle comparisons run only against authoritative entity/tick evidence.
 
 **Final authoritative DSL handoff (merged client `3b21cd7`).** This single table
 covers every command and predicate used by the Phase3 scenarios. Names use the
 existing registry where semantics match: `rejected`, `private_stats_leaks`, and
 `own_hp > 0`. Numeric comparisons use `<op> <unsigned n>`; explicit skills use
-`<skill_id>` and entities use `<own|target|uuid>`. Pending names remain assertions
-and MUST fail parsing; UNKNOWN must never become a successful zero/absence check.
+`<skill_id>` and entities use `<own|target|uuid>`. The twelve server-only names in C11 are replay-gate declarations, not client
+predicates. Unknown DSL names still fail parsing; no UNKNOWN allowlisting is used.
 All history is fenced by transport generation, entity incarnation, tick and the
 cast/effect/offer identity. Vector comparisons consume expected values from an
-independent, hash-pinned artifact; the harness does not calculate gameplay results.
+independent, hash-pinned artifact; the replay consumer compares raw authoritative inputs/outcomes with independent source expectations.
 
 | Command or predicate | Merged registry status | Exact received message / action and required evidence |
 |---|---|---|
@@ -102,25 +103,25 @@ independent, hash-pinned artifact; the harness does not calculate gameplay resul
 | `cast_state`<br>`entity_casting` | `cast_state`: registered<br>`entity_casting`: REQUIRED HANDOFF | SkillCastStarted.caster/skill_id/cast_id/caster_incarnation/complete_tick, SkillCastResult and SkillCastCancelled of the same identity. Baseline hydration upserts without event counts. |
 | `cast_starts`<br>`cast_results`<br>`cast_cancellations`<br>`observed_cast_results` | `cast_starts`: registered<br>`cast_results`: registered<br>`cast_cancellations`: registered<br>`observed_cast_results`: registered | Distinct nonbaseline SkillCastStarted/SkillCastResult/SkillCastCancelled; owner versus observer audience. Generic counters are insufficient for skill-specific observer termination. |
 | `cast_cancel_reason`<br>`observed_cast_cancel_reason`<br>`cast_dispositions_once` | `cast_cancel_reason`: REQUIRED HANDOFF<br>`observed_cast_cancel_reason`: REQUIRED HANDOFF<br>`cast_dispositions_once`: REQUIRED HANDOFF | SkillCastStarted.cast_id + SkillCastResult.cast_id or SkillCastCancelled.cast_id/reason, with caster/incarnation and IntentAck/IntentRejected.seq. Exactly one terminal event per accepted cast; no late intent rejection. |
-| `cancelled_cast_costs_retained`<br>`own_mp_cost_matches` | `cancelled_cast_costs_retained`: REQUIRED HANDOFF<br>`own_mp_cost_matches`: UNKNOWN: missing cost/vector input | Owner StatsChanged.mp before/start/completion, SkillReuse.ready_tick and matching cast identity. own_mp_cost_matches needs independently pinned per-rank MP1/MP2 expected values; GetSkillCatalogResponse currently carries NO costs. Registered but always UNKNOWN. |
-| `skill_damage_matches_oracle`<br>`skill_effect_matches_oracle`<br>`stat_matches_oracle` | `skill_damage_matches_oracle`: REQUIRED HANDOFF<br>`skill_effect_matches_oracle`: REQUIRED HANDOFF<br>`stat_matches_oracle`: REQUIRED HANDOFF | SkillCastResult.targets[].resolution_kind/outcome/rolled/cp_absorbed/hp_removed/heal/applied_effect_ids + EffectApplied + owner StatsChanged.effective_stats compared to independent hash-pinned E1 vectors. No vector data has been supplied; no local gameplay formulas. |
+| `cancelled_cast_costs_retained`<br>`own_mp_cost_matches` | Received-state predicates | Owner StatsChanged.mp, SkillReuse.ready_tick, cast identity, and per-rank costs from authoritative GetSkillCatalog (architecture C6). |
+| `skill_damage_matches_oracle`<br>`skill_effect_matches_oracle`<br>`stat_matches_oracle` | `skill_damage_matches_oracle`: C11 replay gate<br>`skill_effect_matches_oracle`: C11 replay gate<br>`stat_matches_oracle`: C11 replay gate | SkillCastResult.targets[].resolution_kind/outcome/rolled/cp_absorbed/hp_removed/heal/applied_effect_ids + EffectApplied + owner StatsChanged.effective_stats compared to independent hash-pinned E1 vectors. No vector data has been supplied; no local gameplay formulas. |
 | `buff_active`<br>`buff_inactive`<br>`debuff_active`<br>`entity_effect_active`<br>`entity_effect_inactive`<br>`effect_count` | `buff_active`: registered<br>`buff_inactive`: registered<br>`debuff_active`: registered<br>`entity_effect_active`: registered<br>`entity_effect_inactive`: registered<br>`effect_count`: registered | EffectApplied.target/effect_id/skill_id/pool/end_tick and EffectRemoved.effect_id plus EntitySpawn.active_effects or baseline hydration. Absence only matches a known baseline, never missing state. |
 | `buff_replacements`<br>`replacement_remove_before_apply`<br>`effect_identity_coherent`<br>`effect_remove_reason` | `buff_replacements`: REQUIRED HANDOFF<br>`replacement_remove_before_apply`: REQUIRED HANDOFF<br>`effect_identity_coherent`: REQUIRED HANDOFF<br>`effect_remove_reason`: REQUIRED HANDOFF | EffectRemoved.target/incarnation/effect_id/reason/tick then EffectApplied with a NEW effect_id; retained stable IDs/deadlines and observed order, not elapsed client time. |
-| `retained_effect_identity_coherent`<br>`restore_did_not_reapply_hooks` | `retained_effect_identity_coherent`: REQUIRED HANDOFF<br>`restore_did_not_reapply_hooks`: REQUIRED HANDOFF | Baseline EffectApplied.skill_id/skill_level/pool/caster/applied_tick/end_tick and owner reuse sync compared before/after admission plus replay/checkpoint adapter evidence. Wire lacks modifier install order and periodic phase; those MUST come from server precision evidence. |
+| `retained_effect_identity_coherent`<br>`restore_did_not_reapply_hooks` | `retained_effect_identity_coherent`: received-state predicate<br>`restore_did_not_reapply_hooks`: C11 replay gate | Baseline EffectApplied.skill_id/skill_level/pool/caster/applied_tick/end_tick and owner reuse sync compared before/after admission plus replay/checkpoint adapter evidence. Wire lacks modifier install order and periodic phase; those MUST come from server precision evidence. |
 | `owner_skill_baseline_coherent`<br>`observer_skill_baseline_coherent`<br>`spawn_before_skill_references` | `owner_skill_baseline_coherent`: REQUIRED HANDOFF<br>`observer_skill_baseline_coherent`: REQUIRED HANDOFF<br>`spawn_before_skill_references`: REQUIRED HANDOFF | Identity EntitySpawn/EntityRespawned batch, baseline SkillCastStarted/EffectApplied/PvpStateChanged and owner SkillStateSync/StatsChanged; every nested reference has an already-known matching incarnation, omitted hidden source pairs remain absent. |
 | `public_vitals_coherent`<br>`public_revival_vitals_coherent` | `public_vitals_coherent`: REQUIRED HANDOFF<br>`public_revival_vitals_coherent`: REQUIRED HANDOFF | EntitySpawn final hp/max_hp; EntityRespawned then baseline VitalsChanged.hp/max_hp/tick/incarnation, agreeing with public SkillCastResult target_hp_after. Never observer MP/CP. |
-| `regen_pulses`<br>`moving_regen_pulses`<br>`regen_matches_oracle`<br>`moving_regen_matches_oracle` | `regen_pulses`: REQUIRED HANDOFF<br>`moving_regen_pulses`: REQUIRED HANDOFF<br>`regen_matches_oracle`: REQUIRED HANDOFF<br>`moving_regen_matches_oracle`: REQUIRED HANDOFF | Owner StatsChanged.hp/mp/cp and VitalsChanged.hp/max_hp with EntityMove samples and independent E1 vectors; wire has NO regen-cause/pulse event. Exact pulse/moving/dead/full distinctions additionally need correlated actor/replay regen facts; do not infer a pulse from any HP increase. |
+| `regen_pulses`<br>`moving_regen_pulses`<br>`regen_matches_oracle`<br>`moving_regen_matches_oracle` | `regen_pulses`: C11 replay gate<br>`moving_regen_pulses`: C11 replay gate<br>`regen_matches_oracle`: C11 replay gate<br>`moving_regen_matches_oracle`: C11 replay gate | Owner StatsChanged.hp/mp/cp and VitalsChanged.hp/max_hp with EntityMove samples and independent E1 vectors; wire has NO regen-cause/pulse event. Exact pulse/moving/dead/full distinctions additionally need correlated actor/replay regen facts; do not infer a pulse from any HP increase. |
 | `own_flag`<br>`target_flag`<br>`target_flag_remaining`<br>`own_karma`<br>`own_pk`<br>`own_pvp`<br>`own_flag_deadline_matches_received` | `own_flag`: registered<br>`target_flag`: registered<br>`target_flag_remaining`: REQUIRED HANDOFF<br>`own_karma`: registered<br>`own_pk`: registered<br>`own_pvp`: registered<br>`own_flag_deadline_matches_received`: REQUIRED HANDOFF | PvpStateChanged.entity/flag_until_tick/karma/pk_count/pvp_count/tick/incarnation plus EntitySpawn.flag_until_tick/karma and owner SkillStateSync. remaining uses received tick only; classify chaotic from received karma. |
 | `own_cp_damage_total`<br>`player_cp_damage_total`<br>`cp_absorption_matches_received` | `own_cp_damage_total`: REQUIRED HANDOFF<br>`player_cp_damage_total`: REQUIRED HANDOFF<br>`cp_absorption_matches_received`: REQUIRED HANDOFF | Player-sourced AttackResult.cp_damage/damage/target_hp_after and SkillCastResult.targets[].cp_absorbed/hp_removed/target_hp_after with owner StatsChanged.cp. Nonzero witnessed absorption required. |
 | `victim_flag_not_refreshed`<br>`flagged_kill_matches_received`<br>`impact_counter_uses_received_flag`<br>`target_flag_expired_at_last_impact`<br>`own_flag_expired_at_last_impact` | `victim_flag_not_refreshed`: REQUIRED HANDOFF<br>`flagged_kill_matches_received`: REQUIRED HANDOFF<br>`impact_counter_uses_received_flag`: REQUIRED HANDOFF<br>`target_flag_expired_at_last_impact`: REQUIRED HANDOFF<br>`own_flag_expired_at_last_impact`: REQUIRED HANDOFF | AttackStarted or SkillCastStarted at a witnessed pre-expiry tick, matching AttackResult/SkillCastResult impact tick, EntityDied, and committed PvpStateChanged counters/deadline. Require start-before and impact-at-or-after expiry; no vacuous absent flag success. |
 | `peace_rejection_has_no_start`<br>`peace_impact_has_no_damage` | `peace_rejection_has_no_start`: REQUIRED HANDOFF<br>`peace_impact_has_no_damage`: REQUIRED HANDOFF | IntentRejected.reason=PEACE_ZONE/seq without corresponding start; or accepted SkillCastStarted followed by SkillCastCancelled.reason=PEACE_ZONE, and same target life HP/CP unchanged at that impact. Fixture and actor evidence distinguish both endpoint/pulse policies. |
 | `pvp_private_stats_coherent` | `pvp_private_stats_coherent`: REQUIRED HANDOFF | Owner StatsChanged.karma/pk_count/pvp_count/flag_until_tick agree with PvpStateChanged and SkillStateSync for the same tick/incarnation; private stats remain owner-only. |
 | `karma_gain_matches_oracle`<br>`karma_decay_matches_oracle` | `karma_gain_matches_oracle`: REQUIRED HANDOFF<br>`karma_decay_matches_oracle`: REQUIRED HANDOFF | Committed PvpStateChanged.karma/pk_count/pvp_count with EntityDied, XpGained and StatsChanged.level/xp compared to E1 frozen expected vectors (pre-award level and pre-kill counter). |
-| `attacked_by`<br>`npcs_fighting`<br>`players_attacking_me`<br>`npc_target_is_owner`<br>`skill_hate_outcome_coherent` | `attacked_by`: registered<br>`npcs_fighting`: registered<br>`players_attacking_me`: REQUIRED HANDOFF<br>`npc_target_is_owner`: REQUIRED HANDOFF<br>`skill_hate_outcome_coherent`: REQUIRED HANDOFF | AttackStarted.attacker/target and AttackResult, TargetChanged, EntityDied/Despawn; existing attacked_by/npcs_fighting count distinct NPCs from received attack history. No NPC hate ledger on wire; exact AddHate/GetAgro/heal/tie requires actor evidence. |
+| `attacked_by`<br>`npcs_fighting`<br>`players_attacking_me`<br>`npc_target_is_owner`<br>`skill_hate_outcome_coherent` | `attacked_by`: received-state predicate<br>`npcs_fighting`: received-state predicate<br>`players_attacking_me`: received-state predicate<br>`npc_target_is_owner`: received-state predicate<br>`skill_hate_outcome_coherent`: C11 replay gate | AttackStarted.attacker/target and AttackResult, TargetChanged, EntityDied/Despawn; existing attacked_by/npcs_fighting count distinct NPCs from received attack history. No NPC hate ledger on wire; exact AddHate/GetAgro/heal/tie requires actor evidence. |
 | `own_death_penalty`<br>`death_penalty_matches_before_disconnect` | `own_death_penalty`: registered<br>`death_penalty_matches_before_disconnect`: REQUIRED HANDOFF | Owner SkillStateSync.death_penalty_level and StatsChanged.death_penalty_level, frozen before disconnect. Deterministic success/failure/cap additionally requires seeded actor vectors. |
-| `death_record_matches_fixture`<br>`death_record_matches_before_disconnect`<br>`death_xp_matches_fixture` | `death_record_matches_fixture`: REQUIRED HANDOFF<br>`death_record_matches_before_disconnect`: REQUIRED HANDOFF<br>`death_xp_matches_fixture`: REQUIRED HANDOFF | EntityDied + owner StatsChanged.xp/level and E1 loss vector. pre_death_xp/death_incarnation/recoverable_death_xp_loss are NOT on SkillStateSync; checkpoint/adapter evidence is required for the complete death record. |
+| `death_record_matches_fixture`<br>`death_record_matches_before_disconnect`<br>`death_xp_matches_fixture` | `death_record_matches_fixture`: C11 replay gate<br>`death_record_matches_before_disconnect`: C11 replay gate<br>`death_xp_matches_fixture`: received-state predicate | EntityDied + owner StatsChanged.xp/level and E1 loss vector. pre_death_xp/death_incarnation/recoverable_death_xp_loss are NOT on SkillStateSync; checkpoint/adapter evidence is required for the complete death record. |
 | `town_respawn_vitals_match_fixture`<br>`resurrection_vitals_match_fixture` | `town_respawn_vitals_match_fixture`: REQUIRED HANDOFF<br>`resurrection_vitals_match_fixture`: REQUIRED HANDOFF | EntityRespawned + final VitalsChanged and owner StatsChanged.hp/mp/cp compared to frozen external expected vector. Town and skill revival have separate pinned semantics; no client percentage calculation. |
-| `resurrect_offer_pending`<br>`resurrect_offer_matches_death`<br>`resurrect_refund_matches_oracle`<br>`resurrection_refunds` | `resurrect_offer_pending`: registered<br>`resurrect_offer_matches_death`: REQUIRED HANDOFF<br>`resurrect_refund_matches_oracle`: REQUIRED HANDOFF<br>`resurrection_refunds`: REQUIRED HANDOFF | Owner ResurrectOffer.target/incarnation/offer_id/restore_percent_q/recoverable_xp/expiry_tick/state/tick, accepted EntityRespawned and owner StatsChanged.xp; correlate one refund per offer/death incarnation against E1 vectors. |
+| `resurrect_offer_pending`<br>`resurrect_offer_matches_death`<br>`resurrect_refund_matches_oracle`<br>`resurrection_refunds` | `resurrect_offer_pending`: received-state predicate<br>`resurrect_offer_matches_death`: received-state predicate<br>`resurrect_refund_matches_oracle`: C11 replay gate<br>`resurrection_refunds`: received-state predicate | Owner ResurrectOffer.target/incarnation/offer_id/restore_percent_q/recoverable_xp/expiry_tick/state/tick, accepted EntityRespawned and owner StatsChanged.xp; correlate one refund per offer/death incarnation against E1 vectors. |
 
 | `own_level` | Registered | Owner StatsChanged.level and EntitySpawn.level; received level only. |
 | `target_distance` | Registered | TargetChanged selection plus newest EntitySpawn/EntityMove positions for owner and selected target; scheduling/range evidence, no skill formula. |
@@ -194,7 +195,7 @@ byte replay, pipeline and contract gates; they do not replace them.
 | `learn-key-conflict` | `3-learn-rejected.nfs` | `phase3-trainer`; `nf.WaitFor learn_rpc_error == failed_precondition 15`; `nf.Expect own_sp == 9760`; `nf.Expect skill_learned_events == 1` |
 | `learn-casting` | `3-learn-rejected.nfs` | `phase3-trainer`; `nf.WaitFor cast_state == casting 12`; `nf.Expect own_sp == 10000`; `nf.Expect skill_learned_events == 0` |
 | `learn-dead` | `3-learn-rejected.nfs` | `phase3-trainer`; `nf.WaitFor own_dead 90`; `nf.Expect own_sp == 10000`; `nf.Expect skill_learned_events == 0` |
-| `death-penalty-cap` | `3-death-penalty.nfs` | `phase3-penalty-cap`; `nf.Expect own_death_penalty == 5`; `nf.Expect death_record_matches_before_disconnect` |
+| `death-penalty-cap` | `3-death-penalty.nfs` | `phase3-penalty-cap`; `nf.Expect own_death_penalty == 5`; `# replay-gate: death_record_matches_before_disconnect` |
 | `resurrect-decline-a` | `3-resurrect-a.nfs` | `phase3-resurrect`; `nf.Expect entity_dead 01970000-0000-7000-8000-000000000031`; `nf.Expect cast_results == 1` |
 | `resurrect-decline-b` | `3-resurrect-b.nfs` | `phase3-resurrect`; `nf.WaitFor resurrect_offer_state == declined 3`; `nf.Expect resurrection_refunds == 0`; `nf.Expect own_dead` |
 | `resurrect-expiry-a` | `3-resurrect-a.nfs` | `phase3-resurrect`; `nf.Expect entity_dead 01970000-0000-7000-8000-000000000031`; `nf.Expect cast_results == 1` |
@@ -318,3 +319,46 @@ ordinary start, completed baseline). The companion mutual-swing/hidden-source
 precision case covers pending-swing hydration and absent-source pairs. These three
 precision cases are evidence:null; the source fixes do not claim native observer
 or full finding3 acceptance until the required client predicates and traces land.
+
+C11 post-run gate contract (integration fix)
+------------------------------------------
+
+`# replay-gate: <name> [arguments]` moves server-only assertions out of the DSL.
+The wrappers run `phase3-evidence.py` after replay/coverage, bind facts to the
+current JUnit `own_entity_id` and the unit recording SHA, and classify missing or
+mismatched evidence as `phase3_replay_evidence` infrastructure failure. Gates are
+mandatory even with `--no-replay`; affected units require exactly one recording.
+Received cast/resource/effect/offer/target assertions remain in each scenario.
+Static registry audit passes all Phase 3 scenario files without an allowlist.
+That audit proves source compatibility only.
+
+The producer command is `nightfall-replay trace --file <unit.nfr> --session <entity>
+--out <gate.trace.html> --evidence-out <gate.raw.json>` after an independent `check`
+on the same file. `SIM_PHASE3_EVIDENCE_CMD` overrides the CLI prefix for the producer
+handoff. Raw schema 1 has exactly `{schema_version, recording_sha256, zone, epoch,
+facts}`. Each fact has `{kind, entity, tick, skill_id, phase, inputs, actual}`.
+Kinds are exactly the twelve names in `phase3-evidence.py:FACTS`. Duplicate JSON
+keys or entity/tick facts, wrong recording/owner/skill/phase, missing observations,
+unsupported live oracle inputs and producer PASS flags fail closed. Formula rows
+require independent vector hash/index and exact input equality; raw outputs never
+supply an expected value. Regen/death/refund use Fraction arithmetic; hate uses
+recorded ledger inputs with independent damage/effectPoint and tie selection.
+
+**Unresolved producer dependency:** the integrated replay CLI does not implement
+`--evidence-out`, and its HTML/coverage omit the raw phase causes, death records,
+hook reconstruction and full ordered RNG/formula inputs required by C11. The
+architect inbox requests that producer. Thus the consumer and declarations are
+implemented and tested, while actual twelve-fact acceptance is blocked. No live
+scenario/oracle/evidence PASS is claimed. Numeric damage/effect/stat inputs outside
+the committed vector set require new independent vectors; they never inherit a
+passing declaration or a guessed expectation.
+
+The schema 3 coverage consumer now matches the actual producer: `cast_states`,
+`effect_states`, `resurrection_offers`, `pvp_transitions`; reason/learning/CP/karma
+maps; `learning_committed`, `pk_credits`, `pvp_credits`. No invented pulse/hook
+counters substitute for the missing causal facts. Legacy schemas stay unchanged;
+all native fields survive merge/dedup and scalar totals are recomputed.
+
+Portability audit: Scripts requires no `rg`/`fd` executable. Soak hook checks use
+`grep -E`; a regression supplies a PATH without ripgrep. `run-tests.sh` uses `jq`
+only in its optional, explicitly availability-checked Keycloak token fallback.

@@ -8,8 +8,8 @@
 
 namespace SkillOracleDetail
 {
- // E1 codex/phase3-data533608c. Deliberately pin the entire oracle, including expected outputs.
- const TCHAR* OracleSha=TEXT("0a7380d0b5086c52c92bb075df475b6e3a793dbedc3b2ef3bd8fe84b6830e3c9");
+ // Integrated E1 manifest at 3a7b995 (only input hashes changed from 533608c). Deliberately pin the entire oracle, including expected outputs.
+ const TCHAR* OracleSha=TEXT("dfc2d7eaad2382303493fb8c53ec258ca028142bf5cbe87010d5094a80618993");
  FString Hash(const TArray<uint8>& Bytes){const auto Digest=NightfallAuthCrypto::Sha256(Bytes.GetData(),Bytes.Num());return BytesToHex(Digest.GetData(),Digest.Num()).ToLower();}
  bool Integer(const TSharedPtr<FJsonObject>& O,const TCHAR* Key,uint64& Out)
  {

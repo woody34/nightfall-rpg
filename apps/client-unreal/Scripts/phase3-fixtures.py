@@ -81,7 +81,10 @@ def profiles(pack, repo, paired=False):
     if pack == 'phase3-pvp':
         owner = role(OWNER, 'human_mystic', 14, 10000, [110, 100], {1177: 5, 1184: 4, 1068: 1})
     elif pack == 'phase3-resurrect':
-        owner = role(OWNER, 'cleric', 30, 10000, [110, 100], {1016: 1, 1069: 1, 1068: 1, 1216: 1})
+        # Advanced classes require a durable successful-transfer receipt. Start at
+        # the trainer in the base class; caster scenarios buy Cleric/Resurrection
+        # through real public mutations rather than fabricating that history.
+        owner = role(OWNER, 'human_mystic', 30, 10000, [126, 128], {1068: 1, 1216: 1})
     elif pack == 'phase3-regen':
         owner = role(OWNER, 'human_mystic', 14, 0, [126, 128], {1177: 1}, hp=1, mp=1, cp=1)
     if variant == 'phase3-trainer-low-sp':
@@ -91,7 +94,8 @@ def profiles(pack, repo, paired=False):
     elif variant == 'phase3-trainer-low-mp':
         owner.update(mp=0, position=[110, 100])
     elif variant == 'phase3-penalty-cap':
-        owner.update(death_penalty_level=5, position=[110, 100])
+        owner.update(death_penalty_level=5, position=[110, 100],
+                     modifier_install_order=[{'kind': 'death_penalty'}])
     elif variant == 'phase3-sp-near-cap':
         # Design v3 §5.1/R13: signed-bigint cap. This is a boundary input.
         owner.update(sp=9223372036854775806, position=[110, 100])
@@ -150,10 +154,17 @@ def create_overlay(destination, repo):
     spec = __import__('importlib.util', fromlist=['util']).spec_from_file_location('token_overlay', repo / 'apps/client-unreal/Scripts/token-fixtures.py')
     token = __import__('importlib.util', fromlist=['util']).module_from_spec(spec)
     spec.loader.exec_module(token)
+    # Inherit the complete committed profile, including its pinned provenance.
+    # API skill_data_profiles.rs validates this typed suffix for every NPC file.
+    keltir = (repo / 'packages/data/npcs/keltir.toml').read_text()
+    phase3_suffix = keltir[keltir.index('# BEGIN GENERATED PHASE3 TEMPLATE'):]
+    sp_reward = tomllib.loads(keltir)['sp_reward']
+    def with_phase3(text):
+        return text.rstrip() + f'\nsp_reward = {sp_reward}\n\n' + phase3_suffix
     sentinel = token.sentinel_template_content().replace('token_sentinel', 'skill_sentinel')
-    (destination / 'npcs/skill_sentinel.toml').write_text(sentinel)
+    (destination / 'npcs/skill_sentinel.toml').write_text(with_phase3(sentinel))
     dummy = token.oracle_template_content(0).replace('token_oracle', 'skill_target').replace('max_hp = 1\n', 'max_hp = 1000000\n')
-    (destination / 'npcs/skill_target.toml').write_text(dummy)
+    (destination / 'npcs/skill_target.toml').write_text(with_phase3(dummy))
     text += '\n[[spawn_slots]]\nid = "skill_target"\ntemplate = "skill_target"\nhome = [108, 100]\ncount = 1\n'
     text += '\n[[spawn_slots]]\nid = "skill_sentinel"\ntemplate = "skill_sentinel"\nhome = [110, 106]\ncount = 1\n'
     # Preserve reward/template values; passive fixture isolates deliberate combat.

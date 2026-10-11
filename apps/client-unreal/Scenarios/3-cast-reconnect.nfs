@@ -25,6 +25,6 @@ nf.WaitFor buff_active 1068 3
 nf.Expect effect_count == 1
 nf.Expect retained_effect_identity_coherent
 nf.Expect owner_skill_baseline_coherent
-nf.Expect restore_did_not_reapply_hooks
+# replay-gate: restore_did_not_reapply_hooks
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 108

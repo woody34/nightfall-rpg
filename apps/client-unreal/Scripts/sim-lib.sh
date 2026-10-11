@@ -354,6 +354,19 @@ sim_claim_artifacts() {
   export SIM_REQUIRE_FRESH_ARTIFACTS=1
 }
 
+# C11 gates are mandatory whenever declared, including --no-replay local runs.
+sim_phase3_evidence() {
+  local scenario="$1" dest="$2" name="$3" nfrs=() command
+  if ! python3 "$SIM_HERE/phase3-evidence.py" --list "$scenario"; then return 1; fi
+  [[ "$(python3 "$SIM_HERE/phase3-evidence.py" --count "$scenario")" != 0 ]] || return 0
+  shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
+  ((${#nfrs[@]} == 1)) || { sim_log "Phase3 replay gates require exactly one unit recording"; return 1; }
+  command="${SIM_PHASE3_EVIDENCE_CMD:-}"
+  if [[ -z "$command" ]]; then command="$(sim_replay_bin)"; fi
+  python3 "$SIM_HERE/phase3-evidence.py" --scenario "$scenario" --recording "${nfrs[0]}" \
+    --report "$dest/$name.xml" --out "$dest/phase3-evidence.json" --replay "$command"
+}
+
 # Every current recording is counted using the Rust catalogue; never infer it from scenarios.
 # --no-replay still covers any recording the bot produced, but permits no recordings locally.
 sim_transition_coverage() {

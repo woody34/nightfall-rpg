@@ -294,6 +294,7 @@ def provision(folder, batch):
             'NATS_URL': f'nats://127.0.0.1:{nats}', 'HTTP_ADDR': f'127.0.0.1:{http}',
             'GRPC_ADDR': f'127.0.0.1:{grpc}', 'WS_PUBLIC_URL': f'ws://127.0.0.1:{http}/ws',
             'AUTH_DEV_TOKENS': '1', f'NIGHTFALL_PHASE{version}_FIXTURE': '1',
+            'PHASE3_ENABLED': '1' if selected in PHASE3 else '0',
             'ZONE_FILE': str(zone_file),
             'RULES_DIR': str(rules_dir)}
         roles = {path.stem: {'account_id': observer if paired and phase3.observer_role(path) else owner,

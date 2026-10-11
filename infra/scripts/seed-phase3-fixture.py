@@ -46,6 +46,7 @@ def seed_sql(roles):
     rows, skills = [], []
     for name, role in roles.items():
         s = role['base_stats']
+        installation = json.dumps(role['modifier_install_order'], separators=(',', ':'))
         number = lambda value: 'NULL' if value is None else str(value)
         rows.append(f"('{role['character_id']}','{role['account_id']}','Skill{name}','skill{name}','{role['race']}',"
                     f"{role['level']},{s['str']},{s['dex']},{s['con']},{s['int']},{s['wit']},{s['men']},"
@@ -53,7 +54,7 @@ def seed_sql(roles):
                     f"{number(role['cp'])},'{role['class_profile']}',true,0,{role['base_class_id']},{role['class_id']},"
                     f"{role['sp']},'female',{role['karma']},{role['pk_count']},{role['pvp_count']},"
                     f"{role['flag_remaining_ticks']},{role['death_penalty_level']},"
-                    f"{role['recoverable_death_xp_loss']},{role['phase3_timer_policy_version']})")
+                    f"{role['recoverable_death_xp_loss']},{role['phase3_timer_policy_version']},'{installation}'::jsonb)")
         for skill, rank in sorted(role['learned_ranks'].items(), key=lambda item: int(item[0])):
             skills.append(f"('{role['character_id']}',0,'l2.skill.{skill}',{rank})")
     accounts = ','.join(f"('{r['account_id']}')" for r in roles.values())
@@ -71,7 +72,7 @@ END $$;
 INSERT INTO accounts(id) VALUES {accounts};
 INSERT INTO characters(id,account_id,name,name_normalized,race,level,str,dex,con,"int",wit,men,
  pos_x,pos_y,xp,hp,mp,cp,class_profile,alive,revision,base_class_id,current_class_id,sp,sex,
- karma,pk_count,pvp_count,flag_remaining_ticks,death_penalty_level,recoverable_death_xp_loss,phase3_timer_policy_version)
+ karma,pk_count,pvp_count,flag_remaining_ticks,death_penalty_level,recoverable_death_xp_loss,phase3_timer_policy_version,modifier_install_order)
 VALUES {','.join(rows)};
 INSERT INTO character_class_slots(character_id,slot,class_id,level,exp,sp)
 SELECT id,0,current_class_id,level,xp,sp FROM characters;

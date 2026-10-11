@@ -218,6 +218,8 @@ struct FResurrectOffer
 	uint64 ExpiryTick = 0; // 8
 	uint32 State = 0; // 9
 	uint64 Tick = 0; // 10
+	bool bBaseline = false; // 11
+	uint64 BaselineTick = 0; // 12
 };
 
 struct FSpGained

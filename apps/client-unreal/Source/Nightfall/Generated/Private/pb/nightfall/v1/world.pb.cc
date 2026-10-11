@@ -1070,6 +1070,10 @@ PROTOBUF_CONSTEXPR ResurrectOffer::ResurrectOffer(
   , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
 
   , /*decltype(_impl_.state_)*/ 0
+
+  , /*decltype(_impl_.baseline_)*/ false
+
+  , /*decltype(_impl_.baseline_tick_)*/ ::uint64_t{0u}
 } {}
 struct ResurrectOfferDefaultTypeInternal {
   PROTOBUF_CONSTEXPR ResurrectOfferDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -1905,11 +1909,15 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.expiry_tick_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.state_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.tick_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.baseline_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ResurrectOffer, _impl_.baseline_tick_),
     ~0u,
     ~0u,
     ~0u,
     0,
     1,
+    ~0u,
+    ~0u,
     ~0u,
     ~0u,
     ~0u,
@@ -2025,12 +2033,12 @@ static const ::_pbi::MigrationSchema
         { 620, -1, -1, sizeof(::nightfall::v1::SkillReuse)},
         { 633, -1, -1, sizeof(::nightfall::v1::SkillLearned)},
         { 649, -1, -1, sizeof(::nightfall::v1::PvpStateChanged)},
-        { 666, 684, -1, sizeof(::nightfall::v1::ResurrectOffer)},
-        { 694, -1, -1, sizeof(::nightfall::v1::SpGained)},
-        { 707, -1, -1, sizeof(::nightfall::v1::LearnedSkillRank)},
-        { 717, -1, -1, sizeof(::nightfall::v1::SkillReuseState)},
-        { 727, -1, -1, sizeof(::nightfall::v1::SkillStateSync)},
-        { 748, -1, -1, sizeof(::nightfall::v1::VitalsChanged)},
+        { 666, 686, -1, sizeof(::nightfall::v1::ResurrectOffer)},
+        { 698, -1, -1, sizeof(::nightfall::v1::SpGained)},
+        { 711, -1, -1, sizeof(::nightfall::v1::LearnedSkillRank)},
+        { 721, -1, -1, sizeof(::nightfall::v1::SkillReuseState)},
+        { 731, -1, -1, sizeof(::nightfall::v1::SkillStateSync)},
+        { 752, -1, -1, sizeof(::nightfall::v1::VitalsChanged)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -2262,101 +2270,102 @@ const char descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto[] PROTOBUF_S
     "\n\017flag_until_tick\030\002 \001(\004\022\r\n\005karma\030\003 \001(\r\022\020"
     "\n\010pk_count\030\004 \001(\r\022\021\n\tpvp_count\030\005 \001(\r\022\014\n\004t"
     "ick\030\006 \001(\004\022\023\n\013incarnation\030\007 \001(\r\022\020\n\010baseli"
-    "ne\030\010 \001(\010\022\025\n\rbaseline_tick\030\t \001(\004\"\256\002\n\016Resu"
+    "ne\030\010 \001(\010\022\025\n\rbaseline_tick\030\t \001(\004\"\327\002\n\016Resu"
     "rrectOffer\022\016\n\006target\030\001 \001(\t\022\032\n\022target_inc"
     "arnation\030\002 \001(\r\022\020\n\010offer_id\030\003 \001(\004\022\023\n\006cast"
     "er\030\004 \001(\tH\000\210\001\001\022\037\n\022caster_incarnation\030\005 \001("
     "\rH\001\210\001\001\022\031\n\021restore_percent_q\030\006 \001(\003\022\026\n\016rec"
     "overable_xp\030\007 \001(\004\022\023\n\013expiry_tick\030\010 \001(\004\0220"
     "\n\005state\030\t \001(\0162!.nightfall.v1.ResurrectOf"
-    "ferState\022\014\n\004tick\030\n \001(\004B\t\n\007_casterB\025\n\023_ca"
-    "ster_incarnation\"\\\n\010SpGained\022\016\n\006entity\030\001"
-    " \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\022\014\n\004t"
-    "ick\030\004 \001(\004\022\023\n\013incarnation\030\005 \001(\r\"9\n\020Learne"
-    "dSkillRank\022\020\n\010skill_id\030\001 \001(\r\022\023\n\013skill_le"
-    "vel\030\002 \001(\r\"7\n\017SkillReuseState\022\020\n\010skill_id"
-    "\030\001 \001(\r\022\022\n\nready_tick\030\002 \001(\004\"\301\002\n\016SkillStat"
-    "eSync\022\016\n\006entity\030\001 \001(\t\022/\n\007learned\030\002 \003(\0132\036"
-    ".nightfall.v1.LearnedSkillRank\022,\n\005reuse\030"
-    "\003 \003(\0132\035.nightfall.v1.SkillReuseState\022\n\n\002"
-    "sp\030\004 \001(\004\022\r\n\005karma\030\005 \001(\r\022\020\n\010pk_count\030\006 \001("
-    "\r\022\021\n\tpvp_count\030\007 \001(\r\022\027\n\017flag_until_tick\030"
-    "\010 \001(\004\022\033\n\023death_penalty_level\030\t \001(\r\022\014\n\004ti"
-    "ck\030\n \001(\004\022\023\n\013incarnation\030\013 \001(\r\022\020\n\010baselin"
-    "e\030\014 \001(\010\022\025\n\rbaseline_tick\030\r \001(\004\"\207\001\n\rVital"
-    "sChanged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006"
-    "max_hp\030\003 \001(\r\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarnatio"
-    "n\030\005 \001(\r\022\020\n\010baseline\030\006 \001(\010\022\025\n\rbaseline_ti"
-    "ck\030\007 \001(\004*\321\006\n\014RejectReason\022\035\n\031REJECT_REAS"
-    "ON_UNSPECIFIED\020\000\022\037\n\033REJECT_REASON_OUT_OF"
-    "_BOUNDS\020\001\022\031\n\025REJECT_REASON_TOO_FAR\020\002\022 \n\034"
-    "REJECT_REASON_UNKNOWN_ENTITY\020\003\022\034\n\030REJECT"
-    "_REASON_OVERLOADED\020\004\022\036\n\032REJECT_REASON_RA"
-    "TE_LIMITED\020\005\022\031\n\025REJECT_REASON_INVALID\020\006\022"
-    "\034\n\030REJECT_REASON_DEAD_ACTOR\020\007\022\'\n#REJECT_"
-    "REASON_NON_ATTACKABLE_TARGET\020\010\022#\n\037REJECT"
-    "_REASON_TARGET_NOT_IN_AOI\020\t\022\036\n\032REJECT_RE"
-    "ASON_OUT_OF_RANGE\020\n\022\033\n\027REJECT_REASON_PRO"
-    "TECTED\020\013\022%\n!REJECT_REASON_NOT_YET_IMPLEM"
-    "ENTED\020\014\022\037\n\033REJECT_REASON_SKILL_UNKNOWN\020\r"
-    "\022#\n\037REJECT_REASON_SKILL_NOT_LEARNED\020\016\022 \n"
-    "\034REJECT_REASON_SKILL_COOLDOWN\020\017\022!\n\035REJEC"
-    "T_REASON_INSUFFICIENT_MP\020\020\022!\n\035REJECT_REA"
-    "SON_INSUFFICIENT_HP\020\021\022!\n\035REJECT_REASON_A"
-    "LREADY_CASTING\020\022\022\037\n\033REJECT_REASON_INCAPA"
-    "CITATED\020\023\022\032\n\026REJECT_REASON_SILENCED\020\024\022%\n"
-    "!REJECT_REASON_INVALID_TARGET_TYPE\020\025\022\034\n\030"
-    "REJECT_REASON_PEACE_ZONE\020\026\022\"\n\036REJECT_REA"
-    "SON_WEAPON_CONDITION\020\027\022$\n REJECT_REASON_"
-    "NO_RESURRECT_OFFER\020\030*V\n\nEntityKind\022\033\n\027EN"
-    "TITY_KIND_UNSPECIFIED\020\000\022\026\n\022ENTITY_KIND_P"
-    "LAYER\020\001\022\023\n\017ENTITY_KIND_NPC\020\002*y\n\rAttackOu"
-    "tcome\022\036\n\032ATTACK_OUTCOME_UNSPECIFIED\020\000\022\027\n"
-    "\023ATTACK_OUTCOME_MISS\020\001\022\026\n\022ATTACK_OUTCOME"
-    "_HIT\020\002\022\027\n\023ATTACK_OUTCOME_CRIT\020\003*\222\002\n\021Swin"
-    "gCancelReason\022#\n\037SWING_CANCEL_REASON_UNS"
-    "PECIFIED\020\000\022\037\n\033SWING_CANCEL_REASON_STOPPE"
-    "D\020\001\022&\n\"SWING_CANCEL_REASON_TARGET_CHANGE"
-    "D\020\002\022\035\n\031SWING_CANCEL_REASON_MOVED\020\003\022$\n SW"
-    "ING_CANCEL_REASON_OUT_OF_RANGE\020\004\022#\n\037SWIN"
-    "G_CANCEL_REASON_TARGET_LOST\020\005\022%\n!SWING_C"
-    "ANCEL_REASON_ATTACKER_DIED\020\006*\355\001\n\023SkillRe"
-    "solutionKind\022%\n!SKILL_RESOLUTION_KIND_UN"
-    "SPECIFIED\020\000\022\"\n\036SKILL_RESOLUTION_KIND_PHY"
-    "SICAL\020\001\022!\n\035SKILL_RESOLUTION_KIND_MAGICAL"
-    "\020\002\022 \n\034SKILL_RESOLUTION_KIND_EFFECT\020\003\022\036\n\032"
-    "SKILL_RESOLUTION_KIND_HEAL\020\004\022&\n\"SKILL_RE"
-    "SOLUTION_KIND_RESURRECTION\020\005*\246\001\n\014SkillOu"
-    "tcome\022\035\n\031SKILL_OUTCOME_UNSPECIFIED\020\000\022\026\n\022"
-    "SKILL_OUTCOME_MISS\020\001\022\025\n\021SKILL_OUTCOME_HI"
-    "T\020\002\022\026\n\022SKILL_OUTCOME_CRIT\020\003\022\030\n\024SKILL_OUT"
-    "COME_RESIST\020\004\022\026\n\022SKILL_OUTCOME_HALF\020\005*\214\003"
-    "\n\020CastCancelReason\022\"\n\036CAST_CANCEL_REASON"
-    "_UNSPECIFIED\020\000\022\036\n\032CAST_CANCEL_REASON_STO"
-    "PPED\020\001\022\034\n\030CAST_CANCEL_REASON_MOVED\020\002\022\035\n\031"
-    "CAST_CANCEL_REASON_DAMAGE\020\003\022$\n CAST_CANC"
-    "EL_REASON_INCAPACITATED\020\004\022\"\n\036CAST_CANCEL"
-    "_REASON_TARGET_LOST\020\005\022#\n\037CAST_CANCEL_REA"
-    "SON_OUT_OF_RANGE\020\006\022 \n\034CAST_CANCEL_REASON"
-    "_RESOURCES\020\007\022\"\n\036CAST_CANCEL_REASON_CASTE"
-    "R_DIED\020\010\022!\n\035CAST_CANCEL_REASON_PEACE_ZON"
-    "E\020\t\022\037\n\033CAST_CANCEL_REASON_TRANSFER\020\n*s\n\n"
-    "EffectPool\022\033\n\027EFFECT_POOL_UNSPECIFIED\020\000\022"
-    "\024\n\020EFFECT_POOL_BUFF\020\001\022\032\n\026EFFECT_POOL_SON"
-    "G_DANCE\020\002\022\026\n\022EFFECT_POOL_DEBUFF\020\003*\252\002\n\022Ef"
-    "fectRemoveReason\022$\n EFFECT_REMOVE_REASON"
-    "_UNSPECIFIED\020\000\022 \n\034EFFECT_REMOVE_REASON_E"
-    "XPIRED\020\001\022!\n\035EFFECT_REMOVE_REASON_REPLACE"
-    "D\020\002\022!\n\035EFFECT_REMOVE_REASON_OVERFLOW\020\003\022\""
-    "\n\036EFFECT_REMOVE_REASON_DISPELLED\020\004\022\037\n\033EF"
-    "FECT_REMOVE_REASON_DAMAGE\020\005\022\036\n\032EFFECT_RE"
-    "MOVE_REASON_DEATH\020\006\022!\n\035EFFECT_REMOVE_REA"
-    "SON_TRANSFER\020\007*\312\001\n\023ResurrectOfferState\022%"
-    "\n!RESURRECT_OFFER_STATE_UNSPECIFIED\020\000\022!\n"
-    "\035RESURRECT_OFFER_STATE_OFFERED\020\001\022\"\n\036RESU"
-    "RRECT_OFFER_STATE_DECLINED\020\002\022!\n\035RESURREC"
-    "T_OFFER_STATE_EXPIRED\020\003\022\"\n\036RESURRECT_OFF"
-    "ER_STATE_ACCEPTED\020\004b\006proto3"
+    "ferState\022\014\n\004tick\030\n \001(\004\022\020\n\010baseline\030\013 \001(\010"
+    "\022\025\n\rbaseline_tick\030\014 \001(\004B\t\n\007_casterB\025\n\023_c"
+    "aster_incarnation\"\\\n\010SpGained\022\016\n\006entity\030"
+    "\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\022\014\n\004"
+    "tick\030\004 \001(\004\022\023\n\013incarnation\030\005 \001(\r\"9\n\020Learn"
+    "edSkillRank\022\020\n\010skill_id\030\001 \001(\r\022\023\n\013skill_l"
+    "evel\030\002 \001(\r\"7\n\017SkillReuseState\022\020\n\010skill_i"
+    "d\030\001 \001(\r\022\022\n\nready_tick\030\002 \001(\004\"\301\002\n\016SkillSta"
+    "teSync\022\016\n\006entity\030\001 \001(\t\022/\n\007learned\030\002 \003(\0132"
+    "\036.nightfall.v1.LearnedSkillRank\022,\n\005reuse"
+    "\030\003 \003(\0132\035.nightfall.v1.SkillReuseState\022\n\n"
+    "\002sp\030\004 \001(\004\022\r\n\005karma\030\005 \001(\r\022\020\n\010pk_count\030\006 \001"
+    "(\r\022\021\n\tpvp_count\030\007 \001(\r\022\027\n\017flag_until_tick"
+    "\030\010 \001(\004\022\033\n\023death_penalty_level\030\t \001(\r\022\014\n\004t"
+    "ick\030\n \001(\004\022\023\n\013incarnation\030\013 \001(\r\022\020\n\010baseli"
+    "ne\030\014 \001(\010\022\025\n\rbaseline_tick\030\r \001(\004\"\207\001\n\rVita"
+    "lsChanged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n"
+    "\006max_hp\030\003 \001(\r\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarnati"
+    "on\030\005 \001(\r\022\020\n\010baseline\030\006 \001(\010\022\025\n\rbaseline_t"
+    "ick\030\007 \001(\004*\321\006\n\014RejectReason\022\035\n\031REJECT_REA"
+    "SON_UNSPECIFIED\020\000\022\037\n\033REJECT_REASON_OUT_O"
+    "F_BOUNDS\020\001\022\031\n\025REJECT_REASON_TOO_FAR\020\002\022 \n"
+    "\034REJECT_REASON_UNKNOWN_ENTITY\020\003\022\034\n\030REJEC"
+    "T_REASON_OVERLOADED\020\004\022\036\n\032REJECT_REASON_R"
+    "ATE_LIMITED\020\005\022\031\n\025REJECT_REASON_INVALID\020\006"
+    "\022\034\n\030REJECT_REASON_DEAD_ACTOR\020\007\022\'\n#REJECT"
+    "_REASON_NON_ATTACKABLE_TARGET\020\010\022#\n\037REJEC"
+    "T_REASON_TARGET_NOT_IN_AOI\020\t\022\036\n\032REJECT_R"
+    "EASON_OUT_OF_RANGE\020\n\022\033\n\027REJECT_REASON_PR"
+    "OTECTED\020\013\022%\n!REJECT_REASON_NOT_YET_IMPLE"
+    "MENTED\020\014\022\037\n\033REJECT_REASON_SKILL_UNKNOWN\020"
+    "\r\022#\n\037REJECT_REASON_SKILL_NOT_LEARNED\020\016\022 "
+    "\n\034REJECT_REASON_SKILL_COOLDOWN\020\017\022!\n\035REJE"
+    "CT_REASON_INSUFFICIENT_MP\020\020\022!\n\035REJECT_RE"
+    "ASON_INSUFFICIENT_HP\020\021\022!\n\035REJECT_REASON_"
+    "ALREADY_CASTING\020\022\022\037\n\033REJECT_REASON_INCAP"
+    "ACITATED\020\023\022\032\n\026REJECT_REASON_SILENCED\020\024\022%"
+    "\n!REJECT_REASON_INVALID_TARGET_TYPE\020\025\022\034\n"
+    "\030REJECT_REASON_PEACE_ZONE\020\026\022\"\n\036REJECT_RE"
+    "ASON_WEAPON_CONDITION\020\027\022$\n REJECT_REASON"
+    "_NO_RESURRECT_OFFER\020\030*V\n\nEntityKind\022\033\n\027E"
+    "NTITY_KIND_UNSPECIFIED\020\000\022\026\n\022ENTITY_KIND_"
+    "PLAYER\020\001\022\023\n\017ENTITY_KIND_NPC\020\002*y\n\rAttackO"
+    "utcome\022\036\n\032ATTACK_OUTCOME_UNSPECIFIED\020\000\022\027"
+    "\n\023ATTACK_OUTCOME_MISS\020\001\022\026\n\022ATTACK_OUTCOM"
+    "E_HIT\020\002\022\027\n\023ATTACK_OUTCOME_CRIT\020\003*\222\002\n\021Swi"
+    "ngCancelReason\022#\n\037SWING_CANCEL_REASON_UN"
+    "SPECIFIED\020\000\022\037\n\033SWING_CANCEL_REASON_STOPP"
+    "ED\020\001\022&\n\"SWING_CANCEL_REASON_TARGET_CHANG"
+    "ED\020\002\022\035\n\031SWING_CANCEL_REASON_MOVED\020\003\022$\n S"
+    "WING_CANCEL_REASON_OUT_OF_RANGE\020\004\022#\n\037SWI"
+    "NG_CANCEL_REASON_TARGET_LOST\020\005\022%\n!SWING_"
+    "CANCEL_REASON_ATTACKER_DIED\020\006*\355\001\n\023SkillR"
+    "esolutionKind\022%\n!SKILL_RESOLUTION_KIND_U"
+    "NSPECIFIED\020\000\022\"\n\036SKILL_RESOLUTION_KIND_PH"
+    "YSICAL\020\001\022!\n\035SKILL_RESOLUTION_KIND_MAGICA"
+    "L\020\002\022 \n\034SKILL_RESOLUTION_KIND_EFFECT\020\003\022\036\n"
+    "\032SKILL_RESOLUTION_KIND_HEAL\020\004\022&\n\"SKILL_R"
+    "ESOLUTION_KIND_RESURRECTION\020\005*\246\001\n\014SkillO"
+    "utcome\022\035\n\031SKILL_OUTCOME_UNSPECIFIED\020\000\022\026\n"
+    "\022SKILL_OUTCOME_MISS\020\001\022\025\n\021SKILL_OUTCOME_H"
+    "IT\020\002\022\026\n\022SKILL_OUTCOME_CRIT\020\003\022\030\n\024SKILL_OU"
+    "TCOME_RESIST\020\004\022\026\n\022SKILL_OUTCOME_HALF\020\005*\214"
+    "\003\n\020CastCancelReason\022\"\n\036CAST_CANCEL_REASO"
+    "N_UNSPECIFIED\020\000\022\036\n\032CAST_CANCEL_REASON_ST"
+    "OPPED\020\001\022\034\n\030CAST_CANCEL_REASON_MOVED\020\002\022\035\n"
+    "\031CAST_CANCEL_REASON_DAMAGE\020\003\022$\n CAST_CAN"
+    "CEL_REASON_INCAPACITATED\020\004\022\"\n\036CAST_CANCE"
+    "L_REASON_TARGET_LOST\020\005\022#\n\037CAST_CANCEL_RE"
+    "ASON_OUT_OF_RANGE\020\006\022 \n\034CAST_CANCEL_REASO"
+    "N_RESOURCES\020\007\022\"\n\036CAST_CANCEL_REASON_CAST"
+    "ER_DIED\020\010\022!\n\035CAST_CANCEL_REASON_PEACE_ZO"
+    "NE\020\t\022\037\n\033CAST_CANCEL_REASON_TRANSFER\020\n*s\n"
+    "\nEffectPool\022\033\n\027EFFECT_POOL_UNSPECIFIED\020\000"
+    "\022\024\n\020EFFECT_POOL_BUFF\020\001\022\032\n\026EFFECT_POOL_SO"
+    "NG_DANCE\020\002\022\026\n\022EFFECT_POOL_DEBUFF\020\003*\252\002\n\022E"
+    "ffectRemoveReason\022$\n EFFECT_REMOVE_REASO"
+    "N_UNSPECIFIED\020\000\022 \n\034EFFECT_REMOVE_REASON_"
+    "EXPIRED\020\001\022!\n\035EFFECT_REMOVE_REASON_REPLAC"
+    "ED\020\002\022!\n\035EFFECT_REMOVE_REASON_OVERFLOW\020\003\022"
+    "\"\n\036EFFECT_REMOVE_REASON_DISPELLED\020\004\022\037\n\033E"
+    "FFECT_REMOVE_REASON_DAMAGE\020\005\022\036\n\032EFFECT_R"
+    "EMOVE_REASON_DEATH\020\006\022!\n\035EFFECT_REMOVE_RE"
+    "ASON_TRANSFER\020\007*\312\001\n\023ResurrectOfferState\022"
+    "%\n!RESURRECT_OFFER_STATE_UNSPECIFIED\020\000\022!"
+    "\n\035RESURRECT_OFFER_STATE_OFFERED\020\001\022\"\n\036RES"
+    "URRECT_OFFER_STATE_DECLINED\020\002\022!\n\035RESURRE"
+    "CT_OFFER_STATE_EXPIRED\020\003\022\"\n\036RESURRECT_OF"
+    "FER_STATE_ACCEPTED\020\004b\006proto3"
 };
 static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fworld_2eproto_deps[1] =
     {
@@ -2366,7 +2375,7 @@ static ::absl::once_flag descriptor_table_nightfall_2fv1_2fworld_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fworld_2eproto = {
     false,
     false,
-    11107,
+    11148,
     descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto,
     "nightfall/v1/world.proto",
     &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
@@ -17244,6 +17253,10 @@ ResurrectOffer::ResurrectOffer(const ResurrectOffer& from)
     , decltype(_impl_.tick_) {}
 
     , decltype(_impl_.state_) {}
+
+    , decltype(_impl_.baseline_) {}
+
+    , decltype(_impl_.baseline_tick_) {}
   };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -17262,8 +17275,8 @@ ResurrectOffer::ResurrectOffer(const ResurrectOffer& from)
     _this->_impl_.caster_.Set(from._internal_caster(), _this->GetArenaForAllocation());
   }
   ::memcpy(&_impl_.offer_id_, &from._impl_.offer_id_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.state_) -
-    reinterpret_cast<char*>(&_impl_.offer_id_)) + sizeof(_impl_.state_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.baseline_tick_) -
+    reinterpret_cast<char*>(&_impl_.offer_id_)) + sizeof(_impl_.baseline_tick_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.ResurrectOffer)
 }
 
@@ -17291,6 +17304,10 @@ inline void ResurrectOffer::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.tick_) { ::uint64_t{0u} }
 
     , decltype(_impl_.state_) { 0 }
+
+    , decltype(_impl_.baseline_) { false }
+
+    , decltype(_impl_.baseline_tick_) { ::uint64_t{0u} }
 
   };
   _impl_.target_.InitDefault();
@@ -17338,8 +17355,8 @@ void ResurrectOffer::Clear() {
       reinterpret_cast<char*>(&_impl_.offer_id_)) + sizeof(_impl_.target_incarnation_));
   _impl_.caster_incarnation_ = 0u;
   ::memset(&_impl_.restore_percent_q_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.state_) -
-      reinterpret_cast<char*>(&_impl_.restore_percent_q_)) + sizeof(_impl_.state_));
+      reinterpret_cast<char*>(&_impl_.baseline_tick_) -
+      reinterpret_cast<char*>(&_impl_.restore_percent_q_)) + sizeof(_impl_.baseline_tick_));
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -17442,6 +17459,24 @@ const char* ResurrectOffer::_InternalParse(const char* ptr, ::_pbi::ParseContext
       case 10:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
           _impl_.tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool baseline = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 88)) {
+          _impl_.baseline_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 baseline_tick = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 96)) {
+          _impl_.baseline_tick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -17550,6 +17585,20 @@ failure:
         10, this->_internal_tick(), target);
   }
 
+  // bool baseline = 11;
+  if (this->_internal_baseline() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        11, this->_internal_baseline(), target);
+  }
+
+  // uint64 baseline_tick = 12;
+  if (this->_internal_baseline_tick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        12, this->_internal_baseline_tick(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -17627,6 +17676,17 @@ failure:
                   ::_pbi::WireFormatLite::EnumSize(this->_internal_state());
   }
 
+  // bool baseline = 11;
+  if (this->_internal_baseline() != 0) {
+    total_size += 2;
+  }
+
+  // uint64 baseline_tick = 12;
+  if (this->_internal_baseline_tick() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_baseline_tick());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -17675,6 +17735,12 @@ void ResurrectOffer::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const :
   if (from._internal_state() != 0) {
     _this->_internal_set_state(from._internal_state());
   }
+  if (from._internal_baseline() != 0) {
+    _this->_internal_set_baseline(from._internal_baseline());
+  }
+  if (from._internal_baseline_tick() != 0) {
+    _this->_internal_set_baseline_tick(from._internal_baseline_tick());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -17700,8 +17766,8 @@ void ResurrectOffer::InternalSwap(ResurrectOffer* other) {
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.caster_, lhs_arena,
                                        &other->_impl_.caster_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(ResurrectOffer, _impl_.state_)
-      + sizeof(ResurrectOffer::_impl_.state_)
+      PROTOBUF_FIELD_OFFSET(ResurrectOffer, _impl_.baseline_tick_)
+      + sizeof(ResurrectOffer::_impl_.baseline_tick_)
       - PROTOBUF_FIELD_OFFSET(ResurrectOffer, _impl_.offer_id_)>(
           reinterpret_cast<char*>(&_impl_.offer_id_),
           reinterpret_cast<char*>(&other->_impl_.offer_id_));

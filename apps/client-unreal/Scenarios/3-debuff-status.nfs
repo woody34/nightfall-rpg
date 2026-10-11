@@ -21,9 +21,9 @@ nf.Target template:skill_target
 nf.WaitFor target != none 3
 nf.Cast 1184
 nf.WaitFor cast_results >= 1 12
-nf.Expect skill_damage_matches_oracle 1184
+# replay-gate: skill_damage_matches_oracle 1184
 nf.WaitFor entity_effect_active target 1184 12
-nf.Expect skill_effect_matches_oracle 1184
+# replay-gate: skill_effect_matches_oracle 1184
 nf.Expect effect_identity_coherent
 nf.WaitFor entity_effect_inactive target 1184 180
 nf.Expect effect_remove_reason == expired

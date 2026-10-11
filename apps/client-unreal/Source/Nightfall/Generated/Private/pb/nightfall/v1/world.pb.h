@@ -9784,6 +9784,8 @@ class ResurrectOffer final :
     kExpiryTickFieldNumber = 8,
     kTickFieldNumber = 10,
     kStateFieldNumber = 9,
+    kBaselineFieldNumber = 11,
+    kBaselineTickFieldNumber = 12,
   };
   // string target = 1;
   void clear_target() ;
@@ -9907,6 +9909,26 @@ class ResurrectOffer final :
   void _internal_set_state(::nightfall::v1::ResurrectOfferState value);
 
   public:
+  // bool baseline = 11;
+  void clear_baseline() ;
+  bool baseline() const;
+  void set_baseline(bool value);
+
+  private:
+  bool _internal_baseline() const;
+  void _internal_set_baseline(bool value);
+
+  public:
+  // uint64 baseline_tick = 12;
+  void clear_baseline_tick() ;
+  ::uint64_t baseline_tick() const;
+  void set_baseline_tick(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_baseline_tick() const;
+  void _internal_set_baseline_tick(::uint64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.ResurrectOffer)
  private:
   class _Internal;
@@ -9927,6 +9949,8 @@ class ResurrectOffer final :
     ::uint64_t expiry_tick_;
     ::uint64_t tick_;
     int state_;
+    bool baseline_;
+    ::uint64_t baseline_tick_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
@@ -20033,6 +20057,46 @@ inline ::uint64_t ResurrectOffer::_internal_tick() const {
 inline void ResurrectOffer::_internal_set_tick(::uint64_t value) {
   ;
   _impl_.tick_ = value;
+}
+
+// bool baseline = 11;
+inline void ResurrectOffer::clear_baseline() {
+  _impl_.baseline_ = false;
+}
+inline bool ResurrectOffer::baseline() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.baseline)
+  return _internal_baseline();
+}
+inline void ResurrectOffer::set_baseline(bool value) {
+  _internal_set_baseline(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.baseline)
+}
+inline bool ResurrectOffer::_internal_baseline() const {
+  return _impl_.baseline_;
+}
+inline void ResurrectOffer::_internal_set_baseline(bool value) {
+  ;
+  _impl_.baseline_ = value;
+}
+
+// uint64 baseline_tick = 12;
+inline void ResurrectOffer::clear_baseline_tick() {
+  _impl_.baseline_tick_ = ::uint64_t{0u};
+}
+inline ::uint64_t ResurrectOffer::baseline_tick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ResurrectOffer.baseline_tick)
+  return _internal_baseline_tick();
+}
+inline void ResurrectOffer::set_baseline_tick(::uint64_t value) {
+  _internal_set_baseline_tick(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ResurrectOffer.baseline_tick)
+}
+inline ::uint64_t ResurrectOffer::_internal_baseline_tick() const {
+  return _impl_.baseline_tick_;
+}
+inline void ResurrectOffer::_internal_set_baseline_tick(::uint64_t value) {
+  ;
+  _impl_.baseline_tick_ = value;
 }
 
 // -------------------------------------------------------------------

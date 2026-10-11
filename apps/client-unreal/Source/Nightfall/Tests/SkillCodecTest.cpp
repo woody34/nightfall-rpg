@@ -483,6 +483,8 @@ bool FSkillCodecTest::RunTest(const FString& Parameters)
 		Row->ExpiryTick = 37;
 		Row->State = static_cast<EGrpcNightfallV1ResurrectOfferState>(1);
 		Row->Tick = 37;
+		Row->Baseline = true;
+		Row->BaselineTick = 37;
 		FGrpcNightfallV1ServerMessage Envelope;
 		Envelope.Payload.PayloadCase = EGrpcNightfallV1ServerMessagePayload::Event;
 		Envelope.Payload.Event = MakeShared<FGrpcNightfallV1WorldEvent>();
@@ -504,6 +506,8 @@ bool FSkillCodecTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("ResurrectOffer.expiry_tick"), Out.ExpiryTick, uint64(37));
 		TestEqual(TEXT("ResurrectOffer.state"), Out.State, uint32(1));
 		TestEqual(TEXT("ResurrectOffer.tick"), Out.Tick, uint64(37));
+		TestTrue(TEXT("ResurrectOffer.baseline"), Out.bBaseline);
+		TestEqual(TEXT("ResurrectOffer.baseline_tick"), Out.BaselineTick, uint64(37));
 	}
 	{
 		auto Row = MakeShared<FGrpcNightfallV1SpGained>();

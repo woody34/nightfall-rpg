@@ -28,6 +28,7 @@ public:
  TOptional<bool> CastFor(const FString& Entity,uint32 Skill,const FString& Predicate) const;
  TOptional<bool> NotInView(const FString& Entity) const;
  const TOptional<FStatsChanged>& OwnerStats() const { return Stats; }
+ const FAttackStarted* SwingFor(const FString& Id) const { return Swings.Find(Id.ToLower()); }
 private:
  struct FCastEvidence
  {
@@ -50,6 +51,8 @@ private:
  void PvpCopy(const FPvpStateChanged& P,bool Private);
  void ComparePvp(const FString& Id);
  void StatsInput(const FStatsChanged& S);
+ bool RevivalTerminal(const FResurrectOffer& O) const;
+ void CompleteResurrectionAudit();
  FString CastKey(const FString& Id,uint32 Inc,uint64 Cast) const;
  UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
  TArray<TFunction<void()>> Unbinders;
@@ -77,8 +80,10 @@ private:
  TMap<FString,FCastEvidence> Casts;
  TSet<FString> Departed;
  TMap<FString,FAttackStarted> Swings;
+ TMap<FString,uint64> SwingTicks;
  TMap<FString,FVitalsChanged> Vitals;
  TMap<FString,FEntityRespawned> Revivals;
+ TSet<FString> PairedRevivals;
  TMap<FString,TMap<uint64,FEffectApplied>> Effects;
  TMap<FString,uint64> EffectTicks;
  TSet<FString> RemovedEffects;

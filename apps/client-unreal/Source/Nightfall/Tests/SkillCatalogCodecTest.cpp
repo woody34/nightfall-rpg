@@ -24,9 +24,17 @@ bool FSkillCatalogCodecTest::RunTest(const FString& Parameters)
   auto& Row=R.Skills[0];Row.OperateType=static_cast<E>(Type);Row.MaxLevel=2;Row.TargetType={TEXT("TARGET"),TEXT("UNSUPPORTED")};Row.AffectScope={TEXT("SINGLE"),TEXT("unset")};
   NightfallWire::EncodeSkillCatalogResponse(R,Bytes);FGrpcNightfallV1GetSkillCatalogResponse Decoded;
   if(!TestTrue(TEXT("every enum binary round trip"),NightfallWire::DecodeSkillCatalogResponse(Bytes.GetData(),Bytes.Num(),Decoded)) || !TestEqual(TEXT("round trip row"),Decoded.Skills.Num(),1))return false;
-  TestEqual(TEXT("known and future enum preserved"),static_cast<uint8>(Decoded.Skills[0].OperateType),Type);
+  TestEqual(TEXT("declared enums preserved, unknown enums excluded"),static_cast<uint8>(Decoded.Skills[0].OperateType),Type<=6?Type:uint8(0));
   TestTrue(TEXT("rank target order/unsupported strings preserved"),Decoded.Skills[0].TargetType==Row.TargetType);
   TestTrue(TEXT("rank scope order/unset preserved"),Decoded.Skills[0].AffectScope==Row.AffectScope);
+ }
+ // These full protobuf integers both alias ACTIVE_INSTANT if narrowed before validation.
+ for(const TArray<uint8>& Unknown:{TArray<uint8>{0x12,0x07,0x08,0x03,0x28,0x01,0x68,0x81,0x02},TArray<uint8>{0x12,0x0f,0x08,0x03,0x28,0x01,0x68,0x81,0xfe,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x01}})
+ {
+  FGrpcNightfallV1GetSkillCatalogResponse Decoded;
+  if(!TestTrue(TEXT("full integer enum wire decodes"),NightfallWire::DecodeSkillCatalogResponse(Unknown.GetData(),Unknown.Num(),Decoded)) || !TestEqual(TEXT("unknown row"),Decoded.Skills.Num(),1))return false;
+  TestTrue(TEXT("257 and -255 cannot become castable"),Decoded.Skills[0].OperateType==E::SKILL_OPERATE_TYPE_UNSPECIFIED);
+  NightfallWire::EncodeSkillCatalogResponse(Decoded,Bytes);TestTrue(TEXT("unknown enum re-encodes as unspecified"),Bytes==Legacy);
  }
  TestTrue(TEXT("legacy decoder reuse resets metadata"),NightfallWire::DecodeSkillCatalogResponse(Legacy.GetData(),Legacy.Num(),R));
  TestTrue(TEXT("previous type cannot leak into legacy response"),R.Skills[0].OperateType==E::SKILL_OPERATE_TYPE_UNSPECIFIED && R.Skills[0].TargetType.IsEmpty() && R.Skills[0].AffectScope.IsEmpty());

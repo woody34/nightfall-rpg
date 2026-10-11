@@ -34,7 +34,7 @@ nf.WaitFor skill_reuse_remaining 1177 > 0 3
 nf.WaitFor cast_results >= 1 12
 nf.WaitFor cast_state == idle 3
 nf.Expect own_mp_cost_matches 1177
-nf.Expect skill_damage_matches_oracle 1177
+# replay-gate: skill_damage_matches_oracle 1177
 nf.WaitFor skill_ready 1177 12
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 186
