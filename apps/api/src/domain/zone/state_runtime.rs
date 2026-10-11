@@ -36,6 +36,13 @@ fn missing() -> TickError {
 fn q(value: i64) -> Result<ExactRatio, StatError> {
     ExactRatio::new(i128::from(value), i128::from(Q))
 }
+fn unsupported_player_pulse(
+    resource: crate::domain::zone::effects::PeriodicResource,
+    power: crate::domain::zone::effects::PeriodicPower,
+) -> bool {
+    resource == crate::domain::zone::effects::PeriodicResource::Hp
+        && power.amount(Q).map_or(true, |amount| amount.parts().0 < 0)
+}
 fn cast_reject(error: CastError) -> RejectReason {
     match error {
         CastError::SkillUnknown => RejectReason::SkillUnknown,
@@ -167,7 +174,13 @@ impl ZoneState {
         }
         Ok(())
     }
-    fn attach_v5(&mut self, tick: Tick, id: EntityId) -> Result<(), TickError> {
+    #[allow(clippy::too_many_lines)] // Paused admission reconstructs once without replaying hooks.
+    fn attach_v5(
+        &mut self,
+        tick: Tick,
+        id: EntityId,
+        load: Option<&PlayerLoad>,
+    ) -> Result<(), TickError> {
         let e = self.entities.get(&id).ok_or_else(missing)?;
         let Some(c) = &e.combat else { return Ok(()) };
         let player = e.kind == EntityKind::Player;
@@ -187,8 +200,10 @@ impl ZoneState {
         }
         let p = &mut phase.canonical;
         let mut sources = BTreeMap::new();
+        let checkpoint = load.and_then(|load| load.phase3.as_ref());
         for skill in p.rules.skills().skills().values().filter(|s| {
-            s.operate_type == "P"
+            checkpoint.is_none()
+                && s.operate_type == "P"
                 && s.runtime_status == crate::domain::class::RuntimeSkillStatus::Executable
         }) {
             if let Some(rank) = learned.iter().find(|l| l.key == skill.key) {
@@ -203,7 +218,7 @@ impl ZoneState {
                     p.next_install_sequence.checked_add(1).ok_or_else(missing)?;
             }
         }
-        let sidecar = Phase3Entity {
+        let mut sidecar = Phase3Entity {
             ordinal: EntityOrdinal(p.next_entity_ordinal),
             cast: CastState::Idle,
             reuse: BTreeMap::new(),
@@ -223,9 +238,59 @@ impl ZoneState {
                 resurrect_offer: None,
             }),
         };
+        if let Some(checkpoint) = checkpoint {
+            let restored = checkpoint
+                .stage_restore(
+                    &p.rules,
+                    learned,
+                    c.hp != 0,
+                    c.incarnation,
+                    tick,
+                    p.next_effect_id,
+                    p.next_install_sequence,
+                )
+                .map_err(invariant)?;
+            restored
+                .effects
+                .validate_capacity(crate::domain::zone::effects::EffectCapacities::for_enlarge(0))
+                .map_err(invariant)?;
+            p.next_effect_id = restored.next_effect_id;
+            p.next_install_sequence = restored.next_install_sequence;
+            sidecar.reuse = restored.reuse;
+            sidecar.effects = restored.effects;
+            sidecar.modifier_install_order = restored.modifier_install_order;
+            sidecar.fractions = checkpoint.resource_fractions;
+            sidecar.player = Some(Phase3Player {
+                pvp: PvpState {
+                    flag_until: restored.flag_until,
+                    karma: checkpoint.karma,
+                    pk_count: checkpoint.pk_count,
+                    pvp_count: checkpoint.pvp_count,
+                },
+                death_penalty_level: checkpoint.death_penalty_level,
+                last_death: checkpoint.last_death.clone(),
+                resurrect_offer: None,
+            });
+        }
         p.next_entity_ordinal = p.next_entity_ordinal.checked_add(1).ok_or_else(missing)?;
         p.entities.insert(id, sidecar);
-        self.rebuild_v5(id)
+        self.rebuild_v5(id)?;
+        // Fresh unspecified resources mean the reconstructed maximum, not its effect-free base.
+        if let Some(load) = load {
+            let c = self
+                .entities
+                .get_mut(&id)
+                .and_then(|e| e.combat.as_mut())
+                .ok_or_else(missing)?;
+            if load.alive && load.hp.is_none() {
+                c.hp = c.sheet.max_hp();
+            }
+            if load.mp.is_none() {
+                c.mp = c.sheet.max_mp();
+            }
+            self.rebuild_v5(id)?;
+        }
+        Ok(())
     }
     #[allow(clippy::too_many_lines)] // Full context validation stays adjacent to reconstruction.
     pub(super) fn validate_runtime_v5(&self) -> Result<(), SnapshotError> {
@@ -276,6 +341,12 @@ impl ZoneState {
                     .skills()
                     .get(effect.skill.id)
                     .is_none_or(|skill| !supported_cast(skill, effect.skill.rank))
+                    || (e.kind == EntityKind::Player
+                        && effect.handlers.iter().any(|h| {
+                            h.periodic
+                                .as_ref()
+                                .is_some_and(|p| unsupported_player_pulse(p.resource, p.power))
+                        }))
             }) || c.swing.is_some()
                 || side.player.as_ref().is_some_and(|p| {
                     p.death_penalty_level != 0
@@ -402,55 +473,6 @@ impl ZoneState {
             }
             self.next_ordinal = Ordinal(command.ordinal.0.checked_add(1).ok_or_else(missing)?);
         }
-        let ids: Vec<_> = self.entities.keys().copied().collect();
-        for id in ids {
-            let fresh = self
-                .phase3
-                .as_ref()
-                .is_some_and(|p| !p.canonical.entities.contains_key(&id));
-            self.attach_v5(tick, id)?;
-            if fresh {
-                let load = draft
-                    .commands
-                    .iter()
-                    .filter(|c| !dispositions.iter().any(|d| d.ordinal == c.ordinal))
-                    .find_map(|c| {
-                        if let ZoneCommand::SpawnPlayer { entity, load, .. } = &c.command {
-                            if *entity == id {
-                                return load.as_deref();
-                            }
-                        }
-                        None
-                    });
-                if let Some(load) = load {
-                    let c = self
-                        .entities
-                        .get_mut(&id)
-                        .and_then(|e| e.combat.as_mut())
-                        .ok_or_else(missing)?;
-                    // Admission clamps the original load only against the final effective
-                    // sheet; the temporary legacy base constructor must not lose HP/MP.
-                    c.hp = if load.alive {
-                        load.hp
-                            .unwrap_or(c.sheet.max_hp())
-                            .clamp(1, c.sheet.max_hp())
-                    } else {
-                        0
-                    };
-                    c.mp = load.mp.unwrap_or(c.sheet.max_mp()).min(c.sheet.max_mp());
-                    if let (
-                        CombatRole::Player {
-                            progression: Some(p),
-                            ..
-                        },
-                        Some(original),
-                    ) = (&mut c.role, &load.progression)
-                    {
-                        p.class_state.cp = original.class_state.cp.min(p.max_cp);
-                    }
-                }
-            }
-        }
         self.expire_effects_v5(tick, &mut events)?;
         self.expire_reuse_v5(tick, &mut events)?;
         self.pulse_effects_v5(tick, &mut events)?;
@@ -548,6 +570,13 @@ impl ZoneState {
             }
         }
         match &command.command {
+            ZoneCommand::SpawnPlayer { load, .. } => {
+                self.validate_paused_load_v5(load.as_deref())?;
+                events.extend(self.admit_v5(tick, command, load.as_deref())?);
+            },
+            ZoneCommand::SpawnNpc { .. } => {
+                events.extend(self.admit_v5(tick, command, None)?);
+            },
             ZoneCommand::CastSkill {
                 entity,
                 skill_id,
@@ -577,8 +606,6 @@ impl ZoneState {
             ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::LearnSkill { .. }
             | ZoneCommand::ChangeClass { .. }
-            | ZoneCommand::SpawnPlayer { .. }
-            | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::ReplaceSession { .. }
             | ZoneCommand::MoveTo { .. }
@@ -615,6 +642,70 @@ impl ZoneState {
                     | ZoneCommand::AddAggro { .. } => {},
                 }
             },
+        }
+        Ok(())
+    }
+    /// Admission is a command transaction: malformed paused state cannot leave a partial
+    /// entity, consume allocation/RNG, or affect later commands in the same draft.
+    fn admit_v5(
+        &mut self,
+        tick: Tick,
+        command: &AppliedCommand,
+        load: Option<&PlayerLoad>,
+    ) -> Result<Vec<ZoneEvent>, RejectReason> {
+        let mut candidate = self.clone();
+        let events = candidate.apply(tick, command)?;
+        for event in &events {
+            if let ZoneEvent::EntitySpawn { entity, .. } = event {
+                candidate
+                    .attach_v5(tick, *entity, load)
+                    .map_err(|_| RejectReason::InvalidLoad)?;
+            }
+        }
+        *self = candidate;
+        Ok(events)
+    }
+    fn validate_paused_load_v5(&self, load: Option<&PlayerLoad>) -> Result<(), RejectReason> {
+        let Some(load) = load else { return Ok(()) };
+        let Some(checkpoint) = &load.phase3 else {
+            return Ok(());
+        };
+        let phase = &self
+            .phase3
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical;
+        let learned = &load
+            .progression
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .class_state
+            .learned_skills;
+        checkpoint
+            .validate(&phase.rules, learned, load.alive)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        // Same experimental boundary as snapshot restore. Persisted unsupported policy is
+        // refused explicitly; none of its timers/scalars are silently dropped or defaulted.
+        if checkpoint.karma != 0
+            || checkpoint.pk_count != 0
+            || checkpoint.pvp_count != 0
+            || checkpoint.flag_remaining_ticks != 0
+            || checkpoint.death_penalty_level != 0
+            || checkpoint.last_death.is_some()
+            || checkpoint.effect_remainders.iter().any(|effect| {
+                phase
+                    .rules
+                    .skills()
+                    .get(effect.skill.id)
+                    .is_none_or(|skill| !supported_cast(skill, effect.skill.rank))
+                    || effect.handlers.iter().any(|h| {
+                        h.periodic
+                            .as_ref()
+                            .is_some_and(|p| unsupported_player_pulse(p.resource, p.power))
+                    })
+            })
+        {
+            return Err(RejectReason::NotYetImplemented);
         }
         Ok(())
     }

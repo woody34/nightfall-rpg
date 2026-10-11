@@ -382,13 +382,13 @@ impl SessionRegistry {
                 .await
                 .map_err(|_| AdmitError::LoadFailed)?
                 .ok_or(AdmitError::LoadFailed)?;
-            if loaded.phase3.is_some() {
-                // The domain load/restore field is the coordinated next integration step.
+            if loaded.phase3.is_some() && !zone.phase3_enabled() {
                 return Err(AdmitError::LoadFailed);
             }
             loaded.name.as_str().clone_into(&mut spawn.name);
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
+                phase3: loaded.phase3,
                 progression: zone.has_classes().then(|| {
                     Box::new(crate::domain::zone::PlayerProgression {
                         identity: loaded.identity,

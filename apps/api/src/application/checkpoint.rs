@@ -16,8 +16,8 @@ use super::ports::{
 };
 use super::replay_log::{AppliedTickRecord, EventLog};
 use crate::domain::zone::{
-    AppliedTick, AppliedTickDraft, CombatRole, EntityId, ProgressionDelta, Tick, ZoneCommand,
-    ZoneId, ZoneSnapshot, ZoneState, UNITS_PER_TILE,
+    AppliedTick, AppliedTickDraft, CombatRole, EntityId, Phase3Entity, ProgressionDelta, Tick,
+    ZoneCommand, ZoneId, ZoneSnapshot, ZoneState, UNITS_PER_TILE,
 };
 use crate::domain::{CharacterId, DomainEvent, EventMetadata, Position, SessionId};
 
@@ -36,6 +36,7 @@ struct Player {
     revision: u64,
     last_saved: Tick,
     latest: Option<CharacterCheckpoint>,
+    last_phase3: Option<Phase3Entity>,
     events: Vec<DomainEvent>,
     dirty: bool,
     fenced: bool,
@@ -185,6 +186,7 @@ impl CheckpointService {
                 events: p.events.clone(),
                 latest: p.latest.as_ref().map(|cp| {
                     crate::domain::zone::CheckpointRequestSnapshot {
+                        phase3: cp.phase3.clone(),
                         class_state: cp.class_state.clone(),
                         revision_seen: cp.revision_seen,
                         level: cp.level,
@@ -209,13 +211,18 @@ impl CheckpointService {
                 (
                     p.entity,
                     Player {
+                        last_phase3: snapshot
+                            .phase3
+                            .as_ref()
+                            .and_then(|phase| phase.entities.get(&p.entity))
+                            .cloned(),
                         revision: p.revision,
                         last_saved: p.last_saved,
                         dirty: p.dirty,
                         fenced: p.fenced,
                         events: p.events.clone(),
                         latest: p.latest.as_ref().map(|cp| CharacterCheckpoint {
-                            phase3: None,
+                            phase3: cp.phase3.clone(),
                             class_state: cp.class_state.clone(),
                             character_id: CharacterId::from_uuid(p.entity.as_uuid()),
                             revision_seen: cp.revision_seen,
@@ -269,6 +276,8 @@ impl CheckpointService {
     /// Saves the previous admitted state before a lifecycle command removes or replaces it.
     pub async fn flush(&mut self, entity: EntityId) -> anyhow::Result<()> {
         if let Some(player) = self.players.get_mut(&entity) {
+            // Even an idle retained timer needs a fresh paused remainder at real logout.
+            player.dirty |= player.latest.as_ref().is_some_and(|cp| cp.phase3.is_some());
             save(
                 self.repo.as_ref(),
                 self.audit.as_ref(),
@@ -288,10 +297,6 @@ impl CheckpointService {
         tick: &AppliedTick,
         snapshot: &ZoneSnapshot,
     ) -> anyhow::Result<()> {
-        anyhow::ensure!(
-            snapshot.phase3.is_none(),
-            "Phase3 checkpoint snapshot export is not yet integrated"
-        );
         if self
             .last
             .is_some_and(|last| last >= (tick.epoch, tick.tick))
@@ -317,6 +322,7 @@ impl CheckpointService {
                         *entity,
                         Player {
                             revision,
+                            last_phase3: None,
                             last_saved: tick.tick,
                             latest: None,
                             events: Vec::new(),
@@ -342,6 +348,12 @@ impl CheckpointService {
             }
         }
         for entity in &snapshot.entities {
+            if snapshot.phase3.is_some() && entity.kind == crate::domain::zone::EntityKind::Player {
+                anyhow::ensure!(
+                    self.players.get(&entity.id).is_some_and(|p| !p.fenced),
+                    "Phase3 player checkpoint lane missing or fenced"
+                );
+            }
             let Some(player) = self.players.get_mut(&entity.id) else {
                 continue;
             };
@@ -351,8 +363,16 @@ impl CheckpointService {
             let CombatRole::Player { xp, .. } = combat.role else {
                 continue;
             };
+            let phase3 = snapshot.phase3.as_ref();
+            let retained = phase3.and_then(|phase| phase.entities.get(&entity.id));
+            anyhow::ensure!(
+                phase3.is_none() || retained.is_some(),
+                "player checkpoint sidecar missing"
+            );
             let mut cp = CharacterCheckpoint {
-                phase3: None,
+                phase3: phase3
+                    .map(|phase| phase.checkpoint(entity.id, tick.tick))
+                    .transpose()?,
                 class_state: match &combat.role {
                     CombatRole::Player { progression, .. } => {
                         progression.as_ref().map(|p| p.class_state.clone())
@@ -388,6 +408,12 @@ impl CheckpointService {
                 cp.alive = delta.alive;
                 cp.position = position(delta.pos);
             }
+            let retained_critical = phase3.is_some()
+                && (retained_phase3_changed(player.last_phase3.as_ref(), retained)
+                    || player
+                        .latest
+                        .as_ref()
+                        .is_none_or(|old| old.class_state != cp.class_state));
             let changed = player.latest.as_ref().is_none_or(|old| {
                 old.class_state != cp.class_state
                     || old.level != cp.level
@@ -397,9 +423,10 @@ impl CheckpointService {
                     || old.alive != cp.alive
                     || old.position != cp.position
             });
-            player.dirty |= changed;
+            player.dirty |= changed || retained_critical;
             player.latest = Some(cp);
-            let mut immediate = tick.events.iter().any(|event| matches!(event,
+            player.last_phase3 = retained.cloned();
+            let mut immediate = retained_critical || tick.events.iter().any(|event| matches!(event,
                 crate::domain::zone::ZoneEvent::TokensReconciled { entity: who, .. } if *who == entity.id));
             for event in &tick.events {
                 if let crate::domain::zone::ZoneEvent::TokensReconciled {
@@ -613,7 +640,10 @@ impl CheckpointService {
         let pending: Vec<_> = self
             .players
             .iter()
-            .filter(|(_, p)| !p.events.is_empty())
+            .filter(|(_, p)| {
+                !p.events.is_empty()
+                    || (p.dirty && p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some()))
+            })
             .map(|(id, _)| *id)
             .collect();
         for entity in pending {
@@ -832,3 +862,28 @@ impl CheckpointLane {
 #[cfg(test)]
 #[path = "checkpoint_tests.rs"]
 mod tests;
+
+// Compare canonical retained mutations, never a projection's naturally decreasing remainder.
+// Casts, offers and regen deadlines are not persisted across a real disconnect.
+fn retained_phase3_changed(before: Option<&Phase3Entity>, after: Option<&Phase3Entity>) -> bool {
+    match (before, after) {
+        (None, None) => false,
+        (Some(a), Some(b)) => {
+            a.reuse != b.reuse
+                || a.effects != b.effects
+                || a.modifier_install_order != b.modifier_install_order
+                || a.fractions != b.fractions
+                || a.player
+                    .as_ref()
+                    .map(|p| (&p.pvp, p.death_penalty_level, &p.last_death))
+                    != b.player
+                        .as_ref()
+                        .map(|p| (&p.pvp, p.death_penalty_level, &p.last_death))
+        },
+        (None, Some(_)) | (Some(_), None) => true,
+    }
+}
+
+#[cfg(test)]
+#[path = "checkpoint_phase3_tests.rs"]
+mod phase3_tests;

@@ -206,6 +206,8 @@ struct PbAddAggro {
 
 #[derive(Clone, PartialEq, Message)]
 struct PbPlayerLoad {
+    #[prost(bytes = "vec", optional, tag = "9")]
+    phase3: Option<Vec<u8>>,
     #[prost(bytes = "vec", optional, tag = "8")]
     progression: Option<Vec<u8>>,
     #[prost(uint64, optional, tag = "7")]
@@ -765,6 +767,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             speed: speed.milli_tiles_per_tick(),
             generation: generation.0,
             load: load.as_ref().map(|l| PbPlayerLoad {
+                phase3: l.phase3.as_ref().map(canonical_json),
                 progression: l.progression.as_ref().map(canonical_json),
                 checkpoint_revision: l.checkpoint_revision,
                 class: l.class.clone(),
@@ -1576,6 +1579,10 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
                 .load
                 .map(|l| {
                     Ok::<_, CodecError>(Box::new(PlayerLoad {
+                        phase3: l
+                            .phase3
+                            .map(|b| serde_json::from_slice(&b).map_err(err))
+                            .transpose()?,
                         progression: l
                             .progression
                             .map(|b| serde_json::from_slice(&b).map_err(err))

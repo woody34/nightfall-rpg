@@ -225,7 +225,13 @@ pub enum ZoneCommand {
 impl ZoneCommand {
     /// Commands whose meaning exists only in a snapshot9 / record7 epoch.
     #[must_use]
-    pub const fn requires_phase3(&self) -> bool {
+    pub fn requires_phase3(&self) -> bool {
+        if let Self::SpawnPlayer {
+            load: Some(load), ..
+        } = self
+        {
+            return load.phase3.is_some();
+        }
         matches!(
             self,
             Self::CastSkill { .. }

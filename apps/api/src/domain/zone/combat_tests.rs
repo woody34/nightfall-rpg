@@ -255,10 +255,12 @@ fn an_invalid_load_is_refused_without_changing_state_or_rng() {
     for load in [
         PlayerLoad::fresh("no_such_class"),
         PlayerLoad {
+            phase3: None,
             level: 2,
             ..PlayerLoad::fresh("human_fighter")
         },
         PlayerLoad {
+            phase3: None,
             xp: u64::MAX,
             ..PlayerLoad::fresh("human_fighter")
         },
@@ -289,6 +291,7 @@ fn an_invalid_load_is_refused_without_changing_state_or_rng() {
             speed: Speed::DEFAULT,
             generation: GEN1,
             load: Some(Box::new(PlayerLoad {
+                phase3: None,
                 hp: Some(0),
                 mp: Some(u32::MAX),
                 ..PlayerLoad::fresh("human_fighter")

@@ -68,6 +68,7 @@ fn zone() -> ZoneState {
 
 fn load(xp: u64) -> PlayerLoad {
     PlayerLoad {
+        phase3: None,
         level: super::super::progression::level_for_xp(&rules(), xp),
         xp,
         ..PlayerLoad::fresh("human_fighter")
@@ -436,6 +437,7 @@ fn the_plans_town_respawn_vector_restores_81_of_126_hp() {
             10,
             10,
             PlayerLoad {
+                phase3: None,
                 alive: false,
                 ..load(0)
             },
@@ -517,6 +519,7 @@ fn protection_lasts_6000_ticks_and_an_accepted_attack_ends_it_early() {
                     10,
                     10,
                     PlayerLoad {
+                        phase3: None,
                         alive: false,
                         ..load(0)
                     },
@@ -562,6 +565,7 @@ fn a_dead_load_and_a_replacement_session_preserve_death() {
                 10,
                 10,
                 PlayerLoad {
+                    phase3: None,
                     alive: false,
                     hp: Some(50),
                     ..load(70)

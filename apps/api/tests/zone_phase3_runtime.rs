@@ -760,7 +760,7 @@ async fn real_v5_actor_byte_admission_preserves_fifo_and_terminal_inputs_never_u
 }
 
 #[tokio::test]
-async fn checkpoint_lane_fences_experimental_state_until_paused_export_is_available() {
+async fn checkpoint_lane_requires_an_admitted_player_revision_before_retained_output() {
     use nightfall_api::application::checkpoint::CheckpointService;
     use nightfall_api::application::zone_actor::{manual_ticks, OpenGate, TickOutcome, ZoneActor};
     use nightfall_api::infrastructure::memory::{
@@ -854,5 +854,204 @@ fn checkpoint_export_freezes_strict_timer_thresholds_and_relative_modifier_order
     assert_eq!(
         checkpoint.effect_remainders[0].remaining_ticks, 101,
         "frozen request never ages"
+    );
+}
+
+#[test]
+fn paused_load_rebases_at_admission_without_hooks_or_rng_and_same_tick_commands_see_it() {
+    let (mut zone, player, _) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1), (1177, 1)],
+    );
+    let completed = finish_skill(&mut zone, player, player, 1040);
+    let snapshot = zone.snapshot();
+    let phase = snapshot.phase3.as_ref().unwrap();
+    let old_effect = *phase.entities[&player]
+        .effects
+        .entries()
+        .keys()
+        .next()
+        .unwrap();
+    let mut checkpoint = phase.checkpoint(player, completed.tick).unwrap();
+    checkpoint.reuse_remainders.insert(SkillId(1177), 123);
+    checkpoint.resource_fractions.mp = Q / 7;
+    let remaining = checkpoint.effect_remainders[0].remaining_ticks;
+    let c = combat(&zone, player);
+    let CombatRole::Player { progression, .. } = c.role else {
+        panic!("player")
+    };
+    let mut load = PlayerLoad::fresh("human_mystic");
+    load.progression = progression;
+    load.phase3 = Some(checkpoint.clone());
+    load.hp = Some(1);
+    load.mp = Some(1);
+    zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::Despawn { entity: player })]))
+        .unwrap();
+    for _ in 0..75 {
+        zone.run_tick(zone.draft(vec![])).unwrap();
+    }
+    let before = zone.snapshot();
+    let at = zone.next_tick();
+    let draft = zone.draft(vec![
+        ZoneInput::system(ZoneCommand::SpawnPlayer {
+            entity: player,
+            name: "Caster".into(),
+            pos: Vec2Fixed::from_tiles(10, 10),
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(1),
+            load: Some(Box::new(load.clone())),
+        }),
+        ZoneInput::session(
+            player,
+            SessionGeneration(1),
+            5,
+            ZoneCommand::MoveTo {
+                entity: player,
+                dest: Vec2Fixed::from_tiles(11, 10),
+            },
+        ),
+    ]);
+    let mut replay = ZoneState::from_snapshot(before.clone()).unwrap();
+    let admitted = zone.run_tick(draft.clone()).unwrap();
+    let repeated = replay.run_tick(draft).unwrap();
+    assert!(admitted.dispositions.is_empty(), "{:?}", admitted.dispositions);
+    assert_eq!(admitted, repeated);
+    assert_eq!(zone.snapshot().rng, before.rng);
+    assert_eq!(combat(&zone, player).hp, 1, "restore does not run heal hooks");
+    assert_eq!(combat(&zone, player).mp, 1, "restore charges no costs and starts regen later");
+    assert_eq!(combat(&zone, player).sheet.p_def(), c.sheet.p_def());
+    let after = zone.snapshot();
+    let side = &after.phase3.as_ref().unwrap().entities[&player];
+    assert_eq!(side.fractions.mp, Q / 7);
+    assert_eq!(side.reuse[&SkillId(1177)], Tick(at.0 + 123));
+    assert_eq!(side.regen.next_at, Some(Tick(at.0 + 30)));
+    let effect = side.effects.entries().values().next().unwrap();
+    assert!(effect.id > old_effect);
+    assert_eq!(effect.expires_at, Some(Tick(at.0 + remaining)));
+    assert!(!admitted
+        .events
+        .iter()
+        .any(|event| matches!(event, ZoneEvent::EffectApplied { .. })));
+    assert!(admitted.outputs[&player].iter().any(|out| matches!(out,
+        ObserverOutput::Event(ZoneEvent::EffectApplied { baseline: Some(tick), .. }) if *tick == at)));
+    let record = AppliedTickRecord::from_applied(ZoneId(1), &admitted);
+    assert_eq!(AppliedTickRecord::decode(&record.encode()).unwrap(), record);
+    ZoneState::from_snapshot(after).unwrap();
+
+    // The marker is never accepted by a legacy simulation, even when the payload is empty.
+    let mut legacy = ZoneState::new(before.seed, before.bounds, 0);
+    let legacy_before = legacy.snapshot();
+    let command = ZoneInput::system(ZoneCommand::SpawnPlayer {
+        entity: player,
+        name: "Caster".into(),
+        pos: Vec2Fixed::from_tiles(10, 10),
+        speed: Speed::DEFAULT,
+        generation: SessionGeneration(1),
+        load: Some(Box::new(load)),
+    });
+    assert_eq!(
+        legacy.run_tick(legacy.draft(vec![command])),
+        Err(TickError::Phase3CommandInLegacy)
+    );
+    assert_eq!(legacy.snapshot(), legacy_before);
+}
+
+#[test]
+fn invalid_paused_admission_is_a_disposition_without_partial_allocation() {
+    let (mut zone, player, _) = setup();
+    let CombatRole::Player { progression, .. } = combat(&zone, player).role else {
+        panic!("player")
+    };
+    zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::Despawn { entity: player })]))
+        .unwrap();
+    let before = zone.snapshot();
+    let mut load = PlayerLoad::fresh("human_mystic");
+    load.progression = progression;
+    let mut checkpoint = Phase3Checkpoint::new();
+    checkpoint.reuse_remainders.insert(SkillId(1177), 50);
+    load.phase3 = Some(checkpoint);
+    let applied = zone
+        .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+            entity: player,
+            name: "Caster".into(),
+            pos: Vec2Fixed::from_tiles(10, 10),
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(1),
+            load: Some(Box::new(load)),
+        })]))
+        .unwrap();
+    assert_eq!(applied.dispositions.len(), 1);
+    assert_eq!(applied.dispositions[0].reason, RejectReason::InvalidLoad);
+    let after = zone.snapshot();
+    assert_eq!(after.rng, before.rng);
+    assert_eq!(after.phase3, before.phase3);
+    assert!(!after.entities.iter().any(|entity| entity.id == player));
+}
+
+#[test]
+fn retained_player_dot_is_explicitly_fenced_until_cp_reduction_is_live() {
+    let (mut zone, caster, npc) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1168, 1)],
+    );
+    for _ in 0..10 {
+        let result = finish_skill(&mut zone, caster, npc, 1168);
+        if result
+            .events
+            .iter()
+            .any(|event| matches!(event, ZoneEvent::EffectApplied { .. }))
+        {
+            break;
+        }
+        for _ in 0..40 {
+            zone.run_tick(zone.draft(vec![])).unwrap();
+        }
+    }
+    let snapshot = zone.snapshot();
+    let phase = snapshot.phase3.as_ref().unwrap();
+    let effect = phase.entities[&npc]
+        .effects
+        .entries()
+        .values()
+        .next()
+        .unwrap();
+    let retained = effect
+        .retain(Tick(zone.next_tick().0 - 1))
+        .unwrap()
+        .unwrap();
+    let mut checkpoint = Phase3Checkpoint::new();
+    checkpoint.effect_remainders.push(retained);
+    checkpoint
+        .modifier_install_order
+        .push(effects::RetainedModifierSource::Effect { effect_ordinal: 0 });
+    let CombatRole::Player { progression, .. } = combat(&zone, caster).role else {
+        panic!("player")
+    };
+    let mut load = PlayerLoad::fresh("human_mystic");
+    load.progression = progression;
+    load.phase3 = Some(checkpoint);
+    let joining = EntityId::from_uuid(Uuid::from_u128(999));
+    let result = zone
+        .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+            entity: joining,
+            name: "Joining".into(),
+            pos: Vec2Fixed::from_tiles(10, 10),
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(1),
+            load: Some(Box::new(load)),
+        })]))
+        .unwrap();
+    assert_eq!(result.dispositions[0].reason, RejectReason::NotYetImplemented);
+    assert!(!zone
+        .snapshot()
+        .entities
+        .iter()
+        .any(|entity| entity.id == joining));
+    assert_eq!(zone.snapshot().rng, snapshot.rng);
+    assert_eq!(
+        zone.snapshot().phase3.as_ref().unwrap().next_entity_ordinal,
+        phase.next_entity_ordinal
     );
 }
