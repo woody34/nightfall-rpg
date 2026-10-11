@@ -212,6 +212,7 @@ impl ZoneState {
                 }
             }
             let selected = self.entities.get(observer).and_then(|e| e.targeting.target);
+            // C17: retaining selection across AOI departure is an approved Nightfall deviation.
             // C2: a retained selection must follow its target's new identity, even when
             // the owner's identity and authoritative selection did not change.
             let selection_reentered = selected.is_some_and(|id| hydrate.contains(&id));

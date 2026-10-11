@@ -51,4 +51,26 @@ bool FSwingRecoveryAuditTest::RunTest(const FString& Parameters)
  N->OnDisconnected.Broadcast(TEXT("reset"));TestFalse(TEXT("disconnect clears evidence"),Count().IsSet());
  return true;
 }
+// C18: enabled pursuit has no wire flag; only movement follows the expired swing.
+// Reuse the sibling recovery test's received deadlines, without a cancellation frame.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnabledPursuitAuditTest,"Nightfall.Skill.EnabledPursuitWithoutNewSwing",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FEnabledPursuitAuditTest::RunTest(const FString& Parameters)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* A=Scope.Get<USkillAuditSubsystem>();N->SetOwnEntityId(TEXT("owner"));
+ auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};
+ auto Count=[&](){return A->Number(TEXT("players_attacking_me"));};
+ FEntitySpawn I;I.EntityId=TEXT("owner");I.Kind=1;I.LifeIncarnation=1;I.SessionGeneration=1;I.StateTick=112;I.Hp=I.MaxHp=100;I.bCombatant=true;FWorldEvent E;E.Spawn=I;Send(E);I.EntityId=TEXT("peer");E.Spawn=I;Send(E);
+ FAttackStarted S;S.Attacker=TEXT("peer");S.AttackerIncarnation=1;S.Target=TEXT("owner");S.TargetIncarnation=1;S.Tick=115;S.ImpactTick=122;S.ReadyTick=129;E={};E.AttackStarted=S;Send(E);
+ TestEqual(TEXT("received swing counts before pursuit"),Count().Get(0),uint64(1));
+ FAttackResult R;R.Attacker=S.Attacker;R.Target=S.Target;R.TargetIncarnation=1;R.Tick=122;R.Outcome=ENetAttackOutcome::Hit;R.TargetHpAfter=100;E={};E.AttackResult=R;Send(E);
+ FEntityMove M;M.EntityId=TEXT("peer");M.Tick=128;E={};E.Move=M;Send(E);
+ TestEqual(TEXT("movement before recovery expires retains count"),Count().Get(0),uint64(1));
+ M.Tick=129;E.Move=M;Send(E);
+ TestEqual(TEXT("enabled pursuit without a new swing returns zero at recovery"),Count().Get(1),uint64(0));
+ M.Tick=143;E.Move=M;Send(E);
+ TestEqual(TEXT("continued pursuit without a new swing remains zero"),Count().Get(1),uint64(0));
+ S.Tick=143;S.ImpactTick=150;S.ReadyTick=157;E={};E.AttackStarted=S;Send(E);
+ TestEqual(TEXT("only a newly received swing counts again"),Count().Get(0),uint64(1));
+ return true;
+}
 #endif
