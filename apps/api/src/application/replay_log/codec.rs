@@ -436,13 +436,17 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 29, 30, 31"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    #[prost(bytes, tag = "26")]
+    PvpStateChanged(Vec<u8>),
+    #[prost(bytes, tag = "27")]
+    ResurrectOffer(Vec<u8>),
     #[prost(bytes, tag = "30")]
     SkillLearned(Vec<u8>),
     #[prost(bytes, tag = "23")]
@@ -1167,7 +1171,7 @@ fn cancel_from_pb(v: i32) -> Result<SwingCancel, CodecError> {
 
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
-    if matches!(e, ZoneEvent::StatsChanged { class: Some(c), .. } if c.phase3.is_some()) {
+    if phase3_carrier(e) {
         return PbOutputItem::Phase3Projection(canonical_json(e));
     }
     if matches!(
@@ -1180,6 +1184,8 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::PvpStateChanged { .. } => PbOutputItem::PvpStateChanged(canonical_json(e)),
+        ZoneEvent::ResurrectOffer { .. } => PbOutputItem::ResurrectOffer(canonical_json(e)),
         ZoneEvent::SkillLearned { .. } => PbOutputItem::SkillLearned(canonical_json(e)),
         ZoneEvent::EffectApplied { .. } => PbOutputItem::EffectApplied(canonical_json(e)),
         ZoneEvent::EffectRemoved { .. } => PbOutputItem::EffectRemoved(canonical_json(e)),
@@ -1203,6 +1209,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             damage,
             target_hp_after,
             target_incarnation,
+            phase3: _,
         } => PbOutputItem::AttackResult(PbAttackResult {
             attacker: entity_bytes(*attacker),
             target: entity_bytes(*target),
@@ -1234,6 +1241,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             target_incarnation,
             impact,
             ready,
+            phase3: _,
         } => PbOutputItem::AttackStarted(PbAttackStarted {
             attacker: entity_bytes(*attacker),
             target: entity_bytes(*target),
@@ -1354,6 +1362,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
             entity,
             target,
             tick,
+            phase3: _,
         } => PbOutputItem::TargetChanged(PbTargetChanged {
             entity: entity_bytes(*entity),
             target: target.map(entity_bytes),
@@ -1732,6 +1741,22 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::PvpStateChanged(bytes) => {
+            let event = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::PvpStateChanged { incarnation, .. } if incarnation != 0)
+            {
+                return Err(err("invalid Phase3 PvP fact"));
+            }
+            event
+        },
+        PbOutputItem::ResurrectOffer(bytes) => {
+            let event = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::ResurrectOffer { target, offer_id, restore_percent_q, .. } if target.incarnation != 0 && offer_id.0 != 0 && (0..=100_000_000).contains(&restore_percent_q))
+            {
+                return Err(err("invalid Phase3 resurrection fact"));
+            }
+            event
+        },
         PbOutputItem::SkillLearned(bytes) => {
             let event = phase3_event_from_json(&bytes)?;
             if !matches!(&event, ZoneEvent::SkillLearned { tick, entity, result, .. }
@@ -1796,7 +1821,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
         PbOutputItem::Phase3Projection(bytes) => {
             let event: ZoneEvent = phase3_event_from_json(&bytes)?;
             if !matches!(event, ZoneEvent::VitalsChanged { .. } | ZoneEvent::SkillStateSync { .. })
-                && !matches!(&event, ZoneEvent::StatsChanged { class: Some(c), .. } if c.phase3.is_some())
+                && !phase3_carrier(&event)
             {
                 return Err(err("invalid Phase3 event tag"));
             }
@@ -1832,6 +1857,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             return Err(CodecError("response where an event was expected".to_owned()))
         },
         PbOutputItem::AttackStarted(e) => ZoneEvent::AttackStarted {
+            phase3: None,
             tick: Tick(e.tick),
             attacker: entity_from(&e.attacker)?,
             target: entity_from(&e.target)?,
@@ -1859,6 +1885,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             to: intention_from_pb(e.to)?,
         },
         PbOutputItem::AttackResult(e) => ZoneEvent::AttackResult {
+            phase3: None,
             attacker: entity_from(&e.attacker)?,
             target: entity_from(&e.target)?,
             tick: Tick(e.tick),
@@ -1933,6 +1960,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             tick: Tick(e.tick),
         },
         PbOutputItem::TargetChanged(e) => ZoneEvent::TargetChanged {
+            phase3: None,
             entity: entity_from(&e.entity)?,
             target: e.target.map(|id| entity_from(&id)).transpose()?,
             tick: Tick(e.tick),
@@ -1951,6 +1979,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
                 .combat
                 .map(|c| {
                     Ok::<_, CodecError>(CombatView {
+                        phase3: None,
                         template: c.template,
                         incarnation: c.incarnation,
                         dead: c.dead,
@@ -1980,6 +2009,23 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
 // V5 event slots have one canonical representation. Check after decoding so serde cannot
 // silently discard an unknown nested extension or normalize a duplicate map key. Legacy
 // slots retain their established grammar and byte representation.
+fn phase3_carrier(event: &ZoneEvent) -> bool {
+    matches!(
+        event,
+        ZoneEvent::AttackResult {
+            phase3: Some(_),
+            ..
+        } | ZoneEvent::AttackStarted {
+            phase3: Some(_),
+            ..
+        } | ZoneEvent::TargetChanged {
+            phase3: Some(_),
+            ..
+        }
+    ) || matches!(event, ZoneEvent::EntitySpawn { combat: Some(c), .. } if c.phase3.is_some())
+        || matches!(event, ZoneEvent::StatsChanged { class: Some(c), .. } if c.phase3.is_some())
+}
+
 fn phase3_event_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
     let event: ZoneEvent = serde_json::from_slice(bytes).map_err(err)?;
     if canonical_json(&event) != bytes {
@@ -2016,6 +2062,7 @@ mod combat_tests {
     #[test]
     fn attack_result_durable_round_trip() {
         let event = ObserverOutput::Event(ZoneEvent::AttackResult {
+            phase3: None,
             attacker: id(1),
             target: id(2),
             tick: Tick(31),
@@ -2096,6 +2143,7 @@ mod combat_tests {
     #[test]
     fn target_changed_durable_round_trip() {
         let event = ObserverOutput::Event(ZoneEvent::TargetChanged {
+            phase3: None,
             tick: Tick(31),
             entity: id(1),
             target: Some(id(2)),
@@ -2190,18 +2238,133 @@ mod phase3_boundary_tests {
     }
 
     #[test]
+    fn six_v5_carriers_roundtrip_only_through_record_seven_slots() {
+        use crate::domain::zone::{
+            AttackResultPhase3, AttackStartedPhase3, CombatViewPhase3, OfferId, PvpState,
+            ResurrectOfferState, TargetChangedPhase3,
+        };
+        let id = crate::domain::zone::EntityId::from_uuid(uuid::Uuid::from_u128(1));
+        let binding = crate::domain::zone::effects::TargetBinding {
+            entity: id,
+            incarnation: 2,
+        };
+        let events = vec![
+            ZoneEvent::AttackResult {
+                tick: Tick(1),
+                attacker: id,
+                target: id,
+                target_incarnation: 2,
+                outcome: crate::domain::zone::AttackOutcome::Hit,
+                damage: 1,
+                target_hp_after: 4,
+                phase3: Some(AttackResultPhase3 {
+                    attacker_incarnation: 2,
+                    cp_absorbed: 7,
+                }),
+            },
+            ZoneEvent::AttackStarted {
+                tick: Tick(1),
+                attacker: id,
+                target: id,
+                target_incarnation: 2,
+                impact: Tick(3),
+                ready: Tick(5),
+                phase3: Some(AttackStartedPhase3 {
+                    attacker_incarnation: 2,
+                    target_visible: false,
+                    baseline: Some(Tick(2)),
+                }),
+            },
+            ZoneEvent::TargetChanged {
+                tick: Tick(1),
+                entity: id,
+                target: None,
+                phase3: Some(TargetChangedPhase3 {
+                    target_incarnation: None,
+                    baseline: Some(Tick(1)),
+                }),
+            },
+            ZoneEvent::EntitySpawn {
+                tick: Tick(1),
+                entity: id,
+                kind: EntityKind::Player,
+                name: "Visible".into(),
+                identity: None,
+                pos: Vec2Fixed::from_tiles(0, 0),
+                dest: None,
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                combat: Some(CombatView {
+                    phase3: Some(CombatViewPhase3 {
+                        flag_until: Some(Tick(1200)),
+                        karma: 5,
+                    }),
+                    template: None,
+                    incarnation: 2,
+                    dead: false,
+                    attackable: true,
+                    hp: 4,
+                    max_hp: 10,
+                    level: 1,
+                    swing: None,
+                }),
+            },
+            ZoneEvent::PvpStateChanged {
+                tick: Tick(1),
+                entity: id,
+                incarnation: 2,
+                pvp: PvpState {
+                    flag_until: None,
+                    karma: 0,
+                    pk_count: 0,
+                    pvp_count: 0,
+                },
+                baseline: None,
+            },
+            ZoneEvent::ResurrectOffer {
+                tick: Tick(1),
+                target: binding,
+                offer_id: OfferId(1),
+                caster: None,
+                restore_percent_q: 20_000_000,
+                recoverable_xp: 100,
+                expires_at: Tick(601),
+                state: ResurrectOfferState::Offered,
+            },
+        ];
+        for event in events {
+            assert_eq!(event_from_pb(event_to_pb(&event)).unwrap(), event);
+            let mut record = empty(7);
+            record.events = PbOutputs {
+                items: vec![PbOutput {
+                    item: Some(event_to_pb(&event)),
+                }],
+            }
+            .encode_to_vec()
+            .into();
+            assert!(decode_record(&record.encode_to_vec()).is_ok());
+            for schema in 3..=6 {
+                record.schema = schema;
+                assert!(decode_record(&record.encode_to_vec()).is_err());
+            }
+        }
+    }
+
+    #[test]
     fn old_records_reject_phase3_presence_at_every_protobuf_depth() {
         for schema in 3..=6 {
             // Empty/default extensions are still present, and prost would discard them.
             for injection in [
-                nested(5, &nested(16, &[])),                        // CastSkill
-                nested(5, &nested(4, &nested(6, &nested(9, &[])))), // PlayerLoad.phase3
-                nested(5, &nested(5, &nested(4, &nested(6, &[])))), // NpcCombat.phase3
-                nested(5, &nested(7, &nested(3, &nested(9, &[])))), // forbidden replacement load
-                nested(9, &nested(1, &nested(20, &[]))),            // skill event
+                nested(5, &nested(16, &[])),                         // CastSkill
+                nested(5, &nested(4, &nested(6, &nested(9, &[])))),  // PlayerLoad.phase3
+                nested(5, &nested(5, &nested(4, &nested(6, &[])))),  // NpcCombat.phase3
+                nested(5, &nested(7, &nested(3, &nested(9, &[])))),  // forbidden replacement load
+                nested(9, &nested(1, &nested(26, &[]))),             // PvP state
+                nested(7, &nested(2, &nested(1, &nested(27, &[])))), // owner offer
+                nested(9, &nested(1, &nested(20, &[]))),             // skill event
                 nested(9, &nested(1, &nested(1, &nested(9, &nested(9, &[]))))), // CombatView
                 nested(7, &nested(2, &nested(1, &nested(31, &[])))), // observer projection
-                nested(6, &scalar(5, 21)),                          // new rejection
+                nested(6, &scalar(5, 21)),                           // new rejection
                 nested(7, &nested(2, &nested(1, &nested(4, &scalar(5, 21))))),
             ] {
                 let mut bytes = empty(schema).encode_to_vec();

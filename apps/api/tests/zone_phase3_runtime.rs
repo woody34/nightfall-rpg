@@ -1008,7 +1008,7 @@ fn invalid_paused_admission_is_a_disposition_without_partial_allocation() {
 }
 
 #[test]
-fn retained_player_dot_is_explicitly_fenced_until_cp_reduction_is_live() {
+fn retained_player_dot_is_admitted_and_cold_replays_with_cp_reduction() {
     let (mut zone, caster, npc) = setup_with_skills(
         Vec2Fixed::from_tiles(10, 10),
         Vec2Fixed::from_tiles(12, 10),
@@ -1061,17 +1061,66 @@ fn retained_player_dot_is_explicitly_fenced_until_cp_reduction_is_live() {
             load: Some(Box::new(load)),
         })]))
         .unwrap();
-    assert_eq!(result.dispositions[0].reason, RejectReason::NotYetImplemented);
-    assert!(!zone
-        .snapshot()
+    assert!(result.dispositions.is_empty());
+    assert!(zone.entity(joining).is_some());
+    let mut restored = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    let cp_before = match combat(&zone, joining).role {
+        CombatRole::Player {
+            progression: Some(p),
+            ..
+        } => p.class_state.cp,
+        _ => panic!("player"),
+    };
+    for _ in 0..35 {
+        let applied = zone.run_tick(zone.draft(vec![])).unwrap();
+        assert_eq!(applied, restored.run_tick(restored.draft(vec![])).unwrap());
+    }
+    let CombatRole::Player {
+        progression: Some(p),
+        ..
+    } = combat(&zone, joining).role
+    else {
+        panic!("player")
+    };
+    assert!(p.class_state.cp < cp_before);
+    assert!(combat(&zone, joining).hp > 0);
+    // Entering peace suppresses retained negative callbacks without pausing their clocks.
+    let mut snapshot = zone.snapshot();
+    let center = snapshot
+        .phase3
+        .as_ref()
+        .unwrap()
+        .rules
+        .geometry()
+        .center()
+        .unwrap();
+    let joined = snapshot
         .entities
-        .iter()
-        .any(|entity| entity.id == joining));
-    assert_eq!(zone.snapshot().rng, snapshot.rng);
-    assert_eq!(
-        zone.snapshot().phase3.as_ref().unwrap().next_entity_ordinal,
-        phase.next_entity_ordinal
-    );
+        .iter_mut()
+        .find(|e| e.id == joining)
+        .unwrap();
+    joined.pos = center;
+    let mut aoi = AoiIndex::default();
+    for entity in &snapshot.entities {
+        aoi.insert(entity.id, entity.pos);
+    }
+    snapshot.aoi = aoi.to_cells();
+    let before = snapshot.phase3.as_ref().unwrap().entities[&joining]
+        .effects
+        .clone();
+    zone = ZoneState::from_snapshot(snapshot).unwrap();
+    for _ in 0..35 {
+        zone.run_tick(zone.draft(vec![])).unwrap();
+    }
+    let CombatRole::Player {
+        progression: Some(after),
+        ..
+    } = combat(&zone, joining).role
+    else {
+        panic!("player")
+    };
+    assert!(after.class_state.cp >= p.class_state.cp);
+    assert_ne!(zone.snapshot().phase3.as_ref().unwrap().entities[&joining].effects, before);
 }
 
 #[test]
@@ -1271,7 +1320,11 @@ fn get_agro_live_forces_intention_without_hate_and_yields_on_later_think() {
         .events
         .iter()
         .any(|e| matches!(e, ZoneEvent::HateChanged { .. })));
-    assert_eq!(zone.snapshot().rng, before.rng, "GetAgro has no intrinsic RNG");
+    assert_eq!(
+        zone.snapshot().rng.word_pos,
+        before.rng.word_pos + 3,
+        "one NPC auto hit during the cast; GetAgro has no intrinsic RNG"
+    );
     let final_result = result
         .events
         .iter()
@@ -1333,7 +1386,7 @@ fn get_agro_and_hate_requests_keep_emission_order_in_the_live_tick() {
         assert_eq!(zone.entity(npc).unwrap().targeting.target, Some(expected));
         assert_eq!(zone.hate_ledger(npc).unwrap().get(first).unwrap().hate, 500);
         assert_eq!(zone.hate_ledger(npc).unwrap().get(second).unwrap().hate, 1);
-        assert_eq!(zone.snapshot().rng, before);
+        assert_eq!(zone.snapshot().rng.word_pos, before.word_pos + 3);
         let targets: Vec<_> = result
             .events
             .iter()
@@ -1378,7 +1431,7 @@ fn get_agro_most_hated_noop_and_add_hate_negative_source_quirk_are_live() {
         632,
         "pinned reduceHate adds positive magnitude"
     );
-    assert_eq!(zone.snapshot().rng, rng);
+    assert_eq!(zone.snapshot().rng.word_pos, rng.word_pos + 3);
 
     let (mut zone, first, _, npc) = setup_ai_rules(ai_test_rules());
     let before = zone.snapshot();
@@ -1464,7 +1517,7 @@ fn two_get_agro_completions_use_entity_ordinals_and_force_beats_same_tick_think(
     assert_eq!(targets, vec![second, third]);
     assert_eq!(zone.entity(npc).unwrap().targeting.target, Some(third));
     assert_eq!(zone.snapshot().hate, before.hate);
-    assert_eq!(zone.snapshot().rng, before.rng);
+    assert_eq!(zone.snapshot().rng.word_pos, before.rng.word_pos + 3);
     assert_eq!(applied.tick.0 % 10, NpcAi::think_phase(npc));
 }
 
@@ -2119,10 +2172,11 @@ fn unsupported_v5_intents_are_recorded_without_holding_supported_commands() {
     for (index, disposition) in applied.dispositions[..5].iter().enumerate() {
         assert_eq!(
             disposition.reason,
-            if index == 1 {
-                RejectReason::NotDead
-            } else {
-                RejectReason::NotYetImplemented
+            match index {
+                0 => RejectReason::InvalidTargetType,
+                1 => RejectReason::NotDead,
+                2 => RejectReason::NoResurrectOffer,
+                _ => RejectReason::NotYetImplemented,
             }
         );
     }
@@ -2167,7 +2221,7 @@ async fn experimental_actor_does_not_hold_unsupported_intents_at_fifo_head() {
         .unwrap();
     assert_eq!(tick.commands.len(), 2);
     assert_eq!(tick.dispositions.len(), 1);
-    assert_eq!(tick.dispositions[0].reason, RejectReason::NotYetImplemented);
+    assert_eq!(tick.dispositions[0].reason, RejectReason::NoResurrectOffer);
     assert!(tick.events.iter().any(|event| matches!(event,
         ZoneEvent::SkillCastStarted { caster, .. } if caster.entity == player)));
     // Idle ticks deliberately suppress broadcasts; the driver acknowledgement proves

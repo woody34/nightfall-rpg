@@ -1,8 +1,10 @@
 # V5 cast/effect regression recording
 
 `phase3-casts-v5.nfr` is an offline, deterministic domain recording using the complete
-shipped Phase3 rules, Snapshot9 and Record7. Regenerate explicitly with
-`bash apps/api/fixtures/sessions/record-phase3-casts.sh`; normal tests never rewrite it.
+shipped Phase3 rules, Snapshot9 and Record7. It pins the original experimental runtime
+revision 1. Its historical generator is `record-phase3-casts.sh` at commit `7d28b9e`;
+regenerating with current revision-2 defaults would intentionally produce different bytes.
+Normal tests never rewrite it. Current gameplay uses the separate `phase3-gameplay-v5.nfr`.
 The generator verifies encoded and digest-only replay, a midcast snapshot suffix, and
 rejection of tampered facts before writing the file.
 

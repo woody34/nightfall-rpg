@@ -439,6 +439,8 @@ fn facts(
             | ZoneEvent::SkillCastResult { .. }
             | ZoneEvent::SkillCastCancelled { .. }
             | ZoneEvent::SkillLearned { .. }
+            | ZoneEvent::PvpStateChanged { .. }
+            | ZoneEvent::ResurrectOffer { .. }
             | ZoneEvent::SkillStateSync { .. }
             | ZoneEvent::SpGained { .. }
             | ZoneEvent::SkillReuse { .. }

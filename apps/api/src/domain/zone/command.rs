@@ -444,6 +444,50 @@ pub struct OwnerPhase3View {
     pub effective: super::LearnedEffectiveStats,
 }
 
+/// V5 normal-attack attribution and CP result; absent on legacy facts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct AttackResultPhase3 {
+    pub attacker_incarnation: u32,
+    pub cp_absorbed: u32,
+}
+/// V5 pending-swing projection; private facts always retain the original endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct AttackStartedPhase3 {
+    pub attacker_incarnation: u32,
+    pub target_visible: bool,
+    pub baseline: Option<Tick>,
+}
+/// V5 owner selection; an absent endpoint is an explicit clear, including bootstrap.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct TargetChangedPhase3 {
+    pub target_incarnation: Option<u32>,
+    pub baseline: Option<Tick>,
+}
+/// Public identity policy; excludes owner-only counters and resources.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct CombatViewPhase3 {
+    pub flag_until: Option<Tick>,
+    pub karma: u32,
+}
+/// Owner resurrection offer lifecycle; terminal events retain the original corpse life.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum ResurrectOfferState {
+    Offered,
+    Declined,
+    Expired,
+    Accepted,
+}
+
 /// Per-recipient skill resolution, preserving damage before and after absorption.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(missing_docs)]
@@ -486,6 +530,27 @@ pub enum SkillOutcome {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)] // names mirror the proto messages one to one
 pub enum ZoneEvent {
+    /// Final public flag/karma/counters, also used for identity bootstrap.
+    #[allow(missing_docs)]
+    PvpStateChanged {
+        tick: Tick,
+        entity: EntityId,
+        incarnation: u32,
+        pvp: super::PvpState,
+        baseline: Option<Tick>,
+    },
+    /// Target-owner offer lifecycle. Caster is filtered after the full identity batch.
+    #[allow(missing_docs)]
+    ResurrectOffer {
+        tick: Tick,
+        target: super::effects::TargetBinding,
+        offer_id: super::OfferId,
+        caster: Option<super::effects::TargetBinding>,
+        restore_percent_q: i64,
+        recoverable_xp: u64,
+        expires_at: Tick,
+        state: ResurrectOfferState,
+    },
     /// Final committed learning fact. The full receipt is private; the owner wire mapper
     /// exposes only the established `SkillLearned` projection. Released after durability.
     #[allow(missing_docs)]
@@ -615,6 +680,9 @@ pub enum ZoneEvent {
     },
     /// Authoritative attack result fact.
     AttackResult {
+        /// Explicit V5 extension; absent values preserve historical encoding.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase3: Option<AttackResultPhase3>,
         /// attacker UUID.
         attacker: EntityId,
         /// target UUID.
@@ -644,6 +712,9 @@ pub enum ZoneEvent {
     /// A swing started; it lands at `impact` unless cancelled, and the next may start at
     /// `ready` (so clients wind animations up before impact).
     AttackStarted {
+        /// Explicit V5 extension; absent values preserve historical encoding.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase3: Option<AttackStartedPhase3>,
         /// Start tick.
         tick: Tick,
         /// Swinging entity.
@@ -751,6 +822,9 @@ pub enum ZoneEvent {
     },
     /// Authoritative target changed fact.
     TargetChanged {
+        /// Explicit V5 extension; absent values preserve historical encoding.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase3: Option<TargetChangedPhase3>,
         /// Tick of the fact.
         tick: Tick,
         /// selecting actor UUID; owner-only.
@@ -824,7 +898,9 @@ impl ZoneEvent {
     #[must_use]
     pub const fn tick(&self) -> Tick {
         match self {
-            Self::SkillLearned { tick, .. }
+            Self::PvpStateChanged { tick, .. }
+            | Self::ResurrectOffer { tick, .. }
+            | Self::SkillLearned { tick, .. }
             | Self::SkillStateSync { tick, .. }
             | Self::SpGained { tick, .. }
             | Self::SkillCastStarted { tick, .. }
@@ -859,13 +935,14 @@ impl ZoneEvent {
     #[must_use]
     pub const fn entity(&self) -> EntityId {
         match self {
-            Self::EffectApplied { target, .. } | Self::EffectRemoved { target, .. } => {
-                target.entity
-            },
+            Self::ResurrectOffer { target, .. }
+            | Self::EffectApplied { target, .. }
+            | Self::EffectRemoved { target, .. } => target.entity,
             Self::SkillCastStarted { caster, .. }
             | Self::SkillCastResult { caster, .. }
             | Self::SkillCastCancelled { caster, .. } => caster.entity,
-            Self::SkillLearned { entity, .. }
+            Self::PvpStateChanged { entity, .. }
+            | Self::SkillLearned { entity, .. }
             | Self::SkillStateSync { entity, .. }
             | Self::SpGained { entity, .. }
             | Self::SkillReuse { entity, .. }

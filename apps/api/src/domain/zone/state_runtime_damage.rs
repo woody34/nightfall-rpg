@@ -1,4 +1,6 @@
 //! Live skill damage callers. Their RNG order is distinct from auto-attacks.
+#[path = "state_runtime_auto.rs"]
+mod auto;
 use super::*;
 
 impl ZoneState {
@@ -163,8 +165,12 @@ impl ZoneState {
 
     /// Formulas.java:1879-1911, TraitType.java:41-78. Multiply type-2 traits in source
     /// enum order, not lexical order; type-3 physical/magical weaknesses are excluded.
-    fn attack_traits_v5(a: &EffectiveStats, b: &EffectiveStats) -> Result<ExactRatio, TickError> {
-        let weapon = b.traits.get("SWORD").cloned().unwrap_or_default();
+    fn attack_traits_v5(
+        a: &EffectiveStats,
+        b: &EffectiveStats,
+        weapon: &str,
+    ) -> Result<ExactRatio, TickError> {
+        let weapon = b.traits.get(weapon).cloned().unwrap_or_default();
         let weapon = ExactRatio::whole(2)
             .checked_sub(weapon.defence)
             .map_err(invariant)?;
@@ -304,7 +310,7 @@ impl ZoneState {
             false,
         )
         .map_err(invariant)?
-        .checked_mul(Self::attack_traits_v5(&a, &b)?)
+        .checked_mul(Self::attack_traits_v5(&a, &b, "SWORD")?)
         .map_err(invariant)?
         .checked_mul(skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?)
         .map_err(invariant)?
@@ -632,6 +638,787 @@ mod tests {
                 );
             }
             cold = ZoneState::from_snapshot(cold.snapshot()).unwrap();
+        }
+    }
+
+    #[test]
+    fn live_pvp_lethal_truth_table_and_cold_cast_replay() {
+        for (flagged, karma, pk, pvp) in [
+            (false, 0, 1, 0),
+            (true, 0, 0, 1),
+            (false, 100, 0, 0),
+            (true, 100, 0, 1),
+        ] {
+            let (mut zone, source, target, _) = fixture();
+            let victim = zone
+                .sidecar_mut(target.entity)
+                .unwrap()
+                .player
+                .as_mut()
+                .unwrap();
+            victim.pvp.karma = karma;
+            victim.pvp.flag_until = flagged.then_some(Tick(3000));
+            set_resources(&mut zone, target, 1, 0);
+            start_cast(&mut zone, source, target);
+            let mut replay = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+            let mut events = Vec::new();
+            for _ in 0..50 {
+                let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+                assert_eq!(tick, replay.run_tick(replay.draft(Vec::new())).unwrap());
+                events.extend(tick.events);
+                if zone.entities[&target.entity].targeting.dead {
+                    break;
+                }
+            }
+            assert!(zone.entities[&target.entity].targeting.dead);
+            let killer = &zone
+                .sidecar(source.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .pvp;
+            assert_eq!((killer.pk_count, killer.pvp_count), (pk, pvp));
+            assert_eq!(killer.karma > 0, pk > 0);
+            assert_eq!(killer.flag_until.is_some(), flagged || karma == 0);
+            let dead = zone
+                .sidecar(target.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap();
+            assert_eq!(dead.death_penalty_level, 0);
+            assert!(dead.last_death.is_some());
+            if pk != 0 || pvp != 0 {
+                assert!(events.iter().any(|e| matches!(e, ZoneEvent::PvpStateChanged { entity, .. } if *entity == source.entity)));
+            }
+        }
+    }
+
+    #[test]
+    fn npc_auto_runs_from_hate_request_and_restores_pending_swing() {
+        let (mut zone, player, _, npc) = fixture();
+        zone.apply_damage_v5(
+            Tick(0),
+            DamageRequest {
+                source: zone.damage_source_v5(player).unwrap(),
+                target: npc,
+                cause: DamageCause::Direct,
+                rolled_damage: 1,
+            },
+            &mut Vec::new(),
+        )
+        .unwrap();
+        let mut started = false;
+        let mut impacted = false;
+        for _ in 0..50 {
+            let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+            if tick.events.iter().any(|e| matches!(e, ZoneEvent::AttackStarted { attacker, phase3: Some(_), .. } if *attacker == npc.entity)) {
+                started = true;
+                let mut restored = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+                for _ in 0..20 {
+                    let live = zone.run_tick(zone.draft(Vec::new())).unwrap();
+                    assert_eq!(live, restored.run_tick(restored.draft(Vec::new())).unwrap());
+                    if live.events.iter().any(|e| matches!(e, ZoneEvent::AttackResult { attacker, phase3: Some(p), .. } if *attacker == npc.entity && p.cp_absorbed == 0)) { impacted = true; break; }
+                }
+                break;
+            }
+        }
+        assert!(started && impacted);
+    }
+
+    #[test]
+    fn auto_rng_recipient_stun_precedes_post_damage_cast_break_and_miss_skips_tail() {
+        for miss in [false, true] {
+            let (mut zone, caster, _, npc) = fixture();
+            start_cast(&mut zone, caster, npc);
+            add_stun(&mut zone, caster);
+            let now = zone.next_tick;
+            let pos = zone.entities[&caster.entity].pos;
+            let e = zone.entities.get_mut(&npc.entity).unwrap();
+            e.pos = pos;
+            e.targeting.target = Some(caster.entity);
+            let swing = crate::domain::zone::Swing {
+                target: caster.entity,
+                target_incarnation: caster.incarnation,
+                start: Tick(0),
+                impact: now,
+                ready: Tick(100),
+            };
+            e.combat.as_mut().unwrap().swing = Some(swing);
+            let radius = zone.entities[&npc.entity]
+                .combat
+                .as_ref()
+                .unwrap()
+                .sheet
+                .random_damage();
+            let expected = if miss {
+                vec![(DamageRollSite::AutoHit, 1000, 999)]
+            } else {
+                vec![
+                    (DamageRollSite::AutoHit, 1000, 0),
+                    (DamageRollSite::AutoCritical, 1000, 999),
+                    (DamageRollSite::Spread, radius * 2 + 1, radius),
+                    (DamageRollSite::StunRemoval, 10, 0),
+                    (DamageRollSite::AttackBreak, 100, 0),
+                ]
+            };
+            let mut trace = Vec::new();
+            let mut events = Vec::new();
+            zone.land_auto_v5(
+                now,
+                npc.entity,
+                swing,
+                &mut events,
+                &mut scripted(&expected, &mut trace),
+            )
+            .unwrap();
+            assert_eq!(trace.len(), expected.len());
+            assert_eq!(matches!(zone.sidecar(caster.entity).unwrap().cast, CastState::Idle), !miss);
+            assert!(events.iter().any(|e| matches!(e, ZoneEvent::AttackResult { outcome, .. } if (*outcome == crate::domain::zone::AttackOutcome::Miss) == miss)));
+        }
+    }
+
+    #[test]
+    fn flag_expiry_and_peace_intent_are_live_and_do_not_draw_rng() {
+        let (mut zone, source, target, _) = fixture();
+        let now = zone.next_tick;
+        zone.sidecar_mut(source.entity)
+            .unwrap()
+            .player
+            .as_mut()
+            .unwrap()
+            .pvp
+            .flag_until = Some(now);
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert!(tick.events.iter().any(|e| matches!(e, ZoneEvent::PvpStateChanged { entity, pvp, .. } if *entity == source.entity && pvp.flag_until.is_none())));
+        let center = zone
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .rules
+            .geometry()
+            .center()
+            .unwrap();
+        let old = zone.entities[&target.entity].pos;
+        zone.entities.get_mut(&target.entity).unwrap().pos = center;
+        zone.aoi.relocate(target.entity, old, center);
+        zone.entities
+            .get_mut(&source.entity)
+            .unwrap()
+            .targeting
+            .target = Some(target.entity);
+        let cursor = zone.rng.get_word_pos();
+        let tick = zone
+            .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::Attack {
+                entity: source.entity,
+            })]))
+            .unwrap();
+        assert_eq!(tick.dispositions[0].reason, RejectReason::PeaceZone);
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+    }
+
+    #[test]
+    fn peace_entry_cancels_pending_auto_and_hostile_cast_before_damage_or_rng() {
+        for auto in [false, true] {
+            let (mut zone, source, target, npc) = fixture();
+            zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::Despawn {
+                entity: npc.entity,
+            })]))
+            .unwrap();
+            if auto {
+                let tick = zone
+                    .run_tick(zone.draft(vec![
+                        ZoneInput::system(ZoneCommand::SetTarget {
+                            entity: source.entity,
+                            target: Some(target.entity),
+                        }),
+                        ZoneInput::system(ZoneCommand::Attack {
+                            entity: source.entity,
+                        }),
+                    ]))
+                    .unwrap();
+                assert!(tick.dispositions.is_empty());
+                assert!(zone.entities[&source.entity]
+                    .combat
+                    .as_ref()
+                    .unwrap()
+                    .swing
+                    .is_some());
+            } else {
+                start_cast(&mut zone, source, target);
+            }
+            let center = zone
+                .phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .rules
+                .geometry()
+                .center()
+                .unwrap();
+            let old = zone.entities[&target.entity].pos;
+            zone.entities.get_mut(&target.entity).unwrap().pos = center;
+            zone.aoi.relocate(target.entity, old, center);
+            let hp = zone.entities[&target.entity].combat.as_ref().unwrap().hp;
+            let cursor = zone.rng.get_word_pos();
+            // Normalize the observer baseline after the test-only boundary relocation.
+            zone = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+            let mut cold = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+            let mut canceled = false;
+            for _ in 0..60 {
+                let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+                assert_eq!(tick, cold.run_tick(cold.draft(Vec::new())).unwrap());
+                assert!(!tick.events.iter().any(|e| matches!(
+                    e,
+                    ZoneEvent::AttackResult { .. } | ZoneEvent::SkillCastResult { .. }
+                )));
+                canceled |= tick.events.iter().any(|e| {
+                    matches!(
+                        e,
+                        ZoneEvent::AttackCancelled { .. } | ZoneEvent::SkillCastCancelled { .. }
+                    )
+                });
+            }
+            assert!(canceled);
+            assert_eq!(zone.entities[&target.entity].combat.as_ref().unwrap().hp, hp);
+            assert_eq!(zone.rng.get_word_pos(), cursor);
+        }
+    }
+
+    #[test]
+    fn swing_hydration_hides_unknown_target_after_all_identities_and_stats_remain_private() {
+        use crate::interface::{grpc::pb, zone_mapping::observer_output_to_pb};
+        let (mut zone, target, observer, npc) = fixture();
+        for (binding, pos) in [
+            (target, Vec2Fixed::from_tiles(64, 10)),
+            (npc, Vec2Fixed::from_tiles(63, 10)),
+        ] {
+            let old = zone.entities[&binding.entity].pos;
+            zone.entities.get_mut(&binding.entity).unwrap().pos = pos;
+            zone.aoi.relocate(binding.entity, old, pos);
+        }
+        zone.apply_damage_v5(
+            zone.next_tick,
+            DamageRequest {
+                source: zone.damage_source_v5(target).unwrap(),
+                target: npc,
+                cause: DamageCause::Direct,
+                rolled_damage: 1,
+            },
+            &mut Vec::new(),
+        )
+        .unwrap();
+        for _ in 0..20 {
+            if zone.entities[&npc.entity]
+                .combat
+                .as_ref()
+                .unwrap()
+                .swing
+                .is_some()
+            {
+                break;
+            }
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        assert!(zone.entities[&npc.entity]
+            .combat
+            .as_ref()
+            .unwrap()
+            .swing
+            .is_some());
+        // A new observer baseline while the original swing is still in flight.
+        zone.known.remove(&observer.entity);
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let outputs = &tick.outputs[&observer.entity];
+        let wires: Vec<_> = outputs
+            .iter()
+            .flat_map(|o| observer_output_to_pb(o, tick.server_time_ms))
+            .filter_map(|e| match e.payload {
+                Some(pb::server_message::Payload::Event(event)) => event.event,
+                _ => None,
+            })
+            .collect();
+        let spawn = wires.iter().position(|e| matches!(e, pb::world_event::Event::Spawn(s) if s.entity_id == npc.entity.to_string())).unwrap();
+        let swing = wires.iter().position(|e| matches!(e, pb::world_event::Event::AttackStarted(s) if s.attacker == npc.entity.to_string())).unwrap();
+        assert!(spawn < swing);
+        let pb::world_event::Event::AttackStarted(started) = &wires[swing] else {
+            panic!("swing")
+        };
+        assert!(started.baseline);
+        assert_eq!(started.baseline_tick, tick.tick.0);
+        assert!(started.target.is_empty());
+        assert_eq!(started.target_incarnation, 0);
+        assert!(wires.iter().all(|e| !matches!(e, pb::world_event::Event::StatsChanged(s) if s.entity != observer.entity.to_string())));
+        assert!(!wires.iter().any(|e| matches!(e, pb::world_event::Event::PvpStateChanged(s) if s.entity == target.entity.to_string())));
+    }
+
+    #[test]
+    fn paid_rank_survives_xp_level_up_and_does_not_block_milestone_supply() {
+        let (mut zone, player, _, npc) = fixture();
+        let before_twenty = zone.rules.as_ref().unwrap().xp_to_level(20).unwrap() - 1;
+        let c = zone
+            .entities
+            .get_mut(&player.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        if let CombatRole::Player {
+            xp,
+            progression: Some(p),
+            ..
+        } = &mut c.role
+        {
+            *xp = before_twenty;
+            p.class_state.learned_skills = vec![crate::domain::subclass::LearnedSkill {
+                key: "l2.skill.1177".into(),
+                level: 1,
+            }];
+        }
+        zone.relevel(player.entity).unwrap();
+        zone.sync_passives_v5(player.entity).unwrap();
+        zone.rebuild_v5(player.entity).unwrap();
+        let mut events = Vec::new();
+        zone.apply_damage_v5(
+            zone.next_tick,
+            DamageRequest {
+                source: zone.damage_source_v5(player).unwrap(),
+                target: npc,
+                cause: DamageCause::Direct,
+                rolled_damage: u32::MAX,
+            },
+            &mut events,
+        )
+        .unwrap();
+        let c = zone.entities[&player.entity].combat.as_ref().unwrap();
+        assert_eq!(c.sheet.level(), 20);
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &c.role
+        else {
+            panic!("player")
+        };
+        assert_eq!(p.class_state.token_tier_1_count, 1);
+        assert_eq!(p.class_state.milestone_claimed_mask, 1);
+        assert!(p
+            .class_state
+            .learned_skills
+            .iter()
+            .any(|s| s.key == "l2.skill.1177" && s.level == 1));
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::TokensReconciled { .. })));
+        assert!(ZoneState::from_snapshot(zone.snapshot()).is_ok());
+    }
+
+    fn resurrection_fixture() -> (ZoneState, TargetBinding, TargetBinding) {
+        use crate::domain::character_progression::{
+            FrozenTransferResult, SuccessfulTransferReceipt,
+        };
+        let (mut zone, caster, target, npc) = fixture();
+        let xp20 = zone.rules.as_ref().unwrap().xp_to_level(20).unwrap();
+        for id in [caster.entity, target.entity] {
+            let c = zone.entities.get_mut(&id).unwrap().combat.as_mut().unwrap();
+            if let CombatRole::Player {
+                xp,
+                progression: Some(p),
+                ..
+            } = &mut c.role
+            {
+                *xp = xp20;
+                if id == caster.entity {
+                    p.class_state.current_class_id = ClassId(15);
+                    p.class_state
+                        .successful_transfer_receipts
+                        .push(SuccessfulTransferReceipt {
+                            key: Uuid::from_u128(400),
+                            target_class_id: ClassId(15),
+                            result: FrozenTransferResult {
+                                character_id: crate::domain::CharacterId::from_uuid(id.as_uuid()),
+                                identity: p.identity.clone(),
+                                name: crate::domain::CharacterName::new("First").unwrap(),
+                                current_class_id: ClassId(15),
+                                level: 20,
+                                xp: xp20,
+                                sp: 0,
+                                stats: zone
+                                    .classes
+                                    .as_ref()
+                                    .unwrap()
+                                    .get(ClassId(10))
+                                    .unwrap()
+                                    .base_stats,
+                                position_millitiles: [10000, 10000],
+                                hp: 1,
+                                mp: 1,
+                                cp: 0,
+                                max_hp: 1,
+                                max_mp: 1,
+                                max_cp: 0,
+                                token_tier_1_count: 0,
+                                token_tier_2_count: 0,
+                                granted_skill_keys: Vec::new(),
+                            },
+                        });
+                    p.class_state.learned_skills = vec![crate::domain::subclass::LearnedSkill {
+                        key: "l2.skill.1016".into(),
+                        level: 2,
+                    }];
+                }
+            }
+            zone.relevel(id).unwrap();
+            zone.sync_passives_v5(id).unwrap();
+            zone.rebuild_v5(id).unwrap();
+            let c = zone.entities.get_mut(&id).unwrap().combat.as_mut().unwrap();
+            c.hp = c.sheet.max_hp();
+            c.mp = c.sheet.max_mp();
+        }
+        zone.apply_damage_v5(
+            zone.next_tick,
+            DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target,
+                cause: DamageCause::Direct,
+                rolled_damage: u32::MAX,
+            },
+            &mut Vec::new(),
+        )
+        .unwrap();
+        (zone, caster, target)
+    }
+
+    #[test]
+    fn resurrection_cast_offer_decline_accept_town_expiry_and_final_life_are_live() {
+        for response in [0, 1, 2, 3] {
+            let (mut zone, caster, target) = resurrection_fixture();
+            let start = zone
+                .run_tick(zone.draft(vec![ZoneInput::session(
+                    caster.entity,
+                    SessionGeneration(1),
+                    1,
+                    ZoneCommand::CastSkill {
+                        entity: caster.entity,
+                        skill_id: crate::domain::zone::skill::SkillId(1016),
+                        target: Some(target.entity),
+                    },
+                )]))
+                .unwrap();
+            assert!(start.dispositions.is_empty(), "{:?}", start.dispositions);
+            let mut replay = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+            let mut offered = false;
+            for _ in 0..100 {
+                let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+                assert_eq!(tick, replay.run_tick(replay.draft(Vec::new())).unwrap());
+                if tick.events.iter().any(|e| {
+                    matches!(
+                        e,
+                        ZoneEvent::ResurrectOffer {
+                            state: crate::domain::zone::ResurrectOfferState::Offered,
+                            ..
+                        }
+                    )
+                }) {
+                    offered = true;
+                    break;
+                }
+            }
+            assert!(offered);
+            let offer = zone
+                .sidecar(target.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .resurrect_offer
+                .clone()
+                .unwrap();
+            if response == 3 {
+                // Exactly the deadline: acceptance is refused and expiry emits once.
+                while zone.next_tick < offer.expires_at {
+                    zone.run_tick(zone.draft(Vec::new())).unwrap();
+                }
+            }
+            let command = if response == 2 {
+                ZoneCommand::Respawn {
+                    entity: target.entity,
+                }
+            } else {
+                ZoneCommand::AcceptResurrect {
+                    entity: target.entity,
+                    offer_id: offer.id,
+                    accept: response != 0,
+                }
+            };
+            let tick = zone
+                .run_tick(zone.draft(vec![ZoneInput::session(
+                    target.entity,
+                    SessionGeneration(1),
+                    2,
+                    command,
+                )]))
+                .unwrap();
+            assert_eq!(tick.dispositions.is_empty(), response != 3);
+            assert!(zone
+                .sidecar(target.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .resurrect_offer
+                .is_none());
+            if response == 1 || response == 2 {
+                let c = zone.entities[&target.entity].combat.as_ref().unwrap();
+                assert_eq!(c.incarnation, target.incarnation + 1);
+                assert!(c.hp > 0);
+                assert_eq!(c.protected_until.is_some(), response == 2);
+                assert!(tick.outputs[&target.entity].iter().any(|o| matches!(o, ObserverOutput::Event(ZoneEvent::VitalsChanged { entity, incarnation, baseline: Some(at), .. }) if *entity == target.entity && *incarnation == c.incarnation && *at == tick.tick)));
+                assert!(zone
+                    .sidecar(target.entity)
+                    .unwrap()
+                    .player
+                    .as_ref()
+                    .unwrap()
+                    .last_death
+                    .is_none());
+            } else {
+                assert!(zone.entities[&target.entity].targeting.dead);
+            }
+            assert!(ZoneState::from_snapshot(zone.snapshot()).is_ok());
+        }
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // One replayable live lifecycle, including real reuse waits.
+    fn gameplay_recording_exercises_offers_auto_cp_pk_and_npc_xp() {
+        use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+        use crate::infrastructure::eventlog::Recording;
+        fn record(
+            zone: &mut ZoneState,
+            rec: &mut Recording,
+            commands: Vec<ZoneCommand>,
+        ) -> AppliedTick {
+            let inputs = commands
+                .into_iter()
+                .map(|command| {
+                    ZoneInput::session(
+                        command.entity().unwrap(),
+                        SessionGeneration(1),
+                        u32::try_from(zone.next_tick.0).unwrap(),
+                        command,
+                    )
+                })
+                .collect();
+            let applied = zone.run_tick(zone.draft(inputs)).unwrap();
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+            rec.records
+                .push(AppliedTickRecord::from_applied(ZoneId(1), &applied));
+            rec.watermark.last_tick = Some(applied.tick);
+            rec.watermark.records = u64::try_from(rec.records.len()).unwrap();
+            applied
+        }
+        let (mut zone, caster, target) = resurrection_fixture();
+        let c = zone
+            .entities
+            .get_mut(&caster.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut c.role
+        else {
+            panic!("player")
+        };
+        p.class_state
+            .merge_learned_skills([crate::domain::subclass::LearnedSkill {
+                key: "l2.skill.1177".into(),
+                level: 5,
+            }]);
+        zone.sync_passives_v5(caster.entity).unwrap();
+        zone.rebuild_v5(caster.entity).unwrap();
+        set_resources(&mut zone, target, 0, 5);
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        // The initial corpse is an admitted snapshot; every later mutation is recorded input.
+        let snapshot = zone.snapshot();
+        for e in &snapshot.entities {
+            if let Some(CombatState {
+                role:
+                    CombatRole::Player {
+                        progression: Some(p),
+                        ..
+                    },
+                ..
+            }) = &e.combat
+            {
+                assert!(p.class_state.cp <= p.max_cp, "cp {} max {}", p.class_state.cp, p.max_cp);
+                p.class_state
+                    .validate_for_phase3(
+                        zone.classes.as_ref().unwrap(),
+                        &p.identity,
+                        crate::domain::CharacterId::from_uuid(e.id.as_uuid()),
+                    )
+                    .unwrap();
+            }
+        }
+        zone = ZoneState::from_snapshot(snapshot.clone()).unwrap();
+        let mut rec = Recording {
+            watermark: Watermark {
+                zone: snapshot.seed.zone,
+                epoch: snapshot.seed.epoch,
+                last_tick: None,
+                records: 0,
+                reason: WatermarkReason::Capture,
+            },
+            snapshot,
+            records: Vec::new(),
+        };
+        for accept in [false, true] {
+            while zone
+                .sidecar(caster.entity)
+                .unwrap()
+                .reuse
+                .values()
+                .any(|at| *at > zone.next_tick)
+            {
+                record(&mut zone, &mut rec, vec![]);
+            }
+            record(
+                &mut zone,
+                &mut rec,
+                vec![ZoneCommand::CastSkill {
+                    entity: caster.entity,
+                    skill_id: crate::domain::zone::skill::SkillId(1016),
+                    target: Some(target.entity),
+                }],
+            );
+            for _ in 0..100 {
+                if zone
+                    .sidecar(target.entity)
+                    .unwrap()
+                    .player
+                    .as_ref()
+                    .unwrap()
+                    .resurrect_offer
+                    .is_some()
+                {
+                    break;
+                }
+                record(&mut zone, &mut rec, vec![]);
+            }
+            let offer_id = zone
+                .sidecar(target.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .resurrect_offer
+                .as_ref()
+                .unwrap()
+                .id;
+            record(
+                &mut zone,
+                &mut rec,
+                vec![ZoneCommand::AcceptResurrect {
+                    entity: target.entity,
+                    offer_id,
+                    accept,
+                }],
+            );
+        }
+        record(
+            &mut zone,
+            &mut rec,
+            vec![
+                ZoneCommand::SetTarget {
+                    entity: caster.entity,
+                    target: Some(target.entity),
+                },
+                ZoneCommand::Attack {
+                    entity: caster.entity,
+                },
+            ],
+        );
+        let mut cp_hit = false;
+        for _ in 0..120 {
+            let tick = record(&mut zone, &mut rec, vec![]);
+            cp_hit |= tick.events.iter().any(|e| matches!(e, ZoneEvent::AttackResult { phase3: Some(p), .. } if p.cp_absorbed > 0));
+        }
+        assert!(cp_hit);
+        for _ in 0..15 {
+            if zone.entities[&target.entity].targeting.dead {
+                break;
+            }
+            record(
+                &mut zone,
+                &mut rec,
+                vec![ZoneCommand::CastSkill {
+                    entity: caster.entity,
+                    skill_id: crate::domain::zone::skill::SkillId(1177),
+                    target: Some(target.entity),
+                }],
+            );
+            for _ in 0..60 {
+                record(&mut zone, &mut rec, vec![]);
+            }
+        }
+        assert!(zone.entities[&target.entity].targeting.dead);
+        assert_eq!(
+            zone.sidecar(caster.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .pvp
+                .pk_count,
+            1
+        );
+        record(
+            &mut zone,
+            &mut rec,
+            vec![ZoneCommand::Respawn {
+                entity: target.entity,
+            }],
+        );
+        let npc = zone
+            .entities
+            .values()
+            .find(|e| e.kind == EntityKind::Npc)
+            .unwrap()
+            .id;
+        record(
+            &mut zone,
+            &mut rec,
+            vec![ZoneCommand::CastSkill {
+                entity: caster.entity,
+                skill_id: crate::domain::zone::skill::SkillId(1177),
+                target: Some(npc),
+            }],
+        );
+        for _ in 0..100 {
+            if zone.entities[&npc].targeting.dead {
+                break;
+            }
+            record(&mut zone, &mut rec, vec![]);
+        }
+        assert!(zone.entities[&npc].targeting.dead);
+        let mut cold = ZoneState::from_snapshot(rec.snapshot.clone()).unwrap();
+        for expected in &rec.records {
+            let actual = cold
+                .run_tick(AppliedTickDraft {
+                    epoch: expected.epoch,
+                    tick: expected.tick,
+                    commands: expected.commands.clone(),
+                })
+                .unwrap();
+            assert_eq!(&AppliedTickRecord::from_applied(ZoneId(1), &actual), expected);
+        }
+        if let Some(path) = std::env::var_os("NIGHTFALL_V5_GAMEPLAY_OUT") {
+            rec.write(std::path::Path::new(&path)).unwrap();
         }
     }
 
@@ -1390,7 +2177,7 @@ mod tests {
         )));
     }
     #[test]
-    fn cold_cast_cannot_bypass_the_live_hostile_player_policy_fence() {
+    fn cold_hostile_player_cast_is_accepted_by_completed_runtime_policy() {
         let (mut zone, source, target, npc) = fixture();
         start_cast(&mut zone, source, npc);
         let mut snapshot = zone.snapshot();
@@ -1408,7 +2195,7 @@ mod tests {
         };
         cast.target = Some(target);
         cast.targets = vec![target];
-        assert!(ZoneState::from_snapshot(snapshot).is_err());
+        assert!(ZoneState::from_snapshot(snapshot).is_ok());
     }
     #[test]
     fn zero_damage_gets_attacked_hate_and_the_source_zero_aggro_fallback() {

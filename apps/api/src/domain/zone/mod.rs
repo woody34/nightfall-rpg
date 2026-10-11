@@ -73,10 +73,11 @@ pub use combat_math::{
     npc_respawn_tick, physical_damage, spawn_protection_ticks, town_respawn_vitals, AttackTiming,
 };
 pub use command::{
-    AppliedCommand, AppliedTick, AppliedTickDraft, AttackOutcome, CommandSource, DeathFact,
-    Disposition, ObserverOutput, Ordinal, OwnerPhase3View, ProgressionDelta, RejectReason,
-    SessionGeneration, SkillOutcome, SkillResolutionKind, SkillTargetResult, ZoneCommand,
-    ZoneEvent, ZoneInput,
+    AppliedCommand, AppliedTick, AppliedTickDraft, AttackOutcome, AttackResultPhase3,
+    AttackStartedPhase3, CombatViewPhase3, CommandSource, DeathFact, Disposition, ObserverOutput,
+    Ordinal, OwnerPhase3View, ProgressionDelta, RejectReason, ResurrectOfferState,
+    SessionGeneration, SkillOutcome, SkillResolutionKind, SkillTargetResult, TargetChangedPhase3,
+    ZoneCommand, ZoneEvent, ZoneInput,
 };
 pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
 pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
@@ -116,7 +117,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 47] = [
+    const SOURCES: [(&str, &str); 49] = [
         ("mod.rs", include_str!("mod.rs")),
         ("effects.rs", include_str!("effects.rs")),
         ("effective_stats.rs", include_str!("effective_stats.rs")),
@@ -135,6 +136,8 @@ mod tests {
         ("state_runtime_learn.rs", include_str!("state_runtime_learn.rs")),
         ("state_death.rs", include_str!("state_death.rs")),
         ("state_runtime_life.rs", include_str!("state_runtime_life.rs")),
+        ("state_runtime_observe.rs", include_str!("state_runtime_observe.rs")),
+        ("state_runtime_auto.rs", include_str!("state_runtime_auto.rs")),
         ("state_runtime_damage.rs", include_str!("state_runtime_damage.rs")),
         ("state_damage.rs", include_str!("state_damage.rs")),
         ("phase2.rs", include_str!("phase2.rs")),

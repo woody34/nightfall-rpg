@@ -13,6 +13,8 @@
     clippy::arithmetic_side_effects
 )]
 
+#[path = "support/live_effect_fixture.rs"]
+mod live_effect_fixture;
 #[path = "support/live_tick_budget.rs"]
 mod live_tick_budget;
 #[path = "support/snapshot_capacity.rs"]

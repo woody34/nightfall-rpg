@@ -78,6 +78,7 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
     batch.events.clear();
     for outcome in [AttackOutcome::Miss, AttackOutcome::Hit, AttackOutcome::Crit] {
         batch.events.push(ZoneEvent::AttackResult {
+            phase3: None,
             attacker: player,
             target: npc,
             tick: Tick(1),
@@ -126,6 +127,7 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
             class: None,
         },
         ZoneEvent::TargetChanged {
+            phase3: None,
             entity: player,
             tick: Tick(1),
             target: Some(npc),

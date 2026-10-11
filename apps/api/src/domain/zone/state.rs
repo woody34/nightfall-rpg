@@ -1245,6 +1245,7 @@ impl ZoneState {
         }
         if e.targeting.target.is_some() {
             events.push(ZoneEvent::TargetChanged {
+                phase3: None,
                 tick,
                 entity,
                 target: e.targeting.target,
@@ -1314,9 +1315,16 @@ impl ZoneState {
             if !self.aoi.in_aoi(actor.pos).any(|visible| visible == id) {
                 return Err(RejectReason::TargetNotInAoi);
             }
-            if selected.kind == EntityKind::Player
-                || selected.targeting.dead
-                || !selected.targeting.attackable
+            let v5_player = self
+                .phase3
+                .as_ref()
+                .is_some_and(|p| p.canonical.rules.runtime_revision() >= 2)
+                && selected.kind == EntityKind::Player
+                && selected.combat.is_some();
+            if !v5_player
+                && (selected.kind == EntityKind::Player
+                    || selected.targeting.dead
+                    || !selected.targeting.attackable)
             {
                 return Err(RejectReason::NonAttackableTarget);
             }
@@ -1333,6 +1341,7 @@ impl ZoneState {
             .ok_or(RejectReason::UnknownEntity)?;
         actor.targeting.target = target;
         events.push(ZoneEvent::TargetChanged {
+            phase3: None,
             tick,
             entity,
             target,
@@ -1516,6 +1525,8 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         | ZoneEvent::SkillCastStarted { .. }
         | ZoneEvent::SkillCastResult { .. }
         | ZoneEvent::SkillCastCancelled { .. }
+        | ZoneEvent::PvpStateChanged { .. }
+        | ZoneEvent::ResurrectOffer { .. }
         | ZoneEvent::SkillStateSync { .. }
         | ZoneEvent::SkillLearned { .. }
         | ZoneEvent::SpGained { .. }
@@ -1600,6 +1611,8 @@ impl<'a> CellFacts<'a> {
                 | ZoneEvent::SkillCastStarted { .. }
                 | ZoneEvent::SkillCastResult { .. }
                 | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::PvpStateChanged { .. }
+                | ZoneEvent::ResurrectOffer { .. }
                 | ZoneEvent::SkillStateSync { .. }
                 | ZoneEvent::SkillLearned { .. }
                 | ZoneEvent::SpGained { .. }

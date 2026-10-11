@@ -566,6 +566,7 @@ impl ZoneState {
         };
         if e.targeting.target.take().is_some() {
             events.push(ZoneEvent::TargetChanged {
+                phase3: None,
                 tick,
                 entity: npc,
                 target: None,

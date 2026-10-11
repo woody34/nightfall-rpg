@@ -114,6 +114,10 @@ impl ZoneState {
         ) {
             return;
         }
+        let phase3 = self
+            .phase3
+            .as_ref()
+            .is_some_and(|p| p.canonical.rules.runtime_revision() >= 2);
         let Some(registry) = self.classes.as_deref() else {
             return;
         };
@@ -133,14 +137,45 @@ impl ZoneState {
         };
         // The entire ledger was validated at admission/restore and every mutation preserves
         // it. Validation here fails closed by retaining an unchanged ledger.
-        let Ok(adjustment) = p.class_state.reconcile_tokens(
-            registry,
-            &p.identity,
-            CharacterId::from_uuid(entity.as_uuid()),
-            combat.sheet.level(),
-            crossing_from,
-        ) else {
-            return;
+        let adjustment = if phase3 {
+            if p.class_state
+                .validate_for_phase3(
+                    registry,
+                    &p.identity,
+                    CharacterId::from_uuid(entity.as_uuid()),
+                )
+                .is_err()
+            {
+                return;
+            }
+            // Token supply depends on lineage/history and level, not paid skill ranks.
+            // Reuse the frozen token policy on its own ledger, copying only its outputs.
+            let mut tokens = p.class_state.clone();
+            tokens.learned_skills.clear();
+            let Ok(adjustment) = tokens.reconcile_tokens(
+                registry,
+                &p.identity,
+                CharacterId::from_uuid(entity.as_uuid()),
+                combat.sheet.level(),
+                crossing_from,
+            ) else {
+                return;
+            };
+            p.class_state.token_tier_1_count = tokens.token_tier_1_count;
+            p.class_state.token_tier_2_count = tokens.token_tier_2_count;
+            p.class_state.milestone_claimed_mask = tokens.milestone_claimed_mask;
+            adjustment
+        } else {
+            let Ok(adjustment) = p.class_state.reconcile_tokens(
+                registry,
+                &p.identity,
+                CharacterId::from_uuid(entity.as_uuid()),
+                combat.sheet.level(),
+                crossing_from,
+            ) else {
+                return;
+            };
+            adjustment
         };
         if adjustment.claimed_mask != 0 {
             events.push(ZoneEvent::TokensReconciled {

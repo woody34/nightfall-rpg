@@ -33,16 +33,9 @@ pub(super) fn run() -> bool {
     let original_skills = base.skills().skills().len();
     let shipped_rule_bytes = serde_json::to_vec(&base).unwrap().len();
     let mut skills = base.skills().skills().clone();
-    let template = skills
-        .values()
-        .find(|s| {
-            s.runtime_status == nightfall_api::domain::class::RuntimeSkillStatus::Executable
-                && s.effects.len() == 1
-                && s.effects[0].name == "TickHp"
-                && s.abnormal.is_some()
-        })
-        .unwrap()
-        .clone();
+    // A pure periodic source avoids changing physical movement inputs when duplicating
+    // the source-valid canonical fixture; the full decoder can therefore cold-restore it.
+    let template = skills[&SkillId(1095)].clone();
     for index in 0..44_u32 {
         let mut skill = template.clone();
         skill.id = SkillId(1_000_000 + index);
@@ -241,8 +234,10 @@ pub(super) fn run() -> bool {
             println!("binary_decoded_bytes={decoded} decoded_limit={} binary_encoded_bytes={} encoded_limit={}", 32*1024*1024, encoded.len(), 1024*1024-1024);
             let restored = decode_snapshot(&encoded).unwrap();
             assert_eq!(serde_json::to_vec(&restored).unwrap(), json);
+            let mut cold = ZoneState::from_snapshot(restored).unwrap();
+            cold.run_tick(cold.draft(Vec::new())).unwrap();
             println!(
-                "codec_capacity=PASS canonical_roundtrip=PASS live_gameplay_gate=NOT_MEASURED"
+                "codec_capacity=PASS canonical_roundtrip=PASS cold_restore_and_tick=PASS shipped_full_pool_admission=NOT_CLAIMED"
             );
             true
         },
