@@ -137,6 +137,7 @@ impl ZoneState {
         })
     }
 
+    #[allow(clippy::too_many_lines)] // One atomic offer transaction, including replay evidence.
     pub(super) fn accept_resurrect_v5(
         &mut self,
         tick: Tick,
@@ -148,6 +149,10 @@ impl ZoneState {
             prepare_accept_resurrect, AcceptContext, DeathError,
         };
         let mut candidate = self.clone();
+        let vitals_before = candidate
+            .evidence
+            .as_ref()
+            .map(|_| candidate.entities.get(&entity).cloned());
         let binding = candidate
             .binding(entity)
             .ok_or(RejectReason::UnknownEntity)?;
@@ -258,6 +263,8 @@ impl ZoneState {
                 "offer": mutation.offer, "accepted": accept, "xp_before": xp,
                 "xp_after": mutation.xp_after, "expected_xp_refund": mutation.xp_restored,
                 "incarnation_after": mutation.incarnation,
+                "vitals_before": vitals_before.flatten(),
+                "vitals_after": candidate.entities.get(&entity),
                 "after": candidate.sidecar(entity).map_err(|_| RejectReason::InvalidLoad)?.player
             }));
         }
@@ -459,6 +466,11 @@ impl ZoneState {
                         CombatRole::Npc { .. } => None,
                     })
                     .ok_or_else(missing)?;
+                let karma_before = self
+                    .sidecar(source.entity)?
+                    .player
+                    .as_ref()
+                    .map(|p| p.pvp.karma);
                 if let Some(player) = self.sidecar_mut(source.entity)?.player.as_mut() {
                     if let Some(victim) = victim_pvp {
                         player.pvp.apply_player_kill(victim);
@@ -472,6 +484,13 @@ impl ZoneState {
                             )
                             .map_err(invariant)?;
                     }
+                }
+                if victim_pvp.is_none() && self.evidence.is_some() {
+                    self.evidence_fact("karma_decay", source.entity, serde_json::json!({
+                        "target": target, "xp_before": xp_before, "xp_after": xp_after,
+                        "pre_award_level": level_before, "karma_before": karma_before,
+                        "karma_after": self.sidecar(source.entity)?.player.as_ref().map(|p| p.pvp.karma)
+                    }));
                 }
             }
         }

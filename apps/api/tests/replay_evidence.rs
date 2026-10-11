@@ -83,3 +83,47 @@ fn evidence_honors_the_existing_recording_input_budget() -> anyhow::Result<()> {
     assert!(!out.exists());
     Ok(())
 }
+
+#[test]
+fn resurrection_evidence_contains_actual_corpse_and_revived_resources() -> anyhow::Result<()> {
+    let work = Workspace::new()?;
+    let input =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/sessions/phase3-gameplay-v5.nfr");
+    let out = work.0.join("revival.jsonl");
+    let result = export(&input, &out)?;
+    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+    let mut accepted = false;
+    for line in std::fs::read_to_string(out)?.lines() {
+        let row: serde_json::Value = serde_json::from_str(line)?;
+        if row.get("kind").and_then(serde_json::Value::as_str) != Some("resurrection_refund") {
+            continue;
+        }
+        let data = row.get("data").context("refund data")?;
+        let before = data.get("vitals_before").context("corpse inputs")?;
+        let after = data.get("vitals_after").context("revived outputs")?;
+        assert_eq!(before.get("id"), row.get("entity"));
+        assert_eq!(after.get("id"), row.get("entity"));
+        assert_eq!(before.pointer("/combat/mp"), after.pointer("/combat/mp"));
+        assert_eq!(
+            before.pointer("/combat/role/progression/class_state/cp"),
+            after.pointer("/combat/role/progression/class_state/cp")
+        );
+        if data.get("accepted").and_then(serde_json::Value::as_bool) == Some(true) {
+            // Pinned L2Character.java:2098-2124; character.properties:40-42.
+            // Replay must expose the actual non-vector maxima, not a fixture expectation.
+            let max_hp = after
+                .pointer("/combat/sheet/max_hp")
+                .and_then(serde_json::Value::as_u64)
+                .context("max HP")?;
+            let hp = after
+                .pointer("/combat/hp")
+                .and_then(serde_json::Value::as_u64)
+                .context("HP")?;
+            assert_eq!(hp, max_hp.saturating_mul(65) / 100);
+            assert_eq!(before.get("pos"), after.get("pos"));
+            accepted = true;
+        }
+    }
+    assert!(accepted);
+    Ok(())
+}
