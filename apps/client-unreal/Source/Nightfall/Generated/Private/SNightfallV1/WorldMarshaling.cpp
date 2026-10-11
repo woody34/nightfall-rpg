@@ -288,7 +288,7 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1Ack* in, ::nightfall::v1::Ack* out)
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::IntentRejected* in, FGrpcNightfallV1IntentRejected* out)
 {
     out->Seq=in->seq();
-    out->Reason=StaticCast<EGrpcNightfallV1RejectReason>(in->reason());
+    out->Reason=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: case 14: case 15: case 16: case 17: case 18: case 19: case 20: case 21: case 22: case 23: case 24: return StaticCast<EGrpcNightfallV1RejectReason>(value); default: return EGrpcNightfallV1RejectReason::REJECT_REASON_UNSPECIFIED; } }(static_cast<int>(in->reason()));
     out->Detail=StringCast<TCHAR>((const UTF8CHAR*)(in->detail().c_str())).Get();
 }
 
@@ -595,7 +595,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntitySpawn* in, FGrpcNightfallV1E
     out->HasPosition = in->has_position();
     out->Position = {};
     if (out->HasPosition) GRPC_TO_TURBOLINK(&(in->position()), &(out->Position));
-    out->Kind=StaticCast<EGrpcNightfallV1EntityKind>(in->kind());
+    out->Kind=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1EntityKind>(value); default: return EGrpcNightfallV1EntityKind::ENTITY_KIND_UNSPECIFIED; } }(static_cast<int>(in->kind()));
     out->SessionGeneration=in->session_generation();
     out->Combatant=in->combatant();
     out->TemplateId=StringCast<TCHAR>((const UTF8CHAR*)(in->template_id().c_str())).Get();
@@ -610,9 +610,9 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntitySpawn* in, FGrpcNightfallV1E
         GRPC_TO_TURBOLINK(&(in->pending_swing()), &field);
         out->PendingSwing = MakeShareable(new FGrpcNightfallV1AttackStarted(field));
     }
-    out->Race=StaticCast<EGrpcNightfallV1Race>(in->race());
+    out->Race=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: return StaticCast<EGrpcNightfallV1Race>(value); default: return EGrpcNightfallV1Race::RACE_UNSPECIFIED; } }(static_cast<int>(in->race()));
     out->ClassId=in->class_id();
-    out->Sex=StaticCast<EGrpcNightfallV1Sex>(in->sex());
+    out->Sex=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1Sex>(value); default: return EGrpcNightfallV1Sex::SEX_UNSPECIFIED; } }(static_cast<int>(in->sex()));
     out->HairStyle=in->hair_style();
     out->HairColor=in->hair_color();
     out->Face=in->face();
@@ -711,7 +711,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackResult* in, FGrpcNightfallV1
     out->Attacker=StringCast<TCHAR>((const UTF8CHAR*)(in->attacker().c_str())).Get();
     out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
     out->Tick=in->tick();
-    out->Outcome=StaticCast<EGrpcNightfallV1AttackOutcome>(in->outcome());
+    out->Outcome=[](int value) { switch (value) { case 0: case 1: case 2: case 3: return StaticCast<EGrpcNightfallV1AttackOutcome>(value); default: return EGrpcNightfallV1AttackOutcome::ATTACK_OUTCOME_UNSPECIFIED; } }(static_cast<int>(in->outcome()));
     out->Damage=in->damage();
     out->TargetHpAfter=in->target_hp_after();
     out->TargetIncarnation=in->target_incarnation();
@@ -787,7 +787,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::AttackCancelled* in, FGrpcNightfal
     out->Attacker=StringCast<TCHAR>((const UTF8CHAR*)(in->attacker().c_str())).Get();
     out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
     out->Tick=in->tick();
-    out->Reason=StaticCast<EGrpcNightfallV1SwingCancelReason>(in->reason());
+    out->Reason=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: return StaticCast<EGrpcNightfallV1SwingCancelReason>(value); default: return EGrpcNightfallV1SwingCancelReason::SWING_CANCEL_REASON_UNSPECIFIED; } }(static_cast<int>(in->reason()));
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1AttackCancelled* in, ::nightfall::v1::AttackCancelled* out)
@@ -1051,12 +1051,12 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillTargetResult* in, FGrpcNightf
     out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
     out->TargetIncarnation=in->target_incarnation();
     out->Tick=in->tick();
-    out->ResolutionKind=StaticCast<EGrpcNightfallV1SkillResolutionKind>(in->resolution_kind());
+    out->ResolutionKind=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: return StaticCast<EGrpcNightfallV1SkillResolutionKind>(value); default: return EGrpcNightfallV1SkillResolutionKind::SKILL_RESOLUTION_KIND_UNSPECIFIED; } }(static_cast<int>(in->resolution_kind()));
     out->Rolled=in->rolled();
     out->CpAbsorbed=in->cp_absorbed();
     out->HpRemoved=in->hp_removed();
     out->Heal=in->heal();
-    out->Outcome=StaticCast<EGrpcNightfallV1SkillOutcome>(in->outcome());
+    out->Outcome=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: return StaticCast<EGrpcNightfallV1SkillOutcome>(value); default: return EGrpcNightfallV1SkillOutcome::SKILL_OUTCOME_UNSPECIFIED; } }(static_cast<int>(in->outcome()));
     out->TargetHpAfter=in->target_hp_after();
     out->AppliedEffectIds.Empty();
     for (int i=0; i<in->applied_effect_ids_size(); ++i) {
@@ -1124,7 +1124,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCastCancelled* in, FGrpcNight
 {
     out->Caster=StringCast<TCHAR>((const UTF8CHAR*)(in->caster().c_str())).Get();
     out->CastId=in->cast_id();
-    out->Reason=StaticCast<EGrpcNightfallV1CastCancelReason>(in->reason());
+    out->Reason=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: return StaticCast<EGrpcNightfallV1CastCancelReason>(value); default: return EGrpcNightfallV1CastCancelReason::CAST_CANCEL_REASON_UNSPECIFIED; } }(static_cast<int>(in->reason()));
     out->Tick=in->tick();
     out->CasterIncarnation=in->caster_incarnation();
 }
@@ -1157,7 +1157,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EffectApplied* in, FGrpcNightfallV
     out->EffectId=in->effect_id();
     out->SkillId=in->skill_id();
     out->SkillLevel=in->skill_level();
-    out->Pool=StaticCast<EGrpcNightfallV1EffectPool>(in->pool());
+    out->Pool=[](int value) { switch (value) { case 0: case 1: case 2: case 3: return StaticCast<EGrpcNightfallV1EffectPool>(value); default: return EGrpcNightfallV1EffectPool::EFFECT_POOL_UNSPECIFIED; } }(static_cast<int>(in->pool()));
     out->Tick=in->tick();
     out->EndTick=in->end_tick();
     out->AbnormalType=StringCast<TCHAR>((const UTF8CHAR*)(in->abnormal_type().c_str())).Get();
@@ -1203,7 +1203,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EffectRemoved* in, FGrpcNightfallV
     out->Target=StringCast<TCHAR>((const UTF8CHAR*)(in->target().c_str())).Get();
     out->TargetIncarnation=in->target_incarnation();
     out->EffectId=in->effect_id();
-    out->Reason=StaticCast<EGrpcNightfallV1EffectRemoveReason>(in->reason());
+    out->Reason=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: return StaticCast<EGrpcNightfallV1EffectRemoveReason>(value); default: return EGrpcNightfallV1EffectRemoveReason::EFFECT_REMOVE_REASON_UNSPECIFIED; } }(static_cast<int>(in->reason()));
     out->Tick=in->tick();
 }
 
@@ -1304,7 +1304,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ResurrectOffer* in, FGrpcNightfall
     out->RestorePercentQ=in->restore_percent_q();
     out->RecoverableXp=in->recoverable_xp();
     out->ExpiryTick=in->expiry_tick();
-    out->State=StaticCast<EGrpcNightfallV1ResurrectOfferState>(in->state());
+    out->State=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: return StaticCast<EGrpcNightfallV1ResurrectOfferState>(value); default: return EGrpcNightfallV1ResurrectOfferState::RESURRECT_OFFER_STATE_UNSPECIFIED; } }(static_cast<int>(in->state()));
     out->Tick=in->tick();
 }
 

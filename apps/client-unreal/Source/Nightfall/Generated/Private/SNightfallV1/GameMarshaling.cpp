@@ -63,14 +63,14 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::CreateCharacterRequest* in, FGrpcN
     out->IdempotencyKey=StringCast<TCHAR>((const UTF8CHAR*)(in->idempotency_key().c_str())).Get();
     out->AccountId=StringCast<TCHAR>((const UTF8CHAR*)(in->account_id().c_str())).Get();
     out->Name=StringCast<TCHAR>((const UTF8CHAR*)(in->name().c_str())).Get();
-    out->Race=StaticCast<EGrpcNightfallV1Race>(in->race());
+    out->Race=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: return StaticCast<EGrpcNightfallV1Race>(value); default: return EGrpcNightfallV1Race::RACE_UNSPECIFIED; } }(static_cast<int>(in->race()));
     out->_base_class_id._base_class_idCase = EGrpcNightfallV1CreateCharacterRequest_base_class_id::NotSet;
     if (in->has_base_class_id())
     {
         out->_base_class_id.BaseClassId=in->base_class_id();
         out->_base_class_id._base_class_idCase = EGrpcNightfallV1CreateCharacterRequest_base_class_id::BaseClassId;
     }
-    out->Sex=StaticCast<EGrpcNightfallV1Sex>(in->sex());
+    out->Sex=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1Sex>(value); default: return EGrpcNightfallV1Sex::SEX_UNSPECIFIED; } }(static_cast<int>(in->sex()));
     out->HairStyle=in->hair_style();
     out->HairColor=in->hair_color();
     out->Face=in->face();
@@ -118,7 +118,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::Character* in, FGrpcNightfallV1Cha
 {
     out->Id=StringCast<TCHAR>((const UTF8CHAR*)(in->id().c_str())).Get();
     out->Name=StringCast<TCHAR>((const UTF8CHAR*)(in->name().c_str())).Get();
-    out->Race=StaticCast<EGrpcNightfallV1Race>(in->race());
+    out->Race=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: return StaticCast<EGrpcNightfallV1Race>(value); default: return EGrpcNightfallV1Race::RACE_UNSPECIFIED; } }(static_cast<int>(in->race()));
     out->Level=in->level();
     out->HasStats = in->has_stats();
     out->Stats = {};
@@ -137,7 +137,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::Character* in, FGrpcNightfallV1Cha
         GRPC_TO_TURBOLINK(&(in->classes(i)), &field);
         out->Classes.Add(MakeShareable(new FGrpcNightfallV1ClassProgress(field)));
     }
-    out->Sex=StaticCast<EGrpcNightfallV1Sex>(in->sex());
+    out->Sex=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1Sex>(value); default: return EGrpcNightfallV1Sex::SEX_UNSPECIFIED; } }(static_cast<int>(in->sex()));
     out->HairStyle=in->hair_style();
     out->HairColor=in->hair_color();
     out->Face=in->face();
@@ -266,11 +266,11 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ClassInfo* in, FGrpcNightfallV1Cla
     out->ClassId=in->class_id();
     out->Key=StringCast<TCHAR>((const UTF8CHAR*)(in->key().c_str())).Get();
     out->DisplayName=StringCast<TCHAR>((const UTF8CHAR*)(in->display_name().c_str())).Get();
-    out->Race=StaticCast<EGrpcNightfallV1Race>(in->race());
+    out->Race=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: return StaticCast<EGrpcNightfallV1Race>(value); default: return EGrpcNightfallV1Race::RACE_UNSPECIFIED; } }(static_cast<int>(in->race()));
     out->Tier=in->tier();
     out->ParentClassId=in->parent_class_id();
     out->MinLevel=in->min_level();
-    out->Archetype=StaticCast<EGrpcNightfallV1Archetype>(in->archetype());
+    out->Archetype=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1Archetype>(value); default: return EGrpcNightfallV1Archetype::ARCHETYPE_UNSPECIFIED; } }(static_cast<int>(in->archetype()));
     out->HasBaseStats = in->has_base_stats();
     out->BaseStats = {};
     if (out->HasBaseStats) GRPC_TO_TURBOLINK(&(in->base_stats()), &(out->BaseStats));
@@ -339,7 +339,7 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1PassiveInfo* in, ::nightfall::v1::P
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::RaceInfo* in, FGrpcNightfallV1RaceInfo* out)
 {
-    out->Race=StaticCast<EGrpcNightfallV1Race>(in->race());
+    out->Race=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: return StaticCast<EGrpcNightfallV1Race>(value); default: return EGrpcNightfallV1Race::RACE_UNSPECIFIED; } }(static_cast<int>(in->race()));
     out->DisplayName=StringCast<TCHAR>((const UTF8CHAR*)(in->display_name().c_str())).Get();
     out->MysticPath=in->mystic_path();
     out->WalkSpeed=in->walk_speed();
@@ -681,7 +681,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::SkillCatalogEntry* in, FGrpcNightf
     for (int i=0; i<in->hit_time_ms_size(); ++i) {
         out->HitTimeMs.Add(in->hit_time_ms(i));
     }
-    out->OperateType=StaticCast<EGrpcNightfallV1SkillOperateType>(in->operate_type());
+    out->OperateType=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: return StaticCast<EGrpcNightfallV1SkillOperateType>(value); default: return EGrpcNightfallV1SkillOperateType::SKILL_OPERATE_TYPE_UNSPECIFIED; } }(static_cast<int>(in->operate_type()));
     out->TargetType.Empty();
     for (int i=0; i<in->target_type_size(); ++i) {
         out->TargetType.Add(StringCast<TCHAR>((const UTF8CHAR*)(in->target_type(i).c_str())).Get());

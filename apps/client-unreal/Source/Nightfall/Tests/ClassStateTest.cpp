@@ -76,7 +76,7 @@ bool FCreationPresenceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("reuse with absent value clears optional presence"), RoundTrip._base_class_id._base_class_idCase, EGrpcNightfallV1CreateCharacterRequest_base_class_id::NotSet);
 	const uint8 UnknownSex[] = { 0x30, 9 };
 	NightfallWire::DecodeCreateCharacterRequest(UnknownSex, UE_ARRAY_COUNT(UnknownSex), RoundTrip);
-	TestEqual(TEXT("unknown sex preserved for server validation, never coerced"), static_cast<uint32>(RoundTrip.Sex), 9u);
+	TestEqual(TEXT("generated decoder excludes undeclared sex"), static_cast<uint32>(RoundTrip.Sex), 0u);
 	return true;
 }
 
