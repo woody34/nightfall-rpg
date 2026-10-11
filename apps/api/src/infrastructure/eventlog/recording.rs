@@ -176,17 +176,26 @@ impl Recording {
 
     /// Reads a file.
     pub fn read(path: &Path) -> anyhow::Result<Self> {
+        Self::read_with_bytes(path).map(|(recording, _)| recording)
+    }
+
+    /// Decode and retain the exact bounded input bytes for evidence hashing without a second read.
+    pub fn read_with_bytes(path: &Path) -> anyhow::Result<(Self, Vec<u8>)> {
         let limit =
             std::env::var("NIGHTFALL_RECORDING_MAX_BODY_BYTES").map_or(Ok(MAX_BODY), |value| {
                 value
                     .parse::<usize>()
                     .context("invalid recording body budget")
             })?;
-        Self::read_with_limit(path, limit)
+        Self::read_with_limit_and_bytes(path, limit)
     }
 
     /// Bounds both file input and expansion, retaining opt-in support for large historic epochs.
     pub fn read_with_limit(path: &Path, max_body: usize) -> anyhow::Result<Self> {
+        Self::read_with_limit_and_bytes(path, max_body).map(|(recording, _)| recording)
+    }
+
+    fn read_with_limit_and_bytes(path: &Path, max_body: usize) -> anyhow::Result<(Self, Vec<u8>)> {
         let max_file = compressed_budget(max_body)?
             .checked_add(13)
             .context("recording budget overflow")?;
@@ -194,8 +203,9 @@ impl Recording {
         let mut bytes = Vec::new();
         file.take(u64::try_from(max_file)?)
             .read_to_end(&mut bytes)?;
-        Self::from_bytes_with_limit(&bytes, max_body)
-            .with_context(|| format!("load {}", path.display()))
+        let recording = Self::from_bytes_with_limit(&bytes, max_body)
+            .with_context(|| format!("load {}", path.display()))?;
+        Ok((recording, bytes))
     }
 
     /// The recording as a log, so replay opens it through `open_epoch` like any other source

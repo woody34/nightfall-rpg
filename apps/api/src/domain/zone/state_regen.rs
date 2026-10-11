@@ -53,7 +53,7 @@ fn next_tick(now: Tick, rules: &RegenRules) -> Result<Tick, StatError> {
 }
 
 /// Supported movement postures. Sitting and source zone bonuses are not in Phase 3.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum RegenPosture {
     /// Stationary at phase3 entry.
     Standing,
@@ -62,7 +62,7 @@ pub enum RegenPosture {
 }
 
 /// Immutable profile inputs supplied from validated class/level or NPC templates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[allow(missing_docs)]
 pub struct RegenInputs {
     pub player: bool,
@@ -76,7 +76,7 @@ pub struct RegenInputs {
 }
 
 /// Post-formula Q credit for one pulse. NPCs never receive CP regeneration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[allow(missing_docs)]
 #[allow(clippy::struct_field_names)] // Units must remain explicit at the resource boundary.
 pub struct RegenAmounts {
@@ -139,7 +139,7 @@ pub fn regen_amounts(
 }
 
 /// Whole resource and current effective/recoverable maximum, captured after stat rebuild.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[allow(missing_docs)]
 pub struct RegenResource {
     pub current: u32,
@@ -147,7 +147,7 @@ pub struct RegenResource {
 }
 
 /// Complete immutable pulse result. Installing it and the staged next deadline is atomic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[allow(missing_docs)]
 pub struct RegenRestoration {
     pub hp: u32,

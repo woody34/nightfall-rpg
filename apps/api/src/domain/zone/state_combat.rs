@@ -177,7 +177,13 @@ impl ZoneState {
         gone: EntityId,
         events: &mut Vec<ZoneEvent>,
     ) {
+        let mut removed = Vec::new();
         for (npc, ledger) in &mut self.hate {
+            if self.evidence.is_some() {
+                if let Some(row) = ledger.get(gone) {
+                    removed.push((*npc, row));
+                }
+            }
             if ledger.forget(gone) {
                 events.push(ZoneEvent::HateChanged {
                     tick,
@@ -187,6 +193,9 @@ impl ZoneState {
                     damage: 0,
                 });
             }
+        }
+        for (npc, row) in removed {
+            self.evidence_hate_removal(npc, gone, row, "target_released");
         }
         self.hate.retain(|_, ledger| !ledger.is_empty());
         let holders: Vec<EntityId> = self
@@ -229,9 +238,26 @@ impl ZoneState {
         added: HateEntry,
         events: &mut Vec<ZoneEvent>,
     ) {
+        self.add_hate_for(tick, npc, target, added, "aggro", events);
+    }
+
+    #[allow(clippy::too_many_arguments)] // Evidence reason does not change the ledger operation.
+    pub(super) fn add_hate_for(
+        &mut self,
+        tick: Tick,
+        npc: EntityId,
+        target: EntityId,
+        added: HateEntry,
+        reason: &str,
+        events: &mut Vec<ZoneEvent>,
+    ) {
         let Some(rules) = self.rules.clone() else {
             return;
         };
+        let before = self
+            .evidence
+            .as_ref()
+            .map(|_| self.hate.get(&npc).cloned().unwrap_or_default());
         let row = self.hate.entry(npc).or_default().add(
             rules.constants(),
             target,
@@ -245,6 +271,18 @@ impl ZoneState {
             hate: row.hate,
             damage: row.damage,
         });
+        if let Some(before) = before {
+            self.evidence_fact(
+                "hate_delta",
+                npc,
+                serde_json::json!({
+                    "source": target, "requested": added, "ledger_before": before,
+                    "ledger_after": self.hate.get(&npc),
+                    "reason": reason, "direction": "add",
+                    "amount": row.hate.saturating_sub(before.get(target).map_or(0, |r| r.hate))
+                }),
+            );
+        }
         self.reselect(tick, npc, events);
     }
 
@@ -624,7 +662,8 @@ impl ZoneState {
         // E3.4 hook: corpse deadline and respawn schedule of a spawn-slot NPC (state_ai.rs).
         self.npc_died(tick, victim, events);
         if let Some(ledger) = self.hate.remove(&victim) {
-            for (target, _) in ledger.iter() {
+            for (target, row) in ledger.iter() {
+                self.evidence_hate_removal(victim, target, row, "npc_died");
                 events.push(ZoneEvent::HateChanged {
                     tick,
                     npc: victim,

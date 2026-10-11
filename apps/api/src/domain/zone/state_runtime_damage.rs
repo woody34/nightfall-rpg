@@ -335,6 +335,18 @@ impl ZoneState {
             .checked_mul(ExactRatio::whole(if critical { 2 } else { 1 }))
             .map_err(invariant)?;
         result.rolled = u32::try_from(damage.trunc().map_err(invariant)?).map_err(invariant)?;
+        if self.evidence.is_some() {
+            self.evidence_fact(
+                "damage_formula",
+                caster.entity,
+                serde_json::json!({
+                    "formula": "calcSkillPhysDam", "skill_id": skill.id, "rank": rank,
+                    "target": target, "power": power, "p_atk_q": a.physical.p_atk().raw(),
+                    "p_def_q": b.physical.p_def().raw(), "critical": critical,
+                    "exact_damage": damage, "rolled_damage": result.rolled
+                }),
+            );
+        }
         let damage = self.apply_damage_rolled_v5(
             tick,
             DamageRequest {
@@ -477,6 +489,19 @@ impl ZoneState {
         } else {
             0
         };
+        if self.evidence.is_some() {
+            self.evidence_fact(
+                "damage_formula",
+                caster.entity,
+                serde_json::json!({
+                    "formula": "calcMagicDam", "skill_id": skill.id, "rank": rank,
+                    "target": target, "power": power, "m_atk_q": a.m_atk_q, "m_def_q": b.m_def_q,
+                    "magic_level_difference": difference, "magic_success_rate": rate,
+                    "critical": critical, "resolution": format!("{resolution:?}"),
+                    "spread": spread, "exact_damage": damage, "rolled_damage": rolled
+                }),
+            );
+        }
         // MagicalAttackRange.java:83,89: attack-break precedes vengeance, and both
         // precede recipient status/CP/HP. Whole-zero positive source damage keeps the tail.
         let result = if positive {
@@ -1640,6 +1665,7 @@ mod tests {
                 cause: DamageCause::Direct,
                 rolled_damage: 50,
             };
+            zone.enable_replay_evidence();
             let expected = [(DamageRollSite::DeathPenalty, 100, roll)];
             let outcome = zone
                 .apply_damage_rolled_v5(
@@ -1650,6 +1676,16 @@ mod tests {
                 )
                 .unwrap();
             assert!(outcome.lethal);
+            let evidence = zone.take_replay_evidence();
+            let death = evidence.iter().find(|fact| fact.kind == "death_record");
+            assert_eq!(
+                death.map(|fact| &fact.data["penalty_roll"]),
+                Some(&serde_json::json!(roll))
+            );
+            assert_eq!(
+                death.map(|fact| &fact.data["after"]["death_penalty_level"]),
+                Some(&serde_json::json!(u8::from(roll < 20)))
+            );
             assert_eq!((outcome.hp_removed, outcome.cp_absorbed), (1, 0));
             assert_eq!(trace.len(), 1);
             let c = zone.entities[&target.entity].combat.as_ref().unwrap();
