@@ -2116,9 +2116,16 @@ fn unsupported_v5_intents_are_recorded_without_holding_supported_commands() {
             .count(),
         4
     );
-    assert!(applied.dispositions[..5]
-        .iter()
-        .all(|d| d.reason == RejectReason::NotYetImplemented));
+    for (index, disposition) in applied.dispositions[..5].iter().enumerate() {
+        assert_eq!(
+            disposition.reason,
+            if index == 1 {
+                RejectReason::NotDead
+            } else {
+                RejectReason::NotYetImplemented
+            }
+        );
+    }
     assert_eq!(applied.dispositions[5].reason, RejectReason::StaleSession);
     assert_eq!(applied.dispositions[6].reason, RejectReason::NotPermitted);
     assert!(applied.events.iter().any(|e| matches!(e,

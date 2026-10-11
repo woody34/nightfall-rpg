@@ -7,6 +7,8 @@ mod live_damage;
 mod live_effects;
 #[path = "state_runtime_learn.rs"]
 mod live_learning;
+#[path = "state_runtime_life.rs"]
+mod live_life;
 
 use super::*;
 use crate::domain::zone::effective_stats::{EffectiveStats, NpcStatInputs, PlayerStatInputs};
@@ -301,7 +303,12 @@ impl ZoneState {
                     pvp_count: checkpoint.pvp_count,
                 },
                 death_penalty_level: checkpoint.death_penalty_level,
-                last_death: checkpoint.last_death.clone(),
+                // Offline admission allocates a new live incarnation. Retain exact XP
+                // facts, but bind the resumable death to this corpse's new identity.
+                last_death: checkpoint.last_death.clone().map(|mut death| {
+                    death.incarnation = c.incarnation;
+                    death
+                }),
                 resurrect_offer: None,
             });
         }
@@ -388,9 +395,7 @@ impl ZoneState {
                         }))
             }) || c.swing.is_some()
                 || side.player.as_ref().is_some_and(|p| {
-                    p.death_penalty_level != 0
-                        || p.last_death.is_some()
-                        || p.resurrect_offer.is_some()
+                    p.resurrect_offer.is_some()
                         || p.pvp.flag_until.is_some()
                         || p.pvp.karma != 0
                         || p.pvp.pk_count != 0
@@ -639,12 +644,12 @@ impl ZoneState {
                 self.cancel_v5(tick, *entity, *cast_id, CastCancelReason::Stopped, events);
             },
             ZoneCommand::LearnSkill { .. } => self.learn_v5(tick, command, staged, events)?,
+            ZoneCommand::Respawn { entity } => events.extend(self.respawn_town_v5(tick, *entity)?),
             // Capability refusals belong to this command's recorded disposition. Holding
             // the whole draft would permanently block an experimental actor's FIFO.
             ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::Attack { .. }
-            | ZoneCommand::Respawn { .. }
             | ZoneCommand::AddAggro { .. } => return Err(RejectReason::NotYetImplemented),
             ZoneCommand::Despawn { .. }
             | ZoneCommand::ReplaceSession { .. }
@@ -727,8 +732,6 @@ impl ZoneState {
             || checkpoint.pk_count != 0
             || checkpoint.pvp_count != 0
             || checkpoint.flag_remaining_ticks != 0
-            || checkpoint.death_penalty_level != 0
-            || checkpoint.last_death.is_some()
             || checkpoint.effect_remainders.iter().any(|effect| {
                 phase
                     .rules
@@ -1502,9 +1505,9 @@ impl ZoneState {
             },
         )
         .map_err(invariant)?;
-        // Live hostile-player starts remain fenced until death/PvP integration. Refuse
-        // unsupported lethal transitions atomically rather than publish a partial death.
-        if mutation.lethal && cp.is_some() {
+        // Player-kill counters and their public PvpStateChanged projection remain a
+        // coordinated capability boundary. NPC-sourced player death is complete here.
+        if mutation.lethal && cp.is_some() && attribution.kind == EffectSourceKind::Player {
             return Err(missing());
         }
         self.damage_hate_v5(tick, request, events)?;
@@ -1541,53 +1544,7 @@ impl ZoneState {
         }
         let hp = c.hp;
         if mutation.lethal {
-            self.cancel_v5(tick, target.entity, None, CastCancelReason::CasterDied, events);
-            let death = crate::domain::zone::state_death::prepare_death(
-                self.sidecar(target.entity)?,
-                crate::domain::zone::state_death::DeathContext {
-                    incarnation: target.incarnation,
-                    was_alive: true,
-                    killer_kind: Some(match attribution.kind {
-                        EffectSourceKind::Player => EntityKind::Player,
-                        EffectSourceKind::Npc => EntityKind::Npc,
-                        EffectSourceKind::System => return Err(missing()),
-                    }),
-                    inside_peace: false,
-                    pre_death_xp: 0,
-                    xp_lost: 0,
-                },
-                &rules,
-                None,
-                self.phase3
-                    .as_ref()
-                    .ok_or_else(missing)?
-                    .canonical
-                    .next_install_sequence,
-            )
-            .map_err(invariant)?;
-            *self.sidecar_mut(target.entity)? = death.phase3;
-            for old in death.removed_effects {
-                events.push(ZoneEvent::EffectRemoved {
-                    tick,
-                    target,
-                    effect_id: old.id,
-                    reason: crate::domain::zone::effects::EffectRemoveReason::Death,
-                });
-            }
-            self.rebuild_v5(target.entity)?;
-            self.kill(
-                tick,
-                target.entity,
-                Some(super::combat_phase::Blow {
-                    attacker: source.entity,
-                }),
-                events,
-            );
-            if attribution.kind == EffectSourceKind::Player {
-                self.credit_sp_v5(tick, source, &recipient, events)?;
-                self.sync_passives_v5(source.entity)?;
-                self.rebuild_v5(source.entity)?;
-            }
+            self.finish_death_v5(tick, request, &recipient, events, draw)?;
         }
         if self.binding(source.entity) == Some(source) {
             self.phase3

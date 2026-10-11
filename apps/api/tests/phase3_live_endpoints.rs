@@ -380,8 +380,14 @@ async fn real_endpoint_refusals_spend_nothing_and_preserve_ws_seq() {
         (8, Intent::Respawn(pb::RespawnRequest {})),
     ] {
         socket.send(&message(seq, intent)).await;
+        let reason = if seq == 8 {
+            // Existing wire mapping groups domain NotDead with Invalid.
+            pb::RejectReason::Invalid
+        } else {
+            pb::RejectReason::NotYetImplemented
+        };
         assert!(matches!(response(&mut socket, seq).await.payload, Some(Payload::Rejected(r))
-            if r.reason == i32::from(pb::RejectReason::NotYetImplemented)));
+            if r.reason == i32::from(reason)));
     }
     socket
         .send(&message(

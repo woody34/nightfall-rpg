@@ -744,6 +744,215 @@ mod tests {
         zone.note_hits_v5(Tick(1)).unwrap();
         assert!(zone.phase3.as_ref().unwrap().landed_hits.is_empty());
     }
+    #[test]
+    fn live_player_death_records_actual_loss_penalty_and_final_resources_once() {
+        for roll in [0, 19, 20, 99] {
+            let (mut zone, _, target, npc) = fixture();
+            let rules = zone.rules.as_ref().unwrap();
+            let xp = rules.xp_to_level(20).unwrap();
+            if let CombatRole::Player { xp: current, .. } = &mut zone
+                .entities
+                .get_mut(&target.entity)
+                .unwrap()
+                .combat
+                .as_mut()
+                .unwrap()
+                .role
+            {
+                *current = xp;
+            }
+            zone.relevel(target.entity).unwrap();
+            zone.sync_passives_v5(target.entity).unwrap();
+            zone.rebuild_v5(target.entity).unwrap();
+            set_resources(&mut zone, target, 1, 20);
+            let before = zone.entities.clone();
+            let mut events = Vec::new();
+            let mut trace = Vec::new();
+            let request = DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target,
+                cause: DamageCause::Direct,
+                rolled_damage: 50,
+            };
+            let expected = [(DamageRollSite::DeathPenalty, 100, roll)];
+            let outcome = zone
+                .apply_damage_rolled_v5(
+                    Tick(1),
+                    request,
+                    &mut events,
+                    &mut scripted(&expected, &mut trace),
+                )
+                .unwrap();
+            assert!(outcome.lethal);
+            assert_eq!((outcome.hp_removed, outcome.cp_absorbed), (1, 0));
+            assert_eq!(trace.len(), 1);
+            let c = zone.entities[&target.entity].combat.as_ref().unwrap();
+            let CombatRole::Player { xp: after, .. } = c.role else {
+                panic!("player")
+            };
+            let side = zone.sidecar(target.entity).unwrap();
+            let p = side.player.as_ref().unwrap();
+            assert_eq!(p.death_penalty_level, u8::from(roll < 20));
+            assert_eq!(p.last_death.as_ref().unwrap().pre_death_xp, xp);
+            assert_eq!(
+                p.last_death.as_ref().unwrap().recoverable_death_xp_loss,
+                xp.checked_sub(after).unwrap()
+            );
+            assert!(after < xp);
+            assert_eq!(side.fractions, ResourceFractions::default());
+            assert_eq!(side.cast, CastState::Idle);
+            assert_eq!(c.sheet, zone.effective(target.entity).unwrap().physical);
+            let cursor = zone.rng.get_word_pos();
+            assert!(zone.apply_damage_v5(Tick(1), request, &mut events).is_err());
+            assert_eq!(zone.rng.get_word_pos(), cursor);
+            assert_eq!(events.iter().filter(|e| matches!(e, ZoneEvent::EntityDied { entity, .. } if *entity == target.entity)).count(), 1);
+            zone.final_resources_v5(Tick(1), &before, &mut events)
+                .unwrap();
+            assert_eq!(events.iter().filter(|e| matches!(e, ZoneEvent::VitalsChanged { entity, hp: 0, incarnation: 1, .. } if *entity == target.entity)).count(), 1);
+        }
+    }
+
+    #[test]
+    fn live_town_respawn_restores_from_corpse_and_emits_final_life_vitals() {
+        let (mut zone, _, target, npc) = fixture();
+        set_resources(&mut zone, target, 1, 20);
+        zone.apply_damage_rolled_v5(
+            Tick(1),
+            DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target,
+                cause: DamageCause::Direct,
+                rolled_damage: 10,
+            },
+            &mut Vec::new(),
+            &mut scripted(&[(DamageRollSite::DeathPenalty, 100, 0)], &mut Vec::new()),
+        )
+        .unwrap();
+        zone.run_tick(zone.draft(vec![])).unwrap();
+        let mut restored = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+        let command = ZoneInput::system(ZoneCommand::Respawn {
+            entity: target.entity,
+        });
+        let draft = zone.draft(vec![command.clone(), command]);
+        let actual = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(restored.run_tick(draft).unwrap(), actual);
+        assert_eq!(actual.dispositions.len(), 1);
+        assert_eq!(actual.dispositions[0].reason, RejectReason::NotDead);
+        let c = zone.entities[&target.entity].combat.as_ref().unwrap();
+        assert_eq!(c.incarnation, 2);
+        assert!(c.hp > 0);
+        assert_eq!(c.mp, 0);
+        assert_eq!(c.protected_until, Some(Tick(actual.tick.0.checked_add(6000).unwrap())));
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &c.role
+        else {
+            panic!("player")
+        };
+        assert_eq!(p.class_state.cp, 20);
+        let side = zone.sidecar(target.entity).unwrap();
+        assert!(side.player.as_ref().unwrap().last_death.is_none());
+        assert_eq!(side.player.as_ref().unwrap().death_penalty_level, 1);
+        assert_eq!(side.fractions, ResourceFractions::default());
+        assert_eq!(
+            actual
+                .events
+                .iter()
+                .filter(|e| matches!(e,
+            ZoneEvent::VitalsChanged { entity, incarnation: 2, hp, baseline: None, .. }
+            if *entity == target.entity && *hp == c.hp))
+                .count(),
+            1
+        );
+        ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    }
+
+    #[test]
+    fn paused_dead_admission_rebinds_loss_record_without_replaying_death() {
+        let (mut zone, _, target, npc) = fixture();
+        zone.entities
+            .get_mut(&target.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .incarnation = 7;
+        let target = zone.binding(target.entity).unwrap();
+        set_resources(&mut zone, target, 1, 20);
+        zone.apply_damage_rolled_v5(
+            Tick(1),
+            DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target,
+                cause: DamageCause::Direct,
+                rolled_damage: 10,
+            },
+            &mut Vec::new(),
+            &mut scripted(&[(DamageRollSite::DeathPenalty, 100, 0)], &mut Vec::new()),
+        )
+        .unwrap();
+        zone.run_tick(zone.draft(vec![])).unwrap();
+        let checkpoint = zone
+            .snapshot()
+            .phase3
+            .unwrap()
+            .checkpoint(target.entity, Tick(1))
+            .unwrap();
+        assert_eq!(checkpoint.last_death.as_ref().unwrap().incarnation, 7);
+        let c = zone.entities[&target.entity].combat.as_ref().unwrap();
+        let CombatRole::Player {
+            class,
+            xp,
+            progression,
+        } = &c.role
+        else {
+            panic!("player")
+        };
+        let mut load = PlayerLoad::fresh(class.clone());
+        load.xp = *xp;
+        load.hp = Some(0);
+        load.mp = Some(c.mp);
+        load.alive = false;
+        load.progression = progression.clone();
+        load.phase3 = Some(checkpoint.clone());
+        let cursor = zone.rng.get_word_pos();
+        let applied = zone
+            .run_tick(zone.draft(vec![
+                ZoneInput::system(ZoneCommand::Despawn {
+                    entity: target.entity,
+                }),
+                ZoneInput::system(ZoneCommand::SpawnPlayer {
+                    entity: target.entity,
+                    name: "Second".into(),
+                    pos: Vec2Fixed::from_tiles(10, 10),
+                    speed: Speed::DEFAULT,
+                    generation: SessionGeneration(2),
+                    load: Some(Box::new(load)),
+                }),
+            ]))
+            .unwrap();
+        assert!(applied.dispositions.is_empty());
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        let side = zone.sidecar(target.entity).unwrap();
+        let death = side.player.as_ref().unwrap().last_death.as_ref().unwrap();
+        assert_eq!(death.incarnation, zone.binding(target.entity).unwrap().incarnation);
+        assert_eq!(death.pre_death_xp, checkpoint.last_death.as_ref().unwrap().pre_death_xp);
+        assert_eq!(
+            death.recoverable_death_xp_loss,
+            checkpoint
+                .last_death
+                .as_ref()
+                .unwrap()
+                .recoverable_death_xp_loss
+        );
+        assert!(!applied
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::EntityDied { .. })));
+        ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    }
+
     type Trace = Vec<(DamageRollSite, TargetBinding, u32, u32, u128)>;
     fn scripted<'a>(
         expected: &'a [(DamageRollSite, u32, u32)],

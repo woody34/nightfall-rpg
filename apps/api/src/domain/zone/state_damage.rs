@@ -34,6 +34,7 @@ pub enum DamageRollSite {
     PhysicalVengeance,
     MagicVengeance,
     StunRemoval,
+    DeathPenalty,
 }
 
 /// Complete caller attribution, including a departed periodic source's frozen kind/life.

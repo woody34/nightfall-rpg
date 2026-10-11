@@ -260,10 +260,9 @@ impl Phase3Checkpoint {
         self.resource_fractions.validate()?;
         if self.timer_policy_version != rules.timer_policy_version()
             || self.death_penalty_level > 5
-            || self
-                .last_death
-                .as_ref()
-                .is_some_and(|record| record.recoverable_death_xp_loss > record.pre_death_xp)
+            || self.last_death.as_ref().is_some_and(|record| {
+                record.incarnation == 0 || record.recoverable_death_xp_loss > record.pre_death_xp
+            })
             || (!alive && self.resource_fractions != ResourceFractions::default())
         {
             return Err(EffectError::Invalid("invalid Phase3 checkpoint scalar"));
@@ -586,6 +585,12 @@ mod tests {
             incarnation: 8,
             pre_death_xp: 1,
             recoverable_death_xp_loss: 2,
+        });
+        assert!(changed.validate(&rules, &[], false).is_err());
+        changed.last_death = Some(DeathRecord {
+            incarnation: 0,
+            pre_death_xp: 1,
+            recoverable_death_xp_loss: 1,
         });
         assert!(changed.validate(&rules, &[], false).is_err());
         assert!(serde_json::from_str::<Phase3Checkpoint>("{}").is_err());

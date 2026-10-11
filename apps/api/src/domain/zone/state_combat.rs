@@ -758,7 +758,7 @@ impl ZoneState {
     /// Re-derives a player's level from its XP by threshold search; on a change rebuilds the
     /// stat sheet and clamps HP/MP to the new maxima (current values are kept otherwise).
     /// Returns `(old, new)` when the level changed.
-    fn relevel(&mut self, player: EntityId) -> Option<(u32, u32)> {
+    pub(super) fn relevel(&mut self, player: EntityId) -> Option<(u32, u32)> {
         let rules = self.rules.clone()?;
         let c = self.entities.get_mut(&player)?.combat.as_mut()?;
         let CombatRole::Player {
