@@ -185,6 +185,7 @@ impl CheckpointService {
                 events: p.events.clone(),
                 latest: p.latest.as_ref().map(|cp| {
                     crate::domain::zone::CheckpointRequestSnapshot {
+                        phase3: cp.phase3.clone(),
                         class_state: cp.class_state.clone(),
                         revision_seen: cp.revision_seen,
                         level: cp.level,

@@ -167,6 +167,7 @@ impl Harness {
     }
     async fn spawn_character(&self, c: &Character, generation: u64) {
         let load = PlayerLoad {
+            phase3: None,
             progression: Some(Box::new(PlayerProgression {
                 identity: c.identity(),
                 class_state: c.class_state.clone(),
@@ -526,6 +527,7 @@ async fn full_registry_tick_and_digest_measurement() {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase3: None,
                     progression: progression.clone(),
                     level: 40,
                     xp: h.character.xp,

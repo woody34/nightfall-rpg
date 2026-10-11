@@ -290,6 +290,9 @@ pub struct CheckpointSnapshot {
 /// Integer-only representation of an application checkpoint request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CheckpointRequestSnapshot {
+    /// Frozen paused timers and policy, absent from all legacy request fingerprints.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase3: Option<super::Phase3Checkpoint>,
     /// Exact Phase 2 request body; omitted for old checkpoint fingerprints.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub class_state: Option<crate::domain::character_progression::ClassState>,
@@ -407,7 +410,13 @@ impl ZoneSnapshot {
                 | (6..=8, JsonV1 | BinaryV2, false)
                 | (7, BinaryV3, true)
                 | (8, BinaryV4, true) => {
-                    self.phase3.is_none() && self.meta.phase3_admission_policy.is_none()
+                    self.phase3.is_none()
+                        && self.meta.phase3_admission_policy.is_none()
+                        && self.checkpoints.iter().all(|lane| {
+                            lane.latest
+                                .as_ref()
+                                .is_none_or(|request| request.phase3.is_none())
+                        })
                 },
                 (9, BinaryV5, true) => {
                     self.meta
@@ -993,7 +1002,8 @@ impl ZoneState {
     /// Checks that `source` may issue `cmd`. Sessions may only steer or remove their own
     /// entity, and only while their generation is current; everything else is system-only.
     fn authorize(&self, source: CommandSource, cmd: &ZoneCommand) -> Result<(), RejectReason> {
-        if (matches!(cmd, ZoneCommand::ChangeClass { .. }) || cmd.requires_phase3())
+        if (matches!(cmd, ZoneCommand::ChangeClass { .. })
+            || (cmd.requires_phase3() && !matches!(cmd, ZoneCommand::SpawnPlayer { .. })))
             && source == CommandSource::System
         {
             return Err(RejectReason::NotPermitted);

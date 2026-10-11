@@ -180,6 +180,9 @@ pub struct CombatView {
 /// repository (plan D5). HP/MP `None` means full (a character never saved in combat).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerLoad {
+    /// Explicit paused Phase3 payload. Absence never promotes a legacy repository row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase3: Option<super::Phase3Checkpoint>,
     /// Phase 2 authoritative identity and class ledger.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub progression: Option<Box<super::PlayerProgression>>,
@@ -210,6 +213,7 @@ impl PlayerLoad {
     #[must_use]
     pub fn fresh(class: impl Into<String>) -> Self {
         Self {
+            phase3: None,
             progression: None,
             checkpoint_revision: None,
             class: class.into(),

@@ -162,6 +162,9 @@ impl ZoneState {
         load: &PlayerLoad,
         entity: EntityId,
     ) -> Result<CombatState, RejectReason> {
+        if load.phase3.is_some() && !self.phase3_enabled() {
+            return Err(RejectReason::InvalidLoad);
+        }
         let mut combat = player_combat(rules, load)?;
         match (&self.classes, &load.progression) {
             (None, None) => {},
@@ -191,13 +194,21 @@ impl ZoneState {
                         .map_err(|_| RejectReason::InvalidLoad)?;
                 let mut p = p.clone();
                 p.max_cp = max_cp;
-                p.class_state.cp = p.class_state.cp.min(max_cp);
-                combat.hp = if load.alive {
+                if !self.phase3_enabled() {
+                    p.class_state.cp = p.class_state.cp.min(max_cp);
+                }
+                combat.hp = if self.phase3_enabled() && load.alive {
+                    load.hp.unwrap_or(sheet.max_hp()).max(1)
+                } else if load.alive {
                     load.hp.unwrap_or(sheet.max_hp()).clamp(1, sheet.max_hp())
                 } else {
                     0
                 };
-                combat.mp = load.mp.unwrap_or(sheet.max_mp()).min(sheet.max_mp());
+                combat.mp = if self.phase3_enabled() {
+                    load.mp.unwrap_or(sheet.max_mp())
+                } else {
+                    load.mp.unwrap_or(sheet.max_mp()).min(sheet.max_mp())
+                };
                 combat.sheet = sheet;
                 combat.collision_radius = radius;
                 if let CombatRole::Player { progression, .. } = &mut combat.role {
@@ -622,6 +633,7 @@ mod tests {
             max_cp: 0,
         };
         let load = PlayerLoad {
+            phase3: None,
             progression: Some(Box::new(progression)),
             level,
             xp: rules.xp_to_level(level).unwrap(),
@@ -1247,6 +1259,7 @@ mod tests {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase3: None,
                     progression: Some(Box::new(PlayerProgression {
                         identity: identity.clone(),
                         class_state: ClassState::new(ClassId(0)),
@@ -1308,6 +1321,7 @@ mod tests {
             assert_eq!(encode_snapshot(&decode_snapshot(&encoded).unwrap()).unwrap(), encoded);
             let mut replay = ZoneState::from_snapshot(decode_snapshot(&encoded).unwrap()).unwrap();
             let load = PlayerLoad {
+                phase3: None,
                 progression: Some(Box::new(PlayerProgression {
                     identity: p.identity.clone(),
                     class_state: ledger.clone(),

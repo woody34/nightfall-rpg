@@ -389,6 +389,7 @@ impl SessionRegistry {
             loaded.name.as_str().clone_into(&mut spawn.name);
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
+                phase3: None,
                 progression: zone.has_classes().then(|| {
                     Box::new(crate::domain::zone::PlayerProgression {
                         identity: loaded.identity,
