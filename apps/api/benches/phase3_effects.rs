@@ -1,6 +1,8 @@
 //! Isolated Phase 3 effect/regen kernel costs, not a claim of live V5 tick performance.
 //! `cargo bench -p nightfall-api --bench phase3_effects -- --test` prints repeatable workload
-//! means. The existing `zone_step` acceptance budgets remain unchanged and run separately.
+//! means. `--snapshot-capacity` instead measures a synthetic maximum-pool snapshot and
+//! exits unsuccessfully if the unchanged production codec refuses it. The existing
+//! `zone_step` acceptance budgets remain unchanged and run separately.
 
 #![allow(
     missing_docs,
@@ -8,6 +10,9 @@
     clippy::print_stdout,
     clippy::arithmetic_side_effects
 )]
+
+#[path = "support/snapshot_capacity.rs"]
+mod snapshot_capacity;
 
 use std::collections::BTreeMap;
 use std::hint::black_box;
@@ -139,7 +144,14 @@ fn report(name: &str, mut operation: impl FnMut()) {
     }
     println!("{name}: mean {:?} ({ITERATIONS} iterations)", started.elapsed() / ITERATIONS);
 }
-fn main() {
+fn main() -> std::process::ExitCode {
+    if std::env::args().any(|argument| argument == "--snapshot-capacity") {
+        return if snapshot_capacity::run() {
+            std::process::ExitCode::SUCCESS
+        } else {
+            std::process::ExitCode::FAILURE
+        };
+    }
     let lists = vec![full_effects(); ENTITIES];
     let entities = lists
         .iter()
@@ -203,4 +215,5 @@ fn main() {
     report("phase3 indexed synchronized regen selection/1000", || {
         black_box(schedule.regen_candidates(Tick(30)));
     });
+    std::process::ExitCode::SUCCESS
 }
