@@ -130,6 +130,8 @@ fn assert_private_owner_events_absent(messages: &[pb::ServerMessage], owner: &st
                 Some(Event::SkillStateSync(e)) => assert_ne!(e.entity, owner),
                 Some(Event::StatsChanged(e)) => assert_ne!(e.entity, owner),
                 Some(Event::SpGained(e)) => assert_ne!(e.entity, owner),
+                Some(Event::TargetChanged(e)) => assert_ne!(e.entity, owner),
+                Some(Event::ResurrectOffer(e)) => assert_ne!(e.target, owner),
                 _ => {},
             }
         }
