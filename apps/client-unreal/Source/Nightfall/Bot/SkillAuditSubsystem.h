@@ -50,6 +50,8 @@ private:
  void PvpCopy(const FPvpStateChanged& P,bool Private);
  void ComparePvp(const FString& Id);
  void StatsInput(const FStatsChanged& S);
+ bool RevivalTerminal(const FResurrectOffer& O) const;
+ void CompleteResurrectionAudit();
  FString CastKey(const FString& Id,uint32 Inc,uint64 Cast) const;
  UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
  TArray<TFunction<void()>> Unbinders;
@@ -77,6 +79,7 @@ private:
  TMap<FString,FCastEvidence> Casts;
  TSet<FString> Departed;
  TMap<FString,FAttackStarted> Swings;
+ TMap<FString,uint64> SwingTicks;
  TMap<FString,FVitalsChanged> Vitals;
  TMap<FString,FEntityRespawned> Revivals;
  TMap<FString,TMap<uint64,FEffectApplied>> Effects;

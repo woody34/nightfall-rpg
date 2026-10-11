@@ -47,7 +47,7 @@ void USkillAuditSubsystem::Deinitialize()
 void USkillAuditSubsystem::Reset(){ClearTransport();PriorPenalty.Reset();PriorOwner.Reset();PriorEffects.Reset();bPriorEffectsKnown=false;}
 void USkillAuditSubsystem::ClearTransport()
 {
- Fence.Reset();Stats.Reset();BeforeDeath.Reset();DeadResources.Reset();AfterRevival.Reset();bSkillRevival=false;TownRequest.Reset();KarmaGainChange.Reset();KarmaLossChange.Reset();XpCredit.Reset();Deaths.Reset();SwingTargetsAtStart.Reset();ResourceSamples.Reset();Reuse.Reset();bSamplesComplete=bBaselineOk=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Departed.Reset();Swings.Reset();Vitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();RemovedEffects.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
+ Fence.Reset();Stats.Reset();BeforeDeath.Reset();DeadResources.Reset();AfterRevival.Reset();bSkillRevival=false;TownRequest.Reset();KarmaGainChange.Reset();KarmaLossChange.Reset();XpCredit.Reset();Deaths.Reset();SwingTargetsAtStart.Reset();ResourceSamples.Reset();Reuse.Reset();bSamplesComplete=bBaselineOk=true;Sync.Reset();Offer.Reset();Death.Reset();PublicPvp.Reset();PrivatePvp.Reset();Casts.Reset();Departed.Reset();Swings.Reset();SwingTicks.Reset();Vitals.Reset();Revivals.Reset();Effects.Reset();EffectTicks.Reset();RemovedEffects.Reset();DamageIds.Reset();PendingCp.Reset();LastImpact.Reset();DeathIncarnations.Reset();RefundedOffers.Reset();SentSkills.Reset();SentStartCounts.Reset();OwnStartCount=0;AcceptedSeqs.Reset();PeaceRejectSeq.Reset();
  OwnCp=PlayerCp=0;References=PublicPairs=RevivalPairs=PvpPairs=CpPairs=EffectSamples=0;
  bReferencesOk=bVitalsOk=bPvpOk=bCpOk=bEffectsOk=bDispositionOk=true;
  bOwnerStatsBaseline=bOwnerSyncBaseline=bObserverBaseline=false;
@@ -112,11 +112,28 @@ void USkillAuditSubsystem::StatsInput(const FStatsChanged& S)
   DeadResources=S;
  }
  else if(!AfterRevival.IsSet() && DeadResources.IsSet() && S.Incarnation>DeadResources->Incarnation)
- {AfterRevival=S;bSkillRevival=Offer.IsSet() && Offer->State==4 && Offer->TargetIncarnation==DeadResources->Incarnation;}
- if(Offer.IsSet() && Offer->State==4 && S.Incarnation>Offer->TargetIncarnation && Stats.IsSet() && Stats->Hp==0 && S.Hp>0 && S.Xp>Stats->Xp)RefundedOffers.Add(Offer->OfferId);
+ {AfterRevival=S;}
+ CompleteResurrectionAudit();
  if(ResourceSamples.Num()<1024)ResourceSamples.Add(S);else bSamplesComplete=false;
  Stats=S;bOwnerStatsBaseline |= S.bBaseline;
  FPvpStateChanged P;P.Entity=S.Entity;P.Incarnation=S.Incarnation;P.Tick=S.Tick;P.bBaseline=S.bBaseline;P.BaselineTick=S.BaselineTick;P.FlagUntilTick=S.FlagUntilTick;P.Karma=S.Karma;P.PkCount=S.PkCount;P.PvpCount=S.PvpCount;PvpCopy(P,true);
+}
+bool USkillAuditSubsystem::RevivalTerminal(const FResurrectOffer& O) const
+{
+ // Only the retained corpse offer may cross the life fence. All other old-life frames stay stale.
+ if(!Net || !Net->IsOwnEntity(O.Target) || O.State!=4 || !Offer.IsSet() || Offer->OfferId!=O.OfferId || Offer->TargetIncarnation!=O.TargetIncarnation || !Offer->Target.Equals(O.Target,ESearchCase::IgnoreCase) || Offer->State!=1 || O.Tick<Offer->Tick)return false;
+ const auto* R=Revivals.Find(O.Target.ToLower());
+ return R && R->Tick==O.Tick && R->Incarnation>O.TargetIncarnation && Fence.Visible(O.Target,R->Incarnation) && !Fence.Dead(O.Target);
+}
+void USkillAuditSubsystem::CompleteResurrectionAudit()
+{
+ if(!Offer.IsSet() || Offer->State!=4 || !DeadResources.IsSet() || !AfterRevival.IsSet())return;
+ const auto& O=*Offer;const auto& D=*DeadResources;const auto& A=*AfterRevival;
+ const auto* R=Revivals.Find(O.Target.ToLower());
+ if(!R || R->Tick!=O.Tick || A.Tick!=O.Tick || R->Incarnation!=A.Incarnation || D.Incarnation!=O.TargetIncarnation || A.Incarnation<=D.Incarnation || D.Hp!=0 || A.Hp==0 || !D.Entity.Equals(O.Target,ESearchCase::IgnoreCase) || !A.Entity.Equals(O.Target,ESearchCase::IgnoreCase))return;
+ bSkillRevival=true;
+ // This counts a witnessed XP increase only. Exact stored-loss/formula proof belongs to replay (C11).
+ if(A.Xp>D.Xp)RefundedOffers.Add(O.OfferId);
 }
 void USkillAuditSubsystem::Impact(const FString& Attacker,const FString& Target,uint32 Inc,uint64 Tick,uint64 Start,uint32 Hp,uint32 Cp,uint32 Removed)
 {
@@ -139,14 +156,14 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   const auto& S=*E.Spawn;
   if(const auto* Old=Fence.Identities.Find(S.EntityId.ToLower());Old && Net && Net->IsOwnEntity(S.EntityId) && !NightfallProto::IsStaleSpawn(*Old,S) && S.SessionGeneration>Old->SessionGeneration)Disconnected(TEXT("replacement"));
   if(!Fence.Spawn(S))return;
-  Departed.Remove(S.EntityId.ToLower());PublicPvp.Remove(S.EntityId.ToLower());PrivatePvp.Remove(S.EntityId.ToLower());Effects.Remove(S.EntityId.ToLower());Swings.Remove(S.EntityId.ToLower());
+  Departed.Remove(S.EntityId.ToLower());PublicPvp.Remove(S.EntityId.ToLower());PrivatePvp.Remove(S.EntityId.ToLower());Effects.Remove(S.EntityId.ToLower());Swings.Remove(S.EntityId.ToLower());SwingTicks.Remove(S.EntityId.ToLower());
   FVitalsChanged V;V.Entity=S.EntityId;V.Incarnation=S.LifeIncarnation;V.Tick=S.StateTick;V.Hp=S.Hp;V.MaxHp=S.MaxHp;Vitals.Add(S.EntityId.ToLower(),V);
   FPvpStateChanged P;P.Entity=S.EntityId;P.Incarnation=S.LifeIncarnation;P.Tick=P.BaselineTick=S.StateTick;P.bBaseline=true;P.FlagUntilTick=S.FlagUntilTick;P.Karma=S.Karma;P.PkCount=S.PkCount;P.PvpCount=S.PvpCount;PublicPvp.Add(S.EntityId.ToLower(),P);
   // V5 identity frames must not contain reference-bearing legacy hydration.
   bReferencesOk &= S.ActiveEffects.IsEmpty() && !S.PendingCast.IsSet() && !S.PendingSwing.IsSet();
   return;
  }
- if(E.Despawn.IsSet()){const FString Id=E.Despawn->EntityId.ToLower();if(Fence.Identities.Contains(Id))Departed.Add(Id);Fence.Despawn(Id);Swings.Remove(Id);Effects.Remove(Id);PublicPvp.Remove(Id);PrivatePvp.Remove(Id);return;}
+ if(E.Despawn.IsSet()){const FString Id=E.Despawn->EntityId.ToLower();if(Fence.Identities.Contains(Id))Departed.Add(Id);Fence.Despawn(Id);Swings.Remove(Id);SwingTicks.Remove(Id);Effects.Remove(Id);PublicPvp.Remove(Id);PrivatePvp.Remove(Id);return;}
  if(E.EntityDied.IsSet())
  {
   const auto& D=*E.EntityDied;const auto* Old=Deaths.Find(D.Entity.ToLower());if(Old && Old->Incarnation==D.Incarnation && Old->Tick>=D.Tick)return;if(!Fence.Died(D))return;DeathIncarnations.Add(D.Entity.ToLower(),D.Incarnation);Swings.Remove(D.Entity.ToLower());
@@ -219,12 +236,14 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  if(E.AttackStarted.IsSet())
  {
   const auto& S=*E.AttackStarted;
-  if(!AuditSubject(S.Attacker,S.AttackerIncarnation,S.Tick,S.bBaseline,S.BaselineTick))return;
+  const uint64 SeenTick=S.bBaseline?S.BaselineTick:S.Tick;
+  if(!AuditSubject(S.Attacker,S.AttackerIncarnation,SeenTick,S.bBaseline,S.BaselineTick))return;
   Reference(S.Target.IsEmpty()?TOptional<FString>():TOptional<FString>(S.Target),S.Target.IsEmpty() && !S.TargetIncarnation?TOptional<uint32>():TOptional<uint32>(S.TargetIncarnation));
-  const auto* A=Fence.Identities.Find(S.Attacker.ToLower());if(!A || !Fence.Accept(S.Attacker,S.AttackerIncarnation.Get(A->LifeIncarnation),S.Tick,S.bBaseline,S.BaselineTick))return;
-  Swings.Add(S.Attacker.ToLower(),S);if(const auto* P=PublicPvp.Find(S.Target.ToLower()))SwingTargetsAtStart.Add(S.Attacker.ToLower(),*P);return;
+  const auto* A=Fence.Identities.Find(S.Attacker.ToLower());if(!A || !Fence.Accept(S.Attacker,S.AttackerIncarnation.Get(A->LifeIncarnation),SeenTick,S.bBaseline,S.BaselineTick))return;
+  const FString Key=S.Attacker.ToLower();if(const auto* Old=SwingTicks.Find(Key);Old && SeenTick<*Old)return;
+  SwingTicks.Add(Key,SeenTick);Swings.Add(Key,S);if(const auto* P=PublicPvp.Find(S.Target.ToLower()))SwingTargetsAtStart.Add(S.Attacker.ToLower(),*P);return;
  }
- if(E.AttackCancelled.IsSet()){const auto& C=*E.AttackCancelled;if(!AuditSubject(C.Attacker,{},C.Tick))return;if(!C.Target.IsEmpty())AuditSubject(C.Target,{},C.Tick);const auto* A=Fence.Identities.Find(C.Attacker.ToLower());if(A && Fence.Accept(C.Attacker,A->LifeIncarnation,C.Tick))Swings.Remove(C.Attacker.ToLower());return;}
+ if(E.AttackCancelled.IsSet()){const auto& C=*E.AttackCancelled;if(!AuditSubject(C.Attacker,{},C.Tick))return;if(!C.Target.IsEmpty())AuditSubject(C.Target,{},C.Tick);const auto* A=Fence.Identities.Find(C.Attacker.ToLower());if(A && Fence.Accept(C.Attacker,A->LifeIncarnation,C.Tick)){const FString Key=C.Attacker.ToLower();if(const auto* Old=SwingTicks.Find(Key);Old && C.Tick<*Old)return;SwingTicks.Add(Key,C.Tick);Swings.Remove(Key);}return;}
  if(E.AttackResult.IsSet())
  {
   const auto& R=*E.AttackResult;const auto* S=Swings.Find(R.Attacker.ToLower());const FString K=FString::Printf(TEXT("swing|%s|%s|%u|%llu"),*R.Attacker.ToLower(),*R.Target.ToLower(),R.TargetIncarnation,R.Tick);
@@ -254,11 +273,13 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  if(E.ResurrectOffer.IsSet())
  {
   const auto& O=*E.ResurrectOffer;
-  if(!AuditSubject(O.Target,O.TargetIncarnation,O.Tick))return;
+  const bool AcrossLife=RevivalTerminal(O);
+  if(!AcrossLife && !AuditSubject(O.Target,O.TargetIncarnation,O.Tick))return;
   Reference(O.Caster,O.CasterIncarnation);
-  if(!Net || !Net->IsOwnEntity(O.Target) || !Fence.Accept(O.Target,O.TargetIncarnation,O.Tick) || !Fence.Dead(O.Target))return;
+  if(!Net || !Net->IsOwnEntity(O.Target) || (!AcrossLife && (!Fence.Accept(O.Target,O.TargetIncarnation,O.Tick) || !Fence.Dead(O.Target))))return;
+  if(!O.OfferId || (O.State!=1 && (!Offer.IsSet() || O.OfferId!=Offer->OfferId)))return;
   if(Offer.IsSet() && (O.Tick<Offer->Tick || (O.OfferId==Offer->OfferId && Offer->State!=1)))return;
-  Offer=O;return;
+  Offer=O;CompleteResurrectionAudit();return;
  }
 }
 void USkillAuditSubsystem::ObserveAck(const FAck& A){AcceptedSeqs.Add(A.Seq,A.Tick);Fence.Tick=FMath::Max(Fence.Tick,A.Tick);}

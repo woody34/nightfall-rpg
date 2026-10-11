@@ -306,11 +306,13 @@ void USkillStateSubsystem::ApplySwing(const FAttackStarted& S)
 {
  const auto* Identity=Fence.Identities.Find(S.Attacker.ToLower());if(!Identity)return;
  const uint32 Inc=S.AttackerIncarnation.IsSet()?*S.AttackerIncarnation:Identity->LifeIncarnation;
- if(!Fence.Accept(S.Attacker,Inc,S.Tick,S.bBaseline,S.BaselineTick))return;
- auto& V=Swings.FindOrAdd(S.Attacker.ToLower());if(S.Tick<V.Tick)return;
- V.Swing=S;V.Tick=S.Tick;
+ // AttackStarted.tick is the original swing start, including on AOI hydration.
+ const uint64 SeenTick=S.bBaseline?S.BaselineTick:S.Tick;
+ if(!Fence.Accept(S.Attacker,Inc,SeenTick,S.bBaseline,S.BaselineTick))return;
+ auto& V=Swings.FindOrAdd(S.Attacker.ToLower());if(SeenTick<V.Tick)return;
+ V.Swing=S;V.Tick=SeenTick;
  if(S.Target.IsEmpty() || !Fence.Visible(S.Target,S.TargetIncarnation)){V.Swing->Target.Reset();V.Swing->TargetIncarnation=0;}
- Fence.Tick=FMath::Max(Fence.Tick,S.Tick);
+ Fence.Tick=FMath::Max(Fence.Tick,SeenTick);
 }
 void USkillStateSubsystem::ApplySwingCancel(const FAttackCancelled& C)
 {
