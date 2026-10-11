@@ -19,6 +19,27 @@ pub enum DamageCause {
     HpConsumption,
 }
 
+/// Complete caller attribution, including a departed periodic source's frozen kind/life.
+/// Direct callers capture this from live state; retained pulses carry the effect source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct DamageRequest {
+    pub source: super::effects::EffectSource,
+    pub target: super::effects::TargetBinding,
+    pub cause: DamageCause,
+    pub rolled_damage: u32,
+}
+
+/// One shared recipient result; callers retain their distinct interruption/reflection order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct DamageOutcome {
+    pub cp_absorbed: u32,
+    pub hp_removed: u32,
+    pub hp_after: u32,
+    pub lethal: bool,
+}
+
 /// Authoritative whole resources after pre-call validation. CP exists only for players.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(missing_docs)]

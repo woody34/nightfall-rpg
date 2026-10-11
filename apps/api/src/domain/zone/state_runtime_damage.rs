@@ -211,11 +211,19 @@ impl ZoneState {
             .checked_mul(ExactRatio::whole(if critical { 2 } else { 1 }))
             .map_err(invariant)?;
         result.rolled = u32::try_from(damage.trunc().map_err(invariant)?).map_err(invariant)?;
-        let (cp, hp, remaining) =
-            self.apply_damage_v5(tick, caster, target, result.rolled, DamageCause::Direct, events)?;
-        result.cp_absorbed = cp;
-        result.hp_removed = hp;
-        result.target_hp_after = remaining;
+        let damage = self.apply_damage_v5(
+            tick,
+            DamageRequest {
+                source: self.damage_source_v5(caster)?,
+                target,
+                rolled_damage: result.rolled,
+                cause: DamageCause::Direct,
+            },
+            events,
+        )?;
+        result.cp_absorbed = damage.cp_absorbed;
+        result.hp_removed = damage.hp_removed;
+        result.target_hp_after = damage.hp_after;
         result.outcome = if critical {
             SkillOutcome::Crit
         } else {
@@ -321,17 +329,28 @@ impl ZoneState {
         }
         let result = if positive {
             self.roll_below(100);
-            self.apply_damage_v5(tick, caster, target, rolled, DamageCause::Direct, events)?
+            self.apply_damage_v5(
+                tick,
+                DamageRequest {
+                    source: self.damage_source_v5(caster)?,
+                    target,
+                    rolled_damage: rolled,
+                    cause: DamageCause::Direct,
+                },
+                events,
+            )?
         } else {
-            (
-                0,
-                0,
-                self.entities
+            DamageOutcome {
+                cp_absorbed: 0,
+                hp_removed: 0,
+                lethal: false,
+                hp_after: self
+                    .entities
                     .get(&target.entity)
                     .and_then(|e| e.combat.as_ref())
                     .ok_or_else(missing)?
                     .hp,
-            )
+            }
         };
         Ok(SkillTargetResult {
             target,
@@ -343,11 +362,239 @@ impl ZoneState {
                 MagicResolution::Success => SkillOutcome::Hit,
             },
             rolled,
-            cp_absorbed: result.0,
-            hp_removed: result.1,
-            target_hp_after: result.2,
+            cp_absorbed: result.cp_absorbed,
+            hp_removed: result.hp_removed,
+            target_hp_after: result.hp_after,
             heal: 0,
             applied_effect_ids: Vec::new(),
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::wildcard_enum_match_arm
+)]
+mod tests {
+    use super::*;
+    use crate::domain::character_progression::{
+        CharacterAppearance, CharacterIdentity, ClassState,
+    };
+    use crate::domain::class::ClassId;
+    use crate::domain::{AccountId, Race};
+    use crate::infrastructure::{
+        class_data::{load_classes, ClassSource},
+        rules_data::{load_rules, RulesSource},
+        skill_data::{load_phase3_rules, Phase3DataSource},
+        zone_data::{parse_zone, TEST_ZONE_TOML},
+    };
+    use uuid::Uuid;
+
+    fn fixture() -> (ZoneState, TargetBinding, TargetBinding, TargetBinding) {
+        let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let npc =
+            NpcCombat::from_template(&stats, &parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0])
+                .unwrap();
+        let mut zone = ZoneState::new_phase3(
+            ZoneSeed {
+                zone: ZoneId(1),
+                epoch: 67,
+            },
+            ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256)).unwrap(),
+            0,
+            stats,
+            load_classes(&ClassSource::embedded()).unwrap().registry,
+            load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap(),
+        )
+        .unwrap();
+        let mut commands = Vec::new();
+        for (n, name) in [(1, "First"), (2, "Second")] {
+            let mut load = PlayerLoad::fresh("human_mystic");
+            load.progression = Some(Box::new(crate::domain::zone::PlayerProgression {
+                identity: CharacterIdentity {
+                    account_id: AccountId::from_uuid(Uuid::from_u128(n)),
+                    race: Race::Human,
+                    base_class_id: ClassId(10),
+                    appearance: CharacterAppearance::default(),
+                },
+                class_state: ClassState::new(ClassId(10)),
+                max_cp: 0,
+            }));
+            commands.push(ZoneInput::system(ZoneCommand::SpawnPlayer {
+                entity: EntityId::from_uuid(Uuid::from_u128(n)),
+                name: name.into(),
+                pos: Vec2Fixed::from_tiles(10, 10),
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                load: Some(Box::new(load)),
+            }));
+        }
+        commands.push(ZoneInput::system(ZoneCommand::SpawnNpc {
+            name: "Keltir".into(),
+            pos: Vec2Fixed::from_tiles(11, 10),
+            speed: parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0].move_speed,
+            combat: Some(Box::new(npc)),
+        }));
+        assert!(zone
+            .run_tick(zone.draft(commands))
+            .unwrap()
+            .dispositions
+            .is_empty());
+        let first = zone
+            .binding(EntityId::from_uuid(Uuid::from_u128(1)))
+            .unwrap();
+        let second = zone
+            .binding(EntityId::from_uuid(Uuid::from_u128(2)))
+            .unwrap();
+        let npc = zone
+            .entities
+            .values()
+            .find(|e| e.kind == EntityKind::Npc)
+            .unwrap()
+            .id;
+        let npc = zone.binding(npc).unwrap();
+        (zone, first, second, npc)
+    }
+
+    fn set_resources(zone: &mut ZoneState, target: TargetBinding, hp: u32, cp: u32) {
+        let c = zone
+            .entities
+            .get_mut(&target.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        c.hp = hp;
+        if let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut c.role
+        {
+            p.class_state.cp = cp;
+        }
+    }
+
+    #[test]
+    fn unified_live_recipient_uses_source_kind_and_nonlethal_limit_before_cp() {
+        let (mut zone, player, target, npc) = fixture();
+        for (source, cause, hp, cp, removed_cp, removed_hp) in [
+            (player, DamageCause::Direct, 50, 20, 20, 5),
+            (npc, DamageCause::Direct, 50, 20, 0, 25),
+            (player, DamageCause::Periodic, 10, 20, 9, 0),
+            (npc, DamageCause::Periodic, 10, 20, 0, 9),
+            (player, DamageCause::Periodic, 1, 20, 0, 0),
+        ] {
+            set_resources(&mut zone, target, hp, cp);
+            let before = zone.rng.clone();
+            let outcome = zone
+                .apply_damage_v5(
+                    Tick(1),
+                    DamageRequest {
+                        source: zone.damage_source_v5(source).unwrap(),
+                        target,
+                        cause,
+                        rolled_damage: 25,
+                    },
+                    &mut Vec::new(),
+                )
+                .unwrap();
+            assert_eq!((outcome.cp_absorbed, outcome.hp_removed), (removed_cp, removed_hp));
+            assert_eq!(outcome.hp_after, hp.checked_sub(removed_hp).unwrap());
+            assert_eq!(zone.rng, before, "unstunned recipient has no intrinsic draw");
+            let CombatRole::Player {
+                progression: Some(p),
+                ..
+            } = &zone.entities[&target.entity].combat.as_ref().unwrap().role
+            else {
+                panic!("player")
+            };
+            assert_eq!(p.class_state.cp, cp.checked_sub(removed_cp).unwrap());
+            assert!(!zone.hate.contains_key(&target.entity));
+        }
+    }
+
+    #[test]
+    fn departed_dot_attribution_never_borrows_a_new_lifes_kind_position_or_credit() {
+        let (mut zone, player, target, npc) = fixture();
+        for source in [player, npc] {
+            let attribution = zone.damage_source_v5(source).unwrap();
+            // A new life with the same ID stands in peace. The old effect keeps its source.
+            let e = zone.entities.get_mut(&source.entity).unwrap();
+            e.combat.as_mut().unwrap().incarnation = 2;
+            e.pos = Vec2Fixed::from_tiles(126, 126);
+            set_resources(&mut zone, target, 50, 20);
+            let request = DamageRequest {
+                source: attribution,
+                target,
+                cause: DamageCause::Periodic,
+                rolled_damage: 7,
+            };
+            assert!(zone
+                .damage_classification_v5(
+                    Tick(1),
+                    DamageRequest {
+                        cause: DamageCause::Direct,
+                        ..request
+                    }
+                )
+                .is_err());
+            let outcome = zone
+                .apply_damage_v5(Tick(1), request, &mut Vec::new())
+                .unwrap();
+            assert_eq!(
+                (outcome.cp_absorbed, outcome.hp_removed),
+                if source == player { (7, 0) } else { (0, 7) }
+            );
+            assert!(zone.phase3.as_ref().unwrap().landed_hits.is_empty());
+        }
+    }
+
+    #[test]
+    fn npc_damage_hate_uses_rolled_amount_and_attacked_notification_before_lethal_cleanup() {
+        let (mut zone, player, _, npc) = fixture();
+        set_resources(&mut zone, npc, 1, 0);
+        let mut events = Vec::new();
+        let outcome = zone
+            .apply_damage_v5(
+                Tick(1),
+                DamageRequest {
+                    source: zone.damage_source_v5(player).unwrap(),
+                    target: npc,
+                    cause: DamageCause::Direct,
+                    rolled_damage: 25,
+                },
+                &mut events,
+            )
+            .unwrap();
+        assert_eq!(outcome.hp_removed, 1);
+        let hates: Vec<_> = events
+            .iter()
+            .enumerate()
+            .filter_map(|(i, e)| match e {
+                ZoneEvent::HateChanged { hate, damage, .. } => Some((i, *hate, *damage)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!((hates[0].1, hates[0].2), (1, 0));
+        assert_eq!((hates[1].1, hates[1].2), (313, 25)); // 1 + floor(25*100/(1+7))
+        let death = events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::EntityDied { .. }))
+            .unwrap();
+        assert!(hates[1].0 < death);
+        assert_eq!((hates[2].1, hates[2].2), (0, 0));
+        assert!(!zone.hate.contains_key(&npc.entity));
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| matches!(e, ZoneEvent::SpGained { amount: 2, .. }))
+                .count(),
+            1
+        );
+        zone.note_hits_v5(Tick(1)).unwrap();
+        assert!(zone.phase3.as_ref().unwrap().landed_hits.is_empty());
     }
 }

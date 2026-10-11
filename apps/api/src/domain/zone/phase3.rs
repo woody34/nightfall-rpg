@@ -340,6 +340,7 @@ pub(super) struct Phase3Zone {
     pub(super) vitals_dirty: std::collections::BTreeSet<super::EntityId>,
     pub(super) ai_requests: Vec<AiRequest>,
     pub(super) forced_this_tick: BTreeSet<super::EntityId>,
+    pub(super) landed_hits: BTreeSet<(super::EntityId, u32)>,
 }
 
 /// Tick-local emission order, never persisted. The selected life is captured when hate
@@ -362,6 +363,7 @@ impl Phase3Zone {
             vitals_dirty: std::collections::BTreeSet::new(),
             ai_requests: Vec::new(),
             forced_this_tick: BTreeSet::new(),
+            landed_hits: BTreeSet::new(),
         })
     }
 }

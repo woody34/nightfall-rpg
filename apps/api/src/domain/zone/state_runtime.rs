@@ -10,12 +10,12 @@ mod live_learning;
 
 use super::*;
 use crate::domain::zone::effective_stats::{EffectiveStats, NpcStatInputs, PlayerStatInputs};
-use crate::domain::zone::effects::{EffectList, EffectSourceKind, TargetBinding};
+use crate::domain::zone::effects::{self, EffectList, EffectSourceKind, TargetBinding};
 use crate::domain::zone::skill::SkillDef;
 use crate::domain::zone::skill_math::{self, ExactRatio, MagicResolution};
 use crate::domain::zone::stat_functions::FunctionConditions;
 use crate::domain::zone::state_damage::{
-    self, DamageCause, DamageMaxima, DamageReduction, DamageResources,
+    self, DamageCause, DamageMaxima, DamageOutcome, DamageReduction, DamageRequest, DamageResources,
 };
 use crate::domain::zone::state_pvp::{
     hostility_allowed, HostilityClassification, HostilityEndpoint, HostilityError,
@@ -473,6 +473,7 @@ impl ZoneState {
         self.regen_v5(tick)?;
         events.extend(self.step(tick));
         self.complete_casts_v5(tick, &mut events)?;
+        self.note_hits_v5(tick)?;
         for entry in staged.drain() {
             if entry.canceled.is_some() {
                 continue;
@@ -1254,33 +1255,160 @@ impl ZoneState {
         }
         Ok(())
     }
-    #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // One recipient transaction preserves status/RNG/death order.
+    /// Capture a live source once; periodic callers instead retain the effect's attribution.
+    fn damage_source_v5(&self, source: TargetBinding) -> Result<effects::EffectSource, TickError> {
+        if self.binding(source.entity) != Some(source) {
+            return Err(missing());
+        }
+        Ok(effects::EffectSource {
+            binding: Some(source),
+            kind: match self.entities.get(&source.entity).ok_or_else(missing)?.kind {
+                EntityKind::Player => EffectSourceKind::Player,
+                EntityKind::Npc => EffectSourceKind::Npc,
+            },
+        })
+    }
+
+    fn damage_classification_v5(
+        &self,
+        tick: Tick,
+        request: DamageRequest,
+    ) -> Result<HostilityClassification, TickError> {
+        let source = request.source.binding.ok_or_else(missing)?;
+        let live = self.binding(source.entity) == Some(source)
+            && self
+                .entities
+                .get(&source.entity)
+                .is_some_and(|e| !e.targeting.dead);
+        if live {
+            if self.damage_source_v5(source)? != request.source {
+                return Err(missing());
+            }
+            return self
+                .hostility_v5(tick, source, request.target)
+                .map_err(invariant);
+        }
+        if request.cause != DamageCause::Periodic || request.source.kind == EffectSourceKind::System
+        {
+            return Err(missing());
+        }
+        let victim = self
+            .entities
+            .get(&request.target.entity)
+            .ok_or_else(missing)?;
+        let combat = victim.combat.as_ref().ok_or_else(missing)?;
+        let peace = self
+            .phase3
+            .as_ref()
+            .ok_or_else(missing)?
+            .canonical
+            .rules
+            .geometry()
+            .peace_square(self.bounds)
+            .map_err(invariant)?;
+        if self.binding(victim.id) != Some(request.target)
+            || combat.hp == 0
+            || combat.protected_at(tick)
+            || peace.contains(victim.pos)
+            || (victim.kind == EntityKind::Npc
+                && (!victim.targeting.attackable || request.source.kind == EffectSourceKind::Npc))
+            || self
+                .entities
+                .get(&source.entity)
+                .filter(|_| self.binding(source.entity) == Some(source))
+                .is_some_and(|e| peace.contains(e.pos))
+        {
+            return Err(missing());
+        }
+        Ok(HostilityClassification {
+            absorb_cp: request.source.kind == EffectSourceKind::Player
+                && victim.kind == EntityKind::Player,
+        })
+    }
+
+    /// L2Attackable.java:232-274,556-572: `EVT_ATTACKED` then damage hate precede HP.
+    /// L2AttackableAI.java:1856-1871: even zero damage refreshes timeout and adds one hate.
+    fn damage_hate_v5(
+        &mut self,
+        tick: Tick,
+        request: DamageRequest,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), TickError> {
+        let source = request.source.binding.ok_or_else(missing)?;
+        let victim = self
+            .entities
+            .get(&request.target.entity)
+            .ok_or_else(missing)?;
+        if victim.kind != EntityKind::Npc
+            || self.binding(source.entity) != Some(source)
+            || self
+                .entities
+                .get(&source.entity)
+                .is_none_or(|e| e.targeting.dead)
+        {
+            return Ok(());
+        }
+        let level = victim.combat.as_ref().ok_or_else(missing)?.sheet.level();
+        let damage = if request.cause == DamageCause::Periodic {
+            request.rolled_damage.min(
+                victim
+                    .combat
+                    .as_ref()
+                    .ok_or_else(missing)?
+                    .hp
+                    .saturating_sub(1),
+            )
+        } else {
+            request.rolled_damage
+        };
+        if let Some(ai) = self
+            .entities
+            .get_mut(&request.target.entity)
+            .and_then(|e| e.ai.as_mut())
+        {
+            ai.last_hit = tick;
+        }
+        self.add_hate(
+            tick,
+            request.target.entity,
+            source.entity,
+            super::super::HateEntry { hate: 1, damage: 0 },
+            events,
+        );
+        let hate = super::super::combat_math::damage_hate(
+            self.rules.as_ref().ok_or_else(missing)?.constants(),
+            damage,
+            level,
+        )
+        .map_err(invariant)?;
+        self.add_hate(
+            tick,
+            request.target.entity,
+            source.entity,
+            super::super::HateEntry {
+                hate,
+                damage: u64::from(damage),
+            },
+            events,
+        );
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_lines)] // One recipient transaction preserves status/RNG/death order.
     fn apply_damage_v5(
         &mut self,
         tick: Tick,
-        source: TargetBinding,
-        target: TargetBinding,
-        rolled_damage: u32,
-        cause: DamageCause,
+        request: DamageRequest,
         events: &mut Vec<ZoneEvent>,
-    ) -> Result<(u32, u32, u32), TickError> {
-        let classification = if cause == DamageCause::Periodic
-            && (self.binding(source.entity) != Some(source)
-                || self
-                    .entities
-                    .get(&source.entity)
-                    .is_none_or(|e| e.targeting.dead))
-        {
-            // Retained attribution is valid after departure; pulses already checked geometry.
-            HostilityClassification {
-                absorb_cp: self
-                    .entities
-                    .get(&target.entity)
-                    .is_some_and(|e| e.kind == EntityKind::Player),
-            }
-        } else {
-            self.hostility_v5(tick, source, target).map_err(invariant)?
-        };
+    ) -> Result<DamageOutcome, TickError> {
+        let DamageRequest {
+            source: attribution,
+            target,
+            rolled_damage,
+            cause,
+        } = request;
+        let source = attribution.binding.ok_or_else(missing)?;
+        let classification = self.damage_classification_v5(tick, request)?;
         let recipient = self
             .entities
             .get(&target.entity)
@@ -1297,10 +1425,6 @@ impl ZoneState {
             }
             | CombatRole::Npc { .. } => None,
         };
-        // Player death/PvP checkpoint integration is not yet exposed by bootstrap.
-        if cp.is_some() {
-            return Err(missing());
-        }
         let side = self.sidecar(target.entity)?.clone();
         let rules = Arc::clone(&self.phase3.as_ref().ok_or_else(missing)?.canonical.rules);
         let mut rng = self.rng.clone();
@@ -1313,7 +1437,7 @@ impl ZoneState {
             },
             DamageReduction {
                 cause,
-                source_kind: EffectSourceKind::Player,
+                source_kind: attribution.kind,
                 classification,
                 awake: true,
                 rolled_damage,
@@ -1343,6 +1467,12 @@ impl ZoneState {
             },
         )
         .map_err(invariant)?;
+        // Live hostile-player starts remain fenced until death/PvP integration. Refuse
+        // unsupported lethal transitions atomically rather than publish a partial death.
+        if mutation.lethal && cp.is_some() {
+            return Err(missing());
+        }
+        self.damage_hate_v5(tick, request, events)?;
         if mutation.hp_removed > 0 {
             self.phase3
                 .as_mut()
@@ -1368,6 +1498,13 @@ impl ZoneState {
             .ok_or_else(missing)?;
         c.hp = mutation.resources.hp;
         c.mp = mutation.resources.mp;
+        if let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &mut c.role
+        {
+            player.class_state.cp = mutation.resources.cp.ok_or_else(missing)?;
+        }
         let hp = c.hp;
         if mutation.lethal {
             self.cancel_v5(tick, target.entity, None, CastCancelReason::CasterDied, events);
@@ -1376,7 +1513,11 @@ impl ZoneState {
                 crate::domain::zone::state_death::DeathContext {
                     incarnation: target.incarnation,
                     was_alive: true,
-                    killer_kind: Some(EntityKind::Player),
+                    killer_kind: Some(match attribution.kind {
+                        EffectSourceKind::Player => EntityKind::Player,
+                        EffectSourceKind::Npc => EntityKind::Npc,
+                        EffectSourceKind::System => return Err(missing()),
+                    }),
                     inside_peace: false,
                     pre_death_xp: 0,
                     xp_lost: 0,
@@ -1408,22 +1549,49 @@ impl ZoneState {
                 }),
                 events,
             );
-            self.credit_sp_v5(tick, source, &recipient, events)?;
-            self.sync_passives_v5(source.entity)?;
-            self.rebuild_v5(source.entity)?;
-        } else {
-            self.add_hate(
-                tick,
-                target.entity,
-                source.entity,
-                super::super::HateEntry {
-                    hate: u64::from(mutation.hp_removed),
-                    damage: u64::from(mutation.hp_removed),
-                },
-                events,
-            );
+            if attribution.kind == EffectSourceKind::Player {
+                self.credit_sp_v5(tick, source, &recipient, events)?;
+                self.sync_passives_v5(source.entity)?;
+                self.rebuild_v5(source.entity)?;
+            }
         }
-        Ok((mutation.cp_absorbed, mutation.hp_removed, hp))
+        if self.binding(source.entity) == Some(source) {
+            self.phase3
+                .as_mut()
+                .ok_or_else(missing)?
+                .landed_hits
+                .insert((source.entity, source.incarnation));
+        }
+        Ok(DamageOutcome {
+            cp_absorbed: mutation.cp_absorbed,
+            hp_removed: mutation.hp_removed,
+            hp_after: hp,
+            lethal: mutation.lethal,
+        })
+    }
+    /// Phase seven consumes each landed source life once, independently of public rows.
+    fn note_hits_v5(&mut self, tick: Tick) -> Result<(), TickError> {
+        let hits = std::mem::take(&mut self.phase3.as_mut().ok_or_else(missing)?.landed_hits);
+        for (entity, incarnation) in hits {
+            let source = TargetBinding {
+                entity,
+                incarnation,
+            };
+            if self.binding(source.entity) != Some(source) {
+                continue;
+            }
+            if let Some(ai) = self
+                .entities
+                .get_mut(&source.entity)
+                .filter(|e| !e.targeting.dead)
+                .and_then(|e| e.ai.as_mut())
+            {
+                if ai.intention == super::super::Intention::Attack {
+                    ai.last_hit = tick;
+                }
+            }
+        }
+        Ok(())
     }
     fn credit_sp_v5(
         &mut self,

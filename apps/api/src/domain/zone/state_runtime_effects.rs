@@ -598,6 +598,7 @@ impl ZoneState {
                     || effect
                         .source
                         .binding
+                        .filter(|source| self.binding(source.entity) == Some(*source))
                         .and_then(|source| self.entities.get(&source.entity))
                         .is_some_and(|e| peace.contains(e.pos))
                 {
@@ -614,34 +615,16 @@ impl ZoneState {
                         current,
                     )
                     .map_err(invariant)?;
-                    // Retained departed-caster pulses retain attribution and cannot kill.
-                    // Recipient hooks for NPC DoT do not remove damage-breakable statuses.
-                    if let Some(source) = effect.source.binding.filter(|source| {
-                        self.binding(source.entity) == Some(*source)
-                            && self
-                                .entities
-                                .get(&source.entity)
-                                .is_some_and(|e| !e.targeting.dead)
-                    }) {
-                        if self.hostility_v5(tick, source, target).is_ok() {
-                            self.apply_damage_v5(
-                                tick,
-                                source,
-                                target,
-                                rolled,
-                                DamageCause::Periodic,
-                                events,
-                            )?;
-                        }
-                    } else if let Some(source) = effect.source.binding {
-                        self.apply_damage_v5(
-                            tick,
-                            source,
-                            target,
-                            rolled,
-                            DamageCause::Periodic,
-                            events,
-                        )?;
+                    // The source life/kind is frozen in the effect. A replacement entity
+                    // with the same ID cannot take attribution or lend its peace position.
+                    let request = DamageRequest {
+                        source: effect.source,
+                        target,
+                        rolled_damage: rolled,
+                        cause: DamageCause::Periodic,
+                    };
+                    if self.damage_classification_v5(tick, request).is_ok() {
+                        self.apply_damage_v5(tick, request, events)?;
                     }
                 },
                 PeriodicResource::Mp if negative => {
