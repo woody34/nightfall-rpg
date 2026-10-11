@@ -1,5 +1,6 @@
 #include "Misc/AutomationTest.h"
 #include "Bot/SkillOracleData.h"
+#include "Auth/AuthCrypto.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -17,6 +18,20 @@ bool FSkillOracleTest::RunTest(const FString& Parameters)
  for(const TCHAR* Rel:{TEXT("fixtures/skill-oracle.json"),TEXT("npcs/keltir.toml"),TEXT("scripts/skill_oracle.py"),TEXT("tables/formulas.toml"),TEXT("tables/pvp.toml"),TEXT("tables/regen.toml"),TEXT("tables/stat_bonus.toml")})
  {const FString To=FPaths::Combine(Dir,Rel);IFileManager::Get().MakeDirectory(*FPaths::GetPath(To),true);TestEqual(TEXT("copy oracle input"),IFileManager::Get().Copy(*To,*FPaths::Combine(Source,Rel)),uint32(COPY_OK));}
  TestTrue(TEXT("complete copied fixture valid"),FSkillOracleData::Load(Dir).Error.IsEmpty());
+ // A generator-only change refreshes its manifest hash without changing any vectors.
+ const FString OraclePath=FPaths::Combine(Dir,TEXT("fixtures/skill-oracle.json"));
+ const FString ScriptPath=FPaths::Combine(Dir,TEXT("scripts/skill_oracle.py"));
+ FString Oracle,Script;TestTrue(TEXT("read copied oracle"),FFileHelper::LoadFileToString(Oracle,*OraclePath));TestTrue(TEXT("read copied generator"),FFileHelper::LoadFileToString(Script,*ScriptPath));
+ TArray<uint8> ScriptBytes;TestTrue(TEXT("read generator bytes"),FFileHelper::LoadFileToArray(ScriptBytes,*ScriptPath));
+ auto Sha=[](const TArray<uint8>& Bytes){const auto Digest=NightfallAuthCrypto::Sha256(Bytes.GetData(),Bytes.Num());return BytesToHex(Digest.GetData(),Digest.Num()).ToLower();};
+ const FString OldScriptSha=Sha(ScriptBytes);Script+=TEXT("\n# Manifest-only regression input.\n");TestTrue(TEXT("update copied generator"),FFileHelper::SaveStringToFile(Script,*ScriptPath,FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM));
+ TestFalse(TEXT("unrefreshed generator hash fails closed"),FSkillOracleData::Load(Dir).KarmaGain(0).IsSet());
+ TestTrue(TEXT("read changed generator bytes"),FFileHelper::LoadFileToArray(ScriptBytes,*ScriptPath));FString Refreshed=Oracle;
+ TestEqual(TEXT("refresh exactly the generator manifest hash"),Refreshed.ReplaceInline(*OldScriptSha,*Sha(ScriptBytes)),1);TestTrue(TEXT("write refreshed manifest"),FFileHelper::SaveStringToFile(Refreshed,*OraclePath,FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM));
+ const auto RefreshedData=FSkillOracleData::Load(Dir);TestTrue(TEXT("unchanged vectors accept refreshed input manifest: ")+RefreshedData.Error,RefreshedData.Error.IsEmpty());TestEqual(TEXT("refreshed metadata keeps exact expected result"),RefreshedData.KarmaGain(0).Get(0),720u);
+ FString ChangedVectors=Refreshed;TestTrue(TEXT("change pinned vector output"),ChangedVectors.ReplaceInline(TEXT("\"rounded_result\": 720"),TEXT("\"rounded_result\": 721"))>0);TestTrue(TEXT("write changed vector"),FFileHelper::SaveStringToFile(ChangedVectors,*OraclePath,FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM));
+ const auto BadVectors=FSkillOracleData::Load(Dir);TestFalse(TEXT("changed vector blocks lookup"),BadVectors.KarmaGain(0).IsSet());TestTrue(TEXT("vector pin reason"),BadVectors.Error.Contains(TEXT("pinned E1 formula vectors")));
+ TestTrue(TEXT("restore pinned vectors"),FFileHelper::SaveStringToFile(Refreshed,*OraclePath,FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM));
  FFileHelper::SaveStringToFile(TEXT("changed input"),*FPaths::Combine(Dir,TEXT("tables/regen.toml")));const auto BadInput=FSkillOracleData::Load(Dir);TestFalse(TEXT("changed input blocks lookup"),BadInput.KarmaGain(0).IsSet());TestTrue(TEXT("hash reason"),BadInput.Error.Contains(TEXT("input hash")));
  FFileHelper::SaveStringToFile(TEXT("{}"),*FPaths::Combine(Dir,TEXT("fixtures/skill-oracle.json")));TestFalse(TEXT("changed expected outputs cannot pass"),FSkillOracleData::Load(Dir).KarmaGain(0).IsSet());IFileManager::Get().DeleteDirectory(*Dir,false,true);
  return true;

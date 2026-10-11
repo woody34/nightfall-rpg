@@ -8,9 +8,40 @@
 
 namespace SkillOracleDetail
 {
- // Integrated E1 manifest at 3a7b995 (only input hashes changed from 533608c). Deliberately pin the entire oracle, including expected outputs.
- const TCHAR* OracleSha=TEXT("dfc2d7eaad2382303493fb8c53ec258ca028142bf5cbe87010d5094a80618993");
+ // SHA256 of the generated formulas object's UTF-8 bytes, including inputs,
+ // outputs and provenance. Manifest refreshes must not invalidate unchanged vectors.
+ const TCHAR* VectorsSha=TEXT("c94d3f5f8db8646bc32eea0b141bdb6c3ed4b62d6b9506f069897bea881507b8");
  FString Hash(const TArray<uint8>& Bytes){const auto Digest=NightfallAuthCrypto::Sha256(Bytes.GetData(),Bytes.Num());return BytesToHex(Digest.GetData(),Digest.Num()).ToLower();}
+ bool PinnedVectors(const FString& Text)
+ {
+  // Hash the original bytes rather than round-tripping JSON numbers through double.
+  const int32 Key=Text.Find(TEXT("\"formulas\":"));
+  if(Key==INDEX_NONE || Text.Find(TEXT("\"formulas\":"),ESearchCase::CaseSensitive,ESearchDir::FromStart,Key+1)!=INDEX_NONE)return false;
+  int32 Start=Key+FCString::Strlen(TEXT("\"formulas\":"));
+  while(Start<Text.Len() && FChar::IsWhitespace(Text[Start]))++Start;
+  if(Start==Text.Len() || Text[Start]!=TEXT('{'))return false;
+  int32 Depth=0;bool InString=false;bool Escaped=false;
+  for(int32 I=Start;I<Text.Len();++I)
+  {
+   const TCHAR C=Text[I];
+   if(InString)
+   {
+    if(Escaped)Escaped=false;
+    else if(C==TEXT('\\'))Escaped=true;
+    else if(C==TEXT('"'))InString=false;
+    continue;
+   }
+   if(C==TEXT('"'))InString=true;
+   else if(C==TEXT('{'))++Depth;
+   else if(C==TEXT('}') && --Depth==0)
+   {
+    const FString Vectors=Text.Mid(Start,I-Start+1);const FTCHARToUTF8 Utf8(*Vectors);
+    TArray<uint8> Bytes;Bytes.Append(reinterpret_cast<const uint8*>(Utf8.Get()),Utf8.Length());
+    return Hash(Bytes)==VectorsSha;
+   }
+  }
+  return false;
+ }
  bool Integer(const TSharedPtr<FJsonObject>& O,const TCHAR* Key,uint64& Out)
  {
   double N=0;if(!O || !O->TryGetNumberField(Key,N) || !FMath::IsFinite(N) || N<0 || N>9007199254740991.0 || FMath::FloorToDouble(N)!=N)return false;Out=uint64(N);return true;
@@ -20,11 +51,11 @@ namespace SkillOracleDetail
 }
 FSkillOracleData FSkillOracleData::Load(const FString& Dir)
 {
- using namespace SkillOracleDetail;FSkillOracleData D;TArray<uint8> Bytes;
- if(!FFileHelper::LoadFileToArray(Bytes,*FPaths::Combine(Dir,TEXT("fixtures/skill-oracle.json"))) || Hash(Bytes)!=OracleSha){D.Error=TEXT("missing or changed pinned E1 skill-oracle.json");return D;}
+ using namespace SkillOracleDetail;FSkillOracleData D;
  FString Text;if(!FFileHelper::LoadFileToString(Text,*FPaths::Combine(Dir,TEXT("fixtures/skill-oracle.json")))){D.Error=TEXT("unreadable E1 oracle");return D;}
  TSharedPtr<FJsonObject> Root;auto Reader=TJsonReaderFactory<>::Create(Text);
  if(!FJsonSerializer::Deserialize(Reader,Root) || !Matches(Root,TEXT("schema"),1)){D.Error=TEXT("unsupported E1 oracle schema");return D;}
+ if(!PinnedVectors(Text)){D.Error=TEXT("changed pinned E1 formula vectors");return D;}
  const TSharedPtr<FJsonObject>* Revisions=nullptr;const TSharedPtr<FJsonObject>* Hashes=nullptr;
  if(!Root->TryGetObjectField(TEXT("source_revisions"),Revisions) || !Root->TryGetObjectField(TEXT("inputs_sha256"),Hashes) || (*Revisions)->GetStringField(TEXT("l2j_game"))!=TEXT("abfde0490ac52a2106e884b7242c0276c44cdf76") || (*Revisions)->GetStringField(TEXT("l2j_datapack"))!=TEXT("3ca488dd2bd0bfaca43e378886a3c2e37968153a")){D.Error=TEXT("E1 source revision mismatch");return D;}
  for(const TCHAR* Relative:{TEXT("npcs/keltir.toml"),TEXT("scripts/skill_oracle.py"),TEXT("tables/formulas.toml"),TEXT("tables/pvp.toml"),TEXT("tables/regen.toml"),TEXT("tables/stat_bonus.toml")})
