@@ -134,6 +134,33 @@ def format_fraction(x: F) -> str:
     return f"{x.numerator}/{x.denominator}"
 
 
+def calc_auto_hit_chance(accuracy, evasion, condition=F(1)) -> int:
+    """Pinned Formulas.java:1054-1063; hit iff Rnd.get(1000) <= returned chance."""
+    return min(980, max(200, int((80 + 2 * (accuracy - evasion)) * 10 * F(condition))))
+
+
+def calc_auto_damage(p_atk, p_def, critical=False, spread=F(1)) -> F:
+    """Pinned Formulas.java:665-738, front/no shots/shield/traits/attribute/penalty.
+
+    This narrow callable covers the fixture NPC -> player branch; callers must not
+    use it for player attacks against high-level NPCs or nonneutral modifiers.
+    """
+    if F(p_atk) < 0 or F(p_def) <= 0 or F(spread) <= 0:
+        raise ValueError('invalid auto-attack inputs')
+    return max(F(1), F(76) * F(p_atk) * (2 if critical else 1) * F(spread) / F(p_def))
+
+
+def calc_auto_timing_ticks(attack_speed, tick_ms=100) -> tuple[int, int]:
+    """L2Character.java:887,4336: integer attack milliseconds, half-time impact.
+
+    Nightfall's fixed tick adaptation ceils both absolute offsets independently.
+    """
+    if attack_speed <= 0 or tick_ms <= 0:
+        raise ValueError('invalid attack timing inputs')
+    interval_ms = int(F(500000, attack_speed))
+    return ceil(F(interval_ms // 2, tick_ms)), ceil(F(interval_ms, tick_ms))
+
+
 def calc_skill_phys_damage(power, p_atk, defence, proximity="front", soulshot=False,
                            crit=False, spread=F(1)) -> F:
     """Formulas.java:746-809; PhysicalAttack.java:86-104, no equipped shield."""

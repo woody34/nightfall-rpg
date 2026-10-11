@@ -149,3 +149,51 @@ bash Scripts/test/sim.test.sh
 
 The Phase2 tests use command stubs, including a stub listener ownership probe.
 They validate orchestration and cannot establish native gameplay acceptance.
+
+### V5 sentinel retaliation budget (round 2)
+
+The r7 recordings show source-correct late retaliation, not regeneration outhealing
+NPC damage. In `2-token-milestone20`, the second player attack misses at ticks
+748/760/772/784/796/808, lands at820, and the sentinel kills at831; the client fails
+at826. The corresponding level40 ticks are750/762/774/786/798/810,822,833 and828.
+Evidence: native `nightfall-replay export --evidence-out` on the r7 unit recordings;
+`token20.jsonl:142-180`, `token40.jsonl:144-182` in the preserved round2 evidence.
+The unit `.failure.json:7,12-16` gives the client boundary and failed step. Both
+first deaths had already succeeded at457 (same native evidence). API export keeps
+running through client shutdown, which is why the recording proves the later death.
+
+Pinned game `abfde049`: `L2Character.java:4020-4025` sends EVT_EVADED on a miss;
+`L2CharacterAI.java:619-621` does nothing. Only positive landed damage reaches
+EVT_ATTACKED (`L2Character.java:4056-4138`), and `L2AttackableAI.java:1871-1884`
+adds hate and requests attack. No engine behavior is changed.
+
+`Formulas.java:1054-1063` clamps the hit threshold to200..980 and misses only when
+the1000-way roll is greater than the threshold. Actual player accuracy53/73 versus
+sentinel evasion125 hits on201/1000 rolls. `L2Character.java:887,4336` yields
+12-tick player intervals at417 speed and20-tick sentinel intervals at253. These
+actual replay inputs are checked by `token-v5-oracle.py`, calling the committed
+Fraction functions in `packages/data/scripts/skill_oracle.py` (C15).
+
+Test policy allows64 player rolls,3 sentinel rolls, twice the direct Manhattan
+travel allowance, and3 seconds of delivery grace. These are explicit harness
+allowances, not source constants or a guarantee for every RNG stream. The fixture
+home separation is6 tiles (`phase3-fixtures.py:upgrade_npc_overlays`), the drift
+per axis is300/32 tiles (`npc.properties:35`, `zone/ai.rs:24-30`), and the actual
+received movement speed is3.95 tiles/s. Thus:
+
+`2*(6+2*300/32)/3.95 + (64*12+3*20)/10 + 3 = 98.3316… seconds`.
+
+Rounding up to a30-second harness quantum gives120 seconds. The64-miss probability
+at the floor chance is `(799/1000)^64 < 1/1000000`; it is explicitly nonzero.
+Both death waits now use120, with total `Within` increased by220 to account for
+both changed waits. All exact death-loss, level, XP, token and transfer assertions
+are retained. Geometry and NPC physical inputs are unchanged.
+
+`Formulas.java:665-738` confirms the NPC's fixture P.Atk10000 is lethal even at the
+minimum87% spread against the recorded maximum defence103.2 and maximum HP1649.
+`PcStatus.java:185` restricts CP absorption to playable attackers; every recorded
+sentinel hit has CP absorption0. The native Rust regression admits base Human
+fighters, performs real transfers to classes1/2, attacks the real generated sentinel,
+records/replays each case, and audits actual hit RNG, lethal HP damage and CP bypass
+with the independent oracle. It requires all four class states to die within the
+same120-second budget. No live database or client is needed for that regression.

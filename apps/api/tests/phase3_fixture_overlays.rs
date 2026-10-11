@@ -716,3 +716,142 @@ fn actual_scenario_inputs_record_for_independent_evidence() -> anyhow::Result<()
     std::fs::remove_dir_all(&work)?;
     result
 }
+
+#[test]
+#[allow(clippy::too_many_lines)] // Four real class states share the same recorder/oracle seam.
+fn token_sentinel_kills_v5_milestone_classes_with_oracle_verified_damage() -> anyhow::Result<()> {
+    use nightfall_api::domain::zone::{CombatRole, ZoneEvent};
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .context("repo")?;
+    let work =
+        std::env::temp_dir().join(format!("nightfall-triage-token-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir(&work)?;
+    let result = (|| -> anyhow::Result<()> {
+        let generated = std::process::Command::new("python3")
+            .arg(repo.join("apps/client-unreal/Scripts/phase3-validation-inputs.py"))
+            .arg(&work)
+            .status()?;
+        ensure!(generated.success(), "fixture generation failed");
+        let roles: BTreeMap<String, Role> =
+            serde_json::from_slice(&std::fs::read(work.join("token-v5-roles.json"))?)?;
+        for (name, role) in roles {
+            let data = work.join(format!("phase2-token-level{}", role.level));
+            let prepared = prepare_phase3_bootstrap(
+                &Phase3DataSource::from_dir(&data)?,
+                load_rules_dir(&data)?,
+                load_classes(&ClassSource::from_dir(&data)?)?,
+                load_zone(&data.join("zones/test_zone.toml"))?,
+            )?;
+            let mut rec = EvidenceRecording::new(prepared.state(
+                ZoneSeed {
+                    zone: prepared.zone.zone,
+                    epoch: 1,
+                },
+                0,
+            )?);
+            // Advanced-class admission requires real transfer receipts. Exercise the
+            // same public mutation path as the live token scenarios before combat.
+            let mut initial = role.clone();
+            initial.class_id = 0;
+            initial.position = [126, 128];
+            rec.spawn(&initial, evidence_load(&initial, 1))
+                .with_context(|| format!("admit token role {name}"))?;
+            for class_id in 1..=role.class_id {
+                rec.tick(vec![ZoneInput::session(
+                    role.character_id,
+                    SessionGeneration(1),
+                    class_id,
+                    ZoneCommand::ChangeClass {
+                        entity: role.character_id,
+                        account: AccountId::from_uuid(uuid::Uuid::from_u128(1)),
+                        request_key: uuid::Uuid::from_u128(u128::from(class_id)),
+                        target: ClassId(class_id),
+                    },
+                )])?;
+            }
+            rec.tick(vec![ZoneInput::session(
+                role.character_id,
+                SessionGeneration(1),
+                3,
+                ZoneCommand::MoveTo {
+                    entity: role.character_id,
+                    dest: Vec2Fixed::from_tiles(110, 100),
+                },
+            )])?;
+            rec.wait(150)?;
+            let npc = rec
+                .state
+                .snapshot()
+                .entities
+                .iter()
+                .find_map(|entity| {
+                    matches!(entity.combat.as_ref().map(|c| &c.role),
+                    Some(CombatRole::Npc { template, .. }) if template == "token_sentinel")
+                    .then_some(entity.id)
+                })
+                .context("sentinel")?;
+            rec.tick(vec![
+                ZoneInput::session(
+                    role.character_id,
+                    SessionGeneration(1),
+                    4,
+                    ZoneCommand::SetTarget {
+                        entity: role.character_id,
+                        target: Some(npc),
+                    },
+                ),
+                ZoneInput::session(
+                    role.character_id,
+                    SessionGeneration(1),
+                    5,
+                    ZoneCommand::Attack {
+                        entity: role.character_id,
+                    },
+                ),
+            ])?;
+            let mut dead = false;
+            for _ in 0..1200 {
+                let tick = rec.tick(Vec::new())?;
+                if tick.events.iter().any(|event| {
+                    matches!(event,
+                    ZoneEvent::EntityDied { entity, killer: Some(killer), .. }
+                    if *entity == role.character_id && *killer == npc)
+                }) {
+                    dead = true;
+                    break;
+                }
+            }
+            ensure!(dead, "sentinel did not kill {name} within the derived wait");
+            let recording = work.join(format!("{name}.nfr"));
+            let evidence = work.join(format!("{name}.jsonl"));
+            rec.recording.write(&recording)?;
+            let export = std::process::Command::new(env!("CARGO_BIN_EXE_nightfall-replay"))
+                .args(["export", "--file"])
+                .arg(&recording)
+                .arg("--evidence-out")
+                .arg(&evidence)
+                .output()?;
+            ensure!(
+                export.status.success(),
+                "native export failed: {}",
+                String::from_utf8_lossy(&export.stderr)
+            );
+            // Pinned Formulas.java:665-738,1054-1063 and PcStatus.java:185:
+            // actual NPC inputs, hit RNG, whole lethal HP damage and CP bypass.
+            let oracle = std::process::Command::new("python3")
+                .arg(repo.join("apps/client-unreal/Scripts/token-v5-oracle.py"))
+                .arg(&evidence)
+                .output()?;
+            ensure!(
+                oracle.status.success(),
+                "token oracle {name}: {}",
+                String::from_utf8_lossy(&oracle.stderr)
+            );
+        }
+        Ok(())
+    })();
+    std::fs::remove_dir_all(&work)?;
+    result
+}
