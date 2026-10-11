@@ -70,11 +70,13 @@ bool USkillAuditSubsystem::Reference(const TOptional<FString>& Id,const TOptiona
 {
  ++References;const bool Ok=Id.IsSet()==Inc.IsSet() && (!Id.IsSet() || Fence.Visible(*Id,*Inc));bReferencesOk &= Ok;return Ok;
 }
-bool USkillAuditSubsystem::AuditSubject(const FString& Id,uint32 Inc,uint64 Tick,bool Baseline,uint64 BaselineTick)
+bool USkillAuditSubsystem::AuditSubject(const FString& Id,TOptional<uint32> Inc,uint64 Tick,bool Baseline,uint64 BaselineTick)
 {
  const auto* Known=Fence.Identities.Find(Id.ToLower());if(!Known)Known=Fence.Tombstones.Find(Id.ToLower());
+ // Historical attack frames have no subject incarnation; only an admitted identity can supply it.
+ if(!Inc.IsSet() && Known)Inc=Known->LifeIncarnation;
  // Delayed old-life/old-baseline frames are stale, not evidence of invalid delivery ordering.
- if(Known && (Inc<Known->LifeIncarnation || (Inc==Known->LifeIncarnation && (Baseline?BaselineTick<Known->StateTick:Tick<=Known->StateTick))))return false;
+ if(Known && (*Inc<Known->LifeIncarnation || (*Inc==Known->LifeIncarnation && (Baseline?BaselineTick<Known->StateTick:Tick<=Known->StateTick))))return false;
  Reference(Id,Inc);return true;
 }
 void USkillAuditSubsystem::ComparePvp(const FString& Id)
@@ -194,6 +196,9 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   const bool Result=E.SkillCastResult.IsSet();const FString Caster=Result?E.SkillCastResult->Caster:E.SkillCastCancelled->Caster;
   const uint32 Inc=Result?E.SkillCastResult->CasterIncarnation:E.SkillCastCancelled->CasterIncarnation;
   const uint64 Tick=Result?E.SkillCastResult->Tick:E.SkillCastCancelled->Tick,Id=Result?E.SkillCastResult->CastId:E.SkillCastCancelled->CastId;
+  if(!AuditSubject(Caster,Inc,Tick))return;
+  // Audit delivered rows even when the subject or matching cast cannot be projected.
+  if(Result)for(const auto& T:E.SkillCastResult->Targets)AuditSubject(T.Target,T.TargetIncarnation,T.Tick);
   if(!Fence.Accept(Caster,Inc,Tick))return;
   auto* C=Casts.Find(CastKey(Caster,Inc,Id));if(!C || Tick<C->Start.Tick)return;
   if(Result && (E.SkillCastResult->SkillId!=C->Start.SkillId || E.SkillCastResult->SkillLevel!=C->Start.SkillLevel)){C->bIdentityOk=false;bDispositionOk=false;return;}
@@ -205,7 +210,6 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
   if(!Result && Net && Net->IsOwnEntity(Caster)){const auto* ReuseAtCancel=Reuse.Find(C->Start.SkillId);C->ReuseAtCancel=ReuseAtCancel?TOptional<FSkillReuse>(*ReuseAtCancel):TOptional<FSkillReuse>();}
   if(Result)for(const auto& T:E.SkillCastResult->Targets)
   {
-   Reference(T.Target,T.TargetIncarnation);
    const FString K=CastKey(Caster,Inc,Id)+TEXT("|")+T.Target.ToLower();if(DamageIds.Contains(K))continue;DamageIds.Add(K);
    Impact(Caster,T.Target,T.TargetIncarnation,T.Tick,C->Start.Tick,T.TargetHpAfter,T.CpAbsorbed,T.HpRemoved);
    if(LastImpact.IsSet() && LastImpact->Tick==T.Tick && C->Start.Target.IsSet() && C->Start.Target->Equals(T.Target,ESearchCase::IgnoreCase))LastImpact->StartFlagDeadline=C->TargetFlagAtStart;
@@ -214,13 +218,17 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  }
  if(E.AttackStarted.IsSet())
  {
-  const auto& S=*E.AttackStarted;const auto* A=Fence.Identities.Find(S.Attacker.ToLower());if(!A || !Fence.Accept(S.Attacker,S.AttackerIncarnation.Get(A->LifeIncarnation),S.Tick,S.bBaseline,S.BaselineTick))return;
-  Reference(S.Target.IsEmpty()?TOptional<FString>():TOptional<FString>(S.Target),S.Target.IsEmpty()?TOptional<uint32>():TOptional<uint32>(S.TargetIncarnation));Swings.Add(S.Attacker.ToLower(),S);if(const auto* P=PublicPvp.Find(S.Target.ToLower()))SwingTargetsAtStart.Add(S.Attacker.ToLower(),*P);return;
+  const auto& S=*E.AttackStarted;
+  if(!AuditSubject(S.Attacker,S.AttackerIncarnation,S.Tick,S.bBaseline,S.BaselineTick))return;
+  Reference(S.Target.IsEmpty()?TOptional<FString>():TOptional<FString>(S.Target),S.Target.IsEmpty() && !S.TargetIncarnation?TOptional<uint32>():TOptional<uint32>(S.TargetIncarnation));
+  const auto* A=Fence.Identities.Find(S.Attacker.ToLower());if(!A || !Fence.Accept(S.Attacker,S.AttackerIncarnation.Get(A->LifeIncarnation),S.Tick,S.bBaseline,S.BaselineTick))return;
+  Swings.Add(S.Attacker.ToLower(),S);if(const auto* P=PublicPvp.Find(S.Target.ToLower()))SwingTargetsAtStart.Add(S.Attacker.ToLower(),*P);return;
  }
- if(E.AttackCancelled.IsSet()){const auto& C=*E.AttackCancelled;const auto* A=Fence.Identities.Find(C.Attacker.ToLower());if(A && Fence.Accept(C.Attacker,A->LifeIncarnation,C.Tick))Swings.Remove(C.Attacker.ToLower());return;}
+ if(E.AttackCancelled.IsSet()){const auto& C=*E.AttackCancelled;if(!AuditSubject(C.Attacker,{},C.Tick))return;if(!C.Target.IsEmpty())AuditSubject(C.Target,{},C.Tick);const auto* A=Fence.Identities.Find(C.Attacker.ToLower());if(A && Fence.Accept(C.Attacker,A->LifeIncarnation,C.Tick))Swings.Remove(C.Attacker.ToLower());return;}
  if(E.AttackResult.IsSet())
  {
   const auto& R=*E.AttackResult;const auto* S=Swings.Find(R.Attacker.ToLower());const FString K=FString::Printf(TEXT("swing|%s|%s|%u|%llu"),*R.Attacker.ToLower(),*R.Target.ToLower(),R.TargetIncarnation,R.Tick);
+  if(!AuditSubject(R.Target,R.TargetIncarnation,R.Tick) || !AuditSubject(R.Attacker,{},R.Tick))return;
   if(DamageIds.Contains(K))return;if(!Fence.Accept(R.Target,R.TargetIncarnation,R.Tick))return;DamageIds.Add(K);Impact(R.Attacker,R.Target,R.TargetIncarnation,R.Tick,S?S->Tick:0,R.TargetHpAfter,R.CpDamage,R.Damage);if(LastImpact.IsSet() && LastImpact->Tick==R.Tick)if(const auto* P=SwingTargetsAtStart.Find(R.Attacker.ToLower()))LastImpact->StartFlagDeadline=P->FlagUntilTick;return;
  }
  if(E.EffectApplied.IsSet())
@@ -236,7 +244,7 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  }
  if(E.EffectRemoved.IsSet())
  {
-  const auto& R=*E.EffectRemoved;if(!R.EffectId || !Fence.Accept(R.Target,R.TargetIncarnation,R.Tick))return;const FString K=CastKey(R.Target,R.TargetIncarnation,R.EffectId);if(const auto* Old=EffectTicks.Find(K);Old && R.Tick<*Old)return;auto& Rows=Effects.FindOrAdd(R.Target.ToLower());Rows.Remove(R.EffectId);EffectTicks.Add(K,R.Tick);RemovedEffects.Add(K);return;
+  const auto& R=*E.EffectRemoved;if(!AuditSubject(R.Target,R.TargetIncarnation,R.Tick))return;if(!R.EffectId || !Fence.Accept(R.Target,R.TargetIncarnation,R.Tick))return;const FString K=CastKey(R.Target,R.TargetIncarnation,R.EffectId);if(const auto* Old=EffectTicks.Find(K);Old && R.Tick<*Old)return;auto& Rows=Effects.FindOrAdd(R.Target.ToLower());Rows.Remove(R.EffectId);EffectTicks.Add(K,R.Tick);RemovedEffects.Add(K);return;
  }
  if(E.XpGained.IsSet())
  {
@@ -245,9 +253,12 @@ void USkillAuditSubsystem::Observe(const FWorldEvent& E)
  }
  if(E.ResurrectOffer.IsSet())
  {
-  const auto& O=*E.ResurrectOffer;if(!Net || !Net->IsOwnEntity(O.Target) || !Fence.Accept(O.Target,O.TargetIncarnation,O.Tick) || !Fence.Dead(O.Target))return;
+  const auto& O=*E.ResurrectOffer;
+  if(!AuditSubject(O.Target,O.TargetIncarnation,O.Tick))return;
+  Reference(O.Caster,O.CasterIncarnation);
+  if(!Net || !Net->IsOwnEntity(O.Target) || !Fence.Accept(O.Target,O.TargetIncarnation,O.Tick) || !Fence.Dead(O.Target))return;
   if(Offer.IsSet() && (O.Tick<Offer->Tick || (O.OfferId==Offer->OfferId && Offer->State!=1)))return;
-  Reference(O.Caster,O.CasterIncarnation);Offer=O;return;
+  Offer=O;return;
  }
 }
 void USkillAuditSubsystem::ObserveAck(const FAck& A){AcceptedSeqs.Add(A.Seq,A.Tick);Fence.Tick=FMath::Max(Fence.Tick,A.Tick);}

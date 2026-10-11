@@ -1125,7 +1125,7 @@ coverage)` warning; pass `-RequireCombatServer` to the editor to make that skip 
 The native HUD renders received ranks in nine stable, configurable key slots.
 The Skill trainer dialog includes an all-skills picker for assigning learned active
 skills, including choices beyond nine; assigning a skill moves its previous binding.
-Maps persist per character in Config/NightfallHotbar.ini and survive reconnects
+Maps persist per character in Saved/Config/NightfallHotbar.ini and survive reconnects
 and rank changes. Slot eligibility requires the authoritative catalogue operate
 type as well as effect_implemented and the received learned rank. GetSkillCatalog's
 ACTIVE_INSTANT, ACTIVE_INSTANT_CONTINUOUS and ACTIVE_CONTINUOUS entries can be
