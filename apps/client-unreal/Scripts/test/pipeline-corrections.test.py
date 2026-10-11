@@ -142,6 +142,30 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
             run.assert_not_called()
         self.assertEqual((old / 'solo.nfr').read_bytes(), b'old recording')
 
+    def test_all_units_reserved_and_bot_outputs_isolated_before_first_launch(self):
+        args = self.ci_args()
+        scenarios = self.root / 'scenarios'
+        (scenarios / 'later.nfs').write_text('nf.Within 3699\n')
+        calls = []
+        def clients(command, log, seconds, env):
+            for name in ('later', 'solo'):
+                self.assertTrue((self.root / 'artifacts' / name).is_dir())
+            calls.append((seconds, env['SIM_SAVED_DIR']))
+            return 2  # Failed units must still allow the rest of the suite to run.
+        with patch('sys.argv', args), patch.object(ci, 'run_clients', clients):
+            self.assertTrue(ci.main())
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0][0], 3699 + 30 + 600)
+        self.assertNotEqual(calls[0][1], calls[1][1])
+        summary = json.loads((self.root / 'artifacts/summary.json').read_text())
+        self.assertEqual(len(summary['units']), 2)
+
+    def test_bot_output_argument_matches_collection_directory(self):
+        result = self.shell('sim_bot_cmd test.nfs\nprintf "%s\\n" "${SIM_BOT_CMD[@]}"',
+                            SIM_BOT_BIN='/bin/true', SIM_SAVED_DIR=str(self.root / 'owned'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('-BotOutDir=' + str(self.root / 'owned'), result.stdout)
+
     def test_fresh_flag_overrides_inherited_opt_out(self):
         args = self.ci_args() + ['--fresh-stack']
         seen = []

@@ -31,7 +31,9 @@ jobs:
       (github.event.pull_request.head.repo.full_name == github.repository &&
        (contains(github.event.pull_request.labels.*.name, 'sim') || vars.SIM_PR_REQUIRED == 'true'))
     runs-on: [self-hosted, linux, unreal]
-    timeout-minutes: 90
+    # 43 units: sum(max(600, Within+30) + 600 orchestration + 180 Compose)
+    # = 63,399s on this suite; leave build/upload headroom without shortening source buffs.
+    timeout-minutes: 1440
     continue-on-error: ${{ vars.SIM_PR_REQUIRED != 'true' }}
     env:
       COMPOSE_PROJECT_NAME: nightfall-sim-${{ github.run_id }}-${{ github.run_attempt }}

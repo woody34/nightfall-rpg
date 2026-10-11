@@ -235,6 +235,8 @@ sim_bot_cmd() {
     rm -f "$args_file"
     SIM_BOT_CMD+=("${extra_args[@]}")
   fi
+  # Last argument wins: collected evidence must come from this invocation only.
+  SIM_BOT_CMD+=("-BotOutDir=$SIM_SAVED_DIR")
   if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
     local fixture_args_file
     fixture_args_file="$(mktemp)"

@@ -276,6 +276,10 @@ def main():
         # Exclusive claim also prevents two invocations from sharing an initially empty root.
         with (artifacts / "run.json").open("x") as owner:
             json.dump({"schema_version": 1, "pid": os.getpid(), "started_ns": time.time_ns()}, owner)
+        # Reserve the complete suite before clients start, including long-running units.
+        # A late mkdir failure must not discard hours of completed results.
+        for name in unit_names:
+            (artifacts / name).mkdir()
     except OSError as error:
         parser.error(str(error))
     report = []
@@ -284,7 +288,6 @@ def main():
         names = [p.stem for p in batch]
         name = names[0][:-2] if len(batch) > 1 and names[0].endswith('-a') else names[0]
         dest = artifacts / name
-        dest.mkdir()
         start = time.monotonic()
         script = "run-sim-multi.sh" if len(batch) > 1 else "run-sim.sh"
         budget = max(args.timeout, phase2.scenario_budget(batch))
@@ -295,6 +298,7 @@ def main():
         command += list(map(str, batch))
         code = 2
         env = dict(os.environ)
+        env["SIM_SAVED_DIR"] = str(dest / "bot-output")
         env["SIM_PIPELINE_VERDICT"] = str(dest / "pipeline-verdict.json")
         env["SIM_REQUIRE_FRESH_ARTIFACTS"] = "1"
         env["SIM_REQUIRE_TRANSITION_COVERAGE"] = "1"
