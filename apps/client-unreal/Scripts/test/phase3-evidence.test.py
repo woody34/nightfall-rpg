@@ -36,6 +36,16 @@ class ReplayEvidence(unittest.TestCase):
         cls.raw = Path(cls.native_tmp.name) / 'native.jsonl'
         cls.export(cls.raw)
         cls.native = evidence.read_jsonl(cls.raw)
+        cls.casts_recording = REPO / 'apps/api/fixtures/sessions/phase3-casts-v5.nfr'
+        casts_out = Path(cls.native_tmp.name) / 'casts.jsonl'
+        subprocess.run([str(cls.binary), 'export', '--file', str(cls.casts_recording),
+                        '--evidence-out', str(casts_out)], cwd=REPO, check=True, capture_output=True)
+        cls.casts = evidence.read_jsonl(casts_out)
+        cls.generated = Path(cls.native_tmp.name) / 'scenario-inputs'
+        subprocess.run(['cargo', 'test', '--offline', '-p', 'nightfall-api', '--test',
+                        'phase3_fixture_overlays', 'actual_scenario_inputs_record_for_independent_evidence',
+                        '--', '--exact'], cwd=REPO, check=True, capture_output=True, text=True,
+                       env=dict(os.environ, NIGHTFALL_HARNESS_EVIDENCE_DIR=str(cls.generated)))
 
     @classmethod
     def export(cls, out):
@@ -48,10 +58,10 @@ class ReplayEvidence(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.data = copy.deepcopy(self.native)
 
-    def check(self, declaration, entity=FIRST, data=None):
+    def check(self, declaration, entity=FIRST, data=None, recording=RECORDING):
         path = self.root / 'scenario.nfs'
         path.write_text('# replay-gate: ' + declaration + '\n')
-        return evidence.evaluate(self.data if data is None else data, RECORDING, entity, evidence.requirements(path))
+        return evidence.evaluate(self.data if data is None else data, recording, entity, evidence.requirements(path))
 
     def fact(self, kind, entity=None):
         return next(r for r in self.data[1:-1] if r['kind'] == kind and (entity is None or r['entity'] == entity))
@@ -138,7 +148,7 @@ class ReplayEvidence(unittest.TestCase):
         self.fact('hate_delta')['data']['amount'] += 1
         self.assertFalse(self.check('skill_hate_outcome_coherent')['passed'])
 
-    def test_absent_native_transitions_and_unsupported_numeric_vectors_stay_red(self):
+    def test_absent_native_transitions_stay_red_and_actual_damage_passes(self):
         absent = ('death_record_matches_before_disconnect', 'restore_did_not_reapply_hooks',
                   'moving_regen_pulses >= 1', 'moving_regen_matches_oracle',
                   'skill_effect_matches_oracle 1184', 'stat_matches_oracle active', 'stat_matches_oracle removed')
@@ -148,13 +158,116 @@ class ReplayEvidence(unittest.TestCase):
                 self.assertFalse(result['passed'], declaration)
                 self.assertEqual(result['gates'][0]['ticks'], [])
         numeric = self.check('skill_damage_matches_oracle 1177')
-        self.assertFalse(numeric['passed'])
+        self.assertTrue(numeric['passed'], numeric)
         self.assertEqual(len(numeric['gates'][0]['ticks']), 5)
-        self.assertTrue(all('unsupported independent oracle inputs' in e for e in numeric['gates'][0]['errors']))
-        # An exact-vector refusal is not repaired by a producer's guessed oracle index.
+        self.assertEqual(numeric['gates'][0]['errors'], [])
+        # Numeric acceptance never comes from a producer's guessed oracle index.
         self.fact('damage_formula')['data']['vector_index'] = 0
         with self.assertRaises(ValueError):
             self.check('skill_damage_matches_oracle 1177')
+
+    def generated_case(self, name):
+        recording = self.generated / (name + '.nfr')
+        rows = evidence.read_jsonl(self.generated / (name + '.jsonl'))
+        owner = next(r['entity'] for r in rows if r['kind'] == 'admission_reconstruction')
+        return recording, rows, owner
+
+    def test_actual_scenario_powers_levels_modifiers_and_spread_pass_independent_oracle(self):
+        recording, rows, owner = self.generated_case('actual-inputs')
+        for declaration in ('skill_damage_matches_oracle 1177', 'skill_damage_matches_oracle 1184',
+                            'skill_effect_matches_oracle 1184', 'skill_effect_matches_oracle 1068',
+                            'stat_matches_oracle active', 'stat_matches_oracle removed'):
+            result = self.check(declaration, owner, rows, recording)
+            self.assertTrue(result['passed'], result)
+        pvp_recording, pvp_rows, pvp_owner = self.generated_case('pvp-inputs')
+        result = self.check('skill_damage_matches_oracle 1177', pvp_owner, pvp_rows, pvp_recording)
+        self.assertTrue(result['passed'], result)
+        pvp_damage = next(r for r in pvp_rows if r['kind'] == 'damage_formula')
+        self.assertEqual(pvp_damage['data']['power'], '21/1')
+        pvp_resolution = next(r for r in pvp_rows if r['kind'] == 'formula_resolution')
+        self.assertEqual(pvp_resolution['data']['inputs']['caster']['effective']['physical']['level'], 14)
+        damages = [r for r in rows if r['kind'] == 'damage_formula']
+        self.assertEqual({r['data']['power'] for r in damages}, {'13/1', '8/1'})
+        self.assertTrue(any(evidence.ratio(r['data']['spread']) != 1 for r in damages))
+        active = next(r for r in rows if r['kind'] == 'modifier_reconstruction'
+                      and r['entity'] == owner and r['data']['after']['phase3']['effects']['entries'])
+        self.assertEqual(active['data']['after']['effective']['physical']['level'], 14)
+        modifier = next(f for f in active['data']['functions'] if f['key']['stat'] == 'pAtk'
+                        and f['key']['install_sequence'] != 0)
+        self.assertEqual(modifier['operation'], {'Mul': 1080000})
+        altered = copy.deepcopy(rows)
+        changed = altered[active['sequence'] + 1]['data']['after']['effective']['physical']
+        changed['p_atk'] += 1
+        self.assertFalse(self.check('stat_matches_oracle active', owner, altered, recording)['passed'])
+        for name in ('power', 'magic_success_rate', 'rolled_damage', 'm_atk_q'):
+            altered = copy.deepcopy(rows)
+            data = altered[damages[0]['sequence'] + 1]['data']
+            data[name] = '14/1' if name == 'power' else data[name]+1
+            self.assertFalse(self.check('skill_damage_matches_oracle 1177', owner, altered, recording)['passed'], name)
+        altered = copy.deepcopy(rows)
+        altered[active['sequence'] + 1]['data']['after']['effective']['calculator'].append(
+            {'key': dict(modifier['key'], stat='unsupportedStat'), 'conditions': [], 'operation': {'Mul': 1080000}})
+        self.assertFalse(self.check('stat_matches_oracle active', owner, altered, recording)['passed'])
+
+    def test_committed_cast_fixture_continuous_effect_uses_callable_duration_oracle(self):
+        result = self.check('skill_effect_matches_oracle 1040', data=self.casts, recording=self.casts_recording)
+        self.assertTrue(result['passed'], result)
+        self.assertEqual(len(result['gates'][0]['ticks']), 2)
+        altered = copy.deepcopy(self.casts)
+        next(r for r in altered if r['kind'] == 'effect_formula')['data']['duration_seconds'] += 1
+        self.assertFalse(self.check('skill_effect_matches_oracle 1040', data=altered, recording=self.casts_recording)['passed'])
+
+    def test_reconnect_correlates_initial_admission_live_mutation_and_restored_admission(self):
+        for name, gate in (('actual-inputs', 'restore_did_not_reapply_hooks'),
+                           ('death-reconnect', 'death_record_matches_before_disconnect'),
+                           ('death-cap', 'death_record_matches_before_disconnect')):
+            recording, rows, owner = self.generated_case(name)
+            result = self.check(gate, owner, rows, recording)
+            self.assertTrue(result['passed'], result)
+            admissions = [r for r in rows if r['kind'] == 'admission_reconstruction' and r['entity'] == owner]
+            self.assertEqual(len(admissions), 2)
+            self.assertEqual(result['gates'][0]['sequences'], [admissions[-1]['sequence']])
+            for mode in ('no_reconnect', 'no_mutation', 'wrong_retained'):
+                altered = copy.deepcopy(rows)
+                if mode == 'no_reconnect':
+                    altered.remove(altered[admissions[-1]['sequence'] + 1])
+                elif mode == 'no_mutation':
+                    if gate.startswith('death_'):
+                        altered = [r for r in altered if r['kind'] != 'death_record']
+                    else:
+                        altered = [r for r in altered if r['kind'] != 'formula_resolution']
+                else:
+                    checkpoint = altered[admissions[-1]['sequence'] + 1]['data']['load']['phase3']
+                    if gate.startswith('death_'):
+                        checkpoint['last_death']['pre_death_xp'] += 1
+                    else:
+                        checkpoint['effect_remainders'][0]['abnormal_level'] += 1
+                for sequence, row in enumerate(altered[1:-1]):
+                    row['sequence'] = sequence
+                altered[-1]['facts'] = len(altered)-2
+                self.assertFalse(self.check(gate, owner, altered, recording)['passed'], (name,mode))
+            initial_only = rows[:admissions[0]['sequence']+2] + [dict(rows[-1])]
+            initial_only[-1]['facts'] = len(initial_only)-2
+            self.assertFalse(self.check(gate, owner, initial_only, recording)['passed'])
+
+    def test_real_modified_regeneration_requires_credit_for_canonical_stat_name(self):
+        recording, rows, owner = self.generated_case('modified-regen')
+        self.assertTrue(self.check('regen_matches_oracle', owner, rows, recording)['passed'])
+        pulses = [r for r in rows if r['kind'] == 'regen_pulse' and r['entity'] == owner]
+        base = next(r for r in pulses if not any(f['key']['stat'] == 'regHp' for f in r['data']['functions']))
+        modified = next(r for r in pulses if any(f['key']['stat'] == 'regHp' for f in r['data']['functions']))
+        self.assertGreater(modified['data']['amounts']['hp_q'], base['data']['amounts']['hp_q'])
+        altered = copy.deepcopy(rows)
+        # Keep the native installed regHp function but omit its formula credit.
+        altered[modified['sequence'] + 1]['data']['amounts']['hp_q'] = base['data']['amounts']['hp_q']
+        self.assertFalse(self.check('regen_matches_oracle', owner, altered, recording)['passed'])
+        # Review13 repro: append a canonical regHp x2 without changing any credit.
+        for stat in ('regHp', 'regMp', 'regCp'):
+            altered = copy.deepcopy(self.native)
+            pulse = next(r for r in altered if r['kind'] == 'regen_pulse' and r['entity'] == FIRST)
+            pulse['data']['functions'].append({'key': {'stat':stat, 'priority':32, 'install_sequence':1,
+                'handler_ordinal':0, 'function_ordinal':0}, 'conditions':[], 'operation':{'Mul':2000000}})
+            self.assertFalse(self.check('regen_matches_oracle', data=altered)['passed'], stat)
 
     def test_manifest_trailer_sequence_owner_scope_and_unknown_fields_fail_closed(self):
         cases = (
@@ -266,7 +379,7 @@ shutil.copyfile(os.environ['NATIVE_RECORDING'], out / (scenario.stem + '.nfr'))
         for multi in (False, True):
             for missing in (False, True):
                 paths = [self.root / ('native-a.nfs' if multi else 'native.nfs')]
-                paths[0].write_text('# replay-gate: ' + ('moving_regen_matches_oracle' if missing else 'regen_matches_oracle') + '\nnf.Within 30\n')
+                paths[0].write_text('# replay-gate: ' + ('moving_regen_matches_oracle' if missing else 'skill_damage_matches_oracle 1177') + '\nnf.Within 30\n')
                 if multi:
                     peer = self.root / 'native-b.nfs'
                     peer.write_text('# replay-gate: death_record_matches_fixture\nnf.Within 30\n')

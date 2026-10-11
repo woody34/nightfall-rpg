@@ -351,24 +351,31 @@ duplicates. A scheduled pulse cannot be counted twice at the same entity/tick.
 | Declaration | Actual C14 facts and independent check |
 | --- | --- |
 | `regen_pulses`, `moving_regen_pulses` | `regen_pulse`, owner and Standing/Moving posture; distinct scheduled ticks, plus validation of the raw formula and resource credit. |
-| `regen_matches_oracle`, `moving_regen_matches_oracle` | `regen_pulse`; exact Fraction arithmetic over recorded base/stat/config inputs, ordered supported Funcs, whole grants, clamps and Q carries (game `Formulas.java:263,334,351,357,442`; binding D-R12). |
+| `regen_matches_oracle`, `moving_regen_matches_oracle` | `regen_pulse`; independent oracle functions over recorded base/stat/config inputs, canonical `regHp/regMp/regCp` Funcs, whole grants, clamps and Q carries (game `Formulas.java:263,334,351,357,442`; binding D-R12). |
 | `death_record_matches_fixture` | Player `death_record`; recorded XP span/loss fraction and actual recoverable loss, incarnation, eligibility/penalty draw (Nightfall `domain/zone/progression.rs:42`; binding A15/design §3). |
 | `death_record_matches_before_disconnect` | Earlier reproduced `death_record` plus later `admission_reconstruction`; exact saved XP facts and rebinding to the new corpse incarnation. An initial snapshot or admission payload alone cannot prove before-disconnect equality. |
-| `restore_did_not_reapply_hooks` | `admission_reconstruction` with nonempty retained timed effects; exact source/rank/relative install order, paused periodic phase, explicit persisted resources and absence of hook execution. Cache reconstruction alone does not prove a reconnect (datapack `pump/MaxHp.java:50,83,98`; binding R4). |
+| `restore_did_not_reapply_hooks` | a recorded live effect application followed by same-owner `admission_reconstruction` with nonempty retained timed effects; exact source/rank/relative install order, paused periodic phase, explicit persisted resources and absence of hook execution. Cache reconstruction alone does not prove a reconnect (datapack `pump/MaxHp.java:50,83,98`; binding R4). |
 | `skill_hate_outcome_coherent` | NPC-subject `hate_delta` with the owner as contributor, correlated same-tick `formula_resolution`, then `hate_selection` or lethal ledger removal. Checks effectPoint, attacked notification, rolled-damage hate, ledger cap and tie selection (game `L2Character.java:4603`; `L2Attackable.java:571,606,658,666`; Nightfall `combat.rs:349`). |
-| `skill_damage_matches_oracle` | `damage_formula` and its unique enclosing skill/rank/caster/target/life/tick `formula_resolution`. Complete projected inputs must match an independent committed vector; unsupported spread/modifier inputs fail. |
-| `skill_effect_matches_oracle` | `effect_formula` and enclosing resolution; conditional land-rate and duration inputs must match independent vectors. Unconditional success cannot consume a success draw. |
-| `stat_matches_oracle active\|removed` | Actual timed-effect presence/removal in `modifier_reconstruction`, then independent base-stat vectors and supported ordered folds. Unmodified bootstrap stats and unsupported affected stats cannot pass. |
+| `skill_damage_matches_oracle` | `damage_formula` and its unique enclosing skill/rank/caster/target/life/tick `formula_resolution`. Calls `packages/data/scripts/skill_oracle.py` with actual power, attack/defence, PvP/critical/failure branch and recorded RNG spread; certifies whole damage with exact root intervals. Unsupported modifiers/penalties fail. |
+| `skill_effect_matches_oracle` | `effect_formula` and enclosing resolution; calls the same independent oracle functions that generate the committed vectors for actual conditional land-rate and duration inputs. Unconditional success cannot consume a success draw. |
+| `stat_matches_oracle active\|removed` | Actual timed-effect presence/removal in `modifier_reconstruction`, then independent source formulas at the actual level and supported ordered folds, including canonical `pAtk`. Admission effect-ID rebasing is excluded from removal candidates. Unmodified bootstrap stats and unsupported affected stats cannot pass. |
 | `resurrect_refund_matches_oracle` | Unique preceding `resurrection_offer`, caster resolution/WIT source profile and accepted `resurrection_refund`; source percent quirk, independent Math.round refund, one-time death-record consumption and incarnation transition (game `Formulas.java:1372`; `L2PcInstance.java:4702`). Declines are checked but cannot replace an accepted refund. |
 
-The native regression builds `nightfall-replay` and exports the unchanged committed
-`phase3-gameplay-v5.nfr` twice. It checks native positive standing-regeneration,
-death, hate and accepted-refund facts, and keeps missing moving/admission/effect/stat
-transitions and unsupported damage-vector inputs red. The recording starts from
-an existing snapshot; earlier transitions are not invented. The tests also pass
-real replay exports through both wrappers per unit, including `--no-replay`, using
-stub bot/JUnit/health carriers. These are offline harness/recording checks, not
-Unreal scenario or live-service acceptance.
+The native regression builds `nightfall-replay`, exports both unchanged committed
+V5 fixtures, and exports temporary recordings created through production bootstrap,
+admission, paid learning, casts, real expiry, disconnect and restored admission.
+Actual scenario inputs include Wind Strike powers13/21, Ice Bolt8 and Might
+pAtk×1.08 (pinned datapack `01100-01199.xml:1634,1830`, `01000-01099.xml:1547`),
+with fixture level14 (`Scripts/phase3-fixtures.py:79,82,106`) and non-neutral
+spread from the recorded RNG draws (game `Formulas.java:877`). Initial admissions
+are excluded from reconnect candidates; missing mutations/admissions fail.
+A real Regeneration cast installs canonical regHp (datapack
+`01000-01099.xml:1132,1162`); omitting its credit fails the complete regen evaluator.
+Native standing-regeneration/death/hate/refund/damage/effect/stat/restoration facts
+are checked. Missing moving transitions stay red. Both wrappers exercise real
+numeric exports per unit, including `--no-replay`, using stub bot/JUnit/health
+carriers. These are offline harness/recording checks, not Unreal scenario or
+live-service acceptance. Corrupted rows are negative tests only.
 
 The producer dependency is resolved. Full twelve-gate acceptance still requires
 recordings containing each scenario's actual transition and independently covered
