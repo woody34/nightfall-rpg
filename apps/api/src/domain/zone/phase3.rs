@@ -99,6 +99,7 @@ impl Phase3Rules {
             50_u64,
             100_u64,
             600_u64,
+            super::skill::PRIVILEGED_SKILL_RANGES,
         ))
         .map_err(|error| vec![format!("Phase3 rules canonical encoding: {error}")])?;
         let mut hash = Sha256::new();

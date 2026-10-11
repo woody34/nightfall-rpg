@@ -35,6 +35,19 @@ fn setup_with_skills(
     npc_pos: Vec2Fixed,
     skills: &[(u32, u32)],
 ) -> (ZoneState, EntityId, EntityId) {
+    setup_with_rules(
+        player_pos,
+        npc_pos,
+        skills,
+        load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap(),
+    )
+}
+fn setup_with_rules(
+    player_pos: Vec2Fixed,
+    npc_pos: Vec2Fixed,
+    skills: &[(u32, u32)],
+    rules: Phase3Rules,
+) -> (ZoneState, EntityId, EntityId) {
     let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
     let npc =
         NpcCombat::from_template(&stats, &parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0])
@@ -48,7 +61,7 @@ fn setup_with_skills(
         0,
         stats,
         load_classes(&ClassSource::embedded()).unwrap().registry,
-        load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap(),
+        rules,
     )
     .unwrap();
     let player = EntityId::from_uuid(Uuid::from_u128(1));
@@ -1054,4 +1067,91 @@ fn retained_player_dot_is_explicitly_fenced_until_cp_reduction_is_live() {
         zone.snapshot().phase3.as_ref().unwrap().next_entity_ordinal,
         phase.next_entity_ordinal
     );
+}
+
+#[test]
+fn cancellation_live_reverse_order_rng_and_midcast_replay() {
+    // Test-only guaranteed land/rate and max=1 expose traversal independently of chance.
+    // Production source bytes are never modified.
+    let mut source = Phase3DataSource::embedded();
+    let cancel = source.skills.0.get_mut("skills/1177.toml").unwrap();
+    *cancel = cancel
+        .replace("min_chance = 10", "min_chance = 100")
+        .replace("max_chance = 90", "max_chance = 100");
+    cancel.truncate(cancel.find("[[effects]]").unwrap());
+    cancel.push_str("[[effects]]\nsection = \"effects\"\nname = \"DispelByCategory\"\nparams = { max = \"1\", rate = \"25\", slot = \"BUFF\" }\nstat_children = []\n");
+    let rules = load_phase3_rules(&source, &[]).unwrap();
+    let (mut zone, player, npc) = setup_with_rules(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1), (1068, 1), (1177, 1)],
+        rules,
+    );
+    let base = combat(&zone, npc).sheet;
+    finish_skill(&mut zone, player, npc, 1040);
+    finish_skill(&mut zone, player, npc, 1068);
+    // Regen pays for the real source MP1+MP2 cost, avoiding a fake free cast.
+    for _ in 0..300 {
+        zone.run_tick(zone.draft(vec![])).unwrap();
+    }
+    let before = zone.snapshot();
+    let effects: Vec<_> = before.phase3.as_ref().unwrap().entities[&npc]
+        .effects
+        .entries()
+        .keys()
+        .copied()
+        .collect();
+    assert_eq!(effects.len(), 2);
+    let mut input = cast(player, npc);
+    input.command = ZoneCommand::CastSkill {
+        entity: player,
+        skill_id: SkillId(1177),
+        target: Some(npc),
+    };
+    let started = zone.run_tick(zone.draft(vec![input])).unwrap();
+    assert!(started.dispositions.is_empty(), "{:?}", started.dispositions);
+    let mut replay = ZoneState::from_snapshot(
+        decode_snapshot(&encode_snapshot(&zone.snapshot()).unwrap()).unwrap(),
+    )
+    .unwrap();
+    let mut draws = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    draws.roll_below(100);
+    for _ in 0..200 {
+        let draft = zone.draft(vec![]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        let reproduced = replay.run_tick(draft).unwrap();
+        assert_eq!(
+            AppliedTickRecord::from_applied(ZoneId(1), &applied).encode(),
+            AppliedTickRecord::from_applied(ZoneId(1), &reproduced).encode()
+        );
+        if applied
+            .events
+            .iter()
+            .any(|event| matches!(event, ZoneEvent::SkillCastResult { .. }))
+        {
+            let removed: Vec<_> = applied
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    ZoneEvent::EffectRemoved {
+                        effect_id,
+                        reason: effects::EffectRemoveReason::Dispelled,
+                        ..
+                    } => Some(*effect_id),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(removed, vec![effects[1]]);
+            assert_eq!(
+                zone.snapshot().rng,
+                draws.snapshot().rng,
+                "one eligible candidate, one draw"
+            );
+            assert_eq!(combat(&zone, npc).sheet.p_atk(), base.p_atk());
+            assert!(combat(&zone, npc).sheet.p_def() > base.p_def());
+            ZoneState::from_snapshot(zone.snapshot()).unwrap();
+            return;
+        }
+    }
+    panic!("cancellation did not complete");
 }

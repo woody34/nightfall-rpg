@@ -333,6 +333,73 @@ pub fn affect_limit(offset: u32, width: u32, roll: Option<u32>) -> Result<u32, S
     }
 }
 
+/// Formulas.java:1648-1666: resistance modifies BUFF cancellation before its first
+/// Java int cast. Preserve binary64 operation boundaries and saturating int conversion.
+pub fn cancel_base_rate(
+    rate: i32,
+    vulnerability_q: i64,
+    proficiency_q: i64,
+) -> Result<i32, StatError> {
+    let sum = ExactRatio::new(i128::from(vulnerability_q), i128::from(Q))?
+        .checked_add(ExactRatio::new(i128::from(proficiency_q), i128::from(Q))?)?
+        .binary64()?;
+    let resistance = ExactRatio::whole(1)
+        .checked_sub(sum.checked_div(ExactRatio::whole(100))?.binary64()?)?
+        .binary64()?;
+    if resistance.parts().0 == 0 {
+        return Ok(match rate.cmp(&0) {
+            std::cmp::Ordering::Less => i32::MIN,
+            std::cmp::Ordering::Equal => 0,
+            std::cmp::Ordering::Greater => i32::MAX,
+        });
+    }
+    let (numerator, denominator) = resistance.parts();
+    let reciprocal = if numerator < 0 {
+        ExactRatio::new(
+            denominator.checked_neg().ok_or(StatError::Overflow)?,
+            numerator.checked_neg().ok_or(StatError::Overflow)?,
+        )?
+    } else {
+        ExactRatio::new(denominator, numerator)?
+    };
+    let value = ExactRatio::whole(i64::from(rate))
+        .checked_mul(reciprocal)?
+        .binary64()?
+        .trunc()?;
+    i32::try_from(value.clamp(i128::from(i32::MIN), i128::from(i32::MAX)))
+        .map_err(|_| StatError::Overflow)
+}
+
+/// Formulas.java:1747-1750: level modifier has a second Java int cast, followed by
+/// per-skill min/max and a strict roll comparison. DEBUFF cancellation instead uses <=.
+pub fn cancel_buff_chance(
+    rate: i32,
+    caster_level: i64,
+    effect_level: i64,
+    min: u32,
+    max: u32,
+) -> Result<i64, StatError> {
+    if min > max {
+        return Err(StatError::Overflow);
+    }
+    let adjusted = if effect_level > 0 {
+        let difference = caster_level
+            .checked_sub(effect_level)
+            .ok_or(StatError::Overflow)?;
+        let factor = ExactRatio::whole(1)
+            .checked_add(ExactRatio::new(i128::from(difference), 100)?.binary64()?)?
+            .binary64()?;
+        ExactRatio::whole(i64::from(rate))
+            .checked_mul(factor)?
+            .binary64()?
+            .trunc()?
+    } else {
+        i128::from(rate)
+    };
+    let integer = adjusted.clamp(i128::from(i32::MIN), i128::from(i32::MAX));
+    i64::try_from(integer.clamp(i128::from(min), i128::from(max))).map_err(|_| StatError::Overflow)
+}
+
 /// Ideal periodic interval in milliseconds and its exact binary32 multiplier, widened without
 /// further rounding. `AbstractEffect.java:149`; character.properties:145 (666ms default).
 pub fn periodic_interval(ticks: u32, ratio_ms: u32) -> Result<(u32, ExactRatio), StatError> {
@@ -1787,6 +1854,23 @@ mod tests {
         assert!(periodic_interval(0, 666).is_err());
         assert!(periodic_interval(u32::MAX, 666).is_err());
         assert!(periodic_deadline(Tick(u64::MAX), 1, 666).is_err());
+    }
+
+    #[test]
+    fn cancel_rate_preserves_both_source_casts_and_level_zero_branch() {
+        assert_eq!(cancel_base_rate(25, 0, 0).unwrap(), 25);
+        assert_eq!(cancel_base_rate(25, -20 * Q, 0).unwrap(), 20);
+        assert_eq!(cancel_base_rate(25, 20 * Q, 0).unwrap(), 31);
+        assert_eq!(cancel_buff_chance(20, 48, 1, 10, 90).unwrap(), 29);
+        assert_eq!(cancel_buff_chance(25, 48, 0, 10, 90).unwrap(), 25);
+        assert_eq!(cancel_buff_chance(25, 1, 85, 10, 90).unwrap(), 10);
+        assert_eq!(cancel_buff_chance(200, 85, 1, 10, 90).unwrap(), 90);
+        // Java division by zero becomes infinity/NaN, then int MAX/MIN/zero.
+        assert_eq!(cancel_base_rate(25, 100 * Q, 0).unwrap(), i32::MAX);
+        assert_eq!(cancel_base_rate(-25, 100 * Q, 0).unwrap(), i32::MIN);
+        assert_eq!(cancel_base_rate(0, 100 * Q, 0).unwrap(), 0);
+        assert_eq!(cancel_base_rate(25, 200 * Q, 0).unwrap(), -25);
+        assert!(cancel_buff_chance(25, 1, 1, 90, 10).is_err());
     }
 
     #[test]

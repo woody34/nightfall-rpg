@@ -1128,13 +1128,14 @@ impl ZoneState {
                 .iter()
                 .filter(|h| !crate::domain::zone::effects::continuous_handler(&h.name))
             {
-                let resolve = if handler.name == "DispelBySlot" {
-                    Self::dispel_handler_v5
-                } else if matches!(handler.name.as_str(), "Heal" | "HpPerMax" | "Mp" | "Cp") {
-                    Self::restore_handler_v5
-                } else {
-                    Self::magic_handler_v5
-                };
+                let resolve =
+                    if matches!(handler.name.as_str(), "DispelBySlot" | "DispelByCategory") {
+                        Self::dispel_handler_v5
+                    } else if matches!(handler.name.as_str(), "Heal" | "HpPerMax" | "Mp" | "Cp") {
+                        Self::restore_handler_v5
+                    } else {
+                        Self::magic_handler_v5
+                    };
                 results.push(resolve(
                     self,
                     tick,
@@ -2014,6 +2015,7 @@ fn cast_started(
 // Incremental experimental runtime capability gate; registry capability metadata is unchanged.
 fn hostile_skill(skill: &SkillDef) -> bool {
     skill.abnormal.as_ref().is_some_and(|a| a.is_debuff)
+        || skill.effect_point.iter().any(|value| *value < 0)
         || skill.effects.iter().any(|h| {
             matches!(h.name.as_str(), "MagicalAttack" | "MagicalAttackRange" | "PhysicalAttack")
         })
@@ -2030,7 +2032,10 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
         && ((skill.id.0 == 1177 && skill.abnormal.is_none())
             || skill.abnormal.is_none()
                 && skill.effects.iter().all(|h| {
-                    matches!(h.name.as_str(), "Heal" | "HpPerMax" | "Mp" | "Cp" | "DispelBySlot")
+                    matches!(
+                        h.name.as_str(),
+                        "Heal" | "HpPerMax" | "Mp" | "Cp" | "DispelBySlot" | "DispelByCategory"
+                    )
                 })
             || skill.abnormal.is_some()
                 && skill.effects.iter().all(|h| {

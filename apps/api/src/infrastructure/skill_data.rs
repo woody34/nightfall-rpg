@@ -109,6 +109,35 @@ mod tests {
     use crate::domain::zone::skill::SkillCondition;
     use std::fmt::Write as _;
 
+    #[test]
+    fn category_dispel_privileged_membership_and_static_exceptions() {
+        let registry = load_skills(&SkillSource::embedded(), &[]).unwrap();
+        let mut shield = registry.get(SkillId(1040)).unwrap().clone();
+        assert!(shield.can_be_stolen(1));
+        for (start, end) in crate::domain::zone::skill::PRIVILEGED_SKILL_RANGES {
+            for id in *start..=*end {
+                assert!(!registry
+                    .skills()
+                    .values()
+                    .any(|s| s.id.0 == id && s.runtime_status == RuntimeSkillStatus::Executable));
+                shield.id = SkillId(id);
+                assert!(!shield.can_be_stolen(1));
+                assert!(shield.can_be_stolen(2), "membership is rank-aware");
+            }
+        }
+        shield.id = SkillId(1040);
+        shield.is_magic = 2;
+        assert!(!shield.can_be_stolen(1));
+        shield.id = SkillId(2341);
+        assert!(shield.can_be_stolen(1));
+        shield.id = SkillId(1040);
+        shield.magic_level[0] = -1;
+        assert!(shield.can_be_stolen(1));
+        shield.irreplaceable_buff = crate::domain::zone::skill::RankValue::Scalar(true);
+        assert!(!shield.can_be_stolen(1));
+        assert!(!registry.get(SkillId(1168)).unwrap().can_be_stolen(1));
+    }
+
     fn source() -> SkillSource {
         SkillSource(BTreeMap::from([(
             "skills/3.toml".into(),

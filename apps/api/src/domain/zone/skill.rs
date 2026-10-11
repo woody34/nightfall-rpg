@@ -248,6 +248,39 @@ pub struct SkillDef {
     pub effects: Vec<SkillHandler>,
 }
 
+impl SkillDef {
+    /// Pinned Skill.java:1225-1226. Hero/GM rank membership is captured from datapack
+    /// heroSkillTree.xml:5-9, gameMasterSkillTree.xml:4-49 and
+    /// gameMasterAuraSkillTree.xml:4-49 (all rank one), revision 3ca488dd.
+    /// These trees are disjoint from today's executable closure; retaining the explicit
+    /// check also handles a future overlapping definition without making it stealable.
+    pub fn can_be_stolen(&self, rank: u32) -> bool {
+        let privileged = rank == 1
+            && PRIVILEGED_SKILL_RANGES
+                .iter()
+                .any(|(start, end)| (*start..=*end).contains(&self.id.0));
+        !matches!(self.operate_type.as_str(), "P" | "T")
+            && !self.abnormal.as_ref().is_some_and(|a| a.is_debuff)
+            && !privileged
+            && self.irreplaceable_buff.at(rank, self.max_level) == Some(&false)
+            && (self.is_magic != 2
+                || self.id.0 == 2341 // CommonSkill.java:52, caravan medicine exception.
+                || self.magic_level.get(rank.saturating_sub(1) as usize).is_some_and(|v| *v < 0))
+    }
+}
+
+/// Frozen source membership used by `can_be_stolen`; every captured tree row is rank one.
+/// Ranges compress consecutive IDs only, with no inferred holes. See method provenance.
+pub(crate) const PRIVILEGED_SKILL_RANGES: &[(u32, u32)] = &[
+    (395, 396),
+    (1374, 1376),
+    (7029, 7029),
+    (7041, 7064),
+    (7088, 7096),
+    (23238, 23249),
+    (23253, 23296),
+];
+
 /// An immutable, capability-validated registry; source-only samples are excluded.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SkillRegistry {

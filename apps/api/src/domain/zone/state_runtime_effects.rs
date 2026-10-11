@@ -908,37 +908,42 @@ impl ZoneState {
     pub(super) fn dispel_handler_v5(
         &mut self,
         tick: Tick,
-        _caster: TargetBinding,
+        caster: TargetBinding,
         target: TargetBinding,
         skill: &SkillDef,
         rank: u32,
         handler: &crate::domain::zone::skill::SkillHandler,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<SkillTargetResult, TickError> {
-        let text = handler
-            .params
-            .get("dispel")
-            .and_then(|v| v.at(rank, skill.max_level))
-            .ok_or_else(missing)?;
-        let slots: BTreeMap<_, _> = text
-            .split(';')
-            .map(|entry| {
-                let (name, rank) = entry.split_once(',').unwrap_or((entry, "-1"));
-                Ok((name, rank.parse::<i64>().map_err(invariant)?))
-            })
-            .collect::<Result<_, TickError>>()?;
-        let removals: Vec<_> = self
-            .sidecar(target.entity)?
-            .effects
-            .entries()
-            .values()
-            .filter(|e| {
-                slots
-                    .get(e.abnormal_type.as_str())
-                    .is_some_and(|max| *max < 0 || i64::from(e.abnormal_level) <= *max)
-            })
-            .map(|e| e.id)
-            .collect();
+        let removals = if handler.name == "DispelByCategory" {
+            self.category_dispel_v5(caster, target, skill, rank, handler)?
+        } else {
+            let text = handler
+                .params
+                .get("dispel")
+                .and_then(|v| v.at(rank, skill.max_level))
+                .ok_or_else(missing)?;
+            let slots: BTreeMap<_, _> = text
+                .split(';')
+                .map(|entry| {
+                    let (name, rank) = entry.split_once(',').unwrap_or((entry, "-1"));
+                    Ok((name, rank.parse::<i64>().map_err(invariant)?))
+                })
+                .collect::<Result<_, TickError>>()?;
+            let removals: Vec<_> = self
+                .sidecar(target.entity)?
+                .effects
+                .entries()
+                .values()
+                .filter(|e| {
+                    slots
+                        .get(e.abnormal_type.as_str())
+                        .is_some_and(|max| *max < 0 || i64::from(e.abnormal_level) <= *max)
+                })
+                .map(|e| e.id)
+                .collect();
+            removals
+        };
         for id in removals {
             self.remove_effect_v5(tick, target.entity, id, EffectRemoveReason::Dispelled, events)?;
         }
@@ -958,5 +963,115 @@ impl ZoneState {
                 .hp,
             applied_effect_ids: Vec::new(),
         })
+    }
+    /// Formulas.java:1643-1712: snapshot candidates and rolls before removals/rebuilds.
+    /// Buffs are concatenated before songs, then traversed in reverse insertion order.
+    fn category_dispel_v5(
+        &mut self,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        handler: &crate::domain::zone::skill::SkillHandler,
+    ) -> Result<Vec<EffectId>, TickError> {
+        let param = |name: &str, default: &str| -> String {
+            handler
+                .params
+                .get(name)
+                .and_then(|v| v.at(rank, skill.max_level))
+                .map_or_else(|| default.to_owned(), Clone::clone)
+        };
+        let slot = param("slot", "BUFF");
+        let maximum = param("max", "0").parse::<i32>().map_err(invariant)?;
+        let rate = param("rate", "0").parse::<i32>().map_err(invariant)?;
+        // DispelCategory.ALL is a source no-op (no matching switch arm).
+        if slot == "ALL" {
+            return Ok(Vec::new());
+        }
+        let buff = slot == "BUFF";
+        let rate = if buff {
+            let a = self.effective(caster.entity)?;
+            let b = self.effective(target.entity)?;
+            let conditions = FunctionConditions {
+                weapon_kind: "SWORD",
+                can_resurrect: true,
+            };
+            skill_math::cancel_base_rate(
+                rate,
+                b.calculator
+                    .fold("cancelVuln", 0, conditions)
+                    .map_err(invariant)?,
+                a.calculator
+                    .fold("cancelProf", 0, conditions)
+                    .map_err(invariant)?,
+            )
+            .map_err(invariant)?
+        } else {
+            rate
+        };
+        let level = *skill
+            .magic_level
+            .get(usize::try_from(rank.saturating_sub(1)).map_err(invariant)?)
+            .ok_or_else(missing)?;
+        let mut candidates: Vec<_> = self
+            .sidecar(target.entity)?
+            .effects
+            .entries()
+            .values()
+            .filter(|e| {
+                if buff {
+                    matches!(e.pool, EffectPool::Buff | EffectPool::SongDance)
+                } else {
+                    e.pool == EffectPool::Debuff
+                }
+            })
+            .cloned()
+            .collect();
+        candidates.sort_by_key(|e| (e.pool, e.applied_at, e.id));
+        let mut removals = Vec::new();
+        for effect in candidates.iter().rev() {
+            let definition = self
+                .phase3
+                .as_ref()
+                .ok_or_else(missing)?
+                .canonical
+                .rules
+                .skills()
+                .get(effect.skill.id)
+                .ok_or_else(missing)?;
+            let chance = if buff {
+                if !definition.can_be_stolen(effect.skill.rank) {
+                    continue;
+                }
+                let effect_level = *definition
+                    .magic_level
+                    .get(usize::try_from(effect.skill.rank.saturating_sub(1)).map_err(invariant)?)
+                    .ok_or_else(missing)?;
+                skill_math::cancel_buff_chance(
+                    rate,
+                    level,
+                    effect_level,
+                    skill.min_chance,
+                    skill.max_chance,
+                )
+                .map_err(invariant)?
+            } else {
+                if effect.flags.irreplaceable
+                    || !definition.abnormal.as_ref().is_some_and(|a| a.is_debuff)
+                {
+                    continue;
+                }
+                i64::from(rate)
+            };
+            let roll = i64::from(self.roll_below(100));
+            if (buff && roll < chance) || (!buff && roll <= chance) {
+                removals.push(effect.id);
+                // Source tests after insertion: even max=0 permits the first success.
+                if i64::try_from(removals.len()).map_err(invariant)? >= i64::from(maximum) {
+                    break;
+                }
+            }
+        }
+        Ok(removals)
     }
 }
