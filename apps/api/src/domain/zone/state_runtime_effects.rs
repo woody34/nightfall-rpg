@@ -277,7 +277,11 @@ impl ZoneState {
 }
 
 impl ZoneState {
-    fn base_property_v5(&self, id: EntityId, name: &str) -> Result<(u32, ExactRatio), TickError> {
+    pub(super) fn base_property_v5(
+        &self,
+        id: EntityId,
+        name: &str,
+    ) -> Result<(u32, ExactRatio), TickError> {
         use crate::domain::zone::StatKind;
         let kind = match name {
             "STR" => StatKind::Str,
@@ -333,7 +337,7 @@ impl ZoneState {
         ))
     }
     /// Formulas.java:1850-1877 and TraitType.java:25-80; weapon traits are not resistance traits.
-    fn trait_modifier_v5(
+    pub(super) fn trait_modifier_v5(
         a: &EffectiveStats,
         b: &EffectiveStats,
         name: &str,
@@ -346,7 +350,25 @@ impl ZoneState {
             return Ok(ExactRatio::whole(0));
         }
         let attacker = a.traits.get(name).cloned().unwrap_or_default();
-        let weakness = name.ends_with("_WEAKNESS") || matches!(name, "VALAKAS" | "ANESTHESIA");
+        let weakness = matches!(
+            name,
+            "BUG_WEAKNESS"
+                | "ANIMAL_WEAKNESS"
+                | "PLANT_WEAKNESS"
+                | "BEAST_WEAKNESS"
+                | "DRAGON_WEAKNESS"
+                | "GIANT_WEAKNESS"
+                | "CONSTRUCT_WEAKNESS"
+                | "VALAKAS"
+                | "ANESTHESIA"
+                | "DEMONIC_WEAKNESS"
+                | "DIVINE_WEAKNESS"
+                | "ELEMENTAL_WEAKNESS"
+                | "FAIRY_WEAKNESS"
+                | "HUMAN_WEAKNESS"
+                | "HUMANOID_WEAKNESS"
+                | "UNDEAD_WEAKNESS"
+        );
         if weakness && (attacker.attack_providers == 0 || target.defence_providers == 0)
             || matches!(
                 name,

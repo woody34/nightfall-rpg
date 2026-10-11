@@ -1,6 +1,8 @@
 //! Live V5 integration. The legacy driver never calls these paths. Admission builds
 //! canonical sidecars; casts use the same scheduler, formulas and resource owners as replay.
 
+#[path = "state_runtime_damage.rs"]
+mod live_damage;
 #[path = "state_runtime_effects.rs"]
 mod live_effects;
 #[path = "state_runtime_learn.rs"]
@@ -294,9 +296,28 @@ impl ZoneState {
         }
         Ok(())
     }
+    pub(super) fn validate_damage_profiles_v5(
+        rules: &crate::domain::zone::Phase3Rules,
+    ) -> Result<(), SnapshotError> {
+        // Pinned npc.properties:54 and Formulas.java:776,887,1289. The current
+        // bundle has only level1 keltir; refuse the unrepresented penalty branch
+        // until the data owner supplies its separately hashed coefficient table.
+        if rules
+            .profiles()
+            .npcs
+            .values()
+            .any(|p| p.physical.level >= 78)
+        {
+            return Err(SnapshotError::Rules(
+                "Phase3 NPC damage penalty coefficients are not supplied for level78+".into(),
+            ));
+        }
+        Ok(())
+    }
     #[allow(clippy::too_many_lines)] // Full context validation stays adjacent to reconstruction.
     pub(super) fn validate_runtime_v5(&self) -> Result<(), SnapshotError> {
         let phase = self.phase3.as_ref().ok_or(SnapshotError::CombatMismatch)?;
+        Self::validate_damage_profiles_v5(&phase.canonical.rules)?;
         let contexts = self
             .entities
             .iter()
@@ -1213,6 +1234,8 @@ impl ZoneState {
                 Self::restore_handler_v5
             } else if matches!(handler.name.as_str(), "GetAgro" | "AddHate") {
                 Self::agro_handler_v5
+            } else if handler.name == "PhysicalAttack" {
+                Self::physical_handler_v5
             } else {
                 Self::magic_handler_v5
             };
@@ -1255,115 +1278,6 @@ impl ZoneState {
             }
         }
         Ok(())
-    }
-    #[allow(clippy::too_many_arguments)]
-    fn magic_handler_v5(
-        &mut self,
-        tick: Tick,
-        caster: TargetBinding,
-        target: TargetBinding,
-        skill: &SkillDef,
-        rank: u32,
-        handler: &crate::domain::zone::skill::SkillHandler,
-        events: &mut Vec<ZoneEvent>,
-    ) -> Result<SkillTargetResult, TickError> {
-        let a = self.effective(caster.entity)?;
-        let b = self.effective(target.entity)?;
-        let critical = self.roll_below(1000) < a.magic_crit;
-        let magic_level = *skill
-            .magic_level
-            .get(usize::try_from(rank.saturating_sub(1)).map_err(invariant)?)
-            .ok_or_else(missing)?;
-        let difference = i32::try_from(b.physical.level())
-            .map_err(invariant)?
-            .checked_sub(if magic_level > 0 {
-                i32::try_from(magic_level).map_err(invariant)?
-            } else {
-                i32::try_from(a.physical.level()).map_err(invariant)?
-            })
-            .ok_or_else(missing)?;
-        let rate =
-            skill_math::magic_success_rate(difference, ExactRatio::whole(1), ExactRatio::whole(1))
-                .map_err(invariant)?;
-        let success = i64::from(self.roll_below(100)) < i64::from(rate);
-        let resolution = if success {
-            MagicResolution::Success
-        } else if i64::from(self.roll_below(100)) < i64::from(rate)
-            && b.physical.level().saturating_sub(a.physical.level()) <= 9
-        {
-            MagicResolution::Half
-        } else {
-            MagicResolution::Resist
-        };
-        let radius = a.physical.random_damage();
-        let spread = if radius == 0 {
-            0
-        } else {
-            i64::from(self.roll_below(radius.saturating_mul(2).saturating_add(1)))
-                .saturating_sub(i64::from(radius))
-        };
-        let power = ExactRatio::parse_literal(
-            handler
-                .params
-                .get("power")
-                .and_then(|p| p.at(rank, skill.max_level))
-                .ok_or_else(missing)?,
-        )
-        .map_err(invariant)?;
-        let damage = skill_math::magical_skill_base(
-            power,
-            q(a.m_atk_q).map_err(invariant)?,
-            q(b.m_def_q).map_err(invariant)?,
-            resolution,
-            critical,
-            self.sidecar(target.entity)?.player.is_some(),
-        )
-        .map_err(invariant)?
-        .checked_mul(
-            ExactRatio::new(i128::from(100_i64.saturating_add(spread)), 100).map_err(invariant)?,
-        )
-        .map_err(invariant)?;
-        let positive = damage
-            .checked_cmp(ExactRatio::whole(0))
-            .map_err(invariant)?
-            == std::cmp::Ordering::Greater;
-        let rolled =
-            u32::try_from(damage.floor_scaled(1).map_err(invariant)?).map_err(invariant)?;
-        // MagicalAttackRange.java:83,89: attack-break (idle -> no draw), then vengeance
-        // even at zero chance, then recipient status/stun/resource/death processing.
-        if matches!(self.sidecar(target.entity)?.cast, CastState::Casting(_)) {
-            return Err(missing());
-        }
-        let result = if positive {
-            self.roll_below(100);
-            self.apply_damage_v5(tick, caster, target, rolled, DamageCause::Direct, events)?
-        } else {
-            (
-                0,
-                0,
-                self.entities
-                    .get(&target.entity)
-                    .and_then(|e| e.combat.as_ref())
-                    .ok_or_else(missing)?
-                    .hp,
-            )
-        };
-        Ok(SkillTargetResult {
-            target,
-            resolution_kind: SkillResolutionKind::Magical,
-            outcome: match resolution {
-                MagicResolution::Half => SkillOutcome::Half,
-                MagicResolution::Resist => SkillOutcome::Resist,
-                MagicResolution::Success if critical => SkillOutcome::Crit,
-                MagicResolution::Success => SkillOutcome::Hit,
-            },
-            rolled,
-            cp_absorbed: result.0,
-            hp_removed: result.1,
-            target_hp_after: result.2,
-            heal: 0,
-            applied_effect_ids: Vec::new(),
-        })
     }
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // One recipient transaction preserves status/RNG/death order.
     fn apply_damage_v5(
@@ -2090,40 +2004,32 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
             .target_type
             .at(rank, skill.max_level)
             .is_some_and(|s| matches!(s.as_str(), "SELF" | "TARGET" | "ENEMY" | "ENEMY_ONLY"))
-        && ((skill.id.0 == 1177 && skill.abnormal.is_none())
-            || skill.abnormal.is_none()
-                && skill.effects.iter().all(|h| {
-                    matches!(
-                        h.name.as_str(),
-                        "Heal"
-                            | "HpPerMax"
-                            | "Mp"
-                            | "Cp"
-                            | "DispelBySlot"
-                            | "DispelByCategory"
-                            | "GetAgro"
-                            | "AddHate"
-                    )
-                })
-            || skill.abnormal.is_some()
-                && skill.effects.iter().all(|h| {
-                    matches!(
-                        h.name.as_str(),
-                        "Buff"
-                            | "Debuff"
-                            | "Stun"
-                            | "Sleep"
-                            | "Root"
-                            | "TickHp"
-                            | "TickMp"
-                            | "MaxHp"
-                            | "MaxMp"
-                            | "DefenceTrait"
-                            | "AttackTrait"
-                    )
-                }))
         && skill.effects.iter().all(|h| {
-            h.section == "effects"
+            matches!(
+                h.name.as_str(),
+                "PhysicalAttack"
+                    | "MagicalAttack"
+                    | "MagicalAttackRange"
+                    | "Heal"
+                    | "HpPerMax"
+                    | "Mp"
+                    | "Cp"
+                    | "DispelBySlot"
+                    | "DispelByCategory"
+                    | "GetAgro"
+                    | "AddHate"
+                    | "Buff"
+                    | "Debuff"
+                    | "Stun"
+                    | "Sleep"
+                    | "Root"
+                    | "TickHp"
+                    | "TickMp"
+                    | "MaxHp"
+                    | "MaxMp"
+                    | "DefenceTrait"
+                    | "AttackTrait"
+            ) && h.section == "effects"
                 && h.conditions.is_empty()
                 && h.section_conditions.is_empty()
                 && (!matches!(h.name.as_str(), "MaxHp" | "MaxMp")

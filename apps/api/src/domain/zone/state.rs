@@ -544,6 +544,7 @@ impl ZoneState {
         classes: Arc<crate::domain::class::ClassRegistry>,
         phase3_rules: super::Phase3Rules,
     ) -> Result<Self, SnapshotError> {
+        Self::validate_damage_profiles_v5(&phase3_rules)?;
         phase3_rules
             .validate_catalogue(&classes)
             .map_err(SnapshotError::Rules)?;

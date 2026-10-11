@@ -1717,3 +1717,330 @@ fn point_blank_negative_effect_range_uses_affect_fallback_at_launch() {
     }
     panic!("escaping point-blank target must cancel before impact");
 }
+
+#[test]
+#[allow(clippy::too_many_lines)] // Full source caller and replay assertions stay together.
+fn physical_skill_live_cost_source_rng_damage_and_lethal_reflection_replay() {
+    for (critical_chance, ranged, lethal) in
+        [(0, false, false), (100, false, true), (0, true, false)]
+    {
+        let base = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        let rules = edit_skill_rules(&base, |skills| {
+            let mut physical = skills[&SkillId(3)].effects[0].clone();
+            physical
+                .params
+                .insert("power".into(), skill::RankValue::Scalar("30".into()));
+            let conditions = skills[&SkillId(3)].conditions.clone();
+            let s = skills.get_mut(&SkillId(1177)).unwrap();
+            s.effects = vec![physical];
+            s.conditions = conditions;
+            s.is_magic = 0;
+            s.mp_consume_start.fill(0);
+            s.mp_consume_end.fill(9);
+            s.cast_range = skill::RankValue::Scalar(40);
+            s.effects[0].params.insert(
+                "criticalChance".into(),
+                skill::RankValue::Scalar(critical_chance.to_string()),
+            );
+            if ranged {
+                s.cast_range = skill::RankValue::Scalar(400);
+            }
+        });
+        let (zone, player, npc) = setup_with_rules(
+            Vec2Fixed::from_tiles(10, 10),
+            Vec2Fixed::from_tiles(11, 10),
+            &[(1177, 1)],
+            rules,
+        );
+        let mut snapshot = zone.snapshot();
+        if lethal {
+            snapshot
+                .entities
+                .iter_mut()
+                .find(|e| e.id == npc)
+                .unwrap()
+                .combat
+                .as_mut()
+                .unwrap()
+                .hp = 1;
+        }
+        let mut zone = ZoneState::from_snapshot(snapshot).unwrap();
+        let mut input = cast(player, npc);
+        input.command = ZoneCommand::CastSkill {
+            entity: player,
+            skill_id: SkillId(1177),
+            target: Some(npc),
+        };
+        let initial_rng = zone.snapshot().rng;
+        let mp = combat(&zone, player).mp;
+        let start = zone.run_tick(zone.draft(vec![input])).unwrap();
+        assert!(start.dispositions.is_empty(), "{:?}", start.dispositions);
+        assert_eq!(zone.snapshot().rng, initial_rng);
+        assert_eq!(combat(&zone, player).mp, mp); // Power Strike has no MP1.
+        let complete = start
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::SkillCastStarted { complete_at, .. } => Some(*complete_at),
+                _ => None,
+            })
+            .unwrap();
+        let mut replay = ZoneState::from_snapshot(
+            decode_snapshot(&encode_snapshot(&zone.snapshot()).unwrap()).unwrap(),
+        )
+        .unwrap();
+        while zone.draft(vec![]).tick < complete {
+            let draft = zone.draft(vec![]);
+            let a = zone.run_tick(draft.clone()).unwrap();
+            let b = replay.run_tick(draft).unwrap();
+            assert_eq!(
+                AppliedTickRecord::from_applied(ZoneId(1), &a).encode(),
+                AppliedTickRecord::from_applied(ZoneId(1), &b).encode()
+            );
+        }
+        let before = combat(&zone, npc);
+        let attacker = combat(&zone, player);
+        let mut ledger = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+        ledger.roll_below(100); // physical evasion at stat0
+        if critical_chance != 0 {
+            ledger.roll_below(100_000_000);
+        }
+        let spread = i64::from(ledger.roll_below(21)).checked_sub(10).unwrap();
+        if !ranged {
+            ledger.roll_below(100);
+        } // after reduction, even after death
+        let expected = skill_math::physical_skill_base(
+            skill_math::ExactRatio::whole(30),
+            skill_math::ExactRatio::new(i128::from(attacker.sheet.p_atk().raw()), i128::from(Q))
+                .unwrap(),
+            skill_math::ExactRatio::new(i128::from(before.sheet.p_def().raw()), i128::from(Q))
+                .unwrap(),
+            skill_math::ExactRatio::whole(1),
+            false,
+        )
+        .unwrap()
+        .checked_mul(
+            skill_math::ExactRatio::new(i128::from(100_i64.checked_add(spread).unwrap()), 100)
+                .unwrap(),
+        )
+        .unwrap();
+        let draft = zone.draft(vec![]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        let reproduced = replay.run_tick(draft).unwrap();
+        assert_eq!(zone.snapshot().rng, ledger.snapshot().rng);
+        assert_eq!(
+            AppliedTickRecord::from_applied(ZoneId(1), &applied).encode(),
+            AppliedTickRecord::from_applied(ZoneId(1), &reproduced).encode()
+        );
+        let row = applied
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::SkillCastResult { targets, .. } => targets.first(),
+                _ => None,
+            })
+            .unwrap();
+        let multiplier = if row.outcome == SkillOutcome::Crit {
+            2
+        } else {
+            1
+        };
+        assert_eq!(row.resolution_kind, SkillResolutionKind::Physical);
+        assert_eq!(
+            row.rolled,
+            u32::try_from(
+                expected
+                    .checked_mul(skill_math::ExactRatio::whole(multiplier))
+                    .unwrap()
+                    .trunc()
+                    .unwrap()
+            )
+            .unwrap()
+        );
+        assert_eq!(row.hp_removed, row.rolled.min(before.hp));
+        assert_eq!(combat(&zone, player).mp, attacker.mp.checked_sub(9).unwrap());
+        if lethal {
+            assert!(applied
+                .events
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::SpGained { amount: 2, .. })));
+        }
+        ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    }
+}
+
+#[test]
+fn physical_weapon_condition_refuses_before_cost_reuse_or_rng() {
+    let base = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+    let rules = edit_skill_rules(&base, |skills| {
+        let conditions = skills[&SkillId(24)].conditions.clone();
+        skills.get_mut(&SkillId(1177)).unwrap().conditions = conditions;
+    });
+    let (mut zone, player, npc) = setup_with_rules(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(11, 10),
+        &[(1177, 1)],
+        rules,
+    );
+    let before = zone.snapshot().rng;
+    let mp = combat(&zone, player).mp;
+    let mut input = cast(player, npc);
+    input.command = ZoneCommand::CastSkill {
+        entity: player,
+        skill_id: SkillId(1177),
+        target: Some(npc),
+    };
+    let applied = zone.run_tick(zone.draft(vec![input])).unwrap();
+    assert!(applied
+        .dispositions
+        .iter()
+        .any(|d| d.reason == RejectReason::WeaponCondition));
+    assert_eq!(zone.snapshot().rng, before);
+    assert_eq!(combat(&zone, player).mp, mp);
+    assert!(zone.snapshot().phase3.unwrap().entities[&player]
+        .reuse
+        .is_empty());
+}
+
+#[test]
+fn mixed_magic_continuous_success_precedes_instant_and_stronger_stack_keeps_damage() {
+    for (lands, blocked) in [(false, false), (true, false), (true, true)] {
+        let base = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        let rules = edit_skill_rules(&base, |skills| {
+            let mut debuff = skills[&SkillId(1040)].effects[0].clone();
+            debuff.name = "Debuff".into();
+            debuff.stat_children[0].value = vec!["0.9".into(); 5];
+            let mut abnormal = skills[&SkillId(1040)].abnormal.clone().unwrap();
+            abnormal.level = vec![1; 5];
+            abnormal.time_s = vec![60; 5];
+            abnormal.is_debuff = true;
+            skills
+                .get_mut(&SkillId(1040))
+                .unwrap()
+                .abnormal
+                .as_mut()
+                .unwrap()
+                .level
+                .fill(2);
+            let s = skills.get_mut(&SkillId(1177)).unwrap();
+            s.effects[0].name = "MagicalAttack".into();
+            s.effects[0].params.remove("shieldDefensePercent");
+            s.effects[0]
+                .params
+                .insert("power".into(), skill::RankValue::Scalar("1".into()));
+            s.effects.push(debuff);
+            s.abnormal = Some(abnormal);
+            s.operate_type = "A2".into();
+            s.activate_rate = 60;
+            s.basic_property = "MEN".into();
+            s.min_chance = 50;
+            s.max_chance = 50;
+        });
+        let (mut zone, player, npc) = setup_with_rules(
+            Vec2Fixed::from_tiles(10, 10),
+            Vec2Fixed::from_tiles(12, 10),
+            &[(1040, 1), (1177, 1)],
+            rules,
+        );
+        if blocked {
+            finish_skill(&mut zone, player, npc, 1040);
+        }
+        let start = zone.run_tick(zone.draft(vec![cast(player, npc)])).unwrap();
+        assert!(start.dispositions.is_empty());
+        let complete = start
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::SkillCastStarted { complete_at, .. } => Some(*complete_at),
+                _ => None,
+            })
+            .unwrap();
+        while zone.draft(vec![]).tick < complete {
+            zone.run_tick(zone.draft(vec![])).unwrap();
+        }
+        let original = zone.snapshot();
+        // Choose a deterministic recorded RNG input covering each container branch.
+        // The injected math tests separately cover exact boundary rolls.
+        let mut selected = None;
+        for cursor in 0..100 {
+            let mut snapshot = original.clone();
+            snapshot.rng.word_pos = cursor;
+            let mut preview = ZoneState::from_snapshot(snapshot.clone()).unwrap();
+            preview.roll_below(100); // outer debuff reflection, even at zero
+            if (preview.roll_below(100) < 50) == lands {
+                selected = Some(snapshot);
+                break;
+            }
+        }
+        zone = ZoneState::from_snapshot(selected.unwrap()).unwrap();
+        let mut ledger = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+        ledger.roll_below(100);
+        ledger.roll_below(100); // success then duration (no RNG)
+        ledger.roll_below(1000);
+        if ledger.roll_below(100) >= 99 {
+            ledger.roll_below(100);
+        }
+        ledger.roll_below(21);
+        ledger.roll_below(100);
+        let hp = combat(&zone, npc).hp;
+        let applied = zone.run_tick(zone.draft(vec![])).unwrap();
+        assert_eq!(zone.snapshot().rng, ledger.snapshot().rng);
+        let rows = applied
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::SkillCastResult { targets, .. } => Some(targets),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].resolution_kind, SkillResolutionKind::Magical);
+        assert_eq!(rows[1].resolution_kind, SkillResolutionKind::Effect);
+        assert!(rows[0].hp_removed > 0);
+        assert_eq!(combat(&zone, npc).hp, hp.checked_sub(rows[0].hp_removed).unwrap());
+        assert_eq!(!rows[1].applied_effect_ids.is_empty(), lands && !blocked);
+        if !lands {
+            assert_eq!(rows[1].outcome, SkillOutcome::Resist);
+        }
+        let snapshot = zone.snapshot();
+        let effects = snapshot.phase3.as_ref().unwrap().entities[&npc]
+            .effects
+            .entries();
+        if blocked {
+            assert!(effects.values().all(|e| e.skill.id == SkillId(1040)));
+        }
+        ZoneState::from_snapshot(snapshot).unwrap();
+    }
+}
+
+#[test]
+fn unrepresented_high_level_npc_damage_policy_is_refused_at_epoch_boundary() {
+    let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
+    let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
+    let base = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+    let mut profiles = base.profiles().clone();
+    profiles.npcs.get_mut("keltir").unwrap().physical.level = 78;
+    let rules = Phase3Rules::try_new(
+        base.skills().clone(),
+        base.pvp().clone(),
+        base.regen().clone(),
+        base.constants().clone(),
+        profiles,
+        base.geometry().clone(),
+    )
+    .unwrap();
+    let result = ZoneState::new_phase3(
+        ZoneSeed {
+            zone: ZoneId(1),
+            epoch: 45,
+        },
+        ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256)).unwrap(),
+        0,
+        stats,
+        classes,
+        rules,
+    );
+    assert!(
+        matches!(result,Err(SnapshotError::Rules(message)) if message.contains("NPC damage penalty coefficients"))
+    );
+}

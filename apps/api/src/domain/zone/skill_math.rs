@@ -536,6 +536,42 @@ pub fn resurrect_xp(loss: u64, percent: ExactRatio) -> Result<u64, StatError> {
     Ok(refund.min(loss))
 }
 
+/// `PhysicalAttack.java:50,87-92` / `Formulas.java:979,1388-1405`: evasion precedes
+/// critical and an evaded attack has no critical draw. Magic/debuff bypass evasion;
+/// nonpositive critical chance bypasses critical. The continuous source critical roll
+/// is represented in Q-percent units per the Phase 3 deterministic RNG contract.
+/// `None` means evaded; `Some` carries the landed critical flag.
+pub fn physical_skill_checks(
+    magic: bool,
+    debuff: bool,
+    evasion: ExactRatio,
+    critical_chance: i32,
+    strength_bonus: ExactRatio,
+    mut draw: impl FnMut(u32) -> Result<u32, StatError>,
+) -> Result<Option<bool>, StatError> {
+    let mut roll = |bound| {
+        let value = draw(bound)?;
+        if value >= bound {
+            return Err(StatError::Overflow);
+        }
+        Ok(value)
+    };
+    if !magic
+        && !debuff
+        && evasion
+            .checked_cmp(ExactRatio::whole(i64::from(roll(100)?)))?
+            .is_gt()
+    {
+        return Ok(None);
+    }
+    let critical = critical_chance > 0
+        && strength_bonus
+            .checked_mul(ExactRatio::whole(i64::from(critical_chance)))?
+            .checked_cmp(ExactRatio::new(i128::from(roll(100_000_000)?), i128::from(Q))?)?
+            .is_gt();
+    Ok(Some(critical))
+}
+
 /// Source physical skill base with caller-resolved proximity and shot state.
 /// Other trait/attribute/spread/penalty modifiers are applied before `max(1, damage)`
 /// by the resolver. `Formulas.java:746-809`; critical doubling is in `PhysicalAttack`.
@@ -1123,6 +1159,46 @@ mod tests {
     }
     fn boolean(value: &Value) -> bool {
         value.as_bool().unwrap()
+    }
+
+    #[test]
+    fn physical_caller_injected_roll_trace_and_strict_q_boundaries() {
+        for (magic, debuff, evasion, chance, input, expected, bounds) in [
+            (false, false, 0, 0, vec![0], Some(false), vec![100]),
+            (false, false, 0, -1, vec![0], Some(false), vec![100]),
+            (false, false, 1, 100, vec![0], None, vec![100]),
+            (false, false, 1, 50, vec![1, 49_999_999], Some(true), vec![100, 100_000_000]),
+            (false, false, 1, 50, vec![1, 50_000_000], Some(false), vec![100, 100_000_000]),
+            (true, false, 100, 50, vec![0], Some(true), vec![100_000_000]),
+            (false, true, 100, 0, vec![], Some(false), vec![]),
+        ] {
+            let mut rolls = input.into_iter();
+            let mut trace = Vec::new();
+            let actual = physical_skill_checks(
+                magic,
+                debuff,
+                ExactRatio::whole(evasion),
+                chance,
+                ExactRatio::whole(1),
+                |bound| {
+                    trace.push(bound);
+                    Ok(rolls.next().unwrap())
+                },
+            )
+            .unwrap();
+            assert_eq!(actual, expected);
+            assert_eq!(trace, bounds);
+            assert_eq!(rolls.next(), None);
+        }
+        assert!(physical_skill_checks(
+            false,
+            false,
+            ExactRatio::whole(0),
+            0,
+            ExactRatio::whole(1),
+            |_| Ok(100)
+        )
+        .is_err());
     }
 
     #[test]
