@@ -304,8 +304,8 @@ def validate_phase3_dashboard(data: dict) -> list[str]:
         if panel.get('datasource') != {'type': 'prometheus', 'uid': 'prometheus'}:
             errors.append(f'Phase3 panel {pid} datasource does not match Prometheus')
         desc = panel.get('description', '').lower()
-        if pid in (28, 29, 30, 33) and 'awaits' not in desc:
-            errors.append(f'Phase3 panel {pid} must disclose pending gameplay producer integration')
+        if pid in (28, 29, 30, 33) and not all(word in desc for word in ('experimental', 'production', 'fenced')):
+            errors.append(f'Phase3 panel {pid} must disclose experimental producers and the production fence')
         if pid in (33, 34) and not all(word in desc for word in ('applied', 'replayed', 'outbox')):
             errors.append(f'Phase3 panel {pid} must distinguish applied commits, replayed receipts and outbox accounting')
 
@@ -342,6 +342,27 @@ def validate_phase3_dashboard(data: dict) -> list[str]:
     ):
         if normalize_rust_whitespace(signature).replace(',)', ')') not in normalized.replace(',)', ')'):
             errors.append(f'Phase3 recorder signature is not bounded: {signature}')
+    source_checks = {
+        'apps/api/src/infrastructure/telemetry/combat.rs': (
+            'ZoneEvent::SkillCastStarted', 'ZoneEvent::SkillCastResult', 'ZoneEvent::SkillCastCancelled',
+            'ZoneEvent::EffectApplied', 'ZoneEvent::EffectRemoved',
+            'self.metrics.record_skill_cast(', 'self.metrics.record_skill_resolution(',
+            'self.metrics.record_skill_effect(', 'baseline.is_none()', 'continuous_handler(',
+        ),
+        'apps/api/src/application/checkpoint.rs': (
+            'repo.checkpoint_learning(', 'CheckpointOutcome::Applied(_)',
+            'DomainEvent::CharacterSkillLearned', 'metrics.skill_learned()',
+        ),
+    }
+    for filename, required in source_checks.items():
+        path = ROOT / filename
+        if not path.is_file():
+            errors.append(f'Phase3 producer source missing: {filename}')
+            continue
+        source = normalize_rust_whitespace(strip_rust_comments(path.read_text()))
+        for call in required:
+            if normalize_rust_whitespace(call) not in source:
+                errors.append(f'Phase3 producer contract missing in {filename}: {call}')
     return errors
 
 

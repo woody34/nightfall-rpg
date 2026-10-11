@@ -44,18 +44,29 @@ class Phase3Observability(unittest.TestCase):
             ('metrics.rs', 'nightfall_skill_casts', 'nightfall_skill_castz'),
             ('phase3.rs', 'Started => "started"', 'Started => "unbounded"'),
             ('phase3.rs', 'outcome: SkillCastOutcome', 'outcome: String'),
+            ('combat.rs', 'record_skill_resolution', 'unwired_resolution'),
+            ('combat.rs', 'baseline.is_none()', 'baseline.is_some()'),
+            ('checkpoint.rs', 'metrics.skill_learned()', 'metrics.unwired_learning()'),
+        ]
+        sources = [
+            'apps/api/src/infrastructure/telemetry/metrics.rs',
+            'apps/api/src/infrastructure/telemetry/phase3.rs',
+            'apps/api/src/infrastructure/telemetry/combat.rs',
+            'apps/api/src/application/checkpoint.rs',
         ]
         for filename, old, new in mutations:
             with self.subTest(file=filename, change=old), tempfile.TemporaryDirectory() as tmp:
-                path = Path(tmp) / 'apps/api/src/infrastructure/telemetry'
-                path.mkdir(parents=True)
-                for file in ('metrics.rs', 'phase3.rs'):
-                    source = (ROOT / 'apps/api/src/infrastructure/telemetry' / file).read_text()
-                    if file == filename:
-                        self.assertIn(old, source)
-                        source = source.replace(old, new)
-                    (path / file).write_text(source)
+                for relative in sources:
+                    source = (ROOT / relative).read_text()
+                    path = Path(tmp) / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(source)
                 with patch.object(validator, 'ROOT', Path(tmp)):
+                    self.assertEqual(validator.validate_phase3_dashboard(self.data), [])
+                    path = next(Path(tmp) / rel for rel in sources if Path(rel).name == filename)
+                    source = path.read_text()
+                    self.assertIn(old, source)
+                    path.write_text(source.replace(old, new))
                     self.assertTrue(validator.validate_phase3_dashboard(self.data))
 
 

@@ -54,7 +54,7 @@ pub struct GameServiceImpl {
     phase3: Option<Phase3UseCases>,
 }
 
-/// Phase 3 use cases installed together only when the runtime is ready.
+/// Phase 3 use cases installed explicitly; production composition leaves them unset.
 pub struct Phase3UseCases {
     /// Live actor-owned eligibility.
     pub list_learnable_skills: ListLearnableSkills,
@@ -91,8 +91,8 @@ impl GameServiceImpl {
         }
     }
 
-    /// Explicit injection for a ready runtime. Production composition leaves this absent
-    /// until real actor + durable checkpoint plumbing lands; tests inject typed fakes.
+    /// Explicit experimental injection. Production composition leaves this absent;
+    /// tests may use typed fakes or the fenced durable V5 constructor below.
     #[must_use]
     pub fn with_phase3(mut self, use_cases: Phase3UseCases) -> Self {
         self.phase3 = Some(use_cases);
@@ -287,3 +287,51 @@ impl GameService for GameServiceImpl {
 
 /// Convenience for the composition root and tests: an `Arc`-free way to hand over the service.
 pub type SharedService = Arc<GameServiceImpl>;
+
+impl Phase3UseCases {
+    /// Builds real use cases only for an explicit experimental V5 actor with an installed
+    /// atomic learning lane. Production composition does not call this constructor.
+    pub async fn experimental(
+        characters: Arc<dyn crate::application::CharacterRepository>,
+        sessions: Arc<crate::application::session::SessionContext>,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(sessions.zone.phase3_enabled(), "experimental V5 zone required");
+        let lane = sessions
+            .zone
+            .checkpoints
+            .service()
+            .ok_or_else(|| anyhow::anyhow!("checkpoint lane required"))?;
+        anyhow::ensure!(
+            lane.lock().await.learning_enabled(),
+            "atomic learning persistence required"
+        );
+        let snapshot = sessions.zone.snapshot().await?;
+        let phase = snapshot
+            .phase3
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Phase3 rules missing"))?;
+        let classes = snapshot
+            .classes
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("class registry missing"))?;
+        let catalogue = Arc::new(
+            crate::application::use_cases::get_skill_catalog::RegistrySkillCatalogue::new(
+                classes,
+                phase.rules.skills(),
+            )?,
+        );
+        Ok(Self {
+            list_learnable_skills: ListLearnableSkills::new(
+                characters.clone(),
+                Some(sessions.clone()),
+            ),
+            learn_skill: LearnSkill::new(
+                characters,
+                sessions.clone(),
+                catalogue.clone(),
+                Some(sessions),
+            ),
+            get_skill_catalog: GetSkillCatalog::new(Some(catalogue)),
+        })
+    }
+}
