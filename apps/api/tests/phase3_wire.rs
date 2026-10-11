@@ -336,3 +336,19 @@ fn public_identity_is_reference_free_and_selection_bootstrap_can_explicitly_clea
     }
     Ok(())
 }
+
+#[test]
+fn offer_baseline_uses_additive_tags_and_preserves_prior_bytes() -> Result<(), prost::DecodeError> {
+    let prior = [10, 1, b'p', 16, 7, 24, 9, 64, 100, 72, 1, 80, 50];
+    let mut offer = pb::ResurrectOffer::decode(prior.as_slice())?;
+    assert!(!offer.baseline);
+    assert_eq!(offer.baseline_tick, 0);
+    assert_eq!(offer.encode_to_vec(), prior);
+    offer.baseline = true;
+    offer.baseline_tick = u64::MAX;
+    let mut expected = prior.to_vec();
+    expected.extend([88, 1, 96, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1]);
+    assert_eq!(offer.encode_to_vec(), expected);
+    assert_eq!(pb::ResurrectOffer::decode(expected.as_slice())?, offer);
+    Ok(())
+}
