@@ -22,3 +22,11 @@ observer hydration. Tests also verify digest-only replay and reject altered cast
 NPC auto AI, offer expiry, peace entry, the other PvP kill classifications, and unchanged-AOI
 revival/hidden-swing hydration are separate live domain tests. This fixture does not claim
 packaged-client soak, production bootstrap or durable account transactions.
+
+The session-13 review correction regenerates this new V5 fixture under the architect's
+explicit allowance in `inbox/zone-inbox.md` (session 13). Its previous bytes retained
+player-owned hate rows after nonlethal Wind Strike, and used the wrong cast/auto/AI
+phase order. The corrected recording limits effect-point hate to playable casters
+against attackable NPCs, stages attack/offer intents, and refreshes hostility at eligible
+starts/impacts independently of damage. The two historical recordings and the earlier
+runtime-revision-one cast recording remain unchanged and must still replay byte-exact.

@@ -474,6 +474,8 @@ pub struct TargetChangedPhase3 {
 #[serde(deny_unknown_fields)]
 #[allow(missing_docs)]
 pub struct CombatViewPhase3 {
+    #[serde(default, skip_serializing_if = "super::effects::StatusFlags::is_empty")]
+    pub status_flags: super::effects::StatusFlags,
     pub flag_until: Option<Tick>,
     pub karma: u32,
 }

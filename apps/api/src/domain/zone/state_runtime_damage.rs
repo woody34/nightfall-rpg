@@ -547,6 +547,11 @@ mod tests {
     use uuid::Uuid;
 
     fn fixture() -> (ZoneState, TargetBinding, TargetBinding, TargetBinding) {
+        fixture_with_order(false)
+    }
+    fn fixture_with_order(
+        reverse: bool,
+    ) -> (ZoneState, TargetBinding, TargetBinding, TargetBinding) {
         let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
         let npc =
             NpcCombat::from_template(&stats, &parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0])
@@ -564,7 +569,11 @@ mod tests {
         )
         .unwrap();
         let mut commands = Vec::new();
-        for (n, name) in [(1, "First"), (2, "Second")] {
+        let mut players = [(1, "First"), (2, "Second")];
+        if reverse {
+            players.reverse();
+        }
+        for (n, name) in players {
             let mut load = PlayerLoad::fresh("human_mystic");
             load.progression = Some(Box::new(crate::domain::zone::PlayerProgression {
                 identity: CharacterIdentity {
@@ -610,6 +619,47 @@ mod tests {
             .id;
         let npc = zone.binding(npc).unwrap();
         (zone, first, second, npc)
+    }
+
+    #[test]
+    fn low_rank_magic_against_level_36_completes_with_required_resistance_draws() {
+        let (mut zone, source, target, _) = fixture();
+        let target_xp = zone.rules.as_ref().unwrap().xp_to_level(36).unwrap();
+        if let CombatRole::Player { xp, .. } = &mut zone
+            .entities
+            .get_mut(&target.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        {
+            *xp = target_xp;
+        }
+        zone.relevel(target.entity).unwrap();
+        zone.sync_passives_v5(target.entity).unwrap();
+        zone.rebuild_v5(target.entity).unwrap();
+        start_cast(&mut zone, source, target);
+        let CastState::Casting(cast) = zone.sidecar(source.entity).unwrap().cast.clone() else {
+            panic!("cast")
+        };
+        while zone.next_tick < cast.complete_at {
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        let before = zone.rng.get_word_pos();
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let rows = tick
+            .events
+            .iter()
+            .find_map(|event| match event {
+                ZoneEvent::SkillCastResult { targets, .. } => Some(targets),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].outcome, SkillOutcome::Resist);
+        // Magic crit, success1, player success2, spread, zero-chance vengeance.
+        assert_eq!(zone.rng.get_word_pos() - before, 5);
     }
 
     #[test]
@@ -2230,5 +2280,862 @@ mod tests {
             })
             .collect();
         assert_eq!(hates, [1, 2]);
+    }
+    fn review_input(entity: EntityId, seq: u64, command: ZoneCommand) -> ZoneInput {
+        ZoneInput::session(entity, SessionGeneration(1), u32::try_from(seq).unwrap(), command)
+    }
+    fn review_learn(zone: &mut ZoneState, entity: EntityId, skill: u32) {
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            panic!("player")
+        };
+        p.class_state
+            .learned_skills
+            .push(crate::domain::subclass::LearnedSkill {
+                key: format!("l2.skill.{skill}"),
+                level: 1,
+            });
+        p.class_state
+            .learned_skills
+            .sort_by(|a, b| a.key.cmp(&b.key));
+    }
+    fn review_swing(
+        zone: &mut ZoneState,
+        source: TargetBinding,
+        target: TargetBinding,
+        impact: Tick,
+    ) {
+        let entity = zone.entities.get_mut(&source.entity).unwrap();
+        entity.targeting.target = Some(target.entity);
+        let c = entity.combat.as_mut().unwrap();
+        c.auto_attack = true;
+        c.ready_at = Tick(impact.0.checked_add(50).unwrap());
+        c.swing = Some(crate::domain::zone::Swing {
+            target: target.entity,
+            target_incarnation: target.incarnation,
+            start: Tick(0),
+            impact,
+            ready: c.ready_at,
+        });
+    }
+    fn review_complete(zone: &mut ZoneState, caster: TargetBinding) -> AppliedTick {
+        let CastState::Casting(cast) = zone.sidecar(caster.entity).unwrap().cast.clone() else {
+            panic!("cast")
+        };
+        while zone.next_tick < cast.complete_at {
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        zone.run_tick(zone.draft(Vec::new())).unwrap()
+    }
+
+    #[test]
+    fn review_nonlethal_pvp_cast_snapshot_envelope_restores_and_continues() {
+        use crate::application::replay_log::{decode_snapshot, encode_snapshot};
+        let (mut zone, source, target, _) = fixture();
+        start_cast(&mut zone, source, target);
+        let tick = review_complete(&mut zone, source);
+        assert!(tick
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::SkillCastResult { .. })));
+        assert!(!zone.entities[&target.entity].targeting.dead);
+        assert!(zone
+            .hate
+            .keys()
+            .all(|id| zone.entities[id].kind == EntityKind::Npc));
+        assert!(!tick
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::HateChanged { npc, .. } if *npc == target.entity)));
+        let snapshot = decode_snapshot(&encode_snapshot(&zone.snapshot()).unwrap()).unwrap();
+        let mut cold = ZoneState::from_snapshot(snapshot).unwrap();
+        for _ in 0..35 {
+            assert_eq!(
+                zone.run_tick(zone.draft(Vec::new())).unwrap(),
+                cold.run_tick(cold.draft(Vec::new())).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn review_effect_point_eligibility_and_pinned_positive_existing_row_branch() {
+        let (mut zone, source, target, npc) = fixture();
+        let tick = zone.next_tick;
+        let mut events = Vec::new();
+        for point in [-30, 30] {
+            zone.effect_point_hate_v5(tick, source, target, point, &mut events);
+            zone.effect_point_hate_v5(tick, npc, target, point, &mut events);
+        }
+        zone.effect_point_hate_v5(tick, source, npc, 30, &mut events);
+        assert!(zone.hate.is_empty());
+        assert!(events.is_empty());
+        zone.effect_point_hate_v5(tick, source, npc, -30, &mut events);
+        assert_eq!(zone.hate[&npc.entity].get(source.entity).unwrap().hate, 30);
+        // Despite its name, pinned reduceHate adds positive effectPoint to an existing row.
+        zone.effect_point_hate_v5(tick, source, npc, 20, &mut events);
+        assert_eq!(zone.hate[&npc.entity].get(source.entity).unwrap().hate, 50);
+        assert!(zone
+            .hate
+            .keys()
+            .all(|id| zone.entities[id].kind == EntityKind::Npc));
+    }
+
+    #[test]
+    fn review_receive_order_cast_attack_and_later_stop_selection_move() {
+        for cast_first in [true, false] {
+            let (mut zone, source, target, _) = fixture();
+            review_learn(&mut zone, source.entity, 1177);
+            let mut commands = vec![review_input(
+                source.entity,
+                1,
+                ZoneCommand::SetTarget {
+                    entity: source.entity,
+                    target: Some(target.entity),
+                },
+            )];
+            let cast = ZoneCommand::CastSkill {
+                entity: source.entity,
+                skill_id: crate::domain::zone::skill::SkillId(1177),
+                target: None,
+            };
+            let attack = ZoneCommand::Attack {
+                entity: source.entity,
+            };
+            let actions = if cast_first {
+                [cast, attack]
+            } else {
+                [attack, cast]
+            };
+            commands.extend(
+                actions
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, c)| review_input(source.entity, u64::try_from(i).unwrap() + 2, c)),
+            );
+            let cursor = zone.rng.get_word_pos();
+            let tick = zone.run_tick(zone.draft(commands)).unwrap();
+            assert_eq!(tick.dispositions.len(), usize::from(cast_first));
+            if cast_first {
+                assert_eq!(tick.dispositions[0].reason, RejectReason::AlreadyCasting);
+                assert_eq!(tick.dispositions[0].seq, Some(3));
+            }
+            assert!(matches!(zone.sidecar(source.entity).unwrap().cast, CastState::Casting(_)));
+            assert!(!tick.events.iter().any(|e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker == source.entity)));
+            assert_eq!(zone.rng.get_word_pos(), cursor);
+        }
+        for cancel in 0..3 {
+            let (mut zone, source, target, _) = fixture();
+            let command = match cancel {
+                0 => ZoneCommand::StopAttack {
+                    entity: source.entity,
+                },
+                1 => ZoneCommand::SetTarget {
+                    entity: source.entity,
+                    target: None,
+                },
+                _ => ZoneCommand::MoveTo {
+                    entity: source.entity,
+                    dest: Vec2Fixed::from_tiles(15, 10),
+                },
+            };
+            let tick = zone
+                .run_tick(zone.draft(vec![
+                    review_input(
+                        source.entity,
+                        1,
+                        ZoneCommand::SetTarget {
+                            entity: source.entity,
+                            target: Some(target.entity),
+                        },
+                    ),
+                    review_input(
+                        source.entity,
+                        2,
+                        ZoneCommand::Attack {
+                            entity: source.entity,
+                        },
+                    ),
+                    review_input(source.entity, 3, command),
+                ]))
+                .unwrap();
+            assert!(tick.dispositions.is_empty());
+            assert!(
+                !zone.entities[&source.entity]
+                    .combat
+                    .as_ref()
+                    .unwrap()
+                    .auto_attack
+            );
+        }
+    }
+
+    #[test]
+    fn review_attack_guard_runs_after_same_tick_stun_expiry() {
+        let (mut zone, source, target, _) = fixture();
+        add_stun(&mut zone, source);
+        assert!(zone
+            .effective(source.entity)
+            .unwrap()
+            .flags
+            .intersects(effects::StatusFlags::STUN));
+        zone.entities
+            .get_mut(&source.entity)
+            .unwrap()
+            .targeting
+            .target = Some(target.entity);
+        let tick = zone
+            .run_tick(zone.draft(vec![review_input(
+                source.entity,
+                1,
+                ZoneCommand::Attack {
+                    entity: source.entity,
+                },
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        let removed = tick
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::EffectRemoved { .. }))
+            .unwrap();
+        let started = tick
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::AttackStarted { .. }))
+            .unwrap();
+        assert!(removed < started);
+    }
+
+    #[test]
+    fn review_cast_lethal_and_stun_complete_before_due_swing_without_auto_rng() {
+        for stun in [false, true] {
+            let (mut zone, source, target, npc) = fixture();
+            // Isolate a single effect target; ordinary gameplay target collection still runs.
+            zone.entities
+                .get_mut(&npc.entity)
+                .unwrap()
+                .targeting
+                .attackable = false;
+            let skill = if stun { 1072 } else { 1177 };
+            review_learn(&mut zone, source.entity, skill);
+            let start = zone
+                .run_tick(zone.draft(vec![review_input(
+                    source.entity,
+                    1,
+                    ZoneCommand::CastSkill {
+                        entity: source.entity,
+                        skill_id: crate::domain::zone::skill::SkillId(skill),
+                        target: Some(target.entity),
+                    },
+                )]))
+                .unwrap();
+            assert!(start.dispositions.is_empty(), "{:?}", start.dispositions);
+            let CastState::Casting(cast) = zone.sidecar(source.entity).unwrap().cast.clone() else {
+                panic!("cast")
+            };
+            while zone.next_tick < cast.complete_at {
+                zone.run_tick(zone.draft(Vec::new())).unwrap();
+            }
+            if !stun {
+                set_resources(&mut zone, target, 1, 0);
+            }
+            review_swing(&mut zone, target, source, cast.complete_at);
+            // Pin the seeded success branch independently of the extra due swing.
+            let mut control = zone.clone();
+            control
+                .entities
+                .get_mut(&target.entity)
+                .unwrap()
+                .combat
+                .as_mut()
+                .unwrap()
+                .swing = None;
+            control
+                .entities
+                .get_mut(&target.entity)
+                .unwrap()
+                .combat
+                .as_mut()
+                .unwrap()
+                .auto_attack = false;
+            let before = zone.rng.get_word_pos();
+            let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+            control.run_tick(control.draft(Vec::new())).unwrap();
+            if stun {
+                assert!(zone
+                    .effective(target.entity)
+                    .unwrap()
+                    .flags
+                    .intersects(effects::StatusFlags::STUN));
+            } else {
+                assert!(zone.entities[&target.entity].targeting.dead);
+            }
+            assert!(zone.rng.get_word_pos() > before);
+            assert_eq!(zone.rng.get_word_pos(), control.rng.get_word_pos());
+            assert!(!tick.events.iter().any(|e| matches!(e, ZoneEvent::AttackResult { attacker, .. } if *attacker == target.entity)));
+            assert!(tick.events.iter().any(|e| matches!(e, ZoneEvent::AttackCancelled { attacker, .. } if *attacker == target.entity)));
+        }
+    }
+
+    #[test]
+    fn review_ai_acquisition_waits_until_next_tick_to_start_swing() {
+        let (mut zone, player, _, npc) = fixture();
+        let now = zone.next_tick;
+        zone.add_hate(
+            now,
+            npc.entity,
+            player.entity,
+            crate::domain::zone::HateEntry { hate: 1, damage: 0 },
+            &mut Vec::new(),
+        );
+        let cursor = zone.rng.get_word_pos();
+        let acquired = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert_eq!(zone.entities[&npc.entity].targeting.target, Some(player.entity));
+        assert!(!acquired.events.iter().any(
+            |e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker == npc.entity)
+        ));
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        let next = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert!(next.events.iter().any(
+            |e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker == npc.entity)
+        ));
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+    }
+
+    #[test]
+    fn review_simultaneous_lethal_swings_use_id_not_admission_order_and_cold_replay() {
+        let (mut zone, first, second, _) = fixture_with_order(true);
+        assert!(
+            zone.sidecar(first.entity).unwrap().ordinal
+                > zone.sidecar(second.entity).unwrap().ordinal
+        );
+        for (a, b) in [(first, second), (second, first)] {
+            set_resources(&mut zone, a, 1, 0);
+            let now = zone.next_tick;
+            review_swing(&mut zone, a, b, now);
+        }
+        // Fix a guaranteed-hit seeded cursor (hit minimum 200); no injected damage path.
+        while zone.clone().roll_below(1000) > 200 {
+            zone.roll_below(1000);
+        }
+        let mut cold = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+        let before = zone.rng.get_word_pos();
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert_eq!(tick, cold.run_tick(cold.draft(Vec::new())).unwrap());
+        let attackers: Vec<_> = tick
+            .events
+            .iter()
+            .filter_map(|e| {
+                if let ZoneEvent::AttackResult { attacker, .. } = e {
+                    Some(*attacker)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(attackers, vec![first.entity]);
+        assert!(zone.entities[&second.entity].targeting.dead);
+        assert!(!zone.entities[&first.entity].targeting.dead);
+        assert_eq!(zone.rng.get_word_pos() - before, 3); // hit, crit, spread; neutral PvP death has no penalty roll
+        for _ in 0..10 {
+            assert_eq!(
+                zone.run_tick(zone.draft(Vec::new())).unwrap(),
+                cold.run_tick(cold.draft(Vec::new())).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn review_accept_resurrection_is_staged_behind_town_lifecycle_in_both_orders() {
+        for town_first in [false, true] {
+            let (mut zone, caster, target) = resurrection_fixture();
+            zone.resurrect_offer_v5(
+                zone.next_tick,
+                caster,
+                target,
+                crate::domain::zone::skill::SkillRef {
+                    id: crate::domain::zone::skill::SkillId(1016),
+                    rank: 2,
+                },
+                &mut Vec::new(),
+            )
+            .unwrap();
+            let id = zone
+                .sidecar(target.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .resurrect_offer
+                .as_ref()
+                .unwrap()
+                .id;
+            let accept = ZoneCommand::AcceptResurrect {
+                entity: target.entity,
+                offer_id: id,
+                accept: true,
+            };
+            let town = ZoneCommand::Respawn {
+                entity: target.entity,
+            };
+            let actions = if town_first {
+                [town, accept]
+            } else {
+                [accept, town]
+            };
+            let commands = actions
+                .into_iter()
+                .enumerate()
+                .map(|(i, c)| review_input(target.entity, u64::try_from(i).unwrap() + 1, c))
+                .collect();
+            let tick = zone.run_tick(zone.draft(commands)).unwrap();
+            assert_eq!(tick.dispositions.len(), 1);
+            assert_eq!(tick.dispositions[0].reason, RejectReason::NoResurrectOffer);
+            let c = zone.entities[&target.entity].combat.as_ref().unwrap();
+            assert_eq!(c.incarnation, target.incarnation + 1);
+            assert!(c.protected_until.is_some());
+            assert_eq!(
+                tick.events
+                    .iter()
+                    .filter(|e| matches!(e, ZoneEvent::EntityRespawned { .. }))
+                    .count(),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn review_cannot_accept_offer_created_later_in_the_same_tick() {
+        let (mut zone, caster, target) = resurrection_fixture();
+        let started = zone
+            .run_tick(zone.draft(vec![review_input(
+                caster.entity,
+                1,
+                ZoneCommand::CastSkill {
+                    entity: caster.entity,
+                    skill_id: crate::domain::zone::skill::SkillId(1016),
+                    target: Some(target.entity),
+                },
+            )]))
+            .unwrap();
+        assert!(started.dispositions.is_empty());
+        let CastState::Casting(cast) = zone.sidecar(caster.entity).unwrap().cast.clone() else {
+            panic!("cast")
+        };
+        while zone.next_tick < cast.complete_at {
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        let offer_id =
+            crate::domain::zone::OfferId(zone.phase3.as_ref().unwrap().canonical.next_offer_id);
+        let tick = zone
+            .run_tick(zone.draft(vec![review_input(
+                target.entity,
+                2,
+                ZoneCommand::AcceptResurrect {
+                    entity: target.entity,
+                    offer_id,
+                    accept: true,
+                },
+            )]))
+            .unwrap();
+        assert_eq!(tick.dispositions[0].reason, RejectReason::NoResurrectOffer);
+        assert!(zone.entities[&target.entity].targeting.dead);
+        assert_eq!(
+            zone.sidecar(target.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .resurrect_offer
+                .as_ref()
+                .unwrap()
+                .id,
+            offer_id
+        );
+    }
+
+    #[test]
+    fn review_missed_auto_refreshes_flag_without_recipient_draws_and_starts_refresh_again() {
+        use DamageRollSite as R;
+        let (mut zone, source, target, _) = fixture();
+        let now = zone.next_tick;
+        review_swing(&mut zone, source, target, now);
+        let swing = zone.entities[&source.entity]
+            .combat
+            .as_ref()
+            .unwrap()
+            .swing
+            .unwrap();
+        let mut trace = Vec::new();
+        let mut events = Vec::new();
+        zone.land_auto_v5(
+            now,
+            source.entity,
+            swing,
+            &mut events,
+            &mut scripted(&[(R::AutoHit, 1000, 999)], &mut trace),
+        )
+        .unwrap();
+        assert_eq!(trace.len(), 1);
+        assert!(events.iter().any(|e| matches!(
+            e,
+            ZoneEvent::AttackResult {
+                outcome: crate::domain::zone::AttackOutcome::Miss,
+                ..
+            }
+        )));
+        assert_eq!(
+            zone.sidecar(source.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .pvp
+                .flag_until,
+            Some(Tick(now.0 + 1200))
+        );
+        // A flagged victim gives the shorter refresh, which may not shorten an old deadline.
+        zone.sidecar_mut(target.entity)
+            .unwrap()
+            .player
+            .as_mut()
+            .unwrap()
+            .pvp
+            .flag_until = Some(Tick(5000));
+        zone.entities
+            .get_mut(&source.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .ready_at = now;
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert_eq!(
+            zone.sidecar(source.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .pvp
+                .flag_until,
+            Some(Tick(now.0 + 1200))
+        );
+        // Repeat swing start against a now-neutral target extends without a new Attack command.
+        zone.sidecar_mut(target.entity)
+            .unwrap()
+            .player
+            .as_mut()
+            .unwrap()
+            .pvp
+            .flag_until = None;
+        let c = zone
+            .entities
+            .get_mut(&source.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        c.swing = None;
+        c.ready_at = zone.next_tick;
+        let later = zone.next_tick;
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert!(tick.events.iter().any(
+            |e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker==source.entity)
+        ));
+        assert_eq!(
+            zone.sidecar(source.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .pvp
+                .flag_until,
+            Some(Tick(later.0 + 1200))
+        );
+    }
+
+    #[test]
+    fn review_ranged_death_omits_unseen_killer_but_keeps_private_fact() {
+        use crate::interface::{grpc::pb, zone_mapping::observer_output_to_pb};
+        let (mut zone, source, target, _) = fixture();
+        let observer = EntityId::from_uuid(Uuid::from_u128(3));
+        let mut load = PlayerLoad::fresh("human_mystic");
+        load.progression = Some(Box::new(crate::domain::zone::PlayerProgression {
+            identity: CharacterIdentity {
+                account_id: AccountId::from_uuid(Uuid::from_u128(3)),
+                race: Race::Human,
+                base_class_id: ClassId(10),
+                appearance: CharacterAppearance::default(),
+            },
+            class_state: ClassState::new(ClassId(10)),
+            max_cp: 0,
+        }));
+        for (id, pos) in [
+            (source.entity, Vec2Fixed::from_tiles(63, 10)),
+            (target.entity, Vec2Fixed::from_tiles(64, 10)),
+        ] {
+            let old = zone.entities[&id].pos;
+            zone.entities.get_mut(&id).unwrap().pos = pos;
+            zone.aoi.relocate(id, old, pos);
+        }
+        let admission = zone
+            .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+                entity: observer,
+                name: "Viewer".into(),
+                pos: Vec2Fixed::from_tiles(96, 10),
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                load: Some(Box::new(load)),
+            })]))
+            .unwrap();
+        assert!(admission.outputs[&observer].iter().any(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntitySpawn { entity,.. }) if *entity==target.entity)));
+        assert!(!admission.outputs[&observer].iter().any(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntitySpawn { entity,.. }) if *entity==source.entity)));
+        start_cast(&mut zone, source, target);
+        let CastState::Casting(cast) = zone.sidecar(source.entity).unwrap().cast.clone() else {
+            panic!("cast")
+        };
+        while zone.next_tick < cast.complete_at {
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        set_resources(&mut zone, target, 1, 0);
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert!(tick.events.iter().any(|e| matches!(e, ZoneEvent::EntityDied { entity,killer:Some(k),.. } if *entity==target.entity && *k==source.entity)));
+        let death=tick.outputs[&observer].iter().find(|o| matches!(o,ObserverOutput::Event(ZoneEvent::EntityDied { entity,.. }) if *entity==target.entity)).unwrap();
+        assert!(matches!(
+            death,
+            ObserverOutput::Event(ZoneEvent::EntityDied { killer: None, .. })
+        ));
+        let messages = observer_output_to_pb(death, tick.server_time_ms);
+        let pb = &messages[0];
+        assert!(
+            matches!(&pb.payload,Some(pb::server_message::Payload::Event(pb::WorldEvent { event:Some(pb::world_event::Event::EntityDied(pb::EntityDied { killer,.. })) })) if killer.is_empty())
+        );
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // Both real impact callers share the same flag-change boundary.
+    fn review_resisted_debuff_and_evaded_physical_impact_refresh_hostility() {
+        use crate::domain::zone::stat_functions::{
+            FunctionKey, FunctionOp, StatCalculator, StatFunction,
+        };
+        for physical in [false, true] {
+            let (mut zone, source, target, npc) = fixture();
+            zone.entities
+                .get_mut(&npc.entity)
+                .unwrap()
+                .targeting
+                .attackable = false;
+            let skill = if physical { 3 } else { 1072 };
+            review_learn(&mut zone, source.entity, skill);
+            zone.sidecar_mut(target.entity)
+                .unwrap()
+                .player
+                .as_mut()
+                .unwrap()
+                .pvp
+                .flag_until = Some(Tick(5000));
+            let start = zone
+                .run_tick(zone.draft(vec![review_input(
+                    source.entity,
+                    1,
+                    ZoneCommand::CastSkill {
+                        entity: source.entity,
+                        skill_id: crate::domain::zone::skill::SkillId(skill),
+                        target: Some(target.entity),
+                    },
+                )]))
+                .unwrap();
+            assert!(start.dispositions.is_empty(), "{:?}", start.dispositions);
+            assert_eq!(
+                zone.sidecar(source.entity)
+                    .unwrap()
+                    .player
+                    .as_ref()
+                    .unwrap()
+                    .pvp
+                    .flag_until,
+                Some(Tick(start.tick.0 + 600))
+            );
+            let CastState::Casting(cast) = zone.sidecar(source.entity).unwrap().cast.clone() else {
+                panic!("cast")
+            };
+            while zone.next_tick < cast.complete_at {
+                zone.run_tick(zone.draft(Vec::new())).unwrap();
+            }
+            zone.sidecar_mut(target.entity)
+                .unwrap()
+                .player
+                .as_mut()
+                .unwrap()
+                .pvp
+                .flag_until = None;
+            if physical {
+                // Explicit derived-stat fixture uses Ultimate Evasion rank-one pSkillEvas=25
+                // (skills/111.toml); production dispatch and seeded RNG are unchanged.
+                let mut stats = (*zone.effective(target.entity).unwrap()).clone();
+                stats.calculator = StatCalculator::try_new([StatFunction {
+                    key: FunctionKey {
+                        stat: "pSkillEvas".into(),
+                        priority: 0,
+                        install_sequence: 0,
+                        handler_ordinal: 0,
+                        function_ordinal: 0,
+                    },
+                    operation: FunctionOp::Set(25 * Q),
+                    conditions: Vec::new(),
+                }])
+                .unwrap();
+                zone.phase3
+                    .as_mut()
+                    .unwrap()
+                    .effective
+                    .insert(target.entity, Arc::new(stats));
+                while zone.clone().roll_below(100) >= 25 {
+                    zone.roll_below(100);
+                }
+            } else {
+                loop {
+                    let mut preview = zone.clone();
+                    preview.roll_below(100);
+                    if preview.roll_below(100) >= 90 {
+                        break;
+                    }
+                    zone.roll_below(100);
+                }
+            }
+            let hp = zone.entities[&target.entity].combat.as_ref().unwrap().hp;
+            let cursor = zone.rng.get_word_pos();
+            let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+            assert_eq!(
+                zone.sidecar(source.entity)
+                    .unwrap()
+                    .player
+                    .as_ref()
+                    .unwrap()
+                    .pvp
+                    .flag_until,
+                Some(Tick(tick.tick.0 + 1200))
+            );
+            assert_eq!(zone.entities[&target.entity].combat.as_ref().unwrap().hp, hp);
+            assert_eq!(zone.rng.get_word_pos() - cursor, if physical { 1 } else { 2 });
+            assert!(zone
+                .sidecar(target.entity)
+                .unwrap()
+                .effects
+                .entries()
+                .is_empty());
+            let rows = tick
+                .events
+                .iter()
+                .find_map(|e| {
+                    if let ZoneEvent::SkillCastResult { targets, .. } = e {
+                        Some(targets)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap();
+            assert!(rows.iter().any(|r| r.target == target
+                && r.outcome
+                    == if physical {
+                        SkillOutcome::Miss
+                    } else {
+                        SkillOutcome::Resist
+                    }));
+        }
+    }
+    #[test]
+    fn review_spawn_contains_final_nonzero_status_before_effect_hydration() {
+        use crate::interface::{grpc::pb, zone_mapping::observer_output_to_pb};
+        let (mut zone, target, observer, _) = fixture();
+        add_stun(&mut zone, target);
+        let side = zone.sidecar_mut(target.entity).unwrap();
+        let mut entries = side.effects.entries().clone();
+        for effect in entries.values_mut() {
+            effect.expires_at = Some(Tick(100));
+        }
+        side.effects = EffectList::from_entries(entries).unwrap();
+        zone.known.clear();
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let out = &tick.outputs[&observer.entity];
+        let spawn = out.iter().position(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntitySpawn {entity,..}) if *entity == target.entity)).unwrap();
+        let effect = out.iter().position(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EffectApplied {target: t,..}) if *t == target)).unwrap();
+        assert!(spawn < effect);
+        let messages = observer_output_to_pb(&out[spawn], tick.server_time_ms);
+        assert!(
+            matches!(&messages[0].payload,Some(pb::server_message::Payload::Event(pb::WorldEvent { event:Some(pb::world_event::Event::Spawn(value)) })) if value.status_flags == effects::StatusFlags::STUN.bits())
+        );
+    }
+    #[test]
+    fn review_zero_damage_periodic_pulse_refreshes_hostility_without_rng() {
+        let (mut zone, source, target, _) = fixture();
+        review_learn(&mut zone, source.entity, 1168);
+        let start = zone
+            .run_tick(zone.draft(vec![review_input(
+                source.entity,
+                1,
+                ZoneCommand::CastSkill {
+                    entity: source.entity,
+                    skill_id: crate::domain::zone::skill::SkillId(1168),
+                    target: Some(target.entity),
+                },
+            )]))
+            .unwrap();
+        assert!(start.dispositions.is_empty());
+        let CastState::Casting(cast) = zone.sidecar(source.entity).unwrap().cast.clone() else {
+            panic!("cast")
+        };
+        while zone.next_tick < cast.complete_at {
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        loop {
+            let mut preview = zone.clone();
+            preview.roll_below(100);
+            if preview.roll_below(100) < 10 {
+                break;
+            }
+            zone.roll_below(100);
+        }
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let due = zone
+            .sidecar(target.entity)
+            .unwrap()
+            .effects
+            .entries()
+            .values()
+            .flat_map(|e| &e.handlers)
+            .find_map(|h| h.periodic.as_ref())
+            .unwrap()
+            .schedule
+            .due_tick()
+            .unwrap();
+        while zone.next_tick < due {
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        set_resources(&mut zone, target, 1, 10);
+        let before = zone.rng.get_word_pos();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert_eq!(zone.rng.get_word_pos(), before);
+        assert_eq!(zone.entities[&target.entity].combat.as_ref().unwrap().hp, 1);
+        assert_eq!(
+            zone.sidecar(source.entity)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .pvp
+                .flag_until,
+            Some(Tick(due.0 + 1200))
+        );
     }
 }

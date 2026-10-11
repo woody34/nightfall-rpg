@@ -611,6 +611,13 @@ impl ZoneState {
                     continue;
                 }
             }
+            if negative {
+                if let Some(source) = effect.source.binding {
+                    if self.hostility_v5(tick, source, target).is_ok() {
+                        self.note_hostility_v5(tick, source, target)?;
+                    }
+                }
+            }
             let stats = self.effective(work.target)?;
             match periodic.resource {
                 PeriodicResource::Hp if negative => {

@@ -193,7 +193,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         command: &AppliedCommand,
-        staged: &StagedCasts,
+        staged: &StagedActions,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         let ZoneCommand::LearnSkill {
@@ -221,6 +221,18 @@ impl ZoneState {
         if events.iter().any(
             |e| matches!(e, ZoneEvent::SkillLearned { entity: learned, .. } if *learned == entity),
         ) {
+            return Err(RejectReason::InCombat);
+        }
+        if staged.pending_attacks().any(|(caster, target)| {
+            self.binding(caster.entity) == Some(caster)
+                && (caster.entity == entity
+                    || target.is_some_and(|t| {
+                        t.entity == entity
+                            && self
+                                .binding(entity)
+                                .is_some_and(|b| t.incarnation == Some(b.incarnation))
+                    }))
+        }) {
             return Err(RejectReason::InCombat);
         }
         if staged.pending().any(|entry| {

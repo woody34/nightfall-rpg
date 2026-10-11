@@ -119,21 +119,55 @@ pub struct StagedCast {
     pub canceled: Option<CastCancelReason>,
 }
 
+/// Receive-ordered actions with command-time identity bindings and phase-eight guards.
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub enum StagedAction {
+    Cast(StagedCast),
+    Attack {
+        ordinal: Ordinal,
+        caster: TargetBinding,
+        target: Option<CapturedTarget>,
+        canceled: bool,
+    },
+    AcceptResurrect {
+        ordinal: Ordinal,
+        target: TargetBinding,
+        offer_id: super::OfferId,
+        accept: bool,
+        present: bool,
+    },
+}
+impl StagedAction {
+    /// Original receive ordinal shared by all three action types.
+    pub const fn ordinal(&self) -> Ordinal {
+        match self {
+            Self::Cast(cast) => cast.ordinal,
+            Self::Attack { ordinal, .. } | Self::AcceptResurrect { ordinal, .. } => *ordinal,
+        }
+    }
+}
+
 /// Scratch queue only; never snapshot/digest this queue or replay it on gate retry.
 #[derive(Debug, Default)]
-pub struct StagedCasts {
-    entries: Vec<StagedCast>,
+pub struct StagedActions {
+    entries: Vec<StagedAction>,
 }
-impl StagedCasts {
+impl StagedActions {
     /// Called only after source/generation authorization. Target is captured at this
     /// command's ordinal; rank/resources/expiry-dependent eligibility are checked later.
     pub fn stage(&mut self, entry: StagedCast) -> Result<(), CastError> {
-        if entry.caster.incarnation == 0
-            || entry.canceled.is_some()
-            || self
-                .entries
-                .last()
-                .is_some_and(|previous| previous.ordinal >= entry.ordinal)
+        if entry.caster.incarnation == 0 || entry.canceled.is_some() {
+            return Err(CastError::InvalidState);
+        }
+        self.stage_action(StagedAction::Cast(entry))
+    }
+    /// Capture an attack/offer without evaluating expiry-dependent gameplay guards.
+    pub fn stage_action(&mut self, entry: StagedAction) -> Result<(), CastError> {
+        if self
+            .entries
+            .last()
+            .is_some_and(|previous| previous.ordinal() >= entry.ordinal())
         {
             return Err(CastError::InvalidState);
         }
@@ -145,18 +179,54 @@ impl StagedCasts {
     pub fn cancel(&mut self, caster: EntityId, cast_id: Option<CastId>, reason: CastCancelReason) {
         if cast_id.is_none() {
             for entry in &mut self.entries {
-                if entry.caster.entity == caster && entry.canceled.is_none() {
-                    entry.canceled = Some(reason);
+                if let StagedAction::Cast(entry) = entry {
+                    if entry.caster.entity == caster && entry.canceled.is_none() {
+                        entry.canceled = Some(reason);
+                    }
                 }
             }
         }
     }
     /// Uncanceled prior intents in receive order, for command-phase engagement checks.
     pub fn pending(&self) -> impl Iterator<Item = &StagedCast> {
-        self.entries.iter().filter(|entry| entry.canceled.is_none())
+        self.entries.iter().filter_map(|entry| match entry {
+            StagedAction::Cast(cast) if cast.canceled.is_none() => Some(cast),
+            StagedAction::Cast(_)
+            | StagedAction::Attack { .. }
+            | StagedAction::AcceptResurrect { .. } => None,
+        })
+    }
+    /// A later valid stop/move/selection command suppresses prior attack starts.
+    pub fn cancel_attacks(&mut self, entity: EntityId) {
+        for entry in &mut self.entries {
+            if let StagedAction::Attack {
+                caster, canceled, ..
+            } = entry
+            {
+                if caster.entity == entity {
+                    *canceled = true;
+                }
+            }
+        }
+    }
+    /// Pending attacks participate in command-phase learning engagement checks.
+    pub fn pending_attacks(
+        &self,
+    ) -> impl Iterator<Item = (TargetBinding, Option<CapturedTarget>)> + '_ {
+        self.entries.iter().filter_map(|entry| match entry {
+            StagedAction::Attack {
+                caster,
+                target,
+                canceled: false,
+                ..
+            } => Some((*caster, *target)),
+            StagedAction::Cast(_)
+            | StagedAction::Attack { .. }
+            | StagedAction::AcceptResurrect { .. } => None,
+        })
     }
     /// Consume once at phase8, retaining cross-actor receive order and canceled entries.
-    pub fn drain(&mut self) -> impl Iterator<Item = StagedCast> + '_ {
+    pub fn drain(&mut self) -> impl Iterator<Item = StagedAction> + '_ {
         self.entries.drain(..)
     }
 }
@@ -632,14 +702,23 @@ mod tests {
             }),
             canceled: None,
         };
-        let mut queue = StagedCasts::default();
+        let mut queue = StagedActions::default();
         queue.stage(entry(1, 2)).unwrap();
         queue.stage(entry(2, 1)).unwrap();
         queue.cancel(binding(2).entity, Some(CastId(100)), CastCancelReason::Stopped);
         queue.cancel(binding(1).entity, None, CastCancelReason::Moved);
         queue.stage(entry(4, 1)).unwrap();
         assert_eq!(queue.stage(entry(3, 3)), Err(CastError::InvalidState));
-        let out: Vec<_> = queue.drain().collect();
+        let out: Vec<_> = queue
+            .drain()
+            .filter_map(|e| {
+                if let StagedAction::Cast(c) = e {
+                    Some(c)
+                } else {
+                    None
+                }
+            })
+            .collect();
         assert_eq!(out.iter().map(|e| e.ordinal.0).collect::<Vec<_>>(), [1, 2, 4]);
         assert_eq!(
             out.iter().map(|e| e.canceled).collect::<Vec<_>>(),
@@ -647,12 +726,21 @@ mod tests {
         );
         assert_eq!(out[2].target.unwrap().incarnation, Some(2));
         assert_eq!(queue.drain().count(), 0);
-        let mut queue = StagedCasts::default();
+        let mut queue = StagedActions::default();
         queue.stage(entry(1, 1)).unwrap();
         queue.stage(entry(2, 1)).unwrap();
         queue.cancel(binding(1).entity, None, CastCancelReason::Stopped);
         queue.stage(entry(4, 1)).unwrap();
-        let out: Vec<_> = queue.drain().collect();
+        let out: Vec<_> = queue
+            .drain()
+            .filter_map(|e| {
+                if let StagedAction::Cast(c) = e {
+                    Some(c)
+                } else {
+                    None
+                }
+            })
+            .collect();
         assert!(out[..2]
             .iter()
             .all(|entry| entry.canceled == Some(CastCancelReason::Stopped)));

@@ -224,6 +224,7 @@ pub fn spawn_to_pb(
         spawn.pending_swing = c.swing.map(|s| swing_to_pb(entity, &s));
         if let Some(public) = &c.phase3 {
             phase3_identity_to_pb(&mut spawn, public.flag_until, public.karma);
+            spawn.status_flags = public.status_flags.bits();
         }
     }
     world(Event::Spawn(spawn))
