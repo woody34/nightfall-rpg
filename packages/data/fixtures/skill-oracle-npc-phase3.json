@@ -6,7 +6,7 @@
   },
   "inputs_sha256": {
     "scripts/npc_phase3/skill_oracle.py": "2f7f99dda5e04a0199d452232d1686605a290ecbd27c95b7c679e08693f0e3b5",
-    "scripts/skill_oracle.py": "f51a79de3ada65316f1a2b0f7f58abf14d63b85ea8356f9f3a9a972c06cbcc02",
+    "scripts/skill_oracle.py": "81a091e4005e867c9564bff751ebd662e12f83d970eb33e24d9a7e3c8b53ab1a",
     "tables-phase3/hit_condition_bonus.toml": "3230dfeec2a9f862da3e0ab78355395918ef2bb469e0cdede0ec340e1dd7eb53",
     "tables-phase3/npc_level_penalty.toml": "7a4c59e1c06e1131b2f02f0d94c262070f8543c99b2ecc08da0a155df69594be"
   },
