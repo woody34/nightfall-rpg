@@ -613,6 +613,47 @@ mod tests {
     }
 
     #[test]
+    fn low_rank_magic_against_level_36_completes_with_required_resistance_draws() {
+        let (mut zone, source, target, _) = fixture();
+        let target_xp = zone.rules.as_ref().unwrap().xp_to_level(36).unwrap();
+        if let CombatRole::Player { xp, .. } = &mut zone
+            .entities
+            .get_mut(&target.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        {
+            *xp = target_xp;
+        }
+        zone.relevel(target.entity).unwrap();
+        zone.sync_passives_v5(target.entity).unwrap();
+        zone.rebuild_v5(target.entity).unwrap();
+        start_cast(&mut zone, source, target);
+        let CastState::Casting(cast) = zone.sidecar(source.entity).unwrap().cast.clone() else {
+            panic!("cast")
+        };
+        while zone.next_tick < cast.complete_at {
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        let before = zone.rng.get_word_pos();
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let rows = tick
+            .events
+            .iter()
+            .find_map(|event| match event {
+                ZoneEvent::SkillCastResult { targets, .. } => Some(targets),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].outcome, SkillOutcome::Resist);
+        // Magic crit, success1, player success2, spread, zero-chance vengeance.
+        assert_eq!(zone.rng.get_word_pos() - before, 5);
+    }
+
+    #[test]
     fn derived_cache_and_due_indexes_match_cold_reconstruction_after_every_tick() {
         let (mut warm, caster, _, npc) = fixture();
         start_cast(&mut warm, caster, npc);

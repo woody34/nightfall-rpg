@@ -706,6 +706,9 @@ pub fn magic_success_rate(
     resistance: ExactRatio,
     target_modifier: ExactRatio,
 ) -> Result<i32, StatError> {
+    if !(-84..=84).contains(&level_difference) {
+        return Err(StatError::Overflow);
+    }
     let mut factor = ExactRatio::whole(1);
     let base = if level_difference < 0 {
         ExactRatio::new(10, 13)?
@@ -713,7 +716,10 @@ pub fn magic_success_rate(
         ExactRatio::new(13, 10)?
     };
     for _ in 0..level_difference.unsigned_abs() {
-        factor = factor.checked_mul(base)?;
+        // Bound the significand after every product instead of growing 13^84.
+        // The full-domain independent Fraction oracle verifies the final binary32
+        // boundary, including NPC chance multipliers and Java round saturation.
+        factor = factor.checked_mul(base)?.binary64()?;
     }
     narrow(sub(
         100,
@@ -721,7 +727,8 @@ pub fn magic_success_rate(
             .checked_mul(resistance)?
             .checked_mul(target_modifier)?
             .binary32()?
-            .round()?,
+            .round()?
+            .clamp(i128::from(i32::MIN), i128::from(i32::MAX)),
     )?)
 }
 
@@ -1535,6 +1542,28 @@ mod tests {
             }
         }
         assert_eq!(checked, 479);
+    }
+
+    #[test]
+    fn magic_success_full_admitted_gap_oracle() {
+        let vectors: Value =
+            serde_json::from_str(include_str!("../../../fixtures/magic-success/vectors.json"))
+                .unwrap();
+        for vector in vectors.as_array().unwrap() {
+            let gap = i32::try_from(vector["gap"].as_i64().unwrap()).unwrap();
+            let modifier = ratio(&vector["modifier"]);
+            let expected = i32::try_from(vector["rate"].as_i64().unwrap()).unwrap();
+            assert_eq!(
+                magic_success_rate(gap, ExactRatio::whole(1), modifier).unwrap(),
+                expected,
+                "{vector}"
+            );
+            assert_eq!(
+                magic_success_rate(gap, modifier, ExactRatio::whole(1)).unwrap(),
+                expected,
+                "{vector}"
+            );
+        }
     }
 
     #[test]

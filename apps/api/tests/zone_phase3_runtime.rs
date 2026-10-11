@@ -297,7 +297,11 @@ fn replacement_hydrates_final_owner_state_and_cast_after_identity_batch() {
 
 #[test]
 fn magic_caller_rng_sequence_and_living_killer_sp_are_exact() {
-    let (zone, player, npc) = setup();
+    let (mut zone, player, npc) = setup();
+    let observer = EntityId::from_uuid(Uuid::from_u128(888));
+    assert!(spawn_observer_v5(&mut zone, player, observer, 10)
+        .dispositions
+        .is_empty());
     let mut snapshot = zone.snapshot();
     snapshot
         .entities
@@ -338,6 +342,16 @@ fn magic_caller_rng_sequence_and_living_killer_sp_are_exact() {
     let result = zone.run_tick(zone.draft(vec![])).unwrap();
     assert_eq!(zone.snapshot().rng, ledger.snapshot().rng);
     assert!(result.events.iter().any(|e| matches!(e, ZoneEvent::SpGained { amount: 2, total: 2, entity, .. } if *entity == player)));
+    let owner_wire = wire_events_for(&result, player);
+    assert!(owner_wire
+        .iter()
+        .any(|e| matches!(e, pb::world_event::Event::SpGained(s)
+        if s.entity == player.to_string() && s.amount == 2 && s.total == 2)));
+    let observer_wire = wire_events_for(&result, observer);
+    assert!(!observer_wire.iter().any(|e| matches!(e,
+        pb::world_event::Event::SpGained(s) if s.entity == player.to_string())));
+    assert!(!observer_wire.iter().any(|e| matches!(e,
+        pb::world_event::Event::StatsChanged(s) if s.entity == player.to_string())));
     assert_eq!(combat(&zone, npc).hp, 0);
     assert_eq!(zone.snapshot().phase3.unwrap().entities[&npc].regen.next_at, None);
     ZoneState::from_snapshot(zone.snapshot()).unwrap();
@@ -2554,7 +2568,7 @@ fn spawn_observer_v5(
     load.progression = progression;
     zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
         entity: observer,
-        name: format!("Observer{x}"),
+        name: "Viewer".into(),
         pos: Vec2Fixed::from_tiles(x, 10),
         speed: Speed::DEFAULT,
         generation: SessionGeneration(1),
@@ -2712,6 +2726,7 @@ fn mutual_buff_cast_hydration_wire_follows_all_identities_without_replaying_muta
             (cast.cast_id, cast.start_tick, cast.launch_tick, cast.complete_tick),
             (original.id.0, original.start_at.0, original.launch_at.0, original.complete_at.0)
         );
+        assert_eq!(cast.target, original.target.map(|t| t.entity.to_string()));
         assert_eq!(cast.target_incarnation, original.target.map(|t| t.incarnation));
         assert_eq!(
             after.phase3.as_ref().unwrap().entities[&entity].cast,

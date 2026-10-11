@@ -130,6 +130,8 @@ fn assert_private_owner_events_absent(messages: &[pb::ServerMessage], owner: &st
                 Some(Event::SkillStateSync(e)) => assert_ne!(e.entity, owner),
                 Some(Event::StatsChanged(e)) => assert_ne!(e.entity, owner),
                 Some(Event::SpGained(e)) => assert_ne!(e.entity, owner),
+                Some(Event::TargetChanged(e)) => assert_ne!(e.entity, owner),
+                Some(Event::ResurrectOffer(e)) => assert_ne!(e.target, owner),
                 _ => {},
             }
         }
@@ -243,7 +245,7 @@ async fn real_learning_catalogue_cast_cancel_hydration_and_offline_frozen_reply(
         ))
         .await;
     assert!(
-        matches!(response(&mut socket,3).await.payload,Some(Payload::Rejected(r)) if r.reason==i32::from(pb::RejectReason::NotYetImplemented))
+        matches!(response(&mut socket,3).await.payload,Some(Payload::Rejected(r)) if r.reason==i32::from(pb::RejectReason::NoResurrectOffer))
     );
     // Replacement bootstraps learned ranks/reuse without charging or another purchase.
     let mut replacement = joined(&app, &c).await;
@@ -380,11 +382,11 @@ async fn real_endpoint_refusals_spend_nothing_and_preserve_ws_seq() {
         (8, Intent::Respawn(pb::RespawnRequest {})),
     ] {
         socket.send(&message(seq, intent)).await;
-        let reason = if seq == 8 {
+        let reason = match seq {
+            6 => pb::RejectReason::NoResurrectOffer,
+            7 => pb::RejectReason::InvalidTargetType,
             // Existing wire mapping groups domain NotDead with Invalid.
-            pb::RejectReason::Invalid
-        } else {
-            pb::RejectReason::NotYetImplemented
+            _ => pb::RejectReason::Invalid,
         };
         assert!(matches!(response(&mut socket, seq).await.payload, Some(Payload::Rejected(r))
             if r.reason == i32::from(reason)));

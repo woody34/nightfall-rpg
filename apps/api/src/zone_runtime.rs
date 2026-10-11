@@ -1,6 +1,9 @@
 //! Composition of the zone runtime (Stories 3.2, 3.4): picks the replay-log and snapshot-index
 //! adapters and starts the fixture zone in a new epoch. Called once from `main`.
 
+mod phase3;
+pub use phase3::{prepare_phase3_bootstrap, PreparedPhase3Bootstrap};
+
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -30,10 +33,15 @@ pub struct ZoneRuntimeConfig {
     pub simulation_fixture: Option<String>,
     /// Simulation fixtures require the same exact `AUTH_DEV_TOKENS=1` opt-in as dev auth.
     pub auth_dev_tokens: bool,
+    /// `PHASE3_ENABLED`: unset/0 is OFF, 1 requests V5 bundle preparation. Production
+    /// refuses 1 until the domain-ready integration is explicitly installed; invalid
+    /// values never silently select legacy gameplay.
+    pub phase3_enabled: Option<String>,
 }
 
 impl ZoneRuntimeConfig {
-    /// Reads `ZONE_FILE`, `RULES_DIR`, `ZONE_SIM_FIXTURE` and `AUTH_DEV_TOKENS`.
+    /// Reads `ZONE_FILE`, `RULES_DIR`, `ZONE_SIM_FIXTURE`, `AUTH_DEV_TOKENS` and
+    /// the fail-closed `PHASE3_ENABLED` selection.
     #[must_use]
     pub fn from_env() -> Self {
         Self::read_env(|name| std::env::var_os(name))
@@ -50,6 +58,15 @@ impl ZoneRuntimeConfig {
             // Even empty or non-Unicode selections are refused, never silently defaulted.
             simulation_fixture: get("ZONE_SIM_FIXTURE").map(|v| v.to_string_lossy().into_owned()),
             auth_dev_tokens: get("AUTH_DEV_TOKENS").is_some_and(|v| v == "1"),
+            phase3_enabled: get("PHASE3_ENABLED").map(|v| v.to_string_lossy().into_owned()),
+        }
+    }
+
+    fn phase3_requested(&self) -> anyhow::Result<bool> {
+        match self.phase3_enabled.as_deref() {
+            None | Some("0") => Ok(false),
+            Some("1") => Ok(true),
+            Some(_) => anyhow::bail!("PHASE3_ENABLED must be unset, 0 or 1"),
         }
     }
 
@@ -110,6 +127,7 @@ pub async fn start(
         db.is_none() || nats_url.is_some_and(|url| !url.trim().is_empty()),
         "persistent character runtime requires NATS_URL for durable replay before startup"
     );
+    let phase3_requested = cfg.phase3_requested()?;
     let metrics = deps.metrics.clone();
     let clock = deps.clock.clone();
     let def = cfg.load_zone()?;
@@ -119,6 +137,22 @@ pub async fn start(
         None => rules_data::load_rules(&rules_data::RulesSource::embedded())?,
     };
     tracing::info!(config_hash = %rules.config_hash, "stat rules loaded");
+    if phase3_requested {
+        let source = match &cfg.rules_dir {
+            Some(root) => crate::infrastructure::skill_data::Phase3DataSource::from_dir(root)?,
+            None => crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+        };
+        let classes = match &deps.classes {
+            Some(classes) => classes.clone(),
+            None => crate::infrastructure::class_data::load_classes(
+                &crate::infrastructure::class_data::ClassSource::embedded(),
+            )?,
+        };
+        let _prepared = prepare_phase3_bootstrap(&source, rules, classes, def)?;
+        // No environment variable can assert domain readiness. Replace this fence only
+        // after Z publishes DOMAIN READY and the architect accepts production integration.
+        anyhow::bail!("PHASE3_ENABLED=1 refused: DOMAIN READY has not been published");
+    }
     let log: Arc<dyn EventLog> = if let Some(url) = nats_url {
         let client = async_nats::connect(url).await?;
         Arc::new(JetStreamEventLog::connect(client, metrics.clone()).await?)
