@@ -94,3 +94,13 @@ These twelve names have strict argument binders so all canonical/nested Phase 3 
 Commands send the actual registered transport operations: `nf.Cast`, `nf.CancelCast`, `nf.Learn <id> <rank> [idempotency_uuid]`, `nf.LearnableSkills`, `nf.SkillCatalog`, and `nf.AcceptResurrect [offer_id|latest] [accept|decline]`. RPC results and world events determine the observations; commands do not synthesize success.
 
 Round 3 evidence fences: `buff_inactive`, `entity_effect_inactive`, `effect_count` and `cast_state` require a received stream tick later than the subject identity baseline. V5 has no hydration-end marker, so identity or SkillStateSync alone never proves empty effects/idle casting. `cancelled_cast_costs_retained` and `peace_impact_has_no_damage` wait for a tick later than the terminal tick and compare current, incarnation-matched resources/reuse; a later refund cannot satisfy them. `spawn_before_skill_references` audits subject and endpoint identities before projecting hydration, ignores known stale lives/baselines, and retains a violation for never-admitted subjects even after subsequent valid frames.
+
+Round 4 C7 catalogue integration: `catalogue_skill_status` still reports the received
+`effect_implemented` capability (an executable passive is not a cast action). Hotbar
+slots and the trainer assignment picker additionally require a received learned rank
+and `GetSkillCatalog.operate_type` ACTIVE_INSTANT, ACTIVE_INSTANT_CONTINUOUS or
+ACTIVE_CONTINUOUS. Passive/toggle/other/unspecified/unknown types cannot authorize
+slot casts. Trainer learning eligibility remains the received ListLearnableSkills
+row, including passives. Target/scope arrays are retained exactly as received;
+the client does not infer capabilities or formulas from their strings. No predicate
+or command grammar changed.

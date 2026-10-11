@@ -181,7 +181,7 @@ bool USkillStateSubsystem::OfferPending() const { return Net && Fence.Dead(Net->
 
 uint64 USkillStateSubsystem::GetTick() const { return FMath::Max(Fence.Tick, Net ? Net->GetLatestReceivedTick() : uint64(0)); }
 
-void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R, const TMap<uint32,FString>& OperateTypes) { Catalog = R; CatalogOperateTypes = OperateTypes; bCatalogKnown = true; EnsureHotbar(); OnChanged.Broadcast(); }
+void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R) { Catalog = R; bCatalogKnown = true; EnsureHotbar(); OnChanged.Broadcast(); }
 void USkillStateSubsystem::ApplyLearnable(const FGrpcNightfallV1ListLearnableSkillsResponse& R) { Learnable = R; bLearnableKnown = true; OnChanged.Broadcast(); }
 void USkillStateSubsystem::LoadCatalog(FDone Done)
 {
@@ -241,10 +241,13 @@ const FGrpcNightfallV1SkillCatalogEntry* USkillStateSubsystem::FindSkill(uint32 
 }
 bool USkillStateSubsystem::IsCastable(uint32 Id) const
 {
- const auto* Skill = FindSkill(Id); const auto* Type = CatalogOperateTypes.Find(Id);
- if (!Skill || !Skill->EffectImplemented || !Type || !Learned.FindRef(Id)) return false;
- // Pinned SkillOperateType.java:92-98 active types. P/T/unknown are not hotbar casts.
- return *Type == TEXT("A1") || *Type == TEXT("A2") || *Type == TEXT("A3") || *Type == TEXT("A4") || *Type == TEXT("CA1") || *Type == TEXT("CA5") || *Type == TEXT("DA1") || *Type == TEXT("DA2");
+ const auto* Skill = FindSkill(Id);
+ if (!Skill || !Skill->EffectImplemented || !Learned.FindRef(Id)) return false;
+ // C7 registry classification (game.proto:340-372); older/unknown types do not authorize casts.
+ using E = EGrpcNightfallV1SkillOperateType;
+ return Skill->OperateType == E::SKILL_OPERATE_TYPE_ACTIVE_INSTANT
+  || Skill->OperateType == E::SKILL_OPERATE_TYPE_ACTIVE_INSTANT_CONTINUOUS
+  || Skill->OperateType == E::SKILL_OPERATE_TYPE_ACTIVE_CONTINUOUS;
 }
 TArray<uint32> USkillStateSubsystem::AvailableSkills() const
 {

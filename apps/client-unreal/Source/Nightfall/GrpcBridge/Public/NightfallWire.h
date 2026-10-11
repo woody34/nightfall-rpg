@@ -24,6 +24,10 @@ namespace NightfallWire
 	/** Parses creation through the generated optional-presence marshaler; preserves unknown enums. */
 	TURBOLINKGRPC_API bool DecodeCreateCharacterRequest(const uint8* Data, int32 Size, FGrpcNightfallV1CreateCharacterRequest& Out);
 
+	/** Catalogue contract tests use the same generated marshaler as the production RPC. */
+	TURBOLINKGRPC_API void EncodeSkillCatalogResponse(const FGrpcNightfallV1GetSkillCatalogResponse& In, TArray<uint8>& Out);
+	TURBOLINKGRPC_API bool DecodeSkillCatalogResponse(const uint8* Data, int32 Size, FGrpcNightfallV1GetSkillCatalogResponse& Out);
+
 	TURBOLINKGRPC_API bool DecodeClientMessage(const uint8* Data, int32 Size, FGrpcNightfallV1ClientMessage& Out);
 
 	/** Parses nightfall.v1.ServerMessage. Returns false on malformed input; Out is reset first. */

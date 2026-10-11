@@ -1127,11 +1127,11 @@ The Skill trainer dialog includes an all-skills picker for assigning learned act
 skills, including choices beyond nine; assigning a skill moves its previous binding.
 Maps persist per character in Config/NightfallHotbar.ini and survive reconnects
 and rank changes. Slot eligibility requires the authoritative catalogue operate
-type as well as effect_implemented. The current wire catalogue lacks operate_type:
-production entries therefore fail closed and cannot be assigned or cast through
-the hotbar until the API adds that field. The console Cast command remains available
-and subject to server validation. Typed catalogue fixtures test passive exclusion
-and assignments; they do not establish working production metadata.
+type as well as effect_implemented and the received learned rank. GetSkillCatalog's
+ACTIVE_INSTANT, ACTIVE_INSTANT_CONTINUOUS and ACTIVE_CONTINUOUS entries can be
+assigned and cast. Passive, toggle, other, absent and unknown types stay out of
+cast slots. Trainer rows show that received classification; eligible passive ranks
+can still be learned. The console Cast command remains subject to server validation.
 Cooldowns use a linear sweep from received ready ticks; cast bars retain original
 start/complete ticks. Buff, song/dance and debuff summaries show rank and remaining
 authoritative ticks. Own CP, SP, death penalty, target karma and white/purple/red

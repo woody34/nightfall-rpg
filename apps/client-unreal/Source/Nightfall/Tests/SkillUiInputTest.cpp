@@ -10,9 +10,18 @@
 #include "Components/Button.h"
 #include "InputCoreTypes.h"
 #include "IWebSocket.h"
+#include "Misc/Paths.h"
+#include "Misc/Guid.h"
+#include "HAL/FileManager.h"
 #if WITH_DEV_AUTOMATION_TESTS
 namespace SkillUiTests
 {
+ struct FHotbarConfig
+ {
+  FString Path=FPaths::Combine(FPaths::ProjectSavedDir(),TEXT("Tests"),FGuid::NewGuid().ToString()+TEXT("-input-hotbar.ini"));
+  explicit FHotbarConfig(USkillStateSubsystem* State) { State->SetHotbarConfigForTesting(Path); }
+  ~FHotbarConfig() { IFileManager::Get().Delete(*Path); }
+ };
  class FSocket final : public IWebSocket
  {
  public:
@@ -31,12 +40,14 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSkillCatalogueAdmissionTest,"Nightfall.Skill.D
 bool FSkillCatalogueAdmissionTest::RunTest(const FString& Parameters)
 {
  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<USkillStateSubsystem>();N->SetOwnEntityId(TEXT("owner"));
+ SkillUiTests::FHotbarConfig HotbarConfig(S);
  USessionClient::FSkillCatalogCallback Pending;S->SetCatalogProviderForTesting([&](auto Callback){Pending=MoveTemp(Callback);});
  int32 Completed=0;S->LoadCatalog([&](const auto&){++Completed;});TestTrue(TEXT("catalogue pending"),S->IsBusy());
  FEntitySpawn Spawn;Spawn.EntityId=TEXT("owner");Spawn.LifeIncarnation=1;Spawn.StateTick=10;S->ApplySpawn(Spawn);
  TestTrue(TEXT("owner admission cannot clear catalogue busy state"),S->IsBusy());
- FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Row=Catalog.Skills.AddDefaulted_GetRef();Row.SkillId=3;Row.EffectImplemented=true;
- Pending({},Catalog);TestTrue(TEXT("delayed successful catalogue retained after admission"),S->HasCatalog());TestNotNull(TEXT("received skill visible"),S->FindSkill(3));TestEqual(TEXT("callback completes once"),Completed,1);TestFalse(TEXT("catalogue completed"),S->IsBusy());
+ FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Row=Catalog.Skills.AddDefaulted_GetRef();Row.SkillId=3;Row.EffectImplemented=true;Row.OperateType=EGrpcNightfallV1SkillOperateType::SKILL_OPERATE_TYPE_ACTIVE_INSTANT;
+ FSkillStateSync Sync;Sync.Entity=Spawn.EntityId;Sync.Incarnation=1;Sync.Tick=Sync.BaselineTick=10;Sync.bBaseline=true;Sync.Learned.Add({3,1});S->ApplySync(Sync);
+ Pending({},Catalog);TestTrue(TEXT("delayed successful catalogue retained after admission"),S->HasCatalog());TestNotNull(TEXT("received skill visible"),S->FindSkill(3));TestEqual(TEXT("callback completes once"),Completed,1);TestFalse(TEXT("catalogue completed"),S->IsBusy());TestTrue(TEXT("production callback keeps active operation metadata"),S->IsCastable(3));TestEqual(TEXT("production callback populates hotbar after admission"),S->Hotbar()[0],3u);
  S->LoadCatalog([&](const auto&){++Completed;});auto Old=MoveTemp(Pending);S->Reset();S->LoadCatalog([&](const auto&){++Completed;});
  Old({},Catalog);TestTrue(TEXT("old response cannot clear newer request"),S->IsBusy());Pending({},Catalog);TestFalse(TEXT("new request completes after reset"),S->IsBusy());TestEqual(TEXT("reset discards old completion"),Completed,2);
  S->SetCatalogProviderForTesting(nullptr);return true;
@@ -45,12 +56,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSkillCorpseInputTest,"Nightfall.Skill.CorpseCl
 bool FSkillCorpseInputTest::RunTest(const FString& Parameters)
 {
  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<USkillStateSubsystem>();auto Socket=MakeShared<SkillUiTests::FSocket>();
+ SkillUiTests::FHotbarConfig HotbarConfig(S);
  N->SetSocketFactoryForTesting([Socket](const auto&)->TSharedRef<IWebSocket>{return Socket;});N->SetSchedulerForTesting([](float,TFunction<void()>){ });N->Connect(TEXT("ws://test"),TEXT("test"));Socket->Connected.Broadcast();N->SetOwnEntityId(TEXT("owner"));
  auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};FWorldEvent E;
  FEntitySpawn Spawn;Spawn.EntityId=TEXT("owner");Spawn.Kind=1;Spawn.LifeIncarnation=1;Spawn.SessionGeneration=1;Spawn.StateTick=10;Spawn.Hp=100;E.Spawn=Spawn;Send(E);
  Spawn.EntityId=TEXT("corpse");Spawn.Hp=0;Spawn.bDead=true;E.Spawn=Spawn;Send(E);
  FSkillStateSync Sync;Sync.Entity=TEXT("owner");Sync.Incarnation=1;Sync.Tick=Sync.BaselineTick=10;Sync.bBaseline=true;Sync.Learned.Add({1016,1});E={};E.SkillStateSync=Sync;Send(E);
- FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Row=Catalog.Skills.AddDefaulted_GetRef();Row.SkillId=1016;Row.EffectImplemented=true;S->ApplyCatalog(Catalog,{{1016,TEXT("A1")}});
+ FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Row=Catalog.Skills.AddDefaulted_GetRef();Row.SkillId=1016;Row.EffectImplemented=true;Row.OperateType=EGrpcNightfallV1SkillOperateType::SKILL_OPERATE_TYPE_ACTIVE_INSTANT;S->ApplyCatalog(Catalog);
  auto* PC=Scope.GameInstance->GetWorld()->SpawnActor<ANightfallPlayerController>();if(!TestNotNull(TEXT("controller"),PC))return false;
  PC->InputComponent=NewObject<UInputComponent>(PC);PC->BindSkillKeys();
  TestTrue(TEXT("mouse proxy resolver accepts PC_BODY"),PC->ClickEntityProxy(TEXT("corpse")));TestEqual(TEXT("corpse click sends no attack/SetTarget/MoveTo"),Socket->Sent.Num(),0);

@@ -11,6 +11,24 @@
 #include "Components/VerticalBox.h"
 #include "Engine/GameInstance.h"
 #include "Misc/Guid.h"
+namespace
+{
+ FString CastTypeLabel(const FGrpcNightfallV1SkillCatalogEntry* Skill)
+ {
+  if (!Skill) return TEXT("cast type unavailable");
+  using E = EGrpcNightfallV1SkillOperateType;
+  switch (Skill->OperateType)
+  {
+  case E::SKILL_OPERATE_TYPE_ACTIVE_INSTANT:
+  case E::SKILL_OPERATE_TYPE_ACTIVE_INSTANT_CONTINUOUS:
+  case E::SKILL_OPERATE_TYPE_ACTIVE_CONTINUOUS: return TEXT("active");
+  case E::SKILL_OPERATE_TYPE_PASSIVE: return TEXT("passive");
+  case E::SKILL_OPERATE_TYPE_TOGGLE: return TEXT("toggle");
+  case E::SKILL_OPERATE_TYPE_OTHER: return TEXT("other cast type");
+  default: return TEXT("cast type unavailable");
+  }
+ }
+}
 void UNightfallSkillChoice::Click() { if (Dialog.IsValid()) Dialog->Select(Id, Rank); }
 UTextBlock* UNightfallSkillDialog::Text(UPanelWidget* Parent, const FString& Label)
 {
@@ -80,6 +98,8 @@ void UNightfallSkillDialog::Render()
   const auto* Catalog=State->FindSkill(R.Skill.SkillId.Value);
   FString Name=Catalog?Catalog->DisplayName:FString::Printf(TEXT("Skill %u"),R.Skill.SkillId.Value);
   FString Label=FString::Printf(TEXT("%s rank %u — SP %llu, level %u%s%s"),*Name,R.Skill.SkillLevel.Value,R.Skill.SpCost.Value,R.Skill.RequiredLevel.Value,R.TrainerRequired?TEXT(" — trainer required"):TEXT(""),R.Learned?TEXT(" — learned"):TEXT(""));
+  Label+=TEXT(" — ")+CastTypeLabel(Catalog);
+  if(Catalog && !Catalog->EffectImplemented)Label+=TEXT(" — deferred");
   if(!R.Unmet.IsEmpty())Label+=TEXT(" — ")+FString::Join(R.Unmet,TEXT(", "));
   auto* B=Button(Rows,Label); B->SetIsEnabled(R.Eligible && !State->IsBusy());
   auto* H=NewObject<UNightfallSkillChoice>(this); H->Id=R.Skill.SkillId.Value; H->Rank=R.Skill.SkillLevel.Value; H->Dialog=this; Choices.Add(H); B->OnClicked.AddDynamic(H,&UNightfallSkillChoice::Click);

@@ -70,8 +70,7 @@ public:
 	void LoadCatalog(FDone Done = nullptr);
 	void LoadLearnable(FDone Done = nullptr);
 	void Learn(uint32 Id, uint32 Rank, FDone Done = nullptr, const FString& Key = FString());
-	// OperateTypes must be decoded server catalogue metadata; missing types fail closed.
-	void ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R, const TMap<uint32,FString>& OperateTypes = {});
+	void ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R);
 	void ApplyLearnable(const FGrpcNightfallV1ListLearnableSkillsResponse& R);
 	const FGrpcNightfallV1GetSkillCatalogResponse& GetCatalog() const { return Catalog; }
 	const FGrpcNightfallV1ListLearnableSkillsResponse& GetLearnable() const { return Learnable; }
@@ -118,7 +117,6 @@ private:
  TMap<FString,FSwingView> Swings;
 	bool bBusy = false, bCatalogKnown = false, bLearnableKnown = false, bLearnDone = false;
 	FGrpcNightfallV1GetSkillCatalogResponse Catalog;
-	TMap<uint32,FString> CatalogOperateTypes;
 	TMap<FString,TArray<uint32>> SlotMaps;
 	FString HotbarConfigOverride;
 	FGrpcNightfallV1ListLearnableSkillsResponse Learnable;

@@ -19,8 +19,8 @@ bool FSkillTrainerTest::RunTest(const FString& Parameters)
  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<USkillStateSubsystem>();N->SetOwnEntityId(TEXT("own"));
  FEntitySpawn Spawn;Spawn.EntityId=TEXT("own");Spawn.LifeIncarnation=1;Spawn.StateTick=10;Spawn.SessionGeneration=1;S->ApplySpawn(Spawn);
  FSkillStateSync Sync;Sync.Entity=TEXT("own");Sync.Incarnation=1;Sync.Tick=Sync.BaselineTick=10;Sync.bBaseline=true;Sync.Sp=500;Sync.Learned.Add({3,1});Sync.Learned.Add({4,1});S->ApplySync(Sync);
- FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Executable=Catalog.Skills.AddDefaulted_GetRef();Executable.SkillId=3;Executable.DisplayName=TEXT("Wind");Executable.EffectImplemented=true;
- auto& Deferred=Catalog.Skills.AddDefaulted_GetRef();Deferred.SkillId=4;Deferred.DisplayName=TEXT("Deferred");S->ApplyCatalog(Catalog, {{3,TEXT("A1")},{4,TEXT("A1")}});
+ FGrpcNightfallV1GetSkillCatalogResponse Catalog;auto& Executable=Catalog.Skills.AddDefaulted_GetRef();Executable.SkillId=3;Executable.DisplayName=TEXT("Wind");Executable.EffectImplemented=true;Executable.OperateType=EGrpcNightfallV1SkillOperateType::SKILL_OPERATE_TYPE_ACTIVE_INSTANT;
+ auto& Deferred=Catalog.Skills.AddDefaulted_GetRef();Deferred.SkillId=4;Deferred.DisplayName=TEXT("Deferred");Deferred.OperateType=EGrpcNightfallV1SkillOperateType::SKILL_OPERATE_TYPE_ACTIVE_INSTANT;S->ApplyCatalog(Catalog);
  TestEqual(TEXT("hotbar includes received executable learned skills only"),S->AvailableSkills().Num(),1);TestEqual(TEXT("correct slot"),S->Hotbar()[0],3u);
  auto* Dialog=NewObject<UNightfallSkillDialog>(Scope.GameInstance);Dialog->EnsureLayout();Dialog->BindState(S,false);
  FGrpcNightfallV1ListLearnableSkillsResponse Learnable;auto& Row=Learnable.Skills.AddDefaulted_GetRef();Row.Skill.SkillId=3;Row.Skill.SkillLevel=2;Row.Skill.SpCost=100;Row.Eligible=true;S->ApplyLearnable(Learnable);
