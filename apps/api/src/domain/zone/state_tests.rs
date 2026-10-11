@@ -80,6 +80,7 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::SkillCastStarted { .. }
                 | ZoneEvent::SkillCastResult { .. }
                 | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::SkillLearned { .. }
                 | ZoneEvent::SkillStateSync { .. }
                 | ZoneEvent::SpGained { .. }
                 | ZoneEvent::SkillReuse { .. }

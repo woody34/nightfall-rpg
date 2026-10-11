@@ -695,6 +695,22 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             baseline: baseline.is_some(),
             baseline_tick: baseline.map_or(0, |t| t.0),
         }))],
+        ZoneEvent::SkillLearned {
+            tick,
+            entity,
+            request_key,
+            result,
+            ..
+        } => vec![world(Event::SkillLearned(pb::SkillLearned {
+            entity: entity.to_string(),
+            skill_id: result.skill.id.0,
+            skill_level: result.skill.rank,
+            sp_cost: result.sp_spent,
+            sp_remaining: result.sp_remaining,
+            idempotency_key: request_key.to_string(),
+            tick: tick.0,
+            incarnation: result.incarnation,
+        }))],
         ZoneEvent::SpGained {
             tick,
             entity,
@@ -840,7 +856,13 @@ pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
         RejectReason::OutOfBounds => pb::RejectReason::OutOfBounds,
         RejectReason::TooFar => pb::RejectReason::TooFar,
         RejectReason::UnknownEntity => pb::RejectReason::UnknownEntity,
-        RejectReason::TransferConflict
+        RejectReason::SkillNotLearnable
+        | RejectReason::SkillWrongRank
+        | RejectReason::SkillLevelRequired
+        | RejectReason::SkillItemRequired
+        | RejectReason::SkillDeferred
+        | RejectReason::InsufficientSp
+        | RejectReason::TransferConflict
         | RejectReason::TransferIneligible
         | RejectReason::TransferRequirement
         | RejectReason::InCombat

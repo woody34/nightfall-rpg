@@ -151,6 +151,10 @@ impl StagedCasts {
             }
         }
     }
+    /// Uncanceled prior intents in receive order, for command-phase engagement checks.
+    pub fn pending(&self) -> impl Iterator<Item = &StagedCast> {
+        self.entries.iter().filter(|entry| entry.canceled.is_none())
+    }
     /// Consume once at phase8, retaining cross-actor receive order and canceled entries.
     pub fn drain(&mut self) -> impl Iterator<Item = StagedCast> + '_ {
         self.entries.drain(..)

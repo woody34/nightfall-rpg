@@ -270,6 +270,18 @@ impl ZoneCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RejectReason {
+    /// Skill is outside the current lineage or automatically granted.
+    SkillNotLearnable,
+    /// Purchase must name exactly the next learned rank.
+    SkillWrongRank,
+    /// Character level is below the learning requirement.
+    SkillLevelRequired,
+    /// An inventory prerequisite is not supported by this learning path.
+    SkillItemRequired,
+    /// The registry marks the skill runtime deferred.
+    SkillDeferred,
+    /// The command-phase SP ledger cannot fund this purchase.
+    InsufficientSp,
     /// Phase 3 `SkillUnknown` refusal.
     SkillUnknown,
     /// Phase 3 `SkillNotLearned` refusal.
@@ -344,6 +356,12 @@ impl RejectReason {
     #[must_use]
     pub const fn detail(self) -> &'static str {
         match self {
+            Self::SkillNotLearnable => "skill is not manually learnable in this class lineage",
+            Self::SkillWrongRank => "skill rank must be the learned rank plus one",
+            Self::SkillLevelRequired => "character level is below the skill learning requirement",
+            Self::SkillItemRequired => "skill learning requires an inventory item",
+            Self::SkillDeferred => "skill runtime is deferred",
+            Self::InsufficientSp => "insufficient SP",
             Self::SkillUnknown => "SkillUnknown",
             Self::SkillNotLearned => "SkillNotLearned",
             Self::SkillCooldown => "SkillCooldown",
@@ -468,6 +486,16 @@ pub enum SkillOutcome {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)] // names mirror the proto messages one to one
 pub enum ZoneEvent {
+    /// Final committed learning fact. The full receipt is private; the owner wire mapper
+    /// exposes only the established `SkillLearned` projection. Released after durability.
+    #[allow(missing_docs)]
+    SkillLearned {
+        tick: Tick,
+        entity: EntityId,
+        account: crate::domain::AccountId,
+        request_key: uuid::Uuid,
+        result: Box<super::FrozenLearnResult>,
+    },
     /// Final owner admission/replacement learned and reuse baseline.
     #[allow(missing_docs)]
     SkillStateSync {
@@ -796,7 +824,8 @@ impl ZoneEvent {
     #[must_use]
     pub const fn tick(&self) -> Tick {
         match self {
-            Self::SkillStateSync { tick, .. }
+            Self::SkillLearned { tick, .. }
+            | Self::SkillStateSync { tick, .. }
             | Self::SpGained { tick, .. }
             | Self::SkillCastStarted { tick, .. }
             | Self::SkillCastResult { tick, .. }
@@ -836,7 +865,8 @@ impl ZoneEvent {
             Self::SkillCastStarted { caster, .. }
             | Self::SkillCastResult { caster, .. }
             | Self::SkillCastCancelled { caster, .. } => caster.entity,
-            Self::SkillStateSync { entity, .. }
+            Self::SkillLearned { entity, .. }
+            | Self::SkillStateSync { entity, .. }
             | Self::SpGained { entity, .. }
             | Self::SkillReuse { entity, .. }
             | Self::VitalsChanged { entity, .. }

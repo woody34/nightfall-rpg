@@ -1506,6 +1506,7 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         | ZoneEvent::SkillCastResult { .. }
         | ZoneEvent::SkillCastCancelled { .. }
         | ZoneEvent::SkillStateSync { .. }
+        | ZoneEvent::SkillLearned { .. }
         | ZoneEvent::SpGained { .. }
         | ZoneEvent::SkillReuse { .. }
         | ZoneEvent::VitalsChanged { .. }
@@ -1589,6 +1590,7 @@ impl<'a> CellFacts<'a> {
                 | ZoneEvent::SkillCastResult { .. }
                 | ZoneEvent::SkillCastCancelled { .. }
                 | ZoneEvent::SkillStateSync { .. }
+                | ZoneEvent::SkillLearned { .. }
                 | ZoneEvent::SpGained { .. }
                 | ZoneEvent::SkillReuse { .. }
                 | ZoneEvent::VitalsChanged { .. }

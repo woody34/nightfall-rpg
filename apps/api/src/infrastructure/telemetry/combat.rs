@@ -165,6 +165,7 @@ impl TickTelemetry for CombatConsumer {
                 | ZoneEvent::SkillCastStarted { .. }
                 | ZoneEvent::SkillCastResult { .. }
                 | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::SkillLearned { .. }
                 | ZoneEvent::SkillStateSync { .. }
                 | ZoneEvent::SpGained { .. }
                 | ZoneEvent::SkillReuse { .. }

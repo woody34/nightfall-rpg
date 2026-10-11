@@ -154,6 +154,7 @@ fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::SkillCastCancelled { .. }
                 | ZoneEvent::SkillReuse { .. }
                 | ZoneEvent::VitalsChanged { .. }
+                | ZoneEvent::SkillLearned { .. }
                 | ZoneEvent::SkillStateSync { .. }
                 | ZoneEvent::SpGained { .. }
                 | ZoneEvent::TokensReconciled { .. }

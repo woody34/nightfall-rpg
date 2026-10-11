@@ -436,13 +436,15 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 29, 31"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 29, 30, 31"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    #[prost(bytes, tag = "30")]
+    SkillLearned(Vec<u8>),
     #[prost(bytes, tag = "23")]
     EffectApplied(Vec<u8>),
     #[prost(bytes, tag = "24")]
@@ -856,6 +858,12 @@ const fn reason_to_pb(r: RejectReason) -> i32 {
         RejectReason::InvalidTargetType => 29,
         RejectReason::PeaceZone => 30,
         RejectReason::WeaponCondition => 31,
+        RejectReason::SkillNotLearnable => 33,
+        RejectReason::SkillWrongRank => 34,
+        RejectReason::SkillLevelRequired => 35,
+        RejectReason::SkillItemRequired => 36,
+        RejectReason::SkillDeferred => 37,
+        RejectReason::InsufficientSp => 38,
         RejectReason::NoResurrectOffer => 32,
         RejectReason::UnknownEntity => 1,
         RejectReason::OutOfBounds => 2,
@@ -893,6 +901,12 @@ fn reason_from_pb(v: i32) -> Result<RejectReason, CodecError> {
         29 => RejectReason::InvalidTargetType,
         30 => RejectReason::PeaceZone,
         31 => RejectReason::WeaponCondition,
+        33 => RejectReason::SkillNotLearnable,
+        34 => RejectReason::SkillWrongRank,
+        35 => RejectReason::SkillLevelRequired,
+        36 => RejectReason::SkillItemRequired,
+        37 => RejectReason::SkillDeferred,
+        38 => RejectReason::InsufficientSp,
         32 => RejectReason::NoResurrectOffer,
         1 => RejectReason::UnknownEntity,
         2 => RejectReason::OutOfBounds,
@@ -1166,6 +1180,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::SkillLearned { .. } => PbOutputItem::SkillLearned(canonical_json(e)),
         ZoneEvent::EffectApplied { .. } => PbOutputItem::EffectApplied(canonical_json(e)),
         ZoneEvent::EffectRemoved { .. } => PbOutputItem::EffectRemoved(canonical_json(e)),
         ZoneEvent::SkillCastStarted { .. } => PbOutputItem::SkillCastStarted(canonical_json(e)),
@@ -1717,6 +1732,18 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::SkillLearned(bytes) => {
+            let event = phase3_event_from_json(&bytes)?;
+            if !matches!(&event, ZoneEvent::SkillLearned { tick, entity, result, .. }
+                if result.tick == *tick && result.character_id.as_uuid() == entity.as_uuid()
+                    && result.skill.id.0 != 0 && result.skill.rank != 0 && result.incarnation != 0
+                    && result.hp <= result.max_hp && result.mp <= result.max_mp && result.cp <= result.max_cp
+                    && result.sp_remaining <= i64::MAX.unsigned_abs() && result.sp_spent <= i64::MAX.unsigned_abs())
+            {
+                return Err(err("invalid Phase3 learning fact"));
+            }
+            event
+        },
         PbOutputItem::EffectApplied(bytes) => {
             let event: ZoneEvent = phase3_event_from_json(&bytes)?;
             if !matches!(event, ZoneEvent::EffectApplied { .. }) {

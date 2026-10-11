@@ -3,6 +3,8 @@
 
 #[path = "state_runtime_effects.rs"]
 mod live_effects;
+#[path = "state_runtime_learn.rs"]
+mod live_learning;
 
 use super::*;
 use crate::domain::zone::effective_stats::{EffectiveStats, NpcStatInputs, PlayerStatInputs};
@@ -445,7 +447,6 @@ impl ZoneState {
                 ZoneCommand::Attack { .. }
                     | ZoneCommand::AddAggro { .. }
                     | ZoneCommand::AcceptResurrect { .. }
-                    | ZoneCommand::LearnSkill { .. }
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::Respawn { .. }
             )
@@ -508,6 +509,7 @@ impl ZoneState {
             .clear();
         self.flush_progression(tick, &mut events);
         self.final_resources_v5(tick, &before, &mut events)?;
+        self.freeze_learning_v5(tick, &mut events)?;
         self.phase3
             .as_mut()
             .ok_or_else(missing)?
@@ -542,6 +544,13 @@ impl ZoneState {
     ) -> Result<(), RejectReason> {
         self.authorize(command.source, &command.command)?;
         self.refuse_dead_actor(command.source, &command.command)?;
+        if let ZoneCommand::Despawn { entity } | ZoneCommand::ReplaceSession { entity, .. } =
+            command.command
+        {
+            if events.iter().any(|event| matches!(event, ZoneEvent::SkillLearned { entity: learned, .. } if *learned == entity)) {
+                return Err(RejectReason::InCombat);
+            }
+        }
         if let ZoneCommand::SpawnNpc {
             combat: Some(spec),
             speed,
@@ -598,8 +607,8 @@ impl ZoneState {
                 staged.cancel(*entity, *cast_id, CastCancelReason::Stopped);
                 self.cancel_v5(tick, *entity, *cast_id, CastCancelReason::Stopped, events);
             },
+            ZoneCommand::LearnSkill { .. } => self.learn_v5(tick, command, staged, events)?,
             ZoneCommand::AcceptResurrect { .. }
-            | ZoneCommand::LearnSkill { .. }
             | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::ReplaceSession { .. }
@@ -2018,7 +2027,9 @@ impl ZoneState {
                     {
                         Some(event.clone())
                     },
-                    ZoneEvent::SpGained { entity, .. } | ZoneEvent::SkillReuse { entity, .. }
+                    ZoneEvent::SkillLearned { entity, .. }
+                    | ZoneEvent::SpGained { entity, .. }
+                    | ZoneEvent::SkillReuse { entity, .. }
                         if entity == observer =>
                     {
                         Some(event.clone())

@@ -117,6 +117,106 @@ mod tests {
     }
 
     #[test]
+    fn learning_fact_slot30_rejects_legacy_nested_injection_and_inconsistent_identity() {
+        use crate::domain::zone::{FrozenLearnResult, LearnedEffectiveStats};
+        let entity = EntityId::from_uuid(Uuid::from_u128(1));
+        let event = ZoneEvent::SkillLearned {
+            tick: Tick(5),
+            entity,
+            account: crate::domain::AccountId::from_uuid(Uuid::from_u128(2)),
+            request_key: Uuid::from_u128(3),
+            result: Box::new(FrozenLearnResult {
+                character_id: crate::domain::CharacterId::from_uuid(entity.as_uuid()),
+                skill: crate::domain::zone::skill::SkillRef {
+                    id: SkillId(3),
+                    rank: 1,
+                },
+                sp_spent: 50,
+                sp_remaining: 100,
+                tick: Tick(5),
+                hp: 1,
+                max_hp: 10,
+                mp: 2,
+                max_mp: 20,
+                cp: 3,
+                max_cp: 30,
+                effective_stats: LearnedEffectiveStats::default(),
+                incarnation: 1,
+            }),
+        };
+        let encoded = event_to_pb(&event);
+        assert!(matches!(encoded, PbOutputItem::SkillLearned(_)));
+        assert_eq!(event_from_pb(encoded.clone()).unwrap(), event);
+        let payload = PbOutputs {
+            items: vec![PbOutput {
+                item: Some(encoded),
+            }],
+        }
+        .encode_to_vec();
+        for schema in 3..=7 {
+            for as_observer_output in [false, true] {
+                let mut record = PbRecord {
+                    schema,
+                    state_digest: Bytes::from(vec![0; 32]),
+                    ..PbRecord::default()
+                };
+                if as_observer_output {
+                    record.outputs.push(PbPlayerOutput {
+                        entity: entity.as_uuid().as_bytes().to_vec(),
+                        encoded: Bytes::from(payload.clone()),
+                        ..PbPlayerOutput::default()
+                    });
+                } else {
+                    record.events = Bytes::from(payload.clone());
+                }
+                assert_eq!(decode_record(&record.encode_to_vec()).is_ok(), schema == 7);
+            }
+        }
+        let mut value = serde_json::to_value(&event).unwrap();
+        value
+            .get_mut("result")
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert("unknown_nested_extension".into(), serde_json::json!(0));
+        assert!(
+            event_from_pb(PbOutputItem::SkillLearned(serde_json::to_vec(&value).unwrap())).is_err()
+        );
+        let mut inconsistent = event;
+        if let ZoneEvent::SkillLearned { result, .. } = &mut inconsistent {
+            result.tick = Tick(6);
+        }
+        assert!(event_from_pb(event_to_pb(&inconsistent)).is_err());
+    }
+
+    #[test]
+    fn learning_refusals_have_additive_codes_and_are_forbidden_in_legacy_records() {
+        for (code, reason) in [
+            (33, RejectReason::SkillNotLearnable),
+            (34, RejectReason::SkillWrongRank),
+            (35, RejectReason::SkillLevelRequired),
+            (36, RejectReason::SkillItemRequired),
+            (37, RejectReason::SkillDeferred),
+            (38, RejectReason::InsufficientSp),
+        ] {
+            assert_eq!(reason_to_pb(reason), code);
+            assert_eq!(reason_from_pb(code).unwrap(), reason);
+            for schema in 3..=7 {
+                let pb = PbRecord {
+                    schema,
+                    state_digest: Bytes::from(vec![0; 32]),
+                    dispositions: vec![PbDisposition {
+                        reason: code,
+                        ..PbDisposition::default()
+                    }],
+                    ..PbRecord::default()
+                };
+                assert_eq!(decode_record(&pb.encode_to_vec()).is_ok(), schema == 7);
+            }
+        }
+    }
+
+    #[test]
     fn commands_have_distinct_pinned_tags_and_preserve_optional_identities() {
         let entity = EntityId::from_uuid(Uuid::from_u128(1));
         let target = EntityId::from_uuid(Uuid::from_u128(2));

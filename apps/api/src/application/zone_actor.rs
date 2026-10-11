@@ -721,6 +721,21 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             },
         };
         let tick = record.tick;
+        // The domain producer is available before the receipt/outbox actor integration.
+        // Neither OpenGate nor an ordinary checkpoint lane may release a paid purchase
+        // without that atomic learning transaction. C replaces this bridge with its typed
+        // durable learning path; raw send() cannot bypass it in the meantime.
+        if record
+            .events
+            .iter()
+            .any(|event| matches!(event, crate::domain::zone::ZoneEvent::SkillLearned { .. }))
+        {
+            tracing::error!("learning receipt integration is not enabled; zone fenced");
+            self.failed = true;
+            self.fail_replies();
+            self.publish_stats(tick, started, 0);
+            return TickOutcome::Held(tick);
+        }
         if self.admission_policy.is_some_and(|policy| {
             super::replay_log::AppliedTickRecord::from_applied(self.state.seed().zone, &record)
                 .with_output_digests()
@@ -1150,7 +1165,13 @@ pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::A
     match reason {
         RejectReason::TransferConflict => super::AppError::IdempotencyConflict,
         RejectReason::NotPermitted => super::AppError::PermissionDenied(reason.detail().to_owned()),
-        RejectReason::TransferIneligible
+        RejectReason::SkillNotLearnable
+        | RejectReason::SkillWrongRank
+        | RejectReason::SkillLevelRequired
+        | RejectReason::SkillItemRequired
+        | RejectReason::SkillDeferred
+        | RejectReason::InsufficientSp
+        | RejectReason::TransferIneligible
         | RejectReason::TransferRequirement
         | RejectReason::InCombat
         | RejectReason::ClassMasterTooFar
