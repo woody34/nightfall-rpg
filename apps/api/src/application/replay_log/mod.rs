@@ -12,6 +12,9 @@ mod epoch;
 mod gate;
 mod port;
 mod record;
+mod snapshot_phase3;
+mod snapshot_registry;
+mod snapshot_value;
 
 pub use audit::{SessionAuditWriter, AUDIT_BUFFER};
 pub use codec::{
@@ -28,6 +31,6 @@ pub use port::{
 };
 pub use record::{
     decode_events, decode_outputs, decode_snapshot, encode_events, encode_outputs, encode_snapshot,
-    AppliedTickRecord, CodecError, EpochStatus, OutputForm, PlayerOutput, Seq, SessionInRecord,
-    SessionOutRecord, StoredSnapshot, Watermark, WatermarkReason,
+    phase3_snapshot_size, AppliedTickRecord, CodecError, EpochStatus, OutputForm, PlayerOutput,
+    Seq, SessionInRecord, SessionOutRecord, StoredSnapshot, Watermark, WatermarkReason,
 };

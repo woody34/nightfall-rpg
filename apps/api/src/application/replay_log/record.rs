@@ -16,6 +16,9 @@
 //!   Phase 2 snapshots retain that complete JSON inside a bounded, versioned zlib envelope:
 //!   8-byte `NFSNAP7\0`, little-endian u32 expanded length, one complete zlib stream.
 //!   The same bytes go to `JetStream`, Postgres and recordings; decode never loads current data.
+//! * NFSNAP9 retains the envelope and limits, with a versioned protobuf body: base JSON,
+//!   one content-deduplicated immutable registry, typed sidecars, shared effect headers,
+//!   delta-coded allocation IDs and packed source UUIDs. Only V9 uses zlib level nine.
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
@@ -214,7 +217,7 @@ pub fn decode_outputs(bytes: &[u8]) -> Result<Vec<ObserverOutput>, CodecError> {
     codec::decode_outputs(bytes)
 }
 
-/// Maximum expanded snapshot size. This bounds allocations before JSON parsing.
+/// Maximum expanded snapshot body size (JSON for legacy, protobuf for V9).
 pub(crate) const MAX_SNAPSHOT_JSON: usize = 32 * 1024 * 1024;
 /// Conservative default broker budget, leaving 1 KiB for subject/headers.
 pub(crate) const MAX_SNAPSHOT_ENCODED: usize = 1024 * 1024 - 1024;
@@ -239,20 +242,35 @@ impl std::io::Write for BoundedBytes {
     }
 }
 
+pub(super) fn bounded_snapshot_json<T: Serialize>(value: &T) -> Result<Vec<u8>, CodecError> {
+    let mut out = BoundedBytes {
+        bytes: Vec::new(),
+        maximum: MAX_SNAPSHOT_JSON,
+    };
+    serde_json::to_writer(&mut out, value).map_err(|e| CodecError(e.to_string()))?;
+    Ok(out.bytes)
+}
+
 /// Canonical snapshot transport. Legacy epochs retain JSON exactly; `BinaryV3` snapshots
-/// and `BinaryV4` use versioned length-prefixed zlib envelopes, bounded on both sides.
+/// and `BinaryV4` use JSON envelopes; `BinaryV5` uses a compact protobuf body.
+/// All compressed policies retain length-prefixed zlib with the same bounds.
 pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
     use std::io::Write as _;
     snapshot
         .validate_version()
         .map_err(|e| CodecError(e.to_string()))?;
-    let mut json = BoundedBytes {
-        bytes: Vec::new(),
-        maximum: MAX_SNAPSHOT_JSON,
+    let json = if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV5
+    {
+        super::snapshot_phase3::encode(snapshot)?
+    } else {
+        let mut json = BoundedBytes {
+            bytes: Vec::new(),
+            maximum: MAX_SNAPSHOT_JSON,
+        };
+        serde_json::to_writer(&mut json, snapshot).map_err(|e| CodecError(e.to_string()))?;
+        validate_snapshot_json(&json.bytes)?;
+        json.bytes
     };
-    serde_json::to_writer(&mut json, snapshot).map_err(|e| CodecError(e.to_string()))?;
-    let json = json.bytes;
-    validate_snapshot_json(&json)?;
     if !matches!(
         snapshot.meta.digest_version,
         crate::domain::zone::StateDigestVersion::BinaryV3
@@ -266,7 +284,11 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
             bytes: Vec::new(),
             maximum: MAX_SNAPSHOT_ENCODED - 12,
         },
-        flate2::Compression::default(),
+        if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV5 {
+            flate2::Compression::best()
+        } else {
+            flate2::Compression::default()
+        },
     );
     compressed
         .write_all(&json)
@@ -293,6 +315,40 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
         return Err(CodecError("compressed snapshot exceeds broker budget".into()));
     }
     Ok(out)
+}
+
+/// Diagnostic expanded/encoded Snapshot9 byte counts without retaining an over-budget
+/// compressed buffer. This does not relax `encode_snapshot` or any transport limit.
+pub fn phase3_snapshot_size(snapshot: &ZoneSnapshot) -> Result<(usize, usize), CodecError> {
+    use std::io::Write as _;
+    #[derive(Default)]
+    struct Count(usize);
+    impl std::io::Write for Count {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0 = self
+                .0
+                .checked_add(bytes.len())
+                .ok_or_else(|| std::io::Error::other("size overflow"))?;
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    snapshot
+        .validate_version()
+        .map_err(|e| CodecError(e.to_string()))?;
+    let body = super::snapshot_phase3::encode(snapshot)?;
+    let mut compressed =
+        flate2::write::ZlibEncoder::new(Count::default(), flate2::Compression::best());
+    compressed
+        .write_all(&body)
+        .map_err(|e| CodecError(e.to_string()))?;
+    let encoded = compressed
+        .finish()
+        .map_err(|e| CodecError(e.to_string()))?
+        .0;
+    Ok((body.len(), encoded.saturating_add(12)))
 }
 
 /// Reads legacy JSON or a bounded Phase2 envelope. Rejects truncated streams, dishonest
@@ -339,9 +395,12 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     {
         return Err(CodecError("snapshot length or compressed stream mismatch".into()));
     }
-    validate_snapshot_json(&json)?;
-    let snapshot: ZoneSnapshot =
-        serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?;
+    let snapshot: ZoneSnapshot = if bytes.starts_with(PHASE3_SNAPSHOT_MAGIC) {
+        super::snapshot_phase3::decode(&json)?
+    } else {
+        validate_snapshot_json(&json)?;
+        serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?
+    };
     snapshot
         .validate_version()
         .map_err(|e| CodecError(e.to_string()))?;

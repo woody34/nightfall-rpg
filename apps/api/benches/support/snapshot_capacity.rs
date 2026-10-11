@@ -28,6 +28,7 @@ use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
 
 pub(super) fn run() -> bool {
+    assert!(realistic());
     let base = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
     let original_skills = base.skills().skills().len();
     let shipped_rule_bytes = serde_json::to_vec(&base).unwrap().len();
@@ -229,10 +230,14 @@ pub(super) fn run() -> bool {
     // These diagnostic labels mirror record.rs's private bounds. encode_snapshot below is
     // the authoritative gate and deliberately runs with its existing bounded allocator.
     println!("shipped_rules_bytes={shipped_rule_bytes} shipped_skill_roots={original_skills} synthetic_skill_roots=44");
-    println!("full_rules_bytes={rule_bytes} entities=1000 effects=44000 decoded_bytes={} decoded_limit={} encoded_bytes={compressed} encoded_limit={}",json.len(),32*1024*1024,1024*1024-1024);
+    println!("full_rules_bytes={rule_bytes} entities=1000 effects=44000 legacy_json_decoded_bytes={} decoded_limit={} legacy_json_encoded_bytes={compressed} encoded_limit={}",json.len(),32*1024*1024,1024*1024-1024);
+    let (binary_decoded, binary_encoded) =
+        nightfall_api::application::replay_log::phase3_snapshot_size(&snapshot).unwrap();
+    println!("binary_decoded_bytes={binary_decoded} binary_encoded_bytes={binary_encoded}");
     match encode_snapshot(&snapshot) {
         Ok(encoded) => {
-            assert_eq!(encoded.len(), compressed);
+            let decoded = u32::from_le_bytes(encoded[8..12].try_into().unwrap());
+            println!("binary_decoded_bytes={decoded} decoded_limit={} binary_encoded_bytes={} encoded_limit={}", 32*1024*1024, encoded.len(), 1024*1024-1024);
             let restored = decode_snapshot(&encoded).unwrap();
             assert_eq!(serde_json::to_vec(&restored).unwrap(), json);
             println!(
@@ -245,4 +250,124 @@ pub(super) fn run() -> bool {
             false
         },
     }
+}
+
+/// Source-valid workload shape for the eight-player soak: the shipped zone's fixtures and
+/// spawn slots plus eight admitted players, all casting Shield. This is an actual tick and
+/// restore/suffix check; it is not a packaged client or database/broker soak.
+fn realistic() -> bool {
+    use nightfall_api::domain::character_progression::{
+        CharacterAppearance, CharacterIdentity, ClassState,
+    };
+    use nightfall_api::domain::class::ClassId;
+    use nightfall_api::domain::subclass::LearnedSkill;
+    use nightfall_api::domain::zone as z;
+    use nightfall_api::domain::{AccountId, Race};
+    let def = parse_zone(TEST_ZONE_TOML).unwrap();
+    let stat_rules = load_rules(&RulesSource::embedded()).unwrap().rules;
+    let slots = nightfall_api::application::zone_bootstrap::slot_specs(&stat_rules, &def).unwrap();
+    let mut zone = ZoneState::new_phase3(
+        ZoneSeed {
+            zone: ZoneId(1),
+            epoch: 9,
+        },
+        def.bounds,
+        0,
+        load_rules(&RulesSource::embedded()).unwrap().rules,
+        load_classes(&ClassSource::embedded()).unwrap().registry,
+        load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap(),
+    )
+    .unwrap()
+    .with_spawn_slots(slots);
+    let mut inputs = def
+        .npcs
+        .into_iter()
+        .map(|npc| {
+            ZoneInput::system(ZoneCommand::SpawnNpc {
+                name: npc.name,
+                pos: npc.pos,
+                speed: npc.speed,
+                combat: None,
+            })
+        })
+        .collect::<Vec<_>>();
+    let players = (1..=8_u128)
+        .map(|n| EntityId::from_uuid(Uuid::from_u128(n)))
+        .collect::<Vec<_>>();
+    for player in &players {
+        let mut ledger = ClassState::new(ClassId(10));
+        ledger.learned_skills = vec![LearnedSkill {
+            key: "l2.skill.1040".into(),
+            level: 1,
+        }];
+        let mut load = z::PlayerLoad::fresh("human_mystic");
+        load.progression = Some(Box::new(z::PlayerProgression {
+            identity: CharacterIdentity {
+                account_id: AccountId::from_uuid(player.as_uuid()),
+                race: Race::Human,
+                base_class_id: ClassId(10),
+                appearance: CharacterAppearance::default(),
+            },
+            class_state: ledger,
+            max_cp: 0,
+        }));
+        inputs.push(ZoneInput::system(ZoneCommand::SpawnPlayer {
+            entity: *player,
+            name: "Caster".into(),
+            pos: Vec2Fixed::from_tiles(126, 126),
+            speed: z::Speed::DEFAULT,
+            generation: z::SessionGeneration(1),
+            load: Some(Box::new(load)),
+        }));
+    }
+    let admitted = zone.run_tick(zone.draft(inputs)).unwrap();
+    assert!(admitted.dispositions.is_empty(), "{:?}", admitted.dispositions);
+    let cast = zone
+        .run_tick(
+            zone.draft(
+                players
+                    .iter()
+                    .map(|id| ZoneInput {
+                        source: z::CommandSource::Session {
+                            entity: *id,
+                            generation: z::SessionGeneration(1),
+                        },
+                        seq: Some(1),
+                        command: ZoneCommand::CastSkill {
+                            entity: *id,
+                            skill_id: SkillId(1040),
+                            target: Some(*id),
+                        },
+                    })
+                    .collect(),
+            ),
+        )
+        .unwrap();
+    assert!(cast.dispositions.is_empty());
+    for _ in 0..40 {
+        zone.run_tick(zone.draft(vec![])).unwrap();
+    }
+    let snapshot = zone.snapshot();
+    let effects = snapshot
+        .phase3
+        .as_ref()
+        .unwrap()
+        .entities
+        .values()
+        .map(|e| e.effects.entries().len())
+        .sum::<usize>();
+    assert_eq!(effects, 8);
+    let (decoded, encoded) =
+        nightfall_api::application::replay_log::phase3_snapshot_size(&snapshot).unwrap();
+    let bytes = encode_snapshot(&snapshot).unwrap();
+    assert_eq!(encoded, bytes.len());
+    let restored_snapshot = decode_snapshot(&bytes).unwrap();
+    assert_eq!(restored_snapshot, snapshot);
+    let mut restored = ZoneState::from_snapshot(restored_snapshot).unwrap();
+    for _ in 0..35 {
+        let draft = zone.draft(vec![]);
+        assert_eq!(zone.run_tick(draft.clone()).unwrap(), restored.run_tick(draft).unwrap());
+    }
+    println!("realistic_players=8 zone_entities={} active_effects={effects} binary_decoded_bytes={decoded} binary_encoded_bytes={encoded} codec_capacity=PASS live_restore_suffix=PASS packaged_soak=NOT_RUN", snapshot.entities.len());
+    true
 }
