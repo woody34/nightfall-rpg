@@ -54,7 +54,7 @@ pub struct GameServiceImpl {
     phase3: Option<Phase3UseCases>,
 }
 
-/// Phase 3 use cases installed explicitly; production composition leaves them unset.
+/// Phase 3 use cases shared by live composition and transport tests.
 pub struct Phase3UseCases {
     /// Live actor-owned eligibility.
     pub list_learnable_skills: ListLearnableSkills,
@@ -91,8 +91,7 @@ impl GameServiceImpl {
         }
     }
 
-    /// Explicit experimental injection. Production composition leaves this absent;
-    /// tests may use typed fakes or the fenced durable V5 constructor below.
+    /// Installs the actor-backed Phase 3 use cases after checkpoint persistence is wired.
     #[must_use]
     pub fn with_phase3(mut self, use_cases: Phase3UseCases) -> Self {
         self.phase3 = Some(use_cases);
@@ -289,13 +288,20 @@ impl GameService for GameServiceImpl {
 pub type SharedService = Arc<GameServiceImpl>;
 
 impl Phase3UseCases {
-    /// Builds real use cases only for an explicit experimental V5 actor with an installed
-    /// atomic learning lane. Production composition does not call this constructor.
+    /// Compatibility entry point for explicitly constructed V5 transport fixtures.
     pub async fn experimental(
         characters: Arc<dyn crate::application::CharacterRepository>,
         sessions: Arc<crate::application::session::SessionContext>,
     ) -> anyhow::Result<Self> {
-        anyhow::ensure!(sessions.zone.phase3_enabled(), "experimental V5 zone required");
+        Self::for_runtime(characters, sessions).await
+    }
+
+    /// Builds real use cases for a V5 actor with an installed atomic learning lane.
+    pub async fn for_runtime(
+        characters: Arc<dyn crate::application::CharacterRepository>,
+        sessions: Arc<crate::application::session::SessionContext>,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(sessions.zone.phase3_enabled(), "V5 zone required");
         let lane = sessions
             .zone
             .checkpoints

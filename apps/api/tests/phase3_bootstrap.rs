@@ -1,4 +1,4 @@
-//! Production preparation validates the complete immutable bundle and remains OFF.
+//! Production startup validates the complete immutable bundle before broker work.
 #![allow(missing_docs, clippy::unwrap_used, clippy::indexing_slicing)]
 
 use api::application::replay_log::{decode_snapshot, encode_snapshot};
@@ -100,19 +100,8 @@ fn configured_zone_cannot_disagree_with_hashed_npc_profiles() {
 }
 
 #[tokio::test]
-async fn enable_request_and_bad_switches_refuse_before_broker_or_epoch_work() {
+async fn bad_switches_refuse_before_broker_or_epoch_work() {
     let dependencies = api::Dependencies::in_memory();
-    let cfg = ZoneRuntimeConfig {
-        phase3_enabled: Some("1".into()),
-        ..Default::default()
-    };
-    let failure = api::zone_runtime::start(&cfg, Some("not-a-nats-url"), None, &dependencies)
-        .await
-        .err()
-        .unwrap();
-    assert!(failure
-        .to_string()
-        .contains("DOMAIN READY has not been published"));
     for value in ["", "true", "01", "1 ", "yes", "2"] {
         let cfg = ZoneRuntimeConfig {
             phase3_enabled: Some(value.into()),
@@ -130,7 +119,7 @@ async fn enable_request_and_bad_switches_refuse_before_broker_or_epoch_work() {
 
 #[tokio::test]
 async fn off_switch_preserves_legacy_bootstrap_and_snapshot_policy() {
-    for selection in [None, Some("0".into())] {
+    for selection in [Some("0".into())] {
         let cfg = ZoneRuntimeConfig {
             phase3_enabled: selection,
             ..Default::default()
@@ -143,6 +132,29 @@ async fn off_switch_preserves_legacy_bootstrap_and_snapshot_policy() {
         assert_eq!(snapshot.meta.digest_version, StateDigestVersion::BinaryV4);
         assert!(snapshot.phase3.is_none());
         assert!(snapshot.meta.phase3_admission_policy.is_none());
+        running
+            .shutdown(api::application::replay_log::WatermarkReason::Shutdown)
+            .await
+            .unwrap();
+    }
+}
+
+#[tokio::test]
+async fn normal_default_and_explicit_enable_write_v5_baselines() {
+    for selection in [None, Some("1".into())] {
+        let cfg = ZoneRuntimeConfig {
+            phase3_enabled: selection,
+            ..Default::default()
+        };
+        let running = api::zone_runtime::start(&cfg, None, None, &api::Dependencies::in_memory())
+            .await
+            .unwrap();
+        let snapshot = running.handle().snapshot().await.unwrap();
+        assert!(running.handle().phase3_enabled());
+        assert_eq!(snapshot.meta.schema_version, 9);
+        assert_eq!(snapshot.meta.digest_version, StateDigestVersion::BinaryV5);
+        assert_eq!(snapshot.phase3.unwrap().rules.runtime_revision(), 2);
+        assert!(snapshot.meta.phase3_admission_policy.is_some());
         running
             .shutdown(api::application::replay_log::WatermarkReason::Shutdown)
             .await

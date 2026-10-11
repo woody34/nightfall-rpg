@@ -509,3 +509,137 @@ async fn effect_reconnect_hydration_is_after_identity_and_owner_state_stays_priv
     assert_eq!(after, applied_count);
     assert_eq!(owner.closed(ws::WAIT).await, Some(4409));
 }
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // Real paid learning, retained cast, transfer, replacement and offline receipt replay.
+async fn normal_v5_services_transfer_preserves_paid_rank_effect_and_frozen_offline_reply() {
+    let (mut app, repo, _) = fixture().await;
+    let created = app
+        .grpc
+        .create_character(pb::CreateCharacterRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            name: "TransferMage".into(),
+            race: pb::Race::Human as i32,
+            base_class_id: Some(10),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .into_inner();
+    let mut c = repo
+        .get(Uuid::parse_str(&created.id).unwrap().into())
+        .await
+        .unwrap()
+        .unwrap();
+    c.position = Position { x: 126.0, y: 128.0 };
+    c.class_state.sp = 5000;
+    c.level = 20;
+    c.xp = load_rules(&RulesSource::embedded())
+        .unwrap()
+        .rules
+        .xp_to_level(20)
+        .unwrap();
+    repo.checkpoint(
+        &api::application::CharacterCheckpoint {
+            character_id: c.id,
+            revision_seen: 0,
+            level: c.level,
+            xp: c.xp,
+            hp: 100,
+            mp: 100,
+            alive: true,
+            position: c.position,
+            idempotency: ("save_checkpoint".into(), api::application::IdempotencyKey::new()),
+            class_state: Some(c.class_state.clone()),
+            phase3: Some(Phase3Checkpoint::new()),
+        },
+        &[],
+    )
+    .await
+    .unwrap();
+    let mut owner = joined(&app, &c).await;
+    // Source auto-get rank1 precedes the paid rank2 (professions/human_mystic.toml:99,340).
+    app.grpc.learn_skill(request(&c, 1177, 2)).await.unwrap();
+    let shield = app
+        .grpc
+        .learn_skill(request(&c, 1040, 1))
+        .await
+        .unwrap()
+        .into_inner();
+    owner
+        .send(&message(
+            1,
+            Intent::CastSkill(pb::CastSkillRequest {
+                skill_id: 1040,
+                target: Some(c.id.to_string()),
+            }),
+        ))
+        .await;
+    assert!(matches!(response(&mut owner, 1).await.payload, Some(Payload::Ack(_))));
+    owner.until(|m| matches!(&m.payload, Some(Payload::Event(w)) if matches!(&w.event, Some(Event::EffectApplied(e)) if e.skill_id == 1040 && !e.baseline))).await;
+    let transfer = pb::ChangeClassRequest {
+        character_id: c.id.to_string(),
+        target_class_id: 11,
+        idempotency_key: Uuid::now_v7().to_string(),
+    };
+    let frozen = app
+        .grpc
+        .change_class(transfer.clone())
+        .await
+        .unwrap()
+        .into_inner();
+    let stored = repo.load_for_admission(c.id).await.unwrap().unwrap();
+    assert_eq!(stored.class_state.current_class_id, ClassId(11));
+    assert_eq!(stored.class_state.sp, shield.sp_remaining);
+    assert_eq!(stored.class_state.token_tier_1_count, 0);
+    assert!(stored
+        .class_state
+        .learned_skills
+        .iter()
+        .any(|s| s.key == "l2.skill.1177" && s.level == 2));
+    assert!(stored
+        .phase3
+        .unwrap()
+        .effect_remainders
+        .iter()
+        .any(|e| e.skill.id.0 == 1040));
+    let replacement = joined(&app, &c).await;
+    assert_eq!(owner.closed(ws::WAIT).await, Some(4409));
+    let snapshot = app.zone.snapshot().await.unwrap();
+    assert!(snapshot
+        .phase3
+        .as_ref()
+        .unwrap()
+        .entities
+        .get(&EntityId::from_uuid(c.id.as_uuid()))
+        .unwrap()
+        .effects
+        .entries()
+        .values()
+        .any(|effect| effect.skill.id.0 == 1040));
+    assert_eq!(
+        app.grpc
+            .change_class(transfer.clone())
+            .await
+            .unwrap()
+            .into_inner(),
+        frozen
+    );
+    replacement.close().await;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while app
+            .zone
+            .snapshot()
+            .await
+            .unwrap()
+            .entities
+            .iter()
+            .any(|e| e.id.as_uuid() == c.id.as_uuid())
+        {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(app.grpc.change_class(transfer).await.unwrap().into_inner(), frozen);
+}

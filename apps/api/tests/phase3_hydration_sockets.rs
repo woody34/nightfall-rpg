@@ -193,6 +193,99 @@ async fn ordinary(repo: &InMemoryCharacterRepository, name: &str, x: f32) -> Cha
     c
 }
 
+fn retained_root(rules: &Phase3Rules) -> effects::RetainedEffect {
+    use skill::{RankValue, SkillId, SkillRef};
+    let skill = rules.skills().get(SkillId(110)).unwrap();
+    let abnormal = skill.abnormal.as_ref().unwrap();
+    let flag = |value: &RankValue<bool>| *value.at(1, skill.max_level).unwrap();
+    effects::RetainedEffect {
+        skill: SkillRef {
+            id: skill.id,
+            rank: 1,
+        },
+        source: effects::EffectSource {
+            binding: None,
+            kind: effects::EffectSourceKind::System,
+        },
+        target_incarnation: 1,
+        pool: effects::EffectPool::Buff,
+        abnormal_type: abnormal.r#type.clone(),
+        abnormal_level: abnormal.level[0],
+        remaining_ticks: u64::try_from(abnormal.time_s[0])
+            .unwrap()
+            .checked_mul(1000)
+            .unwrap()
+            .checked_div(TICK_MS)
+            .unwrap(),
+        flags: effects::EffectFlags {
+            stay_after_death: flag(&skill.stay_after_death),
+            stay_on_subclass_change: flag(&skill.stay_on_subclass_change),
+            removed_on_damage: flag(&skill.removed_on_damage),
+            removed_on_action_except_move: flag(&skill.removed_on_action_except_move),
+            irreplaceable: flag(&skill.irreplaceable_buff),
+        },
+        handlers: skill
+            .effects
+            .iter()
+            .enumerate()
+            .filter(|(_, handler)| effects::continuous_handler(&handler.name))
+            .map(|(ordinal, _)| effects::RetainedHandler {
+                xml_ordinal: u32::try_from(ordinal).unwrap(),
+                periodic: None,
+            })
+            .collect(),
+    }
+}
+
+#[tokio::test]
+async fn socket_identity_has_final_status_before_effect_hydration() {
+    let rules = Arc::new(load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap());
+    let repo = Arc::new(InMemoryCharacterRepository::default().with_phase3_rules(rules.clone()));
+    let rooted = ordinary(&repo, "RootedMage", 10.0).await;
+    let viewer = ordinary(&repo, "RootViewer", 11.0).await;
+    let stored = repo.load_for_admission(rooted.id).await.unwrap().unwrap();
+    let mut phase3 = stored.phase3.unwrap();
+    phase3.effect_remainders.push(retained_root(&rules));
+    phase3
+        .modifier_install_order
+        .push(effects::RetainedModifierSource::Effect { effect_ordinal: 0 });
+    repo.checkpoint(
+        &CharacterCheckpoint {
+            character_id: rooted.id,
+            revision_seen: stored.revision,
+            level: stored.level,
+            xp: stored.xp,
+            hp: stored.hp.unwrap(),
+            mp: stored.mp.unwrap(),
+            alive: stored.alive,
+            position: stored.position,
+            idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
+            class_state: Some(stored.class_state),
+            phase3: Some(phase3),
+        },
+        &[],
+    )
+    .await
+    .unwrap();
+    let (app, driver) = app(repo).await;
+    let (_owner, owner_frames) = join(&app, &driver, &rooted).await;
+    let (_observer, observer_frames) = join(&app, &driver, &viewer).await;
+    for frames in [&owner_frames, &observer_frames] {
+        let identity = frames.iter().position(|m| matches!(event(m), Some(Event::Spawn(s)) if s.entity_id == rooted.id.to_string())).unwrap();
+        let Some(Event::Spawn(spawn)) = event(&frames[identity]) else {
+            unreachable!()
+        };
+        assert_eq!(spawn.status_flags, effects::StatusFlags::ROOT.bits());
+        let last_identity = frames
+            .iter()
+            .rposition(|m| matches!(event(m), Some(Event::Spawn(_))))
+            .unwrap();
+        let hydration = frames.iter().position(|m| matches!(event(m), Some(Event::EffectApplied(e)) if e.target == rooted.id.to_string() && e.skill_id == 110 && e.baseline)).unwrap();
+        assert!(hydration > last_identity);
+    }
+    private_absent(&observer_frames, rooted.id);
+}
+
 #[tokio::test]
 async fn socket_swing_identity_batch_pvp_selection_reset_and_cp_are_authoritative() {
     let repo = Arc::new(InMemoryCharacterRepository::default());

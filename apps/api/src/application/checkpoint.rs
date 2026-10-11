@@ -201,6 +201,7 @@ impl CheckpointService {
             if let Some(tick) = indexed.last_recorded_tick {
                 store.checkpointed(zone, indexed.epoch, tick).await?;
             }
+            close_recovered_epoch(log, zone, indexed.epoch).await?;
             store.close(zone, indexed.epoch).await?;
         }
         Ok(())
@@ -759,6 +760,54 @@ impl CheckpointService {
         self.last = None;
         Ok(())
     }
+}
+
+/// A recovered epoch has no live actor. Verify its complete original prefix before
+/// durably closing it; the index closes only after this acknowledgement. Recovery
+/// snapshots accelerate DB settlement but cannot authorize a truncated replay watermark.
+async fn close_recovered_epoch(log: &dyn EventLog, zone: ZoneId, epoch: u64) -> anyhow::Result<()> {
+    use super::replay_log::{EpochStatus, Watermark, WatermarkReason};
+    if matches!(log.epoch_status(zone, epoch).await?, EpochStatus::Complete(_)) {
+        return Ok(());
+    }
+    let original = log
+        .read_snapshot(zone, epoch)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("epoch-start snapshot missing during recovery closure"))?;
+    let mut state = ZoneState::from_snapshot(original.snapshot)?;
+    let mut records = log.read_epoch(zone, epoch).await?;
+    let mut count = 0_u64;
+    let mut last_tick = None;
+    while let Some(record) = records.next().await {
+        let record = record?;
+        anyhow::ensure!(
+            record.zone == zone && record.epoch == epoch,
+            "recovery closure crossed epochs"
+        );
+        let applied = state.run_tick(AppliedTickDraft {
+            epoch,
+            tick: record.tick,
+            commands: record.commands.clone(),
+        })?;
+        anyhow::ensure!(
+            record.reproduced_by(&AppliedTickRecord::from_applied(zone, &applied)),
+            "recovery closure diverged at tick {}",
+            record.tick.0
+        );
+        count = count
+            .checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("recovery record count overflow"))?;
+        last_tick = Some(record.tick);
+    }
+    log.write_watermark(&Watermark {
+        zone,
+        epoch,
+        last_tick,
+        records: count,
+        reason: WatermarkReason::EpochEnd,
+    })
+    .await?;
+    Ok(())
 }
 
 async fn save(

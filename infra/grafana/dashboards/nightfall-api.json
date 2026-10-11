@@ -1385,7 +1385,7 @@
       "id": 28,
       "type": "timeseries",
       "title": "Skill casts / s",
-      "description": "Admitted experimental V5 cast lifecycle facts after log and checkpoint acknowledgement. Hydration and observer copies excluded. Production remains fenced; initialized zero does not prove skills are enabled.",
+      "description": "Admitted V5 cast lifecycle facts after durable log and checkpoint acknowledgement. Hydration, replay and observer copies excluded. Legacy epochs retain their original policy.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1432,7 +1432,7 @@
       "id": 29,
       "type": "timeseries",
       "title": "Skill target resolutions / s",
-      "description": "Admitted experimental V5 target results before per-observer AoE filtering, after log and checkpoint acknowledgement. Bounded resolution kinds/outcomes only. Production remains fenced; no skill or entity labels.",
+      "description": "Admitted V5 target results before per-observer AoE filtering, after durable log and checkpoint acknowledgement. Hydration and replay copies excluded; bounded resolution kinds/outcomes only, no skill or entity labels.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1479,7 +1479,7 @@
       "id": 30,
       "type": "timeseries",
       "title": "Skill effect transitions / s",
-      "description": "Admitted experimental V5 installed/removed continuous handler instances by bounded effect kind/change. Restore, hydration and observer copies excluded. Production remains fenced; unsupported runtime paths remain refused.",
+      "description": "Admitted V5 installed/removed continuous handler instances by bounded effect kind/change. Restore, hydration, replay and observer copies excluded; unsupported capabilities remain refused.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1620,7 +1620,7 @@
       "id": 33,
       "type": "timeseries",
       "title": "Committed skills learned / s",
-      "description": "New learning checkpoint acknowledgements: applied only. Replayed receipts/checkpoints excluded. Atomic receipt/outbox accounting is durable; experimental V5 actor integration is available. Production remains fenced. A lost acknowledgement can undercount this observational counter.",
+      "description": "Admitted new learning checkpoint acknowledgements: applied only. Replayed receipts/checkpoints and hydration excluded. Atomic receipt/outbox accounting is durable; a lost acknowledgement can undercount this observational counter.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

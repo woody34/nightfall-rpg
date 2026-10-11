@@ -33,9 +33,9 @@ pub struct ZoneRuntimeConfig {
     pub simulation_fixture: Option<String>,
     /// Simulation fixtures require the same exact `AUTH_DEV_TOKENS=1` opt-in as dev auth.
     pub auth_dev_tokens: bool,
-    /// `PHASE3_ENABLED`: unset/0 is OFF, 1 requests V5 bundle preparation. Production
-    /// refuses 1 until the domain-ready integration is explicitly installed; invalid
-    /// values never silently select legacy gameplay.
+    /// `PHASE3_ENABLED`: normal startup defaults to the validated V5 bundle. Exact0
+    /// selects legacy new epochs; exact1 explicitly requests V5. Simulation fixtures
+    /// retain legacy policy unless explicitly selected. Malformed values refuse startup.
     pub phase3_enabled: Option<String>,
 }
 
@@ -64,10 +64,37 @@ impl ZoneRuntimeConfig {
 
     fn phase3_requested(&self) -> anyhow::Result<bool> {
         match self.phase3_enabled.as_deref() {
-            None | Some("0") => Ok(false),
+            None => Ok(self.simulation_fixture.is_none()),
+            Some("0") => Ok(false),
             Some("1") => Ok(true),
             Some(_) => anyhow::bail!("PHASE3_ENABLED must be unset, 0 or 1"),
         }
+    }
+
+    /// Validates the compiled epoch selection before adapter connections and recovery.
+    /// Full bundle validation remains required whenever V5 is selected.
+    pub fn validate_production_selection(&self) -> anyhow::Result<()> {
+        self.phase3_requested().map(|_| ())
+    }
+
+    /// Loads the complete V5 bundle before adapters connect or epochs recover. The
+    /// returned immutable rules can be shared with character persistence validators.
+    pub fn prepare_phase3(
+        &self,
+        classes: crate::infrastructure::class_data::ResolvedClasses,
+    ) -> anyhow::Result<Option<PreparedPhase3Bootstrap>> {
+        if !self.phase3_requested()? {
+            return Ok(None);
+        }
+        let source = match &self.rules_dir {
+            Some(root) => crate::infrastructure::skill_data::Phase3DataSource::from_dir(root)?,
+            None => crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+        };
+        let rules = match &self.rules_dir {
+            Some(dir) => rules_data::load_rules_dir(dir)?,
+            None => rules_data::load_rules(&rules_data::RulesSource::embedded())?,
+        };
+        Ok(Some(prepare_phase3_bootstrap(&source, rules, classes, self.load_zone()?)?))
     }
 
     fn load_zone(&self) -> anyhow::Result<ZoneDefinition> {
@@ -137,22 +164,26 @@ pub async fn start(
         None => rules_data::load_rules(&rules_data::RulesSource::embedded())?,
     };
     tracing::info!(config_hash = %rules.config_hash, "stat rules loaded");
-    if phase3_requested {
+    let classes = match &deps.classes {
+        Some(classes) => classes.clone(),
+        None => crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )?,
+    };
+    let phase3 = if phase3_requested {
         let source = match &cfg.rules_dir {
             Some(root) => crate::infrastructure::skill_data::Phase3DataSource::from_dir(root)?,
             None => crate::infrastructure::skill_data::Phase3DataSource::embedded(),
         };
-        let classes = match &deps.classes {
-            Some(classes) => classes.clone(),
-            None => crate::infrastructure::class_data::load_classes(
-                &crate::infrastructure::class_data::ClassSource::embedded(),
-            )?,
-        };
-        let _prepared = prepare_phase3_bootstrap(&source, rules, classes, def)?;
-        // No environment variable can assert domain readiness. Replace this fence only
-        // after Z publishes DOMAIN READY and the architect accepts production integration.
-        anyhow::bail!("PHASE3_ENABLED=1 refused: DOMAIN READY has not been published");
-    }
+        anyhow::ensure!(
+            deps.learning.is_some(),
+            "Phase3 requires atomic learning persistence before recovery"
+        );
+        Some(prepare_phase3_bootstrap(&source, rules.clone(), classes.clone(), def.clone())?.phase3)
+    } else {
+        None
+    };
+    cfg.validate_production_selection()?;
     let log: Arc<dyn EventLog> = if let Some(url) = nats_url {
         let client = async_nats::connect(url).await?;
         Arc::new(JetStreamEventLog::connect(client, metrics.clone()).await?)
@@ -169,6 +200,9 @@ pub async fn start(
         deps.audit.clone(),
         Arc::new(metrics.clone()),
     );
+    if let Some(learning) = &deps.learning {
+        checkpoints = checkpoints.with_learning(learning.clone());
+    }
     if let Some(store) = &snapshots {
         checkpoints
             .recover_indexed(log.as_ref(), store.as_ref(), def.zone)
@@ -177,18 +211,14 @@ pub async fn start(
     } else if let Some(epoch) = log.latest_epoch(def.zone).await? {
         checkpoints.recover(log.as_ref(), def.zone, epoch).await?;
     }
-    let classes = match &deps.classes {
-        Some(classes) => classes.clone(),
-        None => crate::infrastructure::class_data::load_classes(
-            &crate::infrastructure::class_data::ClassSource::embedded(),
-        )?,
-    };
-    let running = ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics.clone()))
+    let mut bootstrap = ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics.clone()))
         .with_telemetry(Arc::new(metrics))
         .with_rules(rules)
-        .with_classes(classes.registry, classes.config_hash)
-        .start(&def, IntervalTicks::new())
-        .await?;
+        .with_classes(classes.registry, classes.config_hash);
+    if let Some(phase3) = phase3 {
+        bootstrap = bootstrap.with_phase3_rules(phase3);
+    }
+    let running = bootstrap.start(&def, IntervalTicks::new()).await?;
     running.handle().checkpoints.install(checkpoints);
     Ok(running)
 }

@@ -633,6 +633,7 @@ async fn recovery_commits_critical_facts_retained_in_a_baseline_without_later_re
         .push(event.clone());
     let log = Arc::new(InMemoryEventLog::default());
     let store = Arc::new(InMemoryZoneSnapshotStore::default());
+    log.write_snapshot(&h.state.snapshot()).await.unwrap();
     h.service = h.service.with_durability(log.clone(), store.clone());
     h.service.refresh(&h.state.snapshot()).await.unwrap();
     let mut recovery =
@@ -643,4 +644,28 @@ async fn recovery_commits_critical_facts_retained_in_a_baseline_without_later_re
         .unwrap();
     assert_eq!(h.stored().await.revision, 1);
     assert_eq!(h.repo.staged_events(), vec![event]);
+}
+
+#[tokio::test]
+async fn recovery_refuses_to_close_an_epoch_without_its_original_prefix() {
+    use crate::application::replay_log::ZoneSnapshotStore;
+    use crate::infrastructure::eventlog::{InMemoryEventLog, InMemoryZoneSnapshotStore};
+    let mut h = Harness::new().await;
+    let log = Arc::new(InMemoryEventLog::default());
+    let store = Arc::new(InMemoryZoneSnapshotStore::default());
+    h.service = h.service.with_durability(log.clone(), store.clone());
+    h.service.refresh(&h.state.snapshot()).await.unwrap();
+    let mut recovery = CheckpointService::new(h.repo, h.audit, Arc::new(Metrics::detached()));
+    let error = recovery
+        .recover_indexed(log.as_ref(), store.as_ref(), h.state.seed().zone)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("epoch-start snapshot missing"));
+    assert_eq!(store.unresolved(h.state.seed().zone).await.unwrap().len(), 1);
+    assert!(!matches!(
+        log.epoch_status(h.state.seed().zone, h.state.seed().epoch)
+            .await
+            .unwrap(),
+        crate::application::replay_log::EpochStatus::Complete(_)
+    ));
 }

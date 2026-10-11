@@ -388,7 +388,8 @@ async fn zone_snapshot_rows_refresh_and_preserve_the_first_seq() {
 /// back, and replay still tells a one-byte change apart.
 #[tokio::test]
 async fn an_oversized_record_is_stored_with_output_digests() {
-    use nightfall_api::application::replay_log::PlayerOutput;
+    use nightfall_api::application::replay_log::{encode_outputs, PlayerOutput};
+    use nightfall_api::domain::zone::{ObserverOutput, ZoneEvent};
     use nightfall_api::infrastructure::eventlog::HEADER_ROOM;
 
     let Some((client, log)) = jetstream().await else {
@@ -398,12 +399,25 @@ async fn an_oversized_record_is_stored_with_output_digests() {
     assert_eq!(limit, client.max_payload() - HEADER_ROOM);
     let zone = unique_zone();
     let mut record = empty_record(zone, 1, 0);
+    // The verifier inspects encoded outputs before replacing them with digests.
+    // Use valid domain events so this proves digest equivalence, not malformed input refusal.
+    let mut moves = vec![
+        ObserverOutput::Event(ZoneEvent::EntityMove {
+            tick: Tick(0),
+            entity: EntityId::from_uuid(Uuid::from_u128(100)),
+            pos: Vec2Fixed::from_tiles(10, 10),
+            dest: Some(Vec2Fixed::from_tiles(20, 20)),
+            speed: Speed::DEFAULT,
+        });
+        1024
+    ];
     record.outputs = (0..40_u8)
         .map(|n| PlayerOutput {
             entity: EntityId::from_uuid(Uuid::from_u128(u128::from(n))),
-            bytes: Bytes::from(vec![n; 32 * 1024]),
+            bytes: encode_outputs(&moves),
         })
         .collect();
+    record.validate().unwrap();
     assert!(record.encoded_len() > client.max_payload());
     assert!(log.append_applied(&record).await.is_err(), "the broker refuses it");
 
@@ -414,9 +428,24 @@ async fn an_oversized_record_is_stored_with_output_digests() {
     assert_eq!(stored, vec![bounded]);
     assert!(stored[0].reproduced_by(&record));
     let mut diverged = record.clone();
-    let mut bytes = diverged.outputs[17].bytes.to_vec();
-    bytes[1000] ^= 1;
-    diverged.outputs[17].bytes = Bytes::from(bytes);
+    moves[17] = ObserverOutput::Event(ZoneEvent::EntityMove {
+        tick: Tick(0),
+        entity: EntityId::from_uuid(Uuid::from_u128(101)),
+        pos: Vec2Fixed::from_tiles(10, 10),
+        dest: Some(Vec2Fixed::from_tiles(20, 20)),
+        speed: Speed::DEFAULT,
+    });
+    diverged.outputs[17].bytes = encode_outputs(&moves);
+    diverged.validate().unwrap();
+    assert_eq!(
+        record.outputs[17]
+            .bytes
+            .iter()
+            .zip(&diverged.outputs[17].bytes)
+            .filter(|(a, b)| a != b)
+            .count(),
+        1
+    );
     assert!(!stored[0].reproduced_by(&diverged));
 }
 

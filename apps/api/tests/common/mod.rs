@@ -32,7 +32,7 @@ use nightfall_api::infrastructure::telemetry::Metrics;
 use nightfall_api::interface::grpc::pb::game_service_client::GameServiceClient;
 use nightfall_api::interface::grpc::pb::session_service_client::SessionServiceClient;
 use nightfall_api::{
-    bind, build_grpc_services, build_http_router, serve_grpc, serve_http, start_realtime,
+    bind, build_http_router, build_live_grpc_services, serve_grpc, serve_http, start_realtime,
     Dependencies,
 };
 use tokio_util::sync::CancellationToken;
@@ -125,7 +125,7 @@ impl TestApp {
         customize: impl FnOnce(&mut Dependencies),
         zone: ZoneHandle,
     ) -> Self {
-        Self::spawn_with_handle_config(customize, zone, None, false).await
+        Self::spawn_with_handle_config(customize, zone, None).await
     }
 
     /// Installs test use cases through the real service without changing production startup.
@@ -137,16 +137,11 @@ impl TestApp {
             crate::common::fixture_zone(),
             IntervalTicks::new(),
         );
-        Self::spawn_with_handle_config(
-            move |deps| deps.characters = repo,
-            zone,
-            Some(use_cases),
-            false,
-        )
-        .await
+        Self::spawn_with_handle_config(move |deps| deps.characters = repo, zone, Some(use_cases))
+            .await
     }
 
-    /// Explicit real experimental endpoints, preserving the actor's preinstalled typed lane.
+    /// Real V5 endpoints using normal production service composition and the preinstalled lane.
     pub async fn spawn_experimental_phase3(
         repo: Arc<dyn CharacterRepository>,
         zone: ZoneHandle,
@@ -159,7 +154,6 @@ impl TestApp {
             },
             zone,
             None,
-            true,
         )
         .await
     }
@@ -168,7 +162,6 @@ impl TestApp {
         customize: impl FnOnce(&mut Dependencies),
         zone: ZoneHandle,
         phase3: Option<nightfall_api::interface::grpc::Phase3UseCases>,
-        experimental: bool,
     ) -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
         let accounts = Arc::new(InMemoryAccountRepository::default());
@@ -193,17 +186,7 @@ impl TestApp {
         if deps.class_transfers.is_none() {
             deps.class_transfers = Some(realtime.sessions.clone());
         }
-        let mut services = build_grpc_services(&deps).unwrap();
-        if experimental {
-            services.game = services.game.with_phase3(
-                nightfall_api::interface::grpc::Phase3UseCases::experimental(
-                    deps.characters.clone(),
-                    realtime.sessions.clone(),
-                )
-                .await
-                .unwrap(),
-            );
-        }
+        let mut services = build_live_grpc_services(&deps, &realtime).await.unwrap();
         if let Some(use_cases) = phase3 {
             services.game = services.game.with_phase3(use_cases);
         }

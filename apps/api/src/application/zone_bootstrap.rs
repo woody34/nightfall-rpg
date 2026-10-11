@@ -74,6 +74,7 @@ pub struct ResolvedRules {
 
 /// Starts zones. Holds the ports every epoch needs.
 pub struct ZoneBootstrap {
+    phase3: Option<crate::domain::zone::Phase3Rules>,
     classes: Option<(Arc<crate::domain::class::ClassRegistry>, String)>,
     rules: Option<ResolvedRules>,
     log: Arc<dyn EventLog>,
@@ -94,6 +95,7 @@ impl ZoneBootstrap {
         metrics: Arc<dyn ReplayLogMetrics>,
     ) -> Self {
         Self {
+            phase3: None,
             classes: None,
             rules: None,
             log,
@@ -127,6 +129,14 @@ impl ZoneBootstrap {
         self
     }
 
+    /// Selects validated V5 rules for new epochs. Recovery never uses this bundle to
+    /// reinterpret an older epoch's recorded policy.
+    #[must_use]
+    pub fn with_phase3_rules(mut self, rules: crate::domain::zone::Phase3Rules) -> Self {
+        self.phase3 = Some(rules);
+        self
+    }
+
     /// Installs immutable Phase 2 registry and its provenance for new epochs only.
     #[must_use]
     pub fn with_classes(
@@ -153,14 +163,30 @@ impl ZoneBootstrap {
     ) -> anyhow::Result<RunningZone> {
         let epoch = self.next_epoch(def.zone).await?;
         let time_origin_ms = self.clock.now().timestamp_millis();
-        let mut state = ZoneState::new(
-            ZoneSeed {
-                zone: def.zone,
-                epoch,
-            },
-            def.bounds,
-            time_origin_ms,
-        )
+        let seed = ZoneSeed {
+            zone: def.zone,
+            epoch,
+        };
+        let mut state = if let Some(phase3) = &self.phase3 {
+            let rules = self
+                .rules
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Phase3 requires physical rules"))?;
+            let (classes, _) = self
+                .classes
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Phase3 requires class rules"))?;
+            ZoneState::new_phase3(
+                seed,
+                def.bounds,
+                time_origin_ms,
+                rules.rules.clone(),
+                classes.clone(),
+                phase3.clone(),
+            )?
+        } else {
+            ZoneState::new(seed, def.bounds, time_origin_ms)
+        }
         .with_safe_point(def.safe_point);
         if let Some(rules) = &self.rules {
             state = state
@@ -200,7 +226,9 @@ impl ZoneBootstrap {
                     }
                 }
             }
-            state = state.with_classes(registry.clone())?.with_token_policy()?;
+            if self.phase3.is_none() {
+                state = state.with_classes(registry.clone())?.with_token_policy()?;
+            }
         }
         let mut snapshot = state.snapshot();
         if let Some((_, hash)) = &self.classes {

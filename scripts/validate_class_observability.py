@@ -304,8 +304,8 @@ def validate_phase3_dashboard(data: dict) -> list[str]:
         if panel.get('datasource') != {'type': 'prometheus', 'uid': 'prometheus'}:
             errors.append(f'Phase3 panel {pid} datasource does not match Prometheus')
         desc = panel.get('description', '').lower()
-        if pid in (28, 29, 30, 33) and not all(word in desc for word in ('experimental', 'production', 'fenced')):
-            errors.append(f'Phase3 panel {pid} must disclose experimental producers and the production fence')
+        if pid in (28, 29, 30, 33) and not all(word in desc for word in ('admitted', 'hydration', 'replay')):
+            errors.append(f'Phase3 panel {pid} must disclose admitted producers and exclude hydration/replay copies')
         if pid in (33, 34) and not all(word in desc for word in ('applied', 'replayed', 'outbox')):
             errors.append(f'Phase3 panel {pid} must distinguish applied commits, replayed receipts and outbox accounting')
 
