@@ -3138,4 +3138,327 @@ mod tests {
             Some(Tick(due.0 + 1200))
         );
     }
+    fn review_transfer_fixture() -> (ZoneState, TargetBinding, TargetBinding) {
+        let (mut zone, source, observer, _) = fixture();
+        let xp20 = zone.rules.as_ref().unwrap().xp_to_level(20).unwrap();
+        if let CombatRole::Player { xp, .. } = &mut zone
+            .entities
+            .get_mut(&source.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        {
+            *xp = xp20;
+        }
+        zone.relevel(source.entity).unwrap();
+        zone.sync_passives_v5(source.entity).unwrap();
+        zone.rebuild_v5(source.entity).unwrap();
+        zone.reconcile_player_tokens(zone.next_tick, source.entity, None, &mut Vec::new());
+        for (id, pos) in [
+            (source.entity, Vec2Fixed::from_tiles(126, 128)),
+            (observer.entity, Vec2Fixed::from_tiles(127, 128)),
+        ] {
+            let old = zone.entities[&id].pos;
+            zone.entities.get_mut(&id).unwrap().pos = pos;
+            zone.aoi.relocate(id, old, pos);
+        }
+        review_learn(&mut zone, source.entity, 1045);
+        let started = zone
+            .run_tick(zone.draft(vec![review_input(
+                source.entity,
+                1,
+                ZoneCommand::CastSkill {
+                    entity: source.entity,
+                    skill_id: crate::domain::zone::skill::SkillId(1045),
+                    target: Some(source.entity),
+                },
+            )]))
+            .unwrap();
+        assert!(started.dispositions.is_empty(), "{:?}", started.dispositions);
+        review_complete(&mut zone, source);
+        assert!(!zone
+            .sidecar(source.entity)
+            .unwrap()
+            .effects
+            .entries()
+            .is_empty());
+        // The retained buff is external to the transferable paid skill ledger. The
+        // helper temporarily grants its caster rank solely to exercise real onStart.
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&source.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            panic!("player")
+        };
+        p.class_state
+            .learned_skills
+            .retain(|s| s.key != "l2.skill.1045");
+        p.class_state
+            .learned_skills
+            .iter_mut()
+            .find(|s| s.key == "l2.skill.1177")
+            .unwrap()
+            .level = 2;
+        let valid = p.class_state.validate_for_phase3(
+            zone.classes.as_ref().unwrap(),
+            &p.identity,
+            crate::domain::CharacterId::from_uuid(source.entity.as_uuid()),
+        );
+        assert!(valid.is_ok(), "{valid:?}: {:?}", p.class_state);
+        (zone, source, observer)
+    }
+
+    #[test]
+    fn review_v5_class_transfer_preserves_paid_ranks_effects_ratios_and_frozen_retry() {
+        use crate::domain::zone::transfer_resource;
+        let (mut zone, source, observer) = review_transfer_fixture();
+        let key = Uuid::from_u128(777);
+        let command = ZoneCommand::ChangeClass {
+            entity: source.entity,
+            account: AccountId::from_uuid(source.entity.as_uuid()),
+            request_key: key,
+            target: ClassId(15),
+        };
+        let c = zone
+            .entities
+            .get_mut(&source.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        c.hp = c.sheet.max_hp() / 2;
+        c.mp = c.sheet.max_mp() / 2;
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut c.role
+        else {
+            panic!("player")
+        };
+        p.class_state.cp = p.max_cp / 2;
+        let old = (c.hp, c.sheet.max_hp(), c.mp, c.sheet.max_mp(), p.class_state.cp, p.max_cp);
+        let effects = zone.sidecar(source.entity).unwrap().effects.clone();
+        let mut cold = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+        let inputs = vec![review_input(source.entity, 2, command.clone())];
+        let tick = zone.run_tick(zone.draft(inputs.clone())).unwrap();
+        assert_eq!(tick, cold.run_tick(cold.draft(inputs)).unwrap());
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        let receipt = tick
+            .events
+            .iter()
+            .find_map(|e| {
+                if let ZoneEvent::ClassTransfer { receipt, .. } = e {
+                    Some(receipt.as_ref().clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        let c = zone.entities[&source.entity].combat.as_ref().unwrap();
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &c.role
+        else {
+            panic!("player")
+        };
+        assert_eq!(p.class_state.current_class_id, ClassId(15));
+        assert_eq!(p.class_state.token_tier_1_count, 0);
+        assert!(p
+            .class_state
+            .learned_skills
+            .iter()
+            .any(|s| s.key == "l2.skill.1177" && s.level == 2));
+        assert_eq!(zone.sidecar(source.entity).unwrap().effects, effects);
+        assert_eq!(c.hp, transfer_resource(old.0, old.1, c.sheet.max_hp(), 1));
+        assert_eq!(c.mp, transfer_resource(old.2, old.3, c.sheet.max_mp(), 0));
+        assert_eq!(p.class_state.cp, transfer_resource(old.4, old.5, p.max_cp, 0));
+        assert_eq!(
+            (
+                receipt.result.hp,
+                receipt.result.max_hp,
+                receipt.result.mp,
+                receipt.result.max_mp,
+                receipt.result.cp,
+                receipt.result.max_cp
+            ),
+            (c.hp, c.sheet.max_hp(), c.mp, c.sheet.max_mp(), p.class_state.cp, p.max_cp)
+        );
+        assert!(!tick.outputs[&observer.entity].iter().any(|o|matches!(o,ObserverOutput::Event(ZoneEvent::StatsChanged {entity,..}) if *entity==source.entity)));
+        assert!(tick.outputs[&observer.entity].iter().any(|o|matches!(o,ObserverOutput::Event(ZoneEvent::ClassChanged {entity,class_id,..}) if *entity==source.entity && *class_id==ClassId(15))));
+        let mut cold = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+        for _ in 0..35 {
+            assert_eq!(
+                zone.run_tick(zone.draft(Vec::new())).unwrap(),
+                cold.run_tick(cold.draft(Vec::new())).unwrap()
+            );
+        }
+        let retry = zone
+            .run_tick(zone.draft(vec![review_input(source.entity, 3, command)]))
+            .unwrap();
+        assert!(retry.dispositions.is_empty());
+        assert!(!retry
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::ClassTransfer { .. })));
+        assert_eq!(
+            zone.class_player(
+                source.entity,
+                AccountId::from_uuid(source.entity.as_uuid()),
+                SessionGeneration(1)
+            )
+            .unwrap()
+            .class_state
+            .receipt(key),
+            Some(&receipt)
+        );
+    }
+
+    #[test]
+    fn review_transfer_freezes_final_receipt_after_same_tick_buff_expiry() {
+        let (mut zone, source, _) = review_transfer_fixture();
+        let now = zone.next_tick;
+        let side = zone.sidecar_mut(source.entity).unwrap();
+        let mut entries = side.effects.entries().clone();
+        for effect in entries.values_mut() {
+            effect.expires_at = Some(now);
+        }
+        side.effects = EffectList::from_entries(entries).unwrap();
+        let key = Uuid::from_u128(778);
+        let tick = zone
+            .run_tick(zone.draft(vec![review_input(
+                source.entity,
+                2,
+                ZoneCommand::ChangeClass {
+                    entity: source.entity,
+                    account: AccountId::from_uuid(source.entity.as_uuid()),
+                    request_key: key,
+                    target: ClassId(15),
+                },
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert!(zone
+            .sidecar(source.entity)
+            .unwrap()
+            .effects
+            .entries()
+            .is_empty());
+        let p = zone
+            .class_player(
+                source.entity,
+                AccountId::from_uuid(source.entity.as_uuid()),
+                SessionGeneration(1),
+            )
+            .unwrap();
+        let result = &p.class_state.receipt(key).unwrap().result;
+        let c = zone.entities[&source.entity].combat.as_ref().unwrap();
+        assert_eq!((result.hp, result.max_hp), (c.hp, c.sheet.max_hp()));
+        assert!(ZoneState::from_snapshot(zone.snapshot()).is_ok());
+    }
+
+    #[test]
+    fn review_transfer_rejects_prior_staged_cast_and_invalid_target_without_partial_mutation() {
+        for staged in [false, true] {
+            let (mut zone, source, _) = review_transfer_fixture();
+            let before = zone.snapshot();
+            let mut commands = Vec::new();
+            if staged {
+                commands.push(review_input(
+                    source.entity,
+                    2,
+                    ZoneCommand::CastSkill {
+                        entity: source.entity,
+                        skill_id: crate::domain::zone::skill::SkillId(1177),
+                        target: Some(source.entity),
+                    },
+                ));
+            }
+            commands.push(review_input(
+                source.entity,
+                3,
+                ZoneCommand::ChangeClass {
+                    entity: source.entity,
+                    account: AccountId::from_uuid(source.entity.as_uuid()),
+                    request_key: Uuid::from_u128(779),
+                    target: if staged { ClassId(15) } else { ClassId(1) },
+                },
+            ));
+            let tick = zone.run_tick(zone.draft(commands)).unwrap();
+            assert!(tick.dispositions.iter().any(|d| d.seq == Some(3)
+                && d.reason
+                    == if staged {
+                        RejectReason::InCombat
+                    } else {
+                        RejectReason::TransferIneligible
+                    }));
+            assert!(!tick.events.iter().any(|e| matches!(
+                e,
+                ZoneEvent::ClassTransfer { .. } | ZoneEvent::EffectRemoved { .. }
+            )));
+            let original = before
+                .entities
+                .iter()
+                .find(|e| e.id == source.entity)
+                .unwrap();
+            let c = zone.entities[&source.entity].combat.as_ref().unwrap();
+            assert_eq!(c.role, original.combat.as_ref().unwrap().role);
+        }
+    }
+
+    #[test]
+    fn review_transfer_filters_nonretained_effects_without_replaying_start_hooks() {
+        let (mut zone, source, _) = review_transfer_fixture();
+        let side = zone.sidecar_mut(source.entity).unwrap();
+        let mut entries = side.effects.entries().clone();
+        // Explicit lifecycle-flag fixture: current executable buffs all retain on transfer.
+        // Exercise the future data-driven false branch without changing registry input.
+        for effect in entries.values_mut() {
+            effect.flags.stay_on_subclass_change = false;
+        }
+        side.effects = EffectList::from_entries(entries).unwrap();
+        let before = zone.rng.get_word_pos();
+        let tick = zone
+            .run_tick(zone.draft(vec![review_input(
+                source.entity,
+                2,
+                ZoneCommand::ChangeClass {
+                    entity: source.entity,
+                    account: AccountId::from_uuid(source.entity.as_uuid()),
+                    request_key: Uuid::from_u128(780),
+                    target: ClassId(15),
+                },
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert!(zone
+            .sidecar(source.entity)
+            .unwrap()
+            .effects
+            .entries()
+            .is_empty());
+        assert!(tick.events.iter().any(|e| matches!(
+            e,
+            ZoneEvent::EffectRemoved {
+                reason: effects::EffectRemoveReason::Transfer,
+                ..
+            }
+        )));
+        assert!(!tick
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::EffectApplied { .. })));
+        assert_eq!(zone.rng.get_word_pos(), before);
+        assert!(ZoneState::from_snapshot(zone.snapshot()).is_ok());
+    }
 }

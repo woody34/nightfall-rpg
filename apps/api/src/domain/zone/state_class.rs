@@ -327,7 +327,7 @@ impl ZoneState {
                             || combat.swing.is_some_and(|s| s.target == entity)
                     })
             });
-        if engaged {
+        if engaged || (self.complete_runtime_v5() && self.engaged_for_learning(entity)) {
             unmet.push(RejectReason::InCombat);
         }
         if !e
@@ -479,6 +479,7 @@ impl ZoneState {
             .unwrap_or_default()
     }
 
+    #[allow(clippy::too_many_lines)] // Keep the legacy transaction intact with explicit versioned ledger validation.
     pub(super) fn change_class(
         &mut self,
         tick: Tick,
@@ -541,10 +542,13 @@ impl ZoneState {
             sheet.level(),
         )
         .map_err(|_| RejectReason::InvalidLoad)?;
-        let granted_skill_keys = p
-            .class_state
-            .merge_learned_skills_checked(registry, p.identity.race, grants)
-            .map_err(|_| RejectReason::InvalidLoad)?;
+        let granted_skill_keys = if self.complete_runtime_v5() {
+            p.class_state.merge_learned_skills(grants)
+        } else {
+            p.class_state
+                .merge_learned_skills_checked(registry, p.identity.race, grants)
+                .map_err(|_| RejectReason::InvalidLoad)?
+        };
         let result = FrozenTransferResult {
             character_id: CharacterId::from_uuid(entity.as_uuid()),
             identity: p.identity.clone(),
@@ -573,9 +577,20 @@ impl ZoneState {
         p.class_state
             .record_success(receipt.clone())
             .map_err(|_| RejectReason::TransferConflict)?;
-        p.class_state
-            .validate_for(registry, &p.identity, CharacterId::from_uuid(entity.as_uuid()))
-            .map_err(|_| RejectReason::InvalidLoad)?;
+        if self.complete_runtime_v5() {
+            p.class_state.validate_for_phase3(
+                registry,
+                &p.identity,
+                CharacterId::from_uuid(entity.as_uuid()),
+            )
+        } else {
+            p.class_state.validate_for(
+                registry,
+                &p.identity,
+                CharacterId::from_uuid(entity.as_uuid()),
+            )
+        }
+        .map_err(|_| RejectReason::InvalidLoad)?;
         let e = self
             .entities
             .get_mut(&entity)

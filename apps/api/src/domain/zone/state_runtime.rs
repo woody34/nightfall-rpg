@@ -123,7 +123,7 @@ fn target_cancel(reason: RejectReason) -> CastCancelReason {
 }
 
 impl ZoneState {
-    fn complete_runtime_v5(&self) -> bool {
+    pub(super) fn complete_runtime_v5(&self) -> bool {
         self.phase3
             .as_ref()
             .is_some_and(|p| p.canonical.rules.runtime_revision() >= 2)
@@ -649,6 +649,7 @@ impl ZoneState {
             }
         }
         self.freeze_learning_v5(tick, &mut events)?;
+        self.freeze_transfers_v5(&mut events)?;
         self.phase3
             .as_mut()
             .ok_or_else(missing)?
@@ -823,7 +824,7 @@ impl ZoneState {
         if let ZoneCommand::Despawn { entity } | ZoneCommand::ReplaceSession { entity, .. } =
             command.command
         {
-            if events.iter().any(|event| matches!(event, ZoneEvent::SkillLearned { entity: learned, .. } if *learned == entity)) {
+            if events.iter().any(|event| matches!(event, ZoneEvent::SkillLearned { entity: learned, .. } | ZoneEvent::ClassTransfer { entity: learned, .. } if *learned == entity)) {
                 return Err(RejectReason::InCombat);
             }
         }
@@ -884,6 +885,9 @@ impl ZoneState {
                 self.cancel_v5(tick, *entity, *cast_id, CastCancelReason::Stopped, events);
             },
             ZoneCommand::LearnSkill { .. } => self.learn_v5(tick, command, staged, events)?,
+            ZoneCommand::ChangeClass { .. } if self.complete_runtime_v5() => {
+                self.transfer_v5(tick, command, staged, events)?;
+            },
             ZoneCommand::Respawn { entity } => events.extend(self.respawn_town_v5(tick, *entity)?),
             // Capability refusals belong to this command's recorded disposition. Holding
             // the whole draft would permanently block an experimental actor's FIFO.
