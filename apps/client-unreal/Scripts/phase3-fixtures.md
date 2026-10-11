@@ -381,3 +381,15 @@ The producer dependency is resolved. Full twelve-gate acceptance still requires
 recordings containing each scenario's actual transition and independently covered
 numeric inputs. Unsupported inputs never inherit a guessed oracle index or an
 acceptance flag; synthetic or corrupted test rows are not acceptance evidence.
+
+### Phase1a V5 overlays (C16)
+
+`sim_unit_prepare` generates a private `phase1a-data` rules tree before starting
+Phase1a clients. Every `apps/api/fixtures/phase1a-*/npcs/*.toml` retains its physical
+inputs and receives the generated Young Keltir profile copied from shipped data.
+Provenance: pinned datapack `3ca488dd`, `20500-20599.xml:3648-3661`; template scalar
+conversion: pinned game `abfde049`, `NpcData.java:164-185`, `L2CharTemplate.java:105-112`,
+`StatsSet.java:241-247`. The existing `phase1a-social-aggro/fixture.toml:4` zero-speed
+override applies to both the zone and the validated V5 physical profile before hashing.
+It does not change the source template or production rules. The Rust bootstrap test
+starts both selected fixtures under V5 and checks the rooted social NPCs.

@@ -472,6 +472,19 @@ sim_fixture_finish() {
 
 sim_unit_prepare() {
   local selected="$1" mode="$2"; shift 2
+  if [[ "$selected" == phase1a-* && "$mode" == start ]]; then
+    sim_api_cleanup
+    export RULES_DIR="$ARTIFACTS/phase1a-data"
+    python3 "$SIM_HERE/phase3-fixtures.py" "$RULES_DIR" "$SIM_REPO" "$selected" \
+      || sim_die "Phase1a V5 overlay generation failed"
+    if [[ "$selected" == phase1a-social-aggro ]]; then
+      unset ZONE_FILE
+      export ZONE_SIM_FIXTURE="$selected"
+    else
+      unset ZONE_SIM_FIXTURE
+      export ZONE_FILE="$RULES_DIR/zones/test_zone.toml"
+    fi
+  fi
   if [[ "$selected" != phase2-* && "$selected" != phase3-* ]]; then
     [[ -n "$SIM_STARTED_API_PID" ]] || sim_api_prepare "$mode"
     return

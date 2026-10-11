@@ -60,6 +60,20 @@ class Phase3Tests(unittest.TestCase):
                 self.assertEqual(seed['roles']['owner']['class_id'], 10)
                 self.assertNotIn('1016', seed['roles']['owner']['learned_ranks'])
 
+    def test_every_phase1a_template_has_pinned_profile_without_physical_changes(self):
+        shipped = tomllib.loads((fixture.REPO / 'packages/data/npcs/keltir.toml').read_text())
+        for selected in ('phase1a-late-entry', 'phase1a-social-aggro'):
+            dest = self.root / selected
+            fixture.phase3.create_phase1a_overlay(dest, fixture.REPO, selected)
+            for original in sorted((fixture.REPO / 'apps/api/fixtures').glob('phase1a-*/npcs/*.toml')):
+                npc = tomllib.loads((dest / 'npcs' / original.name).read_text())
+                self.assertEqual(npc.pop('phase3'), shipped['phase3'])
+                self.assertEqual(npc.pop('sp_reward'), shipped['sp_reward'])
+                self.assertEqual(npc, tomllib.loads(original.read_text()))
+            before = fixture.phase3.tree_hashes(dest)
+            fixture.phase3.upgrade_npc_overlays(dest, fixture.REPO)
+            self.assertEqual(before, fixture.phase3.tree_hashes(dest))
+
     def test_phase2_overlay_is_validated_production_policy(self):
         for pack in sorted(fixture.token_fixtures.TOKEN_CROSSING):
             dest = self.root / pack

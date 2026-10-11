@@ -160,6 +160,39 @@ fn generated_overlay_and_all_seed_roles_pass_real_admission() -> anyhow::Result<
                 load_zone(&data.join("zones/test_zone.toml"))?,
             )?;
         }
+        for fixture in ["phase1a-late-entry", "phase1a-social-aggro"] {
+            let data = temporary.join(fixture);
+            let config = nightfall_api::zone_runtime::ZoneRuntimeConfig {
+                rules_dir: Some(data.clone()),
+                zone_file: (fixture == "phase1a-late-entry")
+                    .then(|| data.join("zones/test_zone.toml")),
+                simulation_fixture: (fixture == "phase1a-social-aggro").then(|| fixture.to_owned()),
+                auth_dev_tokens: true,
+                phase3_enabled: Some("1".into()),
+            };
+            let prepared = config
+                .prepare_phase3(load_classes(&ClassSource::from_dir(&data)?)?)?
+                .context("V5 fixture required")?;
+            let mut state = prepared.state(
+                ZoneSeed {
+                    zone: prepared.zone.zone,
+                    epoch: 1,
+                },
+                0,
+            )?;
+            state.run_tick(state.draft(Vec::new()))?;
+            let snapshot = state.snapshot();
+            ensure!(snapshot.phase3.is_some(), "fixture lost V5 policy");
+            if fixture == "phase1a-social-aggro" {
+                for entity in snapshot
+                    .entities
+                    .iter()
+                    .filter(|entity| entity.ai.is_some())
+                {
+                    ensure!(entity.speed.milli_tiles_per_tick() == 0, "rooted fixture moved");
+                }
+            }
+        }
         let target = root.join("npcs/skill_target.toml");
         let source = std::fs::read_to_string(&target)?;
         let (prefix, _) = source

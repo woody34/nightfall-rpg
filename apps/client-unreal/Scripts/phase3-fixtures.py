@@ -153,7 +153,24 @@ def upgrade_npc_overlays(destination, repo):
     for npc in sorted((destination / 'npcs').glob('*.toml')):
         text = npc.read_text()
         if 'phase3' not in tomllib.loads(text):
-            npc.write_text(text.rstrip() + f'\nsp_reward = {reward}\n\n' + suffix)
+            sp = '' if 'sp_reward' in tomllib.loads(text) else f'\nsp_reward = {reward}\n'
+            npc.write_text(text.rstrip() + sp + '\n' + suffix)
+
+
+def create_phase1a_overlay(destination, repo, selected):
+    """C16: preserve fixture physical inputs and import the pinned Young Keltir suffix."""
+    fixture = repo / 'apps/api/fixtures' / selected
+    if selected not in ('phase1a-late-entry', 'phase1a-social-aggro'):
+        raise ValueError(f'unsupported Phase1a fixture: {selected}')
+    shutil.copytree(repo / 'packages/data', destination)
+    # Include every Phase1a template, even those not selected by this zone.
+    for npc in sorted((repo / 'apps/api/fixtures').glob('phase1a-*/npcs/*.toml')):
+        shutil.copy2(npc, destination / 'npcs' / npc.name)
+    zones = sorted((fixture / 'zones').glob('*.toml'))
+    if len(zones) != 1:
+        raise ValueError('Phase1a fixture must declare exactly one zone')
+    shutil.copy2(zones[0], destination / 'zones/test_zone.toml')
+    upgrade_npc_overlays(destination, repo)
 
 
 def create_overlay(destination, repo):
@@ -193,3 +210,8 @@ def create_overlay(destination, repo):
     npc = destination / 'npcs/keltir.toml'
     npc.write_text(npc.read_text().replace('aggressive = true', 'aggressive = false').replace('clan_help_range = 8000', 'clan_help_range = 0'))
     zone.write_text(text)
+
+
+if __name__ == '__main__':
+    import sys
+    create_phase1a_overlay(Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3])

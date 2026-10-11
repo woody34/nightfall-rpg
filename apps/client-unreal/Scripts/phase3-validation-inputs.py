@@ -14,6 +14,8 @@ spec.loader.exec_module(packs)
 
 def generate(destination):
     packs.create_overlay(destination / 'data', REPO)
+    for fixture in ('phase1a-late-entry', 'phase1a-social-aggro'):
+        packs.create_phase1a_overlay(destination / fixture, REPO, fixture)
     profiles = {pack: packs.profiles(pack, REPO, True) for pack in sorted(packs.PHASE3)}
     profiles['casting-soak'] = {'owner': packs.soak_profile(REPO, packs.OWNER, packs.OBSERVER)}
     (destination / 'packs.json').write_text(json.dumps(profiles, sort_keys=True))

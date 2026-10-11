@@ -18,11 +18,15 @@ pub struct ProfileDataSource {
     pub classes: BTreeMap<String, String>,
     /// npcs/<template-key>.toml, containing the unchanged legacy prefix and typed suffix.
     pub npcs: BTreeMap<String, String>,
+    /// Explicit simulation fixture movement overrides, applied after template validation.
+    /// The resulting physical profile is hashed and checked against the selected zone.
+    pub npc_speed_overrides: BTreeMap<String, crate::domain::zone::Speed>,
 }
 impl ProfileDataSource {
     /// Immutable repository input compiled into the executable.
     pub fn embedded() -> Self {
         Self {
+            npc_speed_overrides: BTreeMap::new(),
             starter_weapon: include_str!(
                 "../../../../packages/data/tables-phase3/starter_weapon.toml"
             )
@@ -57,6 +61,7 @@ impl ProfileDataSource {
             Ok(entries)
         }
         Ok(Self {
+            npc_speed_overrides: BTreeMap::new(),
             starter_weapon: std::fs::read_to_string(
                 root.join("tables-phase3/starter_weapon.toml"),
             )?,
@@ -98,8 +103,12 @@ pub(super) fn load_profiles(source: &ProfileDataSource) -> Result<SkillProfiles,
         let npc: NpcFile =
             toml::from_str(text).map_err(|e| SkillDataError(vec![format!("{path}: {e}")]))?;
         let mut errors = Vec::new();
-        let physical = crate::infrastructure::npc_data::parse_template(&npc.id, text, &mut errors)
-            .ok_or(SkillDataError(errors))?;
+        let mut physical =
+            crate::infrastructure::npc_data::parse_template(&npc.id, text, &mut errors)
+                .ok_or(SkillDataError(errors))?;
+        if let Some(speed) = source.npc_speed_overrides.get(&npc.id) {
+            physical.move_speed = *speed;
+        }
         if path != &format!("npcs/{}.toml", npc.id)
             || profiles
                 .npcs

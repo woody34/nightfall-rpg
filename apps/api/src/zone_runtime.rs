@@ -86,15 +86,29 @@ impl ZoneRuntimeConfig {
         if !self.phase3_requested()? {
             return Ok(None);
         }
-        let source = match &self.rules_dir {
-            Some(root) => crate::infrastructure::skill_data::Phase3DataSource::from_dir(root)?,
-            None => crate::infrastructure::skill_data::Phase3DataSource::embedded(),
-        };
+        let source = self.phase3_source()?;
         let rules = match &self.rules_dir {
             Some(dir) => rules_data::load_rules_dir(dir)?,
             None => rules_data::load_rules(&rules_data::RulesSource::embedded())?,
         };
         Ok(Some(prepare_phase3_bootstrap(&source, rules, classes, self.load_zone()?)?))
+    }
+
+    fn phase3_source(&self) -> anyhow::Result<crate::infrastructure::skill_data::Phase3DataSource> {
+        let mut source = match &self.rules_dir {
+            Some(root) => crate::infrastructure::skill_data::Phase3DataSource::from_dir(root)?,
+            None => crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+        };
+        if self.simulation_fixture.as_deref() == Some("phase1a-social-aggro") {
+            // Same explicit fixture override as social_aggro_fixture; never relax
+            // production template agreement or silently copy arbitrary zone values.
+            let overrides: SimulationOverrides = toml::from_str(SOCIAL_OVERRIDES)?;
+            source.profiles.npc_speed_overrides.insert(
+                "social_aggro".into(),
+                Speed::from_milli_tiles_per_tick(overrides.npc_speed),
+            );
+        }
+        Ok(source)
     }
 
     fn load_zone(&self) -> anyhow::Result<ZoneDefinition> {
@@ -171,10 +185,7 @@ pub async fn start(
         )?,
     };
     let phase3 = if phase3_requested {
-        let source = match &cfg.rules_dir {
-            Some(root) => crate::infrastructure::skill_data::Phase3DataSource::from_dir(root)?,
-            None => crate::infrastructure::skill_data::Phase3DataSource::embedded(),
-        };
+        let source = cfg.phase3_source()?;
         anyhow::ensure!(
             deps.learning.is_some(),
             "Phase3 requires atomic learning persistence before recovery"
