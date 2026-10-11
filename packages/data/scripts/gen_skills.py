@@ -54,6 +54,11 @@ TIER_B_EFFECTS = {
     "DefenceTrait", "AttackTrait", "Passive",
 }
 
+ALLOWED_WEAPON_KINDS = {
+    "SWORD", "BLUNT", "DAGGER", "BOW", "DUAL", "POLE", "FIST", "DUALFIST",
+    "BIGSWORD", "BIGBLUNT", "ANCIENTSWORD", "RAPIER", "CROSSBOW", "DUALDAGGER", "NONE",
+}
+
 ALLOWED_OPERATE_TYPES = {"A1", "A2", "A3", "P"}
 ALLOWED_TARGET_TYPES = {"SELF", "TARGET", "ENEMY", "ENEMY_ONLY", "PC_BODY"}
 ALLOWED_AFFECT_SCOPES = {"SINGLE", "POINT_BLANK", "RANGE", "unset"}
@@ -132,7 +137,8 @@ def is_cond_allowed(elem: ET.Element) -> bool:
     if elem.tag in ("and", "or", "not"):
         return not elem.attrib and all(is_cond_allowed(child) for child in elem)
     if elem.tag == "using":
-        return set(elem.attrib.keys()) == {"kind"}
+        return (set(elem.attrib) == {"kind"}
+                and all(k.strip() in ALLOWED_WEAPON_KINDS for k in elem.attrib["kind"].split(",")))
     if elem.tag == "player":
         if set(elem.attrib.keys()) == {"canResurrect"} and elem.attrib["canResurrect"] in {"true", "false"}:
             return True
@@ -167,6 +173,10 @@ def get_cond_blockers(cond_elem: ET.Element) -> set[str]:
                 blockers.add(f"cond:{cond_sig(e)}")
             for c in e:
                 walk(c)
+        elif e.tag == "using" and set(e.attrib) == {"kind"}:
+            for value in e.attrib["kind"].split(","):
+                if value.strip() not in ALLOWED_WEAPON_KINDS:
+                    blockers.add(f"cond:using_kind:{value.strip()}")
         elif not is_cond_allowed(e):
             blockers.add(f"cond:{cond_sig(e)}")
 
@@ -245,6 +255,8 @@ def effect_params(eff: ET.Element) -> dict[str, str]:
 # Capability manifest, based on the pinned handler constructors (see README).
 ALLOWED_STAT_OPS = {"mul", "add", "sub"}
 ALL_STAT_OPS = ALLOWED_STAT_OPS | {"div", "set", "share"}
+# Only these source attributes have evaluator/export semantics.
+ALLOWED_STAT_ATTRIBUTES = {op: {"stat", "val", "order"} for op in ALL_STAT_OPS}
 ALLOWED_AFFECT_OBJECTS = {"ALL", "NOT_FRIEND"}
 TRAITS = set("NONE SWORD BLUNT DAGGER POLE FIST BOW ETC UNK_8 POISON HOLD BLEED SLEEP SHOCK DERANGEMENT BUG_WEAKNESS ANIMAL_WEAKNESS PLANT_WEAKNESS BEAST_WEAKNESS DRAGON_WEAKNESS PARALYZE DUAL DUALFIST BOSS GIANT_WEAKNESS CONSTRUCT_WEAKNESS DEATH VALAKAS ANESTHESIA CRITICAL_POISON ROOT_PHYSICALLY ROOT_MAGICALLY RAPIER CROSSBOW ANCIENTSWORD TURN_STONE GUST PHYSICAL_BLOCKADE TARGET PHYSICAL_WEAKNESS MAGICAL_WEAKNESS DUALDAGGER DEMONIC_WEAKNESS DIVINE_WEAKNESS ELEMENTAL_WEAKNESS FAIRY_WEAKNESS HUMAN_WEAKNESS HUMANOID_WEAKNESS UNDEAD_WEAKNESS".split())
 EFFECT_PARAMS = {
@@ -398,6 +410,8 @@ def compute_all_blockers(
                         if stat_elem.tag in ALL_STAT_OPS:
                             for cond in condition_nodes(stat_elem):
                                 blockers.update(get_cond_blockers(cond))
+                            for attr in set(stat_elem.attrib) - ALLOWED_STAT_ATTRIBUTES[stat_elem.tag]:
+                                blockers.add(f"stat_attr:{attr}")
                             if stat_elem.tag not in ALLOWED_STAT_OPS:
                                 blockers.add(f"op:{stat_elem.tag}")
                             stat_name = stat_elem.attrib.get("stat", "")
@@ -444,10 +458,17 @@ def generate_skill_toml(
     def field(key: str, default, convert=str, force_array=False):
         return resolved(raw_sets.get(key, str(default)), convert, force_array)
 
+    condition_tables = {}
+
     def conditions(elem: ET.Element) -> dict:
         conds = condition_elements(elem)
         result = {}
         if conds:
+            for cond in conds:
+                for node in cond.iter():
+                    for value in node.attrib.values():
+                        if value.startswith("#"):
+                            condition_tables[value] = expand(value, tables, levels)
             result["raw_conditions"] = [re.sub(r">\s+<", "><", ET.tostring(c, encoding="unicode").strip()) for c in conds]
             result["conditions"] = [parse_cond_node(ch) for ch in condition_nodes(elem)]
         return result
@@ -528,6 +549,8 @@ def generate_skill_toml(
                 for ch in eff:
                     if ch.tag in ALL_STAT_OPS:
                         stat = {"op": ch.tag, "stat": ch.get("stat", ""), "value": resolved(ch.get("val", ""), force_array=True)}
+                        if set(ch.attrib) - ALLOWED_STAT_ATTRIBUTES[ch.tag]:
+                            stat["raw_attributes"] = dict(ch.attrib)
                         if "order" in ch.attrib:
                             stat["order"] = resolved(ch.attrib["order"], int)
                         stat.update(conditions(ch))
@@ -535,6 +558,9 @@ def generate_skill_toml(
                 entry["stat_children"] = stats
                 effects.append(entry)
     data["effects"] = effects
+    if condition_tables:
+        # Values are indexed by skill level - 1; normalized refs retain their exact XML names.
+        data["condition_tables"] = dict(sorted(condition_tables.items()))
     lines = [SKILL_HEADER.rstrip(), ""]
     if is_sample_only:
         lines.append("# Out-of-scope sample only; do not ship in runtime registry.")

@@ -887,7 +887,11 @@ impl<'a> Actor<'a> {
                     | ZoneCommand::ReplaceSession { entity, generation } => {
                         entity == self.entity && generation == self.generation
                     },
-                    ZoneCommand::ChangeClass { .. }
+                    ZoneCommand::CastSkill { .. }
+                    | ZoneCommand::CancelCast { .. }
+                    | ZoneCommand::AcceptResurrect { .. }
+                    | ZoneCommand::LearnSkill { .. }
+                    | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnNpc { .. }
                     | ZoneCommand::Despawn { .. }
                     | ZoneCommand::MoveTo { .. }

@@ -30,8 +30,8 @@ basic_property = "NONE"
 trait = "NONE"
 next_action_attack = false
 has_enchant_routes = false
-runtime_status = "executable"
-blockers = []
+runtime_status = "deferred"
+blockers = ["cond:using_kind:MAGIC"]
 stay_after_death = false
 stay_on_subclass_change = true
 irreplaceable_buff = false
@@ -56,5 +56,6 @@ raw_conditions = ["<not><using kind=\"MAGIC\" /></not>"]
 kind = "not"
 
 [[effects.stat_children.conditions.conditions]]
-kind = "using_kind"
-weapon_kinds = ["MAGIC"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "MAGIC" }

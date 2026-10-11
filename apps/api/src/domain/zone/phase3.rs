@@ -5,22 +5,170 @@
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
+use std::collections::{BTreeMap, BTreeSet};
 
-/// Canonical Phase 3 policy, separately hashed from the historical stat/class registries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+/// Immutable Phase 3 policy, separately hashed from historical stat/class registries.
+/// Construction validates every registry capability and policy table; snapshot decoding
+/// performs the same checks without loading any external files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Phase3Rules {
-    /// Version of the paused, remaining-tick admission policy (design §5.2).
-    pub timer_policy_version: u32,
+    timer_policy_version: u32,
+    skills: super::skill::SkillRegistry,
+    pvp: super::skill_rules::PvpRules,
+    regen: super::skill_rules::RegenRules,
+    constants: super::skill_rules::Phase3Constants,
+    profiles: super::skill_profiles::SkillProfiles,
+    geometry: super::state_pvp::Phase3Geometry,
+    hash: [u8; 32],
 }
 
 impl Phase3Rules {
-    /// Hash using an explicit binary layout; never hashes a process-local representation.
-    pub fn hash(&self) -> [u8; 32] {
+    /// Assemble a validated immutable rules bundle. The timer policy is explicitly paused
+    /// offline (version one); this constructor cannot promote legacy snapshots.
+    pub fn try_new(
+        skills: super::skill::SkillRegistry,
+        pvp: super::skill_rules::PvpRules,
+        regen: super::skill_rules::RegenRules,
+        constants: super::skill_rules::Phase3Constants,
+        profiles: super::skill_profiles::SkillProfiles,
+        geometry: super::state_pvp::Phase3Geometry,
+    ) -> Result<Self, Vec<String>> {
+        let errors: Vec<_> = [
+            pvp.validate(),
+            regen.validate(),
+            constants.validate(),
+            profiles.validate(),
+            geometry.validate(),
+        ]
+        .into_iter()
+        .filter_map(Result::err)
+        .collect();
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        let timer_policy_version = 1_u32;
+        // Fixed execution constants are hashed too. Sources: character.properties:145,268
+        // (EffectTickRatio / MaxMAtkSpeed), accepted offline retention and offer policies.
+        let bytes = serde_json::to_vec(&(
+            timer_policy_version,
+            &skills,
+            &pvp,
+            &regen,
+            666_u32,
+            &constants,
+            &profiles,
+            &geometry,
+            50_u64,
+            100_u64,
+            600_u64,
+        ))
+        .map_err(|error| vec![format!("Phase3 rules canonical encoding: {error}")])?;
         let mut hash = Sha256::new();
         hash.update(b"nightfall.phase3.rules.1\0");
-        hash.update(self.timer_policy_version.to_le_bytes());
-        hash.finalize().into()
+        hash.update(bytes);
+        Ok(Self {
+            timer_policy_version,
+            skills,
+            pvp,
+            regen,
+            constants,
+            profiles,
+            geometry,
+            hash: hash.finalize().into(),
+        })
+    }
+
+    /// Class-tree references must resolve to the same rank/capability metadata in this epoch.
+    /// This prevents combining a current skill registry with an older class catalogue.
+    pub fn validate_catalogue(
+        &self,
+        classes: &crate::domain::class::ClassRegistry,
+    ) -> Result<(), String> {
+        self.profiles.validate_catalogue(classes)?;
+        for known in classes.known_skills() {
+            let skill = self
+                .skills
+                .get(super::skill::SkillId(known.id))
+                .ok_or_else(|| format!("Phase3 rules missing catalogue skill {}", known.id))?;
+            if skill.key != known.key
+                || skill.max_level != known.max_level
+                || skill.l2_ref != known.l2_ref
+                || skill.runtime_status != known.runtime_status
+                || skill.provenance.file != known.source_file
+            {
+                return Err(format!("Phase3 rules disagree with catalogue skill {}", known.id));
+            }
+        }
+        if self.skills.get(super::skill::SkillId(5076)).is_none() {
+            return Err("Phase3 rules missing system skill 5076".into());
+        }
+        Ok(())
+    }
+
+    /// Stable hash of the full rules bundle, including provenance and engine policy.
+    pub const fn hash(&self) -> [u8; 32] {
+        self.hash
+    }
+    /// Paused-timer persistence policy version.
+    pub const fn timer_policy_version(&self) -> u32 {
+        self.timer_policy_version
+    }
+    /// Capability-validated skill registry; source-only samples are absent.
+    pub const fn skills(&self) -> &super::skill::SkillRegistry {
+        &self.skills
+    }
+    /// Source flag/karma policy, with exact per-level divisors.
+    pub const fn pvp(&self) -> &super::skill_rules::PvpRules {
+        &self.pvp
+    }
+    /// Source-pinned C5 clamps/caps, included in the immutable epoch hash.
+    pub const fn constants(&self) -> &super::skill_rules::Phase3Constants {
+        &self.constants
+    }
+    /// Source class and NPC magic/regeneration inputs.
+    pub const fn profiles(&self) -> &super::skill_profiles::SkillProfiles {
+        &self.profiles
+    }
+    /// Source regeneration periods and multipliers.
+    pub const fn regen(&self) -> &super::skill_rules::RegenRules {
+        &self.regen
+    }
+    /// Explicit architect-configured peace geometry, included in the V5 policy hash.
+    pub const fn geometry(&self) -> &super::state_pvp::Phase3Geometry {
+        &self.geometry
+    }
+}
+
+impl<'de> Deserialize<'de> for Phase3Rules {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Snapshot {
+            timer_policy_version: u32,
+            skills: super::skill::SkillRegistry,
+            pvp: super::skill_rules::PvpRules,
+            regen: super::skill_rules::RegenRules,
+            constants: super::skill_rules::Phase3Constants,
+            profiles: super::skill_profiles::SkillProfiles,
+            geometry: super::state_pvp::Phase3Geometry,
+            hash: [u8; 32],
+        }
+        let snapshot = Snapshot::deserialize(deserializer)?;
+        let rules = Self::try_new(
+            snapshot.skills,
+            snapshot.pvp,
+            snapshot.regen,
+            snapshot.constants,
+            snapshot.profiles,
+            snapshot.geometry,
+        )
+        .map_err(|errors| serde::de::Error::custom(errors.join("; ")))?;
+        if snapshot.timer_policy_version != rules.timer_policy_version
+            || snapshot.hash != rules.hash
+        {
+            return Err(serde::de::Error::custom("Phase3 rules hash/policy mismatch"));
+        }
+        Ok(rules)
     }
 }
 
@@ -29,7 +177,7 @@ impl Phase3Rules {
 #[serde(deny_unknown_fields)]
 pub struct Phase3Snapshot {
     /// Complete immutable rules for this epoch, never fetched by replay.
-    pub rules: Phase3Rules,
+    pub rules: std::sync::Arc<Phase3Rules>,
     /// Verified immutable rules fingerprint.
     pub rules_hash: [u8; 32],
     /// Next spawn allocation order, independent of UUID/RNG order.
@@ -42,6 +190,8 @@ pub struct Phase3Snapshot {
     pub next_offer_id: u64,
     /// Shared passive/effect modifier installation sequence.
     pub next_install_sequence: u64,
+    /// Complete canonical combatant sidecars, ordered by entity identity.
+    pub entities: BTreeMap<super::EntityId, super::Phase3Entity>,
 }
 
 impl Phase3Snapshot {
@@ -49,12 +199,13 @@ impl Phase3Snapshot {
     pub fn new(rules: Phase3Rules) -> Self {
         Self {
             rules_hash: rules.hash(),
-            rules,
+            rules: std::sync::Arc::new(rules),
             next_entity_ordinal: 1,
             next_cast_id: 1,
             next_effect_id: 1,
             next_offer_id: 1,
             next_install_sequence: 1,
+            entities: BTreeMap::new(),
         }
     }
 
@@ -70,6 +221,63 @@ impl Phase3Snapshot {
             ]
             .iter()
             .all(|n| *n > 0)
+            && self.validate_allocations().is_ok()
+    }
+
+    /// Prove global uniqueness and that allocation never reuses any live identity. Entity
+    /// life/source validation is performed separately against the corresponding combatant.
+    pub fn validate_allocations(&self) -> Result<(), super::effects::EffectError> {
+        use super::effects::EffectError;
+        let mut ordinals = BTreeSet::new();
+        let mut casts = BTreeSet::new();
+        let mut effects = BTreeSet::new();
+        let mut offers = BTreeSet::new();
+        let mut installs = BTreeSet::new();
+        let insert = |value, next, seen: &mut BTreeSet<u64>| {
+            if value == 0 || value >= next || !seen.insert(value) {
+                Err(EffectError::Invalid("duplicate/out-of-counter live allocation"))
+            } else {
+                Ok(())
+            }
+        };
+        for entity in self.entities.values() {
+            insert(entity.ordinal.0, self.next_entity_ordinal, &mut ordinals)?;
+            if let super::CastState::Casting(cast) = &entity.cast {
+                insert(cast.id.0, self.next_cast_id, &mut casts)?;
+            }
+            for effect in entity.effects.entries().keys() {
+                insert(effect.0, self.next_effect_id, &mut effects)?;
+            }
+            if let Some(offer) = entity
+                .player
+                .as_ref()
+                .and_then(|p| p.resurrect_offer.as_ref())
+            {
+                insert(offer.id.0, self.next_offer_id, &mut offers)?;
+            }
+            for sequence in entity.modifier_install_order.keys() {
+                insert(*sequence, self.next_install_sequence, &mut installs)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Validate every sidecar against independently restored combat facts. The caller must
+    /// supply exactly all combatants, and subsequently rebuild/compare effective sheets.
+    pub fn validate_live(
+        &self,
+        combatants: &BTreeMap<super::EntityId, super::Phase3EntityContext<'_>>,
+    ) -> Result<(), super::effects::EffectError> {
+        if !self.validate() || combatants.len() != self.entities.len() {
+            return Err(super::effects::EffectError::Invalid("Phase3 sidecar cardinality/policy"));
+        }
+        for (id, context) in combatants {
+            self.entities
+                .get(id)
+                .ok_or(super::effects::EffectError::Invalid("missing combatant sidecar"))?
+                .validate_live(&self.rules, *context)?;
+        }
+        Ok(())
     }
 }
 
@@ -77,6 +285,19 @@ impl Phase3Snapshot {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Phase3Zone {
     pub(super) canonical: Phase3Snapshot,
+    pub(super) schedule: super::state_effects::Phase3Schedule,
+}
+
+impl Phase3Zone {
+    pub(super) fn from_canonical(
+        canonical: Phase3Snapshot,
+    ) -> Result<Self, super::effects::EffectError> {
+        let schedule = super::state_effects::Phase3Schedule::rebuild(&canonical.entities)?;
+        Ok(Self {
+            canonical,
+            schedule,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -86,7 +307,6 @@ pub(super) struct Phase3Zone {
     clippy::arithmetic_side_effects
 )]
 mod tests {
-    use super::*;
     use crate::application::replay_log::{decode_snapshot, encode_snapshot};
     use crate::domain::zone::*;
     use crate::infrastructure::{
@@ -104,9 +324,11 @@ mod tests {
             0,
             load_rules(&RulesSource::embedded()).unwrap().rules,
             load_classes(&ClassSource::embedded()).unwrap().registry,
-            Phase3Rules {
-                timer_policy_version: 1,
-            },
+            crate::infrastructure::skill_data::load_phase3_rules(
+                &crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+                &[],
+            )
+            .unwrap(),
         )
         .unwrap()
     }
@@ -218,10 +440,12 @@ mod tests {
     }
 
     #[test]
-    fn boundary_does_not_silently_run_legacy_gameplay() {
+    fn boundary_refuses_unintegrated_policy_before_mutation() {
         let mut zone = state();
         let before = zone.snapshot();
-        let draft = zone.draft(Vec::new());
+        let draft = zone.draft(vec![ZoneInput::system(ZoneCommand::Attack {
+            entity: EntityId::from_uuid(uuid::Uuid::from_u128(1)),
+        })]);
         assert_eq!(zone.run_tick(draft), Err(TickError::Phase3NotReady));
         assert_eq!(zone.snapshot(), before);
     }

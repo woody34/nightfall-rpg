@@ -32448,9 +32448,9 @@
     ]
   },
   "inputs_sha256": {
-    "npcs/keltir.toml": "11c39edcef97ed3c609a960472e89f120d1916b9a14bc3be7e9d8544793a4aa2",
-    "scripts/skill_oracle.py": "3bf595ff3268a19f2dd9ff1187acd1cce8fb53d2326941b09a9a975a201c60b6",
-    "tables/formulas.toml": "c45f7e5edce70459791bf2f42820dc9ac6a70f340f059845895e0f020a196338",
+    "npcs/keltir.toml": "48337cf14917534b28f670919963e3134999f57b706c6d5d98249baf3830b6db",
+    "scripts/skill_oracle.py": "99d2ecab8d729fa66698e826eb3aa12a3fe067cd5169da62ac3852c25dee45ad",
+    "tables/formulas.toml": "31fb777b853c3d62bafc58487333c1269292f7271bf0c2b68a81fcfe1ab29b23",
     "tables/pvp.toml": "aa1487a49d6ece49da1d23aa105e789ae1709c4a2899925846df7aaf178fe518",
     "tables/regen.toml": "6bfdd2933c66494251a3d92d65e5d6340a6a48c97a0eeabb72a763d9b5935f33",
     "tables/stat_bonus.toml": "f5ba322d085ebdbb41ab4f16ae7e6bdb4c0ce7b5dd4d1e4ffc011da410150f7c"

@@ -30,8 +30,8 @@ basic_property = "NONE"
 trait = "NONE"
 next_action_attack = false
 has_enchant_routes = true
-runtime_status = "executable"
-blockers = []
+runtime_status = "deferred"
+blockers = ["cond:using_kind:HEAVY"]
 stay_after_death = false
 stay_on_subclass_change = true
 irreplaceable_buff = false
@@ -53,5 +53,6 @@ value = ["1.9", "3.3", "4.8", "6.4", "8.1", "8.9", "9.8", "11.7", "12.7", "13.7"
 raw_conditions = ["<using kind=\"HEAVY\" />"]
 
 [[effects.stat_children.conditions]]
-kind = "using_kind"
-weapon_kinds = ["HEAVY"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "HEAVY" }

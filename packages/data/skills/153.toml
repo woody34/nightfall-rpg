@@ -31,7 +31,7 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["stat:rShld", "stat:sDef"]
+blockers = ["cond:using_kind:HEAVY", "stat:rShld", "stat:sDef"]
 stay_after_death = false
 stay_on_subclass_change = true
 irreplaceable_buff = false
@@ -63,5 +63,6 @@ value = ["1", "1", "1.1", "1.1"]
 raw_conditions = ["<using kind=\"HEAVY\" />"]
 
 [[effects.stat_children.conditions]]
-kind = "using_kind"
-weapon_kinds = ["HEAVY"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "HEAVY" }

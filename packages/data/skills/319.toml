@@ -30,8 +30,8 @@ basic_property = "NONE"
 trait = "NONE"
 next_action_attack = false
 has_enchant_routes = true
-runtime_status = "executable"
-blockers = []
+runtime_status = "deferred"
+blockers = ["cond:using_kind:LIGHT"]
 stay_after_death = false
 stay_on_subclass_change = true
 irreplaceable_buff = false
@@ -53,8 +53,9 @@ value = ["5", "10"]
 raw_conditions = ["<using kind=\"LIGHT\" />"]
 
 [[effects.stat_children.conditions]]
-kind = "using_kind"
-weapon_kinds = ["LIGHT"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "LIGHT" }
 
 [[effects.stat_children]]
 op = "add"
@@ -63,5 +64,6 @@ value = ["2", "3"]
 raw_conditions = ["<using kind=\"LIGHT\" />"]
 
 [[effects.stat_children.conditions]]
-kind = "using_kind"
-weapon_kinds = ["LIGHT"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "LIGHT" }

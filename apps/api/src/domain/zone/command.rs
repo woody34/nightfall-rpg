@@ -86,6 +86,44 @@ impl ZoneInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ZoneCommand {
+    /// Stage a skill start; learned rank and selected target are resolved by the zone.
+    CastSkill {
+        /// Authenticated session-owned caster.
+        entity: EntityId,
+        /// Skill identity, never client-supplied power or rank.
+        skill_id: super::skill::SkillId,
+        /// Explicit target; absent captures selection at this command ordinal.
+        target: Option<EntityId>,
+    },
+    /// Cancel a live or staged cast without refunding paid costs or reuse.
+    CancelCast {
+        /// Session-owned caster.
+        entity: EntityId,
+        /// Optional identity guard; a stale cancellation cannot stop a newer cast.
+        cast_id: Option<super::CastId>,
+    },
+    /// Accept or decline the current offer for this death incarnation.
+    AcceptResurrect {
+        /// Session-owned dead player.
+        entity: EntityId,
+        /// Exact offer identity.
+        offer_id: super::OfferId,
+        /// False declines; true stages acceptance for the new-intent phase.
+        accept: bool,
+    },
+    /// Authenticated exact-rank purchase. Receipt/reply handles stay outside simulation.
+    LearnSkill {
+        /// Session-owned player.
+        entity: EntityId,
+        /// Verified account, checked against immutable player identity.
+        account: crate::domain::AccountId,
+        /// Account/operation-scoped idempotency key.
+        request_key: uuid::Uuid,
+        /// Requested skill identity.
+        skill_id: super::skill::SkillId,
+        /// Exact purchased rank, never inferred as the next rank on a retry.
+        skill_level: u32,
+    },
     /// Authenticated class transition. Transport reply handles never enter this command.
     ChangeClass {
         /// Character entity, also present in the session source.
@@ -185,12 +223,28 @@ pub enum ZoneCommand {
 }
 
 impl ZoneCommand {
+    /// Commands whose meaning exists only in a snapshot9 / record7 epoch.
+    #[must_use]
+    pub const fn requires_phase3(&self) -> bool {
+        matches!(
+            self,
+            Self::CastSkill { .. }
+                | Self::CancelCast { .. }
+                | Self::AcceptResurrect { .. }
+                | Self::LearnSkill { .. }
+        )
+    }
+
     /// The entity the command is about. `None` for `SpawnNpc`, whose id is not known until the
     /// zone applies it.
     #[must_use]
     pub const fn entity(&self) -> Option<EntityId> {
         match self {
-            Self::ChangeClass { entity, .. }
+            Self::CastSkill { entity, .. }
+            | Self::CancelCast { entity, .. }
+            | Self::AcceptResurrect { entity, .. }
+            | Self::LearnSkill { entity, .. }
+            | Self::ChangeClass { entity, .. }
             | Self::SpawnPlayer { entity, .. }
             | Self::Despawn { entity }
             | Self::ReplaceSession { entity, .. }
@@ -210,6 +264,31 @@ impl ZoneCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RejectReason {
+    /// Phase 3 `SkillUnknown` refusal.
+    SkillUnknown,
+    /// Phase 3 `SkillNotLearned` refusal.
+    SkillNotLearned,
+    /// Phase 3 `SkillCooldown` refusal.
+    SkillCooldown,
+    /// Phase 3 `InsufficientMp` refusal.
+    InsufficientMp,
+    /// Phase 3 `InsufficientHp` refusal.
+    InsufficientHp,
+    /// Phase 3 `AlreadyCasting` refusal.
+    AlreadyCasting,
+    /// Phase 3 `Incapacitated` refusal.
+    Incapacitated,
+    /// Phase 3 `Silenced` refusal.
+    Silenced,
+    /// Phase 3 `InvalidTargetType` refusal.
+    InvalidTargetType,
+    /// Phase 3 `PeaceZone` refusal.
+    PeaceZone,
+    /// Phase 3 `WeaponCondition` refusal.
+    WeaponCondition,
+    /// Phase 3 `NoResurrectOffer` refusal.
+    NoResurrectOffer,
+
     /// Transfer key already names another target.
     TransferConflict,
     /// Target is not a playable direct child for this race and level.
@@ -259,6 +338,18 @@ impl RejectReason {
     #[must_use]
     pub const fn detail(self) -> &'static str {
         match self {
+            Self::SkillUnknown => "SkillUnknown",
+            Self::SkillNotLearned => "SkillNotLearned",
+            Self::SkillCooldown => "SkillCooldown",
+            Self::InsufficientMp => "InsufficientMp",
+            Self::InsufficientHp => "InsufficientHp",
+            Self::AlreadyCasting => "AlreadyCasting",
+            Self::Incapacitated => "Incapacitated",
+            Self::Silenced => "Silenced",
+            Self::InvalidTargetType => "InvalidTargetType",
+            Self::PeaceZone => "PeaceZone",
+            Self::WeaponCondition => "WeaponCondition",
+            Self::NoResurrectOffer => "NoResurrectOffer",
             Self::TransferConflict => "transfer key was used for a different target",
             Self::TransferIneligible => {
                 "class race, parent, level or playable tier requirement is unmet"
@@ -317,11 +408,131 @@ pub struct AppliedCommand {
     pub command: ZoneCommand,
 }
 
+/// Final owner effective sheet and policy, never public observer data.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct OwnerPhase3View {
+    pub incarnation: u32,
+    pub baseline: Option<Tick>,
+    pub pvp: super::PvpState,
+    pub death_penalty_level: u8,
+    pub effective: super::LearnedEffectiveStats,
+}
+
+/// Per-recipient skill resolution, preserving damage before and after absorption.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(missing_docs)]
+pub struct SkillTargetResult {
+    pub target: super::effects::TargetBinding,
+    pub resolution_kind: SkillResolutionKind,
+    pub outcome: SkillOutcome,
+    pub rolled: u32,
+    pub cp_absorbed: u32,
+    pub hp_removed: u32,
+    pub heal: u32,
+    pub target_hp_after: u32,
+    pub applied_effect_ids: Vec<super::effects::EffectId>,
+}
+/// Source handler classification, independent of its success.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum SkillResolutionKind {
+    Physical,
+    Magical,
+    Effect,
+    Heal,
+    Resurrection,
+}
+/// Source success/critical/resistance branch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum SkillOutcome {
+    Miss,
+    Hit,
+    Crit,
+    Resist,
+    Half,
+}
+
 /// A world fact produced on a tick. Mirrors `nightfall.v1.WorldEvent`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)] // names mirror the proto messages one to one
 pub enum ZoneEvent {
+    /// Final owner admission/replacement learned and reuse baseline.
+    #[allow(missing_docs)]
+    SkillStateSync {
+        tick: Tick,
+        entity: EntityId,
+        incarnation: u32,
+        learned: Vec<super::skill::SkillRef>,
+        reuse: BTreeMap<super::skill::SkillId, Tick>,
+        sp: u64,
+        pvp: super::PvpState,
+        death_penalty_level: u8,
+        baseline: Option<Tick>,
+    },
+    /// Actual living-killer SP credit, owner-only and capped at signed bigint maximum.
+    #[allow(missing_docs)]
+    SpGained {
+        tick: Tick,
+        entity: EntityId,
+        incarnation: u32,
+        amount: u64,
+        total: u64,
+    },
+    /// Accepted cast start, or final-state hydration after the identity batch.
+    #[allow(missing_docs)]
+    SkillCastStarted {
+        tick: Tick,
+        caster: super::effects::TargetBinding,
+        target: Option<super::effects::TargetBinding>,
+        skill: super::skill::SkillRef,
+        cast_id: super::CastId,
+        start: Tick,
+        launch_at: Tick,
+        complete_at: Tick,
+        baseline: Option<Tick>,
+    },
+    /// Ordered, observer-filtered recipient results.
+    #[allow(missing_docs)]
+    SkillCastResult {
+        tick: Tick,
+        caster: super::effects::TargetBinding,
+        cast_id: super::CastId,
+        skill: super::skill::SkillRef,
+        targets: Vec<SkillTargetResult>,
+    },
+    /// Accepted cast terminated without completion; costs and reuse are not refunded.
+    #[allow(missing_docs)]
+    SkillCastCancelled {
+        tick: Tick,
+        caster: super::effects::TargetBinding,
+        cast_id: super::CastId,
+        reason: super::state_skill::CastCancelReason,
+    },
+    /// Owner-only reuse update. Zero means ready.
+    #[allow(missing_docs)]
+    SkillReuse {
+        tick: Tick,
+        entity: EntityId,
+        incarnation: u32,
+        skill_id: super::skill::SkillId,
+        ready_at: Tick,
+    },
+    /// Final public HP/maxHP, emitted after resource-changing facts.
+    #[allow(missing_docs)]
+    VitalsChanged {
+        tick: Tick,
+        entity: EntityId,
+        hp: u32,
+        max_hp: u32,
+        incarnation: u32,
+        baseline: Option<Tick>,
+    },
     /// Public profession identity change.
     ClassChanged {
         /// Applied tick.
@@ -555,7 +766,14 @@ impl ZoneEvent {
     #[must_use]
     pub const fn tick(&self) -> Tick {
         match self {
-            Self::TokensReconciled { tick, .. }
+            Self::SkillStateSync { tick, .. }
+            | Self::SpGained { tick, .. }
+            | Self::SkillCastStarted { tick, .. }
+            | Self::SkillCastResult { tick, .. }
+            | Self::SkillCastCancelled { tick, .. }
+            | Self::SkillReuse { tick, .. }
+            | Self::VitalsChanged { tick, .. }
+            | Self::TokensReconciled { tick, .. }
             | Self::ClassChanged { tick, .. }
             | Self::ClassTransfer { tick, .. }
             | Self::EntitySpawn { tick, .. }
@@ -580,7 +798,14 @@ impl ZoneEvent {
     #[must_use]
     pub const fn entity(&self) -> EntityId {
         match self {
-            Self::TokensReconciled { entity, .. }
+            Self::SkillCastStarted { caster, .. }
+            | Self::SkillCastResult { caster, .. }
+            | Self::SkillCastCancelled { caster, .. } => caster.entity,
+            Self::SkillStateSync { entity, .. }
+            | Self::SpGained { entity, .. }
+            | Self::SkillReuse { entity, .. }
+            | Self::VitalsChanged { entity, .. }
+            | Self::TokensReconciled { entity, .. }
             | Self::ClassChanged { entity, .. }
             | Self::ClassTransfer { entity, .. }
             | Self::EntitySpawn { entity, .. }

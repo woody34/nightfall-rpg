@@ -47,10 +47,7 @@ pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
 }
 
 pub(super) fn record(bytes: &[u8], schema: u32, digested: bool) -> Result<(), CodecError> {
-    if schema < 7 {
-        message(bytes, "PbRecord", schema, digested)?;
-    }
-    Ok(())
+    message(bytes, "PbRecord", schema, digested)
 }
 
 fn varint(bytes: &mut &[u8]) -> Result<u64, CodecError> {
@@ -76,7 +73,11 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         let key = varint(&mut bytes)?;
         let tag = u32::try_from(key >> 3).map_err(|e| CodecError(e.to_string()))?;
         let wire = key & 7;
-        let (expected, mut child, json) = field(node, tag)?;
+        let (expected, mut child, json) = if schema >= 7 {
+            phase3_field(node, tag).map_or_else(|| field(node, tag), Ok)?
+        } else {
+            field(node, tag)?
+        };
         if wire != expected && !(expected == 3 && (wire == 0 || wire == 2)) {
             return Err(CodecError(format!("wrong wire type for {node}.{tag}")));
         }
@@ -96,8 +97,11 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         }
         if wire == 0 {
             let value = varint(&mut bytes)?;
-            if node == "PbDisposition" && tag == 5 && value >= 21 {
+            if schema < 7 && node == "PbDisposition" && tag == 5 && value >= 21 {
                 return Err(CodecError("Phase 3 rejection in legacy record".into()));
+            }
+            if node == "PbAcceptResurrect" && tag == 3 && value > 1 {
+                return Err(CodecError("invalid AcceptResurrect boolean".into()));
             }
         } else {
             let len =
@@ -328,5 +332,24 @@ fn field(node: &str, tag: u32) -> Result<(u64, Option<&'static str>, bool), Code
         ("PbTargetChanged", 2) => (2, None, false),
         ("PbTargetChanged", 3) => (0, None, false),
         _ => return Err(CodecError(format!("unknown legacy field {node}.{tag}"))),
+    })
+}
+
+// New messages are traversed before prost's permissive boolean/unknown-field decoding.
+// Old JSON tags keep legacy_json validation even inside record7: their grammar is frozen.
+fn phase3_field(node: &str, tag: u32) -> Option<(u64, Option<&'static str>, bool)> {
+    Some(match (node, tag) {
+        ("PbCommand", 16) => (2, Some("PbCastSkill"), false),
+        ("PbCommand", 17) => (2, Some("PbCancelCast"), false),
+        ("PbCommand", 18) => (2, Some("PbAcceptResurrect"), false),
+        ("PbCommand", 19) => (2, Some("PbLearnSkill"), false),
+        ("PbOutput", 20 | 21 | 22 | 25 | 29 | 31)
+        | ("PbCastSkill", 1 | 3)
+        | ("PbCancelCast" | "PbAcceptResurrect", 1)
+        | ("PbLearnSkill", 1..=3) => (2, None, false),
+        ("PbCastSkill" | "PbCancelCast", 2)
+        | ("PbAcceptResurrect", 2 | 3)
+        | ("PbLearnSkill", 4 | 5) => (0, None, false),
+        _ => return None,
     })
 }

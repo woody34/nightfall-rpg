@@ -298,6 +298,10 @@ fn commands(
                 }
             },
             ZoneCommand::ChangeClass { .. }
+            | ZoneCommand::CastSkill { .. }
+            | ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::LearnSkill { .. }
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }
@@ -374,7 +378,14 @@ fn facts(
                     lives.remove(&entity);
                 }
             },
-            ZoneEvent::TokensReconciled { .. }
+            ZoneEvent::SkillCastStarted { .. }
+            | ZoneEvent::SkillCastResult { .. }
+            | ZoneEvent::SkillCastCancelled { .. }
+            | ZoneEvent::SkillStateSync { .. }
+            | ZoneEvent::SpGained { .. }
+            | ZoneEvent::SkillReuse { .. }
+            | ZoneEvent::VitalsChanged { .. }
+            | ZoneEvent::TokensReconciled { .. }
             | ZoneEvent::AttackResult { .. }
             | ZoneEvent::AttackStarted { .. }
             | ZoneEvent::AttackCancelled { .. }

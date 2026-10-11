@@ -1059,6 +1059,57 @@ mod tests {
     }
 
     #[test]
+    fn oracle_manifest_has_exactly_the_families_exercised_below() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../../packages/data/fixtures/skill-oracle.json"
+        ))
+        .unwrap();
+        let formulas = fixture["formulas"].as_object().unwrap();
+        let expected: std::collections::BTreeSet<_> = [
+            "calcSkillPhysDam",
+            "calcMagicDam",
+            "calcMagicSuccess",
+            "calcEffectSuccess",
+            "effect_duration",
+            "calcAtkBreak",
+            "calcAttributeBonus",
+            "calcHpRegen",
+            "calcMpRegen",
+            "calcCpRegen",
+            "calculateKarmaGain",
+            "calculateKarmaLost",
+            "calculateSkillResurrectRestorePercent",
+            "calcCastTime",
+            "doRevive",
+            "FuncMAtkMod",
+            "FuncMDefMod",
+            "FuncMAtkSpeed",
+            "TickHp",
+            "cast_staging",
+            "Heal",
+            "FuncAtkEvasion",
+            "stun_removal_condition",
+            "getAffectLimit",
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(
+            formulas
+                .keys()
+                .map(String::as_str)
+                .collect::<std::collections::BTreeSet<_>>(),
+            expected
+        );
+        assert_eq!(
+            formulas
+                .values()
+                .map(|rows| rows.as_array().unwrap().len())
+                .sum::<usize>(),
+            1203
+        );
+    }
+
+    #[test]
     fn independent_oracle_cast_limit_karma_and_resurrection_vectors() {
         let fixture: Value = serde_json::from_str(include_str!(
             "../../../../../packages/data/fixtures/skill-oracle.json"

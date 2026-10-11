@@ -5,6 +5,8 @@
 
 #[path = "state_digest.rs"]
 mod digest;
+#[path = "state_runtime.rs"]
+mod runtime;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -351,9 +353,15 @@ pub enum SnapshotError {
 /// A draft that does not continue this zone: replay has diverged or the log has a gap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum TickError {
+    /// A new-policy command cannot enter a historical epoch, even through direct callers.
+    #[error("Phase 3 command in a legacy epoch")]
+    Phase3CommandInLegacy,
     /// The Phase 3 boundary exists, but gameplay installation is not complete.
     #[error("Phase 3 gameplay is not installed")]
     Phase3NotReady,
+    /// A checked Phase 3 invariant failed; no draft is published.
+    #[error("Phase 3 runtime invariant failed")]
+    Phase3Invariant,
     /// Application stopped before applying a lifecycle transition after a failed save.
     #[error("checkpoint persistence fence")]
     PersistenceFence,
@@ -396,10 +404,32 @@ impl ZoneSnapshot {
                 | (7, BinaryV3, true)
                 | (8, BinaryV4, true) => self.phase3.is_none(),
                 (9, BinaryV5, true) => {
-                    self.rules.is_some()
-                && self.phase3.as_ref().is_some_and(super::Phase3Snapshot::validate)
-                // The M1 boundary cannot restore unvalidated gameplay sidecars.
-                && self.entities.is_empty() && self.spawn_slots.is_empty()
+                    self.rules
+                        .as_ref()
+                        .zip(self.phase3.as_ref())
+                        .is_some_and(|(stats, phase3)| {
+                            phase3
+                                .rules
+                                .profiles()
+                                .starter_weapon
+                                .validate_physical(&stats.starter_weapon)
+                                .is_ok()
+                        })
+                        && self
+                            .phase3
+                            .as_ref()
+                            .is_some_and(super::Phase3Snapshot::validate)
+                        && self
+                            .phase3
+                            .as_ref()
+                            .is_some_and(|p| p.rules.geometry().peace_square(self.bounds).is_ok())
+                        && self
+                            .classes
+                            .as_deref()
+                            .zip(self.phase3.as_ref())
+                            .is_some_and(|(classes, phase3)| {
+                                phase3.rules.validate_catalogue(classes).is_ok()
+                            })
                 },
                 (4..=9, _, _) => false,
                 (version, _, _) => return Err(SnapshotError::Schema(version)),
@@ -487,7 +517,8 @@ impl ZoneState {
     }
 
     /// Constructs a new Phase 3 epoch explicitly with all three rule bundles.
-    /// The boundary milestone fences execution until gameplay validation is installed.
+    /// Explicit experimental runtime; service bootstrap remains fenced until Phase 3
+    /// durability and the complete handler schedule have passed their integration gates.
     pub fn new_phase3(
         seed: ZoneSeed,
         bounds: ZoneBounds,
@@ -496,6 +527,18 @@ impl ZoneState {
         classes: Arc<crate::domain::class::ClassRegistry>,
         phase3_rules: super::Phase3Rules,
     ) -> Result<Self, SnapshotError> {
+        phase3_rules
+            .validate_catalogue(&classes)
+            .map_err(SnapshotError::Rules)?;
+        phase3_rules
+            .geometry()
+            .peace_square(bounds)
+            .map_err(|error| SnapshotError::Rules(error.to_string()))?;
+        phase3_rules
+            .profiles()
+            .starter_weapon
+            .validate_physical(rules.starter_weapon())
+            .map_err(|error| SnapshotError::Rules(error.to_string()))?;
         let mut state = Self::new(seed, bounds, time_origin_ms)
             .with_rules(rules)
             .with_classes(classes)?;
@@ -503,7 +546,10 @@ impl ZoneState {
         if !canonical.validate() {
             return Err(SnapshotError::CombatMismatch);
         }
-        state.phase3 = Some(super::phase3::Phase3Zone { canonical });
+        state.phase3 = Some(
+            super::phase3::Phase3Zone::from_canonical(canonical)
+                .map_err(|error| SnapshotError::Rules(error.to_string()))?,
+        );
         state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
         state.meta.digest_version = StateDigestVersion::BinaryV5;
         Ok(state)
@@ -571,7 +617,9 @@ impl ZoneState {
         state.classes = snapshot.classes;
         state.phase3 = snapshot
             .phase3
-            .map(|canonical| super::phase3::Phase3Zone { canonical });
+            .map(super::phase3::Phase3Zone::from_canonical)
+            .transpose()
+            .map_err(|error| SnapshotError::Rules(error.to_string()))?;
         let expected_hash = state.classes.as_deref().map(registry_hash).transpose()?;
         if state.meta.classes_rules_hash != expected_hash {
             return Err(SnapshotError::CombatMismatch);
@@ -591,7 +639,9 @@ impl ZoneState {
             if e.combat.is_some() && state.rules.is_none() {
                 return Err(SnapshotError::CombatMismatch);
             }
-            state.validate_class_entity(&e)?;
+            if !state.phase3_enabled() {
+                state.validate_class_entity(&e)?;
+            }
             state.aoi.insert(e.id, e.pos);
             state.entities.insert(e.id, e);
         }
@@ -607,6 +657,9 @@ impl ZoneState {
             }
         }
         state.restore_spawns(snapshot.spawn_slots, snapshot.spawn_members)?;
+        if state.phase3_enabled() {
+            state.validate_runtime_v5()?;
+        }
         let players: Vec<(EntityId, Vec2Fixed)> = state
             .entities
             .values()
@@ -801,8 +854,11 @@ impl ZoneState {
     /// draft. A draft that does not continue this zone is refused and nothing changes.
     pub fn run_tick(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
         if self.phase3_enabled() {
-            self.run_tick_v5(&draft)
+            self.run_tick_v5(draft)
         } else {
+            if draft.commands.iter().any(|c| c.command.requires_phase3()) {
+                return Err(TickError::Phase3CommandInLegacy);
+            }
             self.run_tick_legacy(draft)
         }
     }
@@ -810,12 +866,6 @@ impl ZoneState {
     /// Policy is selected only by the validated epoch version, never registry presence.
     pub fn phase3_enabled(&self) -> bool {
         self.meta.schema_version == 9 && self.meta.digest_version == StateDigestVersion::BinaryV5
-    }
-
-    // Fail closed during the boundary milestone rather than execute legacy rules as V5.
-    fn run_tick_v5(&mut self, draft: &AppliedTickDraft) -> Result<AppliedTick, TickError> {
-        self.check_draft(draft)?;
-        Err(TickError::Phase3NotReady)
     }
 
     fn run_tick_legacy(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
@@ -928,14 +978,20 @@ impl ZoneState {
     /// Checks that `source` may issue `cmd`. Sessions may only steer or remove their own
     /// entity, and only while their generation is current; everything else is system-only.
     fn authorize(&self, source: CommandSource, cmd: &ZoneCommand) -> Result<(), RejectReason> {
-        if matches!(cmd, ZoneCommand::ChangeClass { .. }) && source == CommandSource::System {
+        if (matches!(cmd, ZoneCommand::ChangeClass { .. }) || cmd.requires_phase3())
+            && source == CommandSource::System
+        {
             return Err(RejectReason::NotPermitted);
         }
         let CommandSource::Session { entity, generation } = source else {
             return Ok(());
         };
         match cmd {
-            ZoneCommand::ChangeClass { entity: target, .. }
+            ZoneCommand::CastSkill { entity: target, .. }
+            | ZoneCommand::CancelCast { entity: target, .. }
+            | ZoneCommand::AcceptResurrect { entity: target, .. }
+            | ZoneCommand::LearnSkill { entity: target, .. }
+            | ZoneCommand::ChangeClass { entity: target, .. }
             | ZoneCommand::MoveTo { entity: target, .. }
             | ZoneCommand::StopMove { entity: target }
             | ZoneCommand::SetTarget { entity: target, .. }
@@ -951,7 +1007,11 @@ impl ZoneState {
                     Some(_) | None => Ok(()),
                 }
             },
-            ZoneCommand::ChangeClass { .. }
+            ZoneCommand::CastSkill { .. }
+            | ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::LearnSkill { .. }
+            | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::MoveTo { .. }
             | ZoneCommand::StopMove { .. }
             | ZoneCommand::SetTarget { .. }
@@ -972,6 +1032,12 @@ impl ZoneState {
         self.authorize(c.source, &c.command)?;
         self.refuse_dead_actor(c.source, &c.command)?;
         match &c.command {
+            // Only the V5 dispatcher may execute these; legacy run_tick rejects the entire
+            // draft before mutation. Keep this dispatcher exhaustive while rollout is fenced.
+            ZoneCommand::CastSkill { .. }
+            | ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::LearnSkill { .. } => Err(RejectReason::NotYetImplemented),
             ZoneCommand::ChangeClass {
                 entity,
                 account,
@@ -1106,7 +1172,9 @@ impl ZoneState {
             return Ok(());
         }
         match cmd {
-            ZoneCommand::MoveTo { entity, .. }
+            ZoneCommand::CastSkill { entity, .. }
+            | ZoneCommand::LearnSkill { entity, .. }
+            | ZoneCommand::MoveTo { entity, .. }
             | ZoneCommand::StopMove { entity }
             | ZoneCommand::SetTarget { entity, .. }
             | ZoneCommand::Attack { entity }
@@ -1117,7 +1185,9 @@ impl ZoneState {
                     Ok(())
                 }
             },
-            ZoneCommand::ChangeClass { .. }
+            ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::Respawn { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::SpawnPlayer { .. }
@@ -1405,7 +1475,14 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         ZoneEvent::ClassChanged { entity, .. }
         | ZoneEvent::EntityDied { entity, .. }
         | ZoneEvent::EntityRespawned { entity, .. } => sees(entity),
-        ZoneEvent::TokensReconciled { .. }
+        ZoneEvent::SkillCastStarted { .. }
+        | ZoneEvent::SkillCastResult { .. }
+        | ZoneEvent::SkillCastCancelled { .. }
+        | ZoneEvent::SkillStateSync { .. }
+        | ZoneEvent::SpGained { .. }
+        | ZoneEvent::SkillReuse { .. }
+        | ZoneEvent::VitalsChanged { .. }
+        | ZoneEvent::TokensReconciled { .. }
         | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
@@ -1479,7 +1556,14 @@ impl<'a> CellFacts<'a> {
                 ZoneEvent::ClassChanged { entity, .. }
                 | ZoneEvent::EntityDied { entity, .. }
                 | ZoneEvent::EntityRespawned { entity, .. } => (*entity, None, false),
-                ZoneEvent::TokensReconciled { .. }
+                ZoneEvent::SkillCastStarted { .. }
+                | ZoneEvent::SkillCastResult { .. }
+                | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::SkillStateSync { .. }
+                | ZoneEvent::SpGained { .. }
+                | ZoneEvent::SkillReuse { .. }
+                | ZoneEvent::VitalsChanged { .. }
+                | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::ClassTransfer { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }

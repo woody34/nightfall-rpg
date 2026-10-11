@@ -166,9 +166,20 @@ impl ZoneState {
         match (&self.classes, &load.progression) {
             (None, None) => {},
             (Some(registry), Some(p)) => {
-                p.class_state
-                    .validate_for(registry, &p.identity, CharacterId::from_uuid(entity.as_uuid()))
-                    .map_err(|_| RejectReason::InvalidLoad)?;
+                if self.phase3_enabled() {
+                    p.class_state.validate_for_phase3(
+                        registry,
+                        &p.identity,
+                        CharacterId::from_uuid(entity.as_uuid()),
+                    )
+                } else {
+                    p.class_state.validate_for(
+                        registry,
+                        &p.identity,
+                        CharacterId::from_uuid(entity.as_uuid()),
+                    )
+                }
+                .map_err(|_| RejectReason::InvalidLoad)?;
                 if crate::domain::character_progression::base_class_profile(
                     p.identity.base_class_id,
                 ) != Some(load.class.as_str())

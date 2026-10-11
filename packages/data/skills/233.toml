@@ -31,7 +31,7 @@ trait = "NONE"
 next_action_attack = false
 has_enchant_routes = true
 runtime_status = "deferred"
-blockers = ["stat:defCritRate"]
+blockers = ["cond:using_kind:LIGHT", "stat:defCritRate"]
 stay_after_death = false
 stay_on_subclass_change = true
 irreplaceable_buff = false
@@ -53,8 +53,9 @@ value = ["1.3", "2.2", "3.2", "4.2", "5.3", "6.8", "8.4", "10.1", "11.9", "13.7"
 raw_conditions = ["<using kind=\"LIGHT\" />"]
 
 [[effects.stat_children.conditions]]
-kind = "using_kind"
-weapon_kinds = ["LIGHT"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "LIGHT" }
 
 [[effects.stat_children]]
 op = "add"
@@ -63,8 +64,9 @@ value = ["4", "4", "6", "6", "7", "7", "7", "7", "7", "7", "7", "7", "7", "7", "
 raw_conditions = ["<using kind=\"LIGHT\" />"]
 
 [[effects.stat_children.conditions]]
-kind = "using_kind"
-weapon_kinds = ["LIGHT"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "LIGHT" }
 
 [[effects.stat_children]]
 op = "mul"
@@ -73,5 +75,6 @@ value = ["0.85", "0.85", "0.85", "0.85", "0.85", "0.85", "0.85", "0.85", "0.85",
 raw_conditions = ["<using kind=\"LIGHT\" />"]
 
 [[effects.stat_children.conditions]]
-kind = "using_kind"
-weapon_kinds = ["LIGHT"]
+kind = "unsupported"
+tag = "using"
+attrs = { kind = "LIGHT" }
