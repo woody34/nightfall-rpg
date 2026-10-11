@@ -4,18 +4,18 @@ Implementation reference for every system in the game, organised by build phase.
 depends on the ones before it. Read Phase 1 before anything else: race, class, combat, and items
 all derive from the stat formulas defined there.
 
-| Phase | Document | Scope |
-|-------|----------|-------|
-| 0 | [00-foundations.md](00-foundations.md) | Architecture, networking, persistence, data pipeline, accounts |
-| 1 | [01-stat-formulas.md](01-stat-formulas.md) | Base stats, derived stats, XP curves |
-| 2 | [02-race-and-class.md](02-race-and-class.md) | Races, class tree, transfers, subclasses |
-| 3 | [03-combat-and-skills.md](03-combat-and-skills.md) | Combat core, skills, buffs, status, elements, aggro, death, PvP, pets |
-| 4 | [04-items-and-equipment.md](04-items-and-equipment.md) | Weapons, armor, grades, consumables, enchant, augment, inventory |
-| 5 | [05-economy-and-crafting.md](05-economy-and-crafting.md) | Drops, crafting, currency sinks, vendors, player trade |
-| 6 | [06-world-and-content.md](06-world-and-content.md) | Zones, monsters and AI, travel, quests, raids, instances |
-| 7 | [07-social-systems.md](07-social-systems.md) | Party, clan, alliance, sieges, Olympiad |
-| 8 | [08-client-presentation.md](08-client-presentation.md) | Camera, UI, animation, audio, localization |
-| 9 | [09-live-operations.md](09-live-operations.md) | GM tools, anti-cheat, patching, telemetry, events |
+| Phase | Document | Scope | Status |
+|-------|----------|-------|--------|
+| 0 | [00-foundations.md](00-foundations.md) | Architecture, networking, persistence, data pipeline, accounts | Complete |
+| 1 | [01-stat-formulas.md](01-stat-formulas.md) | Base stats, derived stats, XP curves | Complete |
+| 2 | [02-race-and-class.md](02-race-and-class.md) | Races, class tree, transfers, subclasses | Complete |
+| 3 | [03-combat-and-skills.md](03-combat-and-skills.md) | Combat core, skills, buffs, status, elements, aggro, death, PvP, pets | Integration |
+| 4 | [04-items-and-equipment.md](04-items-and-equipment.md) | Weapons, armor, grades, consumables, enchant, augment, inventory | Planned |
+| 5 | [05-economy-and-crafting.md](05-economy-and-crafting.md) | Drops, crafting, currency sinks, vendors, player trade | Planned |
+| 6 | [06-world-and-content.md](06-world-and-content.md) | Zones, monsters and AI, travel, quests, raids, instances | Planned |
+| 7 | [07-social-systems.md](07-social-systems.md) | Party, clan, alliance, sieges, Olympiad | Planned |
+| 8 | [08-client-presentation.md](08-client-presentation.md) | Camera, UI, animation, audio, localization | Planned |
+| 9 | [09-live-operations.md](09-live-operations.md) | GM tools, anti-cheat, patching, telemetry, events | Planned |
 
 ## Document structure
 
@@ -59,7 +59,7 @@ architecture layers, the NATS event-bus core, idempotent endpoints, atomic trans
 per-endpoint test matrix, and the Rust standard enforced by rustfmt, clippy, workspace lints,
 and cargo-deny. Those documents win over anything in a phase document about code structure.
 
-See [docs/plans/](../plans/) for phase plans: Phase 0b and Phase 1 ([phase-1-kill-a-monster.md](../plans/phase-1-kill-a-monster.md)) are complete, and Phase 1a ([phase-1a-simulation-testing.md](../plans/phase-1a-simulation-testing.md)) is in progress. Phase 1a builds a headless Unreal bot that runs scripted gameplay scenarios in CI, back-fills them for Phases 0b–1, and makes a simulation scenario a required story of every later client epic (see E5.1 there).
+See [docs/plans/](../plans/) for phase plans: Phase 0b, Phase 1 ([phase-1-kill-a-monster.md](../plans/phase-1-kill-a-monster.md)), and Phase 2 ([phase-2-race-and-class.md](../plans/phase-2-race-and-class.md)) are complete, Phase 1a ([phase-1a-simulation-testing.md](../plans/phase-1a-simulation-testing.md)) is in progress, and Phase 3 ([phase-3-combat-and-skills.md](../plans/phase-3-combat-and-skills.md)) is in integration. Phase 1a builds a headless Unreal bot that runs scripted gameplay scenarios in CI, back-fills them for Phases 0b–1, and makes a simulation scenario a required story of every later client epic (see E5.1 there).
 See [docs/decisions/phase-1-combat.md](../decisions/phase-1-combat.md) for the Phase 1 combat decision record.
 
 ## Cross-cutting decisions

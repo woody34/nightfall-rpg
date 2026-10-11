@@ -133,13 +133,16 @@ releases output. A failed append holds the same record and prevents the next dra
   A session sends exactly this stream. The AOI is the 3x3 block of 32-tile cells, diffed
   every tick against what the player already knows. `state_digest` is SHA-256 of the
   canonical end-of-tick state (entities, hate, RNG, counters).
-- **Snapshot.** `ZoneSnapshot` (schema 5) holds full entity state including combat and AI
-  blocks, RNG state, next ordinal, AOI index, hate ledgers, spawn slots and the respawn
-  scheduler, the safe point, the stat rules themselves,
+- **Snapshot.** `ZoneSnapshot` (current: schema 9, record 7, binary V5) holds full entity state
+  including combat and AI blocks, RNG state, next ordinal, AOI index, hate ledgers, spawn slots and
+  the respawn scheduler, the safe point, the stat rules themselves,
   `time_origin_ms` and provenance (`schema_version`, `build_id`, `config_hash`, `rules_hash`,
-  `first_log_seq`), plus application checkpoint lanes. Schema 4 remains readable for replay;
-  earlier versions are refused. `ZoneState::from_snapshot` validates it. Replaying the logged
-  drafts from it reproduces the same `AppliedTick`s.
+  `first_log_seq`), plus application checkpoint lanes, progression, skills, effects, cooldowns,
+  and PvP state. Current snapshots use the compressed `NFSNAP9\0` envelope. Historical snapshot
+  schemas 4..8 (records 3..6, JsonV1/BinaryV2/BinaryV3/BinaryV4) remain readable for replay under
+  their respective historical rules; earlier versions (schemas 1–3) are refused.
+  `ZoneState::from_snapshot` validates it. Replaying the logged drafts from it reproduces the same
+  `AppliedTick`s.
 - **Wire.** `interface::zone_mapping` converts to and from `nightfall.v1` world.proto, with
   one function per message (`spawn_to_pb`, `move_to_pb`, `despawn_to_pb`, `disposition_to_pb`,
   `observer_output_to_pb`). It is the only place zone values become floats. A spawn of a moving
@@ -291,18 +294,28 @@ seq, command), dispositions, outputs, output_form }`, where `outputs` is each pl
 output encoded with `encode_outputs` (or its digest, below), in entity-id order. Replay re-runs `commands` from the snapshot
 and compares the re-encoded record **byte for byte**. Encoding: protobuf through hand-derived
 `prost` messages (schema in `replay_log/codec.rs`); serde with bincode was rejected because the
-zone's internally tagged serde enums cannot be decoded by non-self-describing formats. The
-snapshot and watermark are canonical JSON (readable in an incident);
+zone's internally tagged serde enums cannot be decoded by non-self-describing formats. Current
+Phase 3 snapshots use the compressed `NFSNAP9\0` envelope (8-byte magic `NFSNAP9\0`, little-endian
+u32 expanded length, zlib level 9 compression) containing a versioned protobuf body with
+content-deduplicated immutable rule registries, typed sidecars, and shared effect headers. Historical
+snapshots 4–6 used uncompressed canonical JSON (`serde_json`), while schemas 7 and 8 wrapped complete JSON inside
+versioned zlib envelopes (`NFSNAP7\0`, `NFSNAP8\0`). The watermark is canonical JSON.
 `zone_snapshots.snapshot` holds the same bytes as the log message, plus
 `jetstream_snapshot_seq`, `jetstream_first_seq` (filled once the first record is acked),
 `time_origin_ms`, `build_id`, `config_hash` and `schema_version`.
 
-**State digest versions (E6.5).** Snapshot schema 6 stores `digest_version`; absent in
-schemas 4/5 means JSON v1. Record schema 3 retains JSON v1, schema 4 selects binary v2;
-replay rejects a snapshot/record digest-version mismatch. New epochs use binary v2:
-SHA-256 over an explicit little-endian, length-prefixed layout (`state_digest.rs`), with
-ordered entities, hate and spawn members, plus counters and RNG. Legacy epochs keep the
-JSON algorithm on restore; output bytes are unchanged and snapshots remain JSON.
+**State digest versions (E6.5).** Current Phase 3 epochs use **Binary V5** (record schema 7,
+snapshot schema 9), covering skills, active effects, cooldowns, regeneration, and PvP state over
+an explicit little-endian binary layout (`state_digest.rs`). Snapshot schema 6 introduced
+`digest_version`; absent in legacy schemas 4/5 means JSON v1. Historical record and digest versions
+are preserved for byte-exact replay:
+- Record schema 3 / snapshot schemas 4–5: JsonV1 (canonical JSON digest)
+- Record schema 4 / snapshot schema 6: Binary V2 (little-endian layout of ordered entities, hate, spawn, counters, RNG)
+- Record schema 5 / snapshot schema 7: Binary V3 (Phase 2 identity, class ledger, transfer receipts)
+- Record schema 6 / snapshot schema 8: Binary V4 (once-ever token supply policy)
+- Record schema 7 / snapshot schema 9: Binary V5 (current: Phase 3 combat, skills, effects, regen, PvP)
+Replay rejects a snapshot/record digest-version mismatch. Legacy epochs keep their historical digest
+algorithms on restore; output bytes are unchanged and historical formats replay byte-exact.
 
 **Record size bound.** A record grows with players × AOI population (≈ 48 KB for 50 players
 each seeing 20 moves); around a thousand entities it would pass NATS `max_payload` (1 MiB by
@@ -399,13 +412,15 @@ replays both `apps/api/fixtures/sessions/two-players-v4.nfr` (movement, rejectio
 `StopMove`) and `two-players-fight-v2.nfr` (target/chase, seeded hit/miss/crit, social
 aggro/leash, kill/XP/level, corpse decay/NPC respawn, player death/delevel/protected respawn,
 `StopAttack`, mid-fight disconnect). CI also runs epoch/mid-fight byte/digest replay, codec
-round-trips, coefficient/RNG/AI/off-AOI mutations and incomplete/gap refusal tests. Both
-fixtures retain snapshot schema 4, record schema 3 and `.nfr` format 1. New snapshots use
-schema 5, adding checkpoint lanes (revision, cadence, dirty/fenced state, exact pending request
-and events). Schema 4 remains readable for replay, with empty lanes; schemas 1–3 are refused.
-Persistence recovery refuses legacy mid-fight snapshots containing players but no lanes.
-Checkpoint metadata does not enter the simulation digest; record schema and fixtures are
-unchanged. Movement v1 was retired
+round-trips, coefficient/RNG/AI/off-AOI mutations and incomplete/gap refusal tests. Historical
+fixtures retain snapshot schema 4, record schema 3 and `.nfr` format 1. Current Phase 3
+snapshots use schema 9 (record schema 7, binary V5) within the compressed `NFSNAP9\0` envelope,
+persisting checkpoint lanes (revision, cadence, dirty/fenced state, exact pending requests
+and events), class states, skill reuse, and active effects. Historical snapshot schemas 4..8
+remain readable for replay under their respective historical rules (schema 4 with empty lanes; schemas 1–3
+are refused). Persistence recovery refuses legacy mid-fight snapshots containing players but no lanes.
+Checkpoint metadata does not enter the simulation digest; historical record schemas (3..6) and fixtures
+are unchanged. Movement v1 was retired
 by E2.2, v2 by E3.4, v3 by E2.4/E2.6; older incompatible schemas are refused rather than migrated,
 and the surviving v4 movement fixture is retained unchanged. Re-record only for intended
 behaviour changes: movement uses `cargo run -p nightfall-api --example record_session`
