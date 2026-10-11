@@ -696,20 +696,29 @@ async fn real_v5_actor_byte_admission_preserves_fifo_and_terminal_inputs_never_u
     };
     use nightfall_api::application::zone_admission::RecordAdmissionPolicy;
     let (state, player, _) = setup();
+    let policy = RecordAdmissionPolicy {
+        version: 1,
+        record_budget: 20_000,
+        max_command_bytes: 16_384,
+        max_observers: 16,
+    };
+    let snapshot = state.snapshot();
+    let (ticks, _) = manual_ticks();
+    assert!(
+        ZoneActor::try_spawn_gated_with_admission(state, ticks, OpenGate, policy).is_err(),
+        "an override cannot disagree with recorded epoch inputs"
+    );
+    let mut snapshot = snapshot;
+    snapshot.meta.phase3_admission_policy = Some(Phase3AdmissionPolicy {
+        version: 1,
+        record_budget: 20_000,
+        max_command_bytes: 16_384,
+        max_observers: 16,
+    });
+    let state = ZoneState::from_snapshot(snapshot).unwrap();
     let before_rng = state.snapshot().rng;
     let (ticks, driver) = manual_ticks();
-    let actor = ZoneActor::try_spawn_gated_with_admission(
-        state,
-        ticks,
-        OpenGate,
-        RecordAdmissionPolicy {
-            version: 1,
-            record_budget: 20_000,
-            max_command_bytes: 16_384,
-            max_observers: 16,
-        },
-    )
-    .unwrap();
+    let actor = ZoneActor::spawn_gated(state, ticks, OpenGate);
     let oversized = ZoneInput::system(ZoneCommand::SpawnPlayer {
         entity: EntityId::from_uuid(Uuid::from_u128(1234)),
         name: "x".repeat(16_384),
