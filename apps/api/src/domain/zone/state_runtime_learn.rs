@@ -47,7 +47,7 @@ impl ZoneState {
             .map(|_| ())
     }
 
-    fn engaged_for_learning(&self, entity: EntityId) -> bool {
+    pub(in super::super) fn engaged_for_learning(&self, entity: EntityId) -> bool {
         let Some(e) = self.entities.get(&entity) else {
             return true;
         };
@@ -189,6 +189,184 @@ impl ZoneState {
         })
     }
 
+    /// V5 transfer is a command transaction: retained handlers never replay onStart,
+    /// paid ranks survive metadata grants, and resource ratios use final effective maxima.
+    pub(super) fn transfer_v5(
+        &mut self,
+        tick: Tick,
+        command: &AppliedCommand,
+        staged: &StagedActions,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), RejectReason> {
+        let ZoneCommand::ChangeClass {
+            entity,
+            account,
+            request_key,
+            target,
+        } = command.command
+        else {
+            return Err(RejectReason::InvalidLoad);
+        };
+        let actor = self
+            .entities
+            .get(&entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        let player = self.class_player(entity, account, actor.generation)?;
+        if player.class_state.receipt(request_key).is_some() {
+            events.extend(self.change_class(tick, entity, account, request_key, target)?);
+            return Ok(());
+        }
+        if self.engaged_for_learning(entity) || self.staged_engaged_v5(entity, staged)
+            || events.iter().any(|e| matches!(e, ZoneEvent::SkillLearned { entity: id, .. } | ZoneEvent::ClassTransfer { entity: id, .. } if *id == entity))
+        { return Err(RejectReason::InCombat); }
+        if let Some(reason) = self.transfer_unmet(entity, target).first() {
+            return Err(*reason);
+        }
+        let c = actor.combat.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let old = (
+            c.hp,
+            c.sheet.max_hp(),
+            c.mp,
+            c.sheet.max_mp(),
+            player.class_state.cp,
+            player.max_cp,
+        );
+        let old_speed = actor.speed;
+        let mut candidate = self.clone();
+        let mut changes = Vec::new();
+        let removed: Vec<_> = candidate
+            .sidecar(entity)
+            .map_err(|_| RejectReason::InvalidLoad)?
+            .effects
+            .entries()
+            .values()
+            .filter(|e| !e.flags.stay_on_subclass_change)
+            .map(|e| e.id)
+            .collect();
+        for effect in removed {
+            candidate
+                .remove_effect_v5(
+                    tick,
+                    entity,
+                    effect,
+                    crate::domain::zone::effects::EffectRemoveReason::Transfer,
+                    &mut changes,
+                )
+                .map_err(|_| RejectReason::InvalidLoad)?;
+        }
+        changes.extend(candidate.change_class(tick, entity, account, request_key, target)?);
+        candidate
+            .sync_passives_v5(entity)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        candidate
+            .rebuild_v5(entity)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        let e = candidate
+            .entities
+            .get_mut(&entity)
+            .ok_or(RejectReason::InvalidLoad)?;
+        let c = e.combat.as_mut().ok_or(RejectReason::InvalidLoad)?;
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut c.role
+        else {
+            return Err(RejectReason::InvalidLoad);
+        };
+        c.hp = crate::domain::zone::transfer_resource(old.0, old.1, c.sheet.max_hp(), 1);
+        c.mp = crate::domain::zone::transfer_resource(old.2, old.3, c.sheet.max_mp(), 0);
+        p.class_state.cp = crate::domain::zone::transfer_resource(old.4, old.5, p.max_cp, 0);
+        if e.speed != old_speed {
+            changes.push(ZoneEvent::EntityMove {
+                tick,
+                entity,
+                pos: e.pos,
+                dest: e.dest,
+                speed: e.speed,
+            });
+        }
+        candidate
+            .sidecar_mut(entity)
+            .map_err(|_| RejectReason::InvalidLoad)?
+            .fractions = ResourceFractions::default();
+        candidate
+            .freeze_transfers_v5(&mut changes)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        *self = candidate;
+        events.extend(changes);
+        Ok(())
+    }
+
+    fn staged_engaged_v5(&self, entity: EntityId, staged: &StagedActions) -> bool {
+        staged.pending_attacks().any(|(caster, target)| {
+            self.binding(caster.entity) == Some(caster)
+                && (caster.entity == entity
+                    || target.is_some_and(|t| {
+                        t.entity == entity
+                            && self
+                                .binding(entity)
+                                .is_some_and(|b| t.incarnation == Some(b.incarnation))
+                    }))
+        }) || staged.pending().any(|entry| {
+            (entry.caster.entity == entity && self.binding(entity) == Some(entry.caster))
+                || (self.hostile_skill_v5(entry.skill_id)
+                    && self.binding(entry.caster.entity) == Some(entry.caster)
+                    && entry.target.is_some_and(|t| {
+                        t.entity == entity
+                            && self
+                                .binding(entity)
+                                .is_some_and(|b| t.incarnation == Some(b.incarnation))
+                    }))
+        })
+    }
+
+    /// Freeze only newly successful receipts, after the tick's final resource/stat barriers.
+    /// Previously frozen retries never change with later gameplay or reconnects.
+    pub(super) fn freeze_transfers_v5(
+        &mut self,
+        events: &mut [ZoneEvent],
+    ) -> Result<(), TickError> {
+        for event in events {
+            let ZoneEvent::ClassTransfer {
+                entity, receipt, ..
+            } = event
+            else {
+                continue;
+            };
+            let e = self.entities.get_mut(entity).ok_or_else(missing)?;
+            let c = e.combat.as_mut().ok_or_else(missing)?;
+            let CombatRole::Player {
+                xp,
+                progression: Some(p),
+                ..
+            } = &mut c.role
+            else {
+                return Err(missing());
+            };
+            let result = &mut receipt.result;
+            result.level = c.sheet.level();
+            result.xp = *xp;
+            result.sp = p.class_state.sp;
+            result.hp = c.hp;
+            result.max_hp = c.sheet.max_hp();
+            result.mp = c.mp;
+            result.max_mp = c.sheet.max_mp();
+            result.cp = p.class_state.cp;
+            result.max_cp = p.max_cp;
+            result.position_millitiles = [e.pos.x.raw(), e.pos.y.raw()];
+            result.token_tier_1_count = p.class_state.token_tier_1_count;
+            result.token_tier_2_count = p.class_state.token_tier_2_count;
+            let stored = p
+                .class_state
+                .successful_transfer_receipts
+                .iter_mut()
+                .find(|r| r.key == receipt.key)
+                .ok_or_else(missing)?;
+            stored.result.clone_from(result);
+        }
+        Ok(())
+    }
+
     pub(super) fn learn_v5(
         &mut self,
         tick: Tick,
@@ -219,33 +397,11 @@ impl ZoneState {
         // The application serializes this already; refusing a malformed recorded draft
         // prevents two exact-rank successes from sharing one final receipt projection.
         if events.iter().any(
-            |e| matches!(e, ZoneEvent::SkillLearned { entity: learned, .. } if *learned == entity),
+            |e| matches!(e, ZoneEvent::SkillLearned { entity: learned, .. } | ZoneEvent::ClassTransfer { entity: learned, .. } if *learned == entity),
         ) {
             return Err(RejectReason::InCombat);
         }
-        if staged.pending_attacks().any(|(caster, target)| {
-            self.binding(caster.entity) == Some(caster)
-                && (caster.entity == entity
-                    || target.is_some_and(|t| {
-                        t.entity == entity
-                            && self
-                                .binding(entity)
-                                .is_some_and(|b| t.incarnation == Some(b.incarnation))
-                    }))
-        }) {
-            return Err(RejectReason::InCombat);
-        }
-        if staged.pending().any(|entry| {
-            (entry.caster.entity == entity && self.binding(entity) == Some(entry.caster))
-                || (self.hostile_skill_v5(entry.skill_id)
-                    && self.binding(entry.caster.entity) == Some(entry.caster)
-                    && entry.target.is_some_and(|t| {
-                        t.entity == entity
-                            && self
-                                .binding(entity)
-                                .is_some_and(|life| t.incarnation == Some(life.incarnation))
-                    }))
-        }) {
+        if self.staged_engaged_v5(entity, staged) {
             return Err(RejectReason::InCombat);
         }
         let skill = SkillRef {

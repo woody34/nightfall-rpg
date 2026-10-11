@@ -2119,7 +2119,7 @@ fn hashed_high_level_npc_damage_policy_is_admitted_at_epoch_boundary() {
 }
 
 #[test]
-fn unsupported_v5_intents_are_recorded_without_holding_supported_commands() {
+fn invalid_v5_intents_are_recorded_without_holding_supported_commands() {
     let (mut zone, player, npc) = setup();
     let mut replay = ZoneState::from_snapshot(
         decode_snapshot(&encode_snapshot(&zone.snapshot()).unwrap()).unwrap(),
@@ -2190,6 +2190,7 @@ fn unsupported_v5_intents_are_recorded_without_holding_supported_commands() {
                 0 => RejectReason::InvalidTargetType,
                 1 => RejectReason::NotDead,
                 2 => RejectReason::NoResurrectOffer,
+                3 => RejectReason::InCombat,
                 _ => RejectReason::NotYetImplemented,
             }
         );
