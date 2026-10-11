@@ -353,7 +353,7 @@ async fn persistent_database_without_nats_is_refused_before_adapter_or_epoch_wor
 }
 
 #[test]
-fn phase3_switch_defaults_off_and_cannot_be_enabled_by_dev_auth_or_truthy_values() {
+fn phase3_switch_retains_production_fence_and_refuses_truthy_values() {
     assert!(!config(&[]).phase3_requested().unwrap());
     assert!(!config(&[("AUTH_DEV_TOKENS", "1")])
         .phase3_requested()
@@ -362,6 +362,9 @@ fn phase3_switch_defaults_off_and_cannot_be_enabled_by_dev_auth_or_truthy_values
         .phase3_requested()
         .unwrap());
     assert!(config(&[("PHASE3_ENABLED", "1")])
+        .phase3_requested()
+        .unwrap());
+    assert!(!config(&[("ZONE_SIM_FIXTURE", "phase1a-social-aggro")])
         .phase3_requested()
         .unwrap());
     for value in ["", "true", "01", "1 ", "2"] {

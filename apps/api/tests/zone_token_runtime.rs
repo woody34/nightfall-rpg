@@ -108,8 +108,10 @@ async fn persistent_startup_with_real_broker_persists_current_policy_before_retu
     let (_dir, zone, cfg) = isolated_zone();
     let classes = load_classes(&ClassSource::embedded()).unwrap();
     let mut deps = Dependencies::in_memory();
-    deps.characters =
+    let characters =
         Arc::new(PgCharacterRepository::new(db.clone()).with_classes(classes.registry.clone()));
+    deps.characters = characters.clone();
+    deps.learning = Some(characters);
     deps.classes = Some(classes);
     let running = zone_runtime::start(&cfg, Some(&url), Some(db), &deps)
         .await

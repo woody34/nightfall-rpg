@@ -1,5 +1,5 @@
 //! Validated V5 bootstrap inputs. Preparing a bundle never opens an epoch or enables
-//! production gameplay; the composition root retains the separate domain-readiness fence.
+//! production gameplay; the composition root installs the durable checkpoint lane.
 
 use std::fmt::Write as _;
 
@@ -93,7 +93,7 @@ pub fn prepare_phase3_bootstrap(
         physical_rules_hash = %physical.config_hash,
         classes_hash = %classes.config_hash,
         zone_config_hash = %zone.config_hash,
-        "Phase3 bootstrap bundle validated; production remains fenced");
+        "Phase3 bootstrap bundle validated");
     Ok(PreparedPhase3Bootstrap {
         physical,
         classes,

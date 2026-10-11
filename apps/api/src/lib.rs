@@ -38,6 +38,9 @@ pub const DEFAULT_WS_PUBLIC_URL: &str = "ws://localhost:3000/ws";
 /// The ports the server needs, already bound to adapters.
 #[derive(Clone)]
 pub struct Dependencies {
+    /// The same character adapter's atomic checkpoint/receipt writer, installed before
+    /// recovery and actor admission. Absent adapters cannot enable paid learning.
+    pub learning: Option<Arc<dyn application::ports::LearningCheckpointRepository>>,
     /// Startup-resolved catalogue; None loads embedded validated data before services bind.
     pub classes: Option<infrastructure::class_data::ResolvedClasses>,
     /// Live session routing, installed once realtime is constructed.
@@ -75,11 +78,13 @@ impl Dependencies {
     /// everything; tests and dev setups swap in a real or test verifier explicitly.
     #[must_use]
     pub fn in_memory() -> Self {
+        let characters = Arc::new(infrastructure::memory::InMemoryCharacterRepository::default());
         Self {
+            learning: Some(characters.clone()),
             classes: None,
             class_transfers: None,
             blocked_character_names: Arc::default(),
-            characters: Arc::new(infrastructure::memory::InMemoryCharacterRepository::default()),
+            characters,
             accounts: Arc::new(infrastructure::memory::InMemoryAccountRepository::default()),
             sessions: Arc::new(infrastructure::memory::InMemorySessionRepository::default()),
             tokens: Arc::new(infrastructure::auth::DisabledVerifier),
@@ -143,6 +148,25 @@ pub fn build_grpc_services(deps: &Dependencies) -> anyhow::Result<GrpcServices> 
     })
 }
 
+/// Normal live composition: V5 enables learning/catalogue RPCs only after verifying the
+/// actor's typed checkpoint lane. Legacy actors keep their original transport policy.
+pub async fn build_live_grpc_services(
+    deps: &Dependencies,
+    realtime: &Realtime,
+) -> anyhow::Result<GrpcServices> {
+    let mut services = build_grpc_services(deps)?;
+    if realtime.sessions.zone.phase3_enabled() {
+        services.game = services.game.with_phase3(
+            interface::grpc::Phase3UseCases::for_runtime(
+                deps.characters.clone(),
+                realtime.sessions.clone(),
+            )
+            .await?,
+        );
+    }
+    Ok(services)
+}
+
 /// The real-time channel: the running zones and what every session shares.
 pub struct Realtime {
     /// The zones players are in.
@@ -161,19 +185,22 @@ pub fn start_realtime(
 ) -> Realtime {
     let zone = zones.fixture().clone();
     tokio::spawn(record_tick_stats(zone.stats(), deps.metrics.clone()));
-    zone.checkpoints
-        .install(application::checkpoint::CheckpointService::new(
-            deps.characters.clone(),
-            deps.audit.clone(),
-            Arc::new(deps.metrics.clone()),
-        ));
+    let mut checkpoints = application::checkpoint::CheckpointService::new(
+        deps.characters.clone(),
+        deps.audit.clone(),
+        Arc::new(deps.metrics.clone()),
+    );
+    if let Some(learning) = &deps.learning {
+        checkpoints = checkpoints.with_learning(learning.clone());
+    }
+    zone.checkpoints.install(checkpoints);
     let sessions = Arc::new(SessionContext {
         zone,
         registry: SessionRegistry::with_characters(deps.characters.clone()),
         audit: deps.audit.clone(),
         metrics: Arc::new(deps.metrics.clone()),
         codec: if zones.fixture().phase3_enabled() {
-            Arc::new(interface::ws::ExperimentalPhase3Codec)
+            Arc::new(interface::ws::Phase3Codec)
         } else {
             Arc::new(ProstCodec)
         },

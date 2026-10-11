@@ -1,4 +1,4 @@
-//! Production preparation validates the complete immutable bundle and remains OFF.
+//! Production startup validates the complete immutable bundle before broker work.
 #![allow(missing_docs, clippy::unwrap_used, clippy::indexing_slicing)]
 
 use api::application::replay_log::{decode_snapshot, encode_snapshot};
@@ -100,7 +100,7 @@ fn configured_zone_cannot_disagree_with_hashed_npc_profiles() {
 }
 
 #[tokio::test]
-async fn enable_request_and_bad_switches_refuse_before_broker_or_epoch_work() {
+async fn withdrawn_domain_readiness_refuses_before_broker_and_bad_switches_refuse() {
     let dependencies = api::Dependencies::in_memory();
     let cfg = ZoneRuntimeConfig {
         phase3_enabled: Some("1".into()),
@@ -112,7 +112,8 @@ async fn enable_request_and_bad_switches_refuse_before_broker_or_epoch_work() {
         .unwrap();
     assert!(failure
         .to_string()
-        .contains("DOMAIN READY has not been published"));
+        .contains("DOMAIN READY 8c35873 withdrawn"));
+    assert!(!failure.to_string().contains("PHASE3_ENABLED must"));
     for value in ["", "true", "01", "1 ", "yes", "2"] {
         let cfg = ZoneRuntimeConfig {
             phase3_enabled: Some(value.into()),

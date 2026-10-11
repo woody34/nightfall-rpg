@@ -363,11 +363,14 @@ mod tests {
     }
 }
 
-/// Phase 3 input adapter, selected only for an explicitly constructed experimental V5 zone.
+/// Phase 3 input adapter, selected by the active epoch's V5 policy.
 #[derive(Debug, Clone, Copy)]
-pub struct ExperimentalPhase3Codec;
+pub struct Phase3Codec;
 
-impl SessionCodec for ExperimentalPhase3Codec {
+/// Compatibility name for existing explicitly constructed V5 fixtures.
+pub use Phase3Codec as ExperimentalPhase3Codec;
+
+impl SessionCodec for Phase3Codec {
     fn decode(&self, entity: EntityId, frame: &[u8]) -> Result<DecodedIntent, Undecodable> {
         use crate::domain::zone::{skill::SkillId, ZoneCommand};
         let msg = pb::ClientMessage::decode(frame).map_err(|_| Undecodable)?;

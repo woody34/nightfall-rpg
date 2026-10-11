@@ -15,7 +15,7 @@ use nightfall_api::infrastructure::outbox::{JetStreamPublisher, OutboxRelay};
 use nightfall_api::infrastructure::telemetry::{self, TelemetryConfig};
 use nightfall_api::zone_runtime::{self, ZoneRuntimeConfig};
 use nightfall_api::{
-    bind, build_grpc_services, build_http_router, infrastructure, serve_grpc, serve_http,
+    bind, build_http_router, build_live_grpc_services, infrastructure, serve_grpc, serve_http,
     start_realtime, Dependencies,
 };
 use sea_orm::DatabaseConnection;
@@ -36,19 +36,18 @@ async fn main() -> anyhow::Result<()> {
 async fn run(metrics: telemetry::Metrics) -> anyhow::Result<()> {
     let cfg = Config::from_env()?;
     let shutdown = CancellationToken::new();
+    let zone_cfg = ZoneRuntimeConfig::from_env();
     let (mut deps, relay, db, audit_drain) =
-        build_dependencies(&cfg, metrics.clone(), &shutdown).await?;
+        build_dependencies(&cfg, &zone_cfg, metrics.clone(), &shutdown).await?;
     deps.metrics = metrics.clone();
     // A new zone epoch every start (plan §8 #5); closed with a watermark on the way out.
-    let zone =
-        zone_runtime::start(&ZoneRuntimeConfig::from_env(), cfg.nats_url.as_deref(), db, &deps)
-            .await?;
+    let zone = zone_runtime::start(&zone_cfg, cfg.nats_url.as_deref(), db, &deps).await?;
 
     let zones = ZoneRegistry::from_handle(zone.handle().clone());
     let sessions_shutdown = CancellationToken::new();
     let realtime = start_realtime(&deps, zones, sessions_shutdown.clone());
     deps.class_transfers = Some(realtime.sessions.clone());
-    let services = build_grpc_services(&deps)?;
+    let services = build_live_grpc_services(&deps, &realtime).await?;
     let router = build_http_router(&deps, &realtime);
 
     let (http, grpc) = bind(cfg.http_addr, cfg.grpc_addr).await?;
@@ -133,6 +132,7 @@ async fn shutdown_signal() {
 
 async fn build_dependencies(
     cfg: &Config,
+    zone_cfg: &ZoneRuntimeConfig,
     metrics: telemetry::Metrics,
     shutdown: &CancellationToken,
 ) -> anyhow::Result<(
@@ -149,10 +149,26 @@ async fn build_dependencies(
     };
     let classes = load_classes(&class_source)?;
     deps.classes = Some(classes.clone());
-    deps.characters = Arc::new(
-        infrastructure::memory::InMemoryCharacterRepository::default()
-            .with_classes(classes.registry.clone()),
+    anyhow::ensure!(
+        cfg.database_url.is_none()
+            || cfg
+                .nats_url
+                .as_deref()
+                .is_some_and(|url| !url.trim().is_empty()),
+        "persistent character runtime requires NATS_URL for durable replay before startup"
     );
+    let phase3 = zone_cfg
+        .prepare_phase3(classes.clone())?
+        .map(|bundle| Arc::new(bundle.phase3));
+    zone_cfg.validate_production_selection()?;
+    let mut memory = infrastructure::memory::InMemoryCharacterRepository::default()
+        .with_classes(classes.registry.clone());
+    if let Some(rules) = &phase3 {
+        memory = memory.with_phase3_rules(rules.clone());
+    }
+    let characters = Arc::new(memory);
+    deps.characters = characters.clone();
+    deps.learning = Some(characters);
     if let Some(path) = std::env::var_os("CHARACTER_NAME_BLOCKLIST_PATH") {
         let raw = std::fs::read_to_string(path)?;
         let mut blocked = std::collections::BTreeSet::new();
@@ -173,11 +189,15 @@ async fn build_dependencies(
 
     if let Some(url) = &cfg.database_url {
         let conn = infrastructure::postgres::connect(url).await?;
-        deps.characters = Arc::new(
-            infrastructure::postgres::PgCharacterRepository::new(conn.clone())
-                .with_classes(classes.registry.clone())
-                .with_metrics(metrics.clone()),
-        );
+        let mut characters = infrastructure::postgres::PgCharacterRepository::new(conn.clone())
+            .with_classes(classes.registry.clone())
+            .with_metrics(metrics.clone());
+        if let Some(rules) = &phase3 {
+            characters = characters.with_phase3_rules(rules.clone());
+        }
+        let characters = Arc::new(characters);
+        deps.characters = characters.clone();
+        deps.learning = Some(characters);
         deps.accounts = Arc::new(
             infrastructure::postgres::PgAccountRepository::new(conn.clone())
                 .with_metrics(metrics.clone()),
@@ -284,6 +304,7 @@ mod tests {
     async fn missing_nats_keeps_the_discard_default_and_starts_no_audit_worker() {
         let (deps, relay, db, drain) = build_dependencies(
             &config(None),
+            &ZoneRuntimeConfig::default(),
             telemetry::Metrics::detached(),
             &CancellationToken::new(),
         )
@@ -309,6 +330,7 @@ mod tests {
         JetStreamPublisher::connect(client.clone()).await.unwrap();
         let (deps, relay, db, drain) = build_dependencies(
             &config(Some(url)),
+            &ZoneRuntimeConfig::default(),
             telemetry::Metrics::detached(),
             &CancellationToken::new(),
         )
