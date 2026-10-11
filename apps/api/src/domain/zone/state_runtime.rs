@@ -775,6 +775,7 @@ impl ZoneState {
             },
         )
     }
+    #[allow(clippy::too_many_arguments)] // Start/escape range rules share life/AOI/peace guards.
     fn cast_target_v5(
         &self,
         tick: Tick,
@@ -782,6 +783,7 @@ impl ZoneState {
         target: TargetBinding,
         range: i64,
         hostile: bool,
+        escape: bool,
     ) -> Result<(), RejectReason> {
         if hostile {
             self.hostility_v5(tick, caster, target)?;
@@ -814,8 +816,16 @@ impl ZoneState {
                 .and_then(|x| dy.checked_mul(dy).and_then(|y| x.checked_add(y)))
                 .and_then(|v| v.checked_mul(1024))
                 .ok_or(RejectReason::InvalidLoad)?;
+            let collision = if escape {
+                a.combat
+                    .as_ref()
+                    .map_or(0, |c| i128::from(c.collision_radius.raw()).saturating_mul(32))
+            } else {
+                0
+            };
             let radius = i128::from(range)
                 .checked_mul(1000)
+                .and_then(|v| v.checked_add(collision))
                 .and_then(|v| v.checked_mul(v))
                 .ok_or(RejectReason::InvalidLoad)?;
             if distance > radius {
@@ -872,7 +882,12 @@ impl ZoneState {
             })
         }
         .ok_or(RejectReason::InvalidTargetType)?;
-        if hostile_skill(&skill)
+        let point_blank = skill
+            .affect_scope
+            .at(reference.rank, skill.max_level)
+            .is_some_and(|s| s == "POINT_BLANK");
+        if !point_blank
+            && hostile_skill(&skill)
             && self
                 .entities
                 .get(&target.entity)
@@ -884,7 +899,14 @@ impl ZoneState {
             .cast_range
             .at(reference.rank, skill.max_level)
             .ok_or(RejectReason::InvalidLoad)?;
-        self.cast_target_v5(tick, entry.caster, target, range, hostile_skill(&skill))?;
+        self.cast_target_v5(
+            tick,
+            entry.caster,
+            target,
+            range,
+            !point_blank && hostile_skill(&skill),
+            false,
+        )?;
         let effective = self
             .effective(entry.caster.entity)
             .map_err(|_| RejectReason::InvalidLoad)?;
@@ -911,21 +933,22 @@ impl ZoneState {
             },
         )
         .map_err(cast_reject)?;
-        let phase = self.phase3.as_mut().ok_or(RejectReason::InvalidLoad)?;
-        let side = phase
-            .canonical
-            .entities
-            .get_mut(&entry.caster.entity)
-            .ok_or(RejectReason::InvalidLoad)?;
+        let mut side = self
+            .sidecar(entry.caster.entity)
+            .map_err(|_| RejectReason::InvalidLoad)?
+            .clone();
+        let phase = self.phase3.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let mut next_cast_id = phase.canonical.next_cast_id;
         let c = self
             .entities
-            .get_mut(&entry.caster.entity)
-            .and_then(|e| e.combat.as_mut())
+            .get(&entry.caster.entity)
+            .and_then(|e| e.combat.as_ref())
             .ok_or(RejectReason::InvalidLoad)?;
-        let cast = side
+        let mut mp = c.mp;
+        let mut cast = side
             .begin_cast(
-                &mut phase.canonical.next_cast_id,
-                &mut c.mp,
+                &mut next_cast_id,
+                &mut mp,
                 c.hp,
                 CastStart {
                     now: tick,
@@ -934,14 +957,33 @@ impl ZoneState {
                     terms,
                     target: Some(target),
                     affect_limit: 0,
-                    targets: vec![target],
+                    targets: Vec::new(),
                 },
             )
             .map_err(cast_reject)?;
+        let (affect_limit, targets) =
+            self.collect_targets_v5(tick, entry.caster, target, &skill, reference.rank)?;
+        cast.affect_limit = affect_limit;
+        cast.targets = targets;
+        side.cast = CastState::Casting(cast.clone());
+        let launched = side.launch_cast(tick, cast.id, |_| true);
+        *self
+            .sidecar_mut(entry.caster.entity)
+            .map_err(|_| RejectReason::InvalidLoad)? = side;
+        self.phase3
+            .as_mut()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .next_cast_id = next_cast_id;
+        let c = self
+            .entities
+            .get_mut(&entry.caster.entity)
+            .and_then(|e| e.combat.as_mut())
+            .ok_or(RejectReason::InvalidLoad)?;
+        c.mp = mp;
         if hostile_skill(&skill) {
             c.protected_until = None;
         }
-        side.launch_cast(tick, cast.id, |_| true);
         events.push(cast_started(tick, entry.caster.entity, &cast, None));
         if cast.reuse_until > tick {
             events.push(ZoneEvent::SkillReuse {
@@ -951,6 +993,15 @@ impl ZoneState {
                 skill_id: skill.id,
                 ready_at: cast.reuse_until,
             });
+        }
+        if launched && cast.targets.is_empty() {
+            self.cancel_v5(
+                tick,
+                entry.caster.entity,
+                Some(cast.id),
+                CastCancelReason::TargetLost,
+                events,
+            );
         }
         Ok(())
     }
@@ -1002,25 +1053,19 @@ impl ZoneState {
             };
             let rules = &self.phase3.as_ref().ok_or_else(missing)?.canonical.rules;
             let skill = rules.skills().get(cast.skill.id).ok_or_else(missing)?;
-            let range = *skill
-                .effect_range
-                .at(cast.skill.rank, skill.max_level)
-                .ok_or_else(missing)?;
-            let target = cast.target.ok_or_else(missing)?;
+            let range = effect_range_v5(skill, cast.skill.rank)?;
             let caster = TargetBinding {
                 entity: work.caster,
                 incarnation: cast.caster_incarnation,
             };
-            // L2Character.java:4500-4579: the launch filters captured targets; an empty
-            // target set aborts before MP2 or damage draws, rather than waiting for impact.
-            if let Err(reason) =
-                self.cast_target_v5(tick, caster, target, range, hostile_skill(skill))
-            {
+            let (targets, reason) =
+                self.filter_targets_v5(tick, caster, &cast.targets, range, hostile_skill(skill));
+            if targets.is_empty() {
                 self.cancel_v5(tick, work.caster, Some(cast.id), target_cancel(reason), events);
                 continue;
             }
             self.sidecar_mut(work.caster)?
-                .launch_cast(tick, work.cast, |_| true);
+                .launch_cast(tick, work.cast, |target| targets.contains(&target));
         }
         let impacts = self
             .phase3
@@ -1046,16 +1091,10 @@ impl ZoneState {
                 entity: work.caster,
                 incarnation: cast.caster_incarnation,
             };
-            let Some(target) = cast.target else {
-                return Err(missing());
-            };
-            let range = *skill
-                .effect_range
-                .at(cast.skill.rank, skill.max_level)
-                .ok_or_else(missing)?;
-            if let Err(reason) =
-                self.cast_target_v5(tick, caster, target, range, hostile_skill(&skill))
-            {
+            let range = effect_range_v5(&skill, cast.skill.rank)?;
+            let (targets, reason) =
+                self.filter_targets_v5(tick, caster, &cast.targets, range, hostile_skill(&skill));
+            if targets.is_empty() {
                 self.cancel_v5(tick, work.caster, Some(cast.id), target_cancel(reason), events);
                 continue;
             }
@@ -1065,17 +1104,19 @@ impl ZoneState {
                 .effect_point
                 .get(usize::try_from(cast.skill.rank.saturating_sub(1)).map_err(invariant)?)
                 .ok_or_else(missing)?;
-            if effect_point < 0 {
-                self.add_hate(
-                    tick,
-                    target.entity,
-                    caster.entity,
-                    super::super::HateEntry {
-                        hate: effect_point.unsigned_abs(),
-                        damage: 0,
-                    },
-                    events,
-                );
+            for target in &targets {
+                if effect_point < 0 {
+                    self.add_hate(
+                        tick,
+                        target.entity,
+                        caster.entity,
+                        super::super::HateEntry {
+                            hate: effect_point.unsigned_abs(),
+                            damage: 0,
+                        },
+                        events,
+                    );
+                }
             }
             let stats = self.effective(work.caster)?;
             let (_, mp, hp) = state_skill::cast_costs(
@@ -1116,75 +1157,17 @@ impl ZoneState {
                 Ok(None) => continue,
                 Ok(Some(_)) => {},
             }
-            let continuous = self.continuous_terms_v5(caster, target, &skill, cast.skill.rank)?;
             let mut results = Vec::new();
-            for handler in skill
-                .effects
-                .iter()
-                .filter(|h| !crate::domain::zone::effects::continuous_handler(&h.name))
-            {
-                let resolve =
-                    if matches!(handler.name.as_str(), "DispelBySlot" | "DispelByCategory") {
-                        Self::dispel_handler_v5
-                    } else if matches!(handler.name.as_str(), "Heal" | "HpPerMax" | "Mp" | "Cp") {
-                        Self::restore_handler_v5
-                    } else if matches!(handler.name.as_str(), "GetAgro" | "AddHate") {
-                        Self::agro_handler_v5
-                    } else {
-                        Self::magic_handler_v5
-                    };
-                results.push(resolve(
-                    self,
+            for target in targets {
+                self.impact_target_v5(
                     tick,
                     caster,
                     target,
                     &skill,
                     cast.skill.rank,
-                    handler,
                     events,
-                )?);
-                if self
-                    .entities
-                    .get(&target.entity)
-                    .is_none_or(|e| e.targeting.dead)
-                {
-                    break;
-                }
-            }
-            if let Some((success, duration)) = continuous {
-                if success
-                    && self
-                        .entities
-                        .get(&target.entity)
-                        .is_some_and(|e| !e.targeting.dead)
-                {
-                    results.push(self.install_effect_v5(
-                        tick,
-                        caster,
-                        target,
-                        &skill,
-                        cast.skill.rank,
-                        duration,
-                        events,
-                    )?);
-                } else {
-                    results.push(SkillTargetResult {
-                        target,
-                        resolution_kind: SkillResolutionKind::Effect,
-                        outcome: SkillOutcome::Resist,
-                        rolled: 0,
-                        cp_absorbed: 0,
-                        hp_removed: 0,
-                        heal: 0,
-                        target_hp_after: self
-                            .entities
-                            .get(&target.entity)
-                            .and_then(|e| e.combat.as_ref())
-                            .ok_or_else(missing)?
-                            .hp,
-                        applied_effect_ids: Vec::new(),
-                    });
-                }
+                    &mut results,
+                )?;
             }
             self.sidecar_mut(work.caster)?.finish_cast(cast.id);
             events.push(ZoneEvent::SkillCastResult {
@@ -1194,6 +1177,73 @@ impl ZoneState {
                 skill: cast.skill,
                 targets: results,
             });
+        }
+        Ok(())
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn impact_target_v5(
+        &mut self,
+        tick: Tick,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        events: &mut Vec<ZoneEvent>,
+        results: &mut Vec<SkillTargetResult>,
+    ) -> Result<(), TickError> {
+        let continuous = self.continuous_terms_v5(caster, target, skill, rank)?;
+
+        for handler in skill
+            .effects
+            .iter()
+            .filter(|h| !crate::domain::zone::effects::continuous_handler(&h.name))
+        {
+            let resolve = if matches!(handler.name.as_str(), "DispelBySlot" | "DispelByCategory") {
+                Self::dispel_handler_v5
+            } else if matches!(handler.name.as_str(), "Heal" | "HpPerMax" | "Mp" | "Cp") {
+                Self::restore_handler_v5
+            } else if matches!(handler.name.as_str(), "GetAgro" | "AddHate") {
+                Self::agro_handler_v5
+            } else {
+                Self::magic_handler_v5
+            };
+            results.push(resolve(self, tick, caster, target, skill, rank, handler, events)?);
+            if self
+                .entities
+                .get(&target.entity)
+                .is_none_or(|e| e.targeting.dead)
+            {
+                break;
+            }
+        }
+        if let Some((success, duration)) = continuous {
+            if success
+                && self
+                    .entities
+                    .get(&target.entity)
+                    .is_some_and(|e| !e.targeting.dead)
+            {
+                results.push(
+                    self.install_effect_v5(tick, caster, target, skill, rank, duration, events)?,
+                );
+            } else {
+                results.push(SkillTargetResult {
+                    target,
+                    resolution_kind: SkillResolutionKind::Effect,
+                    outcome: SkillOutcome::Resist,
+                    rolled: 0,
+                    cp_absorbed: 0,
+                    hp_removed: 0,
+                    heal: 0,
+                    target_hp_after: self
+                        .entities
+                        .get(&target.entity)
+                        .and_then(|e| e.combat.as_ref())
+                        .ok_or_else(missing)?
+                        .hp,
+                    applied_effect_ids: Vec::new(),
+                });
+            }
         }
         Ok(())
     }
@@ -2024,7 +2074,7 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
     skill
         .affect_scope
         .at(rank, skill.max_level)
-        .is_some_and(|s| matches!(s.as_str(), "SINGLE" | "unset"))
+        .is_some_and(|s| matches!(s.as_str(), "SINGLE" | "unset" | "RANGE" | "POINT_BLANK"))
         && skill
             .target_type
             .at(rank, skill.max_level)
@@ -2097,6 +2147,13 @@ impl ZoneState {
             .any(|slot| !self.npc_profile_v5(&slot.combat, slot.speed))
         {
             return Err(TickError::Phase3NotReady);
+        }
+        if self
+            .members
+            .values()
+            .any(|m| m.respawn_at.is_some_and(|at| at <= tick) && m.incarnation == u32::MAX)
+        {
+            return Err(TickError::Phase3Invariant);
         }
         let mut spawned = Vec::new();
         self.spawn_phase(tick, &mut spawned);
@@ -2296,4 +2353,155 @@ impl ZoneState {
             applied_effect_ids: Vec::new(),
         })
     }
+}
+
+impl ZoneState {
+    /// AffectScope.java:379-403 and L2World.java:372-384: strict circular radius;
+    /// `POINT_BLANK` excludes its origin, RANGE includes its living center. C1 says a
+    /// zero width is unlimited and consumes no draw. Accepted sets retain ordinal order.
+    fn collect_targets_v5(
+        &mut self,
+        tick: Tick,
+        caster: TargetBinding,
+        anchor: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+    ) -> Result<(u32, Vec<TargetBinding>), RejectReason> {
+        let scope = skill
+            .affect_scope
+            .at(rank, skill.max_level)
+            .ok_or(RejectReason::InvalidLoad)?;
+        if matches!(scope.as_str(), "SINGLE" | "unset") {
+            return Ok((0, vec![anchor]));
+        }
+        let center = self
+            .entities
+            .get(&anchor.entity)
+            .ok_or(RejectReason::InvalidTargetType)?
+            .pos;
+        let range = skill
+            .affect_range
+            .as_ref()
+            .and_then(|v| v.at(rank, skill.max_level))
+            .copied()
+            .unwrap_or(0);
+        let radius = i128::from(range)
+            .checked_mul(1000)
+            .and_then(|v| v.checked_mul(v))
+            .ok_or(RejectReason::InvalidLoad)?;
+        let mut ordered = Vec::new();
+        for id in self.aoi.in_aoi(center) {
+            if scope == "POINT_BLANK" && id == anchor.entity {
+                continue;
+            }
+            let Some(entity) = self.entities.get(&id) else {
+                continue;
+            };
+            let Some(binding) = self.binding(id) else {
+                continue;
+            };
+            if entity.targeting.dead {
+                continue;
+            }
+            let dx = i128::from(entity.pos.x.raw())
+                .checked_sub(i128::from(center.x.raw()))
+                .ok_or(RejectReason::InvalidLoad)?;
+            let dy = i128::from(entity.pos.y.raw())
+                .checked_sub(i128::from(center.y.raw()))
+                .ok_or(RejectReason::InvalidLoad)?;
+            let distance = dx
+                .checked_mul(dx)
+                .and_then(|x| dy.checked_mul(dy).and_then(|y| x.checked_add(y)))
+                .and_then(|v| v.checked_mul(1024))
+                .ok_or(RejectReason::InvalidLoad)?;
+            if distance >= radius {
+                continue;
+            }
+            let hostile = hostile_skill(skill) || skill.affect_object == "NOT_FRIEND";
+            if self
+                .cast_target_v5(tick, caster, binding, -1, hostile, false)
+                .is_err()
+            {
+                continue;
+            }
+            // The experimental PvP fence applies to the whole action, never silently
+            // executing only its PvE recipients. It precedes costs/limit RNG.
+            if hostile && entity.kind == EntityKind::Player {
+                return Err(RejectReason::NotYetImplemented);
+            }
+            let ordinal = self
+                .sidecar(id)
+                .map_err(|_| RejectReason::InvalidLoad)?
+                .ordinal;
+            ordered.push((ordinal, id, binding));
+        }
+        ordered.sort_by_key(|(ordinal, id, _)| (*ordinal, *id));
+        let limit = skill.affect_limit;
+        if limit.width > 0
+            && limit
+                .offset
+                .checked_add(limit.width.saturating_sub(1))
+                .is_none()
+        {
+            return Err(RejectReason::InvalidLoad);
+        }
+        let sampled = if limit.width == 0 {
+            0
+        } else {
+            limit.offset.saturating_add(self.roll_below(limit.width))
+        };
+        let mut targets: Vec<_> = ordered.into_iter().map(|(_, _, target)| target).collect();
+        if sampled != 0 {
+            targets.truncate(usize::try_from(sampled).unwrap_or(usize::MAX));
+        }
+        Ok((sampled, targets))
+    }
+
+    fn filter_targets_v5(
+        &self,
+        tick: Tick,
+        caster: TargetBinding,
+        captured: &[TargetBinding],
+        range: i64,
+        hostile: bool,
+    ) -> (Vec<TargetBinding>, RejectReason) {
+        let mut targets = Vec::new();
+        let mut reason = RejectReason::InvalidTargetType;
+        for target in captured {
+            match self.cast_target_v5(tick, caster, *target, range, hostile, true) {
+                Ok(()) => targets.push(*target),
+                Err(rejected) => {
+                    reason = rejected;
+                },
+            }
+        }
+        (targets, reason)
+    }
+}
+
+/// L2Character.java:4504-4510: a positive effectRange wins; otherwise self/point-blank
+/// skills with negative castRange and affectRange>80 use that radius. Zero means no escape
+/// check. The caller adds the caster template collision radius (source :4521).
+fn effect_range_v5(skill: &SkillDef, rank: u32) -> Result<i64, TickError> {
+    let effect = *skill
+        .effect_range
+        .at(rank, skill.max_level)
+        .ok_or_else(missing)?;
+    let cast = *skill
+        .cast_range
+        .at(rank, skill.max_level)
+        .ok_or_else(missing)?;
+    let affect = skill
+        .affect_range
+        .as_ref()
+        .and_then(|v| v.at(rank, skill.max_level))
+        .copied()
+        .unwrap_or(0);
+    Ok(if effect > 0 {
+        effect
+    } else if cast < 0 && affect > 80 {
+        affect
+    } else {
+        -1
+    })
 }

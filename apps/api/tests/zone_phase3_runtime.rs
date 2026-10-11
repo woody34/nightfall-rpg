@@ -1506,3 +1506,214 @@ fn v5_slot_death_respawn_reconstructs_new_sidecar_and_replays() {
     }
     panic!("slot did not respawn");
 }
+
+fn scope_rules(scope: &str, offset: u32, width: u32) -> Phase3Rules {
+    let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+    edit_skill_rules(&rules, |skills| {
+        let shield = skills[&SkillId(1040)].clone();
+        let s = skills.get_mut(&SkillId(1177)).unwrap();
+        s.effects = shield.effects;
+        for handler in &mut s.effects {
+            for modifier in &mut handler.stat_children {
+                modifier.value = vec![modifier.value[0].clone(); 5];
+            }
+        }
+        s.reuse_ms = skill::RankValue::Scalar(100_000);
+        let mut abnormal = shield.abnormal.unwrap();
+        abnormal.level = vec![1; 5];
+        abnormal.time_s = vec![120; 5];
+        s.abnormal = Some(abnormal);
+        s.operate_type = "A2".into();
+        s.target_type = skill::RankValue::Scalar(
+            if scope == "POINT_BLANK" {
+                "SELF"
+            } else {
+                "ENEMY"
+            }
+            .into(),
+        );
+        s.affect_scope = skill::RankValue::Scalar(scope.into());
+        s.affect_range = Some(skill::RankValue::Scalar(64));
+        s.affect_limit = skill::AffectLimit { offset, width };
+        s.affect_object = "NOT_FRIEND".into();
+    })
+}
+
+fn extra_npc(zone: &mut ZoneState, x: i32) -> EntityId {
+    let data = parse_zone(TEST_ZONE_TOML).unwrap();
+    let template = &data.npc_templates[0];
+    let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
+    let result = zone
+        .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnNpc {
+            name: format!("Npc{x}"),
+            pos: Vec2Fixed::from_tiles(x, 10),
+            speed: template.move_speed,
+            combat: Some(Box::new(NpcCombat::from_template(&stats, template).unwrap())),
+        })]))
+        .unwrap();
+    assert!(result.dispositions.is_empty());
+    result
+        .events
+        .iter()
+        .find_map(|e| match e {
+            ZoneEvent::EntitySpawn { entity, .. } => Some(*entity),
+            _ => None,
+        })
+        .unwrap()
+}
+
+#[test]
+fn range_captures_ordinal_targets_filters_departure_without_resampling_and_replays() {
+    let (mut zone, caster, center) = setup_with_rules(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1177, 1)],
+        scope_rules("RANGE", 1, 0),
+    );
+    let inside = extra_npc(&mut zone, 13);
+    let outside = extra_npc(&mut zone, 14); // Exact radius is excluded by pinned strict comparison.
+    let before = zone.snapshot();
+    let start = zone
+        .run_tick(zone.draft(vec![cast(caster, center)]))
+        .unwrap();
+    assert!(start.dispositions.is_empty());
+    let snapshot = zone.snapshot();
+    let CastState::Casting(casting) = &snapshot.phase3.as_ref().unwrap().entities[&caster].cast
+    else {
+        panic!("casting")
+    };
+    assert_eq!(casting.affect_limit, 0, "width0 ignores offset1 and is unlimited");
+    assert_eq!(
+        casting.targets.iter().map(|t| t.entity).collect::<Vec<_>>(),
+        vec![center, inside]
+    );
+    assert_eq!(snapshot.rng, before.rng);
+    let complete = casting.complete_at;
+    let mut replay =
+        ZoneState::from_snapshot(decode_snapshot(&encode_snapshot(&snapshot).unwrap()).unwrap())
+            .unwrap();
+    let mut despawned = false;
+    while zone.next_tick() <= complete {
+        let inputs = if despawned {
+            vec![]
+        } else {
+            despawned = true;
+            vec![ZoneInput::system(ZoneCommand::Despawn { entity: center })]
+        };
+        let draft = zone.draft(inputs);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, replay.run_tick(draft).unwrap());
+        if applied.tick == complete {
+            let targets = applied
+                .events
+                .iter()
+                .find_map(|e| match e {
+                    ZoneEvent::SkillCastResult { targets, .. } => Some(targets),
+                    _ => None,
+                })
+                .unwrap();
+            assert_eq!(targets.len(), 1);
+            assert_eq!(targets[0].target.entity, inside);
+        }
+    }
+    let phase = zone.snapshot().phase3.unwrap();
+    assert_eq!(phase.entities[&inside].effects.entries().len(), 1);
+    assert!(phase.entities[&outside].effects.entries().is_empty());
+    assert_eq!(zone.snapshot().rng, before.rng, "no second limit draw or handler RNG");
+}
+
+#[test]
+fn point_blank_excludes_self_and_positive_limit_draws_once_after_validation() {
+    let (mut zone, caster, outside) = setup_with_rules(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1177, 1)],
+        scope_rules("POINT_BLANK", 1, 1),
+    );
+    let inside = extra_npc(&mut zone, 11);
+    let before = zone.snapshot();
+    let mut draws = ZoneState::from_snapshot(before.clone()).unwrap();
+    draws.roll_below(1);
+    let applied = finish_skill(&mut zone, caster, outside, 1177);
+    let targets = applied
+        .events
+        .iter()
+        .find_map(|e| match e {
+            ZoneEvent::SkillCastResult { targets, .. } => Some(targets),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(targets.len(), 1);
+    assert_eq!(targets[0].target.entity, inside);
+    let after = zone.snapshot();
+    assert_eq!(after.rng, draws.snapshot().rng);
+    assert!(after.phase3.as_ref().unwrap().entities[&caster]
+        .effects
+        .entries()
+        .is_empty());
+    assert!(after.phase3.as_ref().unwrap().entities[&outside]
+        .effects
+        .entries()
+        .is_empty());
+    // A cooldown refusal must not sample width1, charge MP1, or allocate a cast id.
+    let snapshot = zone.snapshot();
+    let rejected = zone
+        .run_tick(zone.draft(vec![cast(caster, outside)]))
+        .unwrap();
+    assert_eq!(rejected.dispositions[0].reason, RejectReason::SkillCooldown);
+    assert_eq!(zone.snapshot().rng, snapshot.rng);
+    assert_eq!(
+        zone.snapshot().phase3.as_ref().unwrap().next_cast_id,
+        snapshot.phase3.as_ref().unwrap().next_cast_id
+    );
+}
+
+#[test]
+fn point_blank_negative_effect_range_uses_affect_fallback_at_launch() {
+    let rules = edit_skill_rules(&scope_rules("POINT_BLANK", 0, 0), |skills| {
+        let s = skills.get_mut(&SkillId(1177)).unwrap();
+        s.cast_range = skill::RankValue::Scalar(-1);
+        s.effect_range = skill::RankValue::Scalar(-1);
+        s.affect_range = Some(skill::RankValue::Scalar(200));
+    });
+    let (mut zone, caster, npc) = setup_with_rules(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1177, 1)],
+        rules,
+    );
+    let start = zone.run_tick(zone.draft(vec![cast(caster, npc)])).unwrap();
+    assert!(start.dispositions.is_empty());
+    let before = zone.snapshot();
+    let mut moved = false;
+    for _ in 0..100 {
+        let inputs = if moved {
+            vec![]
+        } else {
+            moved = true;
+            vec![ZoneInput::system(ZoneCommand::MoveTo {
+                entity: npc,
+                dest: Vec2Fixed::from_tiles(30, 10),
+            })]
+        };
+        let applied = zone.run_tick(zone.draft(inputs)).unwrap();
+        assert!(applied.dispositions.is_empty());
+        if applied.events.iter().any(|e| {
+            matches!(
+                e,
+                ZoneEvent::SkillCastCancelled {
+                    reason: state_skill::CastCancelReason::OutOfRange,
+                    ..
+                }
+            )
+        }) {
+            assert_eq!(zone.snapshot().rng, before.rng);
+            assert!(zone.snapshot().phase3.as_ref().unwrap().entities[&npc]
+                .effects
+                .entries()
+                .is_empty());
+            return;
+        }
+    }
+    panic!("escaping point-blank target must cancel before impact");
+}
