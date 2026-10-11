@@ -5,6 +5,11 @@ protoc represents optional scalars as synthetic oneofs in descriptors, but its C
 has_<field>(), not <synthetic_oneof>_case(). TurboLink also defaults a oneof to its first case;
 optional scalars require an explicit absent default because zero is a valid present value.
 Singular messages stored by value also need presence independent of their contents.
+
+Enum decoding validates the full protobuf integer before narrowing to a uint8 UE enum.
+Only values declared in the generated Message.h enums are supported; reserved gaps
+and unknown positive or negative values map to the declared zero/UNSPECIFIED member.
+This intentionally loses unknown values on re-encoding, without aliasing known values.
 """
 import pathlib
 import re
@@ -104,6 +109,40 @@ for header in (root / 'Public').rglob('*Message.h'):
         text = text.replace(match[0], replacement, 1)
     header.write_text(header_text)
     marshal.write_text(text)
+
+# Enum types can be imported from another generated Message.h (e.g. World uses Race).
+# Read all declarations before patching conversions; do not hard-code current maxima.
+enum_members = {}
+enum_declaration = re.compile(r'enum class (EGrpc\w+) : uint8\n\{\n(.*?)\n\};', re.S)
+member_declaration = re.compile(r'\s*(\w+)\s*=\s*(-?\d+)\s*,\s*')
+for header in sorted((root / 'Public').rglob('*Message.h')):
+    for declaration in enum_declaration.finditer(header.read_text()):
+        enum, body = declaration.groups()
+        members = list(member_declaration.finditer(body))
+        if not members or member_declaration.sub('', body).strip():
+            raise SystemExit(f'{header}: unsupported enum declaration {enum}')
+        values = sorted({int(member[2]) for member in members})
+        zero = next((member[1] for member in members if int(member[2]) == 0), None)
+        if zero is None or values[0] < 0 or values[-1] > 255:
+            raise SystemExit(f'{header}: {enum} requires a zero member and uint8 values')
+        if enum in enum_members:
+            raise SystemExit(f'{header}: duplicate enum declaration {enum}')
+        enum_members[enum] = (values, zero)
+
+enum_conversion = re.compile(r'(?:StaticCast|static_cast)<(EGrpc\w+)>\((in->\w+\([^()\n]*\))\)')
+for marshal in sorted((root / 'Private').rglob('*Marshaling.cpp')):
+    def patch_enum(match):
+        enum, expression = match.groups()
+        if enum not in enum_members:
+            raise SystemExit(f'{marshal}: missing enum declaration {enum}')
+        values, zero = enum_members[enum]
+        # An int parameter preserves the protobuf integer. Switch membership also
+        # rejects holes in sparse enums; the cast is reached only for known values.
+        cases = ' '.join(f'case {value}:' for value in values)
+        return (f'[](int value) {{ switch (value) {{ {cases} '
+                f'return StaticCast<{enum}>(value); '
+                f'default: return {enum}::{zero}; }} }}(static_cast<int>({expression}))')
+    marshal.write_text(enum_conversion.sub(patch_enum, marshal.read_text()))
 
 # Generated template blank lines contain trailing spaces; normalize deterministically.
 for source in root.rglob('*'):
