@@ -707,6 +707,78 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             amount: *amount,
             total: *total,
         }))],
+        ZoneEvent::EffectApplied {
+            tick,
+            target,
+            source,
+            effect_id,
+            skill,
+            pool,
+            applied_at,
+            expires_at,
+            abnormal_type,
+            abnormal_level,
+            status_flags,
+            baseline,
+        } => vec![world(Event::EffectApplied(pb::EffectApplied {
+            target: target.entity.to_string(),
+            target_incarnation: target.incarnation,
+            caster: source.map(|s| s.entity.to_string()),
+            caster_incarnation: source.map(|s| s.incarnation),
+            effect_id: effect_id.0,
+            skill_id: skill.id.0,
+            skill_level: skill.rank,
+            pool: match pool {
+                crate::domain::zone::effects::EffectPool::Buff => pb::EffectPool::Buff,
+                crate::domain::zone::effects::EffectPool::SongDance => pb::EffectPool::SongDance,
+                crate::domain::zone::effects::EffectPool::Debuff => pb::EffectPool::Debuff,
+                crate::domain::zone::effects::EffectPool::System => pb::EffectPool::Unspecified,
+            }
+            .into(),
+            tick: tick.0,
+            end_tick: expires_at.map_or(0, |t| t.0),
+            abnormal_type: abnormal_type.clone(),
+            abnormal_level: *abnormal_level,
+            status_flags: status_flags.bits(),
+            baseline: baseline.is_some(),
+            baseline_tick: baseline.map_or(0, |t| t.0),
+            applied_tick: applied_at.0,
+        }))],
+        ZoneEvent::EffectRemoved {
+            tick,
+            target,
+            effect_id,
+            reason,
+        } => vec![world(Event::EffectRemoved(pb::EffectRemoved {
+            target: target.entity.to_string(),
+            target_incarnation: target.incarnation,
+            effect_id: effect_id.0,
+            tick: tick.0,
+            reason: match reason {
+                crate::domain::zone::effects::EffectRemoveReason::Expired => {
+                    pb::EffectRemoveReason::Expired
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Replaced => {
+                    pb::EffectRemoveReason::Replaced
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Overflow => {
+                    pb::EffectRemoveReason::Overflow
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Dispelled => {
+                    pb::EffectRemoveReason::Dispelled
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Damage => {
+                    pb::EffectRemoveReason::Damage
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Death => {
+                    pb::EffectRemoveReason::Death
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Transfer => {
+                    pb::EffectRemoveReason::Transfer
+                },
+            }
+            .into(),
+        }))],
         ZoneEvent::SkillReuse {
             tick,
             entity,

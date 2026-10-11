@@ -378,7 +378,9 @@ fn facts(
                     lives.remove(&entity);
                 }
             },
-            ZoneEvent::SkillCastStarted { .. }
+            ZoneEvent::EffectApplied { .. }
+            | ZoneEvent::EffectRemoved { .. }
+            | ZoneEvent::SkillCastStarted { .. }
             | ZoneEvent::SkillCastResult { .. }
             | ZoneEvent::SkillCastCancelled { .. }
             | ZoneEvent::SkillStateSync { .. }

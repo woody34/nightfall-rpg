@@ -286,6 +286,7 @@ impl Phase3Snapshot {
 pub(super) struct Phase3Zone {
     pub(super) canonical: Phase3Snapshot,
     pub(super) schedule: super::state_effects::Phase3Schedule,
+    pub(super) vitals_dirty: std::collections::BTreeSet<super::EntityId>,
 }
 
 impl Phase3Zone {
@@ -296,6 +297,7 @@ impl Phase3Zone {
         Ok(Self {
             canonical,
             schedule,
+            vitals_dirty: std::collections::BTreeSet::new(),
         })
     }
 }

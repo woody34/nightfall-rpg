@@ -1475,7 +1475,9 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         ZoneEvent::ClassChanged { entity, .. }
         | ZoneEvent::EntityDied { entity, .. }
         | ZoneEvent::EntityRespawned { entity, .. } => sees(entity),
-        ZoneEvent::SkillCastStarted { .. }
+        ZoneEvent::EffectApplied { .. }
+        | ZoneEvent::EffectRemoved { .. }
+        | ZoneEvent::SkillCastStarted { .. }
         | ZoneEvent::SkillCastResult { .. }
         | ZoneEvent::SkillCastCancelled { .. }
         | ZoneEvent::SkillStateSync { .. }
@@ -1556,7 +1558,9 @@ impl<'a> CellFacts<'a> {
                 ZoneEvent::ClassChanged { entity, .. }
                 | ZoneEvent::EntityDied { entity, .. }
                 | ZoneEvent::EntityRespawned { entity, .. } => (*entity, None, false),
-                ZoneEvent::SkillCastStarted { .. }
+                ZoneEvent::EffectApplied { .. }
+                | ZoneEvent::EffectRemoved { .. }
+                | ZoneEvent::SkillCastStarted { .. }
                 | ZoneEvent::SkillCastResult { .. }
                 | ZoneEvent::SkillCastCancelled { .. }
                 | ZoneEvent::SkillStateSync { .. }

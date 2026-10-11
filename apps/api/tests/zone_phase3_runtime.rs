@@ -28,6 +28,13 @@ fn setup() -> (ZoneState, EntityId, EntityId) {
     setup_at(Vec2Fixed::from_tiles(10, 10), Vec2Fixed::from_tiles(12, 10))
 }
 fn setup_at(player_pos: Vec2Fixed, npc_pos: Vec2Fixed) -> (ZoneState, EntityId, EntityId) {
+    setup_with_skills(player_pos, npc_pos, &[(1177, 1)])
+}
+fn setup_with_skills(
+    player_pos: Vec2Fixed,
+    npc_pos: Vec2Fixed,
+    skills: &[(u32, u32)],
+) -> (ZoneState, EntityId, EntityId) {
     let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
     let npc =
         NpcCombat::from_template(&stats, &parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0])
@@ -46,10 +53,13 @@ fn setup_at(player_pos: Vec2Fixed, npc_pos: Vec2Fixed) -> (ZoneState, EntityId, 
     .unwrap();
     let player = EntityId::from_uuid(Uuid::from_u128(1));
     let mut ledger = ClassState::new(ClassId(10));
-    ledger.learned_skills = vec![LearnedSkill {
-        key: "l2.skill.1177".into(),
-        level: 1,
-    }];
+    ledger.learned_skills = skills
+        .iter()
+        .map(|(id, rank)| LearnedSkill {
+            key: format!("l2.skill.{id}"),
+            level: *rank,
+        })
+        .collect();
     let mut load = PlayerLoad::fresh("human_mystic");
     load.progression = Some(Box::new(PlayerProgression {
         identity: CharacterIdentity {
@@ -427,4 +437,254 @@ fn live_v5_restore_preserves_name_xp_and_collision_guards() {
         }
         assert!(ZoneState::from_snapshot(snapshot).is_err());
     }
+}
+
+fn finish_skill(
+    zone: &mut ZoneState,
+    player: EntityId,
+    target: EntityId,
+    skill: u32,
+) -> AppliedTick {
+    let mut input = cast(player, target);
+    input.command = ZoneCommand::CastSkill {
+        entity: player,
+        target: Some(target),
+        skill_id: SkillId(skill),
+    };
+    let start = zone.run_tick(zone.draft(vec![input])).unwrap();
+    assert!(start.dispositions.is_empty(), "{:?}", start.dispositions);
+    for _ in 0..200 {
+        let applied = zone.run_tick(zone.draft(vec![])).unwrap();
+        if applied
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::SkillCastResult { .. }))
+        {
+            return applied;
+        }
+    }
+    panic!("skill did not complete");
+}
+
+#[test]
+fn shield_live_install_replace_expire_and_hydrate_without_reapplying() {
+    let (mut zone, player, npc) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1)],
+    );
+    let initial = combat(&zone, npc).sheet.p_def();
+    let applied = finish_skill(&mut zone, player, npc, 1040);
+    let first = applied
+        .events
+        .iter()
+        .find_map(|e| match e {
+            ZoneEvent::EffectApplied { effect_id, .. } => Some(*effect_id),
+            _ => None,
+        })
+        .unwrap();
+    assert!(combat(&zone, npc).sheet.p_def() > initial);
+    assert!(applied.outputs[&player]
+        .iter()
+        .flat_map(|o| observer_output_to_pb(o, applied.server_time_ms))
+        .any(|m| matches!(
+            m.payload,
+            Some(pb::server_message::Payload::Event(pb::WorldEvent {
+                event: Some(pb::world_event::Event::EffectApplied(_))
+            }))
+        )));
+    let bytes = encode_snapshot(&zone.snapshot()).unwrap();
+    let mut restored = ZoneState::from_snapshot(decode_snapshot(&bytes).unwrap()).unwrap();
+    for _ in 0..22 {
+        let draft = zone.draft(vec![]);
+        let a = zone.run_tick(draft.clone()).unwrap();
+        let b = restored.run_tick(draft).unwrap();
+        assert_eq!(
+            AppliedTickRecord::from_applied(ZoneId(1), &a).encode(),
+            AppliedTickRecord::from_applied(ZoneId(1), &b).encode()
+        );
+    }
+    let refreshed = finish_skill(&mut zone, player, npc, 1040);
+    let removals: Vec<_> = refreshed
+        .events
+        .iter()
+        .filter_map(|e| match e {
+            ZoneEvent::EffectRemoved {
+                effect_id, reason, ..
+            } => Some((*effect_id, *reason)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(removals, vec![(first, effects::EffectRemoveReason::Replaced)]);
+    assert_eq!(combat(&zone, npc).sheet.p_def(), combat(&restored, npc).sheet.p_def());
+    let before_replace = zone.state_digest();
+    let replacement = zone
+        .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::ReplaceSession {
+            entity: player,
+            generation: SessionGeneration(2),
+        })]))
+        .unwrap();
+    let out = &replacement.outputs[&player];
+    let last_identity = out
+        .iter()
+        .rposition(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EntitySpawn { .. })))
+        .unwrap();
+    let hydration = out.iter().position(|o| matches!(o, ObserverOutput::Event(ZoneEvent::EffectApplied { baseline: Some(_), target, .. }) if target.entity == npc)).unwrap();
+    assert!(hydration > last_identity);
+    assert_ne!(zone.state_digest(), before_replace); // tick/generation changed, effect identity did not.
+    assert_eq!(
+        zone.snapshot().phase3.unwrap().entities[&npc]
+            .effects
+            .entries()
+            .len(),
+        1
+    );
+    // A bounded valid checkpoint suffix isolates expiry without replaying 1,200 idle seconds.
+    let mut snapshot = zone.snapshot();
+    let next = zone.draft(vec![]).tick;
+    let side = snapshot
+        .phase3
+        .as_mut()
+        .unwrap()
+        .entities
+        .get_mut(&npc)
+        .unwrap();
+    let mut entries = side.effects.entries().clone();
+    for effect in entries.values_mut() {
+        effect.expires_at = Some(next);
+    }
+    side.effects = effects::EffectList::from_entries(entries).unwrap();
+    let mut suffix = ZoneState::from_snapshot(snapshot).unwrap();
+    let expired = suffix.run_tick(suffix.draft(vec![])).unwrap();
+    assert!(expired.events.iter().any(|e| matches!(
+        e,
+        ZoneEvent::EffectRemoved {
+            reason: effects::EffectRemoveReason::Expired,
+            ..
+        }
+    )));
+    assert_eq!(combat(&suffix, npc).sheet.p_def(), initial);
+}
+
+#[test]
+fn debuff_success_draws_duration_and_poison_pulses_survive_departure_and_restore() {
+    let (mut zone, player, npc) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1164, 1), (1168, 1)],
+    );
+    let initial_attack = combat(&zone, npc).sheet.p_atk();
+    let before = zone.snapshot().rng;
+    let mut ledger = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    // Debuff reflection at zero, then continuous success; duration/mastery consume none.
+    ledger.roll_below(100);
+    ledger.roll_below(100);
+    let result = finish_skill(&mut zone, player, npc, 1164);
+    assert_ne!(zone.snapshot().rng, before);
+    assert_eq!(zone.snapshot().rng, ledger.snapshot().rng);
+    let applied = result
+        .events
+        .iter()
+        .any(|e| matches!(e, ZoneEvent::EffectApplied { .. }));
+    assert_eq!(combat(&zone, npc).sheet.p_atk() < initial_attack, applied);
+    for _ in 0..10 {
+        let result = finish_skill(&mut zone, player, npc, 1168);
+        if result.events.iter().any(
+            |e| matches!(e, ZoneEvent::EffectApplied { skill, .. } if skill.id == SkillId(1168)),
+        ) {
+            break;
+        }
+        for _ in 0..40 {
+            zone.run_tick(zone.draft(vec![])).unwrap();
+        }
+    }
+    let poisoned = zone.snapshot().phase3.unwrap().entities[&npc]
+        .effects
+        .entries()
+        .values()
+        .any(|e| e.skill.id == SkillId(1168));
+    assert!(poisoned);
+    zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::Despawn { entity: player })]))
+        .unwrap();
+    let mut replay = ZoneState::from_snapshot(
+        decode_snapshot(&encode_snapshot(&zone.snapshot()).unwrap()).unwrap(),
+    )
+    .unwrap();
+    let mut damaged = false;
+    for _ in 0..100 {
+        let hp = combat(&zone, npc).hp;
+        let draft = zone.draft(vec![]);
+        let a = zone.run_tick(draft.clone()).unwrap();
+        let b = replay.run_tick(draft).unwrap();
+        damaged |= combat(&zone, npc).hp < hp;
+        assert!(combat(&zone, npc).hp >= 1);
+        assert_eq!(
+            AppliedTickRecord::from_applied(ZoneId(1), &a).encode(),
+            AppliedTickRecord::from_applied(ZoneId(1), &b).encode()
+        );
+    }
+    assert!(damaged);
+}
+
+#[test]
+fn self_heal_runs_at_impact_with_one_magic_crit_draw_and_public_final_vitals() {
+    let (zone, player, _) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1216, 1)],
+    );
+    let mut snapshot = zone.snapshot();
+    snapshot
+        .entities
+        .iter_mut()
+        .find(|e| e.id == player)
+        .unwrap()
+        .combat
+        .as_mut()
+        .unwrap()
+        .hp = 1;
+    let mut zone = ZoneState::from_snapshot(snapshot).unwrap();
+    let mut ledger = ZoneState::from_snapshot(zone.snapshot()).unwrap();
+    ledger.roll_below(1000);
+    let result = finish_skill(&mut zone, player, player, 1216);
+    assert_eq!(zone.snapshot().rng, ledger.snapshot().rng);
+    assert!(combat(&zone, player).hp > 40);
+    assert!(result.events.iter().any(|e| matches!(e, ZoneEvent::SkillCastResult { targets, .. } if targets.iter().any(|t| t.resolution_kind == SkillResolutionKind::Heal && t.heal > 0))));
+    assert!(result
+        .events
+        .iter()
+        .any(|e| matches!(e, ZoneEvent::VitalsChanged { entity, .. } if *entity == player)));
+    ZoneState::from_snapshot(zone.snapshot()).unwrap();
+}
+
+#[test]
+fn lethal_magic_removes_npc_buffs_and_restores_a_dead_snapshot() {
+    let (mut zone, player, npc) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1), (1177, 1)],
+    );
+    finish_skill(&mut zone, player, npc, 1040);
+    let mut snapshot = zone.snapshot();
+    snapshot
+        .entities
+        .iter_mut()
+        .find(|e| e.id == npc)
+        .unwrap()
+        .combat
+        .as_mut()
+        .unwrap()
+        .hp = 1;
+    let mut zone = ZoneState::from_snapshot(snapshot).unwrap();
+    let applied = finish_skill(&mut zone, player, npc, 1177);
+    assert!(applied.events.iter().any(|e| matches!(e,
+        ZoneEvent::EffectRemoved { target, reason: effects::EffectRemoveReason::Death, .. }
+        if target.entity == npc)));
+    assert_eq!(combat(&zone, npc).hp, 0);
+    let snapshot = zone.snapshot();
+    let side = &snapshot.phase3.as_ref().unwrap().entities[&npc];
+    assert!(side.effects.entries().is_empty());
+    assert_eq!(side.fractions, ResourceFractions::default());
+    assert_eq!(side.regen.next_at, None);
+    ZoneState::from_snapshot(snapshot).unwrap();
 }

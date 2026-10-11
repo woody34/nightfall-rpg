@@ -155,7 +155,7 @@ struct PbCommand {
     seq: Option<u32>,
     #[prost(
         oneof = "PbCommandKind",
-        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 29, 31"
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19"
     )]
     kind: Option<PbCommandKind>,
 }
@@ -434,13 +434,17 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 29, 31"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 29, 31"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    #[prost(bytes, tag = "23")]
+    EffectApplied(Vec<u8>),
+    #[prost(bytes, tag = "24")]
+    EffectRemoved(Vec<u8>),
     #[prost(bytes, tag = "29")]
     SpGained(Vec<u8>),
     #[prost(bytes, tag = "20")]
@@ -1159,6 +1163,8 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::EffectApplied { .. } => PbOutputItem::EffectApplied(canonical_json(e)),
+        ZoneEvent::EffectRemoved { .. } => PbOutputItem::EffectRemoved(canonical_json(e)),
         ZoneEvent::SkillCastStarted { .. } => PbOutputItem::SkillCastStarted(canonical_json(e)),
         ZoneEvent::SkillCastResult { .. } => PbOutputItem::SkillCastResult(canonical_json(e)),
         ZoneEvent::SkillCastCancelled { .. } => PbOutputItem::SkillCastCancelled(canonical_json(e)),
@@ -1704,6 +1710,20 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::EffectApplied(bytes) => {
+            let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::EffectApplied { .. }) {
+                return Err(err("invalid Phase3 event tag"));
+            }
+            event
+        },
+        PbOutputItem::EffectRemoved(bytes) => {
+            let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::EffectRemoved { .. }) {
+                return Err(err("invalid Phase3 event tag"));
+            }
+            event
+        },
         PbOutputItem::SkillCastStarted(bytes) => {
             let event: ZoneEvent = phase3_event_from_json(&bytes)?;
             if !matches!(event, ZoneEvent::SkillCastStarted { .. }) {

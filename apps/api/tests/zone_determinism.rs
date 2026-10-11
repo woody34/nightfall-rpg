@@ -147,6 +147,8 @@ fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::EntityRespawned { .. }
                 | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::ClassTransfer { .. }
+                | ZoneEvent::EffectApplied { .. }
+                | ZoneEvent::EffectRemoved { .. }
                 | ZoneEvent::SkillCastStarted { .. }
                 | ZoneEvent::SkillCastResult { .. }
                 | ZoneEvent::SkillCastCancelled { .. }

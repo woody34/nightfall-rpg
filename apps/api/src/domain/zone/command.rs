@@ -514,6 +514,30 @@ pub enum ZoneEvent {
         cast_id: super::CastId,
         reason: super::state_skill::CastCancelReason,
     },
+    /// Public whole-container application, including identity-batch hydration.
+    #[allow(missing_docs)]
+    EffectApplied {
+        tick: Tick,
+        target: super::effects::TargetBinding,
+        source: Option<super::effects::TargetBinding>,
+        effect_id: super::effects::EffectId,
+        skill: super::skill::SkillRef,
+        pool: super::effects::EffectPool,
+        applied_at: Tick,
+        expires_at: Option<Tick>,
+        abnormal_type: String,
+        abnormal_level: u32,
+        status_flags: super::effects::StatusFlags,
+        baseline: Option<Tick>,
+    },
+    /// Public removal of one stable application.
+    #[allow(missing_docs)]
+    EffectRemoved {
+        tick: Tick,
+        target: super::effects::TargetBinding,
+        effect_id: super::effects::EffectId,
+        reason: super::effects::EffectRemoveReason,
+    },
     /// Owner-only reuse update. Zero means ready.
     #[allow(missing_docs)]
     SkillReuse {
@@ -771,6 +795,8 @@ impl ZoneEvent {
             | Self::SkillCastStarted { tick, .. }
             | Self::SkillCastResult { tick, .. }
             | Self::SkillCastCancelled { tick, .. }
+            | Self::EffectApplied { tick, .. }
+            | Self::EffectRemoved { tick, .. }
             | Self::SkillReuse { tick, .. }
             | Self::VitalsChanged { tick, .. }
             | Self::TokensReconciled { tick, .. }
@@ -798,6 +824,9 @@ impl ZoneEvent {
     #[must_use]
     pub const fn entity(&self) -> EntityId {
         match self {
+            Self::EffectApplied { target, .. } | Self::EffectRemoved { target, .. } => {
+                target.entity
+            },
             Self::SkillCastStarted { caster, .. }
             | Self::SkillCastResult { caster, .. }
             | Self::SkillCastCancelled { caster, .. } => caster.entity,
