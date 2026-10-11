@@ -73,8 +73,9 @@ pub use combat_math::{
 };
 pub use command::{
     AppliedCommand, AppliedTick, AppliedTickDraft, AttackOutcome, CommandSource, DeathFact,
-    Disposition, ObserverOutput, Ordinal, ProgressionDelta, RejectReason, SessionGeneration,
-    ZoneCommand, ZoneEvent, ZoneInput,
+    Disposition, ObserverOutput, Ordinal, OwnerPhase3View, ProgressionDelta, RejectReason,
+    SessionGeneration, SkillOutcome, SkillResolutionKind, SkillTargetResult, ZoneCommand,
+    ZoneEvent, ZoneInput,
 };
 pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
 pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
@@ -114,7 +115,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 41] = [
+    const SOURCES: [(&str, &str); 42] = [
         ("mod.rs", include_str!("mod.rs")),
         ("effects.rs", include_str!("effects.rs")),
         ("effective_stats.rs", include_str!("effective_stats.rs")),
@@ -152,6 +153,7 @@ mod tests {
         ("stat_sheet.rs", include_str!("stat_sheet.rs")),
         ("stat_tests.rs", include_str!("stat_tests.rs")),
         ("state_regen.rs", include_str!("state_regen.rs")),
+        ("state_runtime.rs", include_str!("state_runtime.rs")),
         ("state.rs", include_str!("state.rs")),
         ("state_digest.rs", include_str!("state_digest.rs")),
         ("state_combat.rs", include_str!("state_combat.rs")),

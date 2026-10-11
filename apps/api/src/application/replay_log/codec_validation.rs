@@ -343,7 +343,8 @@ fn phase3_field(node: &str, tag: u32) -> Option<(u64, Option<&'static str>, bool
         ("PbCommand", 17) => (2, Some("PbCancelCast"), false),
         ("PbCommand", 18) => (2, Some("PbAcceptResurrect"), false),
         ("PbCommand", 19) => (2, Some("PbLearnSkill"), false),
-        ("PbCastSkill", 1 | 3)
+        ("PbOutput", 20 | 21 | 22 | 25 | 29 | 31)
+        | ("PbCastSkill", 1 | 3)
         | ("PbCancelCast" | "PbAcceptResurrect", 1)
         | ("PbLearnSkill", 1..=3) => (2, None, false),
         ("PbCastSkill" | "PbCancelCast", 2)

@@ -33,6 +33,9 @@ pub struct PlayerIdentityView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(missing_docs)] // Mirrors the documented ClassState ledger and StatsChanged wire contract.
 pub struct ClassStatsView {
+    /// Owner-only Phase 3 projection; omitted under every legacy policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase3: Option<Box<super::OwnerPhase3View>>,
     pub class_id: ClassId,
     pub sp: u64,
     pub cp: u32,
@@ -53,6 +56,7 @@ impl PlayerProgression {
     /// Owner resource projection.
     pub fn stats(&self) -> ClassStatsView {
         ClassStatsView {
+            phase3: None,
             class_id: self.class_state.current_class_id,
             sp: self.class_state.sp,
             cp: self.class_state.cp,

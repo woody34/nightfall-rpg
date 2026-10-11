@@ -440,10 +440,12 @@ mod tests {
     }
 
     #[test]
-    fn boundary_does_not_silently_run_legacy_gameplay() {
+    fn boundary_refuses_unintegrated_policy_before_mutation() {
         let mut zone = state();
         let before = zone.snapshot();
-        let draft = zone.draft(Vec::new());
+        let draft = zone.draft(vec![ZoneInput::system(ZoneCommand::Attack {
+            entity: EntityId::from_uuid(uuid::Uuid::from_u128(1)),
+        })]);
         assert_eq!(zone.run_tick(draft), Err(TickError::Phase3NotReady));
         assert_eq!(zone.snapshot(), before);
     }

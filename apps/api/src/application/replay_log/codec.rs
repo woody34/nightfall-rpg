@@ -155,7 +155,7 @@ struct PbCommand {
     seq: Option<u32>,
     #[prost(
         oneof = "PbCommandKind",
-        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19"
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 29, 31"
     )]
     kind: Option<PbCommandKind>,
 }
@@ -434,13 +434,25 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 29, 31"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    #[prost(bytes, tag = "29")]
+    SpGained(Vec<u8>),
+    #[prost(bytes, tag = "20")]
+    SkillCastStarted(Vec<u8>),
+    #[prost(bytes, tag = "21")]
+    SkillCastResult(Vec<u8>),
+    #[prost(bytes, tag = "22")]
+    SkillCastCancelled(Vec<u8>),
+    #[prost(bytes, tag = "25")]
+    SkillReuse(Vec<u8>),
+    #[prost(bytes, tag = "31")]
+    Phase3Projection(Vec<u8>),
     // Canonical integer-only Phase2 event JSON; legacy event tags remain byte-identical.
     #[prost(bytes, tag = "18")]
     Phase2(Vec<u8>),
@@ -826,6 +838,18 @@ const fn reason_to_pb(r: RejectReason) -> i32 {
         RejectReason::TransferRequirement => 18,
         RejectReason::InCombat => 19,
         RejectReason::ClassMasterTooFar => 20,
+        RejectReason::SkillUnknown => 21,
+        RejectReason::SkillNotLearned => 22,
+        RejectReason::SkillCooldown => 23,
+        RejectReason::InsufficientMp => 24,
+        RejectReason::InsufficientHp => 25,
+        RejectReason::AlreadyCasting => 26,
+        RejectReason::Incapacitated => 27,
+        RejectReason::Silenced => 28,
+        RejectReason::InvalidTargetType => 29,
+        RejectReason::PeaceZone => 30,
+        RejectReason::WeaponCondition => 31,
+        RejectReason::NoResurrectOffer => 32,
         RejectReason::UnknownEntity => 1,
         RejectReason::OutOfBounds => 2,
         RejectReason::TooFar => 3,
@@ -851,6 +875,18 @@ fn reason_from_pb(v: i32) -> Result<RejectReason, CodecError> {
         18 => RejectReason::TransferRequirement,
         19 => RejectReason::InCombat,
         20 => RejectReason::ClassMasterTooFar,
+        21 => RejectReason::SkillUnknown,
+        22 => RejectReason::SkillNotLearned,
+        23 => RejectReason::SkillCooldown,
+        24 => RejectReason::InsufficientMp,
+        25 => RejectReason::InsufficientHp,
+        26 => RejectReason::AlreadyCasting,
+        27 => RejectReason::Incapacitated,
+        28 => RejectReason::Silenced,
+        29 => RejectReason::InvalidTargetType,
+        30 => RejectReason::PeaceZone,
+        31 => RejectReason::WeaponCondition,
+        32 => RejectReason::NoResurrectOffer,
         1 => RejectReason::UnknownEntity,
         2 => RejectReason::OutOfBounds,
         3 => RejectReason::TooFar,
@@ -1110,6 +1146,9 @@ fn cancel_from_pb(v: i32) -> Result<SwingCancel, CodecError> {
 
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
+    if matches!(e, ZoneEvent::StatsChanged { class: Some(c), .. } if c.phase3.is_some()) {
+        return PbOutputItem::Phase3Projection(canonical_json(e));
+    }
     if matches!(
         e,
         ZoneEvent::EntitySpawn {
@@ -1120,6 +1159,14 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::SkillCastStarted { .. } => PbOutputItem::SkillCastStarted(canonical_json(e)),
+        ZoneEvent::SkillCastResult { .. } => PbOutputItem::SkillCastResult(canonical_json(e)),
+        ZoneEvent::SkillCastCancelled { .. } => PbOutputItem::SkillCastCancelled(canonical_json(e)),
+        ZoneEvent::SpGained { .. } => PbOutputItem::SpGained(canonical_json(e)),
+        ZoneEvent::SkillReuse { .. } => PbOutputItem::SkillReuse(canonical_json(e)),
+        ZoneEvent::SkillStateSync { .. } | ZoneEvent::VitalsChanged { .. } => {
+            PbOutputItem::Phase3Projection(canonical_json(e))
+        },
         ZoneEvent::TokensReconciled { .. } => PbOutputItem::TokensReconciled(canonical_json(e)),
         ZoneEvent::ClassChanged { .. } | ZoneEvent::ClassTransfer { .. } => {
             PbOutputItem::Phase2(canonical_json(e))
@@ -1657,6 +1704,50 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::SkillCastStarted(bytes) => {
+            let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::SkillCastStarted { .. }) {
+                return Err(err("invalid Phase3 event tag"));
+            }
+            event
+        },
+        PbOutputItem::SkillCastResult(bytes) => {
+            let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::SkillCastResult { .. }) {
+                return Err(err("invalid Phase3 event tag"));
+            }
+            event
+        },
+        PbOutputItem::SkillCastCancelled(bytes) => {
+            let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::SkillCastCancelled { .. }) {
+                return Err(err("invalid Phase3 event tag"));
+            }
+            event
+        },
+        PbOutputItem::SpGained(bytes) => {
+            let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::SpGained { .. }) {
+                return Err(err("invalid Phase3 event tag"));
+            }
+            event
+        },
+        PbOutputItem::SkillReuse(bytes) => {
+            let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::SkillReuse { .. }) {
+                return Err(err("invalid Phase3 event tag"));
+            }
+            event
+        },
+        PbOutputItem::Phase3Projection(bytes) => {
+            let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if !matches!(event, ZoneEvent::VitalsChanged { .. } | ZoneEvent::SkillStateSync { .. })
+                && !matches!(&event, ZoneEvent::StatsChanged { class: Some(c), .. } if c.phase3.is_some())
+            {
+                return Err(err("invalid Phase3 event tag"));
+            }
+            event
+        },
         PbOutputItem::TokensReconciled(bytes) => {
             let event: ZoneEvent = serde_json::from_slice(&bytes).map_err(err)?;
             if !matches!(event, ZoneEvent::TokensReconciled { adjustment, .. }
@@ -1830,6 +1921,17 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             entity: entity_from(&d.entity)?,
         },
     })
+}
+
+// V5 event slots have one canonical representation. Check after decoding so serde cannot
+// silently discard an unknown nested extension or normalize a duplicate map key. Legacy
+// slots retain their established grammar and byte representation.
+fn phase3_event_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
+    let event: ZoneEvent = serde_json::from_slice(bytes).map_err(err)?;
+    if canonical_json(&event) != bytes {
+        return Err(err("noncanonical Phase3 event payload"));
+    }
+    Ok(event)
 }
 
 // These plain structs contain only bounded integer/string data and ordered vectors. JSON
@@ -2077,6 +2179,40 @@ mod phase3_boundary_tests {
                     assert!(error.0.contains("Phase 3 field"), "{error}");
                 }
             }
+        }
+    }
+
+    #[test]
+    fn phase3_event_slots_reject_wrong_variants_and_unknown_nested_extensions() {
+        let event = ZoneEvent::SkillCastResult {
+            tick: Tick(4),
+            caster: crate::domain::zone::effects::TargetBinding {
+                entity: EntityId::from_uuid(uuid::Uuid::from_u128(1)),
+                incarnation: 0,
+            },
+            cast_id: crate::domain::zone::CastId(2),
+            skill: crate::domain::zone::skill::SkillRef {
+                id: crate::domain::zone::skill::SkillId(1177),
+                rank: 1,
+            },
+            targets: Vec::new(),
+        };
+        let bytes = canonical_json(&event);
+        assert_eq!(event_from_pb(PbOutputItem::SkillCastResult(bytes.clone())).unwrap(), event);
+        assert!(event_from_pb(PbOutputItem::SkillCastStarted(bytes.clone())).is_err());
+        assert!(event_from_pb(PbOutputItem::Phase3Projection(bytes.clone())).is_err());
+        let mut json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let caster_json = json.get_mut("caster").unwrap();
+        caster_json
+            .as_object_mut()
+            .unwrap()
+            .insert("future_extension".into(), serde_json::Value::Null);
+        assert!(event_from_pb(PbOutputItem::SkillCastResult(serde_json::to_vec(&json).unwrap()))
+            .is_err());
+        for schema in 3..=6 {
+            let mut record = empty(schema).encode_to_vec();
+            record.extend(nested(9, &nested(1, &nested(21, &bytes))));
+            assert!(decode_record(&record).is_err());
         }
     }
 

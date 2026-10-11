@@ -5,6 +5,8 @@
 
 #[path = "state_digest.rs"]
 mod digest;
+#[path = "state_runtime.rs"]
+mod runtime;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -357,6 +359,9 @@ pub enum TickError {
     /// The Phase 3 boundary exists, but gameplay installation is not complete.
     #[error("Phase 3 gameplay is not installed")]
     Phase3NotReady,
+    /// A checked Phase 3 invariant failed; no draft is published.
+    #[error("Phase 3 runtime invariant failed")]
+    Phase3Invariant,
     /// Application stopped before applying a lifecycle transition after a failed save.
     #[error("checkpoint persistence fence")]
     PersistenceFence,
@@ -392,27 +397,43 @@ impl ZoneSnapshot {
     /// an unsupported digest into an accepted one.
     pub fn validate_version(&self) -> Result<(), SnapshotError> {
         use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, JsonV1};
-        let valid = match (
-            self.meta.schema_version,
-            self.meta.digest_version,
-            self.classes.is_some(),
-        ) {
-            (4 | 5, JsonV1, false)
-            | (6..=8, JsonV1 | BinaryV2, false)
-            | (7, BinaryV3, true)
-            | (8, BinaryV4, true) => self.phase3.is_none(),
-            (9, BinaryV5, true) => {
-                self.rules.as_ref().zip(self.phase3.as_ref()).is_some_and(|(stats, phase3)| phase3.rules.profiles().starter_weapon.validate_physical(&stats.starter_weapon).is_ok())
-                && self.phase3.as_ref().is_some_and(super::Phase3Snapshot::validate)
-                && self.phase3.as_ref().is_some_and(|p| p.rules.geometry().peace_square(self.bounds).is_ok())
-                && self.classes.as_deref().zip(self.phase3.as_ref()).is_some_and(|(classes, phase3)| phase3.rules.validate_catalogue(classes).is_ok())
-                // The M1 boundary cannot restore unvalidated gameplay sidecars.
-                && self.entities.is_empty() && self.spawn_slots.is_empty()
-                && self.phase3.as_ref().is_some_and(|p| p.entities.is_empty())
-            },
-            (4..=9, _, _) => false,
-            (version, _, _) => return Err(SnapshotError::Schema(version)),
-        };
+        let valid =
+            match (self.meta.schema_version, self.meta.digest_version, self.classes.is_some()) {
+                (4 | 5, JsonV1, false)
+                | (6..=8, JsonV1 | BinaryV2, false)
+                | (7, BinaryV3, true)
+                | (8, BinaryV4, true) => self.phase3.is_none(),
+                (9, BinaryV5, true) => {
+                    self.rules
+                        .as_ref()
+                        .zip(self.phase3.as_ref())
+                        .is_some_and(|(stats, phase3)| {
+                            phase3
+                                .rules
+                                .profiles()
+                                .starter_weapon
+                                .validate_physical(&stats.starter_weapon)
+                                .is_ok()
+                        })
+                        && self
+                            .phase3
+                            .as_ref()
+                            .is_some_and(super::Phase3Snapshot::validate)
+                        && self
+                            .phase3
+                            .as_ref()
+                            .is_some_and(|p| p.rules.geometry().peace_square(self.bounds).is_ok())
+                        && self
+                            .classes
+                            .as_deref()
+                            .zip(self.phase3.as_ref())
+                            .is_some_and(|(classes, phase3)| {
+                                phase3.rules.validate_catalogue(classes).is_ok()
+                            })
+                },
+                (4..=9, _, _) => false,
+                (version, _, _) => return Err(SnapshotError::Schema(version)),
+            };
         if valid {
             Ok(())
         } else {
@@ -496,7 +517,8 @@ impl ZoneState {
     }
 
     /// Constructs a new Phase 3 epoch explicitly with all three rule bundles.
-    /// The boundary milestone fences execution until gameplay validation is installed.
+    /// Explicit experimental runtime; service bootstrap remains fenced until Phase 3
+    /// durability and the complete handler schedule have passed their integration gates.
     pub fn new_phase3(
         seed: ZoneSeed,
         bounds: ZoneBounds,
@@ -617,7 +639,9 @@ impl ZoneState {
             if e.combat.is_some() && state.rules.is_none() {
                 return Err(SnapshotError::CombatMismatch);
             }
-            state.validate_class_entity(&e)?;
+            if !state.phase3_enabled() {
+                state.validate_class_entity(&e)?;
+            }
             state.aoi.insert(e.id, e.pos);
             state.entities.insert(e.id, e);
         }
@@ -633,6 +657,9 @@ impl ZoneState {
             }
         }
         state.restore_spawns(snapshot.spawn_slots, snapshot.spawn_members)?;
+        if state.phase3_enabled() {
+            state.validate_runtime_v5()?;
+        }
         let players: Vec<(EntityId, Vec2Fixed)> = state
             .entities
             .values()
@@ -827,7 +854,7 @@ impl ZoneState {
     /// draft. A draft that does not continue this zone is refused and nothing changes.
     pub fn run_tick(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
         if self.phase3_enabled() {
-            self.run_tick_v5(&draft)
+            self.run_tick_v5(draft)
         } else {
             if draft.commands.iter().any(|c| c.command.requires_phase3()) {
                 return Err(TickError::Phase3CommandInLegacy);
@@ -839,12 +866,6 @@ impl ZoneState {
     /// Policy is selected only by the validated epoch version, never registry presence.
     pub fn phase3_enabled(&self) -> bool {
         self.meta.schema_version == 9 && self.meta.digest_version == StateDigestVersion::BinaryV5
-    }
-
-    // Fail closed during the boundary milestone rather than execute legacy rules as V5.
-    fn run_tick_v5(&mut self, draft: &AppliedTickDraft) -> Result<AppliedTick, TickError> {
-        self.check_draft(draft)?;
-        Err(TickError::Phase3NotReady)
     }
 
     fn run_tick_legacy(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
@@ -1454,7 +1475,14 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         ZoneEvent::ClassChanged { entity, .. }
         | ZoneEvent::EntityDied { entity, .. }
         | ZoneEvent::EntityRespawned { entity, .. } => sees(entity),
-        ZoneEvent::TokensReconciled { .. }
+        ZoneEvent::SkillCastStarted { .. }
+        | ZoneEvent::SkillCastResult { .. }
+        | ZoneEvent::SkillCastCancelled { .. }
+        | ZoneEvent::SkillStateSync { .. }
+        | ZoneEvent::SpGained { .. }
+        | ZoneEvent::SkillReuse { .. }
+        | ZoneEvent::VitalsChanged { .. }
+        | ZoneEvent::TokensReconciled { .. }
         | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
@@ -1528,7 +1556,14 @@ impl<'a> CellFacts<'a> {
                 ZoneEvent::ClassChanged { entity, .. }
                 | ZoneEvent::EntityDied { entity, .. }
                 | ZoneEvent::EntityRespawned { entity, .. } => (*entity, None, false),
-                ZoneEvent::TokensReconciled { .. }
+                ZoneEvent::SkillCastStarted { .. }
+                | ZoneEvent::SkillCastResult { .. }
+                | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::SkillStateSync { .. }
+                | ZoneEvent::SpGained { .. }
+                | ZoneEvent::SkillReuse { .. }
+                | ZoneEvent::VitalsChanged { .. }
+                | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::ClassTransfer { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }

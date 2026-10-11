@@ -974,6 +974,18 @@ pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::A
         | RejectReason::StaleSession
         | RejectReason::NotAPlayer
         | RejectReason::InvalidLoad
+        | RejectReason::SkillUnknown
+        | RejectReason::SkillNotLearned
+        | RejectReason::SkillCooldown
+        | RejectReason::InsufficientMp
+        | RejectReason::InsufficientHp
+        | RejectReason::AlreadyCasting
+        | RejectReason::Incapacitated
+        | RejectReason::Silenced
+        | RejectReason::InvalidTargetType
+        | RejectReason::PeaceZone
+        | RejectReason::WeaponCondition
+        | RejectReason::NoResurrectOffer
         | RejectReason::NotDead => super::AppError::FailedPrecondition(reason.detail().to_owned()),
     }
 }

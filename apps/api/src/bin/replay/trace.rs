@@ -42,7 +42,14 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         ZoneEvent::EntityRespawned { .. } => Some(("respawn", "↥")),
         ZoneEvent::NpcIntentionChanged { .. } => Some(("intention", "◇")),
         ZoneEvent::TargetChanged { .. } => Some(("target", "◎")),
-        ZoneEvent::TokensReconciled { .. }
+        ZoneEvent::SkillCastStarted { .. }
+        | ZoneEvent::SkillCastResult { .. }
+        | ZoneEvent::SkillCastCancelled { .. }
+        | ZoneEvent::SkillStateSync { .. }
+        | ZoneEvent::SpGained { .. }
+        | ZoneEvent::SkillReuse { .. }
+        | ZoneEvent::VitalsChanged { .. }
+        | ZoneEvent::TokensReconciled { .. }
         | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::AttackStarted { .. }
         | ZoneEvent::AttackCancelled { .. }
@@ -111,6 +118,13 @@ impl Projection {
                 self.break_path(entity);
             },
             ZoneEvent::ClassChanged { .. }
+            | ZoneEvent::SkillCastStarted { .. }
+            | ZoneEvent::SkillCastResult { .. }
+            | ZoneEvent::SkillCastCancelled { .. }
+            | ZoneEvent::SkillStateSync { .. }
+            | ZoneEvent::SpGained { .. }
+            | ZoneEvent::SkillReuse { .. }
+            | ZoneEvent::VitalsChanged { .. }
             | ZoneEvent::TokensReconciled { .. }
             | ZoneEvent::ClassTransfer { .. }
             | ZoneEvent::AttackResult { .. }
@@ -183,7 +197,11 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
             "ClassTransfer effect: {entity} · {} → {} · tick {} (private receipt hidden)",
             old_class_id.0, receipt.target_class_id.0, tick.0
         ),
-        ZoneEvent::StatsChanged { entity, tick, .. } | ZoneEvent::XpGained { entity, tick, .. }
+        ZoneEvent::StatsChanged { entity, tick, .. }
+        | ZoneEvent::SkillStateSync { entity, tick, .. }
+        | ZoneEvent::SpGained { entity, tick, .. }
+        | ZoneEvent::SkillReuse { entity, tick, .. }
+        | ZoneEvent::XpGained { entity, tick, .. }
             if owner != Some(*entity) =>
         {
             format!("Owner update: {entity} · tick {} (owner-private fields hidden)", tick.0)
@@ -192,7 +210,14 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
             "Progression checkpoint: {} · tick {} (private state hidden)",
             delta.entity, delta.tick.0
         ),
-        ZoneEvent::AttackResult { .. }
+        ZoneEvent::SkillCastStarted { .. }
+        | ZoneEvent::SkillCastResult { .. }
+        | ZoneEvent::SkillCastCancelled { .. }
+        | ZoneEvent::SkillStateSync { .. }
+        | ZoneEvent::SpGained { .. }
+        | ZoneEvent::SkillReuse { .. }
+        | ZoneEvent::VitalsChanged { .. }
+        | ZoneEvent::AttackResult { .. }
         | ZoneEvent::EntityDied { .. }
         | ZoneEvent::AttackStarted { .. }
         | ZoneEvent::AttackCancelled { .. }
@@ -453,6 +478,7 @@ mod tests {
             level: 20,
             xp: 0,
             class: Some(ClassStatsView {
+                phase3: None,
                 class_id: ClassId(1),
                 sp: 765_432,
                 cp: 987_654,

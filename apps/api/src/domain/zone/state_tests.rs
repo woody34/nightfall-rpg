@@ -75,6 +75,13 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::EntityRespawned { .. }
                 | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::ClassTransfer { .. }
+                | ZoneEvent::SkillCastStarted { .. }
+                | ZoneEvent::SkillCastResult { .. }
+                | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::SkillStateSync { .. }
+                | ZoneEvent::SpGained { .. }
+                | ZoneEvent::SkillReuse { .. }
+                | ZoneEvent::VitalsChanged { .. }
                 | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::XpGained { .. }

@@ -160,7 +160,14 @@ impl TickTelemetry for CombatConsumer {
                         ],
                     );
                 },
-                ZoneEvent::TokensReconciled { .. }
+                ZoneEvent::SkillCastStarted { .. }
+                | ZoneEvent::SkillCastResult { .. }
+                | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::SkillStateSync { .. }
+                | ZoneEvent::SpGained { .. }
+                | ZoneEvent::SkillReuse { .. }
+                | ZoneEvent::VitalsChanged { .. }
+                | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::AttackStarted { .. }
                 | ZoneEvent::AttackCancelled { .. }
