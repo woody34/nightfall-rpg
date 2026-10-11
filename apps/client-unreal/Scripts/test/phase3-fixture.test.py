@@ -42,6 +42,7 @@ class Phase3Tests(unittest.TestCase):
             self.assertIn('nf_phase3_fixture_', manifest['database'])
             self.assertTrue(manifest['project'].startswith('nightfall-phase3-harness-'))
             self.assertEqual(state['env']['NIGHTFALL_PHASE3_FIXTURE'], '1')
+            self.assertEqual(state['env']['PHASE3_ENABLED'], '1')
             self.assertNotIn('NIGHTFALL_PHASE2_FIXTURE', state['env'])
             self.assertTrue(json.loads((folder / 'cleanup-status.json').read_text())['completed'])
             sql = (self.root / 'psql-stdin').read_text()
@@ -56,8 +57,20 @@ class Phase3Tests(unittest.TestCase):
                 self.assertEqual(seed['roles']['owner']['learned_ranks']['1177'], 1)
                 self.assertEqual(seed['roles']['owner']['position'], [126, 128])
             if pack == 'phase3-resurrect':
-                self.assertEqual(seed['roles']['owner']['class_id'], 15)
-                self.assertEqual(seed['roles']['owner']['learned_ranks']['1016'], 1)
+                self.assertEqual(seed['roles']['owner']['class_id'], 10)
+                self.assertNotIn('1016', seed['roles']['owner']['learned_ranks'])
+
+    def test_missing_replay_producer_fails_both_wrappers_even_with_green_client_reports(self):
+        for paired in (False, True):
+            a = self.scenario('gated-a' if paired else 'gated', 'phase3-trainer')
+            a.write_text(a.read_text() + '# replay-gate: death_record_matches_fixture\n')
+            batch = [a, self.scenario('gated-b', 'phase3-trainer')] if paired else [a]
+            result, artifacts = self.run_wrapper(batch, multi=paired, SIM_PHASE3_SEEDER=str(SEEDER),
+                                                  SIM_PHASE3_EVIDENCE_CMD='false')
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            verdict = json.loads((artifacts / 'pipeline-verdict.json').read_text())
+            self.assertTrue(any('phase3_replay_evidence' in error for error in verdict['infrastructure_failures']))
+            self.assertFalse((artifacts / a.stem / 'phase3-evidence.json').exists())
 
     def test_seeder_dry_run_guards_reject_default_external_and_ambiguous_databases(self):
         env = dict(os.environ, AUTH_DEV_TOKENS='1', NIGHTFALL_PHASE3_FIXTURE='1')
@@ -103,6 +116,10 @@ if [[ "$*" == *" exec "* ]]; then cat >/dev/null; exit 1; fi
         for path in (fixture.REPO / 'packages/data').rglob('*'):
             if path.is_file() and 'skills' in path.parts:
                 self.assertEqual(path.read_bytes(), (target / path.relative_to(fixture.REPO / 'packages/data')).read_bytes())
+        for name in ('skill_sentinel', 'skill_target'):
+            generated = tomllib.loads((target / f'npcs/{name}.toml').read_text())
+            self.assertEqual(generated['phase3'], shipped['phase3'])
+            self.assertEqual(generated['sp_reward'], shipped['sp_reward'])
         zone = tomllib.loads((target / 'zones/test_zone.toml').read_text())
         self.assertEqual(sum(slot['count'] for slot in zone['spawn_slots'] if slot['template'] == 'keltir'), 1)
 

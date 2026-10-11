@@ -11,6 +11,6 @@ nf.WaitFor own_dead 90
 nf.Expect own_flag == none
 nf.Expect own_karma == 0
 nf.Expect cp_absorption_matches_received
-nf.Expect death_record_matches_fixture
+# replay-gate: death_record_matches_fixture
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 153

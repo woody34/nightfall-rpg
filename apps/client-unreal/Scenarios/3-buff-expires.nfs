@@ -18,7 +18,7 @@ nf.WaitFor own_sp >= 0 3
 nf.Cast 1068 self
 nf.WaitFor buff_active 1068 12
 nf.Expect effect_count == 1
-nf.Expect stat_matches_oracle
+# replay-gate: stat_matches_oracle active
 nf.WaitFor skill_ready 1068 12
 nf.Cast 1068 self
 nf.WaitFor buff_replacements >= 1 12
@@ -27,6 +27,6 @@ nf.Expect replacement_remove_before_apply
 nf.WaitFor buff_inactive 1068 3600
 nf.Expect effect_count == 0
 nf.Expect effect_remove_reason == expired
-nf.Expect stat_matches_oracle
+# replay-gate: stat_matches_oracle removed
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 3699

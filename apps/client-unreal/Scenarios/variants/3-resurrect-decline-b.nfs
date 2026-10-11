@@ -16,7 +16,7 @@ nf.Target template:skill_sentinel
 nf.WaitFor target != none 3
 nf.Attack
 nf.WaitFor own_dead 90
-nf.WaitFor resurrect_offer_pending 18
+nf.WaitFor resurrect_offer_pending 180 # includes caster transfer/learning preparation
 nf.Expect resurrect_offer_matches_death
 nf.AcceptResurrect latest decline
 nf.WaitFor resurrect_offer_state == declined 3
@@ -26,4 +26,4 @@ nf.WaitFor rejected == no_resurrect_offer 3
 nf.Expect resurrection_refunds == 0
 nf.Expect own_dead
 # Total sum of waits plus30s exit grace.
-nf.Within 180
+nf.Within 342

@@ -18,14 +18,16 @@ nf.WaitFor own_sp >= 0 3
 nf.Expect initial_hp == 1
 nf.Expect initial_mp == 1
 nf.Expect initial_cp == 1
-nf.WaitFor regen_pulses >= 3 27
-nf.Expect regen_matches_oracle
+# replay-gate: regen_pulses >= 3
+nf.WaitFor own_hp > 1 27
+# replay-gate: regen_matches_oracle
 nf.Expect own_hp > 1
 nf.Expect own_mp > 1
 nf.Expect own_cp > 1
 nf.ClickMove 150 128
-nf.WaitFor moving_regen_pulses >= 1 9
+# replay-gate: moving_regen_pulses >= 1
+nf.Sleep 9 # A6 three regen periods; replay gates count moving pulses.
 nf.WaitFor own_at 150 128 1 30
-nf.Expect moving_regen_matches_oracle
+# replay-gate: moving_regen_matches_oracle
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
 nf.Within 129

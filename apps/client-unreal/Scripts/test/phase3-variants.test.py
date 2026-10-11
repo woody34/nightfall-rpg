@@ -45,7 +45,7 @@ class VariantContracts(unittest.TestCase):
             role['account_id'] = '01970000-0000-7000-8000-000000000099'
             sql = seed.seed_sql({'owner': role})
             if field == 'death_penalty_level':
-                self.assertIn("'female',0,0,0,0,5,0,1)", sql)
+                self.assertIn("'female',0,0,0,0,5,0,1,'[{\"kind\":\"death_penalty\"}]'::jsonb)", sql)
             if field == 'sp':
                 self.assertIn(str(value) + ",'female'", sql)
         self.assertIn('rglob("*.nfs")', (SCRIPTS / 'run-sim-ci.py').read_text())

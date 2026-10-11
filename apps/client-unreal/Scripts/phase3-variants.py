@@ -23,6 +23,9 @@ def read_contract(root=SCENARIOS):
     spec = importlib.util.spec_from_file_location('variant_packs', Path(__file__).with_name('phase3-fixtures.py'))
     fixtures = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(fixtures)
+    gate_spec = importlib.util.spec_from_file_location('variant_evidence', Path(__file__).with_name('phase3-evidence.py'))
+    gate_parser = importlib.util.module_from_spec(gate_spec)
+    gate_spec.loader.exec_module(gate_parser)
     seen, roles = set(), set()
     for group in ('runtime_cases', 'precision_cases'):
         if not isinstance(data.get(group), list) or not data[group]:
@@ -50,7 +53,8 @@ def read_contract(root=SCENARIOS):
                     lines = source.splitlines()
                     if lines[0] != header or '# fixture: ' + case['fixture'] not in lines or '# variant: ' + name not in lines:
                         raise ValueError('variant header/fixture mismatch')
-                    if any(a not in lines or not a.startswith(('nf.Expect ', 'nf.WaitFor ')) for a in assertions):
+                    gate_parser.requirements(root / role)
+                    if any(a not in lines or not a.startswith(('nf.Expect ', 'nf.WaitFor ', '# replay-gate: ')) for a in assertions):
                         raise ValueError('variant assertion missing from scenario body')
                     waits = sum(int(l.split('#', 1)[0].split()[-1]) for l in lines if l.startswith('nf.WaitFor '))
                     budget = re.findall(r'^nf.Within ([0-9]+)$', source, re.M)

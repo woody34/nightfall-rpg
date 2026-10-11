@@ -119,6 +119,10 @@ for scenario in "${SCENARIOS[@]}"; do
     INFRA+=(transition_coverage)
     status=FAIL; note="${note:+$note; }transition coverage missing or invalid"
   fi
+  if ! sim_phase3_evidence "$scenario" "$dest" "$name"; then
+    INFRA+=(phase3_replay_evidence)
+    status=FAIL; note="${note:+$note; }Phase3 raw replay evidence missing or mismatched"
+  fi
   if ! python3 "$HERE/sim-gates.py" scenario --report "$dest/$name.xml" --out "$dest/pipeline-state.json" \
       --scenario "$name" --code "$code" "${INFRA[@]}"; then
     status=FAIL; note="${note:+$note; }bot report classification or infrastructure failure"
