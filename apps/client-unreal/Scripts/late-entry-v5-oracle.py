@@ -72,7 +72,7 @@ def check_scenarios():
 
 def verify(recording, raw, observer):
     check_scenarios()
-    gates = [{'kind': 'late_entry_hp_continuity', 'args': [], 'line': 1}]
+    gates = [{'kind': 'late_entry_hp_continuity', 'args': ['keltir_durable'], 'line': 1}]
     rows = evidence.read_jsonl(raw)
     result = evidence.evaluate(rows, recording, observer, gates)
     if not result['passed']:

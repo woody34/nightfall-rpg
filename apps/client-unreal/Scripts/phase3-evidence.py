@@ -223,6 +223,9 @@ def requirements(path):
         elif kind in ('skill_damage_matches_oracle', 'skill_effect_matches_oracle'):
             if len(args) != 1 or not args[0].isdigit() or not 0 < int(args[0]) < 2**32:
                 raise ValueError('skill gate requires positive skill id')
+        elif kind == 'late_entry_hp_continuity':
+            if len(args) != 1 or not args[0] or not all(c.isalnum() or c == '_' for c in args[0]):
+                raise ValueError('late-entry gate requires one NPC template')
         elif kind == 'stat_matches_oracle':
             if args not in (['active'], ['removed']):
                 raise ValueError('stat gate requires active or removed phase')
@@ -841,7 +844,7 @@ def karma_decay(row, manifest, facts):
         raise ValueError('karma credit must join one actual NPC death')
 
 
-def late_entry_continuity(row, manifest, facts):
+def late_entry_continuity(row, manifest, facts, template):
     """Exact first delivered hit after every wounded NPC identity baseline.
 
     C11: same-tick regen precedes impacts; only final vitals reach the client.
@@ -853,8 +856,10 @@ def late_entry_continuity(row, manifest, facts):
         if spawn['type'] != 'entity_spawn':
             continue
         combat = spawn['combat']
-        if spawn['kind'] != 'npc' or combat['dead'] or combat['hp'] >= combat['max_hp']:
+        if spawn['kind'] != 'npc' or combat['template'] != template:
             continue
+        if combat['dead'] or combat['hp'] >= combat['max_hp']:
+            raise ValueError('re-entered target must have a living wounded baseline')
         target, life, hp = spawn['entity'], combat['incarnation'], combat['hp']
         for later in facts:
             if later['tick'] <= row['tick']:
@@ -913,19 +918,27 @@ def evaluate(rows, recording, entity, gates):
         kind, args = gate['kind'], gate['args']
         check = None
         if kind == 'late_entry_hp_continuity':
-            # Select the last wounded baseline per life. Earlier observation used only
-            # to coordinate leaving AOI is superseded by the actual late-entry baseline.
-            baselines = {}
+            # Require an actual departure/re-entry of the named target's same life.
+            # Track FULL as well as wounded spawns so an older wound cannot mask
+            # a full-HP re-entry. Unrelated static NPCs cannot satisfy this gate.
+            seen, departed, baselines = {}, set(), {}
             for row in owner:
                 if row['kind'] != 'observer_combat':
                     continue
                 for event in row['data']['events']:
+                    if event['type'] == 'entity_despawn' and event['entity'] in seen:
+                        departed.add(event['entity'])
                     if event['type'] == 'entity_spawn':
                         combat = event['combat']
-                        if event['kind'] == 'npc' and not combat['dead'] and combat['hp'] < combat['max_hp']:
-                            baselines[(event['entity'], combat['incarnation'])] = row
+                        if event['kind'] != 'npc' or combat['template'] != args[0]:
+                            continue
+                        target, life = event['entity'], combat['incarnation']
+                        if seen.get(target) == life and target in departed:
+                            baselines[target] = row
+                        seen[target] = life
+                        departed.discard(target)
             matched = list({r['sequence']: r for r in baselines.values()}.values())
-            check = late_entry_continuity
+            check = lambda row, manifest, facts: late_entry_continuity(row, manifest, facts, args[0])
         elif kind in ('regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle', 'moving_regen_matches_oracle'):
             matched = [r for r in owner if r['kind'] == 'regen_pulse'
                        and (not kind.startswith('moving_') or r['data']['inputs']['posture'] == 'Moving')]

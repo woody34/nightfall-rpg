@@ -36,7 +36,7 @@ nf.Expect late_spawn_projection_bad == 0
 nf.Mark
 nf.WaitFor target_hits_since_mark >= 1 15
 nf.Expect target_wounded
-# replay-gate: late_entry_hp_continuity
+# replay-gate: late_entry_hp_continuity keltir_durable
 nf.ClickMove 62 90
 nf.WaitFor players_in_view == 0 15
 nf.Expect attacked_by == 0

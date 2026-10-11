@@ -85,7 +85,7 @@ class ReplayEvidence(unittest.TestCase):
         for epoch in (1, 2, 3):
             recording = self.generated / f'late-{epoch}.nfr'
             rows = evidence.read_jsonl(self.generated / f'late-{epoch}.jsonl')
-            self.assertTrue(self.check('late_entry_hp_continuity', observer, rows, recording)['passed'])
+            self.assertTrue(self.check('late_entry_hp_continuity keltir_durable', observer, rows, recording)['passed'])
             if epoch == 3:
                 pulses = {(r['entity'], r['tick']) for r in rows if r['kind'] == 'regen_pulse'}
                 baselines = [r for r in rows if r['kind'] == 'observer_combat' and r['entity'] == observer
@@ -96,14 +96,20 @@ class ReplayEvidence(unittest.TestCase):
                            and r['tick'] > baseline['tick'] for e in r['data']['events']
                            if e['type'] == 'attack_result' and e['attacker'].endswith('0030'))
                 self.assertIn((hit['target'], hit['tick']), pulses)
-            for category in ('baseline', 'hit', 'regen', 'missing'):
+            for category in ('baseline', 'hit', 'regen', 'missing', 'no_departure', 'full_reentry'):
                 altered = copy.deepcopy(rows)
                 for row in altered[1:-1]:
                     if category == 'regen' and row['kind'] == 'regen_pulse':
                         row['data']['amounts']['hp_q'] += 1
                     if row['kind'] != 'observer_combat' or row['entity'] != observer:
                         continue
+                    if category == 'no_departure':
+                        row['data']['events'] = [e for e in row['data']['events'] if e['type'] != 'entity_despawn']
                     for event in row['data']['events']:
+                        if (category == 'full_reentry' and event['type'] == 'entity_spawn'
+                                and event['combat']['template'] == 'keltir_durable'
+                                and row['tick'] > 10):
+                            event['combat']['hp'] = event['combat']['max_hp']
                         if event['type'] == 'entity_spawn' and event['kind'] == 'npc':
                             if category == 'baseline' and event['combat']['hp']:
                                 event['combat']['hp'] -= 1
@@ -111,7 +117,7 @@ class ReplayEvidence(unittest.TestCase):
                                 event['combat']['hp'] = event['combat']['max_hp']
                         if category == 'hit' and event['type'] == 'attack_result':
                             event['target_hp_after'] += 1
-                self.assertFalse(self.check('late_entry_hp_continuity', observer, altered, recording)['passed'], category)
+                self.assertFalse(self.check('late_entry_hp_continuity keltir_durable', observer, altered, recording)['passed'], category)
 
     def test_actual_export_is_deterministic_and_all_categories_are_retained(self):
         second = self.root / 'second.jsonl'
