@@ -106,3 +106,5 @@ the client does not infer capabilities or formulas from their strings. No predic
 or command grammar changed.
 
 `peace_impact_has_no_damage` requires one received peace cancellation targeting the owner, complete same-life HP/CP samples without any decrease from cast start through the first sample after cancellation, and no contradictory cast terminal. Positive received regeneration is retained. The paired `peace_cancel_no_damage` replay gate checks the exact HP/CP changes against independently calculated recorded regeneration pulses; missing start, cancellation, or resource samples fail closed.
+
+`target_swing_impact_remaining op n` reads the selected entity’s accepted AttackStarted impact deadline minus the latest received tick, clamped to zero. Missing swing, unknown endpoint or incarnation mismatch is UNKNOWN. It never reconstructs attack speed or uses a local timer.

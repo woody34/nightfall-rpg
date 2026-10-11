@@ -14,7 +14,11 @@ p_atk = "0"
 p_def = "26.9"
 max_hp = 256
 max_mp = 20
-attack_speed = 253
+# HARNESS: floor(source attackSpeed253 / 10) =25 gives a100-tick windup.
+# dp3ca488dd stats/npcs/20500-20599.xml:3660; game abfde049
+# L2Character.java:4336 (500000/speed), :887-890 (half interval to impact).
+# Scenarios/1-late-entry-b.nfs requires >=95 received ticks before its AOI roundtrip.
+attack_speed = 25
 attack_range = 1500
 move_speed = 1
 collision_radius = 300

@@ -983,7 +983,7 @@ fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Re
         owner.position = [103, 102];
         let mut peer = owner.clone();
         peer.character_id = EntityId::from_uuid(uuid::Uuid::from_u128(997));
-        peer.position = [70, 90];
+        peer.position = [65, 90];
         let data = work.join("phase1a-late-entry");
         let prepared = prepare_phase3_bootstrap(
             &Phase3DataSource::from_dir(&data)?,
@@ -1039,35 +1039,63 @@ fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Re
                 }
             }
             ensure!(wounded, "fixture never wounded");
-            rec.tick(vec![
-                input(
-                    owner.character_id,
-                    ZoneCommand::StopAttack {
-                        entity: owner.character_id,
-                    },
-                ),
-                input(
-                    peer.character_id,
-                    ZoneCommand::MoveTo {
-                        entity: peer.character_id,
-                        dest: Vec2Fixed::from_tiles(62, 90),
-                    },
-                ),
-            ])?;
-            let mut departed = false;
-            for _ in 0..30 {
-                let tick = rec.tick(Vec::new())?;
-                departed |= tick.outputs.get(&peer.character_id).is_some_and(|events| events.iter()
-                    .any(|e| matches!(e, ObserverOutput::Event(ZoneEvent::EntityDespawn { entity, .. }) if *entity == npc)));
+            let stopped = rec.tick(vec![input(
+                owner.character_id,
+                ZoneCommand::StopAttack {
+                    entity: owner.character_id,
+                },
+            )])?;
+            // WaitFor target_swing_impact_remaining >=95: include the StopAttack
+            // tick's received start, just as the client does before evaluating WaitFor.
+            let upcoming = |tick: &nightfall_api::domain::zone::AppliedTick| {
+                tick.outputs.get(&peer.character_id).and_then(|events| {
+                    events.iter().find_map(|event| {
+                        if let ObserverOutput::Event(ZoneEvent::AttackStarted {
+                            attacker,
+                            impact,
+                            ..
+                        }) = event
+                        {
+                            if *attacker == npc && impact.0.saturating_sub(tick.tick.0) >= 95 {
+                                return Some(*impact);
+                            }
+                        }
+                        None
+                    })
+                })
+            };
+            let mut pending = upcoming(&stopped);
+            for _ in 0..300 {
+                if pending.is_some() {
+                    break;
+                }
+                pending = upcoming(&rec.tick(Vec::new())?);
+            }
+            let pending = pending.context("received NPC windup with >=95 ticks")?;
+            let departure = rec.tick(vec![input(
+                peer.character_id,
+                ZoneCommand::MoveTo {
+                    entity: peer.character_id,
+                    dest: Vec2Fixed::from_tiles(63, 90),
+                },
+            )])?;
+            let left = |tick: &nightfall_api::domain::zone::AppliedTick| {
+                tick.outputs.get(&peer.character_id)
+                .is_some_and(|events| events.iter().any(|e| matches!(e,
+                    ObserverOutput::Event(ZoneEvent::EntityDespawn { entity, .. }) if *entity == npc)))
+            };
+            let mut departed = left(&departure);
+            for _ in 0..3 {
+                departed |= left(&rec.tick(Vec::new())?);
             }
             ensure!(departed, "peer never left NPC visibility");
-            // Offset the actual re-entry across different NPC swing/regen phases.
+            // Bounded delivery delays exercise different phases without guessing a swing.
             rec.wait(epoch * 4)?;
             rec.tick(vec![input(
                 peer.character_id,
                 ZoneCommand::MoveTo {
                     entity: peer.character_id,
-                    dest: Vec2Fixed::from_tiles(70, 90),
+                    dest: Vec2Fixed::from_tiles(65, 90),
                 },
             )])?;
             let mut baseline = false;
@@ -1138,9 +1166,52 @@ fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Re
                 }
             }
             ensure!(baseline, "no wounded late baseline");
+            // Both endpoints remain admitted until the hydrated native impact.
+            while rec.state.next_tick() <= pending {
+                rec.tick(Vec::new())?;
+            }
             if epoch == 3 {
-                // Exercise regeneration and the first post-baseline impact in one tick.
-                rec.wait(1)?;
+                // Align the first resumed hit with the next real regen deadline.
+                let mut offset = None;
+                for record in &rec.recording.records {
+                    for event in
+                        nightfall_api::application::replay_log::decode_events(&record.events)?
+                    {
+                        if let ZoneEvent::AttackStarted {
+                            attacker,
+                            tick,
+                            impact,
+                            ..
+                        } = event
+                        {
+                            if attacker == owner.character_id {
+                                offset = impact.0.checked_sub(tick.0);
+                            }
+                        }
+                    }
+                }
+                let offset = offset.context("received owner timing")?;
+                let start = loop {
+                    let next_regen = rec
+                        .state
+                        .snapshot()
+                        .phase3
+                        .context("phase3")?
+                        .entities
+                        .get(&npc)
+                        .context("NPC")?
+                        .regen
+                        .next_at
+                        .context("regen deadline")?;
+                    let start = next_regen.0.checked_sub(offset).context("impact offset")?;
+                    if start >= rec.state.next_tick().0 {
+                        break start;
+                    }
+                    rec.tick(Vec::new())?;
+                };
+                while rec.state.next_tick().0 < start {
+                    rec.tick(Vec::new())?;
+                }
             }
 
             rec.tick(vec![input(

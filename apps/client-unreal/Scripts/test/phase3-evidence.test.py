@@ -92,13 +92,9 @@ class ReplayEvidence(unittest.TestCase):
             rows = evidence.read_jsonl(self.generated / f'late-{epoch}.jsonl')
             result = self.check('late_entry_hp_continuity keltir_durable', observer, rows, recording)
             baseline = next(r for r in rows if r.get('sequence') == result['gates'][0]['sequences'][0])
-            # All three retain exact HP/life continuity. Epoch1 starts on entry;
-            # only epochs2/3 prove receipt of a swing already in flight.
+            # Every admission/phase must pass the exact live scenario gate.
             evidence.late_entry_hp(baseline, rows[0], rows[1:-1], 'keltir_durable')
-            self.assertEqual(result['passed'], epoch != 1)
-            if epoch == 1:
-                self.assertEqual(len(result['gates'][0]['errors']), 1)
-                self.assertTrue(result['gates'][0]['errors'][0].endswith('swing did not start before re-entry'))
+            self.assertTrue(result['passed'], result)
             if epoch == 3:
                 pulses = {(r['entity'], r['tick']) for r in rows if r['kind'] == 'regen_pulse'}
                 baselines = [r for r in rows if r['kind'] == 'observer_combat' and r['entity'] == observer
@@ -146,8 +142,6 @@ class ReplayEvidence(unittest.TestCase):
             result = self.check('late_entry_hp_continuity keltir_durable', observer, altered, recording)
             self.assertFalse(result['passed'])
             self.assertTrue(result['gates'][0]['errors'][0].endswith('missing or duplicate re-entry swing hydration'))
-            if epoch == 1:
-                continue
             positive = self.check('late_entry_hp_continuity keltir_durable', observer, rows, recording)
             self.assertTrue(positive['passed'])
             sequence = positive['gates'][0]['sequences'][0]

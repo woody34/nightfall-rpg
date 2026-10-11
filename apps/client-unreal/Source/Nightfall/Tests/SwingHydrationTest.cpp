@@ -73,4 +73,26 @@ bool FEnabledPursuitAuditTest::RunTest(const FString& Parameters)
  TestEqual(TEXT("only a newly received swing counts again"),Count().Get(0),uint64(1));
  return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTargetSwingDeadlineTest,"Nightfall.Skill.TargetSwingReceivedImpactDeadline",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FTargetSwingDeadlineTest::RunTest(const FString& Parameters)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* A=Scope.Get<USkillAuditSubsystem>();N->SetOwnEntityId(TEXT("owner"));
+ auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};
+ auto Remaining=[&](){return A->Number(TEXT("target_swing_impact_remaining"));};
+ TestFalse(TEXT("unknown without identities"),Remaining().IsSet());
+ FEntitySpawn S;S.EntityId=TEXT("owner");S.Kind=1;S.LifeIncarnation=1;S.SessionGeneration=1;S.StateTick=50;S.Hp=S.MaxHp=100;FWorldEvent E;E.Spawn=S;Send(E);S.EntityId=TEXT("npc");S.Kind=2;E.Spawn=S;Send(E);
+ FTargetChanged T;T.Entity=TEXT("owner");T.Target=TEXT("npc");T.TargetIncarnation=1;T.Tick=55;E={};E.TargetChanged=T;Send(E);
+ TestFalse(TEXT("selection alone supplies no swing"),Remaining().IsSet());
+ // HARNESS scheduling inputs:100 impact ticks at fixture speed25; actual source
+ // derivation is independently checked by late-entry-v5-oracle.py.
+ FAttackStarted Swing;Swing.Attacker=TEXT("npc");Swing.AttackerIncarnation=1;Swing.Target=TEXT("owner");Swing.TargetIncarnation=1;Swing.Tick=60;Swing.ImpactTick=160;Swing.ReadyTick=260;E={};E.AttackStarted=Swing;Send(E);
+ TestEqual(TEXT("received deadline only"),Remaining().Get(0),uint64(100));
+ FEntityMove M;M.EntityId=TEXT("owner");M.Tick=65;E={};E.Move=M;Send(E);TestEqual(TEXT("coordination window closes on received ticks"),Remaining().Get(0),uint64(95));
+ M.Tick=160;E.Move=M;Send(E);TestEqual(TEXT("received impact deadline clamps to zero"),Remaining().Get(1),uint64(0));
+ FEntityDied D;D.Entity=TEXT("owner");D.Incarnation=1;D.Tick=165;E={};E.EntityDied=D;Send(E);TestFalse(TEXT("dead swing endpoint cannot coordinate entry"),Remaining().IsSet());
+ S.LifeIncarnation=2;S.StateTick=170;E={};E.Spawn=S;Send(E);TestFalse(TEXT("old swing cannot time a new life"),Remaining().IsSet());
+ N->OnDisconnected.Broadcast(TEXT("test"));TestFalse(TEXT("disconnect clears deadlines"),Remaining().IsSet());
+ return true;
+}
+
 #endif

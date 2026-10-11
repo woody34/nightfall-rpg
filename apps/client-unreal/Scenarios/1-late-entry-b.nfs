@@ -7,7 +7,7 @@
 #
 # V5: the legacy fixed delay admitted B before A wounded the durable NPC (r9 ticks596/613).
 # Observe the wound, leave AOI, then re-enter: A holds the wound until that handshake.
-# Geometry, budget and independent regen oracle: Scripts/late-entry-v5-oracle.py.
+# Received swing coordination, geometry, budget and independent regen oracle: Scripts/late-entry-v5-oracle.py.
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld
@@ -16,16 +16,22 @@ nf.ClickMove 20 60
 nf.WaitFor own_at 20 60 1 65       # Manhattan bound80 tiles at V5 speed,3x +3s
 nf.WaitFor players_in_view >= 1 30 # A, walking (0, 0) -> (40, 40) -> (80, 85)
 nf.WaitFor players_in_view == 0 60 # A crossed x = 64
-nf.ClickMove 70 90                 # 31.6 tiles from the keltir_a home: no keltir (15-tile leash, 6-tile aggro) reaches it
-nf.WaitFor own_at 70 90 1 65       # Manhattan bound80 tiles at V5 speed,3x +3s
+nf.ClickMove 65 90                 # outside NPC leash; boundary remains in the meadow AOI
+nf.WaitFor own_at 65 90 0.05 65       # Manhattan bound75 tiles at V5 speed,3x +3s
 nf.Target template:keltir_durable
 nf.WaitFor target != none 3
 nf.WaitFor target_wounded 90
-nf.ClickMove 62 90
-nf.WaitFor players_in_view == 0 15
-nf.WaitFor own_at 62 90 1 15
-nf.ClickMove 70 90
-nf.WaitFor own_at 70 90 1 15
+# HARNESS: durable speed floor(253/10)=25 yields100 impact ticks; see fixture provenance.
+# Require95 RECEIVED ticks remaining, then two2-tile legs. Three waits
+# total<=9s=90ticks for the roundtrip, leaving5ticks of delivery slack.
+# x63/cell1 leaves AOI; x65/cell2 enters (aoi.rs:13). Tight position bounds
+# keep own_at from passing on the wrong side. No sleep or guessed swing phase.
+nf.WaitFor target_swing_impact_remaining >= 95 30
+nf.ClickMove 63 90
+nf.WaitFor players_in_view == 0 3
+nf.WaitFor own_at 63 90 0.05 3
+nf.ClickMove 65 90
+nf.WaitFor own_at 65 90 0.05 3
 nf.Target template:keltir_durable
 nf.WaitFor target != none 3
 nf.WaitFor spawns_mid_fight >= 1 10
@@ -37,10 +43,12 @@ nf.Expect late_spawn_projection_bad == 0
 # with matching lives and native start < re-entry < impact, preserving impact/ready ticks
 # (C2/design-review-2 finding1; state_runtime_observe.rs:185-199).
 nf.Mark
-nf.WaitFor target_hits_since_mark >= 1 15
+nf.WaitFor target_hits_since_mark >= 1 30
 nf.Expect target_wounded
+# Keep both endpoints admitted until the hydrated swing's native impact, even on a miss.
+nf.WaitFor target_swing_impact_remaining == 0 15
 # replay-gate: late_entry_hp_continuity keltir_durable
-nf.ClickMove 62 90
-nf.WaitFor players_in_view == 0 15
+nf.ClickMove 63 90
+nf.WaitFor players_in_view == 0 3
 nf.Expect attacked_by == 0
-nf.Within 480
+nf.Within 540
