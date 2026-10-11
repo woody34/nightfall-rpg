@@ -428,3 +428,64 @@ fn live_v5_restore_preserves_name_xp_and_collision_guards() {
         assert!(ZoneState::from_snapshot(snapshot).is_err());
     }
 }
+
+#[tokio::test]
+async fn real_v5_actor_byte_admission_preserves_fifo_and_terminal_inputs_never_use_rng() {
+    use nightfall_api::application::zone_actor::{
+        manual_ticks, OpenGate, ZoneActor, ZoneSendError,
+    };
+    use nightfall_api::application::zone_admission::RecordAdmissionPolicy;
+    let (state, player, _) = setup();
+    let before_rng = state.snapshot().rng;
+    let (ticks, driver) = manual_ticks();
+    let actor = ZoneActor::try_spawn_gated_with_admission(
+        state,
+        ticks,
+        OpenGate,
+        RecordAdmissionPolicy {
+            version: 1,
+            record_budget: 20_000,
+            max_command_bytes: 16_384,
+            max_observers: 16,
+        },
+    )
+    .unwrap();
+    let oversized = ZoneInput::system(ZoneCommand::SpawnPlayer {
+        entity: EntityId::from_uuid(Uuid::from_u128(1234)),
+        name: "x".repeat(16_384),
+        pos: Vec2Fixed::from_tiles(10, 10),
+        speed: Speed::DEFAULT,
+        generation: SessionGeneration(1),
+        load: None,
+    });
+    assert!(matches!(actor.send(oversized), Err(ZoneSendError::AdmissionTooLarge(_))));
+    let mut output = actor.subscribe();
+    for seq in 1..=10 {
+        actor
+            .send(ZoneInput::session(
+                player,
+                SessionGeneration(1),
+                seq,
+                ZoneCommand::StopMove { entity: player },
+            ))
+            .unwrap();
+    }
+    driver.step().await.unwrap();
+    let first = output.recv().await.unwrap();
+    assert_eq!(first.commands.len(), 8);
+    assert_eq!(actor.stats().borrow().commands_deferred, 2);
+    assert_eq!(first.digest_version, StateDigestVersion::BinaryV5);
+    driver.step().await.unwrap();
+    let second = output.recv().await.unwrap();
+    assert_eq!(
+        second.commands.iter().map(|c| c.seq).collect::<Vec<_>>(),
+        vec![Some(9), Some(10)]
+    );
+    let after = actor.snapshot().await.unwrap();
+    assert_eq!(after.rng, before_rng);
+    assert_eq!(after.entities.len(), 2);
+    for tick in [first, second] {
+        let record = AppliedTickRecord::from_applied(ZoneId(1), &tick);
+        assert!(record.with_output_digests().encoded_len() <= 20_000);
+    }
+}

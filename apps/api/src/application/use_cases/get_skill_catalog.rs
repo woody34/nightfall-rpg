@@ -221,14 +221,14 @@ mod tests {
         let first = uc.execute().unwrap();
         assert_eq!(first, uc.execute().unwrap());
         assert_eq!(first.skills.len(), classes.registry.known_skills().len());
-        assert_eq!(first.skills.iter().filter(|s| s.effect_implemented).count(), 199);
+        assert_eq!(first.skills.iter().filter(|s| s.effect_implemented).count(), 180);
         assert_eq!(
             first
                 .skills
                 .iter()
                 .filter(|s| !s.effect_implemented)
                 .count(),
-            179
+            198
         );
         assert_eq!(first.data_version.len(), 64);
         assert!(first.skills.windows(2).all(|pair| pair

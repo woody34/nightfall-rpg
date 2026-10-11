@@ -13,6 +13,7 @@ pub mod session;
 pub mod trace;
 pub mod use_cases;
 pub mod zone_actor;
+pub mod zone_admission;
 pub mod zone_bootstrap;
 pub mod zone_registry;
 

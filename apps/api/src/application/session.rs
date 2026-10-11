@@ -558,6 +558,7 @@ pub async fn run_session<R: FrameSource, W: FrameSink>(
         );
         // Subscribe before queueing the admission so its tick cannot be missed.
         let ticks = ctx.zone.subscribe();
+        let failures = ctx.zone.subscribe_admission_failures();
         let end = match ctx
             .registry
             .admit(&ctx.zone, start.id, start.generation, &start.player)
@@ -565,7 +566,7 @@ pub async fn run_session<R: FrameSource, W: FrameSink>(
         {
             Ok(replaced) => {
                 let mut actor = Actor::new(&ctx, &start, out_tx, session_span);
-                let end = actor.run(source, ticks, replaced).await;
+                let end = actor.run(source, ticks, failures, replaced).await;
                 if let Err(e) = ctx
                     .registry
                     .leave(&ctx.zone, start.id, start.player.entity, start.generation)
@@ -712,6 +713,7 @@ impl<'a> Actor<'a> {
         &mut self,
         mut source: R,
         mut ticks: broadcast::Receiver<Arc<AppliedTick>>,
+        mut failures: broadcast::Receiver<super::zone_admission::AdmissionFailure>,
         replaced: CancellationToken,
     ) -> SessionEnd {
         let idle = tokio::time::sleep(self.ctx.limits.idle_timeout);
@@ -722,6 +724,19 @@ impl<'a> Actor<'a> {
                 () = self.ctx.shutdown.cancelled() => Err(SessionEnd::Shutdown),
                 () = replaced.cancelled() => Err(SessionEnd::Replaced),
                 () = &mut idle => Err(SessionEnd::IdleTimeout),
+                failure = failures.recv() => match failure {
+                    Ok(failure) if failure.entity == Some(self.entity)
+                        && failure.generation == Some(self.generation) => {
+                        if let Some(seq) = failure.seq {
+                            self.reject(seq, SessionReject::Overloaded, "ADMISSION_TOO_LARGE").await
+                        } else {
+                            Err(SessionEnd::AdmissionRefused)
+                        }
+                    },
+                    Ok(_) => Ok(()),
+                    Err(broadcast::error::RecvError::Lagged(_)) => Err(SessionEnd::SlowConsumer),
+                    Err(broadcast::error::RecvError::Closed) => Err(SessionEnd::ZoneUnavailable),
+                },
                 tick = ticks.recv() => match tick {
                     Ok(t) => self.on_tick(&t).await,
                     Err(broadcast::error::RecvError::Lagged(n)) => {
@@ -825,6 +840,10 @@ impl<'a> Actor<'a> {
             Err(ZoneSendError::Paused(_)) => {
                 frame_span.in_scope(|| tracing::warn!(seq, "zone paused"));
                 self.reject(seq, SessionReject::Overloaded, "zone is paused")
+                    .await
+            },
+            Err(ZoneSendError::AdmissionTooLarge(_)) => {
+                self.reject(seq, SessionReject::Overloaded, "ADMISSION_TOO_LARGE")
                     .await
             },
             Err(ZoneSendError::Closed(_)) => Err(SessionEnd::ZoneUnavailable),
