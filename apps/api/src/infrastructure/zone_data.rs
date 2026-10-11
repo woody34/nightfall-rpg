@@ -120,11 +120,12 @@ pub fn parse_zone_with(
         anyhow::bail!("invalid data ({} errors):\n  {}", errors.len(), errors.join("\n  "));
     }
 
-    let hash = sorted
-        .iter()
-        .fold(DataHash::new().part("zone", toml_src.as_bytes()), |h, (stem, src)| {
-            h.part(&format!("npc:{stem}"), src.as_bytes())
-        });
+    let hash =
+        sorted
+            .iter()
+            .fold(DataHash::new().part("zone", toml_src.as_bytes()), |h, (stem, src)| {
+                h.part(&format!("npc:{stem}"), super::npc_data::legacy_hash_source(src).as_bytes())
+            });
     Ok(ZoneDefinition {
         zone: ZoneId(file.zone_id),
         name: file.name,

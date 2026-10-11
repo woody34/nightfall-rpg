@@ -1,4 +1,5 @@
 use crate::domain::class::ClassRegistry;
+use crate::domain::zone::{Phase3Checkpoint, Phase3Rules};
 use std::future::Future;
 use std::sync::Arc;
 
@@ -11,10 +12,13 @@ use sea_orm::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::character_ledger;
 use super::entities::{characters, outbox};
 use super::idempotency::{self, operation, Claim};
-use crate::application::ports::{MutationReceiptLookup, RepositoryError};
+use super::{character_ledger, phase3_checkpoint};
+use crate::application::ports::{
+    FrozenLearnResult, LearnReceiptLookup, LearnReceiptRepository, LearningCheckpointOutcome,
+    LearningCheckpointRepository, MutationReceiptLookup, RepositoryError, SuccessfulLearnReceipt,
+};
 use crate::application::{
     CharacterCheckpoint, CharacterRepository, CheckpointError, CheckpointOutcome, CreateOutcome,
     IdempotencyKey, ProgressionState,
@@ -32,6 +36,7 @@ pub struct PgCharacterRepository {
     db: DatabaseConnection,
     metrics: Option<Metrics>,
     classes: Option<Arc<ClassRegistry>>,
+    phase3_rules: Option<Arc<Phase3Rules>>,
 }
 
 impl PgCharacterRepository {
@@ -42,6 +47,7 @@ impl PgCharacterRepository {
             db: db.into(),
             metrics: None,
             classes: None,
+            phase3_rules: None,
         }
     }
 
@@ -50,6 +56,54 @@ impl PgCharacterRepository {
     pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Self {
         self.classes = Some(classes);
         self
+    }
+
+    /// Injects the full immutable V5 bundle used by the actor; no timer-only policy.
+    #[must_use]
+    pub fn with_phase3_rules(mut self, rules: Arc<Phase3Rules>) -> Self {
+        self.phase3_rules = Some(rules);
+        self
+    }
+
+    fn phase3_rules(&self) -> anyhow::Result<Arc<Phase3Rules>> {
+        static RULES: std::sync::OnceLock<Result<Arc<Phase3Rules>, String>> =
+            std::sync::OnceLock::new();
+        if let Some(rules) = &self.phase3_rules {
+            return Ok(rules.clone());
+        }
+        RULES
+            .get_or_init(|| {
+                crate::infrastructure::skill_data::load_phase3_rules(
+                    &crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+                    &[],
+                )
+                .map(Arc::new)
+                .map_err(|e| e.to_string())
+            })
+            .clone()
+            .map_err(anyhow::Error::msg)
+    }
+
+    fn validate_versioned(
+        &self,
+        c: &Character,
+        ledger: &crate::domain::character_progression::ClassState,
+        phase3: Option<&Phase3Checkpoint>,
+        alive: bool,
+    ) -> anyhow::Result<()> {
+        let registry =
+            crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
+        if let Some(phase3) = phase3 {
+            let rules = self.phase3_rules()?;
+            rules
+                .validate_catalogue(&registry)
+                .map_err(anyhow::Error::msg)?;
+            phase3.validate(&rules, &ledger.learned_skills, alive)?;
+            ledger.validate_for_phase3(&registry, &c.identity(), c.id)?;
+        } else {
+            ledger.validate_for(&registry, &c.identity(), c.id)?;
+        }
+        Ok(())
     }
 
     fn validate_character(&self, c: &Character) -> anyhow::Result<()> {
@@ -162,6 +216,7 @@ fn character_active_model(c: &Character) -> anyhow::Result<characters::ActiveMod
         milestone_claimed_mask: set(i16::from(c.class_state.milestone_claimed_mask)),
         alive: ActiveValue::NotSet,
         revision: ActiveValue::NotSet,
+        ..Default::default()
     })
 }
 
@@ -174,11 +229,16 @@ impl CharacterRepository for PgCharacterRepository {
                 .lock_shared()
                 .one(&tx)
                 .await?;
-            let mut character = model.map(model_to_character).transpose()?;
-            if let Some(c) = &mut character {
-                character_ledger::hydrate(&tx, c).await?;
-                self.validate_character(c)?;
-            }
+            let character = if let Some(model) = model {
+                let phase3 = phase3_checkpoint::load(&tx, &model).await?;
+                let alive = model.alive;
+                let mut c = model_to_character(model)?;
+                character_ledger::hydrate(&tx, &mut c).await?;
+                self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
+                Some(c)
+            } else {
+                None
+            };
             tx.commit().await?;
             Ok(character)
         })
@@ -196,9 +256,16 @@ impl CharacterRepository for PgCharacterRepository {
                 .await?;
             let mut out = Vec::with_capacity(rows.len());
             for model in rows {
+                let phase3 = phase3_checkpoint::load(&tx, &model).await?;
+                let alive = model.alive;
                 let mut character = model_to_character(model)?;
                 character_ledger::hydrate(&tx, &mut character).await?;
-                self.validate_character(&character)?;
+                self.validate_versioned(
+                    &character,
+                    &character.class_state,
+                    phase3.as_ref(),
+                    alive,
+                )?;
                 out.push(character);
             }
             tx.commit().await?;
@@ -253,10 +320,12 @@ impl CharacterRepository for PgCharacterRepository {
                 let alive = m.alive;
                 let class_profile = m.class_profile.clone();
                 let revision = u64::try_from(m.revision)?;
+                let phase3 = phase3_checkpoint::load(&tx, &m).await?;
                 let mut c = model_to_character(m)?;
                 character_ledger::hydrate(&tx, &mut c).await?;
-                self.validate_character(&c)?;
+                self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
                 Some(ProgressionState {
+                    phase3,
                     position: c.position,
                     level: c.level,
                     xp: c.xp,
@@ -291,8 +360,67 @@ impl CharacterRepository for PgCharacterRepository {
         checkpoint: &CharacterCheckpoint,
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
-        self.timed("checkpoint", self.checkpoint_tx(checkpoint, events))
-            .await
+        match self
+            .timed("checkpoint", Box::pin(self.checkpoint_tx(checkpoint, events, None)))
+            .await?
+        {
+            LearningCheckpointOutcome::Checkpoint(outcome) => Ok(outcome),
+            LearningCheckpointOutcome::ReceiptReplayed(_) => Err(CheckpointError::Other(
+                anyhow::anyhow!("unexpected learning receipt on ordinary checkpoint"),
+            )),
+        }
+    }
+}
+
+#[async_trait]
+impl LearnReceiptRepository for PgCharacterRepository {
+    async fn learn_receipt_lookup(
+        &self,
+        caller: AccountId,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<LearnReceiptLookup> {
+        self.timed("learn_receipt_lookup", async {
+            let stored = super::entities::idempotency_keys::Entity::find_by_id((
+                key.as_uuid(),
+                caller.as_uuid(),
+                operation::LEARN_SKILL.to_owned(),
+            ))
+            .one(&self.db)
+            .await?;
+            let Some(stored) = stored else {
+                return Ok(LearnReceiptLookup::Unknown);
+            };
+            if stored.fingerprint != fingerprint {
+                return Ok(LearnReceiptLookup::Conflict);
+            }
+            let result: FrozenLearnResult = serde_json::from_value(stored.response)?;
+            anyhow::ensure!(
+                crate::application::ports::learn_skill_fingerprint(
+                    result.character_id,
+                    result.skill
+                ) == fingerprint,
+                "learning receipt response disagrees with fingerprint"
+            );
+            Ok(LearnReceiptLookup::Known(result))
+        })
+        .await
+    }
+}
+
+#[async_trait]
+impl LearningCheckpointRepository for PgCharacterRepository {
+    async fn checkpoint_learning(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        receipt: &SuccessfulLearnReceipt,
+    ) -> Result<LearningCheckpointOutcome, CheckpointError> {
+        self.timed(
+            "checkpoint_learning",
+            Box::pin(self.checkpoint_tx(checkpoint, events, Some(receipt))),
+        )
+        .await
     }
 }
 
@@ -322,27 +450,109 @@ pub(super) fn checkpoint_anyhow_error(error: anyhow::Error) -> CheckpointError {
     }
 }
 
+async fn claim_learning(
+    tx: &sea_orm::DatabaseTransaction,
+    cp: &CharacterCheckpoint,
+    owner: AccountId,
+    receipt: &SuccessfulLearnReceipt,
+) -> Result<Option<FrozenLearnResult>, CheckpointError> {
+    if receipt.account_id != owner {
+        return Err(CheckpointError::Constraint("character_learn_receipt_valid".into()));
+    }
+    let claim = idempotency::claim(
+        tx,
+        owner,
+        operation::LEARN_SKILL,
+        &receipt.key,
+        &receipt.request_fingerprint,
+        serde_json::to_value(&receipt.result).map_err(anyhow::Error::from)?,
+    )
+    .await
+    .map_err(checkpoint_anyhow_error)?;
+    if let Claim::Existing {
+        fingerprint,
+        response,
+    } = claim
+    {
+        if fingerprint != receipt.request_fingerprint {
+            return Err(CheckpointError::KeyReused);
+        }
+        let result: FrozenLearnResult =
+            serde_json::from_value(response).map_err(anyhow::Error::from)?;
+        if crate::application::ports::learn_skill_fingerprint(result.character_id, result.skill)
+            != fingerprint
+        {
+            return Err(
+                anyhow::anyhow!("learning receipt response disagrees with fingerprint").into()
+            );
+        }
+        return Ok(Some(result));
+    }
+    receipt.validate(cp, owner)?;
+    Ok(None)
+}
+
 impl PgCharacterRepository {
+    #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
     async fn checkpoint_tx(
         &self,
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
-    ) -> Result<CheckpointOutcome, CheckpointError> {
+        receipt: Option<&SuccessfulLearnReceipt>,
+    ) -> Result<LearningCheckpointOutcome, CheckpointError> {
         let other = checkpoint_db_error;
-        if let Some(name) = cp.violated_constraint() {
-            // Values the column types cannot even hold; no statement needed to know.
-            return Err(CheckpointError::Constraint(name.to_owned()));
+        if receipt.is_none() {
+            if let Some(name) = cp.violated_constraint() {
+                return Err(CheckpointError::Constraint(name.to_owned()));
+            }
         }
-        let fingerprint = cp.fingerprint(events);
+        let fingerprint = receipt.map_or_else(
+            || Ok(cp.fingerprint(events)),
+            |receipt| receipt.checkpoint_fingerprint(cp, events),
+        )?;
         let tx = self.db.begin().await.map_err(other)?;
 
         let original = characters::Entity::find_by_id(cp.character_id.as_uuid())
+            .lock(sea_orm::sea_query::LockType::Update)
             .one(&tx)
             .await
             .map_err(other)?
             .ok_or(CheckpointError::NotFound)?;
+        let phase3_seen = original.phase3_timer_policy_version.is_some();
         let original = model_to_character(original)?;
         let account = original.account_id.as_uuid();
+        // An exact immutable checkpoint retry proves this draft committed, even after
+        // another revision. A receipt alone proves only that some purchase won the key.
+        if receipt.is_some() {
+            if let Some(stored) = super::entities::idempotency_keys::Entity::find_by_id((
+                cp.idempotency.1.as_uuid(),
+                account,
+                cp.idempotency.0.clone(),
+            ))
+            .one(&tx)
+            .await
+            .map_err(other)?
+            {
+                if stored.fingerprint != fingerprint {
+                    return Err(CheckpointError::KeyReused);
+                }
+                let result: StoredCheckpoint =
+                    serde_json::from_value(stored.response).map_err(anyhow::Error::from)?;
+                tx.rollback().await.map_err(other)?;
+                return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
+                    result.revision,
+                )));
+            }
+        }
+        if let Some(receipt) = receipt {
+            if let Some(result) = claim_learning(&tx, cp, original.account_id, receipt).await? {
+                tx.rollback().await.map_err(other)?;
+                return Ok(LearningCheckpointOutcome::ReceiptReplayed(result));
+            }
+        }
+        if let Some(name) = cp.violated_constraint() {
+            return Err(CheckpointError::Constraint(name.to_owned()));
+        }
 
         let produced = cp
             .revision_seen
@@ -364,13 +574,16 @@ impl PgCharacterRepository {
             response,
         } = claim
         {
-            tx.commit().await.map_err(other)?;
             if stored_fp != fingerprint {
+                tx.rollback().await.map_err(other)?;
                 return Err(CheckpointError::KeyReused);
             }
             let stored: StoredCheckpoint =
                 serde_json::from_value(response).map_err(anyhow::Error::from)?;
-            return Ok(CheckpointOutcome::Replayed(stored.revision));
+            tx.commit().await.map_err(other)?;
+            return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
+                stored.revision,
+            )));
         }
 
         let to_i32 = |v: u32| i32::try_from(v).map_err(anyhow::Error::from);
@@ -422,17 +635,20 @@ impl PgCharacterRepository {
         let updated = update.exec(&tx).await.map_err(checkpoint_db_error)?;
         if updated.rows_affected == 0 {
             tx.rollback().await.map_err(other)?;
-            return Ok(CheckpointOutcome::Stale);
+            return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
         }
 
+        if phase3_seen && cp.phase3.is_none() {
+            return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
+        }
         if let Some(ledger) = &cp.class_state {
-            let registry =
-                crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
-            ledger
-                .validate_for(&registry, &original.identity(), cp.character_id)
+            self.validate_versioned(&original, ledger, cp.phase3.as_ref(), cp.alive)
                 .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
         }
         character_ledger::persist(&tx, cp, &original).await?;
+        if let Some(phase3) = &cp.phase3 {
+            phase3_checkpoint::persist(&tx, cp.character_id, phase3).await?;
+        }
 
         for event in events {
             let staged = outbox::ActiveModel {
@@ -449,7 +665,7 @@ impl PgCharacterRepository {
         }
 
         tx.commit().await.map_err(other)?;
-        Ok(CheckpointOutcome::Applied(produced))
+        Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Applied(produced)))
     }
 
     async fn create_idempotent_tx(

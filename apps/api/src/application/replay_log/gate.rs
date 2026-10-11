@@ -10,9 +10,11 @@
 //! A record larger than the log accepts per message would fail every retry, so before the
 //! first attempt the gate bounds it ([`AppliedTickRecord::bounded`]): a busy tick whose
 //! record is over [`EventLog::max_record_bytes`] is logged with per-player output digests
-//! instead of the outputs, counted in `eventlog_digested_records_total`.
+//! instead of the outputs, counted in `eventlog_digested_records_total`. If even that form
+//! exceeds the ceiling, the gate permanently fences before attempting an append.
 
 use std::future::Future;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -70,6 +72,7 @@ pub struct DurableTickGate {
     next_tick: parking_lot::Mutex<Tick>,
     paused: watch::Sender<bool>,
     shutdown: CancellationToken,
+    terminal_failure: AtomicBool,
 }
 
 impl DurableTickGate {
@@ -93,6 +96,7 @@ impl DurableTickGate {
             next_tick: parking_lot::Mutex::new(started.first_tick()),
             paused: watch::channel(false).0,
             shutdown,
+            terminal_failure: AtomicBool::new(false),
         }
     }
 
@@ -128,6 +132,9 @@ impl DurableTickGate {
     }
 
     async fn append(&self, tick: &AppliedTick) -> Result<(), GateError> {
+        if self.terminal_failure.load(Ordering::Acquire) {
+            return Err(GateError("record gate is permanently fenced".into()));
+        }
         let expected = *self.next_tick.lock();
         if tick.epoch != self.epoch || tick.tick != expected {
             // A programming error: the actor offers ticks in order. Refusing keeps the log
@@ -138,7 +145,9 @@ impl DurableTickGate {
             )));
         }
         let limit = self.log.max_record_bytes();
-        let record = AppliedTickRecord::from_applied(self.zone, tick).bounded(limit);
+        let record = AppliedTickRecord::from_applied(self.zone, tick);
+        record.validate().map_err(|e| GateError(e.to_string()))?;
+        let record = record.bounded(limit);
         if record.output_form == OutputForm::Sha256 {
             self.metrics.record_digested();
             let size = record.encoded_len();
@@ -151,15 +160,21 @@ impl DurableTickGate {
                     limit,
                     "tick record exceeds the replay log's payload limit even with output digests"
                 );
-            } else {
-                tracing::debug!(
-                    zone = self.zone.0,
-                    tick = tick.tick.0,
-                    size,
-                    limit,
-                    "tick record over the payload limit; outputs logged as SHA-256 digests"
-                );
+                // F2: this is a failed proof, not a transient transport outage. No append
+                // has been attempted, and the actor must discard only this unlogged state.
+                self.terminal_failure.store(true, Ordering::Release);
+                self.set_paused(true);
+                return Err(GateError(format!(
+                    "digest record size {size} exceeds gate ceiling {limit}"
+                )));
             }
+            tracing::debug!(
+                zone = self.zone.0,
+                tick = tick.tick.0,
+                size,
+                limit,
+                "tick record over the payload limit; outputs logged as SHA-256 digests"
+            );
         }
         let mut backoff = self.config.initial_backoff;
         let mut stalled_since: Option<tokio::time::Instant> = None;
@@ -209,8 +224,16 @@ impl DurableTickGate {
 }
 
 impl TickGate for DurableTickGate {
+    fn max_record_bytes(&self) -> Option<usize> {
+        Some(self.log.max_record_bytes())
+    }
+
     fn durable(&self) -> bool {
         true
+    }
+
+    fn terminal_failure(&self) -> bool {
+        self.terminal_failure.load(Ordering::Acquire)
     }
 
     fn admit(&self, tick: &AppliedTick) -> impl Future<Output = Result<(), GateError>> + Send {

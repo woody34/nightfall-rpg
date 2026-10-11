@@ -91,6 +91,23 @@ impl ZoneTelemetry for Metrics {
         Box::new(CombatConsumer {
             metrics: self.clone(),
             kinds: initial.entities.iter().map(|e| (e.id, e.kind)).collect(),
+            rules: initial.phase3.as_ref().map(|phase| phase.rules.clone()),
+            effects: initial
+                .phase3
+                .as_ref()
+                .map(|phase| {
+                    phase
+                        .entities
+                        .iter()
+                        .flat_map(|(entity, side)| {
+                            side.effects
+                                .entries()
+                                .iter()
+                                .map(|(id, effect)| ((*entity, *id), effect.skill.id))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
         })
     }
 }
@@ -99,6 +116,74 @@ struct CombatConsumer {
     metrics: Metrics,
     // Bounded by live zone population; removed on actual zone despawn, never AOI exit.
     kinds: BTreeMap<EntityId, EntityKind>,
+    rules: Option<std::sync::Arc<crate::domain::zone::Phase3Rules>>,
+    effects: BTreeMap<
+        (EntityId, crate::domain::zone::effects::EffectId),
+        crate::domain::zone::skill::SkillId,
+    >,
+}
+
+impl CombatConsumer {
+    fn record_effect(
+        &self,
+        skill: crate::domain::zone::skill::SkillId,
+        change: super::SkillEffectChange,
+    ) {
+        let Some(definition) = self
+            .rules
+            .as_ref()
+            .and_then(|rules| rules.skills().get(skill))
+        else {
+            return;
+        };
+        for handler in &definition.effects {
+            if crate::domain::zone::effects::continuous_handler(&handler.name) {
+                if let Some(kind) = super::SkillEffectKind::from_handler_name(&handler.name) {
+                    self.metrics.record_skill_effect(kind, change);
+                }
+            }
+        }
+    }
+    fn record_resolution_targets(&self, targets: &[crate::domain::zone::SkillTargetResult]) {
+        for target in targets {
+            use crate::domain::zone::{SkillOutcome as O, SkillResolutionKind as R};
+            let kind = match target.resolution_kind {
+                R::Physical => super::SkillResolutionKind::Physical,
+                R::Magical => super::SkillResolutionKind::Magical,
+                R::Effect => super::SkillResolutionKind::Effect,
+                R::Heal => super::SkillResolutionKind::Restoration,
+                R::Resurrection => super::SkillResolutionKind::Resurrection,
+            };
+            let outcome = match target.outcome {
+                O::Hit => super::SkillOutcome::Applied,
+                O::Miss => super::SkillOutcome::Evaded,
+                O::Crit => super::SkillOutcome::Critical,
+                O::Resist => super::SkillOutcome::Resisted,
+                O::Half => super::SkillOutcome::Half,
+            };
+            self.metrics.record_skill_resolution(kind, outcome);
+        }
+    }
+    fn index_hydrated_effects(&mut self, tick: &AppliedTick) {
+        // Cold admission restores containers without an application fact. Hydration supplies
+        // their new live IDs for later removal accounting, but never increments a counter.
+        for outputs in tick.outputs.values() {
+            for output in outputs {
+                if let crate::domain::zone::ObserverOutput::Event(ZoneEvent::EffectApplied {
+                    target,
+                    effect_id,
+                    skill,
+                    baseline: Some(_),
+                    ..
+                }) = output
+                {
+                    if self.kinds.contains_key(&target.entity) {
+                        self.effects.insert((target.entity, *effect_id), skill.id);
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl TickTelemetry for CombatConsumer {
@@ -110,6 +195,7 @@ impl TickTelemetry for CombatConsumer {
                 },
                 ZoneEvent::EntityDespawn { entity, .. } => {
                     self.kinds.remove(entity);
+                    self.effects.retain(|(target, _), _| target != entity);
                 },
                 ZoneEvent::AttackResult { outcome, .. } => {
                     let outcome = match outcome {
@@ -160,7 +246,47 @@ impl TickTelemetry for CombatConsumer {
                         ],
                     );
                 },
-                ZoneEvent::TokensReconciled { .. }
+                ZoneEvent::SkillCastStarted { baseline, .. } => {
+                    if baseline.is_none() {
+                        self.metrics
+                            .record_skill_cast(super::SkillCastOutcome::Started);
+                    }
+                },
+                ZoneEvent::SkillCastCancelled { .. } => self
+                    .metrics
+                    .record_skill_cast(super::SkillCastOutcome::Cancelled),
+                ZoneEvent::SkillCastResult { targets, .. } => {
+                    self.metrics
+                        .record_skill_cast(super::SkillCastOutcome::Completed);
+                    self.record_resolution_targets(targets);
+                },
+                ZoneEvent::EffectApplied {
+                    target,
+                    effect_id,
+                    skill,
+                    baseline,
+                    ..
+                } => {
+                    if baseline.is_none() {
+                        self.record_effect(skill.id, super::SkillEffectChange::Applied);
+                    }
+                    self.effects.insert((target.entity, *effect_id), skill.id);
+                },
+                ZoneEvent::EffectRemoved {
+                    target, effect_id, ..
+                } => {
+                    if let Some(skill) = self.effects.remove(&(target.entity, *effect_id)) {
+                        self.record_effect(skill, super::SkillEffectChange::Removed);
+                    }
+                },
+                ZoneEvent::PvpStateChanged { .. }
+                | ZoneEvent::ResurrectOffer { .. }
+                | ZoneEvent::SkillStateSync { .. }
+                | ZoneEvent::SkillLearned { .. }
+                | ZoneEvent::SpGained { .. }
+                | ZoneEvent::SkillReuse { .. }
+                | ZoneEvent::VitalsChanged { .. }
+                | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::AttackStarted { .. }
                 | ZoneEvent::AttackCancelled { .. }
@@ -171,6 +297,7 @@ impl TickTelemetry for CombatConsumer {
                 | ZoneEvent::EntityMove { .. } => {},
             }
         }
+        self.index_hydrated_effects(tick);
     }
 
     fn stats(&mut self, stats: TickStats) {
@@ -185,6 +312,9 @@ impl TickTelemetry for CombatConsumer {
 mod tests;
 
 impl crate::application::checkpoint::CheckpointMetrics for Metrics {
+    fn skill_learned(&self) {
+        self.record_skill_learn_committed();
+    }
     fn token_granted(&self, tier: u8, source: crate::domain::character_progression::TokenSource) {
         use crate::domain::character_progression::TokenSource;
         let tier = match tier {

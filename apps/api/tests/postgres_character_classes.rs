@@ -75,6 +75,7 @@ fn checkpoint(c: &Character, key: IdempotencyKey) -> CharacterCheckpoint {
         level: 1,
     }]);
     CharacterCheckpoint {
+        phase3: None,
         character_id: c.id,
         revision_seen: 0,
         level: 20,

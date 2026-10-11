@@ -208,6 +208,7 @@ impl ZoneState {
             };
             if e.targeting.target.take().is_some() {
                 events.push(ZoneEvent::TargetChanged {
+                    phase3: None,
                     tick,
                     entity: holder,
                     target: None,
@@ -250,6 +251,10 @@ impl ZoneState {
     /// Points `npc` at its most hated eligible entity (ties keep the current target, then the
     /// lowest id) and enables auto-attack; with nobody eligible it stands down.
     pub(super) fn reselect(&mut self, tick: Tick, npc: EntityId, events: &mut Vec<ZoneEvent>) {
+        if self.phase3_enabled() {
+            self.reselect_v5(tick, npc);
+            return;
+        }
         let Some(me) = self.entities.get(&npc) else {
             return;
         };
@@ -270,6 +275,7 @@ impl ZoneState {
                 e.targeting.target = chosen;
             }
             events.push(ZoneEvent::TargetChanged {
+                phase3: None,
                 tick,
                 entity: npc,
                 target: chosen,
@@ -289,7 +295,12 @@ impl ZoneState {
         let target_id = attacker.targeting.target?;
         let target = self.entities.get(&target_id)?;
         let tc = target.combat.as_ref()?;
-        if !may_attack(attacker, target) || tc.protected_at(tick) {
+        if (if self.phase3_enabled() {
+            !self.npc_pair_v5(tick, attacker.id, target.id)
+        } else {
+            !may_attack(attacker, target)
+        }) || tc.protected_at(tick)
+        {
             return None;
         }
         if attacker.kind == EntityKind::Player
@@ -312,6 +323,7 @@ impl ZoneState {
             .values()
             .filter(|e| {
                 !e.targeting.dead
+                    && (!self.phase3_enabled() || self.auto_action_v5(e.id))
                     && e.combat
                         .as_ref()
                         .is_some_and(|c| c.auto_attack && c.swing.is_none())
@@ -331,6 +343,9 @@ impl ZoneState {
             match self.engagement(tick, attacker) {
                 None => self.drop_engagement(tick, id, events),
                 Some(g) if g.in_reach => self.halt(tick, id, events),
+                Some(_) if self.phase3_enabled() && !self.auto_can_walk_v5(id) => {
+                    self.halt(tick, id, events);
+                },
                 Some(g) => {
                     if let Some(e) = self.entities.get_mut(&id) {
                         e.dest = Some(g.pos);
@@ -353,6 +368,7 @@ impl ZoneState {
         if e.kind == EntityKind::Player {
             if e.targeting.target.take().is_some() {
                 events.push(ZoneEvent::TargetChanged {
+                    phase3: None,
                     tick,
                     entity: id,
                     target: None,
@@ -468,6 +484,7 @@ impl ZoneState {
             tc.hp = hp_after;
         }
         events.push(ZoneEvent::AttackResult {
+            phase3: None,
             attacker: id,
             target: swing.target,
             tick,
@@ -590,6 +607,7 @@ impl ZoneState {
             }
             if e.targeting.target.take().is_some() {
                 events.push(ZoneEvent::TargetChanged {
+                    phase3: None,
                     tick,
                     entity: victim,
                     target: None,
@@ -754,7 +772,11 @@ impl ZoneState {
     /// Re-derives a player's level from its XP by threshold search; on a change rebuilds the
     /// stat sheet and clamps HP/MP to the new maxima (current values are kept otherwise).
     /// Returns `(old, new)` when the level changed.
-    fn relevel(&mut self, player: EntityId) -> Option<(u32, u32)> {
+    pub(super) fn relevel(&mut self, player: EntityId) -> Option<(u32, u32)> {
+        let phase3 = self
+            .phase3
+            .as_ref()
+            .is_some_and(|p| p.canonical.rules.runtime_revision() >= 2);
         let rules = self.rules.clone()?;
         let c = self.entities.get_mut(&player)?.combat.as_mut()?;
         let CombatRole::Player {
@@ -786,9 +808,22 @@ impl ZoneState {
                 new,
             )
             .ok()?;
-            p.class_state
-                .merge_learned_skills_checked(self.classes.as_deref()?, p.identity.race, grants)
-                .ok()?;
+            if phase3 {
+                let mut ledger = p.class_state.clone();
+                ledger.merge_learned_skills(grants);
+                ledger
+                    .validate_for_phase3(
+                        self.classes.as_deref()?,
+                        &p.identity,
+                        crate::domain::CharacterId::from_uuid(player.as_uuid()),
+                    )
+                    .ok()?;
+                p.class_state = ledger;
+            } else {
+                p.class_state
+                    .merge_learned_skills_checked(self.classes.as_deref()?, p.identity.race, grants)
+                    .ok()?;
+            }
             sheet
         } else {
             StatSheet::for_player(&rules, rules.class(class)?, new, Some(rules.starter_weapon()))
@@ -871,7 +906,7 @@ impl ZoneState {
 
     /// Records a player's start-of-tick level and XP the first time its progression changes
     /// this tick.
-    fn note_progress(&mut self, player: EntityId) {
+    pub(super) fn note_progress(&mut self, player: EntityId) {
         let Some((level, xp)) = self.entities.get(&player).and_then(|e| {
             let c = e.combat.as_ref()?;
             match c.role {
@@ -938,6 +973,9 @@ impl ZoneState {
                 continue;
             };
             if !g.in_reach {
+                if self.phase3_enabled() && !self.auto_can_walk_v5(id) {
+                    continue;
+                }
                 if let Some(e) = self.entities.get_mut(&id) {
                     e.dest = Some(g.pos);
                     if let Some(c) = e.combat.as_mut() {
@@ -966,6 +1004,14 @@ impl ZoneState {
             c.swing = Some(swing);
             c.ready_at = swing.ready;
             events.push(ZoneEvent::AttackStarted {
+                phase3: self
+                    .phase3
+                    .as_ref()
+                    .map(|_| super::super::AttackStartedPhase3 {
+                        attacker_incarnation: c.incarnation,
+                        target_visible: true,
+                        baseline: None,
+                    }),
                 tick,
                 attacker: id,
                 target: g.target,

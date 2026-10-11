@@ -110,10 +110,19 @@ where
     R: TickRunner,
     S: Stream<Item = Result<AppliedTickRecord, ReplayError>> + Unpin,
 {
+    let initial = runner.boundary_snapshot();
+    initial.validate_version()?;
+    let digest_version = initial.meta.digest_version;
     let mut report = ReplayReport::default();
     let mut players = BTreeSet::new();
     while let Some(record) = records.next().await {
         let record = record?;
+        if record.digest_version != digest_version {
+            return Err(VerifyError::Snapshot(SnapshotError::CombatMismatch));
+        }
+        record
+            .validate()
+            .map_err(|e| VerifyError::Log(ReplayError::Log(e.into())))?;
         let before = opts.keep_state_before.then(|| runner.boundary_snapshot());
         let draft = AppliedTickDraft {
             epoch: record.epoch,
@@ -127,6 +136,9 @@ where
                 source,
             })?;
         let rerun = AppliedTickRecord::from_applied(record.zone, &applied);
+        rerun
+            .validate()
+            .map_err(|e| VerifyError::Log(ReplayError::Log(e.into())))?;
         if let Err(mismatch) = compare(&record, &rerun, opts.session, &mut report, &mut players) {
             return Err(VerifyError::Diverged(Box::new(Divergence::new(
                 record, rerun, mismatch, before,

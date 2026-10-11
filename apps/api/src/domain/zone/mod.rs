@@ -29,17 +29,35 @@ mod aoi;
 mod combat;
 mod combat_math;
 mod command;
+pub mod effective_stats;
+pub mod effects;
 mod entity;
 mod fixed;
 mod npc_template;
 mod phase2;
+mod phase3;
+mod phase3_checkpoint;
+mod phase3_entity;
 mod progression;
 mod scaled;
+pub mod skill;
+pub mod skill_math;
+pub mod skill_npc;
+pub mod skill_profiles;
+pub mod skill_rules;
+pub mod stat_functions;
 mod stat_rules;
 mod stat_sheet;
 #[cfg(test)]
 mod stat_tests;
 mod state;
+pub mod state_damage;
+pub mod state_death;
+pub mod state_effects;
+pub mod state_learn;
+pub mod state_pvp;
+pub mod state_regen;
+pub mod state_skill;
 
 pub use ai::{
     Intention, MemberState, NpcAi, NpcBrain, SlotMember, SpawnSlotSpec, MAX_ATTACK_TIMEOUT_TICKS,
@@ -55,8 +73,10 @@ pub use combat_math::{
     npc_respawn_tick, physical_damage, spawn_protection_ticks, town_respawn_vitals, AttackTiming,
 };
 pub use command::{
-    AppliedCommand, AppliedTick, AppliedTickDraft, AttackOutcome, CommandSource, DeathFact,
-    Disposition, ObserverOutput, Ordinal, ProgressionDelta, RejectReason, SessionGeneration,
+    AppliedCommand, AppliedTick, AppliedTickDraft, AttackOutcome, AttackResultPhase3,
+    AttackStartedPhase3, CombatViewPhase3, CommandSource, DeathFact, Disposition, ObserverOutput,
+    Ordinal, OwnerPhase3View, ProgressionDelta, RejectReason, ResurrectOfferState,
+    SessionGeneration, SkillOutcome, SkillResolutionKind, SkillTargetResult, TargetChangedPhase3,
     ZoneCommand, ZoneEvent, ZoneInput,
 };
 pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
@@ -64,6 +84,15 @@ pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
 pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot};
 pub use phase2::{
     profession_stats, transfer_resource, ClassStatsView, PlayerIdentityView, PlayerProgression,
+};
+pub use phase3::{Phase3AdmissionPolicy, Phase3Rules, Phase3Snapshot};
+pub use phase3_checkpoint::{
+    DeathRecord, FrozenLearnResult, LearnedEffectiveStats, Phase3Checkpoint, ResourceFractions,
+    RestoredModifierSource, RestoredPhase3Timers,
+};
+pub use phase3_entity::{
+    CastId, CastInFlight, CastState, EntityOrdinal, OfferId, Phase3Entity, Phase3EntityContext,
+    Phase3Player, PvpState, ResurrectOffer,
 };
 pub use progression::{add_xp, death_xp_loss, level_for_xp, xp_after_death, xp_cap};
 pub use scaled::{ceil_div, floor_div, isqrt, Scaled, StatError, Q};
@@ -88,8 +117,29 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 24] = [
+    const SOURCES: [(&str, &str); 49] = [
         ("mod.rs", include_str!("mod.rs")),
+        ("effects.rs", include_str!("effects.rs")),
+        ("effective_stats.rs", include_str!("effective_stats.rs")),
+        ("skill_profiles.rs", include_str!("skill_profiles.rs")),
+        ("skill.rs", include_str!("skill.rs")),
+        ("skill_math.rs", include_str!("skill_math.rs")),
+        ("skill_npc.rs", include_str!("skill_npc.rs")),
+        ("skill_rules.rs", include_str!("skill_rules.rs")),
+        ("phase3.rs", include_str!("phase3.rs")),
+        ("phase3_checkpoint.rs", include_str!("phase3_checkpoint.rs")),
+        ("phase3_entity.rs", include_str!("phase3_entity.rs")),
+        ("state_effects.rs", include_str!("state_effects.rs")),
+        ("state_skill.rs", include_str!("state_skill.rs")),
+        ("state_pvp.rs", include_str!("state_pvp.rs")),
+        ("state_learn.rs", include_str!("state_learn.rs")),
+        ("state_runtime_learn.rs", include_str!("state_runtime_learn.rs")),
+        ("state_death.rs", include_str!("state_death.rs")),
+        ("state_runtime_life.rs", include_str!("state_runtime_life.rs")),
+        ("state_runtime_observe.rs", include_str!("state_runtime_observe.rs")),
+        ("state_runtime_auto.rs", include_str!("state_runtime_auto.rs")),
+        ("state_runtime_damage.rs", include_str!("state_runtime_damage.rs")),
+        ("state_damage.rs", include_str!("state_damage.rs")),
         ("phase2.rs", include_str!("phase2.rs")),
         ("state_class.rs", include_str!("state_class.rs")),
         ("ai.rs", include_str!("ai.rs")),
@@ -106,9 +156,13 @@ mod tests {
         ("npc_template.rs", include_str!("npc_template.rs")),
         ("progression.rs", include_str!("progression.rs")),
         ("scaled.rs", include_str!("scaled.rs")),
+        ("stat_functions.rs", include_str!("stat_functions.rs")),
         ("stat_rules.rs", include_str!("stat_rules.rs")),
         ("stat_sheet.rs", include_str!("stat_sheet.rs")),
         ("stat_tests.rs", include_str!("stat_tests.rs")),
+        ("state_regen.rs", include_str!("state_regen.rs")),
+        ("state_runtime.rs", include_str!("state_runtime.rs")),
+        ("state_runtime_effects.rs", include_str!("state_runtime_effects.rs")),
         ("state.rs", include_str!("state.rs")),
         ("state_digest.rs", include_str!("state_digest.rs")),
         ("state_combat.rs", include_str!("state_combat.rs")),

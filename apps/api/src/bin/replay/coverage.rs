@@ -1,4 +1,7 @@
 //! Recording coverage: durable facts and the server-observable attack request lifecycle.
+#[path = "coverage_phase3.rs"]
+mod phase3;
+
 use std::collections::BTreeMap;
 
 use nightfall_api::application::replay_log::{decode_events, AppliedTickRecord, OutputForm};
@@ -30,6 +33,8 @@ pub(super) struct Coverage {
     class_changes: BTreeMap<String, u64>,
     class_transfer_effects: BTreeMap<String, u64>,
     owner_stats_updates: u64,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    phase3: Option<phase3::Stats>,
 }
 
 fn table(states: &[&str], reachable: &[(&str, &str)]) -> Vec<Transition> {
@@ -96,14 +101,22 @@ impl Coverage {
             class_changes: BTreeMap::new(),
             class_transfer_effects: BTreeMap::new(),
             owner_stats_updates: 0,
+            phase3: None,
         }
     }
 
     pub(super) fn print(&self) {
-        for (name, rows) in [
+        let mut tables = vec![
             ("NPC intentions", &self.npc_intentions),
             ("Player attack states", &self.player_attack_states),
-        ] {
+        ];
+        if let Some(phase) = &self.phase3 {
+            tables.extend([
+                ("Cast states", &phase.cast_states),
+                ("Effect states", &phase.effect_states),
+            ]);
+        }
+        for (name, rows) in tables {
             let covered = rows.iter().filter(|r| r.reachable && r.count > 0).count();
             let total = rows.iter().filter(|r| r.reachable).count();
             println!("{name}: {covered}/{total} reachable pairs covered\nfrom -> to                 count  status");
@@ -118,7 +131,7 @@ impl Coverage {
                 println!("{} -> {}\t{}\t{status}", row.from, row.to, row.count);
             }
         }
-        for (name, counts) in [
+        let mut counters = vec![
             ("Life incarnations", &self.life_incarnations),
             ("Deaths", &self.deaths),
             ("Respawns", &self.respawns),
@@ -129,7 +142,17 @@ impl Coverage {
             ),
             ("Public class changes by destination", &self.class_changes),
             ("Recorded class transfer effects", &self.class_transfer_effects),
-        ] {
+        ];
+        if let Some(phase) = &self.phase3 {
+            counters.extend([
+                ("Cast endings", &phase.cast_end_reasons),
+                ("Effect removals", &phase.effect_remove_reasons),
+                ("Learning actor commands", &phase.learning_commands),
+                ("CP absorption", &phase.cp_absorption),
+            ]);
+            println!("Committed learn effects\t{}", phase.learning_committed);
+        }
+        for (name, counts) in counters {
             println!("{name}");
             for (key, count) in counts {
                 println!("{key}\t{count}");
@@ -150,6 +173,11 @@ fn kind(kind: EntityKind) -> &'static str {
 /// enabled (including chase/cooldown), not an individual swing. Repeats are not transitions.
 pub(super) fn collect(rec: &Recording) -> anyhow::Result<Coverage> {
     let mut report = Coverage::new();
+    if rec.snapshot.phase3.is_some() {
+        report.schema_version = 3;
+        report.phase3 = Some(phase3::Stats::new());
+    }
+    let mut phase3 = phase3::Tracker::baseline(&rec.snapshot);
     let mut zone = ZoneState::from_snapshot(rec.snapshot.clone())?;
     let mut kinds = BTreeMap::new();
     let mut lives = BTreeMap::new();
@@ -184,6 +212,14 @@ pub(super) fn collect(rec: &Recording) -> anyhow::Result<Coverage> {
             tick: r.tick,
             commands: r.commands.clone(),
         })?;
+        if report.phase3.is_some()
+            && !r.reproduced_by(&AppliedTickRecord::from_applied(r.zone, &applied))
+        {
+            anyhow::bail!(
+                "Phase3 coverage requires verified replay: divergence at tick {}",
+                r.tick.0
+            );
+        }
         for d in &r.dispositions {
             let transfer = r.commands.iter().any(|c| {
                 c.ordinal == d.ordinal && matches!(c.command, ZoneCommand::ChangeClass { .. })
@@ -197,8 +233,14 @@ pub(super) fn collect(rec: &Recording) -> anyhow::Result<Coverage> {
             OutputForm::Encoded => decode_events(&r.events)?,
             OutputForm::Sha256 => applied.events,
         };
+        phase3.facts(&mut report, &events);
         facts(&mut report, &mut lives, &mut kinds, events);
-        for e in &zone.snapshot().entities {
+        // Admissions can restore retained containers without EffectApplied zone facts.
+        // Seed their identities without counting an installation, just like the initial
+        // snapshot; later real removals are still counted once.
+        let snapshot = zone.snapshot();
+        phase3 = phase3::Tracker::baseline(&snapshot);
+        for e in &snapshot.entities {
             targets.insert(e.id, e.targeting.target);
             if e.kind == EntityKind::Player {
                 let to = if e.combat.as_ref().is_some_and(|c| c.auto_attack) {
@@ -268,6 +310,19 @@ fn commands(
                 }
             }
         }
+        if let ZoneCommand::LearnSkill { .. } = command.command {
+            let outcome = r
+                .dispositions
+                .iter()
+                .find(|d| d.ordinal == command.ordinal)
+                .map_or_else(
+                    || "applied_without_rejection".to_owned(),
+                    |d| format!("rejected:{:?}", d.reason),
+                );
+            if let Some(phase) = &mut report.phase3 {
+                increment(&mut phase.learning_commands, outcome);
+            }
+        }
         if let ZoneCommand::ChangeClass { .. } = command.command {
             let outcome = r
                 .dispositions
@@ -298,6 +353,10 @@ fn commands(
                 }
             },
             ZoneCommand::ChangeClass { .. }
+            | ZoneCommand::CastSkill { .. }
+            | ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::LearnSkill { .. }
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }
@@ -374,7 +433,19 @@ fn facts(
                     lives.remove(&entity);
                 }
             },
-            ZoneEvent::TokensReconciled { .. }
+            ZoneEvent::EffectApplied { .. }
+            | ZoneEvent::EffectRemoved { .. }
+            | ZoneEvent::SkillCastStarted { .. }
+            | ZoneEvent::SkillCastResult { .. }
+            | ZoneEvent::SkillCastCancelled { .. }
+            | ZoneEvent::SkillLearned { .. }
+            | ZoneEvent::PvpStateChanged { .. }
+            | ZoneEvent::ResurrectOffer { .. }
+            | ZoneEvent::SkillStateSync { .. }
+            | ZoneEvent::SpGained { .. }
+            | ZoneEvent::SkillReuse { .. }
+            | ZoneEvent::VitalsChanged { .. }
+            | ZoneEvent::TokensReconciled { .. }
             | ZoneEvent::AttackResult { .. }
             | ZoneEvent::AttackStarted { .. }
             | ZoneEvent::AttackCancelled { .. }

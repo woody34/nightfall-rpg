@@ -78,6 +78,7 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
     batch.events.clear();
     for outcome in [AttackOutcome::Miss, AttackOutcome::Hit, AttackOutcome::Crit] {
         batch.events.push(ZoneEvent::AttackResult {
+            phase3: None,
             attacker: player,
             target: npc,
             tick: Tick(1),
@@ -126,6 +127,7 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
             class: None,
         },
         ZoneEvent::TargetChanged {
+            phase3: None,
             entity: player,
             tick: Tick(1),
             target: Some(npc),
@@ -166,6 +168,8 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
     assert!(!text.contains("private"));
     // Restoring metadata must not emit metrics; despawn removes it.
     let mut restored = CombatConsumer {
+        rules: None,
+        effects: BTreeMap::default(),
         metrics: m.clone(),
         kinds: state
             .snapshot()
@@ -565,4 +569,152 @@ fn token_commit_metric_has_only_bounded_tier_and_source_labels() {
     assert!(samples.iter().any(|line| line.contains("tier=\"2\"")
         && line.contains("source=\"level_up\"")
         && line.ends_with(" 1")));
+}
+
+#[test]
+fn phase3_resolution_counts_zone_rows_once_and_cast_hydration_does_not_count() {
+    use crate::domain::zone::effects::TargetBinding;
+    use crate::domain::zone::skill::{SkillId, SkillRef};
+    use crate::domain::zone::{
+        CastId, ObserverOutput, SkillOutcome, SkillResolutionKind, SkillTargetResult,
+    };
+    let metrics = Metrics::detached();
+    let mut state = fresh();
+    let mut consumer = metrics.consumer(&state.snapshot());
+    let mut batch = state.run_tick(state.draft(Vec::new())).unwrap();
+    let caster = TargetBinding {
+        entity: EntityId::from_uuid(uuid::Uuid::from_u128(11)),
+        incarnation: 1,
+    };
+    let skill = SkillRef {
+        id: SkillId(1177),
+        rank: 1,
+    };
+    let start = |baseline| ZoneEvent::SkillCastStarted {
+        tick: Tick(0),
+        caster,
+        target: None,
+        skill,
+        cast_id: CastId(1),
+        start: Tick(0),
+        launch_at: Tick(1),
+        complete_at: Tick(2),
+        baseline,
+    };
+    let row = |outcome| SkillTargetResult {
+        target: caster,
+        resolution_kind: SkillResolutionKind::Magical,
+        outcome,
+        rolled: 10,
+        cp_absorbed: 0,
+        hp_removed: 10,
+        heal: 0,
+        target_hp_after: 90,
+        applied_effect_ids: Vec::new(),
+    };
+    let result = ZoneEvent::SkillCastResult {
+        tick: Tick(0),
+        caster,
+        cast_id: CastId(1),
+        skill,
+        targets: vec![row(SkillOutcome::Hit), row(SkillOutcome::Half)],
+    };
+    batch.events = vec![start(Some(Tick(0))), start(None), result.clone()];
+    // Fan-out and filtered owner copies are output only; there is one zone-wide result.
+    batch.outputs.insert(
+        caster.entity,
+        vec![
+            ObserverOutput::Event(result.clone()),
+            ObserverOutput::Event(result),
+        ],
+    );
+    consumer.admitted(&batch);
+    assert_eq!(value(&metrics, "nightfall_skill_casts_total", "outcome=\"started\""), 1.0);
+    assert_eq!(value(&metrics, "nightfall_skill_casts_total", "outcome=\"completed\""), 1.0);
+    assert_eq!(
+        value(
+            &metrics,
+            "nightfall_skill_resolutions_total",
+            "kind=\"magical\",outcome=\"applied\""
+        ),
+        1.0
+    );
+    assert_eq!(
+        value(
+            &metrics,
+            "nightfall_skill_resolutions_total",
+            "kind=\"magical\",outcome=\"half\""
+        ),
+        1.0
+    );
+    assert!(!metrics
+        .render()
+        .unwrap()
+        .contains(&caster.entity.to_string()));
+}
+
+#[test]
+fn restored_effect_hydration_seeds_removal_without_counting_application() {
+    use crate::domain::zone::effects::{EffectId, EffectPool, EffectRemoveReason, TargetBinding};
+    use crate::domain::zone::skill::{SkillId, SkillRef};
+    use crate::domain::zone::ObserverOutput;
+    use crate::infrastructure::skill_data::{load_phase3_rules, Phase3DataSource};
+    use std::sync::Arc;
+    let metrics = Metrics::detached();
+    let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+    let entity = EntityId::from_uuid(uuid::Uuid::from_u128(17));
+    let target = TargetBinding {
+        entity,
+        incarnation: 1,
+    };
+    let mut consumer = CombatConsumer {
+        metrics: metrics.clone(),
+        rules: Some(Arc::new(rules)),
+        kinds: [(entity, EntityKind::Player)].into_iter().collect(),
+        effects: BTreeMap::default(),
+    };
+    let mut state = fresh();
+    let mut batch = state.run_tick(state.draft(Vec::new())).unwrap();
+    let hydrate = ZoneEvent::EffectApplied {
+        tick: Tick(0),
+        target,
+        source: Some(target),
+        effect_id: EffectId(1),
+        skill: SkillRef {
+            id: SkillId(1040),
+            rank: 1,
+        },
+        pool: EffectPool::Buff,
+        applied_at: Tick(0),
+        expires_at: Some(Tick(30)),
+        abnormal_type: "PD_UP".into(),
+        abnormal_level: 1,
+        status_flags: crate::domain::zone::effects::StatusFlags::default(),
+        baseline: Some(Tick(0)),
+    };
+    batch.outputs.insert(
+        entity,
+        vec![
+            ObserverOutput::Event(hydrate.clone()),
+            ObserverOutput::Event(hydrate),
+        ],
+    );
+    consumer.admitted(&batch);
+    assert_eq!(
+        value(&metrics, "nightfall_skill_effects_total", "change=\"applied\",kind=\"buff\""),
+        0.0
+    );
+    batch.outputs.clear();
+    batch.events = vec![ZoneEvent::EffectRemoved {
+        tick: Tick(30),
+        target,
+        effect_id: EffectId(1),
+        reason: EffectRemoveReason::Expired,
+    }];
+    consumer.admitted(&batch);
+    assert_eq!(
+        value(&metrics, "nightfall_skill_effects_total", "change=\"removed\",kind=\"buff\""),
+        1.0
+    );
+    assert!(consumer.effects.is_empty());
 }

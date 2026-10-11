@@ -172,7 +172,11 @@ pub fn start_realtime(
         registry: SessionRegistry::with_characters(deps.characters.clone()),
         audit: deps.audit.clone(),
         metrics: Arc::new(deps.metrics.clone()),
-        codec: Arc::new(ProstCodec),
+        codec: if zones.fixture().phase3_enabled() {
+            Arc::new(interface::ws::ExperimentalPhase3Codec)
+        } else {
+            Arc::new(ProstCodec)
+        },
         limits: deps.session_limits,
         shutdown,
     });

@@ -147,6 +147,18 @@ fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::EntityRespawned { .. }
                 | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::ClassTransfer { .. }
+                | ZoneEvent::EffectApplied { .. }
+                | ZoneEvent::EffectRemoved { .. }
+                | ZoneEvent::SkillCastStarted { .. }
+                | ZoneEvent::SkillCastResult { .. }
+                | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::SkillReuse { .. }
+                | ZoneEvent::VitalsChanged { .. }
+                | ZoneEvent::SkillLearned { .. }
+                | ZoneEvent::PvpStateChanged { .. }
+                | ZoneEvent::ResurrectOffer { .. }
+                | ZoneEvent::SkillStateSync { .. }
+                | ZoneEvent::SpGained { .. }
                 | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::XpGained { .. }
@@ -331,6 +343,7 @@ fn arena(epoch: u64) -> (ZoneState, Vec<EntityId>) {
                 generation: SessionGeneration(1),
                 load: Some(Box::new(if n == 0 {
                     PlayerLoad {
+                        phase3: None,
                         level: 2,
                         xp: 70,
                         hp: Some(5),

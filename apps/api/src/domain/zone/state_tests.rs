@@ -75,6 +75,18 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::EntityRespawned { .. }
                 | ZoneEvent::ClassChanged { .. }
                 | ZoneEvent::ClassTransfer { .. }
+                | ZoneEvent::EffectApplied { .. }
+                | ZoneEvent::EffectRemoved { .. }
+                | ZoneEvent::SkillCastStarted { .. }
+                | ZoneEvent::SkillCastResult { .. }
+                | ZoneEvent::SkillCastCancelled { .. }
+                | ZoneEvent::SkillLearned { .. }
+                | ZoneEvent::PvpStateChanged { .. }
+                | ZoneEvent::ResurrectOffer { .. }
+                | ZoneEvent::SkillStateSync { .. }
+                | ZoneEvent::SpGained { .. }
+                | ZoneEvent::SkillReuse { .. }
+                | ZoneEvent::VitalsChanged { .. }
                 | ZoneEvent::TokensReconciled { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::XpGained { .. }
@@ -708,6 +720,7 @@ fn targeting_validates_before_mutation_and_repeats_are_silent() {
     assert_eq!(
         t.events,
         vec![ZoneEvent::TargetChanged {
+            phase3: None,
             tick: t.tick,
             entity: id(1),
             target: Some(npc)
@@ -951,7 +964,8 @@ proptest::proptest! {
             // owner facts whose target is outside that owner's final AOI.
             events.push(ZoneEvent::XpGained { tick, entity, amount: 1, total: 1 });
             events.push(ZoneEvent::EntityDied { tick, entity, killer: None, incarnation: 1 });
-            events.push(ZoneEvent::TargetChanged { tick, entity, target: Some(id(0)) });
+            events.push(ZoneEvent::TargetChanged {
+            phase3: None, tick, entity, target: Some(id(0)) });
             events.push(ZoneEvent::AttackCancelled {
                 tick, attacker: entity, target: id(0), reason: SwingCancel::TargetLost,
             });
@@ -986,5 +1000,43 @@ fn snapshots_without_a_digest_version_keep_json_across_restores() {
         let mut restored = ZoneState::from_snapshot(upgraded).unwrap();
         assert_eq!(run(&mut state, vec![]), run(&mut restored, vec![]));
         assert_eq!(state.state_digest(), state.json_state_digest());
+    }
+}
+
+#[test]
+fn phase3_inputs_cannot_partially_mutate_any_legacy_draft() {
+    use crate::domain::zone::{skill::SkillId, CastId, OfferId};
+    let entity = id(1);
+    for command in [
+        ZoneCommand::CastSkill {
+            entity,
+            skill_id: SkillId(3),
+            target: None,
+        },
+        ZoneCommand::CancelCast {
+            entity,
+            cast_id: Some(CastId(1)),
+        },
+        ZoneCommand::AcceptResurrect {
+            entity,
+            offer_id: OfferId(1),
+            accept: true,
+        },
+        ZoneCommand::LearnSkill {
+            entity,
+            account: crate::domain::AccountId::from_uuid(Uuid::from_u128(1)),
+            request_key: Uuid::from_u128(2),
+            skill_id: SkillId(3),
+            skill_level: 1,
+        },
+    ] {
+        let mut zone = zone();
+        let before = zone.snapshot();
+        let draft = zone.draft(vec![
+            spawn_player(1, 20, 20),
+            ZoneInput::session(entity, GEN1, 1, command),
+        ]);
+        assert_eq!(zone.run_tick(draft), Err(TickError::Phase3CommandInLegacy));
+        assert_eq!(zone.snapshot(), before);
     }
 }

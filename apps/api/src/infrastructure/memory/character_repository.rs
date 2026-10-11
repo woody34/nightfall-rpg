@@ -1,5 +1,6 @@
 use crate::domain::class::ClassRegistry;
-use std::collections::HashMap;
+use crate::domain::zone::{Phase3Checkpoint, Phase3Rules};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -25,6 +26,10 @@ struct State {
     progression: HashMap<CharacterId, ProgressionState>,
     /// `(account, operation, key)` -> `(fingerprint, revision)` for checkpoints.
     checkpoint_keys: HashMap<(AccountId, String, IdempotencyKey), (String, u64)>,
+    learn_receipts: BTreeMap<
+        (AccountId, IdempotencyKey),
+        (String, crate::application::ports::FrozenLearnResult),
+    >,
 }
 
 impl State {
@@ -32,6 +37,7 @@ impl State {
         self.progression.insert(
             c.id,
             ProgressionState {
+                phase3: None,
                 position: c.position,
                 level: c.level,
                 xp: c.xp,
@@ -55,6 +61,7 @@ impl State {
 pub struct InMemoryCharacterRepository {
     state: Mutex<State>,
     classes: Option<Arc<ClassRegistry>>,
+    phase3_rules: Option<Arc<Phase3Rules>>,
 }
 
 impl InMemoryCharacterRepository {
@@ -64,6 +71,54 @@ impl InMemoryCharacterRepository {
         self.classes = Some(classes);
         self
     }
+    /// Injects the full immutable V5 bundle used by the actor; no timer-only policy.
+    #[must_use]
+    pub fn with_phase3_rules(mut self, rules: Arc<Phase3Rules>) -> Self {
+        self.phase3_rules = Some(rules);
+        self
+    }
+
+    fn phase3_rules(&self) -> anyhow::Result<Arc<Phase3Rules>> {
+        static RULES: std::sync::OnceLock<Result<Arc<Phase3Rules>, String>> =
+            std::sync::OnceLock::new();
+        if let Some(rules) = &self.phase3_rules {
+            return Ok(rules.clone());
+        }
+        RULES
+            .get_or_init(|| {
+                crate::infrastructure::skill_data::load_phase3_rules(
+                    &crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+                    &[],
+                )
+                .map(Arc::new)
+                .map_err(|e| e.to_string())
+            })
+            .clone()
+            .map_err(anyhow::Error::msg)
+    }
+
+    fn validate_versioned(
+        &self,
+        c: &Character,
+        ledger: &crate::domain::character_progression::ClassState,
+        phase3: Option<&Phase3Checkpoint>,
+        alive: bool,
+    ) -> anyhow::Result<()> {
+        let registry =
+            crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
+        if let Some(phase3) = phase3 {
+            let rules = self.phase3_rules()?;
+            rules
+                .validate_catalogue(&registry)
+                .map_err(anyhow::Error::msg)?;
+            phase3.validate(&rules, &ledger.learned_skills, alive)?;
+            ledger.validate_for_phase3(&registry, &c.identity(), c.id)?;
+        } else {
+            ledger.validate_for(&registry, &c.identity(), c.id)?;
+        }
+        Ok(())
+    }
+
     fn validate(&self, c: &Character) -> anyhow::Result<()> {
         let registry =
             crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
@@ -104,101 +159,19 @@ impl InMemoryCharacterRepository {
     }
 }
 
-#[async_trait]
-impl CharacterRepository for InMemoryCharacterRepository {
-    async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>> {
-        let character = self.state.lock().characters.get(&id).cloned();
-        if let Some(c) = &character {
-            self.validate(c)?;
-        }
-        Ok(character)
-    }
-
-    async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
-        let mut out: Vec<Character> = self
-            .state
-            .lock()
-            .characters
-            .values()
-            .filter(|c| c.account_id == account)
-            .cloned()
-            .collect();
-        // Ids are uuid v7, so id order is creation order (the Postgres adapter sorts the same).
-        out.sort_by_key(|c| c.id.as_uuid());
-        for c in &out {
-            self.validate(c)?;
-        }
-        Ok(out)
-    }
-
-    async fn create_idempotent(
+impl InMemoryCharacterRepository {
+    fn checkpoint_locked(
         &self,
-        key: &IdempotencyKey,
-        fingerprint: &str,
-        character: &Character,
-    ) -> Result<CreateOutcome, RepositoryError> {
-        let mut s = self.state.lock();
-        let scoped = (character.account_id, *key);
-        if let Some((stored_fp, id)) = s.keys.get(&scoped) {
-            if stored_fp != fingerprint {
-                return Ok(CreateOutcome::KeyReused);
-            }
-            let existing = s.characters.get(id).cloned().ok_or_else(|| {
-                RepositoryError::Other(anyhow::anyhow!(
-                    "idempotency key points at missing character"
-                ))
-            })?;
-            return Ok(CreateOutcome::Replayed(existing));
-        }
-        self.validate(character)?;
-        let norm = character.name.normalized();
-        if s.names.contains_key(&norm) {
-            return Err(RepositoryError::NameTaken);
-        }
-        if s.characters
-            .values()
-            .filter(|c| c.account_id == character.account_id)
-            .count()
-            >= 7
-        {
-            return Err(RepositoryError::SlotsFull);
-        }
-        s.names.insert(norm, character.id);
-        s.keys
-            .insert(scoped, (fingerprint.to_owned(), character.id));
-        s.put(character);
-        s.characters.insert(character.id, character.clone());
-        s.outbox.push(DomainEvent::CharacterCreated {
-            character_id: character.id,
-            account_id: character.account_id,
-            race: character.race,
-        });
-        Ok(CreateOutcome::Created(character.clone()))
-    }
-
-    async fn load_for_admission(
-        &self,
-        character_id: CharacterId,
-    ) -> anyhow::Result<Option<ProgressionState>> {
-        let state = self.state.lock();
-        if let Some(c) = state.characters.get(&character_id) {
-            self.validate(c)?;
-        }
-        Ok(state.progression.get(&character_id).cloned())
-    }
-
-    async fn checkpoint(
-        &self,
+        s: &mut State,
         checkpoint: &CharacterCheckpoint,
         events: &[DomainEvent],
+        fingerprint: String,
     ) -> Result<CheckpointOutcome, CheckpointError> {
-        let mut s = self.state.lock();
         let account = s
             .characters
             .get(&checkpoint.character_id)
             .ok_or(CheckpointError::NotFound)?
             .account_id;
-        let fingerprint = checkpoint.fingerprint(events);
         let scoped = (account, checkpoint.idempotency.0.clone(), checkpoint.idempotency.1);
         if let Some((stored_fp, revision)) = s.checkpoint_keys.get(&scoped) {
             return if *stored_fp == fingerprint {
@@ -218,16 +191,25 @@ impl CharacterRepository for InMemoryCharacterRepository {
         if let Some(name) = checkpoint.violated_constraint() {
             return Err(CheckpointError::Constraint(name.to_owned()));
         }
+        if checkpoint.phase3.is_none()
+            && s.progression
+                .get(&checkpoint.character_id)
+                .is_some_and(|p| p.phase3.is_some())
+        {
+            return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
+        }
         if let Some(ledger) = &checkpoint.class_state {
             let character = s
                 .characters
                 .get(&checkpoint.character_id)
                 .ok_or(CheckpointError::NotFound)?;
-            let registry =
-                crate::infrastructure::character_validation::registry(self.classes.as_ref())?;
-            ledger
-                .validate_for(&registry, &character.identity(), checkpoint.character_id)
-                .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
+            self.validate_versioned(
+                character,
+                ledger,
+                checkpoint.phase3.as_ref(),
+                checkpoint.alive,
+            )
+            .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
             if ledger.base_class_id != character.class_state.base_class_id {
                 return Err(CheckpointError::Constraint("characters_base_class_immutable".into()));
             }
@@ -283,6 +265,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
             p.hp = Some(checkpoint.hp);
             p.mp = Some(checkpoint.mp);
             p.alive = checkpoint.alive;
+            p.phase3.clone_from(&checkpoint.phase3);
             p.revision = revision;
             if let Some(ledger) = &checkpoint.class_state {
                 p.class_state = ledger.clone();
@@ -299,6 +282,190 @@ impl CharacterRepository for InMemoryCharacterRepository {
         s.outbox.extend_from_slice(events);
         s.checkpoint_keys.insert(scoped, (fingerprint, revision));
         Ok(CheckpointOutcome::Applied(revision))
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::LearnReceiptRepository for InMemoryCharacterRepository {
+    async fn learn_receipt_lookup(
+        &self,
+        caller: AccountId,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<crate::application::ports::LearnReceiptLookup> {
+        use crate::application::ports::LearnReceiptLookup;
+        Ok(match self.state.lock().learn_receipts.get(&(caller, *key)) {
+            None => LearnReceiptLookup::Unknown,
+            Some((stored, result)) if stored == fingerprint => {
+                LearnReceiptLookup::Known(result.clone())
+            },
+            Some(_) => LearnReceiptLookup::Conflict,
+        })
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::LearningCheckpointRepository for InMemoryCharacterRepository {
+    async fn checkpoint_learning(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        receipt: &crate::application::ports::SuccessfulLearnReceipt,
+    ) -> Result<crate::application::ports::LearningCheckpointOutcome, CheckpointError> {
+        use crate::application::ports::LearningCheckpointOutcome;
+        let mut state = self.state.lock();
+        let owner = state
+            .characters
+            .get(&checkpoint.character_id)
+            .ok_or(CheckpointError::NotFound)?
+            .account_id;
+        if receipt.account_id != owner {
+            return Err(CheckpointError::Constraint("character_learn_receipt_valid".into()));
+        }
+        let fingerprint = receipt.checkpoint_fingerprint(checkpoint, events)?;
+        let scoped = (owner, checkpoint.idempotency.0.clone(), checkpoint.idempotency.1);
+        if let Some((stored, revision)) = state.checkpoint_keys.get(&scoped) {
+            return if *stored == fingerprint {
+                Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(*revision)))
+            } else {
+                Err(CheckpointError::KeyReused)
+            };
+        }
+        if let Some((stored, result)) = state.learn_receipts.get(&(receipt.account_id, receipt.key))
+        {
+            return if *stored == receipt.request_fingerprint {
+                Ok(LearningCheckpointOutcome::ReceiptReplayed(result.clone()))
+            } else {
+                Err(CheckpointError::KeyReused)
+            };
+        }
+        receipt.validate(checkpoint, owner)?;
+        let outcome = self.checkpoint_locked(&mut state, checkpoint, events, fingerprint)?;
+        if matches!(outcome, CheckpointOutcome::Applied(_) | CheckpointOutcome::Replayed(_)) {
+            state.learn_receipts.insert(
+                (receipt.account_id, receipt.key),
+                (receipt.request_fingerprint.clone(), receipt.result.clone()),
+            );
+        }
+        Ok(LearningCheckpointOutcome::Checkpoint(outcome))
+    }
+}
+
+#[async_trait]
+impl CharacterRepository for InMemoryCharacterRepository {
+    async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>> {
+        let state = self.state.lock();
+        if let Some(c) = state.characters.get(&id) {
+            let progression = state
+                .progression
+                .get(&id)
+                .ok_or_else(|| anyhow::anyhow!("progression missing"))?;
+            self.validate_versioned(
+                c,
+                &c.class_state,
+                progression.phase3.as_ref(),
+                progression.alive,
+            )?;
+        }
+        Ok(state.characters.get(&id).cloned())
+    }
+
+    async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
+        let state = self.state.lock();
+        let mut out = Vec::new();
+        for c in state
+            .characters
+            .values()
+            .filter(|c| c.account_id == account)
+        {
+            let progression = state
+                .progression
+                .get(&c.id)
+                .ok_or_else(|| anyhow::anyhow!("progression missing"))?;
+            self.validate_versioned(
+                c,
+                &c.class_state,
+                progression.phase3.as_ref(),
+                progression.alive,
+            )?;
+            out.push(c.clone());
+        }
+        out.sort_by_key(|c| c.id.as_uuid());
+        Ok(out)
+    }
+
+    async fn create_idempotent(
+        &self,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+        character: &Character,
+    ) -> Result<CreateOutcome, RepositoryError> {
+        let mut s = self.state.lock();
+        let scoped = (character.account_id, *key);
+        if let Some((stored_fp, id)) = s.keys.get(&scoped) {
+            if stored_fp != fingerprint {
+                return Ok(CreateOutcome::KeyReused);
+            }
+            let existing = s.characters.get(id).cloned().ok_or_else(|| {
+                RepositoryError::Other(anyhow::anyhow!(
+                    "idempotency key points at missing character"
+                ))
+            })?;
+            return Ok(CreateOutcome::Replayed(existing));
+        }
+        self.validate(character)?;
+        let norm = character.name.normalized();
+        if s.names.contains_key(&norm) {
+            return Err(RepositoryError::NameTaken);
+        }
+        if s.characters
+            .values()
+            .filter(|c| c.account_id == character.account_id)
+            .count()
+            >= 7
+        {
+            return Err(RepositoryError::SlotsFull);
+        }
+        s.names.insert(norm, character.id);
+        s.keys
+            .insert(scoped, (fingerprint.to_owned(), character.id));
+        s.put(character);
+        s.characters.insert(character.id, character.clone());
+        s.outbox.push(DomainEvent::CharacterCreated {
+            character_id: character.id,
+            account_id: character.account_id,
+            race: character.race,
+        });
+        Ok(CreateOutcome::Created(character.clone()))
+    }
+
+    async fn load_for_admission(
+        &self,
+        character_id: CharacterId,
+    ) -> anyhow::Result<Option<ProgressionState>> {
+        let state = self.state.lock();
+        if let Some(c) = state.characters.get(&character_id) {
+            let progression = state
+                .progression
+                .get(&character_id)
+                .ok_or_else(|| anyhow::anyhow!("progression missing"))?;
+            self.validate_versioned(
+                c,
+                &c.class_state,
+                progression.phase3.as_ref(),
+                progression.alive,
+            )?;
+        }
+        Ok(state.progression.get(&character_id).cloned())
+    }
+
+    async fn checkpoint(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        let mut s = self.state.lock();
+        self.checkpoint_locked(&mut s, checkpoint, events, checkpoint.fingerprint(events))
     }
 }
 
@@ -324,6 +491,7 @@ mod tests {
 
     fn cp(c: &Character, seen: u64, key: &str) -> CharacterCheckpoint {
         CharacterCheckpoint {
+            phase3: None,
             character_id: c.id,
             revision_seen: seen,
             level: 2,

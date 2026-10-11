@@ -228,6 +228,7 @@ impl SessionCodec for ProstCodec {
         let msg = pb::ClientMessage::decode(frame).map_err(|_| Undecodable)?;
         let command = command_from_pb(entity, msg.intent.as_ref()).map_err(|e| {
             let reason = match e {
+                MappingError::Phase3Unavailable => SessionReject::NotYetImplemented,
                 MappingError::InvalidCoordinate => SessionReject::OutOfBounds,
                 MappingError::InvalidTarget
                 | MappingError::MissingIntent
@@ -243,6 +244,7 @@ impl SessionCodec for ProstCodec {
 
     fn rejected(&self, seq: u32, reason: SessionReject, detail: &str) -> Bytes {
         let reason = match reason {
+            SessionReject::NotYetImplemented => pb::RejectReason::NotYetImplemented,
             SessionReject::Invalid => pb::RejectReason::Invalid,
             SessionReject::OutOfBounds => pb::RejectReason::OutOfBounds,
             SessionReject::RateLimited => pb::RejectReason::RateLimited,
@@ -265,6 +267,7 @@ impl SessionCodec for ProstCodec {
 
 const fn mapping_detail(e: MappingError) -> &'static str {
     match e {
+        MappingError::Phase3Unavailable => "phase 3 runtime is not yet available",
         MappingError::InvalidTarget => "target must be a UUID or empty",
         MappingError::MissingIntent => "intent is required",
         MappingError::MissingDestination => "destination is required",
@@ -357,5 +360,71 @@ mod tests {
                 detail: "slow down".to_owned(),
             }))
         );
+    }
+}
+
+/// Phase 3 input adapter, selected only for an explicitly constructed experimental V5 zone.
+#[derive(Debug, Clone, Copy)]
+pub struct ExperimentalPhase3Codec;
+
+impl SessionCodec for ExperimentalPhase3Codec {
+    fn decode(&self, entity: EntityId, frame: &[u8]) -> Result<DecodedIntent, Undecodable> {
+        use crate::domain::zone::{skill::SkillId, ZoneCommand};
+        let msg = pb::ClientMessage::decode(frame).map_err(|_| Undecodable)?;
+        let invalid = |detail: &'static str| Err((SessionReject::Invalid, detail));
+        let command = match msg.intent.as_ref() {
+            Some(pb::client_message::Intent::CastSkill(request)) => {
+                if request.skill_id == 0 {
+                    invalid("skill_id must be positive")
+                } else {
+                    match request
+                        .target
+                        .as_deref()
+                        .filter(|target| !target.is_empty())
+                        .map(uuid::Uuid::parse_str)
+                        .transpose()
+                    {
+                        Ok(target) => Ok(ZoneCommand::CastSkill {
+                            entity,
+                            skill_id: SkillId(request.skill_id),
+                            target: target.map(EntityId::from_uuid),
+                        }),
+                        Err(_) => invalid("target must be a UUID or empty"),
+                    }
+                }
+            },
+            Some(pb::client_message::Intent::CancelCast(request)) => {
+                if request.cast_id == Some(0) {
+                    invalid("cast_id must be positive when supplied")
+                } else {
+                    Ok(ZoneCommand::CancelCast {
+                        entity,
+                        cast_id: request.cast_id.map(crate::domain::zone::CastId),
+                    })
+                }
+            },
+            Some(pb::client_message::Intent::AcceptResurrect(request)) => {
+                if request.offer_id == 0 {
+                    invalid("offer_id must be positive")
+                } else {
+                    Ok(ZoneCommand::AcceptResurrect {
+                        entity,
+                        offer_id: crate::domain::zone::OfferId(request.offer_id),
+                        accept: request.accept,
+                    })
+                }
+            },
+            _ => return ProstCodec.decode(entity, frame),
+        };
+        Ok(DecodedIntent {
+            seq: msg.seq,
+            command,
+        })
+    }
+    fn rejected(&self, seq: u32, reason: SessionReject, detail: &str) -> Bytes {
+        ProstCodec.rejected(seq, reason, detail)
+    }
+    fn outputs(&self, outputs: &[ObserverOutput], server_time_ms: i64) -> Vec<Bytes> {
+        ProstCodec.outputs(outputs, server_time_ms)
     }
 }

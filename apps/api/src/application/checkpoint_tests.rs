@@ -61,6 +61,7 @@ impl Harness {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase3: None,
                     checkpoint_revision: Some(0),
                     ..PlayerLoad::fresh("human_fighter")
                 })),
@@ -303,7 +304,8 @@ fn multiple_levels_and_death_keep_stable_ids_order_and_penalty() {
             | DomainEvent::CharacterDied { metadata, .. } => metadata,
             DomainEvent::CharacterCreated { .. }
             | DomainEvent::CharacterClassChanged { .. }
-            | DomainEvent::CharacterTokenGranted { .. } => {
+            | DomainEvent::CharacterTokenGranted { .. }
+            | DomainEvent::CharacterSkillLearned { .. } => {
                 unreachable!()
             },
         })

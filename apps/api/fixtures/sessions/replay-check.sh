@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-for fixture in two-players-v4.nfr two-players-fight-v2.nfr; do
+for fixture in two-players-v4.nfr two-players-fight-v2.nfr phase3-casts-v5.nfr phase3-gameplay-v5.nfr; do
   cargo run --quiet --bin nightfall-replay -- check --file "fixtures/sessions/$fixture"
 done

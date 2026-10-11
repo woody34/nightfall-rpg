@@ -255,10 +255,12 @@ fn an_invalid_load_is_refused_without_changing_state_or_rng() {
     for load in [
         PlayerLoad::fresh("no_such_class"),
         PlayerLoad {
+            phase3: None,
             level: 2,
             ..PlayerLoad::fresh("human_fighter")
         },
         PlayerLoad {
+            phase3: None,
             xp: u64::MAX,
             ..PlayerLoad::fresh("human_fighter")
         },
@@ -289,6 +291,7 @@ fn an_invalid_load_is_refused_without_changing_state_or_rng() {
             speed: Speed::DEFAULT,
             generation: GEN1,
             load: Some(Box::new(PlayerLoad {
+                phase3: None,
                 hp: Some(0),
                 mp: Some(u32::MAX),
                 ..PlayerLoad::fresh("human_fighter")
@@ -413,7 +416,7 @@ fn snapshots_of_another_schema_or_with_inconsistent_combat_are_refused() {
     run(&mut z, vec![target(1, 1, npc), attack(1, 2)]);
     idle(&mut z, 3);
     let snap = z.snapshot();
-    assert_eq!(snap.meta.schema_version, SNAPSHOT_SCHEMA_VERSION);
+    assert_eq!(snap.meta.schema_version, 8);
     let mut compatible = snap.clone();
     compatible.meta.schema_version = 4;
     compatible.meta.digest_version = StateDigestVersion::JsonV1;

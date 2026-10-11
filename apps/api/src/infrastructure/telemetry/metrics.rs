@@ -103,6 +103,12 @@ pub struct Metrics {
     pub(super) combat_xp_gained_total: Counter<u64>,
     pub(super) npc_intention_transitions_total: Counter<u64>,
     pub(super) combat_tick_duration_seconds: Histogram<f64>,
+    pub(super) skill_casts_total: Counter<u64>,
+    pub(super) skill_resolutions_total: Counter<u64>,
+    pub(super) skill_effects_total: Counter<u64>,
+    pub(super) skill_learn_requests_total: Counter<u64>,
+    pub(super) skills_learned_total: Counter<u64>,
+    pub(super) skill_learn_seconds: Histogram<f64>,
     checkpoint_lag_seconds: Gauge<f64>,
     checkpoint_failures_total: Counter<u64>,
     db_query_seconds: Histogram<f64>,
@@ -202,6 +208,12 @@ impl Metrics {
                 .u64_counter("nightfall_npc_intention_transitions")
                 .with_description("NPC intention transitions (E3.2 hook)")
                 .build(),
+            skill_casts_total: meter.u64_counter("nightfall_skill_casts").with_description("Committed cast lifecycle facts; excludes hydration and observer copies").build(),
+            skill_resolutions_total: meter.u64_counter("nightfall_skill_resolutions").with_description("Committed skill target resolutions by bounded kind and outcome").build(),
+            skill_effects_total: meter.u64_counter("nightfall_skill_effects").with_description("Committed handler transitions; excludes restore and hydration").build(),
+            skill_learn_requests_total: meter.u64_counter("nightfall_skill_learn_requests").with_description("Authenticated learning RPC attempts including frozen receipt replays").build(),
+            skills_learned_total: meter.u64_counter("nightfall_skills_learned").with_description("Applied learning checkpoint acknowledgements; excludes replay acknowledgements").build(),
+            skill_learn_seconds: meter.f64_histogram("nightfall_skill_learn").with_unit("s").with_description("Authenticated learning RPC latency including durable settlement or receipt replay").with_boundaries(IO_BUCKETS.to_vec()).build(),
             checkpoint_failures_total: meter
                 .u64_counter("nightfall_checkpoint_failures")
                 .with_description("Failed checkpoint attempts (E4.2 hook)")
@@ -240,6 +252,7 @@ impl Metrics {
         // A counter series that does not exist yet cannot be `increase()`d from zero, so the
         // series an alert depends on are created up front.
         metrics.initialize_combat();
+        metrics.initialize_phase3();
         metrics.checkpoint_failures_total.add(0, &[]);
         metrics.set_checkpoint_lag(Duration::ZERO);
         metrics.ws_dropped_frames_total.add(0, &[]);

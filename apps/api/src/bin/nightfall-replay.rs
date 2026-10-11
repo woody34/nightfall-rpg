@@ -220,7 +220,7 @@ async fn open(log: &dyn EventLog, zone: ZoneId, epoch: u64) -> Result<RecordedEp
 }
 
 fn warn_on_provenance(meta: &SnapshotMeta) {
-    let ours = SnapshotMeta::default();
+    let ours = SnapshotMeta::legacy();
     if meta.build_id != ours.build_id {
         eprintln!("warning: recorded by build {}, replaying with {}", meta.build_id, ours.build_id);
     }

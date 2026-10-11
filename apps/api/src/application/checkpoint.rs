@@ -16,8 +16,8 @@ use super::ports::{
 };
 use super::replay_log::{AppliedTickRecord, EventLog};
 use crate::domain::zone::{
-    AppliedTick, AppliedTickDraft, CombatRole, EntityId, ProgressionDelta, Tick, ZoneCommand,
-    ZoneId, ZoneSnapshot, ZoneState, UNITS_PER_TILE,
+    AppliedTick, AppliedTickDraft, CombatRole, EntityId, Phase3Entity, ProgressionDelta, Tick,
+    ZoneCommand, ZoneId, ZoneSnapshot, ZoneState, UNITS_PER_TILE,
 };
 use crate::domain::{CharacterId, DomainEvent, EventMetadata, Position, SessionId};
 
@@ -26,6 +26,8 @@ pub trait CheckpointMetrics: Send + Sync {
     /// Actual newly committed token; replayed acknowledgements do not re-emit metrics.
     fn token_granted(&self, _tier: u8, _source: crate::domain::character_progression::TokenSource) {
     }
+    /// A newly committed paid purchase; exact checkpoint retries do not count again.
+    fn skill_learned(&self) {}
     /// A failed transaction attempt.
     fn failed(&self);
     /// Age of the pending request; zero after acknowledgement.
@@ -36,7 +38,9 @@ struct Player {
     revision: u64,
     last_saved: Tick,
     latest: Option<CharacterCheckpoint>,
+    last_phase3: Option<Phase3Entity>,
     events: Vec<DomainEvent>,
+    learning: Option<super::ports::SuccessfulLearnReceipt>,
     dirty: bool,
     fenced: bool,
 }
@@ -45,6 +49,7 @@ struct Player {
 /// backpressure retains every transition and DB latency cannot reorder simulation commands.
 pub struct CheckpointService {
     repo: Arc<dyn CharacterRepository>,
+    learning_repo: Option<Arc<dyn super::ports::LearningCheckpointRepository>>,
     audit: Arc<dyn SessionAudit>,
     metrics: Arc<dyn CheckpointMetrics>,
     players: BTreeMap<EntityId, Player>,
@@ -63,6 +68,7 @@ impl CheckpointService {
     ) -> Self {
         Self {
             repo,
+            learning_repo: None,
             audit,
             metrics,
             players: BTreeMap::new(),
@@ -71,6 +77,35 @@ impl CheckpointService {
             durability: None,
             refreshed: Instant::now(),
         }
+    }
+
+    /// Installs atomic paid-learning persistence before admitting experimental players.
+    #[must_use]
+    pub fn with_learning(
+        mut self,
+        repo: Arc<dyn super::ports::LearningCheckpointRepository>,
+    ) -> Self {
+        self.learning_repo = Some(repo);
+        self
+    }
+
+    /// Whether paid mutations have a typed receipt/checkpoint writer.
+    pub fn learning_enabled(&self) -> bool {
+        self.learning_repo.is_some()
+    }
+
+    /// Account-wide frozen lookup, before live generation or gameplay checks.
+    pub async fn learn_receipt_lookup(
+        &self,
+        account: crate::domain::AccountId,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<super::ports::LearnReceiptLookup> {
+        self.learning_repo
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("learning persistence unavailable"))?
+            .learn_receipt_lookup(account, key, fingerprint)
+            .await
     }
 
     /// Enables durable discovery and periodic recovery baselines in the production lane.
@@ -185,6 +220,7 @@ impl CheckpointService {
                 events: p.events.clone(),
                 latest: p.latest.as_ref().map(|cp| {
                     crate::domain::zone::CheckpointRequestSnapshot {
+                        phase3: cp.phase3.clone(),
                         class_state: cp.class_state.clone(),
                         revision_seen: cp.revision_seen,
                         level: cp.level,
@@ -209,12 +245,19 @@ impl CheckpointService {
                 (
                     p.entity,
                     Player {
+                        last_phase3: snapshot
+                            .phase3
+                            .as_ref()
+                            .and_then(|phase| phase.entities.get(&p.entity))
+                            .cloned(),
                         revision: p.revision,
                         last_saved: p.last_saved,
                         dirty: p.dirty,
                         fenced: p.fenced,
                         events: p.events.clone(),
+                        learning: None,
                         latest: p.latest.as_ref().map(|cp| CharacterCheckpoint {
+                            phase3: cp.phase3.clone(),
                             class_state: cp.class_state.clone(),
                             character_id: CharacterId::from_uuid(p.entity.as_uuid()),
                             revision_seen: cp.revision_seen,
@@ -268,8 +311,16 @@ impl CheckpointService {
     /// Saves the previous admitted state before a lifecycle command removes or replaces it.
     pub async fn flush(&mut self, entity: EntityId) -> anyhow::Result<()> {
         if let Some(player) = self.players.get_mut(&entity) {
+            // Idle boundaries refresh the template with the current revision and paused
+            // timers. A just-acknowledged template still names the previous revision: that
+            // exact boundary is already saved, including its learning fingerprint/receipt.
+            player.dirty |= player
+                .latest
+                .as_ref()
+                .is_some_and(|cp| cp.phase3.is_some() && cp.revision_seen == player.revision);
             save(
                 self.repo.as_ref(),
+                self.learning_repo.as_deref(),
                 self.audit.as_ref(),
                 self.metrics.as_ref(),
                 self.sessions.get(&entity).copied(),
@@ -312,9 +363,11 @@ impl CheckpointService {
                         *entity,
                         Player {
                             revision,
+                            last_phase3: None,
                             last_saved: tick.tick,
                             latest: None,
                             events: Vec::new(),
+                            learning: None,
                             dirty: false,
                             fenced: false,
                         },
@@ -324,7 +377,8 @@ impl CheckpointService {
         }
         for event in &tick.events {
             if let crate::domain::zone::ZoneEvent::ClassTransfer { entity, .. }
-            | crate::domain::zone::ZoneEvent::TokensReconciled { entity, .. } = event
+            | crate::domain::zone::ZoneEvent::TokensReconciled { entity, .. }
+            | crate::domain::zone::ZoneEvent::SkillLearned { entity, .. } = event
             {
                 anyhow::ensure!(
                     self.players.get(entity).is_some_and(|p| !p.fenced),
@@ -337,6 +391,12 @@ impl CheckpointService {
             }
         }
         for entity in &snapshot.entities {
+            if snapshot.phase3.is_some() && entity.kind == crate::domain::zone::EntityKind::Player {
+                anyhow::ensure!(
+                    self.players.get(&entity.id).is_some_and(|p| !p.fenced),
+                    "Phase3 player checkpoint lane missing or fenced"
+                );
+            }
             let Some(player) = self.players.get_mut(&entity.id) else {
                 continue;
             };
@@ -346,7 +406,16 @@ impl CheckpointService {
             let CombatRole::Player { xp, .. } = combat.role else {
                 continue;
             };
+            let phase3 = snapshot.phase3.as_ref();
+            let retained = phase3.and_then(|phase| phase.entities.get(&entity.id));
+            anyhow::ensure!(
+                phase3.is_none() || retained.is_some(),
+                "player checkpoint sidecar missing"
+            );
             let mut cp = CharacterCheckpoint {
+                phase3: phase3
+                    .map(|phase| phase.checkpoint(entity.id, tick.tick))
+                    .transpose()?,
                 class_state: match &combat.role {
                     CombatRole::Player { progression, .. } => {
                         progression.as_ref().map(|p| p.class_state.clone())
@@ -382,6 +451,12 @@ impl CheckpointService {
                 cp.alive = delta.alive;
                 cp.position = position(delta.pos);
             }
+            let retained_critical = phase3.is_some()
+                && (retained_phase3_changed(player.last_phase3.as_ref(), retained)
+                    || player
+                        .latest
+                        .as_ref()
+                        .is_none_or(|old| old.class_state != cp.class_state));
             let changed = player.latest.as_ref().is_none_or(|old| {
                 old.class_state != cp.class_state
                     || old.level != cp.level
@@ -391,9 +466,10 @@ impl CheckpointService {
                     || old.alive != cp.alive
                     || old.position != cp.position
             });
-            player.dirty |= changed;
+            player.dirty |= changed || retained_critical;
             player.latest = Some(cp);
-            let mut immediate = tick.events.iter().any(|event| matches!(event,
+            player.last_phase3 = retained.cloned();
+            let mut immediate = retained_critical || tick.events.iter().any(|event| matches!(event,
                 crate::domain::zone::ZoneEvent::TokensReconciled { entity: who, .. } if *who == entity.id));
             for event in &tick.events {
                 if let crate::domain::zone::ZoneEvent::TokensReconciled {
@@ -466,6 +542,65 @@ impl CheckpointService {
                     });
                 }
             }
+            for event in &tick.events {
+                if let crate::domain::zone::ZoneEvent::SkillLearned {
+                    tick: at,
+                    entity: who,
+                    account,
+                    request_key,
+                    result,
+                } = event
+                {
+                    if *who != entity.id {
+                        continue;
+                    }
+                    anyhow::ensure!(
+                        self.learning_repo.is_some(),
+                        "learning persistence unavailable"
+                    );
+                    anyhow::ensure!(
+                        player.learning.is_none(),
+                        "multiple learning facts in one tick"
+                    );
+                    let receipt = super::ports::SuccessfulLearnReceipt {
+                        account_id: *account,
+                        key: IdempotencyKey::from_uuid(*request_key),
+                        request_fingerprint: super::ports::learn_skill_fingerprint(
+                            result.character_id,
+                            result.skill,
+                        ),
+                        result: result.as_ref().clone(),
+                    };
+                    let cp = player
+                        .latest
+                        .as_ref()
+                        .ok_or_else(|| anyhow::anyhow!("learning checkpoint missing"))?;
+                    receipt.validate(cp, *account)?;
+                    let ordinal = player.events.len() as u64;
+                    player.events.push(DomainEvent::CharacterSkillLearned {
+                        metadata: EventMetadata {
+                            event_id: stable_id(
+                                entity.id,
+                                snapshot.seed.zone,
+                                tick.epoch,
+                                *at,
+                                Some(ordinal),
+                            ),
+                            sequence: (player.revision.saturating_add(1), ordinal),
+                        },
+                        character_id: result.character_id,
+                        skill_id: result.skill.id.0,
+                        skill_level: result.skill.rank,
+                        sp_spent: result.sp_spent,
+                        sp_remaining: result.sp_remaining,
+                        tick: at.0,
+                        request_key: *request_key,
+                    });
+                    player.learning = Some(receipt);
+                    player.dirty = true;
+                    immediate = true;
+                }
+            }
             for delta in tick.progression().filter(|d| d.entity == entity.id) {
                 immediate |=
                     delta.died.is_some() || delta.level_before != delta.level || delta.respawned;
@@ -482,7 +617,8 @@ impl CheckpointService {
                             DomainEvent::CharacterLeveled { metadata, .. }
                             | DomainEvent::CharacterDied { metadata, .. }
                             | DomainEvent::CharacterClassChanged { metadata, .. }
-                            | DomainEvent::CharacterTokenGranted { metadata, .. } => metadata,
+                            | DomainEvent::CharacterTokenGranted { metadata, .. }
+                            | DomainEvent::CharacterSkillLearned { metadata, .. } => metadata,
                             DomainEvent::CharacterCreated { .. } => continue,
                         };
                         let ordinal = offset.saturating_add(n as u64);
@@ -501,6 +637,7 @@ impl CheckpointService {
             if immediate || tick.tick.0.saturating_sub(player.last_saved.0) >= 50 {
                 save(
                     self.repo.as_ref(),
+                    self.learning_repo.as_deref(),
                     self.audit.as_ref(),
                     self.metrics.as_ref(),
                     self.sessions.get(&entity.id).copied(),
@@ -607,7 +744,10 @@ impl CheckpointService {
         let pending: Vec<_> = self
             .players
             .iter()
-            .filter(|(_, p)| !p.events.is_empty())
+            .filter(|(_, p)| {
+                !p.events.is_empty()
+                    || (p.dirty && p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some()))
+            })
             .map(|(id, _)| *id)
             .collect();
         for entity in pending {
@@ -623,6 +763,7 @@ impl CheckpointService {
 
 async fn save(
     repo: &dyn CharacterRepository,
+    learning_repo: Option<&dyn super::ports::LearningCheckpointRepository>,
     audit: &dyn SessionAudit,
     metrics: &dyn CheckpointMetrics,
     session: Option<SessionId>,
@@ -632,6 +773,14 @@ async fn save(
     if !player.dirty {
         return Ok(());
     }
+    anyhow::ensure!(
+        player.learning.is_some()
+            || !player
+                .events
+                .iter()
+                .any(|event| matches!(event, DomainEvent::CharacterSkillLearned { .. })),
+        "learning fact requires its typed receipt; recover from durable tick prefix"
+    );
     let cp = player
         .latest
         .as_ref()
@@ -640,13 +789,36 @@ async fn save(
     let mut backoff = Duration::from_millis(100);
     loop {
         metrics.lag(started.elapsed());
-        match observe_attempt(repo.checkpoint(cp, &player.events), metrics, started).await {
+        let attempt = async {
+            if let Some(receipt) = &player.learning {
+                let repo = learning_repo.ok_or_else(|| {
+                    super::ports::CheckpointError::Constraint("learning_repository_missing".into())
+                })?;
+                match repo
+                    .checkpoint_learning(cp, &player.events, receipt)
+                    .await?
+                {
+                    super::ports::LearningCheckpointOutcome::Checkpoint(outcome) => Ok(outcome),
+                    // A different live writer may have won after our speculative purchase.
+                    // Its receipt is safe for preflight, but cannot acknowledge this draft.
+                    super::ports::LearningCheckpointOutcome::ReceiptReplayed(_) => {
+                        Ok(CheckpointOutcome::Stale)
+                    },
+                }
+            } else {
+                repo.checkpoint(cp, &player.events).await
+            }
+        };
+        match observe_attempt(attempt, metrics, started).await {
             Ok(
                 outcome @ (CheckpointOutcome::Applied(revision)
                 | CheckpointOutcome::Replayed(revision)),
             ) => {
                 if matches!(outcome, CheckpointOutcome::Applied(_)) {
                     for event in &player.events {
+                        if matches!(event, DomainEvent::CharacterSkillLearned { .. }) {
+                            metrics.skill_learned();
+                        }
                         if let DomainEvent::CharacterTokenGranted { tier, source, .. } = event {
                             metrics.token_granted(*tier, *source);
                         }
@@ -664,6 +836,7 @@ async fn save(
                 }
                 player.revision = revision;
                 player.events.clear();
+                player.learning = None;
                 player.dirty = false;
                 metrics.lag(Duration::ZERO);
                 return Ok(());
@@ -826,3 +999,28 @@ impl CheckpointLane {
 #[cfg(test)]
 #[path = "checkpoint_tests.rs"]
 mod tests;
+
+// Compare canonical retained mutations, never a projection's naturally decreasing remainder.
+// Casts, offers and regen deadlines are not persisted across a real disconnect.
+fn retained_phase3_changed(before: Option<&Phase3Entity>, after: Option<&Phase3Entity>) -> bool {
+    match (before, after) {
+        (None, None) => false,
+        (Some(a), Some(b)) => {
+            a.reuse != b.reuse
+                || a.effects != b.effects
+                || a.modifier_install_order != b.modifier_install_order
+                || a.fractions != b.fractions
+                || a.player
+                    .as_ref()
+                    .map(|p| (&p.pvp, p.death_penalty_level, &p.last_death))
+                    != b.player
+                        .as_ref()
+                        .map(|p| (&p.pvp, p.death_penalty_level, &p.last_death))
+        },
+        (None, Some(_)) | (Some(_), None) => true,
+    }
+}
+
+#[cfg(test)]
+#[path = "checkpoint_phase3_tests.rs"]
+mod phase3_tests;

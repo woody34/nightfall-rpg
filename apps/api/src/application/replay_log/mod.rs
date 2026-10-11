@@ -7,13 +7,20 @@
 
 mod audit;
 mod codec;
+mod codec_validation;
 mod epoch;
 mod gate;
 mod port;
 mod record;
+mod snapshot_phase3;
+mod snapshot_registry;
+mod snapshot_value;
 
 pub use audit::{SessionAuditWriter, AUDIT_BUFFER};
-pub use codec::RECORD_SCHEMA_VERSION;
+pub use codec::{
+    command_admission_size, digest_record_upper_bound, validate_record_budget,
+    AdmissionSizingError, CommandAdmissionSize, RECORD_SCHEMA_VERSION,
+};
 pub use epoch::{
     open_epoch, start_epoch, CheckedRecords, EpochStarted, RecordedEpoch, ReplayError,
 };
@@ -24,6 +31,6 @@ pub use port::{
 };
 pub use record::{
     decode_events, decode_outputs, decode_snapshot, encode_events, encode_outputs, encode_snapshot,
-    AppliedTickRecord, CodecError, EpochStatus, OutputForm, PlayerOutput, Seq, SessionInRecord,
-    SessionOutRecord, StoredSnapshot, Watermark, WatermarkReason,
+    phase3_snapshot_size, AppliedTickRecord, CodecError, EpochStatus, OutputForm, PlayerOutput,
+    Seq, SessionInRecord, SessionOutRecord, StoredSnapshot, Watermark, WatermarkReason,
 };

@@ -72,6 +72,10 @@ tokio-tungstenite.workspace = true
 name = "zone_step"
 harness = false
 
+[[bench]]
+name = "phase3_effects"
+harness = false
+
 [build-dependencies]
 anyhow.workspace = true
 protox.workspace = true

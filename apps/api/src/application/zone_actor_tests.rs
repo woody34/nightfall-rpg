@@ -280,3 +280,137 @@ async fn the_interval_source_ticks_on_its_own() {
     .await
     .unwrap();
 }
+
+fn byte_policy() -> RecordAdmissionPolicy {
+    RecordAdmissionPolicy {
+        record_budget: 330_000,
+        max_observers: 16,
+        ..RecordAdmissionPolicy::default()
+    }
+}
+
+#[tokio::test]
+async fn byte_budget_admits_a_prefix_and_preserves_suffix_ordinals() {
+    let (ticks, driver) = manual_ticks();
+    let zone =
+        ZoneActor::try_spawn_gated_with_admission(state(), ticks, OpenGate, byte_policy()).unwrap();
+    let mut rx = zone.subscribe();
+    for n in 1..=3 {
+        let mut input = spawn(n);
+        if let ZoneCommand::SpawnPlayer { name, .. } = &mut input.command {
+            *name = "x".repeat(160_000);
+        }
+        zone.send(input).unwrap();
+    }
+    driver.step().await.unwrap();
+    let first = rx.recv().await.unwrap();
+    assert_eq!(first.commands.len(), 2);
+    assert_eq!(first.commands[0].ordinal, Ordinal(0));
+    assert_eq!(first.commands[1].ordinal, Ordinal(1));
+    assert_eq!(zone.stats().borrow().commands_deferred, 1);
+    let record = super::super::replay_log::AppliedTickRecord::from_applied(ZoneId(3), &first);
+    assert!(
+        record.bounded(byte_policy().record_budget).encoded_len() <= byte_policy().record_budget
+    );
+    driver.step().await.unwrap();
+    let second = rx.recv().await.unwrap();
+    assert_eq!(second.commands.len(), 1);
+    assert_eq!(second.commands[0].ordinal, Ordinal(2));
+    assert_eq!(second.commands[0].command.entity(), Some(id(3)));
+}
+
+#[tokio::test]
+async fn byte_policy_session_budget_stops_at_first_deferred_input() {
+    let (ticks, driver) = manual_ticks();
+    let zone =
+        ZoneActor::try_spawn_gated_with_admission(state(), ticks, OpenGate, byte_policy()).unwrap();
+    let mut rx = zone.subscribe();
+    zone.send(spawn(1)).unwrap();
+    zone.send(spawn(2)).unwrap();
+    driver.step().await.unwrap();
+    rx.recv().await.unwrap();
+    for seq in 0..10 {
+        zone.send(stop(1, seq)).unwrap();
+    }
+    zone.send(stop(2, 100)).unwrap();
+    driver.step().await.unwrap();
+    assert_eq!(seqs(&rx.recv().await.unwrap()), (0..8).map(Some).collect::<Vec<_>>());
+    assert_eq!(zone.stats().borrow().commands_deferred, 3);
+    driver.step().await.unwrap();
+    assert_eq!(seqs(&rx.recv().await.unwrap()), vec![Some(8), Some(9), Some(100)]);
+}
+
+#[tokio::test]
+async fn oversized_input_is_terminal_without_consuming_ordinal_or_mutating_state() {
+    let (ticks, driver) = manual_ticks();
+    let zone =
+        ZoneActor::try_spawn_gated_with_admission(state(), ticks, OpenGate, byte_policy()).unwrap();
+    let mut input = spawn(1);
+    if let ZoneCommand::SpawnPlayer { name, .. } = &mut input.command {
+        *name = "x".repeat(262_144);
+    }
+    assert!(matches!(zone.send(input.clone()), Err(ZoneSendError::AdmissionTooLarge(_))));
+    assert!(matches!(
+        zone.send_wait_checked(input).await,
+        Err(super::super::AppError::ResourceExhausted(_))
+    ));
+    zone.send(spawn(2)).unwrap();
+    let mut rx = zone.subscribe();
+    driver.step().await.unwrap();
+    let tick = rx.recv().await.unwrap();
+    assert_eq!(tick.commands.len(), 1);
+    assert_eq!(tick.commands[0].ordinal, Ordinal(0));
+    assert_eq!(zone.snapshot().await.unwrap().entities.len(), 1);
+}
+
+#[tokio::test]
+async fn recipient_overflow_is_not_permanently_deferred_and_notifies_producer_once() {
+    let (ticks, driver) = manual_ticks();
+    let policy = RecordAdmissionPolicy {
+        max_observers: 1,
+        ..byte_policy()
+    };
+    let zone = ZoneActor::try_spawn_gated_with_admission(state(), ticks, OpenGate, policy).unwrap();
+    let mut rx = zone.subscribe();
+    let mut failures = zone.subscribe_admission_failures();
+    zone.send(spawn(1)).unwrap();
+    zone.send(spawn(2)).unwrap();
+    zone.send(stop(1, 7)).unwrap();
+    driver.step().await.unwrap();
+    assert_eq!(rx.recv().await.unwrap().commands.len(), 1);
+    // Stop at first deferral; terminal input is removed on the next selection pass.
+    driver.step().await.unwrap();
+    let failure = failures.recv().await.unwrap();
+    assert_eq!(failure.entity, Some(id(2)));
+    assert_eq!(failure.reason, AdmissionFailureReason::TooManyRecipients);
+    assert_eq!(zone.stats().borrow().commands_deferred, 1);
+    assert!(rx.try_recv().is_err());
+    driver.step().await.unwrap();
+    let next = rx.recv().await.unwrap();
+    assert_eq!(next.commands[0].ordinal, Ordinal(1));
+    assert_eq!(next.commands[0].seq, Some(7));
+    assert!(failures.try_recv().is_err());
+}
+
+#[test]
+fn impossible_epoch_policy_is_refused_before_actor_start() {
+    let (ticks, _driver) = manual_ticks();
+    let policy = RecordAdmissionPolicy {
+        record_budget: 200_000,
+        ..byte_policy()
+    };
+    assert!(ZoneActor::try_spawn_gated_with_admission(state(), ticks, OpenGate, policy).is_err());
+}
+
+#[test]
+fn restored_observers_must_fit_the_frozen_policy_before_simulation() {
+    let mut state = state();
+    let draft = state.draft(vec![spawn(1), spawn(2)]);
+    state.run_tick(draft).unwrap();
+    let (ticks, _driver) = manual_ticks();
+    let policy = RecordAdmissionPolicy {
+        max_observers: 1,
+        ..byte_policy()
+    };
+    assert!(ZoneActor::try_spawn_gated_with_admission(state, ticks, OpenGate, policy).is_err());
+}

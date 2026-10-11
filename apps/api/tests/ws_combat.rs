@@ -175,7 +175,8 @@ async fn set_target_select_repeat_clear_and_read_after_write() {
         changed(msgs.last().unwrap()).unwrap(),
         &pb::TargetChanged {
             entity: p.entity_id(),
-            target: npc.to_string()
+            target: npc.to_string(),
+            ..Default::default()
         }
     );
     let snapshot = app.zone.snapshot().await.unwrap();

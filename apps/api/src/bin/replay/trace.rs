@@ -42,7 +42,19 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         ZoneEvent::EntityRespawned { .. } => Some(("respawn", "↥")),
         ZoneEvent::NpcIntentionChanged { .. } => Some(("intention", "◇")),
         ZoneEvent::TargetChanged { .. } => Some(("target", "◎")),
-        ZoneEvent::TokensReconciled { .. }
+        ZoneEvent::EffectApplied { .. }
+        | ZoneEvent::EffectRemoved { .. }
+        | ZoneEvent::SkillCastStarted { .. }
+        | ZoneEvent::SkillCastResult { .. }
+        | ZoneEvent::SkillCastCancelled { .. }
+        | ZoneEvent::SkillLearned { .. }
+        | ZoneEvent::PvpStateChanged { .. }
+        | ZoneEvent::ResurrectOffer { .. }
+        | ZoneEvent::SkillStateSync { .. }
+        | ZoneEvent::SpGained { .. }
+        | ZoneEvent::SkillReuse { .. }
+        | ZoneEvent::VitalsChanged { .. }
+        | ZoneEvent::TokensReconciled { .. }
         | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::AttackStarted { .. }
         | ZoneEvent::AttackCancelled { .. }
@@ -111,6 +123,18 @@ impl Projection {
                 self.break_path(entity);
             },
             ZoneEvent::ClassChanged { .. }
+            | ZoneEvent::EffectApplied { .. }
+            | ZoneEvent::EffectRemoved { .. }
+            | ZoneEvent::SkillCastStarted { .. }
+            | ZoneEvent::SkillCastResult { .. }
+            | ZoneEvent::SkillCastCancelled { .. }
+            | ZoneEvent::SkillLearned { .. }
+            | ZoneEvent::PvpStateChanged { .. }
+            | ZoneEvent::ResurrectOffer { .. }
+            | ZoneEvent::SkillStateSync { .. }
+            | ZoneEvent::SpGained { .. }
+            | ZoneEvent::SkillReuse { .. }
+            | ZoneEvent::VitalsChanged { .. }
             | ZoneEvent::TokensReconciled { .. }
             | ZoneEvent::ClassTransfer { .. }
             | ZoneEvent::AttackResult { .. }
@@ -156,6 +180,22 @@ impl Projection {
 // Private state is shown only in the selected owner's recorded output, never in off-AOI facts.
 fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
     match event {
+        ZoneEvent::ResurrectOffer { target, tick, .. } if owner != Some(target.entity) => format!(
+            "Resurrection offer: {} · tick {} (owner-private fields hidden)",
+            target.entity, tick.0
+        ),
+        ZoneEvent::SkillLearned {
+            entity,
+            tick,
+            result,
+            ..
+        } => {
+            if owner == Some(*entity) {
+                format!("SkillLearned: {entity} · skill {} rank {} · SP spent {} remaining {} · tick {} (private receipt hidden)", result.skill.id.0, result.skill.rank, result.sp_spent, result.sp_remaining, tick.0)
+            } else {
+                format!("Owner update: {entity} · tick {} (owner-private fields hidden)", tick.0)
+            }
+        },
         ZoneEvent::ClassChanged {
             entity,
             class_id,
@@ -183,7 +223,11 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
             "ClassTransfer effect: {entity} · {} → {} · tick {} (private receipt hidden)",
             old_class_id.0, receipt.target_class_id.0, tick.0
         ),
-        ZoneEvent::StatsChanged { entity, tick, .. } | ZoneEvent::XpGained { entity, tick, .. }
+        ZoneEvent::StatsChanged { entity, tick, .. }
+        | ZoneEvent::SkillStateSync { entity, tick, .. }
+        | ZoneEvent::SpGained { entity, tick, .. }
+        | ZoneEvent::SkillReuse { entity, tick, .. }
+        | ZoneEvent::XpGained { entity, tick, .. }
             if owner != Some(*entity) =>
         {
             format!("Owner update: {entity} · tick {} (owner-private fields hidden)", tick.0)
@@ -192,7 +236,18 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
             "Progression checkpoint: {} · tick {} (private state hidden)",
             delta.entity, delta.tick.0
         ),
-        ZoneEvent::AttackResult { .. }
+        ZoneEvent::EffectApplied { .. }
+        | ZoneEvent::EffectRemoved { .. }
+        | ZoneEvent::SkillCastStarted { .. }
+        | ZoneEvent::SkillCastResult { .. }
+        | ZoneEvent::SkillCastCancelled { .. }
+        | ZoneEvent::PvpStateChanged { .. }
+        | ZoneEvent::ResurrectOffer { .. }
+        | ZoneEvent::SkillStateSync { .. }
+        | ZoneEvent::SpGained { .. }
+        | ZoneEvent::SkillReuse { .. }
+        | ZoneEvent::VitalsChanged { .. }
+        | ZoneEvent::AttackResult { .. }
         | ZoneEvent::EntityDied { .. }
         | ZoneEvent::AttackStarted { .. }
         | ZoneEvent::AttackCancelled { .. }
@@ -220,11 +275,17 @@ fn command_details(record: &AppliedTickRecord) -> String {
                 }
                 format!("{command:#?} (private admission load hidden)")
             },
+            ZoneCommand::LearnSkill { entity, skill_id, skill_level, .. } => format!(
+                "LearnSkill actor command: {entity} → skill {} rank {skill_level} (private receipt identity hidden)", skill_id.0
+            ),
             ZoneCommand::ChangeClass { entity, target, .. } => format!(
                 "ChangeClass actor command: {entity} → class {} (gRPC mutation; not a WebSocket intent)",
                 target.0
             ),
-            ZoneCommand::SpawnNpc { .. }
+            ZoneCommand::CastSkill { .. }
+            | ZoneCommand::CancelCast { .. }
+            | ZoneCommand::AcceptResurrect { .. }
+            | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }
             | ZoneCommand::ReplaceSession { .. }
             | ZoneCommand::MoveTo { .. }
@@ -420,6 +481,49 @@ mod tests {
     use super::*;
 
     #[test]
+    fn learning_fact_trace_never_prints_account_or_receipt_key() {
+        use nightfall_api::domain::zone::skill::{SkillId, SkillRef};
+        use nightfall_api::domain::zone::{FrozenLearnResult, LearnedEffectiveStats, Tick};
+        use nightfall_api::domain::{AccountId, CharacterId};
+        let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
+        let account = AccountId::from_uuid(uuid::Uuid::from_u128(0x00ab_cdef));
+        let key = uuid::Uuid::from_u128(0x00fe_dcba);
+        let event = ZoneEvent::SkillLearned {
+            tick: Tick(9),
+            entity,
+            account,
+            request_key: key,
+            result: Box::new(FrozenLearnResult {
+                character_id: CharacterId::from_uuid(entity.as_uuid()),
+                skill: SkillRef {
+                    id: SkillId(3),
+                    rank: 1,
+                },
+                sp_spent: 50,
+                sp_remaining: 1234,
+                tick: Tick(9),
+                hp: 1,
+                max_hp: 2,
+                mp: 1,
+                max_mp: 2,
+                cp: 1,
+                max_cp: 2,
+                effective_stats: LearnedEffectiveStats::default(),
+                incarnation: 1,
+            }),
+        };
+        let public = event_detail(&event, None);
+        let owned = event_detail(&event, Some(entity));
+        assert!(!public.contains("1234"));
+        assert!(owned.contains("SP spent 50 remaining 1234"));
+        for detail in [public, owned] {
+            assert!(!detail.contains(&account.to_string()));
+            assert!(!detail.contains(&key.to_string()));
+            assert!(!detail.contains("effective_stats"));
+        }
+    }
+
+    #[test]
     fn class_change_is_concise_and_private_stats_require_the_selected_recipient() {
         use nightfall_api::application::replay_log::{encode_events, encode_outputs, PlayerOutput};
         use nightfall_api::domain::class::ClassId;
@@ -447,6 +551,7 @@ mod tests {
             level: 20,
             xp: 0,
             class: Some(ClassStatsView {
+                phase3: None,
                 class_id: ClassId(1),
                 sp: 765_432,
                 cp: 987_654,

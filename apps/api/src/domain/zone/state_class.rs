@@ -76,6 +76,9 @@ impl ZoneState {
 
     /// Enables Phase 2 only for new epochs; restored legacy snapshots never call this.
     pub fn with_classes(mut self, classes: Arc<ClassRegistry>) -> Result<Self, SnapshotError> {
+        if self.phase3.is_some() {
+            return Err(SnapshotError::CombatMismatch);
+        }
         self.meta.classes_rules_hash = Some(registry_hash(&classes)?);
         self.classes = Some(classes);
         self.meta.schema_version = 8;
@@ -86,7 +89,11 @@ impl ZoneState {
     /// Enables approved once-ever token supply only on an empty new epoch.
     /// Recovery must replay its old policy before bootstrap creates this boundary.
     pub fn with_token_policy(mut self) -> Result<Self, SnapshotError> {
-        if self.classes.is_none() || self.next_tick != Tick(0) || !self.entities.is_empty() {
+        if self.phase3.is_some()
+            || self.classes.is_none()
+            || self.next_tick != Tick(0)
+            || !self.entities.is_empty()
+        {
             return Err(SnapshotError::CombatMismatch);
         }
         self.meta.schema_version = 8;
@@ -101,9 +108,16 @@ impl ZoneState {
         crossing_from: Option<u32>,
         events: &mut Vec<ZoneEvent>,
     ) {
-        if self.meta.digest_version != StateDigestVersion::BinaryV4 {
+        if !matches!(
+            self.meta.digest_version,
+            StateDigestVersion::BinaryV4 | StateDigestVersion::BinaryV5
+        ) {
             return;
         }
+        let phase3 = self
+            .phase3
+            .as_ref()
+            .is_some_and(|p| p.canonical.rules.runtime_revision() >= 2);
         let Some(registry) = self.classes.as_deref() else {
             return;
         };
@@ -123,14 +137,45 @@ impl ZoneState {
         };
         // The entire ledger was validated at admission/restore and every mutation preserves
         // it. Validation here fails closed by retaining an unchanged ledger.
-        let Ok(adjustment) = p.class_state.reconcile_tokens(
-            registry,
-            &p.identity,
-            CharacterId::from_uuid(entity.as_uuid()),
-            combat.sheet.level(),
-            crossing_from,
-        ) else {
-            return;
+        let adjustment = if phase3 {
+            if p.class_state
+                .validate_for_phase3(
+                    registry,
+                    &p.identity,
+                    CharacterId::from_uuid(entity.as_uuid()),
+                )
+                .is_err()
+            {
+                return;
+            }
+            // Token supply depends on lineage/history and level, not paid skill ranks.
+            // Reuse the frozen token policy on its own ledger, copying only its outputs.
+            let mut tokens = p.class_state.clone();
+            tokens.learned_skills.clear();
+            let Ok(adjustment) = tokens.reconcile_tokens(
+                registry,
+                &p.identity,
+                CharacterId::from_uuid(entity.as_uuid()),
+                combat.sheet.level(),
+                crossing_from,
+            ) else {
+                return;
+            };
+            p.class_state.token_tier_1_count = tokens.token_tier_1_count;
+            p.class_state.token_tier_2_count = tokens.token_tier_2_count;
+            p.class_state.milestone_claimed_mask = tokens.milestone_claimed_mask;
+            adjustment
+        } else {
+            let Ok(adjustment) = p.class_state.reconcile_tokens(
+                registry,
+                &p.identity,
+                CharacterId::from_uuid(entity.as_uuid()),
+                combat.sheet.level(),
+                crossing_from,
+            ) else {
+                return;
+            };
+            adjustment
         };
         if adjustment.claimed_mask != 0 {
             events.push(ZoneEvent::TokensReconciled {
@@ -152,13 +197,27 @@ impl ZoneState {
         load: &PlayerLoad,
         entity: EntityId,
     ) -> Result<CombatState, RejectReason> {
+        if load.phase3.is_some() && !self.phase3_enabled() {
+            return Err(RejectReason::InvalidLoad);
+        }
         let mut combat = player_combat(rules, load)?;
         match (&self.classes, &load.progression) {
             (None, None) => {},
             (Some(registry), Some(p)) => {
-                p.class_state
-                    .validate_for(registry, &p.identity, CharacterId::from_uuid(entity.as_uuid()))
-                    .map_err(|_| RejectReason::InvalidLoad)?;
+                if self.phase3_enabled() {
+                    p.class_state.validate_for_phase3(
+                        registry,
+                        &p.identity,
+                        CharacterId::from_uuid(entity.as_uuid()),
+                    )
+                } else {
+                    p.class_state.validate_for(
+                        registry,
+                        &p.identity,
+                        CharacterId::from_uuid(entity.as_uuid()),
+                    )
+                }
+                .map_err(|_| RejectReason::InvalidLoad)?;
                 if crate::domain::character_progression::base_class_profile(
                     p.identity.base_class_id,
                 ) != Some(load.class.as_str())
@@ -170,13 +229,21 @@ impl ZoneState {
                         .map_err(|_| RejectReason::InvalidLoad)?;
                 let mut p = p.clone();
                 p.max_cp = max_cp;
-                p.class_state.cp = p.class_state.cp.min(max_cp);
-                combat.hp = if load.alive {
+                if !self.phase3_enabled() {
+                    p.class_state.cp = p.class_state.cp.min(max_cp);
+                }
+                combat.hp = if self.phase3_enabled() && load.alive {
+                    load.hp.unwrap_or(sheet.max_hp()).max(1)
+                } else if load.alive {
                     load.hp.unwrap_or(sheet.max_hp()).clamp(1, sheet.max_hp())
                 } else {
                     0
                 };
-                combat.mp = load.mp.unwrap_or(sheet.max_mp()).min(sheet.max_mp());
+                combat.mp = if self.phase3_enabled() {
+                    load.mp.unwrap_or(sheet.max_mp())
+                } else {
+                    load.mp.unwrap_or(sheet.max_mp()).min(sheet.max_mp())
+                };
                 combat.sheet = sheet;
                 combat.collision_radius = radius;
                 if let CombatRole::Player { progression, .. } = &mut combat.role {
@@ -260,7 +327,7 @@ impl ZoneState {
                             || combat.swing.is_some_and(|s| s.target == entity)
                     })
             });
-        if engaged {
+        if engaged || (self.complete_runtime_v5() && self.engaged_for_learning(entity)) {
             unmet.push(RejectReason::InCombat);
         }
         if !e
@@ -412,6 +479,7 @@ impl ZoneState {
             .unwrap_or_default()
     }
 
+    #[allow(clippy::too_many_lines)] // Keep the legacy transaction intact with explicit versioned ledger validation.
     pub(super) fn change_class(
         &mut self,
         tick: Tick,
@@ -474,10 +542,13 @@ impl ZoneState {
             sheet.level(),
         )
         .map_err(|_| RejectReason::InvalidLoad)?;
-        let granted_skill_keys = p
-            .class_state
-            .merge_learned_skills_checked(registry, p.identity.race, grants)
-            .map_err(|_| RejectReason::InvalidLoad)?;
+        let granted_skill_keys = if self.complete_runtime_v5() {
+            p.class_state.merge_learned_skills(grants)
+        } else {
+            p.class_state
+                .merge_learned_skills_checked(registry, p.identity.race, grants)
+                .map_err(|_| RejectReason::InvalidLoad)?
+        };
         let result = FrozenTransferResult {
             character_id: CharacterId::from_uuid(entity.as_uuid()),
             identity: p.identity.clone(),
@@ -506,9 +577,20 @@ impl ZoneState {
         p.class_state
             .record_success(receipt.clone())
             .map_err(|_| RejectReason::TransferConflict)?;
-        p.class_state
-            .validate_for(registry, &p.identity, CharacterId::from_uuid(entity.as_uuid()))
-            .map_err(|_| RejectReason::InvalidLoad)?;
+        if self.complete_runtime_v5() {
+            p.class_state.validate_for_phase3(
+                registry,
+                &p.identity,
+                CharacterId::from_uuid(entity.as_uuid()),
+            )
+        } else {
+            p.class_state.validate_for(
+                registry,
+                &p.identity,
+                CharacterId::from_uuid(entity.as_uuid()),
+            )
+        }
+        .map_err(|_| RejectReason::InvalidLoad)?;
         let e = self
             .entities
             .get_mut(&entity)
@@ -601,6 +683,7 @@ mod tests {
             max_cp: 0,
         };
         let load = PlayerLoad {
+            phase3: None,
             progression: Some(Box::new(progression)),
             level,
             xp: rules.xp_to_level(level).unwrap(),
@@ -1226,6 +1309,7 @@ mod tests {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase3: None,
                     progression: Some(Box::new(PlayerProgression {
                         identity: identity.clone(),
                         class_state: ClassState::new(ClassId(0)),
@@ -1287,6 +1371,7 @@ mod tests {
             assert_eq!(encode_snapshot(&decode_snapshot(&encoded).unwrap()).unwrap(), encoded);
             let mut replay = ZoneState::from_snapshot(decode_snapshot(&encoded).unwrap()).unwrap();
             let load = PlayerLoad {
+                phase3: None,
                 progression: Some(Box::new(PlayerProgression {
                     identity: p.identity.clone(),
                     class_state: ledger.clone(),

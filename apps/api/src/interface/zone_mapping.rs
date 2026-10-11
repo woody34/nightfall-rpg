@@ -5,6 +5,11 @@
 //! D7). Inbound floats are rounded to the nearest 1/1000 tile once, at the edge, so everything
 //! downstream (including replay of the recorded inbound bytes) is integer and deterministic.
 
+mod hydration;
+pub use hydration::{
+    phase3_identity_to_pb, phase3_selection_to_pb, phase3_swing_to_pb, pvp_state_to_pb,
+};
+
 use bytes::Bytes;
 use prost::Message as _;
 use thiserror::Error;
@@ -27,6 +32,9 @@ pub enum MappingError {
     /// The `oneof intent` was empty.
     #[error("intent is required")]
     MissingIntent,
+    /// Phase 3 wire contract is present, but the actor runtime has not been integrated.
+    #[error("phase 3 runtime is not yet available")]
+    Phase3Unavailable,
     /// Target is neither empty nor a UUID.
     #[error("target must be a UUID or empty")]
     InvalidTarget,
@@ -44,6 +52,7 @@ impl MappingError {
     #[must_use]
     pub const fn reject_reason(self) -> pb::RejectReason {
         match self {
+            Self::Phase3Unavailable => pb::RejectReason::NotYetImplemented,
             Self::InvalidCoordinate => pb::RejectReason::OutOfBounds,
             Self::InvalidTarget | Self::MissingIntent | Self::MissingDestination => {
                 pb::RejectReason::Invalid
@@ -111,6 +120,7 @@ pub fn player_spawn(c: &Character) -> Result<PlayerSpawn, MappingError> {
         pos: Vec2Fixed::new(tiles_to_fixed(c.position.x)?, tiles_to_fixed(c.position.y)?),
         speed: Speed::DEFAULT,
         load: Some(Box::new(PlayerLoad {
+            phase3: None,
             level: c.level,
             xp: c.xp,
             ..PlayerLoad::fresh(
@@ -176,6 +186,9 @@ pub fn command_from_pb(
         pb::client_message::Intent::Attack(_) => Ok(ZoneCommand::Attack { entity }),
         pb::client_message::Intent::StopAttack(_) => Ok(ZoneCommand::StopAttack { entity }),
         pb::client_message::Intent::Respawn(_) => Ok(ZoneCommand::Respawn { entity }),
+        pb::client_message::Intent::CastSkill(_)
+        | pb::client_message::Intent::CancelCast(_)
+        | pb::client_message::Intent::AcceptResurrect(_) => Err(MappingError::Phase3Unavailable),
     }
 }
 
@@ -209,6 +222,10 @@ pub fn spawn_to_pb(
         spawn.max_hp = c.max_hp;
         spawn.level = c.level;
         spawn.pending_swing = c.swing.map(|s| swing_to_pb(entity, &s));
+        if let Some(public) = &c.phase3 {
+            phase3_identity_to_pb(&mut spawn, public.flag_until, public.karma);
+            spawn.status_flags = public.status_flags.bits();
+        }
     }
     world(Event::Spawn(spawn))
 }
@@ -223,6 +240,7 @@ pub fn swing_to_pb(attacker: EntityId, s: &Swing) -> pb::AttackStarted {
         impact_tick: s.impact.0,
         ready_tick: s.ready.0,
         target_incarnation: s.target_incarnation,
+        ..Default::default()
     }
 }
 
@@ -346,6 +364,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             damage,
             target_hp_after,
             target_incarnation,
+            phase3,
         } => vec![world(Event::AttackResult(pb::AttackResult {
             attacker: attacker.to_string(),
             target: target.to_string(),
@@ -359,6 +378,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             damage: *damage,
             target_hp_after: *target_hp_after,
             target_incarnation: *target_incarnation,
+            cp_damage: phase3.as_ref().map_or(0, |p| p.cp_absorbed),
         }))],
         ZoneEvent::EntityDied {
             entity,
@@ -378,16 +398,31 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             target_incarnation,
             impact,
             ready,
-        } => vec![world(Event::AttackStarted(swing_to_pb(
-            *attacker,
-            &Swing {
+            phase3,
+        } => {
+            let swing = Swing {
                 target: *target,
                 target_incarnation: *target_incarnation,
                 start: *tick,
                 impact: *impact,
                 ready: *ready,
-            },
-        )))],
+            };
+            let started = phase3.as_ref().map_or_else(
+                || swing_to_pb(*attacker, &swing),
+                |p| {
+                    phase3_swing_to_pb(
+                        crate::domain::zone::effects::TargetBinding {
+                            entity: *attacker,
+                            incarnation: p.attacker_incarnation,
+                        },
+                        &swing,
+                        p.target_visible,
+                        p.baseline,
+                    )
+                },
+            );
+            vec![world(Event::AttackStarted(started))]
+        },
         ZoneEvent::AttackCancelled {
             tick,
             attacker,
@@ -455,6 +490,54 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             token_tier_1_count: class.as_ref().map_or(0, |c| c.token_tier_1_count),
             token_tier_2_count: class.as_ref().map_or(0, |c| c.token_tier_2_count),
             tick: if class.is_some() { tick.0 } else { 0 },
+            karma: class
+                .as_ref()
+                .and_then(|c| c.phase3.as_ref())
+                .map_or(0, |p| p.pvp.karma),
+            pk_count: class
+                .as_ref()
+                .and_then(|c| c.phase3.as_ref())
+                .map_or(0, |p| p.pvp.pk_count),
+            pvp_count: class
+                .as_ref()
+                .and_then(|c| c.phase3.as_ref())
+                .map_or(0, |p| p.pvp.pvp_count),
+            flag_until_tick: class
+                .as_ref()
+                .and_then(|c| c.phase3.as_ref())
+                .and_then(|p| p.pvp.flag_until)
+                .map_or(0, |t| t.0),
+            death_penalty_level: class
+                .as_ref()
+                .and_then(|c| c.phase3.as_ref())
+                .map_or(0, |p| u32::from(p.death_penalty_level)),
+            incarnation: class
+                .as_ref()
+                .and_then(|c| c.phase3.as_ref())
+                .map_or(0, |p| p.incarnation),
+            baseline: class
+                .as_ref()
+                .and_then(|c| c.phase3.as_ref())
+                .is_some_and(|p| p.baseline.is_some()),
+            baseline_tick: class
+                .as_ref()
+                .and_then(|c| c.phase3.as_ref())
+                .and_then(|p| p.baseline)
+                .map_or(0, |t| t.0),
+            effective_stats: class.as_ref().and_then(|c| c.phase3.as_ref()).map(|p| {
+                pb::EffectiveStats {
+                    p_atk_q: p.effective.p_atk_q,
+                    p_def_q: p.effective.p_def_q,
+                    m_atk_q: p.effective.m_atk_q,
+                    m_def_q: p.effective.m_def_q,
+                    attack_speed: p.effective.attack_speed,
+                    cast_speed: p.effective.cast_speed,
+                    speed_q: p.effective.speed_q,
+                    accuracy_q: p.effective.accuracy_q,
+                    evasion_q: p.effective.evasion_q,
+                    crit_permille: p.effective.crit_permille,
+                }
+            }),
         }))],
         ZoneEvent::XpGained {
             entity,
@@ -470,12 +553,378 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             entity: entity.to_string(),
             level: *level,
         }))],
-        ZoneEvent::TargetChanged { entity, target, .. } => {
-            vec![world(Event::TargetChanged(pb::TargetChanged {
-                entity: entity.to_string(),
-                target: target.map(|id| id.to_string()).unwrap_or_default(),
-            }))]
+        ZoneEvent::TargetChanged {
+            entity,
+            target,
+            tick,
+            phase3,
+        } => {
+            let selection = phase3.as_ref().map_or_else(
+                || pb::TargetChanged {
+                    entity: entity.to_string(),
+                    target: target.map(|id| id.to_string()).unwrap_or_default(),
+                    ..Default::default()
+                },
+                |p| {
+                    phase3_selection_to_pb(
+                        *entity,
+                        *tick,
+                        target
+                            .zip(p.target_incarnation)
+                            .map(|(entity, incarnation)| {
+                                crate::domain::zone::effects::TargetBinding {
+                                    entity,
+                                    incarnation,
+                                }
+                            }),
+                        p.baseline,
+                    )
+                },
+            );
+            vec![world(Event::TargetChanged(selection))]
         },
+        ZoneEvent::PvpStateChanged {
+            tick,
+            entity,
+            incarnation,
+            pvp,
+            baseline,
+        } => {
+            vec![world(Event::PvpStateChanged(pvp_state_to_pb(
+                crate::domain::zone::effects::TargetBinding {
+                    entity: *entity,
+                    incarnation: *incarnation,
+                },
+                *tick,
+                pvp,
+                *baseline,
+            )))]
+        },
+        ZoneEvent::ResurrectOffer {
+            tick,
+            target,
+            offer_id,
+            caster,
+            restore_percent_q,
+            recoverable_xp,
+            expires_at,
+            state,
+        } => vec![world(Event::ResurrectOffer(pb::ResurrectOffer {
+            target: target.entity.to_string(),
+            target_incarnation: target.incarnation,
+            offer_id: offer_id.0,
+            caster: caster.map(|c| c.entity.to_string()),
+            caster_incarnation: caster.map(|c| c.incarnation),
+            restore_percent_q: *restore_percent_q,
+            recoverable_xp: *recoverable_xp,
+            expiry_tick: expires_at.0,
+            tick: tick.0,
+            state: match state {
+                crate::domain::zone::ResurrectOfferState::Offered => {
+                    pb::ResurrectOfferState::Offered
+                },
+                crate::domain::zone::ResurrectOfferState::Declined => {
+                    pb::ResurrectOfferState::Declined
+                },
+                crate::domain::zone::ResurrectOfferState::Expired => {
+                    pb::ResurrectOfferState::Expired
+                },
+                crate::domain::zone::ResurrectOfferState::Accepted => {
+                    pb::ResurrectOfferState::Accepted
+                },
+            }
+            .into(),
+        }))],
+        ZoneEvent::SkillCastStarted {
+            tick,
+            caster,
+            target,
+            skill,
+            cast_id,
+            start,
+            launch_at,
+            complete_at,
+            baseline,
+        } => vec![world(Event::SkillCastStarted(pb::SkillCastStarted {
+            caster: caster.entity.to_string(),
+            caster_incarnation: caster.incarnation,
+            target: target.map(|t| t.entity.to_string()),
+            target_incarnation: target.map(|t| t.incarnation),
+            skill_id: skill.id.0,
+            skill_level: skill.rank,
+            cast_id: cast_id.0,
+            tick: tick.0,
+            start_tick: start.0,
+            launch_tick: launch_at.0,
+            complete_tick: complete_at.0,
+            baseline: baseline.is_some(),
+            baseline_tick: baseline.map_or(0, |t| t.0),
+        }))],
+        ZoneEvent::SkillCastCancelled {
+            tick,
+            caster,
+            cast_id,
+            reason,
+        } => vec![world(Event::SkillCastCancelled(pb::SkillCastCancelled {
+            caster: caster.entity.to_string(),
+            caster_incarnation: caster.incarnation,
+            cast_id: cast_id.0,
+            tick: tick.0,
+            reason: match reason {
+                crate::domain::zone::state_skill::CastCancelReason::Stopped => {
+                    pb::CastCancelReason::Stopped.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::Moved => {
+                    pb::CastCancelReason::Moved.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::Damage => {
+                    pb::CastCancelReason::Damage.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::Incapacitated => {
+                    pb::CastCancelReason::Incapacitated.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::TargetLost => {
+                    pb::CastCancelReason::TargetLost.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::OutOfRange => {
+                    pb::CastCancelReason::OutOfRange.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::Resources => {
+                    pb::CastCancelReason::Resources.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::CasterDied => {
+                    pb::CastCancelReason::CasterDied.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::PeaceZone => {
+                    pb::CastCancelReason::PeaceZone.into()
+                },
+                crate::domain::zone::state_skill::CastCancelReason::Transfer => {
+                    pb::CastCancelReason::Transfer.into()
+                },
+            },
+        }))],
+        ZoneEvent::SkillCastResult {
+            tick,
+            caster,
+            cast_id,
+            skill,
+            targets,
+        } => vec![world(Event::SkillCastResult(pb::SkillCastResult {
+            caster: caster.entity.to_string(),
+            caster_incarnation: caster.incarnation,
+            cast_id: cast_id.0,
+            tick: tick.0,
+            skill_id: skill.id.0,
+            skill_level: skill.rank,
+            effect_id: None,
+            targets: targets
+                .iter()
+                .map(|r| pb::SkillTargetResult {
+                    target: r.target.entity.to_string(),
+                    target_incarnation: r.target.incarnation,
+                    tick: tick.0,
+                    resolution_kind: match r.resolution_kind {
+                        crate::domain::zone::SkillResolutionKind::Physical => {
+                            pb::SkillResolutionKind::Physical.into()
+                        },
+                        crate::domain::zone::SkillResolutionKind::Magical => {
+                            pb::SkillResolutionKind::Magical.into()
+                        },
+                        crate::domain::zone::SkillResolutionKind::Effect => {
+                            pb::SkillResolutionKind::Effect.into()
+                        },
+                        crate::domain::zone::SkillResolutionKind::Heal => {
+                            pb::SkillResolutionKind::Heal.into()
+                        },
+                        crate::domain::zone::SkillResolutionKind::Resurrection => {
+                            pb::SkillResolutionKind::Resurrection.into()
+                        },
+                    },
+                    outcome: match r.outcome {
+                        crate::domain::zone::SkillOutcome::Miss => pb::SkillOutcome::Miss.into(),
+                        crate::domain::zone::SkillOutcome::Hit => pb::SkillOutcome::Hit.into(),
+                        crate::domain::zone::SkillOutcome::Crit => pb::SkillOutcome::Crit.into(),
+                        crate::domain::zone::SkillOutcome::Resist => {
+                            pb::SkillOutcome::Resist.into()
+                        },
+                        crate::domain::zone::SkillOutcome::Half => pb::SkillOutcome::Half.into(),
+                    },
+                    rolled: r.rolled,
+                    cp_absorbed: r.cp_absorbed,
+                    hp_removed: r.hp_removed,
+                    heal: r.heal,
+                    target_hp_after: r.target_hp_after,
+                    applied_effect_ids: r.applied_effect_ids.iter().map(|id| id.0).collect(),
+                })
+                .collect(),
+        }))],
+        ZoneEvent::SkillStateSync {
+            tick,
+            entity,
+            incarnation,
+            learned,
+            reuse,
+            sp,
+            pvp,
+            death_penalty_level,
+            baseline,
+        } => vec![world(Event::SkillStateSync(pb::SkillStateSync {
+            entity: entity.to_string(),
+            incarnation: *incarnation,
+            tick: tick.0,
+            learned: learned
+                .iter()
+                .map(|s| pb::LearnedSkillRank {
+                    skill_id: s.id.0,
+                    skill_level: s.rank,
+                })
+                .collect(),
+            reuse: reuse
+                .iter()
+                .map(|(id, ready)| pb::SkillReuseState {
+                    skill_id: id.0,
+                    ready_tick: ready.0,
+                })
+                .collect(),
+            sp: *sp,
+            karma: pvp.karma,
+            pk_count: pvp.pk_count,
+            pvp_count: pvp.pvp_count,
+            flag_until_tick: pvp.flag_until.map_or(0, |t| t.0),
+            death_penalty_level: u32::from(*death_penalty_level),
+            baseline: baseline.is_some(),
+            baseline_tick: baseline.map_or(0, |t| t.0),
+        }))],
+        ZoneEvent::SkillLearned {
+            tick,
+            entity,
+            request_key,
+            result,
+            ..
+        } => vec![world(Event::SkillLearned(pb::SkillLearned {
+            entity: entity.to_string(),
+            skill_id: result.skill.id.0,
+            skill_level: result.skill.rank,
+            sp_cost: result.sp_spent,
+            sp_remaining: result.sp_remaining,
+            idempotency_key: request_key.to_string(),
+            tick: tick.0,
+            incarnation: result.incarnation,
+        }))],
+        ZoneEvent::SpGained {
+            tick,
+            entity,
+            incarnation,
+            amount,
+            total,
+        } => vec![world(Event::SpGained(pb::SpGained {
+            entity: entity.to_string(),
+            tick: tick.0,
+            incarnation: *incarnation,
+            amount: *amount,
+            total: *total,
+        }))],
+        ZoneEvent::EffectApplied {
+            tick,
+            target,
+            source,
+            effect_id,
+            skill,
+            pool,
+            applied_at,
+            expires_at,
+            abnormal_type,
+            abnormal_level,
+            status_flags,
+            baseline,
+        } => vec![world(Event::EffectApplied(pb::EffectApplied {
+            target: target.entity.to_string(),
+            target_incarnation: target.incarnation,
+            caster: source.map(|s| s.entity.to_string()),
+            caster_incarnation: source.map(|s| s.incarnation),
+            effect_id: effect_id.0,
+            skill_id: skill.id.0,
+            skill_level: skill.rank,
+            pool: match pool {
+                crate::domain::zone::effects::EffectPool::Buff => pb::EffectPool::Buff,
+                crate::domain::zone::effects::EffectPool::SongDance => pb::EffectPool::SongDance,
+                crate::domain::zone::effects::EffectPool::Debuff => pb::EffectPool::Debuff,
+                crate::domain::zone::effects::EffectPool::System => pb::EffectPool::Unspecified,
+            }
+            .into(),
+            tick: tick.0,
+            end_tick: expires_at.map_or(0, |t| t.0),
+            abnormal_type: abnormal_type.clone(),
+            abnormal_level: *abnormal_level,
+            status_flags: status_flags.bits(),
+            baseline: baseline.is_some(),
+            baseline_tick: baseline.map_or(0, |t| t.0),
+            applied_tick: applied_at.0,
+        }))],
+        ZoneEvent::EffectRemoved {
+            tick,
+            target,
+            effect_id,
+            reason,
+        } => vec![world(Event::EffectRemoved(pb::EffectRemoved {
+            target: target.entity.to_string(),
+            target_incarnation: target.incarnation,
+            effect_id: effect_id.0,
+            tick: tick.0,
+            reason: match reason {
+                crate::domain::zone::effects::EffectRemoveReason::Expired => {
+                    pb::EffectRemoveReason::Expired
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Replaced => {
+                    pb::EffectRemoveReason::Replaced
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Overflow => {
+                    pb::EffectRemoveReason::Overflow
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Dispelled => {
+                    pb::EffectRemoveReason::Dispelled
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Damage => {
+                    pb::EffectRemoveReason::Damage
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Death => {
+                    pb::EffectRemoveReason::Death
+                },
+                crate::domain::zone::effects::EffectRemoveReason::Transfer => {
+                    pb::EffectRemoveReason::Transfer
+                },
+            }
+            .into(),
+        }))],
+        ZoneEvent::SkillReuse {
+            tick,
+            entity,
+            incarnation,
+            skill_id,
+            ready_at,
+        } => vec![world(Event::SkillReuse(pb::SkillReuse {
+            entity: entity.to_string(),
+            skill_id: skill_id.0,
+            ready_tick: ready_at.0,
+            tick: tick.0,
+            incarnation: *incarnation,
+        }))],
+        ZoneEvent::VitalsChanged {
+            tick,
+            entity,
+            hp,
+            max_hp,
+            incarnation,
+            baseline,
+        } => vec![world(Event::VitalsChanged(pb::VitalsChanged {
+            entity: entity.to_string(),
+            hp: *hp,
+            max_hp: *max_hp,
+            incarnation: *incarnation,
+            tick: tick.0,
+            baseline: baseline.is_some(),
+            baseline_tick: baseline.map_or(0, |t| t.0),
+        }))],
         ZoneEvent::EntityDespawn { entity, .. } => vec![despawn_to_pb(*entity)],
     }
 }
@@ -486,6 +935,18 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
 #[must_use]
 pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
     match r {
+        RejectReason::SkillUnknown => pb::RejectReason::SkillUnknown,
+        RejectReason::SkillNotLearned => pb::RejectReason::SkillNotLearned,
+        RejectReason::SkillCooldown => pb::RejectReason::SkillCooldown,
+        RejectReason::InsufficientMp => pb::RejectReason::InsufficientMp,
+        RejectReason::InsufficientHp => pb::RejectReason::InsufficientHp,
+        RejectReason::AlreadyCasting => pb::RejectReason::AlreadyCasting,
+        RejectReason::Incapacitated => pb::RejectReason::Incapacitated,
+        RejectReason::Silenced => pb::RejectReason::Silenced,
+        RejectReason::InvalidTargetType => pb::RejectReason::InvalidTargetType,
+        RejectReason::PeaceZone => pb::RejectReason::PeaceZone,
+        RejectReason::WeaponCondition => pb::RejectReason::WeaponCondition,
+        RejectReason::NoResurrectOffer => pb::RejectReason::NoResurrectOffer,
         RejectReason::DeadActor => pb::RejectReason::DeadActor,
         RejectReason::NonAttackableTarget => pb::RejectReason::NonAttackableTarget,
         RejectReason::TargetNotInAoi => pb::RejectReason::TargetNotInAoi,
@@ -495,7 +956,13 @@ pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
         RejectReason::OutOfBounds => pb::RejectReason::OutOfBounds,
         RejectReason::TooFar => pb::RejectReason::TooFar,
         RejectReason::UnknownEntity => pb::RejectReason::UnknownEntity,
-        RejectReason::TransferConflict
+        RejectReason::SkillNotLearnable
+        | RejectReason::SkillWrongRank
+        | RejectReason::SkillLevelRequired
+        | RejectReason::SkillItemRequired
+        | RejectReason::SkillDeferred
+        | RejectReason::InsufficientSp
+        | RejectReason::TransferConflict
         | RejectReason::TransferIneligible
         | RejectReason::TransferRequirement
         | RejectReason::InCombat
@@ -736,6 +1203,7 @@ mod combat_tests {
     #[test]
     fn attack_result_all_fields_round_trip() {
         let event = ZoneEvent::AttackResult {
+            phase3: None,
             attacker: id(1),
             target: id(2),
             tick: Tick(31),
@@ -753,6 +1221,7 @@ mod combat_tests {
                 damage: 25,
                 target_hp_after: 26,
                 target_incarnation: 4,
+                ..Default::default()
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
@@ -887,6 +1356,7 @@ mod combat_tests {
     #[test]
     fn target_changed_all_fields_round_trip() {
         let event = ZoneEvent::TargetChanged {
+            phase3: None,
             tick: Tick(31),
             entity: id(1),
             target: Some(id(2)),
@@ -895,6 +1365,7 @@ mod combat_tests {
             event: Some(Event::TargetChanged(pb::TargetChanged {
                 entity: id(1).to_string(),
                 target: id(2).to_string(),
+                ..Default::default()
             })),
         };
         assert_eq!(world_event_to_pb(&event, 3100), vec![expected.clone()]);
@@ -967,6 +1438,7 @@ mod combat_tests {
                 damage: 0,
                 target_hp_after: 100,
                 target_incarnation: 1,
+                ..Default::default()
             };
             assert_eq!(pb::AttackResult::decode(event.encode_to_vec().as_slice()).unwrap(), event);
         }

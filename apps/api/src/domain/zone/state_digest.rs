@@ -16,6 +16,33 @@ use crate::domain::zone::{Intention, MemberState, NpcAi, SlotMember, Swing, Targ
 use sha2::{Digest as _, Sha256};
 
 impl ZoneState {
+    pub(super) fn phase3_state_digest(&self) -> [u8; 32] {
+        let mut w = Writer(Vec::new());
+        w.0.extend_from_slice(b"nightfall-state-v5\0");
+        w.0.extend_from_slice(&self.token_state_digest());
+        w.option(self.meta.phase3_admission_policy.as_ref(), |w, policy| {
+            w.u32(policy.version);
+            w.u64(policy.record_budget);
+            w.u64(policy.max_command_bytes);
+            w.u32(policy.max_observers);
+        });
+        w.option(self.phase3.as_ref(), |w, p| {
+            let p = &p.canonical;
+            w.0.extend_from_slice(&p.rules_hash);
+            w.u64(p.next_entity_ordinal);
+            w.u64(p.next_cast_id);
+            w.u64(p.next_effect_id);
+            w.u64(p.next_offer_id);
+            w.u64(p.next_install_sequence);
+            w.len(p.entities.len());
+            for (id, entity) in &p.entities {
+                w.id(*id);
+                w.phase3_entity(entity);
+            }
+        });
+        Sha256::digest(&w.0).into()
+    }
+
     pub(super) fn token_state_digest(&self) -> [u8; 32] {
         let mut hash = Sha256::new();
         hash.update(b"nightfall.state.4\0token-policy.1\0");
@@ -89,6 +116,164 @@ impl ZoneState {
 struct Writer(Vec<u8>);
 
 impl Writer {
+    fn binding(&mut self, value: &crate::domain::zone::effects::TargetBinding) {
+        self.id(value.entity);
+        self.u32(value.incarnation);
+    }
+
+    fn skill_ref(&mut self, value: crate::domain::zone::skill::SkillRef) {
+        self.u32(value.id.0);
+        self.u32(value.rank);
+    }
+
+    fn ratio(&mut self, value: crate::domain::zone::effects::FrozenRatio) {
+        let (numerator, denominator) = value.value().parts();
+        self.0.extend_from_slice(&numerator.to_le_bytes());
+        self.0.extend_from_slice(&denominator.to_le_bytes());
+    }
+
+    fn phase3_entity(&mut self, value: &crate::domain::zone::Phase3Entity) {
+        use crate::domain::zone::effects::{
+            EffectPool, EffectSourceKind, PeriodicPower, PeriodicResource,
+        };
+        self.u64(value.ordinal.0);
+        match &value.cast {
+            crate::domain::zone::CastState::Idle => self.u8(0),
+            crate::domain::zone::CastState::Casting(cast) => {
+                self.u8(1);
+                self.u64(cast.id.0);
+                self.u32(cast.caster_incarnation);
+                self.skill_ref(cast.skill);
+                self.u64(cast.command_ordinal.0);
+                self.u64(cast.start_at.0);
+                self.ratio(cast.animation);
+                self.u64(cast.launch_at.0);
+                self.u64(cast.complete_at.0);
+                self.u64(cast.interrupt_until.0);
+                self.u8(u8::from(cast.launched));
+                self.option(cast.target.as_ref(), Self::binding);
+                self.u32(cast.affect_limit);
+                self.len(cast.targets.len());
+                for target in &cast.targets {
+                    self.binding(target);
+                }
+                self.u32(cast.mp_start);
+                self.u32(cast.mp_end);
+                self.u32(cast.hp_end);
+                self.u64(cast.reuse_until.0);
+            },
+        }
+        self.len(value.reuse.len());
+        for (id, at) in &value.reuse {
+            self.u32(id.0);
+            self.u64(at.0);
+        }
+        self.len(value.effects.entries().len());
+        for (id, effect) in value.effects.entries() {
+            self.u64(id.0);
+            self.u64(effect.id.0);
+            self.skill_ref(effect.skill);
+            self.u8(match effect.source.kind {
+                EffectSourceKind::Player => 0,
+                EffectSourceKind::Npc => 1,
+                EffectSourceKind::System => 2,
+            });
+            self.option(effect.source.binding.as_ref(), Self::binding);
+            self.u32(effect.target_incarnation);
+            self.u64(effect.applied_at.0);
+            self.option(effect.expires_at.as_ref(), |w, at| w.u64(at.0));
+            self.u8(match effect.pool {
+                EffectPool::Buff => 0,
+                EffectPool::SongDance => 1,
+                EffectPool::Debuff => 2,
+                EffectPool::System => 3,
+            });
+            self.string(&effect.abnormal_type);
+            self.u32(effect.abnormal_level);
+            for flag in [
+                effect.flags.stay_after_death,
+                effect.flags.stay_on_subclass_change,
+                effect.flags.removed_on_damage,
+                effect.flags.removed_on_action_except_move,
+                effect.flags.irreplaceable,
+            ] {
+                self.u8(u8::from(flag));
+            }
+            self.len(effect.handlers.len());
+            for handler in &effect.handlers {
+                self.u32(handler.xml_ordinal);
+                self.option(handler.periodic.as_ref(), |w, periodic| {
+                    w.u8(match periodic.resource {
+                        PeriodicResource::Hp => 0,
+                        PeriodicResource::Mp => 1,
+                    });
+                    match periodic.power {
+                        PeriodicPower::Diff { amount } => {
+                            w.u8(0);
+                            w.ratio(amount);
+                        },
+                        PeriodicPower::Per { power, multiplier } => {
+                            w.u8(1);
+                            w.ratio(power);
+                            w.ratio(multiplier);
+                        },
+                    }
+                    w.u64(periodic.schedule.anchor.0);
+                    w.u64(periodic.schedule.next_ideal_offset_ms);
+                    w.u64(periodic.schedule.pulse_index);
+                    w.u32(periodic.schedule.interval_ms);
+                });
+            }
+        }
+        self.len(value.modifier_install_order.len());
+        for (sequence, source) in &value.modifier_install_order {
+            self.u64(*sequence);
+            match source {
+                crate::domain::zone::RestoredModifierSource::Passive(skill) => {
+                    self.u8(0);
+                    self.skill_ref(*skill);
+                },
+                crate::domain::zone::RestoredModifierSource::Effect(id) => {
+                    self.u8(1);
+                    self.u64(id.0);
+                },
+                crate::domain::zone::RestoredModifierSource::DeathPenalty => self.u8(2),
+            }
+        }
+        self.option(value.regen.next_at.as_ref(), |w, at| w.u64(at.0));
+        self.i64(value.fractions.hp);
+        self.i64(value.fractions.mp);
+        self.i64(value.fractions.cp);
+        self.option(value.player.as_ref(), Self::phase3_player);
+    }
+
+    fn phase3_player(&mut self, player: &crate::domain::zone::Phase3Player) {
+        self.option(player.pvp.flag_until.as_ref(), |w, at| w.u64(at.0));
+        self.u32(player.pvp.karma);
+        self.u32(player.pvp.pk_count);
+        self.u32(player.pvp.pvp_count);
+        self.u8(player.death_penalty_level);
+        self.option(player.last_death.as_ref(), |w, death| {
+            w.u32(death.incarnation);
+            w.u64(death.pre_death_xp);
+            w.u64(death.recoverable_death_xp_loss);
+        });
+        self.option(player.resurrect_offer.as_ref(), |w, offer| {
+            w.u64(offer.id.0);
+            w.binding(&offer.caster);
+            w.u32(offer.target_incarnation);
+            w.skill_ref(offer.skill);
+            w.u64(offer.created_at.0);
+            w.u64(offer.expires_at.0);
+            w.i64(offer.restore_percent_q);
+            w.u64(offer.recoverable_xp);
+        });
+    }
+
+    fn u8(&mut self, value: u8) {
+        self.0.push(value);
+    }
+
     fn identity(&mut self, i: &crate::domain::character_progression::CharacterIdentity) {
         self.0.extend_from_slice(i.account_id.as_uuid().as_bytes());
         self.string(i.race.as_str());
@@ -351,5 +536,177 @@ impl Writer {
         self.u64(last_hit.0);
         self.bool(*called_help);
         self.option(corpse_until.as_ref(), |w, tick| w.u64(tick.0));
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects
+)]
+mod phase3_digest_tests {
+    use super::*;
+    use crate::domain::zone::effects::*;
+    use crate::domain::zone::phase3_entity::tests::{blank, cast, source_effect};
+    use crate::domain::zone::skill::{SkillId, SkillRef};
+    use crate::domain::zone::*;
+    use serde_json::Value;
+
+    fn bytes(entity: &Phase3Entity) -> Vec<u8> {
+        let mut writer = Writer(Vec::new());
+        writer.phase3_entity(entity);
+        writer.0
+    }
+
+    fn specimen() -> Phase3Entity {
+        let rules = crate::infrastructure::skill_data::load_phase3_rules(
+            &crate::infrastructure::skill_data::Phase3DataSource::embedded(),
+            &[],
+        )
+        .unwrap();
+        let mut entity = blank();
+        let binding = cast().target.unwrap();
+        entity.cast = CastState::Casting(cast());
+        entity.reuse.insert(SkillId(1177), Tick(100));
+        let mut effect = source_effect(&rules, 1, 110);
+        effect.expires_at = Some(Tick(100));
+        effect.source = EffectSource {
+            binding: Some(binding),
+            kind: EffectSourceKind::Player,
+        };
+        effect.handlers = vec![
+            ActiveHandler {
+                xml_ordinal: 0,
+                periodic: Some(ActivePeriodic {
+                    resource: PeriodicResource::Hp,
+                    power: PeriodicPower::Diff {
+                        amount: FrozenRatio::new(skill_math::ExactRatio::whole(1)),
+                    },
+                    schedule: PulseSchedule::new(Tick(0), 666).unwrap(),
+                }),
+            },
+            ActiveHandler {
+                xml_ordinal: 2,
+                periodic: Some(ActivePeriodic {
+                    resource: PeriodicResource::Mp,
+                    power: PeriodicPower::Per {
+                        power: FrozenRatio::new(skill_math::ExactRatio::whole(1)),
+                        multiplier: FrozenRatio::new(skill_math::ExactRatio::whole(1)),
+                    },
+                    schedule: PulseSchedule::new(Tick(0), 666).unwrap(),
+                }),
+            },
+        ];
+        entity.effects =
+            EffectList::from_entries(std::collections::BTreeMap::from([(effect.id, effect)]))
+                .unwrap();
+        entity.modifier_install_order = std::collections::BTreeMap::from([
+            (
+                1,
+                RestoredModifierSource::Passive(SkillRef {
+                    id: SkillId(1),
+                    rank: 1,
+                }),
+            ),
+            (2, RestoredModifierSource::Effect(EffectId(1))),
+            (3, RestoredModifierSource::DeathPenalty),
+        ]);
+        let player = entity.player.as_mut().unwrap();
+        player.pvp.flag_until = Some(Tick(100));
+        player.death_penalty_level = 1;
+        player.last_death = Some(DeathRecord {
+            incarnation: 1,
+            pre_death_xp: 100,
+            recoverable_death_xp_loss: 10,
+        });
+        player.resurrect_offer = Some(ResurrectOffer {
+            id: OfferId(1),
+            caster: binding,
+            target_incarnation: 1,
+            skill: SkillRef {
+                id: SkillId(1016),
+                rank: 1,
+            },
+            created_at: Tick(0),
+            expires_at: Tick(600),
+            restore_percent_q: 30_000_000,
+            recoverable_xp: 10,
+        });
+        entity
+    }
+
+    // This is a serialization-coverage probe, not a legal gameplay fixture (it deliberately
+    // includes both a cast and a corpse offer to exercise every independent writer branch).
+    #[test]
+    fn every_canonical_scalar_is_in_the_binary_entity_layout() {
+        fn leaves(node: &Value, path: &str, out: &mut Vec<(String, Value)>) {
+            match node {
+                Value::Object(map) => {
+                    for (key, value) in map {
+                        leaves(value, &format!("{path}/{key}"), out);
+                    }
+                },
+                Value::Array(array) => {
+                    for (i, value) in array.iter().enumerate() {
+                        leaves(value, &format!("{path}/{i}"), out);
+                    }
+                },
+                Value::Number(n) => {
+                    if path == "/effects/entries/1/id" {
+                        return;
+                    }
+                    let increment = if path.ends_with("/interval_ms") {
+                        666
+                    } else {
+                        1
+                    };
+                    out.push((path.into(), Value::from(n.as_u64().unwrap() + increment)));
+                },
+                Value::Bool(b) => out.push((path.into(), Value::Bool(!b))),
+                Value::String(s) if s.contains('/') => {
+                    out.push((path.into(), Value::String("7/3".into())));
+                },
+                Value::String(s) if s.contains('-') => {
+                    out.push((path.into(), Value::String(uuid::Uuid::from_u128(999).to_string())));
+                },
+                Value::String(_) if path.ends_with("/abnormal_type") => {
+                    out.push((path.into(), Value::String("PROBE".into())));
+                },
+                Value::Null | Value::String(_) => {},
+            }
+        }
+        let original = specimen();
+        let encoded = bytes(&original);
+        let json = serde_json::to_value(&original).unwrap();
+        let mut mutations = Vec::new();
+        leaves(&json, "", &mut mutations);
+        assert!(mutations.len() >= 70, "{} scalar probes", mutations.len());
+        for (path, value) in mutations {
+            let mut changed = json.clone();
+            *changed.pointer_mut(&path).unwrap() = value;
+            let changed: Phase3Entity = serde_json::from_value(changed).unwrap();
+            assert_ne!(encoded, bytes(&changed), "omitted canonical field {path}");
+        }
+        for path in [
+            "/cast",
+            "/effects",
+            "/reuse",
+            "/modifier_install_order",
+            "/player",
+            "/regen/next_at",
+        ] {
+            let mut changed = json.clone();
+            *changed.pointer_mut(path).unwrap() = match path {
+                "/cast" => serde_json::json!({"state":"idle"}),
+                "/effects" => serde_json::json!({"entries":{}}),
+                "/reuse" | "/modifier_install_order" => serde_json::json!({}),
+                _ => Value::Null,
+            };
+            let changed: Phase3Entity = serde_json::from_value(changed).unwrap();
+            assert_ne!(encoded, bytes(&changed), "omitted presence/length {path}");
+        }
+        let restored: Phase3Entity = serde_json::from_value(json).unwrap();
+        assert_eq!(encoded, bytes(&restored));
     }
 }

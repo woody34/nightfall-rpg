@@ -262,6 +262,57 @@ async fn an_oversized_tick_is_logged_with_output_digests_and_the_zone_keeps_runn
 }
 
 #[tokio::test]
+async fn a_digest_record_that_cannot_fit_fences_without_append_output_or_snapshot() {
+    let rig = Rig::with_log(InMemoryEventLog::with_max_record_bytes(4096));
+    let (zone, driver) = rig.start().await;
+    let epoch = zone.epoch();
+    let mut output = zone.handle().subscribe();
+    let mut oversized = player(1);
+    if let ZoneCommand::SpawnPlayer { name, .. } = &mut oversized.command {
+        *name = "x".repeat(16 * 1024);
+    }
+    zone.handle().send(oversized).unwrap();
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(5), driver.step())
+            .await
+            .unwrap()
+            .unwrap(),
+        TickOutcome::Held(Tick(0))
+    );
+    tokio::time::timeout(Duration::from_secs(5), zone.handle().stopped())
+        .await
+        .unwrap();
+    assert!(zone.handle().persistence_failed());
+    assert!(zone.handle().snapshot().await.is_err());
+    assert!(zone.handle().send(player(2)).is_err());
+    assert!(driver.step().await.is_err(), "terminal failures never draft another tick");
+    assert!(output.try_recv().is_err(), "speculative outputs remain invisible");
+    assert_eq!(rig.faulty.attempts.load(Ordering::SeqCst), 0, "no impossible append/retry");
+    assert!(records(rig.mem.as_ref(), epoch).await.is_empty());
+    assert!(
+        zone.shutdown(WatermarkReason::Shutdown).await.is_err(),
+        "no clean watermark or speculative recovery snapshot"
+    );
+
+    // Only the durable initial boundary is recoverable. A new epoch must not inherit the
+    // simulated, unlogged admission, and corrected requests can proceed normally.
+    let (recovered, driver) = rig.start().await;
+    assert!(recovered.epoch() > epoch);
+    recovered.handle().send(player(2)).unwrap();
+    assert_eq!(driver.step().await.unwrap(), TickOutcome::Ran(Tick(0)));
+    let snapshot = recovered.handle().snapshot().await.unwrap();
+    assert!(!snapshot
+        .entities
+        .iter()
+        .any(|entity| entity.id == EntityId::from_uuid(Uuid::from_u128(1))));
+    assert!(snapshot
+        .entities
+        .iter()
+        .any(|entity| entity.id == EntityId::from_uuid(Uuid::from_u128(2))));
+    recovered.shutdown(WatermarkReason::Shutdown).await.unwrap();
+}
+
+#[tokio::test]
 async fn replay_detects_a_one_byte_divergence_in_a_digested_record() {
     let rig = Rig::with_log(InMemoryEventLog::with_max_record_bytes(4096));
     let (zone, driver) = rig.start().await;
@@ -295,7 +346,14 @@ fn bounded_keeps_a_record_that_fits_and_digests_one_that_does_not() {
     record.outputs = (0..4_u128)
         .map(|n| PlayerOutput {
             entity: EntityId::from_uuid(Uuid::from_u128(n)),
-            bytes: Bytes::from(vec![u8::try_from(n).unwrap(); 200]),
+            bytes: encode_outputs(&vec![
+                ObserverOutput::Accepted {
+                    ordinal: Ordinal(1),
+                    seq: u32::try_from(n).unwrap(),
+                    tick: Tick(2),
+                };
+                50
+            ]),
         })
         .collect();
     let len = record.encoded_len();
@@ -342,7 +400,9 @@ fn a_record_with_encoded_outputs_has_a_fixed_wire_format() {
         expected.extend_from_slice(&[0x12, 0x01, 0xAA]);
         tail(&mut expected);
         assert_eq!(record.encode(), expected);
-        assert_eq!(AppliedTickRecord::decode(&expected).unwrap(), record);
+        // The transport golden stays unchanged, but its deliberately opaque 0xAA payload
+        // is a truncated protobuf varint. Recursive boundary validation now refuses it.
+        assert!(AppliedTickRecord::decode(&expected).is_err());
     }
 }
 

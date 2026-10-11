@@ -16,6 +16,9 @@
 //!   Phase 2 snapshots retain that complete JSON inside a bounded, versioned zlib envelope:
 //!   8-byte `NFSNAP7\0`, little-endian u32 expanded length, one complete zlib stream.
 //!   The same bytes go to `JetStream`, Postgres and recordings; decode never loads current data.
+//! * NFSNAP9 retains the envelope and limits, with a versioned protobuf body: base JSON,
+//!   one content-deduplicated immutable registry, typed sidecars, shared effect headers,
+//!   delta-coded allocation IDs and packed source UUIDs. Only V9 uses zlib level nine.
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
@@ -149,11 +152,27 @@ impl AppliedTickRecord {
     /// still a divergence.
     #[must_use]
     pub fn reproduced_by(&self, rerun: &Self) -> bool {
+        // Inspect full reproduced outputs before digest-only comparison hides their fields.
+        if self.validate().is_err() || rerun.validate().is_err() {
+            return false;
+        }
         let rerun = match self.output_form {
             OutputForm::Encoded => rerun.encode(),
             OutputForm::Sha256 => rerun.with_output_digests().encode(),
         };
         rerun == self.encode()
+    }
+
+    /// Validates raw nested payloads against this record's immutable policy.
+    pub fn validate(&self) -> Result<(), CodecError> {
+        Self::decode(&self.encode()).map(|_| ())
+    }
+
+    /// Checked encoding for callers accepting externally assembled records.
+    pub fn try_encode(&self) -> Result<Vec<u8>, CodecError> {
+        let bytes = self.encode();
+        Self::decode(&bytes)?;
+        Ok(bytes)
     }
 
     /// Length of [`Self::encode`], without encoding.
@@ -198,10 +217,11 @@ pub fn decode_outputs(bytes: &[u8]) -> Result<Vec<ObserverOutput>, CodecError> {
     codec::decode_outputs(bytes)
 }
 
-/// Maximum expanded snapshot size. This bounds allocations before JSON parsing.
+/// Maximum expanded snapshot body size (JSON for legacy, protobuf for V9).
 pub(crate) const MAX_SNAPSHOT_JSON: usize = 32 * 1024 * 1024;
 /// Conservative default broker budget, leaving 1 KiB for subject/headers.
 pub(crate) const MAX_SNAPSHOT_ENCODED: usize = 1024 * 1024 - 1024;
+const PHASE3_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP9\0";
 const TOKEN_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP8\0";
 const SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP7\0";
 
@@ -222,23 +242,40 @@ impl std::io::Write for BoundedBytes {
     }
 }
 
+pub(super) fn bounded_snapshot_json<T: Serialize>(value: &T) -> Result<Vec<u8>, CodecError> {
+    let mut out = BoundedBytes {
+        bytes: Vec::new(),
+        maximum: MAX_SNAPSHOT_JSON,
+    };
+    serde_json::to_writer(&mut out, value).map_err(|e| CodecError(e.to_string()))?;
+    Ok(out.bytes)
+}
+
 /// Canonical snapshot transport. Legacy epochs retain JSON exactly; `BinaryV3` snapshots
-/// and `BinaryV4` use versioned length-prefixed zlib envelopes, bounded on both sides.
+/// and `BinaryV4` use JSON envelopes; `BinaryV5` uses a compact protobuf body.
+/// All compressed policies retain length-prefixed zlib with the same bounds.
 pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
     use std::io::Write as _;
     snapshot
         .validate_version()
         .map_err(|e| CodecError(e.to_string()))?;
-    let mut json = BoundedBytes {
-        bytes: Vec::new(),
-        maximum: MAX_SNAPSHOT_JSON,
+    let json = if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV5
+    {
+        super::snapshot_phase3::encode(snapshot)?
+    } else {
+        let mut json = BoundedBytes {
+            bytes: Vec::new(),
+            maximum: MAX_SNAPSHOT_JSON,
+        };
+        serde_json::to_writer(&mut json, snapshot).map_err(|e| CodecError(e.to_string()))?;
+        validate_snapshot_json(&json.bytes)?;
+        json.bytes
     };
-    serde_json::to_writer(&mut json, snapshot).map_err(|e| CodecError(e.to_string()))?;
-    let json = json.bytes;
     if !matches!(
         snapshot.meta.digest_version,
         crate::domain::zone::StateDigestVersion::BinaryV3
             | crate::domain::zone::StateDigestVersion::BinaryV4
+            | crate::domain::zone::StateDigestVersion::BinaryV5
     ) {
         return Ok(json);
     }
@@ -247,7 +284,11 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
             bytes: Vec::new(),
             maximum: MAX_SNAPSHOT_ENCODED - 12,
         },
-        flate2::Compression::default(),
+        if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV5 {
+            flate2::Compression::best()
+        } else {
+            flate2::Compression::default()
+        },
     );
     compressed
         .write_all(&json)
@@ -258,7 +299,10 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
         .bytes;
     let mut out = Vec::with_capacity(body.len().saturating_add(12));
     out.extend_from_slice(
-        if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV4 {
+        if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV5 {
+            PHASE3_SNAPSHOT_MAGIC
+        } else if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV4
+        {
             TOKEN_SNAPSHOT_MAGIC
         } else {
             SNAPSHOT_MAGIC
@@ -273,13 +317,51 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
     Ok(out)
 }
 
+/// Diagnostic expanded/encoded Snapshot9 byte counts without retaining an over-budget
+/// compressed buffer. This does not relax `encode_snapshot` or any transport limit.
+pub fn phase3_snapshot_size(snapshot: &ZoneSnapshot) -> Result<(usize, usize), CodecError> {
+    use std::io::Write as _;
+    #[derive(Default)]
+    struct Count(usize);
+    impl std::io::Write for Count {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0 = self
+                .0
+                .checked_add(bytes.len())
+                .ok_or_else(|| std::io::Error::other("size overflow"))?;
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    snapshot
+        .validate_version()
+        .map_err(|e| CodecError(e.to_string()))?;
+    let body = super::snapshot_phase3::encode(snapshot)?;
+    let mut compressed =
+        flate2::write::ZlibEncoder::new(Count::default(), flate2::Compression::best());
+    compressed
+        .write_all(&body)
+        .map_err(|e| CodecError(e.to_string()))?;
+    let encoded = compressed
+        .finish()
+        .map_err(|e| CodecError(e.to_string()))?
+        .0;
+    Ok((body.len(), encoded.saturating_add(12)))
+}
+
 /// Reads legacy JSON or a bounded Phase2 envelope. Rejects truncated streams, dishonest
 /// length headers, trailing compressed bytes and decompression beyond the declared bound.
 pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
-    if !bytes.starts_with(SNAPSHOT_MAGIC) && !bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
+    if !bytes.starts_with(SNAPSHOT_MAGIC)
+        && !bytes.starts_with(TOKEN_SNAPSHOT_MAGIC)
+        && !bytes.starts_with(PHASE3_SNAPSHOT_MAGIC)
+    {
         if bytes.len() > MAX_SNAPSHOT_JSON {
             return Err(CodecError("legacy snapshot exceeds 32 MiB".into()));
         }
+        validate_snapshot_json(bytes)?;
         let snapshot: ZoneSnapshot =
             serde_json::from_slice(bytes).map_err(|e| CodecError(e.to_string()))?;
         snapshot
@@ -313,12 +395,18 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     {
         return Err(CodecError("snapshot length or compressed stream mismatch".into()));
     }
-    let snapshot: ZoneSnapshot =
-        serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?;
+    let snapshot: ZoneSnapshot = if bytes.starts_with(PHASE3_SNAPSHOT_MAGIC) {
+        super::snapshot_phase3::decode(&json)?
+    } else {
+        validate_snapshot_json(&json)?;
+        serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?
+    };
     snapshot
         .validate_version()
         .map_err(|e| CodecError(e.to_string()))?;
-    let expected = if bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
+    let expected = if bytes.starts_with(PHASE3_SNAPSHOT_MAGIC) {
+        (9, crate::domain::zone::StateDigestVersion::BinaryV5)
+    } else if bytes.starts_with(TOKEN_SNAPSHOT_MAGIC) {
         (8, crate::domain::zone::StateDigestVersion::BinaryV4)
     } else {
         (7, crate::domain::zone::StateDigestVersion::BinaryV3)
@@ -327,6 +415,20 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
         return Err(CodecError("snapshot envelope/schema mismatch".into()));
     }
     Ok(snapshot)
+}
+
+fn validate_snapshot_json(bytes: &[u8]) -> Result<(), CodecError> {
+    let value: serde_json::Value =
+        serde_json::from_slice(bytes).map_err(|e| CodecError(e.to_string()))?;
+    if value
+        .get("meta")
+        .and_then(|m| m.get("schema_version"))
+        .and_then(serde_json::Value::as_u64)
+        .is_some_and(|v| v <= 8)
+    {
+        super::codec_validation::legacy_json(&value)?;
+    }
+    Ok(())
 }
 
 /// Bytes that are not a valid record of the expected kind.
@@ -458,5 +560,114 @@ impl SessionOutRecord {
     /// Inverse of [`Self::encode`].
     pub fn decode(bytes: &[u8]) -> Result<Self, CodecError> {
         codec::decode_session_out(bytes)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod legacy_learning_boundary_tests {
+    use super::*;
+    use std::io::Write as _;
+
+    #[test]
+    fn legacy_snapshots_reject_nested_learning_outbox_before_typed_decode() {
+        for schema in 4..=8 {
+            // Deliberately minimal event proves raw presence rejection before typed
+            // DomainEvent decoding (including before the C-owned variant is integrated).
+            let value = serde_json::json!({
+                "meta": {"schema_version":schema},
+                "checkpoints":[{"events":[{"type":"character_skill_learned"}]}]
+            });
+            let json = serde_json::to_vec(&value).unwrap();
+            let error = decode_snapshot(&json).unwrap_err();
+            assert!(error.0.contains("Phase 3 event character_skill_learned"), "{error}");
+            let mut compressor =
+                flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+            compressor.write_all(&json).unwrap();
+            let compressed = compressor.finish().unwrap();
+            for magic in [SNAPSHOT_MAGIC, TOKEN_SNAPSHOT_MAGIC] {
+                let mut envelope = magic.to_vec();
+                envelope.extend_from_slice(&u32::try_from(json.len()).unwrap().to_le_bytes());
+                envelope.extend_from_slice(&compressed);
+                let error = decode_snapshot(&envelope).unwrap_err();
+                assert!(error.0.contains("Phase 3 event character_skill_learned"), "{error}");
+            }
+        }
+    }
+
+    #[test]
+    fn every_legacy_pair_refuses_typed_learning_facts_in_all_snapshot_boundaries() {
+        use crate::domain::zone::{
+            CheckpointSnapshot, StateDigestVersion as V, Vec2Fixed, ZoneBounds, ZoneSeed, ZoneState,
+        };
+        use crate::infrastructure::{
+            class_data::{load_classes, ClassSource},
+            rules_data::{load_rules, RulesSource},
+        };
+        let rules = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
+        for (schema, version, profession) in [
+            (4, V::JsonV1, false),
+            (5, V::JsonV1, false),
+            (6, V::JsonV1, false),
+            (6, V::BinaryV2, false),
+            (7, V::JsonV1, false),
+            (7, V::BinaryV2, false),
+            (7, V::BinaryV3, true),
+            (8, V::JsonV1, false),
+            (8, V::BinaryV2, false),
+            (8, V::BinaryV4, true),
+        ] {
+            let mut state = ZoneState::new(
+                ZoneSeed {
+                    zone: ZoneId(1),
+                    epoch: 1,
+                },
+                ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256))
+                    .unwrap(),
+                0,
+            )
+            .with_rules(rules.clone());
+            if profession {
+                state = state.with_classes(classes.clone()).unwrap();
+            }
+            let mut snapshot = state.snapshot();
+            snapshot.meta.schema_version = schema;
+            snapshot.meta.digest_version = version;
+            ZoneState::from_snapshot(snapshot.clone()).unwrap();
+            snapshot.checkpoints.push(CheckpointSnapshot {
+                entity: EntityId::from_uuid(Uuid::nil()),
+                revision: 1,
+                last_saved: Tick(0),
+                dirty: true,
+                fenced: false,
+                latest: None,
+                events: vec![crate::domain::DomainEvent::CharacterSkillLearned {
+                    metadata: crate::domain::EventMetadata::default(),
+                    character_id: crate::domain::CharacterId::from_uuid(Uuid::nil()),
+                    skill_id: 3,
+                    skill_level: 1,
+                    sp_spent: 60,
+                    sp_remaining: 0,
+                    tick: 0,
+                    request_key: Uuid::nil(),
+                }],
+            });
+            assert!(snapshot.validate_version().is_err());
+            assert!(encode_snapshot(&snapshot).is_err());
+            assert!(decode_snapshot(&serde_json::to_vec(&snapshot).unwrap()).is_err());
+            assert!(ZoneState::from_snapshot(snapshot).is_err());
+        }
+    }
+
+    #[test]
+    fn raw_learning_guard_is_versioned_and_does_not_match_player_text() {
+        let allowed = serde_json::json!({"meta":{"schema_version":9},
+            "checkpoints":[{"events":[{"type":"character_skill_learned"}]}]});
+        validate_snapshot_json(&serde_json::to_vec(&allowed).unwrap()).unwrap();
+        let legacy = serde_json::json!({"meta":{"schema_version":8},
+            "entities":[{"name":"character_skill_learned"}],
+            "checkpoints":[{"events":[{"type":"character_class_changed"}]}]});
+        validate_snapshot_json(&serde_json::to_vec(&legacy).unwrap()).unwrap();
     }
 }

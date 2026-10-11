@@ -16,10 +16,10 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::application::use_cases::{
-    ChangeClass, CreateCharacter, CreateCharacterInput, GetCharacter, ListClasses,
-    ListMyCharacters, Ping, TransferOptions,
+    ChangeClass, CreateCharacter, CreateCharacterInput, GetCharacter, GetSkillCatalog, LearnSkill,
+    LearnSkillInput, ListClasses, ListLearnableSkills, ListMyCharacters, Ping, TransferOptions,
 };
-use crate::application::IdempotencyKey;
+use crate::application::{AppError, IdempotencyKey};
 use status::to_status;
 
 /// Generated protobuf types.
@@ -51,6 +51,17 @@ pub struct GameServiceImpl {
     list_classes: ListClasses,
     change_class: ChangeClass,
     transfer_options: TransferOptions,
+    phase3: Option<Phase3UseCases>,
+}
+
+/// Phase 3 use cases installed explicitly; production composition leaves them unset.
+pub struct Phase3UseCases {
+    /// Live actor-owned eligibility.
+    pub list_learnable_skills: ListLearnableSkills,
+    /// Exact-rank paid learning with durable receipts.
+    pub learn_skill: LearnSkill,
+    /// Immutable validated metadata.
+    pub get_skill_catalog: GetSkillCatalog,
 }
 
 impl GameServiceImpl {
@@ -76,7 +87,16 @@ impl GameServiceImpl {
             list_classes,
             change_class,
             transfer_options,
+            phase3: None,
         }
+    }
+
+    /// Explicit experimental injection. Production composition leaves this absent;
+    /// tests may use typed fakes or the fenced durable V5 constructor below.
+    #[must_use]
+    pub fn with_phase3(mut self, use_cases: Phase3UseCases) -> Self {
+        self.phase3 = Some(use_cases);
+        self
     }
 
     /// Wraps in the tonic server type.
@@ -88,6 +108,64 @@ impl GameServiceImpl {
 
 #[tonic::async_trait]
 impl GameService for GameServiceImpl {
+    async fn list_learnable_skills(
+        &self,
+        req: Request<pb::ListLearnableSkillsRequest>,
+    ) -> Result<Response<pb::ListLearnableSkillsResponse>, Status> {
+        let caller = auth::caller(&req)?;
+        let use_cases = self.phase3.as_ref().ok_or_else(|| {
+            to_status(AppError::Unavailable("phase 3 runtime is not yet available".into()))
+        })?;
+        let out = use_cases
+            .list_learnable_skills
+            .execute(caller, &req.get_ref().character_id)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(mapping::learnable_skills_to_pb(&out)))
+    }
+
+    async fn learn_skill(
+        &self,
+        req: Request<pb::LearnSkillRequest>,
+    ) -> Result<Response<pb::LearnSkillResponse>, Status> {
+        let caller = auth::caller(&req)?;
+        let started = std::time::Instant::now();
+        let req = req.into_inner();
+        let result = match &self.phase3 {
+            Some(use_cases) => {
+                use_cases
+                    .learn_skill
+                    .execute(LearnSkillInput {
+                        caller,
+                        character_id: req.character_id,
+                        skill_id: req.skill_id,
+                        skill_level: req.skill_level,
+                        idempotency_key: req.idempotency_key,
+                    })
+                    .await
+            },
+            None => Err(AppError::Unavailable("phase 3 runtime is not yet available".into())),
+        };
+        self.metrics.record_skill_learn_request(
+            started.elapsed(),
+            crate::infrastructure::telemetry::SkillLearnOutcome::from_result(&result),
+        );
+        let out = result.map_err(to_status)?;
+        Ok(Response::new(mapping::learn_result_to_pb(&out)))
+    }
+
+    async fn get_skill_catalog(
+        &self,
+        req: Request<pb::GetSkillCatalogRequest>,
+    ) -> Result<Response<pb::GetSkillCatalogResponse>, Status> {
+        auth::caller(&req)?;
+        let use_cases = self.phase3.as_ref().ok_or_else(|| {
+            to_status(AppError::Unavailable("phase 3 catalogue is not yet available".into()))
+        })?;
+        let out = use_cases.get_skill_catalog.execute().map_err(to_status)?;
+        Ok(Response::new(mapping::skill_catalogue_to_pb(&out)))
+    }
+
     async fn list_classes(
         &self,
         req: Request<pb::ListClassesRequest>,
@@ -209,3 +287,51 @@ impl GameService for GameServiceImpl {
 
 /// Convenience for the composition root and tests: an `Arc`-free way to hand over the service.
 pub type SharedService = Arc<GameServiceImpl>;
+
+impl Phase3UseCases {
+    /// Builds real use cases only for an explicit experimental V5 actor with an installed
+    /// atomic learning lane. Production composition does not call this constructor.
+    pub async fn experimental(
+        characters: Arc<dyn crate::application::CharacterRepository>,
+        sessions: Arc<crate::application::session::SessionContext>,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(sessions.zone.phase3_enabled(), "experimental V5 zone required");
+        let lane = sessions
+            .zone
+            .checkpoints
+            .service()
+            .ok_or_else(|| anyhow::anyhow!("checkpoint lane required"))?;
+        anyhow::ensure!(
+            lane.lock().await.learning_enabled(),
+            "atomic learning persistence required"
+        );
+        let snapshot = sessions.zone.snapshot().await?;
+        let phase = snapshot
+            .phase3
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Phase3 rules missing"))?;
+        let classes = snapshot
+            .classes
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("class registry missing"))?;
+        let catalogue = Arc::new(
+            crate::application::use_cases::get_skill_catalog::RegistrySkillCatalogue::new(
+                classes,
+                phase.rules.skills(),
+            )?,
+        );
+        Ok(Self {
+            list_learnable_skills: ListLearnableSkills::new(
+                characters.clone(),
+                Some(sessions.clone()),
+            ),
+            learn_skill: LearnSkill::new(
+                characters,
+                sessions.clone(),
+                catalogue.clone(),
+                Some(sessions),
+            ),
+            get_skill_catalog: GetSkillCatalog::new(Some(catalogue)),
+        })
+    }
+}

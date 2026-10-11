@@ -167,6 +167,7 @@ impl Harness {
     }
     async fn spawn_character(&self, c: &Character, generation: u64) {
         let load = PlayerLoad {
+            phase3: None,
             progression: Some(Box::new(PlayerProgression {
                 identity: c.identity(),
                 class_state: c.class_state.clone(),
@@ -401,6 +402,7 @@ async fn stale_checkpoint_fences_actor_and_never_releases_transfer() {
     drop(service);
     // Another writer advances the committed revision after the actor's last acknowledgement.
     let cp = CharacterCheckpoint {
+        phase3: None,
         character_id: h.character.id,
         revision_seen: 1,
         level: 40,
@@ -525,6 +527,7 @@ async fn full_registry_tick_and_digest_measurement() {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase3: None,
                     progression: progression.clone(),
                     level: 40,
                     xp: h.character.xp,
