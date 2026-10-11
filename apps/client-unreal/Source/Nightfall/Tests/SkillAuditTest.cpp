@@ -38,4 +38,31 @@ bool FSkillAuditTest::RunTest(const FString& Parameters)
  O.State=1;O.Tick=25;E.ResurrectOffer=O;Send(E);TestTrue(TEXT("offered duplicate cannot undo terminal"),Holds(TEXT("resurrect_offer_state == declined")));
  return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSkillCpSampleLimitTest,"Nightfall.Skill.CpSampleLimit",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FSkillCpSampleLimitTest::RunTest(const FString& Parameters)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* Audit=Scope.Get<USkillAuditSubsystem>();N->SetOwnEntityId(TEXT("owner"));
+ auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};
+ FEntitySpawn Spawn;Spawn.EntityId=TEXT("owner");Spawn.Kind=1;Spawn.LifeIncarnation=1;Spawn.SessionGeneration=1;Spawn.StateTick=10;Spawn.Hp=Spawn.MaxHp=100;Spawn.bCombatant=true;
+ FWorldEvent E;E.Spawn=Spawn;Send(E);Spawn.EntityId=TEXT("peer");E.Spawn=Spawn;Send(E);
+ FStatsChanged Stats;Stats.Entity=TEXT("owner");Stats.Incarnation=1;Stats.Tick=Stats.BaselineTick=10;Stats.bBaseline=true;Stats.Hp=Stats.MaxHp=100;Stats.Cp=20;E={};E.StatsChanged=Stats;Send(E);
+ FAttackResult Damage;Damage.Attacker=TEXT("peer");Damage.Target=TEXT("owner");Damage.TargetIncarnation=1;Damage.Tick=11;Damage.TargetHpAfter=100;Damage.CpDamage=15;
+ Stats.Tick=11;Stats.bBaseline=false;Stats.Cp=5;E.StatsChanged=Stats;Send(E);E={};E.AttackResult=Damage;Send(E);
+ auto CpEvidence=[&](){return Audit->Check(TEXT("cp_absorption_matches_received"));};
+ auto Evidence=CpEvidence();TestTrue(TEXT("valid received damage/resource pair witnesses CP absorption"),Evidence.IsSet() && *Evidence);
+ // Two retained samples above, then synthetic unchanged resources up to the exact audit cap.
+ for(uint64 Tick=12;Tick<1034;++Tick){Stats.Tick=Tick;E={};E.StatsChanged=Stats;Send(E);}
+ Evidence=CpEvidence();TestTrue(TEXT("all 1024 retained samples remain complete"),Evidence.IsSet() && *Evidence);
+ Damage.Tick=1034;Damage.CpDamage=1;Stats.Tick=1034; // Deliberately inconsistent: CP did not fall.
+ E={};E.StatsChanged=Stats;Send(E);E={};E.AttackResult=Damage;Send(E);
+ TestFalse(TEXT("discarded contradictory resource interval makes CP evidence UNKNOWN"),CpEvidence().IsSet());
+ TestEqual(TEXT("later damage was received and audited"),Audit->Number(TEXT("own_cp_damage_total")).Get(0),uint64(16));
+ FBotPredicateRegistry Registry;Registry.RegisterBuiltins();FBotContext Context;Context.GameInstance=Scope.GameInstance;
+ FString Error;auto Predicate=Registry.Parse(FBotPredicateRegistry::Tokenize(TEXT("cp_absorption_matches_received")),Error);
+ if(!TestTrue(TEXT("CP predicate remains registered"),bool(Predicate)))return false;
+ const auto Result=Predicate(Context);TestFalse(TEXT("incomplete evidence cannot pass registered predicate"),Result.bTrue);TestTrue(TEXT("registered predicate reports UNKNOWN"),Result.Observed.Contains(TEXT("UNKNOWN")));
+ N->OnDisconnected.Broadcast(TEXT("sample limit reset"));
+ TestFalse(TEXT("disconnect cannot retain a prior passing witness"),CpEvidence().IsSet());
+ return true;
+}
 #endif

@@ -328,6 +328,7 @@ TOptional<bool> USkillAuditSubsystem::Check(const FString& Name) const
  if(Name==TEXT("pvp_private_stats_coherent"))return PvpPairs?TOptional<bool>(bPvpOk):TOptional<bool>();
  if(Name==TEXT("cp_absorption_matches_received"))
  {
+  if(!bSamplesComplete)return {};
   // Owner StatsChanged precedes public results in the V5 projection. Join by tick,
   // not callback order; no received resource interval is evidence until it has damage.
   bool Witnessed=false;
