@@ -265,6 +265,86 @@ def validate_grant_source_binding() -> list[str]:
     return errors
 
 
+# Phase 3 panels are separate from the preserved class transfer contract (21..27).
+PHASE3_QUERIES = {
+    28: 'sum by (outcome) (rate(nightfall_skill_casts_total[$__rate_interval]))',
+    29: 'sum by (kind, outcome) (rate(nightfall_skill_resolutions_total[$__rate_interval]))',
+    30: 'sum by (kind, change) (rate(nightfall_skill_effects_total[$__rate_interval]))',
+    31: 'sum by (outcome) (rate(nightfall_skill_learn_requests_total[$__rate_interval]))',
+    32: 'histogram_quantile(0.99, sum by (le, outcome) (rate(nightfall_skill_learn_seconds_bucket[$__rate_interval])))',
+    33: 'sum(rate(nightfall_skills_learned_total[$__rate_interval]))',
+    34: 'sum(nightfall_skills_learned_total)',
+}
+PHASE3_LABELS = {
+    'SkillCastOutcome': {'started', 'completed', 'cancelled'},
+    'SkillResolutionKind': {'physical', 'magical', 'restoration', 'effect', 'resurrection'},
+    'SkillOutcome': {'applied', 'evaded', 'resisted', 'half', 'critical'},
+    'SkillEffectKind': {'physical_attack', 'magical_attack', 'magical_attack_range', 'stun', 'sleep', 'root', 'buff', 'debuff', 'tick_hp', 'tick_mp', 'heal', 'hp_per_max', 'max_hp', 'max_mp', 'mp', 'cp', 'resurrection', 'get_agro', 'add_hate', 'dispel_by_slot', 'dispel_by_category', 'defence_trait', 'attack_trait', 'passive'},
+    'SkillEffectChange': {'applied', 'removed'},
+    'SkillLearnOutcome': {'success', 'rejected', 'unavailable', 'internal'},
+}
+
+
+def validate_phase3_dashboard(data: dict) -> list[str]:
+    """Bind exact PromQL and finite enum recorders to actual exporter instruments."""
+    errors = []
+    panels = data.get('panels', [])
+    for pid, query in PHASE3_QUERIES.items():
+        matching = [p for p in panels if p.get('id') == pid]
+        if len(matching) != 1:
+            errors.append(f'Phase3 requires exactly one panel {pid}')
+            continue
+        panel = matching[0]
+        targets = panel.get('targets', [])
+        if (not isinstance(targets, list) or len(targets) != 1
+                or not isinstance(targets[0], dict)
+                or targets[0].get('refId') != 'A'
+                or normalize_promql(targets[0].get('expr', '')) != normalize_promql(query)):
+            errors.append(f'Phase3 panel {pid} must use its exact bounded source query')
+        if panel.get('datasource') != {'type': 'prometheus', 'uid': 'prometheus'}:
+            errors.append(f'Phase3 panel {pid} datasource does not match Prometheus')
+        desc = panel.get('description', '').lower()
+        if pid in (28, 29, 30, 33) and 'awaits' not in desc:
+            errors.append(f'Phase3 panel {pid} must disclose pending gameplay producer integration')
+        if pid in (33, 34) and not all(word in desc for word in ('applied', 'replayed', 'outbox')):
+            errors.append(f'Phase3 panel {pid} must distinguish applied commits, replayed receipts and outbox accounting')
+
+    metrics = strip_rust_comments((ROOT / 'apps/api/src/infrastructure/telemetry/metrics.rs').read_text())
+    instruments = {
+        'skill_casts_total': ('u64_counter', 'nightfall_skill_casts'),
+        'skill_resolutions_total': ('u64_counter', 'nightfall_skill_resolutions'),
+        'skill_effects_total': ('u64_counter', 'nightfall_skill_effects'),
+        'skill_learn_requests_total': ('u64_counter', 'nightfall_skill_learn_requests'),
+        'skills_learned_total': ('u64_counter', 'nightfall_skills_learned'),
+        'skill_learn_seconds': ('f64_histogram', 'nightfall_skill_learn'),
+    }
+    for field, (method, name) in instruments.items():
+        if not re.search(rf'\b{field}\s*:\s*meter\s*\.\s*{method}\s*\(\s*"{name}"\s*\).*?\.build\s*\(\s*\)', metrics, flags=re.S):
+            errors.append(f'Phase3 instrument {field} must bind to {name}')
+        if re.search(rf'\bpub\s+{field}\s*:', metrics):
+            errors.append(f'Phase3 raw instrument {field} may not be public')
+    if not re.search(r'skill_learn_seconds\s*:\s*meter.*?\.with_unit\s*\(\s*"s"\s*\)', metrics, flags=re.S):
+        errors.append('Phase3 learn histogram must export seconds')
+
+    phase3 = strip_rust_comments((ROOT / 'apps/api/src/infrastructure/telemetry/phase3.rs').read_text())
+    for enum, labels in PHASE3_LABELS.items():
+        block = re.search(rf'\b{enum}\s*{{([^}}]+)}}', phase3, flags=re.S)
+        found = set(re.findall(r'=>\s*"([a-z_]+)"', block[1])) if block else set()
+        if found != labels:
+            errors.append(f'Phase3 {enum} closed label set changed: {found ^ labels}')
+    normalized = normalize_rust_whitespace(phase3)
+    for signature in (
+        'pub fn record_skill_cast(&self, outcome: SkillCastOutcome)',
+        'pub fn record_skill_resolution(&self, kind: SkillResolutionKind, outcome: SkillOutcome)',
+        'pub fn record_skill_effect(&self, kind: SkillEffectKind, change: SkillEffectChange)',
+        'pub fn record_skill_learn_request(&self, latency: Duration, outcome: SkillLearnOutcome)',
+        'pub fn record_skill_learn_committed(&self)',
+    ):
+        if normalize_rust_whitespace(signature).replace(',)', ')') not in normalized.replace(',)', ')'):
+            errors.append(f'Phase3 recorder signature is not bounded: {signature}')
+    return errors
+
+
 def validate_dashboard() -> list[str]:
     errors = []
     dashboard_path = ROOT / "infra/grafana/dashboards/nightfall-api.json"
@@ -362,7 +442,8 @@ def validate_dashboard() -> list[str]:
             errors.append(f"Expected source metric {m} missing from dashboard queries")
 
     # Check panels after 20 for bounded labels and conventions
-    class_panels = [p for p in panels if p.get("id", 0) > 20]
+    class_panels = [p for p in panels if 20 < p.get("id", 0) <= 27]
+    errors.extend(validate_phase3_dashboard(data))
     if len(class_panels) < 7:
         errors.append(f"Expected at least 7 class transfer panels after id 20, found {len(class_panels)}")
 

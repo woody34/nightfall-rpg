@@ -89,6 +89,17 @@ fn baseline_timers_and_optional_hidden_references_survive_wire() -> Result<(), p
 
 #[test]
 fn default_additions_preserve_legacy_bytes() -> Result<(), prost::DecodeError> {
+    let legacy_catalogue_entry = [8, 3, 18, 1, b'k', 26, 1, b'n', 32, 9, 40, 1, 58, 1, b'r'];
+    let entry = pb::SkillCatalogEntry::decode(legacy_catalogue_entry.as_slice())?;
+    assert!(entry.mp_consume_start.is_empty());
+    assert!(entry.mp_consume_end.is_empty());
+    assert!(entry.hp_consume.is_empty());
+    assert!(entry.reuse_ms.is_empty());
+    assert!(entry.hit_time_ms.is_empty());
+    assert_eq!(entry.operate_type, pb::SkillOperateType::Unspecified as i32);
+    assert!(entry.target_type.is_empty());
+    assert!(entry.affect_scope.is_empty());
+    assert_eq!(entry.encode_to_vec(), legacy_catalogue_entry);
     let legacy_attack = [10, 1, b'a', 18, 1, b't', 24, 3, 32, 2, 40, 5, 48, 8, 56, 1];
     let attack = pb::AttackResult::decode(legacy_attack.as_slice())?;
     assert_eq!(attack.cp_damage, 0);
@@ -101,6 +112,26 @@ fn default_additions_preserve_legacy_bytes() -> Result<(), prost::DecodeError> {
     let selection = pb::TargetChanged::decode(legacy_selection.as_slice())?;
     assert_eq!(selection.tick, 0);
     assert_eq!(selection.encode_to_vec(), legacy_selection);
+    Ok(())
+}
+
+#[test]
+fn catalogue_rank_fields_use_additive_tags() -> Result<(), prost::DecodeError> {
+    let entry = pb::SkillCatalogEntry {
+        mp_consume_start: vec![0, u32::MAX],
+        mp_consume_end: vec![0, u32::MAX],
+        hp_consume: vec![0, u32::MAX],
+        reuse_ms: vec![0, u32::MAX],
+        hit_time_ms: vec![0, u32::MAX],
+        ..Default::default()
+    };
+    // Packed uint32: new field keys 8..12, length 6, explicit zero then uint32::MAX.
+    let bytes: Vec<u8> = [66, 74, 82, 90, 98]
+        .into_iter()
+        .flat_map(|key| [key, 6, 0, 255, 255, 255, 255, 15])
+        .collect();
+    assert_eq!(entry.encode_to_vec(), bytes);
+    assert_eq!(pb::SkillCatalogEntry::decode(bytes.as_slice())?, entry);
     Ok(())
 }
 
@@ -173,5 +204,29 @@ fn skill_resolution_keeps_roll_absorption_and_removal_separate() -> Result<(), p
     for (reason, number) in reasons.into_iter().zip(13..=24) {
         assert_eq!(i32::from(reason), number);
     }
+    Ok(())
+}
+
+#[test]
+fn catalogue_classification_fields_use_additive_tags() -> Result<(), prost::DecodeError> {
+    let entry = pb::SkillCatalogEntry {
+        operate_type: pb::SkillOperateType::Toggle as i32,
+        target_type: vec!["SELF".into()],
+        affect_scope: vec!["unset".into()],
+        ..Default::default()
+    };
+    // Varint enum tag 13; repeated strings tags 14 and 15.
+    let bytes = [
+        104, 5, 114, 4, b'S', b'E', b'L', b'F', 122, 5, b'u', b'n', b's', b'e', b't',
+    ];
+    assert_eq!(entry.encode_to_vec(), bytes);
+    assert_eq!(pb::SkillCatalogEntry::decode(bytes.as_slice())?, entry);
+    // Future enum discriminants survive transport without becoming an active type.
+    let unknown = pb::SkillCatalogEntry::decode([104, 127].as_slice())?;
+    assert!(
+        unknown.operate_type == 127
+            && pb::SkillOperateType::try_from(unknown.operate_type).is_err()
+    );
+    assert_eq!(unknown.encode_to_vec(), [104, 127]);
     Ok(())
 }

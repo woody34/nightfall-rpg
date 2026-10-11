@@ -125,6 +125,27 @@ impl TestApp {
         customize: impl FnOnce(&mut Dependencies),
         zone: ZoneHandle,
     ) -> Self {
+        Self::spawn_with_handle_config(customize, zone, None).await
+    }
+
+    /// Installs test use cases through the real service without changing production startup.
+    pub async fn spawn_with_phase3(
+        repo: Arc<dyn CharacterRepository>,
+        use_cases: nightfall_api::interface::grpc::Phase3UseCases,
+    ) -> Self {
+        let zone = nightfall_api::application::zone_actor::ZoneActor::spawn(
+            crate::common::fixture_zone(),
+            IntervalTicks::new(),
+        );
+        Self::spawn_with_handle_config(move |deps| deps.characters = repo, zone, Some(use_cases))
+            .await
+    }
+
+    async fn spawn_with_handle_config(
+        customize: impl FnOnce(&mut Dependencies),
+        zone: ZoneHandle,
+        phase3: Option<nightfall_api::interface::grpc::Phase3UseCases>,
+    ) -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
         let accounts = Arc::new(InMemoryAccountRepository::default());
         let sessions = Arc::new(InMemorySessionRepository::default());
@@ -147,7 +168,10 @@ impl TestApp {
         if deps.class_transfers.is_none() {
             deps.class_transfers = Some(realtime.sessions.clone());
         }
-        let services = build_grpc_services(&deps).unwrap();
+        let mut services = build_grpc_services(&deps).unwrap();
+        if let Some(use_cases) = phase3 {
+            services.game = services.game.with_phase3(use_cases);
+        }
         let router = build_http_router(&deps, &realtime);
 
         let (http, grpc) = bind("127.0.0.1:0".parse().unwrap(), "127.0.0.1:0".parse().unwrap())

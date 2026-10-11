@@ -35,6 +35,9 @@ use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::time::MissedTickBehavior;
 
 use super::trace::TraceCarrier;
+use super::zone_admission::{
+    failure, reserve_recipients, AdmissionFailure, AdmissionFailureReason, RecordAdmissionPolicy,
+};
 use crate::domain::zone::{
     AppliedTick, CommandSource, EntityId, Ordinal, Tick, TickError, ZoneInput, ZoneSnapshot,
     ZoneState, TICK_MS,
@@ -180,6 +183,12 @@ pub struct GateError(pub String);
 /// tick's record, so the log is always ahead of anything observable. A durable gate may also
 /// wait (retrying) inside `admit`; the actor simply stalls. The tick budget is 100 ms.
 pub trait TickGate: Send + Sync + 'static {
+    /// Maximum encoded record accepted by this gate. Durable adapters must expose their
+    /// actual log ceiling before experimental V5 is enabled in production.
+    fn max_record_bytes(&self) -> Option<usize> {
+        None
+    }
+
     /// Whether admission proves an acknowledged replay-log append.
     fn durable(&self) -> bool {
         false
@@ -254,6 +263,9 @@ pub enum ZoneSendError {
     /// `OVERLOADED`. Nothing is queued, so nothing is applied unlogged.
     #[error("zone is paused: its replay log is unavailable")]
     Paused(ZoneInput),
+    /// Terminal byte/cardinality admission failure; the input was never queued.
+    #[error("ADMISSION_TOO_LARGE")]
+    AdmissionTooLarge(ZoneInput),
     /// The actor has stopped.
     #[error("zone actor has stopped")]
     Closed(ZoneInput),
@@ -281,6 +293,8 @@ struct Queued {
 #[derive(Debug, Clone)]
 pub struct ZoneHandle {
     phase2: bool,
+    admission_policy: Option<RecordAdmissionPolicy>,
+    admission_failures: broadcast::Sender<AdmissionFailure>,
     /// Serial persistence lane, installed before admitting sockets.
     pub checkpoints: super::checkpoint::CheckpointLane,
     commands: mpsc::Sender<Queued>,
@@ -346,6 +360,16 @@ impl ZoneHandle {
     /// (spawn, replace, despawn) that must not be lost to a momentary burst; player intents
     /// use [`Self::send`] and are refused with `OVERLOADED` instead.
     pub async fn send_wait(&self, input: ZoneInput) -> Result<(), ActorStopped> {
+        self.send_wait_checked(input)
+            .await
+            .map_err(|_| ActorStopped)
+    }
+
+    /// Lifecycle/system enqueue with typed terminal `RESOURCE_EXHAUSTED` refusal. Subscribe to
+    /// admission failures before calling for cardinality failures decided at selection.
+    pub async fn send_wait_checked(&self, input: ZoneInput) -> Result<(), super::AppError> {
+        self.check_input(&input)
+            .map_err(|_| super::AppError::ResourceExhausted("ADMISSION_TOO_LARGE".into()))?;
         self.commands
             .send(Queued {
                 input,
@@ -353,10 +377,30 @@ impl ZoneHandle {
                 reply: None,
             })
             .await
-            .map_err(|_| ActorStopped)
+            .map_err(|_| super::AppError::Unavailable("zone stopped".into()))
+    }
+
+    /// Terminal ingress failures, separate from authoritative tick output. System producers
+    /// must subscribe before enqueueing lifecycle work; sessions do so before admission.
+    pub fn subscribe_admission_failures(&self) -> broadcast::Receiver<AdmissionFailure> {
+        self.admission_failures.subscribe()
+    }
+
+    fn check_input(&self, input: &ZoneInput) -> Result<(), AdmissionFailure> {
+        if let Some(policy) = self.admission_policy {
+            if let Err(reason) = policy.measure(input) {
+                let notice = failure(input, policy, reason);
+                log_admission_failure(input, &notice);
+                return Err(notice);
+            }
+        }
+        Ok(())
     }
 
     fn enqueue(&self, q: Queued) -> Result<(), ZoneSendError> {
+        if self.check_input(&q.input).is_err() {
+            return Err(ZoneSendError::AdmissionTooLarge(q.input));
+        }
         if *self.paused.borrow() {
             return Err(ZoneSendError::Paused(q.input));
         }
@@ -383,6 +427,9 @@ impl ZoneHandle {
             reply: Some(reply),
         })
         .map_err(|e| match e {
+            ZoneSendError::AdmissionTooLarge(_) => {
+                super::AppError::ResourceExhausted("ADMISSION_TOO_LARGE".into())
+            },
             ZoneSendError::Full(_) => {
                 super::AppError::ResourceExhausted("zone command queue is full".into())
             },
@@ -428,6 +475,8 @@ impl ZoneHandle {
 /// The task that owns a zone. Construct with [`ZoneActor::spawn`].
 pub struct ZoneActor<T, G> {
     failed: bool,
+    admission_policy: Option<RecordAdmissionPolicy>,
+    admission_failures: broadcast::Sender<AdmissionFailure>,
     replies: BTreeMap<
         Ordinal,
         oneshot::Sender<
@@ -479,6 +528,43 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         gate: G,
         telemetry: Option<Box<dyn TickTelemetry>>,
     ) -> ZoneHandle {
+        let policy = state.phase3_enabled().then(RecordAdmissionPolicy::default);
+        Self::spawn_with_policy(state, ticks, gate, telemetry, policy)
+    }
+
+    /// Experimental construction with an explicit validated byte policy. A bad policy is
+    /// refused before a task, draft or simulation is created.
+    pub fn try_spawn_gated_with_admission(
+        state: ZoneState,
+        ticks: T,
+        gate: G,
+        policy: RecordAdmissionPolicy,
+    ) -> Result<ZoneHandle, super::replay_log::AdmissionSizingError> {
+        let ceiling = gate
+            .max_record_bytes()
+            .or_else(|| (!gate.durable()).then_some(usize::MAX))
+            .ok_or(super::replay_log::AdmissionSizingError::InvalidBudget)?;
+        policy.validate(ceiling)?;
+        if observer_count(&state) > policy.max_observers {
+            return Err(super::replay_log::AdmissionSizingError::InvalidBudget);
+        }
+        Ok(Self::spawn_with_policy(state, ticks, gate, None, Some(policy)))
+    }
+
+    fn spawn_with_policy(
+        state: ZoneState,
+        ticks: T,
+        gate: G,
+        telemetry: Option<Box<dyn TickTelemetry>>,
+        admission_policy: Option<RecordAdmissionPolicy>,
+    ) -> ZoneHandle {
+        let invalid_policy = admission_policy.is_some_and(|policy| {
+            gate.max_record_bytes()
+                .or_else(|| (!gate.durable()).then_some(usize::MAX))
+                .is_none_or(|ceiling| policy.validate(ceiling).is_err())
+                || observer_count(&state) > policy.max_observers
+        });
+        let (admission_failures, _) = broadcast::channel(COMMAND_QUEUE);
         let (cmd_tx, cmd_rx) = mpsc::channel(COMMAND_QUEUE);
         let (snap_tx, snap_rx) = mpsc::channel(8);
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
@@ -491,7 +577,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let final_snapshot = Arc::default();
         let persistence_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let actor = Self {
-            failed: false,
+            failed: invalid_policy,
+            admission_policy,
+            admission_failures: admission_failures.clone(),
             replies: BTreeMap::new(),
             audit_next_tick: audit_next_tick_tx,
             final_snapshot: Arc::clone(&final_snapshot),
@@ -514,6 +602,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         tokio::spawn(actor.run());
         ZoneHandle {
             phase2,
+            admission_policy,
+            admission_failures,
             audit_seed,
             audit_next_tick: audit_next_tick_rx,
             final_snapshot,
@@ -528,6 +618,12 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     }
 
     async fn run(mut self) {
+        if self.failed {
+            tracing::error!("invalid byte admission policy fences zone before simulation");
+            self.persistence_failed
+                .store(true, std::sync::atomic::Ordering::Release);
+            return;
+        }
         loop {
             tokio::select! {
                 biased;
@@ -599,6 +695,21 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             },
         };
         let tick = record.tick;
+        if self.admission_policy.is_some_and(|policy| {
+            super::replay_log::AppliedTickRecord::from_applied(self.state.seed().zone, &record)
+                .with_output_digests()
+                .encoded_len()
+                > policy.record_budget
+        }) {
+            tracing::error!(
+                tick = tick.0,
+                "digest record exceeds pre-draft byte proof; zone fenced"
+            );
+            self.failed = true;
+            self.fail_replies();
+            self.publish_stats(tick, started, 0);
+            return TickOutcome::Held(tick);
+        }
 
         if record
             .events
@@ -803,7 +914,21 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     }
 
     /// Indices into `pending`, ascending, of the inputs that fit this tick's budgets.
-    fn select_admitted(&self) -> Vec<usize> {
+    fn select_admitted(&mut self) -> Vec<usize> {
+        let mut recipients: BTreeSet<EntityId> = if self.admission_policy.is_some() {
+            self.state
+                .snapshot()
+                .entities
+                .iter()
+                .filter(|e| e.kind == crate::domain::zone::EntityKind::Player)
+                .map(|e| e.id)
+                .collect()
+        } else {
+            BTreeSet::new()
+        };
+        let initial_recipients = recipients.clone();
+        let mut sizes = Vec::new();
+        let mut terminal = None;
         let mut per_session: BTreeMap<EntityId, usize> = BTreeMap::new();
         let mut admitted = Vec::new();
         let mut touched = BTreeSet::new();
@@ -812,6 +937,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             let transfer = matches!(
                 queued.input.command,
                 crate::domain::zone::ZoneCommand::ChangeClass { .. }
+                    | crate::domain::zone::ZoneCommand::LearnSkill { .. }
             );
             if transfer
                 && queued
@@ -838,12 +964,41 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             if let CommandSource::Session { entity, .. } = queued.input.source {
                 let used = per_session.entry(entity).or_default();
                 if *used >= SESSION_COMMANDS_PER_TICK {
-                    if transfer {
+                    if transfer || self.admission_policy.is_some() {
                         break;
                     }
                     continue;
                 }
                 *used = used.saturating_add(1);
+            }
+            if let Some(policy) = self.admission_policy {
+                let mut candidate_recipients = recipients.clone();
+                reserve_recipients(&mut candidate_recipients, &queued.input);
+                let reason = match policy.measure(&queued.input) {
+                    Err(reason) => Some(reason),
+                    Ok(size) => {
+                        let mut alone_recipients = initial_recipients.clone();
+                        reserve_recipients(&mut alone_recipients, &queued.input);
+                        if alone_recipients.len() > policy.max_observers {
+                            Some(AdmissionFailureReason::TooManyRecipients)
+                        } else if !policy.fits(&[size], alone_recipients.len()) {
+                            Some(AdmissionFailureReason::RecordTooLarge)
+                        } else {
+                            sizes.push(size);
+                            if !policy.fits(&sizes, candidate_recipients.len()) {
+                                break;
+                            }
+                            recipients = candidate_recipients;
+                            None
+                        }
+                    },
+                };
+                if let Some(reason) = reason {
+                    if admitted.is_empty() {
+                        terminal = Some((i, policy, reason));
+                    }
+                    break;
+                }
             }
             if let Some(entity) = queued.input.command.entity() {
                 touched.insert(entity);
@@ -851,6 +1006,18 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             admitted.push(i);
             if transfer {
                 break;
+            }
+        }
+        if let Some((index, policy, reason)) = terminal {
+            if let Some(mut queued) = self.pending.remove(index) {
+                let notice = failure(&queued.input, policy, reason);
+                log_admission_failure(&queued.input, &notice);
+                let _ = self.admission_failures.send(notice);
+                if let Some(reply) = queued.reply.take() {
+                    let _ = reply.send(Err(super::AppError::ResourceExhausted(
+                        "ADMISSION_TOO_LARGE".into(),
+                    )));
+                }
             }
         }
         admitted
@@ -993,3 +1160,24 @@ pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::A
 #[cfg(test)]
 #[path = "zone_transfer_tests.rs"]
 mod transfer_tests;
+
+fn log_admission_failure(input: &ZoneInput, failure: &AdmissionFailure) {
+    use sha2::{Digest, Sha256};
+    // serde's typed input has deterministic field/map order. Only its hash reaches logs.
+    let hash = serde_json::to_vec(input)
+        .map(|bytes| format!("{:x}", Sha256::digest(bytes)))
+        .ok();
+    tracing::warn!(entity = ?failure.entity, generation = ?failure.generation,
+        seq = ?failure.seq, policy_version = failure.policy_version,
+        canonical_hash = ?hash, normalized_bytes = failure.normalized_bytes,
+        reason = ?failure.reason, "ADMISSION_TOO_LARGE");
+}
+
+fn observer_count(state: &ZoneState) -> usize {
+    state
+        .snapshot()
+        .entities
+        .iter()
+        .filter(|entity| entity.kind == crate::domain::zone::EntityKind::Player)
+        .count()
+}

@@ -1,5 +1,5 @@
 use crate::domain::class::ClassRegistry;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -25,6 +25,10 @@ struct State {
     progression: HashMap<CharacterId, ProgressionState>,
     /// `(account, operation, key)` -> `(fingerprint, revision)` for checkpoints.
     checkpoint_keys: HashMap<(AccountId, String, IdempotencyKey), (String, u64)>,
+    learn_receipts: BTreeMap<
+        (AccountId, IdempotencyKey),
+        (String, crate::application::ports::FrozenLearnResult),
+    >,
 }
 
 impl State {
@@ -104,101 +108,19 @@ impl InMemoryCharacterRepository {
     }
 }
 
-#[async_trait]
-impl CharacterRepository for InMemoryCharacterRepository {
-    async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>> {
-        let character = self.state.lock().characters.get(&id).cloned();
-        if let Some(c) = &character {
-            self.validate(c)?;
-        }
-        Ok(character)
-    }
-
-    async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
-        let mut out: Vec<Character> = self
-            .state
-            .lock()
-            .characters
-            .values()
-            .filter(|c| c.account_id == account)
-            .cloned()
-            .collect();
-        // Ids are uuid v7, so id order is creation order (the Postgres adapter sorts the same).
-        out.sort_by_key(|c| c.id.as_uuid());
-        for c in &out {
-            self.validate(c)?;
-        }
-        Ok(out)
-    }
-
-    async fn create_idempotent(
+impl InMemoryCharacterRepository {
+    fn checkpoint_locked(
         &self,
-        key: &IdempotencyKey,
-        fingerprint: &str,
-        character: &Character,
-    ) -> Result<CreateOutcome, RepositoryError> {
-        let mut s = self.state.lock();
-        let scoped = (character.account_id, *key);
-        if let Some((stored_fp, id)) = s.keys.get(&scoped) {
-            if stored_fp != fingerprint {
-                return Ok(CreateOutcome::KeyReused);
-            }
-            let existing = s.characters.get(id).cloned().ok_or_else(|| {
-                RepositoryError::Other(anyhow::anyhow!(
-                    "idempotency key points at missing character"
-                ))
-            })?;
-            return Ok(CreateOutcome::Replayed(existing));
-        }
-        self.validate(character)?;
-        let norm = character.name.normalized();
-        if s.names.contains_key(&norm) {
-            return Err(RepositoryError::NameTaken);
-        }
-        if s.characters
-            .values()
-            .filter(|c| c.account_id == character.account_id)
-            .count()
-            >= 7
-        {
-            return Err(RepositoryError::SlotsFull);
-        }
-        s.names.insert(norm, character.id);
-        s.keys
-            .insert(scoped, (fingerprint.to_owned(), character.id));
-        s.put(character);
-        s.characters.insert(character.id, character.clone());
-        s.outbox.push(DomainEvent::CharacterCreated {
-            character_id: character.id,
-            account_id: character.account_id,
-            race: character.race,
-        });
-        Ok(CreateOutcome::Created(character.clone()))
-    }
-
-    async fn load_for_admission(
-        &self,
-        character_id: CharacterId,
-    ) -> anyhow::Result<Option<ProgressionState>> {
-        let state = self.state.lock();
-        if let Some(c) = state.characters.get(&character_id) {
-            self.validate(c)?;
-        }
-        Ok(state.progression.get(&character_id).cloned())
-    }
-
-    async fn checkpoint(
-        &self,
+        s: &mut State,
         checkpoint: &CharacterCheckpoint,
         events: &[DomainEvent],
+        fingerprint: String,
     ) -> Result<CheckpointOutcome, CheckpointError> {
-        let mut s = self.state.lock();
         let account = s
             .characters
             .get(&checkpoint.character_id)
             .ok_or(CheckpointError::NotFound)?
             .account_id;
-        let fingerprint = checkpoint.fingerprint(events);
         let scoped = (account, checkpoint.idempotency.0.clone(), checkpoint.idempotency.1);
         if let Some((stored_fp, revision)) = s.checkpoint_keys.get(&scoped) {
             return if *stored_fp == fingerprint {
@@ -299,6 +221,157 @@ impl CharacterRepository for InMemoryCharacterRepository {
         s.outbox.extend_from_slice(events);
         s.checkpoint_keys.insert(scoped, (fingerprint, revision));
         Ok(CheckpointOutcome::Applied(revision))
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::LearnReceiptRepository for InMemoryCharacterRepository {
+    async fn learn_receipt_lookup(
+        &self,
+        caller: AccountId,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<crate::application::ports::LearnReceiptLookup> {
+        use crate::application::ports::LearnReceiptLookup;
+        Ok(match self.state.lock().learn_receipts.get(&(caller, *key)) {
+            None => LearnReceiptLookup::Unknown,
+            Some((stored, result)) if stored == fingerprint => {
+                LearnReceiptLookup::Known(result.clone())
+            },
+            Some(_) => LearnReceiptLookup::Conflict,
+        })
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::LearningCheckpointRepository for InMemoryCharacterRepository {
+    async fn checkpoint_learning(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        receipt: &crate::application::ports::SuccessfulLearnReceipt,
+    ) -> Result<crate::application::ports::LearningCheckpointOutcome, CheckpointError> {
+        use crate::application::ports::LearningCheckpointOutcome;
+        let mut state = self.state.lock();
+        let owner = state
+            .characters
+            .get(&checkpoint.character_id)
+            .ok_or(CheckpointError::NotFound)?
+            .account_id;
+        if receipt.account_id != owner {
+            return Err(CheckpointError::Constraint("character_learn_receipt_valid".into()));
+        }
+        if let Some((stored, result)) = state.learn_receipts.get(&(receipt.account_id, receipt.key))
+        {
+            return if *stored == receipt.request_fingerprint {
+                Ok(LearningCheckpointOutcome::ReceiptReplayed(result.clone()))
+            } else {
+                Err(CheckpointError::KeyReused)
+            };
+        }
+        receipt.validate(checkpoint, owner)?;
+        let fingerprint = receipt.checkpoint_fingerprint(checkpoint, events)?;
+        let outcome = self.checkpoint_locked(&mut state, checkpoint, events, fingerprint)?;
+        if matches!(outcome, CheckpointOutcome::Applied(_) | CheckpointOutcome::Replayed(_)) {
+            state.learn_receipts.insert(
+                (receipt.account_id, receipt.key),
+                (receipt.request_fingerprint.clone(), receipt.result.clone()),
+            );
+        }
+        Ok(LearningCheckpointOutcome::Checkpoint(outcome))
+    }
+}
+
+#[async_trait]
+impl CharacterRepository for InMemoryCharacterRepository {
+    async fn get(&self, id: CharacterId) -> anyhow::Result<Option<Character>> {
+        let character = self.state.lock().characters.get(&id).cloned();
+        if let Some(c) = &character {
+            self.validate(c)?;
+        }
+        Ok(character)
+    }
+
+    async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
+        let mut out: Vec<Character> = self
+            .state
+            .lock()
+            .characters
+            .values()
+            .filter(|c| c.account_id == account)
+            .cloned()
+            .collect();
+        // Ids are uuid v7, so id order is creation order (the Postgres adapter sorts the same).
+        out.sort_by_key(|c| c.id.as_uuid());
+        for c in &out {
+            self.validate(c)?;
+        }
+        Ok(out)
+    }
+
+    async fn create_idempotent(
+        &self,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+        character: &Character,
+    ) -> Result<CreateOutcome, RepositoryError> {
+        let mut s = self.state.lock();
+        let scoped = (character.account_id, *key);
+        if let Some((stored_fp, id)) = s.keys.get(&scoped) {
+            if stored_fp != fingerprint {
+                return Ok(CreateOutcome::KeyReused);
+            }
+            let existing = s.characters.get(id).cloned().ok_or_else(|| {
+                RepositoryError::Other(anyhow::anyhow!(
+                    "idempotency key points at missing character"
+                ))
+            })?;
+            return Ok(CreateOutcome::Replayed(existing));
+        }
+        self.validate(character)?;
+        let norm = character.name.normalized();
+        if s.names.contains_key(&norm) {
+            return Err(RepositoryError::NameTaken);
+        }
+        if s.characters
+            .values()
+            .filter(|c| c.account_id == character.account_id)
+            .count()
+            >= 7
+        {
+            return Err(RepositoryError::SlotsFull);
+        }
+        s.names.insert(norm, character.id);
+        s.keys
+            .insert(scoped, (fingerprint.to_owned(), character.id));
+        s.put(character);
+        s.characters.insert(character.id, character.clone());
+        s.outbox.push(DomainEvent::CharacterCreated {
+            character_id: character.id,
+            account_id: character.account_id,
+            race: character.race,
+        });
+        Ok(CreateOutcome::Created(character.clone()))
+    }
+
+    async fn load_for_admission(
+        &self,
+        character_id: CharacterId,
+    ) -> anyhow::Result<Option<ProgressionState>> {
+        let state = self.state.lock();
+        if let Some(c) = state.characters.get(&character_id) {
+            self.validate(c)?;
+        }
+        Ok(state.progression.get(&character_id).cloned())
+    }
+
+    async fn checkpoint(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        let mut s = self.state.lock();
+        self.checkpoint_locked(&mut s, checkpoint, events, checkpoint.fingerprint(events))
     }
 }
 
