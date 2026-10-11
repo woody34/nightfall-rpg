@@ -230,3 +230,109 @@ fn catalogue_classification_fields_use_additive_tags() -> Result<(), prost::Deco
     assert_eq!(unknown.encode_to_vec(), [104, 127]);
     Ok(())
 }
+
+#[test]
+fn swing_hydration_preserves_start_times_and_omits_hidden_endpoint_pair(
+) -> Result<(), prost::DecodeError> {
+    use nightfall_api::domain::zone::{effects::TargetBinding, EntityId, Swing, Tick};
+    use nightfall_api::interface::zone_mapping::{phase3_swing_to_pb, swing_to_pb};
+    let attacker = TargetBinding {
+        entity: EntityId::from_uuid(uuid::Uuid::from_u128(1)),
+        incarnation: 7,
+    };
+    let swing = Swing {
+        target: EntityId::from_uuid(uuid::Uuid::from_u128(2)),
+        target_incarnation: 9,
+        start: Tick(81),
+        impact: Tick(105),
+        ready: Tick(u64::MAX),
+    };
+    for visible in [false, true] {
+        for baseline in [None, Some(Tick(100))] {
+            let projected = phase3_swing_to_pb(attacker, &swing, visible, baseline);
+            let decoded = pb::AttackStarted::decode(projected.encode_to_vec().as_slice())?;
+            assert_eq!(
+                (decoded.tick, decoded.impact_tick, decoded.ready_tick),
+                (81, 105, u64::MAX)
+            );
+            assert_eq!(decoded.attacker_incarnation, Some(7));
+            assert_eq!(decoded.baseline, baseline.is_some());
+            assert_eq!(decoded.baseline_tick, baseline.map_or(0, |t| t.0));
+            assert_eq!(
+                decoded.target,
+                if visible {
+                    swing.target.to_string()
+                } else {
+                    String::new()
+                }
+            );
+            assert_eq!(decoded.target_incarnation, if visible { 9 } else { 0 });
+        }
+    }
+    let legacy = swing_to_pb(attacker.entity, &swing);
+    assert_eq!(legacy.attacker_incarnation, None);
+    assert!(!legacy.baseline);
+    assert_eq!(legacy.target, swing.target.to_string());
+    Ok(())
+}
+
+#[test]
+fn public_identity_is_reference_free_and_selection_bootstrap_can_explicitly_clear(
+) -> Result<(), prost::DecodeError> {
+    use nightfall_api::domain::zone::{effects::TargetBinding, EntityId, PvpState, Tick};
+    use nightfall_api::interface::zone_mapping::{
+        phase3_identity_to_pb, phase3_selection_to_pb, pvp_state_to_pb,
+    };
+    let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
+    let mut identity = pb::EntitySpawn {
+        entity_id: entity.to_string(),
+        pending_swing: Some(pb::AttackStarted {
+            target: "hidden".into(),
+            ..Default::default()
+        }),
+        pending_cast: Some(pb::SkillCastStarted {
+            target: Some("hidden".into()),
+            ..Default::default()
+        }),
+        active_effects: vec![pb::ActiveEffect::default()],
+        ..Default::default()
+    };
+    phase3_identity_to_pb(&mut identity, Some(Tick(u64::MAX)), 123);
+    let identity = pb::EntitySpawn::decode(identity.encode_to_vec().as_slice())?;
+    assert!(identity.pending_swing.is_none() && identity.pending_cast.is_none());
+    assert!(identity.active_effects.is_empty());
+    assert_eq!((identity.flag_until_tick, identity.karma), (u64::MAX, 123));
+    let pvp = pvp_state_to_pb(
+        TargetBinding {
+            entity,
+            incarnation: 7,
+        },
+        Tick(100),
+        &PvpState {
+            flag_until: Some(Tick(u64::MAX)),
+            karma: 123,
+            pk_count: u32::MAX,
+            pvp_count: 456,
+        },
+        Some(Tick(100)),
+    );
+    let pvp = pb::PvpStateChanged::decode(pvp.encode_to_vec().as_slice())?;
+    assert_eq!((pvp.karma, pvp.pk_count, pvp.pvp_count), (123, u32::MAX, 456));
+    assert_eq!((pvp.incarnation, pvp.tick, pvp.baseline_tick), (7, 100, 100));
+    assert!(pvp.baseline);
+    for target in [
+        None,
+        Some(TargetBinding {
+            entity,
+            incarnation: 7,
+        }),
+    ] {
+        let selection = phase3_selection_to_pb(entity, Tick(100), target, Some(Tick(100)));
+        let selection = pb::TargetChanged::decode(selection.encode_to_vec().as_slice())?;
+        assert!(selection.baseline);
+        assert_eq!((selection.tick, selection.baseline_tick), (100, 100));
+        assert_eq!(selection.target_incarnation, target.map(|t| t.incarnation));
+        assert_eq!(selection.target.is_empty(), target.is_none());
+    }
+    Ok(())
+}

@@ -2486,3 +2486,200 @@ fn schema_three_coverage_counts_live_lifecycles_once_and_verifies_the_suffix() {
         rec.write(std::path::Path::new(&path)).unwrap();
     }
 }
+
+fn spawn_observer_v5(
+    zone: &mut ZoneState,
+    source: EntityId,
+    observer: EntityId,
+    x: i32,
+) -> AppliedTick {
+    let CombatRole::Player { progression, .. } = combat(zone, source).role else {
+        panic!("player fixture")
+    };
+    let mut load = PlayerLoad::fresh("human_mystic");
+    load.progression = progression;
+    zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+        entity: observer,
+        name: format!("Observer{x}"),
+        pos: Vec2Fixed::from_tiles(x, 10),
+        speed: Speed::DEFAULT,
+        generation: SessionGeneration(1),
+        load: Some(Box::new(load)),
+    })]))
+    .unwrap()
+}
+
+fn wire_events_for(tick: &AppliedTick, observer: EntityId) -> Vec<pb::world_event::Event> {
+    use prost::Message as _;
+    nightfall_api::interface::zone_mapping::encode_observer_outputs(
+        tick.outputs.get(&observer).map_or(&[], Vec::as_slice),
+        tick.server_time_ms,
+    )
+    .iter()
+    .filter_map(|frame| {
+        let decoded = pb::ServerMessage::decode(frame.as_ref()).unwrap();
+        match decoded.payload {
+            Some(pb::server_message::Payload::Event(world)) => world.event,
+            _ => None,
+        }
+    })
+    .collect()
+}
+
+#[test]
+fn aoe_wire_rows_are_filtered_per_observer_without_reordering_or_private_totals() {
+    use pb::world_event::Event;
+    let mut rules = scope_rules("RANGE", 0, 0);
+    rules = edit_skill_rules(&rules, |skills| {
+        skills.get_mut(&SkillId(1177)).unwrap().affect_range = Some(skill::RankValue::Scalar(128));
+    });
+    let (mut zone, caster, center) = setup_with_rules(
+        Vec2Fixed::from_tiles(60, 10),
+        Vec2Fixed::from_tiles(62, 10),
+        &[(1177, 1)],
+        rules,
+    );
+    let visible = extra_npc(&mut zone, 63);
+    let hidden = extra_npc(&mut zone, 64);
+    let observer = EntityId::from_uuid(Uuid::from_u128(333));
+    let admission = spawn_observer_v5(&mut zone, caster, observer, 0);
+    assert!(admission.dispositions.is_empty());
+    let identities = wire_events_for(&admission, observer);
+    assert!(identities
+        .iter()
+        .any(|e| matches!(e, Event::Spawn(s) if s.entity_id == visible.to_string())));
+    assert!(!identities
+        .iter()
+        .any(|e| matches!(e, Event::Spawn(s) if s.entity_id == hidden.to_string())));
+    let result = finish_skill(&mut zone, caster, center, 1177);
+    let owner = wire_events_for(&result, caster);
+    let public = wire_events_for(&result, observer);
+    let rows = |events: Vec<Event>| {
+        events
+            .into_iter()
+            .find_map(|e| match e {
+                Event::SkillCastResult(r) => Some(r.targets),
+                _ => None,
+            })
+            .unwrap()
+    };
+    let owner_rows = rows(owner);
+    let observer_rows = rows(public.clone());
+    assert_eq!(
+        owner_rows.iter().map(|r| &r.target).collect::<Vec<_>>(),
+        vec![
+            &center.to_string(),
+            &visible.to_string(),
+            &hidden.to_string()
+        ]
+    );
+    assert_eq!(
+        observer_rows,
+        owner_rows
+            .into_iter()
+            .filter(|r| r.target != hidden.to_string())
+            .collect::<Vec<_>>()
+    );
+    assert!(!public.iter().any(|e| matches!(e,
+        Event::StatsChanged(s) if s.entity == caster.to_string())));
+    assert!(!public.iter().any(|e| matches!(e,
+        Event::SkillReuse(s) if s.entity == caster.to_string())));
+    assert!(!public.iter().any(|e| matches!(e,
+        Event::SkillStateSync(s) if s.entity == caster.to_string())));
+}
+
+#[test]
+fn mutual_buff_cast_hydration_wire_follows_all_identities_without_replaying_mutations() {
+    use pb::world_event::Event;
+    let (mut zone, first, _) = setup_with_skills(
+        Vec2Fixed::from_tiles(10, 10),
+        Vec2Fixed::from_tiles(12, 10),
+        &[(1040, 1)],
+    );
+    let second = EntityId::from_uuid(Uuid::from_u128(444));
+    assert!(spawn_observer_v5(&mut zone, first, second, 11)
+        .dispositions
+        .is_empty());
+    let started = zone
+        .run_tick(
+            zone.draft(
+                vec![first, second]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, entity)| {
+                        ZoneInput::session(
+                            entity,
+                            SessionGeneration(1),
+                            u32::try_from(i).unwrap() + 1,
+                            ZoneCommand::CastSkill {
+                                entity,
+                                skill_id: SkillId(1040),
+                                target: Some(if entity == first { second } else { first }),
+                            },
+                        )
+                    })
+                    .collect(),
+            ),
+        )
+        .unwrap();
+    assert!(started.dispositions.is_empty());
+    let before = zone.snapshot();
+    let viewer = EntityId::from_uuid(Uuid::from_u128(555));
+    let admission = spawn_observer_v5(&mut zone, first, viewer, 10);
+    let wire = wire_events_for(&admission, viewer);
+    let last_identity = wire
+        .iter()
+        .rposition(|e| matches!(e, Event::Spawn(_)))
+        .unwrap();
+    let casts: Vec<_> = wire
+        .iter()
+        .enumerate()
+        .filter_map(|(i, e)| match e {
+            Event::SkillCastStarted(c) if c.caster != viewer.to_string() => Some((i, c)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(casts.len(), 2);
+    let after = zone.snapshot();
+    for (index, cast) in casts {
+        assert!(index > last_identity);
+        assert!(cast.baseline);
+        assert_eq!(cast.baseline_tick, admission.tick.0);
+        let entity = if cast.caster == first.to_string() {
+            first
+        } else {
+            second
+        };
+        let CastState::Casting(original) = &before.phase3.as_ref().unwrap().entities[&entity].cast
+        else {
+            panic!("cast fixture")
+        };
+        assert_eq!(
+            (cast.cast_id, cast.start_tick, cast.launch_tick, cast.complete_tick),
+            (original.id.0, original.start_at.0, original.launch_at.0, original.complete_at.0)
+        );
+        assert_eq!(cast.target_incarnation, original.target.map(|t| t.incarnation));
+        assert_eq!(
+            after.phase3.as_ref().unwrap().entities[&entity].cast,
+            before.phase3.as_ref().unwrap().entities[&entity].cast
+        );
+        assert!(!wire
+            .iter()
+            .any(|e| matches!(e, Event::StatsChanged(s) if s.entity == entity.to_string())));
+        assert!(!wire
+            .iter()
+            .any(|e| matches!(e, Event::SkillReuse(s) if s.entity == entity.to_string())));
+        assert!(!wire
+            .iter()
+            .any(|e| matches!(e, Event::SkillStateSync(s) if s.entity == entity.to_string())));
+    }
+    assert!(wire
+        .iter()
+        .filter_map(|e| match e {
+            Event::Spawn(s) => Some(s),
+            _ => None,
+        })
+        .all(|s| s.pending_cast.is_none()
+            && s.pending_swing.is_none()
+            && s.active_effects.is_empty()));
+}

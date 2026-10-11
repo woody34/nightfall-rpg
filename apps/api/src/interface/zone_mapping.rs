@@ -5,6 +5,11 @@
 //! D7). Inbound floats are rounded to the nearest 1/1000 tile once, at the edge, so everything
 //! downstream (including replay of the recorded inbound bytes) is integer and deterministic.
 
+mod hydration;
+pub use hydration::{
+    phase3_identity_to_pb, phase3_selection_to_pb, phase3_swing_to_pb, pvp_state_to_pb,
+};
+
 use bytes::Bytes;
 use prost::Message as _;
 use thiserror::Error;
