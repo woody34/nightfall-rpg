@@ -22,7 +22,7 @@ ORACLE_SPEC = importlib.util.spec_from_file_location(
     'phase3_skill_oracle', REPO / 'packages/data/scripts/skill_oracle.py')
 oracle = importlib.util.module_from_spec(ORACLE_SPEC)
 ORACLE_SPEC.loader.exec_module(oracle)
-FACTS = frozenset(('late_entry_hp_continuity', 'regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle',
+FACTS = frozenset(('peace_cancel_no_damage', 'late_entry_hp_continuity', 'regen_pulses', 'moving_regen_pulses', 'regen_matches_oracle',
     'moving_regen_matches_oracle', 'death_record_matches_fixture',
     'death_record_matches_before_disconnect', 'restore_did_not_reapply_hooks',
     'skill_hate_outcome_coherent', 'skill_damage_matches_oracle',
@@ -844,6 +844,69 @@ def karma_decay(row, manifest, facts):
         raise ValueError('karma credit must join one actual NPC death')
 
 
+def peace_cancel(row, manifest, facts):
+    """Cancelled hostile cast: exact received HP/CP, with oracle-checked regen."""
+    observer = row['entity']
+    delivered = [(r['tick'], e) for r in facts
+                 if r['kind'] == 'observer_combat' and r['entity'] == observer
+                 for e in r['data']['events']]
+    cancels = [e for tick, e in delivered if tick == row['tick']
+               and e['type'] == 'skill_cast_cancelled' and e['reason'] == 'peace_zone']
+    if len(cancels) != 1:
+        raise ValueError('unique received peace cancellation required')
+    cancel = cancels[0]
+    terminals = [e for _, e in delivered if e['type'] in ('skill_cast_result', 'skill_cast_cancelled')
+                 and e['caster'] == cancel['caster'] and e['cast_id'] == cancel['cast_id']]
+    same(terminals, [cancel])
+    starts = [e for _, e in delivered if e['type'] == 'skill_cast_started'
+              and e['caster'] == cancel['caster'] and e['cast_id'] == cancel['cast_id']]
+    if len(starts) != 1:
+        raise ValueError('unique received cast start required')
+    start = starts[0]
+    same(start['target']['entity'], observer)
+    life = start['target']['incarnation']
+    if not integer(start['start']) < cancel['tick'] <= start['complete_at']:
+        raise ValueError('cancellation outside accepted cast interval')
+    samples = [(tick, e) for tick, e in delivered if e['type'] == 'stats_changed'
+               and e['entity'] == observer and e['class']['phase3']['incarnation'] == life]
+    before = [(t, e) for t, e in samples if t <= start['start']]
+    after = [(t, e) for t, e in samples if t > cancel['tick']]
+    if not before or not after:
+        raise ValueError('owner resources before start and after cancellation required')
+    initial_tick, initial = before[-1]
+    end = after[0][0]
+    hp, cp = initial['hp'], initial['class']['cp']
+    # Native causes precede final received resources on each tick.
+    for fact in facts:
+        if not initial_tick < fact['tick'] <= end:
+            continue
+        if fact['entity'] == observer and fact['kind'] == 'regen_pulse':
+            data = fact['data']
+            same(data['before']['hp'], hp)
+            same(data['before']['cp']['current'], cp)
+            regen(fact, manifest, facts)
+            hp, cp = data['actual']['hp'], data['actual']['cp']
+        if fact['kind'] == 'observer_combat' and fact['entity'] == observer:
+            for event in fact['data']['events']:
+                if event['type'] == 'entity_despawn' and event['entity'] in (observer, cancel['caster']['entity']):
+                    raise ValueError('cast endpoint departed before resource proof')
+                if event['type'] == 'stats_changed' and event['entity'] == observer:
+                    same(event['class']['phase3']['incarnation'], life)
+                    same(event['hp'], hp)
+                    same(event['class']['cp'], cp)
+                if event['type'] == 'vitals_changed' and event['entity'] == observer:
+                    same(event['incarnation'], life)
+                    same(event['hp'], hp)
+                if event['type'] == 'attack_result' and event['target'] == observer:
+                    same(event['damage'], 0)
+                    same(event['phase3']['cp_absorbed'], 0)
+                if event['type'] == 'skill_cast_result':
+                    for target in event['targets']:
+                        if target['target']['entity'] == observer:
+                            same(target['hp_removed'], 0)
+                            same(target['cp_absorbed'], 0)
+
+
 def late_entry_swing(row, facts, template):
     """Require a received pre-entry swing, after the complete identity batch.
 
@@ -981,7 +1044,12 @@ def evaluate(rows, recording, entity, gates):
     for gate in gates:
         kind, args = gate['kind'], gate['args']
         check = None
-        if kind == 'late_entry_hp_continuity':
+        if kind == 'peace_cancel_no_damage':
+            matched = [r for r in owner if r['kind'] == 'observer_combat'
+                       and any(e['type'] == 'skill_cast_cancelled' and e['reason'] == 'peace_zone'
+                               for e in r['data']['events'])]
+            check = peace_cancel
+        elif kind == 'late_entry_hp_continuity':
             # Require an actual departure/re-entry of the named target's same life.
             # Track FULL as well as wounded spawns so an older wound cannot mask
             # a full-HP re-entry. Unrelated static NPCs cannot satisfy this gate.

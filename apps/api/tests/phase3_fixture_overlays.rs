@@ -857,6 +857,109 @@ fn token_sentinel_kills_v5_milestone_classes_with_oracle_verified_damage() -> an
 }
 
 #[test]
+fn peace_cancellation_preserves_resources_with_regeneration() -> anyhow::Result<()> {
+    use nightfall_api::domain::zone::{skill::SkillId, ZoneEvent};
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .context("repo")?;
+    let work =
+        std::env::temp_dir().join(format!("nightfall-triage-peace-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir(&work)?;
+    let result = (|| -> anyhow::Result<()> {
+        ensure!(
+            std::process::Command::new("python3")
+                .arg(repo.join("apps/client-unreal/Scripts/phase3-validation-inputs.py"))
+                .arg(&work)
+                .status()?
+                .success(),
+            "fixture generation failed"
+        );
+        let packs: BTreeMap<String, BTreeMap<String, Role>> =
+            serde_json::from_slice(&std::fs::read(work.join("packs.json"))?)?;
+        let roles = packs.get("phase3-pvp").context("PvP pack")?;
+        let mut owner = roles.get("owner").context("owner")?.clone();
+        let mut peer = roles.get("observer").context("observer")?.clone();
+        owner.position = [110, 116];
+        peer.position = [115, 116];
+        let data = work.join("data");
+        let prepared = prepare_phase3_bootstrap(
+            &Phase3DataSource::from_dir(&data)?,
+            load_rules_dir(&data)?,
+            load_classes(&ClassSource::from_dir(&data)?)?,
+            load_zone(&data.join("zones/test_zone.toml"))?,
+        )?;
+        let mut rec = EvidenceRecording::new(prepared.state(
+            ZoneSeed {
+                zone: prepared.zone.zone,
+                epoch: 1,
+            },
+            0,
+        )?);
+        rec.spawn(&owner, evidence_load(&owner, 1))?;
+        rec.spawn(&peer, evidence_load(&peer, 2))?;
+        rec.tick(vec![ZoneInput::session(
+            owner.character_id,
+            SessionGeneration(1),
+            1,
+            ZoneCommand::CastSkill {
+                entity: owner.character_id,
+                target: Some(peer.character_id),
+                skill_id: SkillId(1177),
+            },
+        )])?;
+        rec.tick(vec![ZoneInput::session(
+            peer.character_id,
+            SessionGeneration(1),
+            1,
+            ZoneCommand::MoveTo {
+                entity: peer.character_id,
+                dest: Vec2Fixed::from_tiles(117, 116),
+            },
+        )])?;
+        rec.wait(70)?;
+        ensure!(
+            rec.recording.records.iter().any(|r| {
+                nightfall_api::application::replay_log::decode_events(&r.events).is_ok_and(
+                    |events| {
+                        events.iter().any(|e| {
+                            matches!(
+                                e,
+                                ZoneEvent::SkillCastCancelled {
+                                    reason:
+                                        nightfall_api::domain::zone::state_skill::CastCancelReason::PeaceZone,
+                                    ..
+                                }
+                            )
+                        })
+                    },
+                )
+            }),
+            "missing peace cancellation"
+        );
+        let recording = work.join("peace.nfr");
+        let evidence = work.join("peace.jsonl");
+        rec.recording.write(&recording)?;
+        let export = std::process::Command::new(env!("CARGO_BIN_EXE_nightfall-replay"))
+            .args(["export", "--file"])
+            .arg(&recording)
+            .arg("--evidence-out")
+            .arg(&evidence)
+            .output()?;
+        ensure!(export.status.success(), "export: {}", String::from_utf8_lossy(&export.stderr));
+        if let Some(out) = std::env::var_os("NIGHTFALL_HARNESS_EVIDENCE_DIR") {
+            let out = Path::new(&out);
+            std::fs::create_dir_all(out)?;
+            std::fs::copy(&recording, out.join("peace.nfr"))?;
+            std::fs::copy(&evidence, out.join("peace.jsonl"))?;
+        }
+        Ok(())
+    })();
+    std::fs::remove_dir_all(&work)?;
+    result
+}
+
+#[test]
 #[allow(clippy::too_many_lines)] // Real movement/attack/observe pipeline, including the replay consumer.
 fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Result<()> {
     use nightfall_api::domain::zone::{CombatRole, ObserverOutput, ZoneEvent};

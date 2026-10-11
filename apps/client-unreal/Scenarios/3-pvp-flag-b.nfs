@@ -32,6 +32,9 @@ nf.ClickMove 117 116
 nf.WaitFor own_at 117 116 0.5 6
 nf.WaitFor observed_cast_cancel_reason == peace_zone 12
 nf.WaitFor peace_impact_has_no_damage 3
+# C11/C15: received retention permits regen; replay checks exact HP/CP with the
+# independent oracle and rejects any cancelled-cast result or resource damage.
+# replay-gate: peace_cancel_no_damage
 nf.ClickMove 115 116
 nf.WaitFor own_at 115 116 0.5 6
 # Purple victim: source rule chooses600ticks; assertion compares received deadlines.

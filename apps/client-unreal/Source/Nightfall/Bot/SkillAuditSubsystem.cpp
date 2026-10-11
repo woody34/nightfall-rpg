@@ -460,7 +460,19 @@ TOptional<bool> USkillAuditSubsystem::Check(const FString& Name) const
   const auto* V=Vitals.Find(Last->Start.Target->ToLower());if(!V || V->Incarnation!=*Last->Start.TargetIncarnation || !Fence.Visible(*Last->Start.Target,*Last->Start.TargetIncarnation))return {};
   // Public-only observers cannot assert the victim's private CP. Exact CP proof is owner-scoped.
   if(!Net || !Net->IsOwnEntity(*Last->Start.Target) || !Last->CpAtStart.IsSet() || !Stats.IsSet() || Stats->Incarnation!=*Last->Start.TargetIncarnation)return {};
-  return Last->Terminals==1 && V->Hp==*Last->HpAtStart && Stats->Cp==*Last->CpAtStart;
+  if(!bSamplesComplete)return {};
+  // Regen may raise either resource during the cast. Every received sample must
+  // retain resources; exact regen/cancellation causality is checked by replay (C11/C15).
+  uint32 Hp=*Last->HpAtStart,Cp=*Last->CpAtStart;bool After=false;
+  for(const auto& Sample:ResourceSamples)
+  {
+   if(Sample.Incarnation!=*Last->Start.TargetIncarnation || Sample.Tick<Last->Start.StartTick)continue;
+   if(Sample.Hp<Hp || Sample.Cp<Cp)return false;
+   Hp=Sample.Hp;Cp=Sample.Cp;
+   if(Sample.Tick>Last->TerminalTick){After=true;break;}
+  }
+  if(!After)return {};
+  return Last->Terminals==1;
  }
  if(Name==TEXT("peace_rejection_has_no_start"))
  {

@@ -103,4 +103,37 @@ bool FSkillFlagCopyTicksTest::RunTest(const FString& Parameters)
  return true;
 }
 
+// r11 received wire: Start1452 HP234/CP125; regen1462 237/127;
+// PeaceZone cancellation1488; regen1492 240/130. Values are captured, not formulas.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPeaceCancelRegenTest,"Nightfall.Skill.PeaceCancellationWithRegen",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FPeaceCancelRegenTest::RunTest(const FString& Parameters)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* A=Scope.Get<USkillAuditSubsystem>();N->SetOwnEntityId(TEXT("owner"));
+ auto Send=[&](const FWorldEvent& E){FServerMessage M;M.Event=E;N->DispatchServerMessage(M);};
+ auto Check=[&](){return A->Check(TEXT("peace_impact_has_no_damage"));};
+ auto Begin=[&]()
+ {
+  A->Reset();FEntitySpawn S;S.EntityId=TEXT("owner");S.Kind=1;S.LifeIncarnation=1;S.SessionGeneration=1;S.StateTick=1432;S.Hp=234;S.MaxHp=309;FWorldEvent E;E.Spawn=S;Send(E);S.EntityId=TEXT("peer");E.Spawn=S;Send(E);
+  FStatsChanged Stats;Stats.Entity=TEXT("owner");Stats.Incarnation=1;Stats.Tick=Stats.BaselineTick=1432;Stats.bBaseline=true;Stats.Hp=234;Stats.MaxHp=309;Stats.Cp=125;E={};E.StatsChanged=Stats;Send(E);
+  FSkillCastStarted Start;Start.Caster=TEXT("peer");Start.CasterIncarnation=1;Start.Target=TEXT("owner");Start.TargetIncarnation=1;Start.Tick=Start.StartTick=1452;Start.CastId=2;Start.SkillId=1177;Start.SkillLevel=5;Start.LaunchTick=1488;Start.CompleteTick=1492;E={};E.SkillCastStarted=Start;Send(E);
+ };
+ auto Resources=[&](uint64 Tick,uint32 Hp,uint32 Cp)
+ {
+  FWorldEvent E;FStatsChanged S;S.Entity=TEXT("owner");S.Incarnation=1;S.Tick=Tick;S.Hp=Hp;S.MaxHp=309;S.Cp=Cp;E.StatsChanged=S;Send(E);
+  FVitalsChanged V;V.Entity=S.Entity;V.Incarnation=1;V.Tick=Tick;V.Hp=Hp;V.MaxHp=309;E={};E.VitalsChanged=V;Send(E);
+ };
+ auto Cancel=[&]()
+ {
+  FWorldEvent E;FSkillCastCancelled C;C.Caster=TEXT("peer");C.CasterIncarnation=1;C.CastId=2;C.Tick=1488;C.Reason=9;E.SkillCastCancelled=C;Send(E);
+ };
+ Begin();TestFalse(TEXT("start alone is unknown"),Check().IsSet());Resources(1462,237,127);Cancel();TestFalse(TEXT("requires resource witness after cancellation"),Check().IsSet());Resources(1492,240,130);
+ TestTrue(TEXT("captured regen is retained exactly as received"),Check().Get(false));Cancel();TestTrue(TEXT("duplicate cancellation does not count twice"),Check().Get(false));
+ Resources(1500,200,100);TestTrue(TEXT("later unrelated combat cannot rewrite the witnessed interval"),Check().Get(false));
+ Begin();Resources(1462,233,127);Cancel();Resources(1492,240,130);TestFalse(TEXT("HP loss cannot be masked by later regen"),Check().Get(true));
+ Begin();Resources(1462,237,124);Cancel();Resources(1492,240,130);TestFalse(TEXT("CP loss cannot be masked by later regen"),Check().Get(true));
+ Begin();Resources(1462,237,127);Cancel();Resources(1492,240,130);FWorldEvent E;FSkillCastResult R;R.Caster=TEXT("peer");R.CasterIncarnation=1;R.CastId=2;R.Tick=1492;R.SkillId=1177;R.SkillLevel=5;E.SkillCastResult=R;Send(E);TestFalse(TEXT("contradictory result fails"),Check().Get(true));
+ A->Disconnected(TEXT("test"));TestFalse(TEXT("transport loss clears evidence"),Check().IsSet());
+ return true;
+}
+
 #endif

@@ -39,6 +39,11 @@ fn observer_combat(
                         } | ZoneEvent::EntityDespawn { .. }
                             | ZoneEvent::AttackStarted { .. }
                             | ZoneEvent::AttackResult { .. }
+                            | ZoneEvent::StatsChanged { .. }
+                            | ZoneEvent::VitalsChanged { .. }
+                            | ZoneEvent::SkillCastStarted { .. }
+                            | ZoneEvent::SkillCastResult { .. }
+                            | ZoneEvent::SkillCastCancelled { .. }
                     ) =>
                 {
                     Some(event)

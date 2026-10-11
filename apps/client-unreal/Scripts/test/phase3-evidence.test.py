@@ -52,6 +52,11 @@ class ReplayEvidence(unittest.TestCase):
                         '--', '--exact'], cwd=REPO, check=True, capture_output=True, text=True,
                        env=dict(os.environ, NIGHTFALL_HARNESS_EVIDENCE_DIR=str(cls.generated)))
 
+        subprocess.run(['cargo', 'test', '--offline', '-p', 'nightfall-api', '--test',
+                        'phase3_fixture_overlays', 'peace_cancellation_preserves_resources_with_regeneration',
+                        '--', '--exact'], cwd=REPO, check=True, capture_output=True, text=True,
+                       env=dict(os.environ, NIGHTFALL_HARNESS_EVIDENCE_DIR=str(cls.generated)))
+
     @classmethod
     def export(cls, out):
         subprocess.run([str(cls.binary), 'export', '--file', str(RECORDING), '--evidence-out', str(out)],
@@ -203,6 +208,34 @@ class ReplayEvidence(unittest.TestCase):
                     result = self.check('late_entry_hp_continuity keltir_durable', observer, altered, recording)
                     self.assertFalse(result['passed'])
                     self.assertEqual(result['gates'][0]['sequences'], [sequence])
+
+    def test_peace_cancel_retains_exact_resources_with_oracle_regen(self):
+        recording = self.generated / 'peace.nfr'
+        rows = evidence.read_jsonl(self.generated / 'peace.jsonl')
+        observer = '01970000-0000-7000-8000-000000000031'
+        result = self.check('peace_cancel_no_damage', observer, rows, recording)
+        self.assertTrue(result['passed'], result)
+        for category in ('hp', 'cp', 'regen', 'missing_start', 'missing_cancel', 'duplicate_cancel', 'life', 'result'):
+            with self.subTest(category=category):
+                altered = copy.deepcopy(rows)
+                for row in altered:
+                    if category == 'regen' and row['kind'] == 'regen_pulse' and row['entity'] == observer:
+                        row['data']['amounts']['hp_q'] += 1
+                    if row['kind'] != 'observer_combat' or row['entity'] != observer:
+                        continue
+                    events = row['data']['events']
+                    for e in list(events):
+                        if e['type'] == 'stats_changed' and e['tick'] > 20:
+                            if category == 'hp': e['hp'] -= 1
+                            if category == 'cp': e['class']['cp'] -= 1
+                            if category == 'life': e['class']['phase3']['incarnation'] += 1
+                        if category == 'missing_start' and e['type'] == 'skill_cast_started': events.remove(e)
+                        if e['type'] == 'skill_cast_cancelled':
+                            if category == 'missing_cancel': events.remove(e)
+                            if category == 'duplicate_cancel': events.append(copy.deepcopy(e))
+                            if category == 'result':
+                                fake = copy.deepcopy(e);fake['type'] = 'skill_cast_result';events.append(fake)
+                self.assertFalse(self.check('peace_cancel_no_damage', observer, altered, recording)['passed'])
 
     def test_actual_export_is_deterministic_and_all_categories_are_retained(self):
         second = self.root / 'second.jsonl'
