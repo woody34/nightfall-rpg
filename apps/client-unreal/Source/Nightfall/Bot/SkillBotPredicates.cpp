@@ -65,32 +65,6 @@ void SkillBotPredicates::Register(FBotPredicateRegistry& R)
  R.Register({TEXT("entity_not_in_view"),TEXT("entity_not_in_view <uuid>"),TEXT("Previously known identity departed in this transport"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
  {if(A.Num()!=1 || !EntityArg(A[0])){Error=TEXT("needs an entity");return nullptr;}return [Arg=A[0]](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->NotInView(Entity(C,Arg)):TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("departed")):FString(TEXT("visible"))):FString(TEXT("unknown: no witnessed departure"))};};}});
 
- // Register the handoff grammar without inventing missing authoritative evidence.
- for (const FString& Name : {FString(TEXT("regen_pulses")),FString(TEXT("moving_regen_pulses")),FString(TEXT("regen_matches_oracle")),FString(TEXT("moving_regen_matches_oracle")),FString(TEXT("death_record_matches_fixture")),FString(TEXT("death_record_matches_before_disconnect")),FString(TEXT("restore_did_not_reapply_hooks")),FString(TEXT("skill_hate_outcome_coherent")),FString(TEXT("skill_damage_matches_oracle")),FString(TEXT("skill_effect_matches_oracle")),FString(TEXT("stat_matches_oracle")),FString(TEXT("resurrect_refund_matches_oracle"))})
-  R.Register({Name,Name,TEXT("Wire/actor evidence blocked; always UNKNOWN"),[Name](const TArray<FString>& A,FString& Error)->FBotPredicateFn
-  {
-   const bool Numeric=Name==TEXT("regen_pulses") || Name==TEXT("moving_regen_pulses");
-   const bool Skill=Name==TEXT("skill_damage_matches_oracle") || Name==TEXT("skill_effect_matches_oracle");
-   uint64 N=0;uint32 I=0;
-   if(Numeric?A.Num()!=2 || !Operator(A[0]) || !SkillBotPredicates::ParseUnsigned(A[1],N):Skill?A.Num()!=1 || !Id(A[0],I):!A.IsEmpty()){Error=TEXT("invalid evidence predicate arguments");return nullptr;}
-   return [Name](const FBotContext&)->FBotPredicateValue
-   {
-    if(Name==TEXT("regen_pulses")) return {false,TEXT("unknown: regen pulse/cause is absent from the wire")};
-    if(Name==TEXT("moving_regen_pulses")) return {false,TEXT("unknown: regen pulse/movement cause is absent from the wire")};
-    if(Name==TEXT("regen_matches_oracle")) return {false,TEXT("unknown: regen pulse inputs/cause are absent from the wire")};
-    if(Name==TEXT("moving_regen_matches_oracle")) return {false,TEXT("unknown: regen movement branch and pulse inputs are absent from the wire")};
-    if(Name==TEXT("death_record_matches_fixture")) return {false,TEXT("unknown: complete DeathRecord is absent from the wire")};
-    if(Name==TEXT("death_record_matches_before_disconnect")) return {false,TEXT("unknown: complete persisted DeathRecord is absent from the wire")};
-    if(Name==TEXT("restore_did_not_reapply_hooks")) return {false,TEXT("unknown: modifier installation order and periodic phase require actor evidence")};
-    if(Name==TEXT("skill_hate_outcome_coherent")) return {false,TEXT("unknown: full hate ledger and credit inputs require actor evidence")};
-    if(Name==TEXT("skill_damage_matches_oracle")) return {false,TEXT("unknown: exact damage inputs and RNG trace require actor evidence")};
-    if(Name==TEXT("skill_effect_matches_oracle")) return {false,TEXT("unknown: exact effect inputs and RNG trace require actor evidence")};
-    if(Name==TEXT("stat_matches_oracle")) return {false,TEXT("unknown: ordered modifiers and base stat inputs require actor evidence")};
-    if(Name==TEXT("resurrect_refund_matches_oracle")) return {false,TEXT("unknown: stored death loss and restore-percent inputs are absent from the wire")};
-    return {false,TEXT("unknown: no authoritative evidence")};
-   };
-  }});
-
  R.Register({TEXT("cancelled_cast_costs_retained"),TEXT("cancelled_cast_costs_retained"),TEXT("Received cancelled cast retains start MP and SkillReuse deadline"),[](const TArray<FString>& A,FString& Error)->FBotPredicateFn
  {if(!A.IsEmpty()){Error=TEXT("takes no arguments");return nullptr;}return [](const FBotContext& C)->FBotPredicateValue{const auto* S=C.GameInstance?C.GameInstance->GetSubsystem<USkillAuditSubsystem>():nullptr;const auto V=S?S->CancelledCostsRetained():TOptional<bool>();return {V.IsSet() && *V,V.IsSet()?(*V?FString(TEXT("retained")):FString(TEXT("refunded or mismatched"))):FString(TEXT("unknown: cancelled cast, catalogue, resource or reuse evidence missing"))};};}});
 
