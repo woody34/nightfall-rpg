@@ -45,6 +45,7 @@ mod phase3_entity;
 pub mod phase4;
 pub mod phase4_admission;
 pub mod phase4_checkpoint;
+pub mod phase4_projection;
 mod progression;
 mod scaled;
 pub mod skill;
@@ -106,8 +107,11 @@ pub use phase3_entity::{
     Phase3Player, PvpState, ResurrectOffer,
 };
 pub use phase4::{Phase4Player, Phase4Snapshot};
-pub use phase4_admission::Phase4PlayerLoad;
+pub use phase4_admission::{
+    ItemCommand, ItemCommandKind, MaterializePendingItems, Phase4PlayerLoad,
+};
 pub use phase4_checkpoint::Phase4Checkpoint;
+pub use phase4_projection::Phase4Projection;
 pub use progression::{add_xp, death_xp_loss, level_for_xp, xp_after_death, xp_cap};
 pub use scaled::{ceil_div, floor_div, isqrt, Scaled, StatError, Q};
 pub use stat_rules::{
@@ -131,12 +135,13 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 59] = [
+    const SOURCES: [(&str, &str); 60] = [
         ("mod.rs", include_str!("mod.rs")),
         ("item.rs", include_str!("item.rs")),
         ("item_rules.rs", include_str!("item_rules.rs")),
         ("item_angles.rs", include_str!("item_angles.rs")),
         ("phase4.rs", include_str!("phase4.rs")),
+        ("phase4_projection.rs", include_str!("phase4_projection.rs")),
         ("phase4_admission.rs", include_str!("phase4_admission.rs")),
         ("phase4_checkpoint.rs", include_str!("phase4_checkpoint.rs")),
         ("evidence.rs", include_str!("evidence.rs")),

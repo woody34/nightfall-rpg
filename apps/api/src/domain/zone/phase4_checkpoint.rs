@@ -5,7 +5,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use super::{EquipSlot, ItemError, ItemInstance, ItemInstanceId, ItemLocation, Tick};
+use super::phase4::ItemReuse;
+use super::{
+    EntityId, EquipSlot, ItemError, ItemInstance, ItemInstanceId, ItemLocation, Phase3Snapshot,
+    Phase4Player, Phase4Snapshot, RestoredModifierSource, RestoredPhase3Timers, Tick,
+};
 
 /// Retained items preserve exact identity, charge, enchant and augmentation scalars.
 pub type RetainedItem = ItemInstance;
@@ -195,7 +199,7 @@ impl Phase4Checkpoint {
                 RetainedEquipmentSource::Phase3(index) => {
                     let index = usize::try_from(*index)
                         .map_err(|_| ItemError("provider index overflow"))?;
-                    if index >= phase3_sources {
+                    if index >= phase3_sources || index != retained_phase3.len() {
                         return Err(ItemError("invalid Phase3 provider index"));
                     }
                     retained_phase3.insert(index);
@@ -421,5 +425,285 @@ mod tests {
             .equipment_install_order
             .push(RetainedEquipmentSource::Phase3(0));
         valid.validate_structure(1).unwrap();
+    }
+}
+
+impl Phase4Snapshot {
+    /// Freeze item state at the same boundary as the Phase3 checkpoint. Timed actions are
+    /// absent offline; retained equipment providers interleave with retained skill sources.
+    pub fn checkpoint(
+        &self,
+        entity: EntityId,
+        tick: Tick,
+        skills: &Phase3Snapshot,
+    ) -> Result<Phase4Checkpoint, ItemError> {
+        let player = self
+            .players
+            .get(&entity)
+            .ok_or(ItemError("missing item owner"))?;
+        let side = skills
+            .entities
+            .get(&entity)
+            .ok_or(ItemError("missing skill owner"))?;
+        let phase3 = skills
+            .checkpoint(entity, tick)
+            .map_err(|_| ItemError("invalid retained skill state"))?;
+        let mut order = BTreeMap::new();
+        let mut index = 0_u32;
+        for (sequence, source) in &side.modifier_install_order {
+            if let RestoredModifierSource::Effect(id) = source {
+                let effect = side
+                    .effects
+                    .entries()
+                    .get(id)
+                    .ok_or(ItemError("orphan skill provider"))?;
+                if effect
+                    .retain(tick)
+                    .map_err(|_| ItemError("invalid retained effect"))?
+                    .is_none()
+                {
+                    continue;
+                }
+            }
+            order.insert(*sequence, RetainedEquipmentSource::Phase3(index));
+            index = index
+                .checked_add(1)
+                .ok_or(ItemError("provider index overflow"))?;
+        }
+        if usize::try_from(index).ok() != Some(phase3.modifier_install_order.len()) {
+            return Err(ItemError("retained skill order mismatch"));
+        }
+        for (sequence, source) in &player.equipment_sources {
+            if order
+                .insert(*sequence, RetainedEquipmentSource::Equipment(source.clone()))
+                .is_some()
+            {
+                return Err(ItemError("duplicate shared provider sequence"));
+            }
+        }
+        let checkpoint = Phase4Checkpoint {
+            schema_version: 1,
+            timer_policy_version: self.timer_policy_version,
+            rules_hash: self.rules_hash,
+            inventory_revision: player.inventory_revision,
+            instances: player.inventory.values().cloned().collect(),
+            paperdoll: player.paperdoll.clone(),
+            auto_shots: player.auto_shots.clone(),
+            item_reuse_remainders: player
+                .item_reuse
+                .iter()
+                .filter_map(|entry| {
+                    entry
+                        .until
+                        .0
+                        .checked_sub(tick.0)
+                        .filter(|left| *left > 0)
+                        .map(|remaining_ticks| RetainedItemReuse {
+                            key: entry.key,
+                            remaining_ticks,
+                        })
+                })
+                .collect(),
+            equipment_install_order: order.into_values().collect(),
+            active_sets: player.active_sets.clone(),
+            weight: player.weight,
+            max_load: player.max_load,
+            weight_penalty_bonus: player.weight_penalty_bonus,
+            overload_level: player.overload_level,
+            overloaded: player.overloaded,
+            expertise: player.expertise,
+            weapon_penalty: player.weapon_penalty,
+            armor_penalty: player.armor_penalty,
+            starter_kit_receipt: Some(player.starter_kit_receipt.clone()),
+        };
+        checkpoint.validate_structure(phase3.modifier_install_order.len())?;
+        Ok(checkpoint)
+    }
+}
+impl Phase4Player {
+    /// Combine staged skill restoration and equipment into ONE new shared sequence range.
+    /// The caller supplies the original allocation cursor, before staged Phase3 restoration.
+    /// Neither a rejected plan nor cold reconstruction publishes intermediate sequences.
+    pub fn restore(
+        checkpoint: &Phase4Checkpoint,
+        timers: &RestoredPhase3Timers,
+        admission: Tick,
+        first_sequence: u64,
+    ) -> Result<(Self, RestoredPhase3Timers), ItemError> {
+        let phase3_sources: Vec<_> = timers.modifier_install_order.values().cloned().collect();
+        checkpoint.validate_structure(phase3_sources.len())?;
+        let receipt = checkpoint
+            .starter_kit_receipt
+            .clone()
+            .ok_or(ItemError("unmaterialized starter kit"))?;
+        let mut expected = first_sequence;
+        for sequence in timers.modifier_install_order.keys() {
+            if *sequence != expected {
+                return Err(ItemError("staged Phase3 allocation mismatch"));
+            }
+            expected = expected
+                .checked_add(1)
+                .ok_or(ItemError("provider sequence overflow"))?;
+        }
+        if first_sequence == 0 || timers.next_install_sequence != expected {
+            return Err(ItemError("staged Phase3 allocation mismatch"));
+        }
+        let mut rebuilt = timers.clone();
+        rebuilt.modifier_install_order.clear();
+        let mut equipment_sources = BTreeMap::new();
+        let mut next = first_sequence;
+        for source in &checkpoint.equipment_install_order {
+            let following = next
+                .checked_add(1)
+                .ok_or(ItemError("provider sequence overflow"))?;
+            match source {
+                RetainedEquipmentSource::Phase3(index) => {
+                    let source = phase3_sources
+                        .get(
+                            usize::try_from(*index)
+                                .map_err(|_| ItemError("provider index overflow"))?,
+                        )
+                        .ok_or(ItemError("unknown retained skill provider"))?;
+                    rebuilt.modifier_install_order.insert(next, source.clone());
+                },
+                RetainedEquipmentSource::Equipment(source) => {
+                    equipment_sources.insert(next, source.clone());
+                },
+            }
+            next = following;
+        }
+        rebuilt.next_install_sequence = next;
+        let item_reuse = checkpoint
+            .restore_reuse(admission)?
+            .into_iter()
+            .map(|(key, until)| ItemReuse { key, until })
+            .collect();
+        Ok((
+            Self {
+                inventory: checkpoint
+                    .instances
+                    .iter()
+                    .map(|item| (item.id, item.clone()))
+                    .collect(),
+                paperdoll: checkpoint.paperdoll.clone(),
+                auto_shots: checkpoint.auto_shots.clone(),
+                item_reuse,
+                equipment_sources,
+                active_sets: checkpoint.active_sets.clone(),
+                weight: checkpoint.weight,
+                max_load: checkpoint.max_load,
+                weight_penalty_bonus: checkpoint.weight_penalty_bonus,
+                overload_level: checkpoint.overload_level,
+                overloaded: checkpoint.overloaded,
+                expertise: checkpoint.expertise,
+                weapon_penalty: checkpoint.weapon_penalty,
+                armor_penalty: checkpoint.armor_penalty,
+                starter_kit_receipt: receipt,
+                inventory_revision: checkpoint.inventory_revision,
+            },
+            rebuilt,
+        ))
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod player_tests {
+    use super::super::effects::EffectList;
+    use super::super::phase4_checkpoint::{EquipmentSourceKey, ItemReuseKey, StarterKitReceipt};
+    use super::super::skill::{SkillId, SkillRef};
+    use super::*;
+    use std::collections::BTreeSet;
+
+    // Ordering fixture only: catalogue/fold eligibility is covered by live admission tests.
+    fn checkpoint() -> Phase4Checkpoint {
+        Phase4Checkpoint {
+            schema_version: 1,
+            timer_policy_version: 1,
+            rules_hash: [1; 32],
+            inventory_revision: 1,
+            instances: Vec::new(),
+            paperdoll: BTreeMap::new(),
+            auto_shots: BTreeSet::new(),
+            item_reuse_remainders: vec![RetainedItemReuse {
+                key: ItemReuseKey::SharedGroup(9),
+                remaining_ticks: 7,
+            }],
+            equipment_install_order: vec![
+                RetainedEquipmentSource::Equipment(EquipmentSourceKey::Overload),
+                RetainedEquipmentSource::Phase3(0),
+                RetainedEquipmentSource::Equipment(EquipmentSourceKey::GradePenalty {
+                    weapon: true,
+                }),
+                RetainedEquipmentSource::Phase3(1),
+            ],
+            active_sets: BTreeMap::new(),
+            weight: 0,
+            max_load: 1000,
+            weight_penalty_bonus: 1,
+            overload_level: 1,
+            overloaded: true,
+            expertise: 0,
+            weapon_penalty: 1,
+            armor_penalty: 0,
+            starter_kit_receipt: Some(StarterKitReceipt {
+                manifest_version: 1,
+                manifest_hash: [2; 32],
+                source_class: crate::domain::class::ClassId(0),
+                request_id: uuid::Uuid::from_u128(1),
+                materialized_revision: 1,
+            }),
+        }
+    }
+    fn timers(first: u64) -> RestoredPhase3Timers {
+        RestoredPhase3Timers {
+            flag_until: None,
+            reuse: BTreeMap::new(),
+            effects: EffectList::default(),
+            modifier_install_order: BTreeMap::from([
+                (
+                    first,
+                    RestoredModifierSource::Passive(SkillRef {
+                        id: SkillId(239),
+                        rank: 1,
+                    }),
+                ),
+                (first.checked_add(1).unwrap(), RestoredModifierSource::DeathPenalty),
+            ]),
+            next_effect_id: 1,
+            next_install_sequence: first.checked_add(2).unwrap(),
+        }
+    }
+    #[test]
+    fn restoration_interleaves_once_and_preserves_history_and_paused_reuse() {
+        let old = timers(100);
+        let (items, skills) = Phase4Player::restore(&checkpoint(), &old, Tick(500), 100).unwrap();
+        assert_eq!(items.equipment_sources.keys().copied().collect::<Vec<_>>(), vec![100, 102]);
+        assert_eq!(
+            skills
+                .modifier_install_order
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![101, 103]
+        );
+        assert_eq!(skills.next_install_sequence, 104);
+        assert_eq!(items.item_reuse.first().unwrap().until, Tick(507));
+        assert!(items.overloaded);
+        assert_eq!(items.overload_level, 1);
+        assert_eq!(old, timers(100));
+    }
+    #[test]
+    fn failed_restore_never_mutates_staged_skills_and_rejects_reordered_phase3() {
+        let old = timers(u64::MAX - 2);
+        assert!(Phase4Player::restore(&checkpoint(), &old, Tick(0), u64::MAX - 2).is_err());
+        assert_eq!(old, timers(u64::MAX - 2));
+        let old = timers(100);
+        let mut bad = checkpoint();
+        bad.equipment_install_order.swap(1, 3);
+        assert!(Phase4Player::restore(&bad, &old, Tick(0), 100).is_err());
+        assert!(Phase4Player::restore(&checkpoint(), &old, Tick(u64::MAX), 100).is_err());
+        assert!(Phase4Player::restore(&checkpoint(), &old, Tick(0), 99).is_err());
+        assert_eq!(old, timers(100));
     }
 }

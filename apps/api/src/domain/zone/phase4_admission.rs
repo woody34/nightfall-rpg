@@ -220,3 +220,341 @@ mod tests {
         assert!(load.validate_structure(0).is_err());
     }
 }
+
+/// Normalized owner item intent. Every scalar is client input until zone preflight has
+/// checked ownership, capability and state; no client supplies costs, stats or RNG.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
+#[allow(missing_docs)]
+pub enum ItemCommandKind {
+    Equip {
+        instance: super::ItemInstanceId,
+        preferred_slot: Option<super::EquipSlot>,
+    },
+    Unequip {
+        slot: super::EquipSlot,
+    },
+    Use {
+        instance: super::ItemInstanceId,
+        target: Option<super::effects::TargetBinding>,
+    },
+    Destroy {
+        instance: super::ItemInstanceId,
+        count: u64,
+    },
+    Enchant {
+        scroll: super::ItemInstanceId,
+        target: super::ItemInstanceId,
+        support: Option<super::ItemInstanceId>,
+    },
+    ToggleAutoShot {
+        template: u32,
+        enabled: bool,
+    },
+    Refine {
+        npc: super::effects::TargetBinding,
+        target: super::ItemInstanceId,
+        stone: super::ItemInstanceId,
+    },
+    CancelRefine {
+        npc: super::effects::TargetBinding,
+        target: super::ItemInstanceId,
+    },
+    ExchangeSpecialAbility {
+        npc: super::effects::TargetBinding,
+        target: super::ItemInstanceId,
+        recipe: u64,
+    },
+    Crystallize {
+        instance: super::ItemInstanceId,
+    },
+}
+
+/// Actor preflight supplies account identity after checking the session generation. The
+/// wire decoder creates an unauthenticated intent; only an enriched command is recorded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemCommand {
+    pub entity: super::EntityId,
+    pub request_id: uuid::Uuid,
+    pub kind: ItemCommandKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    account: Option<crate::domain::AccountId>,
+}
+impl ItemCommand {
+    /// Transport-independent shape validation. Gameplay checks still run in the zone.
+    pub fn new(
+        entity: super::EntityId,
+        request_id: uuid::Uuid,
+        kind: ItemCommandKind,
+    ) -> Result<Self, ItemError> {
+        let command = Self {
+            entity,
+            request_id,
+            kind,
+            account: None,
+        };
+        command.validate_shape()?;
+        Ok(command)
+    }
+
+    /// Enrich once with the authenticated owner; retries may only retain the same account.
+    pub fn with_account(mut self, account: crate::domain::AccountId) -> Result<Self, ItemError> {
+        self.validate_shape()?;
+        if self.account.is_some_and(|old| old != account) {
+            return Err(ItemError("item command account mismatch"));
+        }
+        self.account = Some(account);
+        Ok(self)
+    }
+
+    /// Durable command validation requires authenticated context, unlike WS decoding.
+    pub fn authenticated_account(&self) -> Result<crate::domain::AccountId, ItemError> {
+        self.validate_shape()?;
+        self.account
+            .ok_or(ItemError("item command lacks authenticated account"))
+    }
+
+    /// Hash the complete normalized body and owner, excluding receipt key/transport seq.
+    /// Account scope belongs to the receipt repository and is retained in the envelope.
+    pub fn fingerprint(&self) -> Result<[u8; 32], ItemError> {
+        self.authenticated_account()?;
+        let value = serde_json::to_value((self.entity, &self.kind))
+            .map_err(|_| ItemError("item command encoding failed"))?;
+        let bytes = serde_json::to_vec(&sort_manifest(value))
+            .map_err(|_| ItemError("item command encoding failed"))?;
+        let mut hash = Sha256::new();
+        hash.update(b"nightfall.item.request.1\0");
+        hash.update(bytes);
+        Ok(hash.finalize().into())
+    }
+
+    /// Also called after typed replay decoding, so derived serde cannot bypass shape guards.
+    pub fn validate_shape(&self) -> Result<(), ItemError> {
+        if self.request_id.is_nil() {
+            return Err(ItemError("empty item request identity"));
+        }
+        match &self.kind {
+            ItemCommandKind::Destroy { count, .. }
+                if *count == 0 || i64::try_from(*count).is_err() =>
+            {
+                Err(ItemError("item count outside positive bigint"))
+            },
+            ItemCommandKind::ToggleAutoShot { template, .. }
+                if *template == 0 || i32::try_from(*template).is_err() =>
+            {
+                Err(ItemError("invalid item template"))
+            },
+            ItemCommandKind::ExchangeSpecialAbility { recipe, .. }
+                if *recipe == 0 || i64::try_from(*recipe).is_err() =>
+            {
+                Err(ItemError("invalid item recipe"))
+            },
+            ItemCommandKind::Enchant {
+                scroll,
+                target,
+                support,
+            } if scroll == target || support.is_some_and(|id| id == *scroll || id == *target) => {
+                Err(ItemError("item roles must be distinct"))
+            },
+            ItemCommandKind::Refine { target, stone, .. } if target == stone => {
+                Err(ItemError("item roles must be distinct"))
+            },
+            ItemCommandKind::Equip { .. }
+            | ItemCommandKind::Unequip { .. }
+            | ItemCommandKind::Use { .. }
+            | ItemCommandKind::Destroy { .. }
+            | ItemCommandKind::Enchant { .. }
+            | ItemCommandKind::ToggleAutoShot { .. }
+            | ItemCommandKind::Refine { .. }
+            | ItemCommandKind::CancelRefine { .. }
+            | ItemCommandKind::ExchangeSpecialAbility { .. }
+            | ItemCommandKind::Crystallize { .. } => Ok(()),
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod command_tests {
+    use super::super::ItemInstanceId;
+    use super::*;
+    use crate::domain::AccountId;
+
+    fn command(count: u64, key: u128) -> ItemCommand {
+        ItemCommand::new(
+            super::super::EntityId::from_uuid(uuid::Uuid::from_u128(1)),
+            uuid::Uuid::from_u128(key),
+            ItemCommandKind::Destroy {
+                instance: ItemInstanceId::new(7).unwrap(),
+                count,
+            },
+        )
+        .unwrap()
+    }
+    #[test]
+    fn account_is_injected_once_and_request_keys_do_not_change_body_fingerprint() {
+        let account = AccountId::from_uuid(uuid::Uuid::from_u128(2));
+        let input = command(2, 3);
+        assert!(input.authenticated_account().is_err());
+        assert!(input.fingerprint().is_err());
+        let authenticated = input.with_account(account).unwrap();
+        let retry = command(2, 4).with_account(account).unwrap();
+        assert_eq!(authenticated.fingerprint().unwrap(), retry.fingerprint().unwrap());
+        assert_ne!(
+            authenticated.fingerprint().unwrap(),
+            command(3, 3)
+                .with_account(account)
+                .unwrap()
+                .fingerprint()
+                .unwrap()
+        );
+        assert_eq!(authenticated.clone().with_account(account).unwrap(), authenticated);
+        assert!(authenticated
+            .clone()
+            .with_account(AccountId::from_uuid(uuid::Uuid::from_u128(9)))
+            .is_err());
+        let decoded: ItemCommand =
+            serde_json::from_slice(&serde_json::to_vec(&authenticated).unwrap()).unwrap();
+        assert_eq!(decoded, authenticated);
+        assert_eq!(decoded.authenticated_account().unwrap(), account);
+    }
+    #[test]
+    fn decoded_invalid_roles_counts_and_keys_are_rejected_before_recording() {
+        let instance = ItemInstanceId::new(7).unwrap();
+        let cases = [
+            ItemCommandKind::Destroy { instance, count: 0 },
+            ItemCommandKind::Destroy {
+                instance,
+                count: u64::MAX,
+            },
+            ItemCommandKind::Enchant {
+                scroll: instance,
+                target: instance,
+                support: None,
+            },
+            ItemCommandKind::ToggleAutoShot {
+                template: 0,
+                enabled: true,
+            },
+            ItemCommandKind::ExchangeSpecialAbility {
+                npc: super::super::effects::TargetBinding {
+                    entity: super::super::EntityId::from_uuid(uuid::Uuid::from_u128(8)),
+                    incarnation: 1,
+                },
+                target: instance,
+                recipe: 0,
+            },
+        ];
+        for kind in cases {
+            let mut invalid = command(1, 3);
+            invalid.kind = kind;
+            let decoded: ItemCommand =
+                serde_json::from_value(serde_json::to_value(&invalid).unwrap()).unwrap();
+            assert!(decoded.validate_shape().is_err());
+        }
+        let mut invalid = command(1, 3);
+        invalid.request_id = uuid::Uuid::nil();
+        assert!(invalid.validate_shape().is_err());
+    }
+}
+
+/// Server-only out-of-world materialization input (D30). The repository supplies a full
+/// fenced load; the zone settles privately without creating a session or public entity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct MaterializePendingItems {
+    pub account: crate::domain::AccountId,
+    pub character: crate::domain::CharacterId,
+    pub position: super::Vec2Fixed,
+    pub load: Box<super::PlayerLoad>,
+    pub items: Phase4PlayerLoad,
+}
+impl MaterializePendingItems {
+    /// Preflight requires the authoritative parent revision and both skill/item payloads.
+    /// Runtime additionally checks rule hashes, lineage, bounds, inventory and source fold.
+    pub fn validate_structure(&self) -> Result<(), ItemError> {
+        if self
+            .load
+            .checkpoint_revision
+            .is_none_or(|revision| i64::try_from(revision).is_err())
+            || self
+                .load
+                .progression
+                .as_ref()
+                .is_none_or(|p| p.identity.account_id != self.account)
+            || self.items.pending.is_empty()
+        {
+            return Err(ItemError("unfenced private materialization load"));
+        }
+        let phase3 = self
+            .load
+            .phase3
+            .as_ref()
+            .ok_or(ItemError("private materialization requires skills"))?;
+        self.items
+            .validate_structure(phase3.modifier_install_order.len())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod materialization_tests {
+    use super::*;
+    #[test]
+    fn private_input_requires_owner_revision_skills_and_pending_contents() {
+        let account = crate::domain::AccountId::from_uuid(uuid::Uuid::from_u128(1));
+        let materialization = ItemMaterialization::Starter(ItemKitManifest {
+            source_class_id: ClassId(0),
+            items: vec![StarterKitSeed {
+                template_id: 1,
+                count: 1,
+                equipped: true,
+            }],
+        });
+        let mut load = super::super::PlayerLoad::fresh("human_fighter");
+        load.phase3 = Some(super::super::Phase3Checkpoint::new());
+        load.checkpoint_revision = Some(1);
+        load.progression = Some(Box::new(super::super::PlayerProgression {
+            identity: crate::domain::character_progression::CharacterIdentity {
+                account_id: account,
+                race: crate::domain::Race::Human,
+                base_class_id: ClassId(0),
+                appearance: crate::domain::character_progression::CharacterAppearance::default(),
+            },
+            class_state: crate::domain::character_progression::ClassState::new(ClassId(0)),
+            max_cp: 1,
+        }));
+        let command = MaterializePendingItems {
+            account,
+            character: crate::domain::CharacterId::from_uuid(uuid::Uuid::from_u128(2)),
+            position: super::super::Vec2Fixed::from_tiles(128, 128),
+            load: Box::new(load),
+            items: Phase4PlayerLoad {
+                checkpoint: None,
+                pending: vec![PendingItemMaterialization {
+                    request_id: uuid::Uuid::from_u128(3),
+                    request_fingerprint: "source-pending-body".into(),
+                    manifest_version: 1,
+                    manifest_hash: materialization.manifest_hash().unwrap(),
+                    materialization,
+                }],
+            },
+        };
+        command.validate_structure().unwrap();
+        let mut wrong = command.clone();
+        wrong.account = crate::domain::AccountId::from_uuid(uuid::Uuid::from_u128(9));
+        assert!(wrong.validate_structure().is_err());
+        let mut wrong = command.clone();
+        wrong.load.checkpoint_revision = None;
+        assert!(wrong.validate_structure().is_err());
+        let mut wrong = command.clone();
+        wrong.load.phase3 = None;
+        assert!(wrong.validate_structure().is_err());
+        let mut wrong = command;
+        wrong.items.pending.clear();
+        assert!(wrong.validate_structure().is_err());
+    }
+}
