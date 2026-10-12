@@ -1054,3 +1054,157 @@ async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction
         assert!(work.validate_events(&cp, &duplicate).is_err());
     }
 }
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // Real log/write barrier, lost acknowledgement, subsequent mutation and scoped retry.
+async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_baseline() {
+    use crate::application::zone_actor::TickOutcome;
+    use crate::domain::zone::{ItemGrantCommand, RejectReason, ZoneEvent};
+    let mut h = Harness::new().await;
+    let command = ItemGrantCommand {
+        entity: h.entity,
+        account: h.account,
+        request_id: Uuid::from_u128(5001),
+        template_id: 57,
+        count: 10,
+        fingerprint: crate::application::ports::grant_item_fingerprint(
+            CharacterId::from_uuid(h.entity.as_uuid()),
+            57,
+            10,
+        ),
+        rules_hash: h.state.snapshot().phase4.unwrap().rules_hash,
+        paused: None,
+        known: None,
+        conflict: None,
+    };
+    let writer = Arc::new(FlakyItems::new(h.repo.clone(), true, false));
+    h.service.item_repo = Some(writer.clone());
+    let (handle, driver, baseline, log) = receipt_actor(h.state, h.service).await;
+    let mut outputs = handle.subscribe();
+    let mut reply = handle.enqueue_grant_item(command.clone()).await.unwrap();
+    let mut duplicate = handle.enqueue_grant_item(command.clone()).await.unwrap();
+    let stepping = tokio::spawn(async move { (driver.step().await.unwrap(), driver) });
+    tokio::time::timeout(Duration::from_secs(10), writer.entered.notified())
+        .await
+        .unwrap();
+    assert!(matches!(
+        reply.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+    ));
+    assert!(matches!(
+        duplicate.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+    ));
+    assert!(outputs.try_recv().is_err());
+    assert!(h.repo.item_ledger_for_test().is_empty());
+    let mut records = log
+        .read_epoch(baseline.seed.zone, baseline.seed.epoch)
+        .await
+        .unwrap();
+    let first = records.next().await.unwrap().unwrap();
+    assert!(matches!(first.commands[0].command, ZoneCommand::MaterializePendingItems(_)));
+    writer.released.notify_one();
+    let (outcome, driver) = stepping.await.unwrap();
+    assert_eq!(outcome, TickOutcome::Ran(baseline.tick));
+    let original = reply.await.unwrap().unwrap();
+    assert_eq!(duplicate.await.unwrap().unwrap(), original);
+    assert_eq!(original.inventory.as_ref().unwrap().character_revision, 2);
+    assert_eq!(
+        original
+            .inventory
+            .as_ref()
+            .unwrap()
+            .checkpoint
+            .instances
+            .iter()
+            .find(|i| i.template_id == 57)
+            .unwrap()
+            .count,
+        10
+    );
+    outputs.recv().await.unwrap();
+    {
+        let attempts = writer.attempts.lock();
+        assert_eq!(attempts.len(), 2);
+        assert_eq!(attempts[0], attempts[1]);
+    }
+    assert_eq!(h.repo.item_ledger_for_test().len(), 1);
+    let mut next = command.clone();
+    next.request_id = Uuid::from_u128(5002);
+    next.count = 3;
+    next.fingerprint = crate::application::ports::grant_item_fingerprint(
+        CharacterId::from_uuid(h.entity.as_uuid()),
+        57,
+        3,
+    );
+    let later = handle.enqueue_grant_item(next).await.unwrap();
+    driver.step().await.unwrap();
+    let later = later.await.unwrap().unwrap();
+    assert_eq!(
+        later
+            .inventory
+            .unwrap()
+            .checkpoint
+            .instances
+            .iter()
+            .find(|i| i.template_id == 57)
+            .unwrap()
+            .count,
+        13
+    );
+    outputs.recv().await.unwrap();
+    let known = handle.enqueue_grant_item(command.clone()).await.unwrap();
+    driver.step().await.unwrap();
+    assert_eq!(known.await.unwrap().unwrap(), original);
+    let recorded = outputs.recv().await.unwrap();
+    let ZoneCommand::MaterializePendingItems(known) = &recorded.commands[0].command else {
+        unreachable!()
+    };
+    assert_eq!(known.known.as_ref().unwrap().result, original.result);
+    assert!(!recorded
+        .events
+        .iter()
+        .any(|event| matches!(event, ZoneEvent::ItemCheckpoint(_))));
+    let mut conflict = command;
+    conflict.count = 11;
+    conflict.fingerprint = crate::application::ports::grant_item_fingerprint(
+        CharacterId::from_uuid(h.entity.as_uuid()),
+        57,
+        11,
+    );
+    let refused = handle.enqueue_grant_item(conflict).await.unwrap();
+    driver.step().await.unwrap();
+    assert!(matches!(
+        refused.await.unwrap(),
+        Err(crate::application::AppError::IdempotencyConflict)
+    ));
+    let recorded = outputs.recv().await.unwrap();
+    assert_eq!(recorded.dispositions[0].reason, RejectReason::ItemOperationConflict);
+    let ZoneCommand::MaterializePendingItems(conflict) = &recorded.commands[0].command else {
+        unreachable!()
+    };
+    assert_eq!(conflict.conflict.as_ref(), Some(&original.fingerprint));
+    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    drop(driver);
+    handle.stopped().await;
+    assert!(!handle.persistence_failed());
+}
+
+#[tokio::test]
+async fn recorded_grant_unavailable_before_receipt_reads_without_durable_gate() {
+    use crate::application::zone_actor::{manual_ticks, ZoneActor};
+    let mut h = Harness::new().await;
+    let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
+    h.service.item_repo = Some(writer.clone());
+    let (ticks, driver) = manual_ticks();
+    let handle = ZoneActor::spawn(h.state, ticks);
+    handle.checkpoints.install(h.service);
+    assert!(matches!(
+        handle.item_grants_available().await,
+        Err(crate::application::AppError::Unavailable(_))
+    ));
+    assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 0);
+    assert!(h.repo.item_ledger_for_test().is_empty());
+    drop(driver);
+    handle.stopped().await;
+}

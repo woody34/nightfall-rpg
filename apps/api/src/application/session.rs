@@ -34,6 +34,9 @@
 //!   the zone refuses it if a newer session owns the entity, so a stale socket can never remove
 //!   its replacement.
 
+#[path = "session_item_grants.rs"]
+mod item_grants;
+
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::sync::Arc;

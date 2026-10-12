@@ -14,6 +14,9 @@ pub struct ItemGrantRequest {
     pub rules_hash: [u8; 32],
 }
 
+/// Pending reply completed by the zone after durable log and checkpoint acknowledgement.
+pub type ItemGrantReply = tokio::sync::oneshot::Receiver<Result<ItemMutationReceipt, AppError>>;
+
 /// The implementation serializes online/offline grants with lifecycle transitions (D30).
 #[async_trait::async_trait]
 pub trait ItemGrantRuntime: Send + Sync {

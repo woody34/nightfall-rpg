@@ -25,6 +25,9 @@
 //! from the state, `server_time_ms` from the zone's time origin. The one clock read is a
 //! monotonic `Instant` around the tick body that feeds [`TickStats::duration_micros`] only.
 
+#[path = "zone_actor_grants.rs"]
+mod grants;
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::future::Future;
 use std::sync::Arc;
@@ -287,6 +290,7 @@ struct Queued {
 
 #[derive(Debug)]
 enum MutationReply {
+    Grant(oneshot::Sender<Result<super::ports::ItemMutationReceipt, super::AppError>>),
     Transfer(
         oneshot::Sender<
             Result<crate::domain::character_progression::FrozenTransferResult, super::AppError>,
@@ -304,6 +308,9 @@ impl MutationReply {
             Self::Learn(reply) => {
                 let _ = reply.send(Err(error));
             },
+            Self::Grant(reply) => {
+                let _ = reply.send(Err(error));
+            },
         }
     }
 }
@@ -311,6 +318,7 @@ impl MutationReply {
 /// Cheap, cloneable access to a running zone.
 #[derive(Debug, Clone)]
 pub struct ZoneHandle {
+    phase4_durable: bool,
     phase2: bool,
     phase3: bool,
     admission_policy: Option<RecordAdmissionPolicy>,
@@ -633,6 +641,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
         let paused = gate.paused();
+        let phase4_durable = !invalid_policy && state.phase4_enabled() && gate.durable();
         let phase2 = state.has_classes();
         let phase3 = state.phase3_enabled();
         let audit_seed = state.seed();
@@ -665,6 +674,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         tokio::spawn(actor.run());
         ZoneHandle {
+            phase4_durable,
             phase2,
             phase3,
             admission_policy,
@@ -860,7 +870,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 return TickOutcome::Held(tick);
             }
         }
-        self.complete_replies(&record);
+        self.complete_replies(&record).await;
         if !record.is_idle() {
             // No subscribers is fine: nobody is connected yet.
             let _ = self.out.send(record);
@@ -880,6 +890,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     async fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
         let admitted = loop {
             let selected = self.select_admitted();
+            if self.preflight_grants(&selected).await? {
+                continue;
+            }
             if self.preflight_items(&selected).await? {
                 continue;
             }
@@ -956,10 +969,10 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                             MutationReply::Transfer(reply) => {
                                 let _ = reply.send(result);
                             },
-                            MutationReply::Learn(reply) => {
-                                let _ = reply.send(Err(super::AppError::Unavailable(
+                            other @ (MutationReply::Learn(_) | MutationReply::Grant(_)) => {
+                                other.fail(super::AppError::Unavailable(
                                     "invalid RPC envelope".into(),
-                                )));
+                                ));
                             },
                         }
                     }
@@ -1202,10 +1215,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                         MutationReply::Learn(reply) => {
                             let _ = reply.send(result);
                         },
-                        MutationReply::Transfer(reply) => {
-                            let _ = reply.send(Err(super::AppError::Unavailable(
-                                "invalid RPC envelope".into(),
-                            )));
+                        other @ (MutationReply::Transfer(_) | MutationReply::Grant(_)) => {
+                            other.fail(super::AppError::Unavailable("invalid RPC envelope".into()));
                         },
                     }
                 }
@@ -1268,7 +1279,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             // same player's final save. Otherwise Respawn + disconnect in one draft could
             // remove the entity before its progression delta is emitted.
             if checkpoints {
-                if let crate::domain::zone::ZoneCommand::Despawn { entity }
+                if let crate::domain::zone::ZoneCommand::SpawnPlayer { entity, .. }
+                | crate::domain::zone::ZoneCommand::Despawn { entity }
                 | crate::domain::zone::ZoneCommand::ReplaceSession { entity, .. } =
                     queued.input.command
                 {
@@ -1353,11 +1365,15 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     }
 
     #[allow(clippy::wildcard_enum_match_arm)] // Search only this private success fact; other facts do not settle RPC replies.
-    fn complete_replies(&mut self, record: &AppliedTick) {
+    async fn complete_replies(&mut self, record: &AppliedTick) {
         for command in &record.commands {
             let Some(reply) = self.replies.remove(&command.ordinal) else {
                 continue;
             };
+            if let MutationReply::Grant(reply) = reply {
+                let _ = reply.send(self.committed_grant(record, command).await);
+                continue;
+            }
             if let MutationReply::Learn(reply) = reply {
                 let result = if let Some(d) = record
                     .dispositions
