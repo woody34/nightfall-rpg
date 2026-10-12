@@ -440,12 +440,7 @@ impl CheckpointService {
                 }
             }
         }
-        for event in &tick.events {
-            if let crate::domain::zone::ZoneEvent::ItemCheckpoint(projection) = event {
-                anyhow::ensure!(self.item_repo.is_some() && snapshot.entities.iter().any(|entity| entity.id == projection.entity),
-                    "offline item projection requires its published final core; item lane unavailable");
-            }
-        }
+        self.paused_items(tick, snapshot).await?;
         for event in &tick.events {
             if let crate::domain::zone::ZoneEvent::ClassTransfer { entity, .. }
             | crate::domain::zone::ZoneEvent::TokensReconciled { entity, .. }
@@ -864,6 +859,7 @@ impl CheckpointService {
         self.restore(&stored.snapshot);
         let first_tick = stored.snapshot.tick;
         let mut state = super::replay_log::restore_snapshot(stored.snapshot)?;
+        self.recover_pending().await?;
         let mut records = log.read_epoch(zone, epoch).await?;
         while let Some(record) = records.next().await {
             let record = record?;
@@ -898,19 +894,7 @@ impl CheckpointService {
             required.is_none_or(|tick| state.snapshot().tick > tick),
             "checkpoint recovery history ends before indexed tick {required:?}"
         );
-        // A baseline can itself carry pending critical facts, even without a later record.
-        let pending: Vec<_> = self
-            .players
-            .iter()
-            .filter(|(_, p)| {
-                !p.events.is_empty()
-                    || (p.dirty && p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some()))
-            })
-            .map(|(id, _)| *id)
-            .collect();
-        for entity in pending {
-            self.flush(entity).await?;
-        }
+        self.recover_pending().await?;
         // Ordinary progress may roll back; critical facts have already been checkpointed.
         self.players.clear();
         self.sessions.clear();
@@ -1364,3 +1348,6 @@ fn item_events(
         })
         .collect()
 }
+
+#[path = "checkpoint_paused.rs"]
+pub(crate) mod paused;

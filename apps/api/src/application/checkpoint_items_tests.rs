@@ -1208,3 +1208,6 @@ async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction
         assert!(work.validate_events(&cp, &duplicate).is_err());
     }
 }
+
+#[path = "checkpoint_paused_tests.rs"]
+mod paused_tests;

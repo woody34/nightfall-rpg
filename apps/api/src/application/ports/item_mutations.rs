@@ -209,6 +209,18 @@ impl ItemCheckpointWork {
         self.projection
             .validate_structure(phase3.modifier_install_order.len())
             .map_err(|_| invalid("item_checkpoint_projection"))?;
+        if let Some(core) = &self.projection.paused_core {
+            let expected = crate::application::checkpoint::paused::paused_checkpoint(
+                core,
+                &self.projection,
+                self.zone,
+                self.epoch,
+            )
+            .map_err(CheckpointError::from)?;
+            if &expected != cp {
+                return Err(invalid("item_checkpoint_paused_core"));
+            }
+        }
         if self.projection.entity.as_uuid() != cp.character_id.as_uuid()
             || self.projection.account != owner
             || cp.phase4.as_ref() != Some(&self.projection.checkpoint)
