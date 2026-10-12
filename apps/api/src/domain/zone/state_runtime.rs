@@ -405,8 +405,10 @@ impl ZoneState {
                     p.next_install_sequence,
                 )
                 .map_err(invariant)?;
-            if let Some(items) = load.and_then(|load| load.phase4.as_ref()) {
-                let checkpoint = items.checkpoint.as_ref().ok_or_else(missing)?;
+            if let Some(checkpoint) = load
+                .and_then(|load| load.phase4.as_ref())
+                .and_then(|items| items.checkpoint.as_ref())
+            {
                 let (player, timers) = crate::domain::zone::Phase4Player::restore(
                     checkpoint,
                     &restored,
@@ -451,6 +453,7 @@ impl ZoneState {
         }
         p.next_entity_ordinal = p.next_entity_ordinal.checked_add(1).ok_or_else(missing)?;
         p.entities.insert(id, sidecar);
+        let pending_kit = self.begin_pending_kit_v6(id, load)?;
         if let Some(items) = &mut self.phase4 {
             items
                 .canonical
@@ -458,14 +461,18 @@ impl ZoneState {
                 .insert(id, crate::domain::zone::item_angles::FacingVector::EAST);
             items
                 .canonical
-                .validate_allocations(&items.rules, p)
+                .validate_allocations(
+                    &items.rules,
+                    &self.phase3.as_ref().ok_or_else(missing)?.canonical,
+                )
                 .map_err(invariant)?;
         }
         if let Some(refreshed) = self.refresh_items_for(id).map_err(invariant)? {
             let items = self.phase4.as_ref().ok_or_else(missing)?;
             let phase = self.phase3.as_ref().ok_or_else(missing)?;
-            if items.canonical.players.get(&id) != Some(&refreshed.player)
-                || refreshed.next_sequence != phase.canonical.next_install_sequence
+            if !pending_kit
+                && (items.canonical.players.get(&id) != Some(&refreshed.player)
+                    || refreshed.next_sequence != phase.canonical.next_install_sequence)
             {
                 return Err(missing());
             }
@@ -1175,13 +1182,24 @@ impl ZoneState {
         load: Option<&PlayerLoad>,
     ) -> Result<Vec<ZoneEvent>, RejectReason> {
         let mut candidate = self.clone();
-        let events = candidate.apply(tick, command)?;
-        for event in &events {
-            if let ZoneEvent::EntitySpawn { entity, .. } = event {
-                candidate
-                    .attach_v5(tick, *entity, load)
-                    .map_err(|_| RejectReason::InvalidLoad)?;
-            }
+        let mut events = candidate.apply(tick, command)?;
+        let spawned: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let ZoneEvent::EntitySpawn { entity, .. } = event {
+                    Some(*entity)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for entity in spawned {
+            candidate
+                .attach_v5(tick, entity, load)
+                .map_err(|_| RejectReason::InvalidLoad)?;
+            candidate
+                .materialize_kit_v6(tick, entity, load, &mut events)
+                .map_err(|_| RejectReason::InvalidLoad)?;
         }
         *self = candidate;
         Ok(events)
@@ -1192,13 +1210,12 @@ impl ZoneState {
             load.validate_phase4()
                 .map_err(|_| RejectReason::InvalidLoad)?;
             let retained = load.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
-            if !retained.pending.is_empty() || retained.checkpoint.is_none() {
-                return Err(RejectReason::NotYetImplemented);
-            }
+            self.validate_pending_kit_v6(load)
+                .map_err(|_| RejectReason::InvalidLoad)?;
             if retained
                 .checkpoint
                 .as_ref()
-                .is_none_or(|cp| cp.rules_hash != items.rules.hash())
+                .is_some_and(|cp| cp.rules_hash != items.rules.hash())
             {
                 return Err(RejectReason::InvalidLoad);
             }
