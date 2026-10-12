@@ -36,6 +36,8 @@ pub mod evidence;
 mod fixed;
 pub mod item;
 pub mod item_angles;
+pub mod item_equipment;
+pub mod item_inventory;
 pub mod item_rules;
 mod npc_template;
 mod phase2;
@@ -135,13 +137,15 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 60] = [
+    const SOURCES: [(&str, &str); 62] = [
         ("mod.rs", include_str!("mod.rs")),
         ("item.rs", include_str!("item.rs")),
         ("item_rules.rs", include_str!("item_rules.rs")),
         ("item_angles.rs", include_str!("item_angles.rs")),
         ("phase4.rs", include_str!("phase4.rs")),
         ("phase4_projection.rs", include_str!("phase4_projection.rs")),
+        ("item_inventory.rs", include_str!("item_inventory.rs")),
+        ("item_equipment.rs", include_str!("item_equipment.rs")),
         ("phase4_admission.rs", include_str!("phase4_admission.rs")),
         ("phase4_checkpoint.rs", include_str!("phase4_checkpoint.rs")),
         ("evidence.rs", include_str!("evidence.rs")),

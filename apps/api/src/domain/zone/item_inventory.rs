@@ -1,0 +1,621 @@
+//! Integer inventory staging. The caller publishes only a complete successful plan.
+use super::{
+    ItemError, ItemInstance, ItemInstanceId, ItemInstanceRange, ItemLocation, Phase4Rules, Tick,
+};
+use std::collections::BTreeMap;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct InventoryLimits {
+    ordinary: u32,
+    quest: u32,
+    max_weight: i64,
+}
+impl InventoryLimits {
+    /// Slot ceilings come from the immutable source policy; the effective load getter
+    /// supplies the checked weight ceiling after attributes and modifiers have folded.
+    pub fn from_rules(
+        rules: &Phase4Rules,
+        dwarf: bool,
+        max_weight: i64,
+    ) -> Result<Self, ItemError> {
+        if max_weight < 0 {
+            return Err(ItemError("negative inventory weight capacity"));
+        }
+        let capacities = &rules.parts().capacities;
+        Ok(Self {
+            ordinary: if dwarf {
+                capacities.dwarf_inventory
+            } else {
+                capacities.inventory
+            },
+            quest: capacities.quest_inventory,
+            max_weight,
+        })
+    }
+}
+/// Canonical tick/revision shared by this staged mutation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct InventoryBoundary {
+    pub tick: Tick,
+    pub revision: u64,
+}
+/// Authoritative low-level requests produced by validated commands/cast payments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub enum InventoryEdit {
+    Add {
+        template: u32,
+        count: u64,
+    },
+    TakeInstance {
+        instance: ItemInstanceId,
+        count: u64,
+    },
+    TakeTemplate {
+        template: u32,
+        count: u64,
+        preferred: Option<ItemInstanceId>,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct InventoryChange {
+    pub before: Option<ItemInstance>,
+    pub after: Option<ItemInstance>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct InventoryMutation {
+    pub inventory: BTreeMap<ItemInstanceId, ItemInstance>,
+    pub allocator: ItemInstanceRange,
+    pub changes: Vec<InventoryChange>,
+    pub weight: i64,
+}
+impl InventoryMutation {
+    /// Source inventory size includes equipped items, with a separate quest pool
+    /// (PcInventory.java:772-776,864-868). Composite exchanges pay inputs before outputs.
+    pub fn prepare(
+        inventory: &BTreeMap<ItemInstanceId, ItemInstance>,
+        allocator: ItemInstanceRange,
+        edits: &[InventoryEdit],
+        rules: &Phase4Rules,
+        limits: InventoryLimits,
+        boundary: InventoryBoundary,
+    ) -> Result<Self, ItemError> {
+        let InventoryBoundary { tick, revision } = boundary;
+        if i64::try_from(revision).is_err() || i64::try_from(tick.0).is_err() {
+            return Err(ItemError("inventory revision overflow"));
+        }
+        let (_, _, weight) = inventory_totals(inventory, rules)?;
+        if inventory
+            .values()
+            .any(|item| item.revision > revision || item.created_tick > tick)
+        {
+            return Err(ItemError("inventory revision regressed"));
+        }
+        let mut plan = Self {
+            inventory: inventory.clone(),
+            allocator,
+            changes: Vec::new(),
+            weight,
+        };
+        let mut added = false;
+        for edit in edits {
+            match *edit {
+                InventoryEdit::Add { template, count } => {
+                    plan.add(template, count, rules, limits, boundary)?;
+                    added = true;
+                },
+                InventoryEdit::TakeInstance { instance, count } => {
+                    plan.take(instance, count, revision)?;
+                },
+                InventoryEdit::TakeTemplate {
+                    template,
+                    count,
+                    preferred,
+                } => {
+                    checked_count(count)?;
+                    let mut ids: Vec<_> = plan
+                        .inventory
+                        .values()
+                        .filter(|i| i.template_id == template)
+                        .map(|i| i.id)
+                        .collect();
+                    if let Some(id) = preferred {
+                        if let Some(index) = ids.iter().position(|candidate| *candidate == id) {
+                            ids.remove(index);
+                            ids.insert(0, id);
+                        }
+                    }
+                    let mut remaining = count;
+                    for id in ids {
+                        let amount = plan
+                            .inventory
+                            .get(&id)
+                            .ok_or(ItemError("missing payment item"))?
+                            .count
+                            .min(remaining);
+                        if amount > 0 {
+                            plan.take(id, amount, revision)?;
+                            remaining = remaining
+                                .checked_sub(amount)
+                                .ok_or(ItemError("payment underflow"))?;
+                        }
+                        if remaining == 0 {
+                            break;
+                        }
+                    }
+                    if remaining != 0 {
+                        return Err(ItemError("insufficient item payment"));
+                    }
+                },
+            }
+        }
+        let (ordinary, quest, weight) = inventory_totals(&plan.inventory, rules)?;
+        if added
+            && (ordinary > u64::from(limits.ordinary)
+                || quest > u64::from(limits.quest)
+                || weight > limits.max_weight)
+        {
+            return Err(ItemError("inventory capacity or weight exceeded"));
+        }
+        plan.weight = weight;
+        Ok(plan)
+    }
+    fn add(
+        &mut self,
+        template: u32,
+        count: u64,
+        rules: &Phase4Rules,
+        limits: InventoryLimits,
+        boundary: InventoryBoundary,
+    ) -> Result<(), ItemError> {
+        let InventoryBoundary { tick, revision } = boundary;
+        checked_count(count)?;
+        let definition = rules
+            .parts()
+            .items
+            .get(&template)
+            .ok_or(ItemError("unknown item template"))?;
+        if !rules
+            .parts()
+            .capabilities
+            .get(&template)
+            .is_some_and(|cap| cap.storable)
+        {
+            return Err(ItemError("item storage is deferred"));
+        }
+        if definition.stackable {
+            if let Some(existing) = self
+                .inventory
+                .values()
+                .find(|item| {
+                    item.template_id == template
+                        && item.enchant == 0
+                        && item.augment_id.is_none()
+                        && item.charges == 0
+                })
+                .cloned()
+            {
+                let mut after = existing.clone();
+                after.count = after
+                    .count
+                    .checked_add(count)
+                    .ok_or(ItemError("item count overflow"))?;
+                checked_count(after.count)?;
+                after.revision = revision;
+                self.inventory.insert(after.id, after.clone());
+                self.changes.push(InventoryChange {
+                    before: Some(existing),
+                    after: Some(after),
+                });
+                return Ok(());
+            }
+        }
+        let (ordinary, quest, _) = inventory_totals(&self.inventory, rules)?;
+        let is_quest = definition
+            .flags
+            .get("is_questitem")
+            .copied()
+            .ok_or(ItemError("missing quest classification"))?;
+        let (used, limit) = if is_quest {
+            (quest, limits.quest)
+        } else {
+            (ordinary, limits.ordinary)
+        };
+        let slots = if definition.stackable { 1 } else { count };
+        if used.checked_add(slots).is_none_or(|n| n > u64::from(limit)) {
+            return Err(ItemError("inventory capacity exceeded"));
+        }
+        for _ in 0..slots {
+            let id = self.allocator.allocate()?;
+            let item = ItemInstance {
+                id,
+                template_id: template,
+                count: if definition.stackable { count } else { 1 },
+                location: ItemLocation::Inventory,
+                slot: None,
+                enchant: 0,
+                augment_id: None,
+                charges: 0,
+                created_tick: tick,
+                revision,
+            };
+            if self.inventory.insert(id, item.clone()).is_some() {
+                return Err(ItemError("allocated item identity collision"));
+            }
+            self.changes.push(InventoryChange {
+                before: None,
+                after: Some(item),
+            });
+        }
+        Ok(())
+    }
+    fn take(&mut self, id: ItemInstanceId, count: u64, revision: u64) -> Result<(), ItemError> {
+        checked_count(count)?;
+        let before = self
+            .inventory
+            .get(&id)
+            .ok_or(ItemError("item is not owned"))?
+            .clone();
+        let remaining = before
+            .count
+            .checked_sub(count)
+            .ok_or(ItemError("insufficient item payment"))?;
+        let after = if remaining == 0 {
+            self.inventory.remove(&id);
+            None
+        } else {
+            let mut item = before.clone();
+            item.count = remaining;
+            item.revision = revision;
+            self.inventory.insert(id, item.clone());
+            Some(item)
+        };
+        self.changes.push(InventoryChange {
+            before: Some(before),
+            after,
+        });
+        Ok(())
+    }
+}
+fn checked_count(count: u64) -> Result<(), ItemError> {
+    if count == 0 || i64::try_from(count).is_err() {
+        Err(ItemError("item count outside positive bigint"))
+    } else {
+        Ok(())
+    }
+}
+/// Checked weight and slot totals, with nonstackable cardinality verified from source.
+pub fn inventory_totals(
+    items: &BTreeMap<ItemInstanceId, ItemInstance>,
+    rules: &Phase4Rules,
+) -> Result<(u64, u64, i64), ItemError> {
+    let (mut ordinary, mut quest, mut weight) = (0_u64, 0_u64, 0_i128);
+    for (id, item) in items {
+        item.validate()?;
+        let definition = rules
+            .parts()
+            .items
+            .get(&item.template_id)
+            .ok_or(ItemError("unknown owned template"))?;
+        if !rules
+            .parts()
+            .capabilities
+            .get(&item.template_id)
+            .is_some_and(|cap| cap.storable)
+            || *id != item.id
+            || (!definition.stackable && item.count != 1)
+        {
+            return Err(ItemError("invalid owned item scalar"));
+        }
+        let is_quest = definition
+            .flags
+            .get("is_questitem")
+            .copied()
+            .ok_or(ItemError("missing quest classification"))?;
+        let slots = if is_quest { &mut quest } else { &mut ordinary };
+        *slots = slots
+            .checked_add(1)
+            .ok_or(ItemError("inventory size overflow"))?;
+        weight = weight
+            .checked_add(
+                i128::from(definition.weight)
+                    .checked_mul(i128::from(item.count))
+                    .ok_or(ItemError("inventory weight overflow"))?,
+            )
+            .ok_or(ItemError("inventory weight overflow"))?;
+    }
+    Ok((
+        ordinary,
+        quest,
+        i64::try_from(weight).map_err(|_| ItemError("inventory weight outside bigint"))?,
+    ))
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use crate::infrastructure::item_data::embedded_phase4_bundle;
+
+    fn seed(id: u64, template_id: u32, count: u64) -> ItemInstance {
+        ItemInstance {
+            id: ItemInstanceId::new(id).unwrap(),
+            template_id,
+            count,
+            location: ItemLocation::Inventory,
+            slot: None,
+            enchant: 0,
+            augment_id: None,
+            charges: 0,
+            created_tick: Tick(0),
+            revision: 1,
+        }
+    }
+    fn ordinary(rules: &Phase4Rules) -> InventoryLimits {
+        InventoryLimits::from_rules(rules, false, i64::MAX).unwrap()
+    }
+    #[test]
+    fn merges_lowest_identity_and_pays_preferred_then_id_without_reallocating() {
+        let bundle = embedded_phase4_bundle().unwrap();
+        let rules = &bundle.items;
+        let inventory = [seed(3, 57, 20), seed(7, 57, 30)]
+            .into_iter()
+            .map(|item| (item.id, item))
+            .collect();
+        let range = ItemInstanceRange::new(100, 100, 110).unwrap();
+        let plan = InventoryMutation::prepare(
+            &inventory,
+            range,
+            &[
+                InventoryEdit::Add {
+                    template: 57,
+                    count: 4,
+                },
+                InventoryEdit::TakeTemplate {
+                    template: 57,
+                    count: 35,
+                    preferred: Some(ItemInstanceId::new(7).unwrap()),
+                },
+            ],
+            rules,
+            ordinary(rules),
+            InventoryBoundary {
+                tick: Tick(10),
+                revision: 2,
+            },
+        )
+        .unwrap();
+        assert_eq!(plan.allocator, range);
+        assert_eq!(plan.inventory.len(), 1);
+        assert_eq!(
+            plan.inventory
+                .get(&ItemInstanceId::new(3).unwrap())
+                .unwrap()
+                .count,
+            19
+        );
+        assert_eq!(
+            plan.changes
+                .iter()
+                .map(|c| c.before.as_ref().unwrap().id.get())
+                .collect::<Vec<_>>(),
+            vec![3, 7, 3]
+        );
+        assert_eq!(
+            inventory
+                .get(&ItemInstanceId::new(7).unwrap())
+                .unwrap()
+                .count,
+            30
+        );
+    }
+    #[test]
+    fn every_refusal_preserves_input_and_cursor_including_partial_payment_and_allocation() {
+        let bundle = embedded_phase4_bundle().unwrap();
+        let rules = &bundle.items;
+        let inventory: BTreeMap<_, _> = [seed(3, 57, 20)]
+            .into_iter()
+            .map(|item| (item.id, item))
+            .collect();
+        let original = inventory.clone();
+        let range = ItemInstanceRange::new(100, 100, 101).unwrap();
+        for edits in [
+            vec![InventoryEdit::TakeTemplate {
+                template: 57,
+                count: 21,
+                preferred: None,
+            }],
+            vec![
+                InventoryEdit::TakeInstance {
+                    instance: ItemInstanceId::new(3).unwrap(),
+                    count: 1,
+                },
+                InventoryEdit::Add {
+                    template: 2369,
+                    count: 2,
+                },
+            ],
+            vec![InventoryEdit::Add {
+                template: 57,
+                count: i64::MAX as u64,
+            }],
+            vec![InventoryEdit::Add {
+                template: 2369,
+                count: u64::MAX,
+            }],
+            vec![InventoryEdit::Add {
+                template: u32::MAX,
+                count: 1,
+            }],
+        ] {
+            assert!(InventoryMutation::prepare(
+                &inventory,
+                range,
+                &edits,
+                rules,
+                ordinary(rules),
+                InventoryBoundary {
+                    tick: Tick(10),
+                    revision: 2
+                }
+            )
+            .is_err());
+            assert_eq!(inventory, original);
+            assert_eq!(range.bounds(), (100, 100, 101));
+        }
+    }
+    #[test]
+    fn payment_before_exchange_output_frees_capacity_and_destroy_works_while_overweight() {
+        let bundle = embedded_phase4_bundle().unwrap();
+        let rules = &bundle.items;
+        let item = seed(3, 2369, 1);
+        let inventory = [(item.id, item)].into_iter().collect();
+        let range = ItemInstanceRange::new(100, 100, 110).unwrap();
+        let one_slot = InventoryLimits {
+            ordinary: 1,
+            quest: 1,
+            max_weight: i64::MAX,
+        };
+        let edits = [
+            InventoryEdit::TakeInstance {
+                instance: ItemInstanceId::new(3).unwrap(),
+                count: 1,
+            },
+            InventoryEdit::Add {
+                template: 2369,
+                count: 1,
+            },
+        ];
+        let plan = InventoryMutation::prepare(
+            &inventory,
+            range,
+            &edits,
+            rules,
+            one_slot,
+            InventoryBoundary {
+                tick: Tick(10),
+                revision: 2,
+            },
+        )
+        .unwrap();
+        assert!(plan
+            .inventory
+            .contains_key(&ItemInstanceId::new(100).unwrap()));
+        assert!(!plan
+            .inventory
+            .contains_key(&ItemInstanceId::new(3).unwrap()));
+        assert!(InventoryMutation::prepare(
+            &inventory,
+            range,
+            &[*edits.get(1).unwrap(), *edits.first().unwrap()],
+            rules,
+            one_slot,
+            InventoryBoundary {
+                tick: Tick(10),
+                revision: 2
+            }
+        )
+        .is_err());
+        let zero_weight = InventoryLimits::from_rules(rules, false, 0).unwrap();
+        assert!(InventoryMutation::prepare(
+            &inventory,
+            range,
+            edits.get(..1).unwrap(),
+            rules,
+            zero_weight,
+            InventoryBoundary {
+                tick: Tick(10),
+                revision: 2
+            }
+        )
+        .unwrap()
+        .inventory
+        .is_empty());
+        assert!(InventoryMutation::prepare(
+            &inventory,
+            range,
+            &edits,
+            rules,
+            zero_weight,
+            InventoryBoundary {
+                tick: Tick(10),
+                revision: 2
+            }
+        )
+        .is_err());
+    }
+    #[test]
+    fn arbitrary_counts_conserve_stacks_and_never_wrap() {
+        use proptest::prelude::*;
+        let bundle = embedded_phase4_bundle().unwrap();
+        let rules = &bundle.items;
+        let mut runner = proptest::test_runner::TestRunner::default();
+        runner
+            .run(&(1_u64..=i64::MAX as u64, 1_u64..=i64::MAX as u64), |(initial, addition)| {
+                let inventory = [seed(3, 57, initial)]
+                    .into_iter()
+                    .map(|item| (item.id, item))
+                    .collect();
+                let range = ItemInstanceRange::new(100, 100, 101).unwrap();
+                let result = InventoryMutation::prepare(
+                    &inventory,
+                    range,
+                    &[InventoryEdit::Add {
+                        template: 57,
+                        count: addition,
+                    }],
+                    rules,
+                    ordinary(rules),
+                    InventoryBoundary {
+                        tick: Tick(10),
+                        revision: 2,
+                    },
+                );
+                let sum = u128::from(initial)
+                    .checked_add(u128::from(addition))
+                    .unwrap();
+                if sum > i64::MAX as u128 {
+                    prop_assert!(result.is_err());
+                } else {
+                    let plan = result.unwrap();
+                    prop_assert_eq!(
+                        plan.inventory
+                            .get(&ItemInstanceId::new(3).unwrap())
+                            .unwrap()
+                            .count,
+                        u64::try_from(sum).unwrap()
+                    );
+                    prop_assert_eq!(plan.allocator, range);
+                    let paid = InventoryMutation::prepare(
+                        &plan.inventory,
+                        range,
+                        &[InventoryEdit::TakeTemplate {
+                            template: 57,
+                            count: addition,
+                            preferred: None,
+                        }],
+                        rules,
+                        ordinary(rules),
+                        InventoryBoundary {
+                            tick: Tick(10),
+                            revision: 2,
+                        },
+                    )
+                    .unwrap();
+                    prop_assert_eq!(
+                        paid.inventory
+                            .get(&ItemInstanceId::new(3).unwrap())
+                            .unwrap()
+                            .count,
+                        initial
+                    );
+                }
+                Ok(())
+            })
+            .unwrap();
+    }
+}
