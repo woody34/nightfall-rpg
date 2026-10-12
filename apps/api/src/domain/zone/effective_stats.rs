@@ -488,7 +488,7 @@ fn modifiers(
     Ok(traits)
 }
 
-fn compile_handler(
+pub(super) fn compile_handler(
     functions: &mut Vec<StatFunction>,
     handler: &SkillHandler,
     skill: &SkillDef,
@@ -517,7 +517,7 @@ fn compile_handler(
     Ok(())
 }
 
-fn fold_traits(
+pub(super) fn fold_traits(
     traits: &mut BTreeMap<String, EffectiveTrait>,
     handler: &SkillHandler,
     rank: u32,
@@ -578,6 +578,43 @@ pub fn derive_effective_stats(
 ) -> Result<EffectiveStats, StatError> {
     let mut functions: Vec<_> = builtins.into_iter().collect();
     let traits = modifiers(entity, rules, conditions, &mut functions)?;
+    let flags = entity
+        .effects
+        .status_flags(rules.skills())
+        .map_err(|_| StatError::Overflow)?;
+    finish_effective_stats(
+        base,
+        CompiledModifiers {
+            functions,
+            traits,
+            flags,
+        },
+        rules,
+        limits,
+        conditions,
+    )
+}
+
+/// Reconstructed functions/traits/flags; never canonical persisted state.
+pub(super) struct CompiledModifiers {
+    pub functions: Vec<StatFunction>,
+    pub traits: BTreeMap<String, EffectiveTrait>,
+    pub flags: StatusFlags,
+}
+
+#[allow(clippy::similar_names)]
+pub(super) fn finish_effective_stats(
+    base: &EffectiveStatBases,
+    modifiers: CompiledModifiers,
+    rules: &Phase3Rules,
+    limits: EffectiveStatLimits,
+    conditions: FunctionConditions<'_>,
+) -> Result<EffectiveStats, StatError> {
+    let CompiledModifiers {
+        functions,
+        traits,
+        flags,
+    } = modifiers;
     let calculator = StatCalculator::try_new(functions)?;
     let fold = |stat: &str, initial: i64| calculator.fold(stat, initial, conditions);
     // CharStat.calcStat only clamps <=0, not every positive fraction below one.
@@ -669,10 +706,7 @@ pub fn derive_effective_stats(
         } else {
             0
         },
-        flags: entity
-            .effects
-            .status_flags(rules.skills())
-            .map_err(|_| StatError::Overflow)?,
+        flags,
         traits,
         calculator,
     })

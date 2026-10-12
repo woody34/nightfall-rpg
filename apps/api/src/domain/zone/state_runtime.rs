@@ -163,6 +163,30 @@ impl ZoneState {
         e: &Entity,
         sidecar: &Phase3Entity,
     ) -> Result<EffectiveStats, StatError> {
+        if let Some(items) = &self.phase4 {
+            if e.kind == EntityKind::Player {
+                return crate::domain::zone::item_modifiers::derive_player(
+                    self.rules.as_deref().ok_or(StatError::Overflow)?,
+                    self.classes.as_deref().ok_or(StatError::Overflow)?,
+                    &self
+                        .phase3
+                        .as_ref()
+                        .ok_or(StatError::Overflow)?
+                        .canonical
+                        .rules,
+                    e,
+                    sidecar,
+                    crate::domain::zone::effective_stats::EquipmentStatContext {
+                        player: items
+                            .canonical
+                            .players
+                            .get(&e.id)
+                            .ok_or(StatError::Overflow)?,
+                        rules: &items.rules,
+                    },
+                );
+            }
+        }
         derive_effective_v5(
             self.rules.as_deref().ok_or(StatError::Overflow)?,
             self.classes.as_deref().ok_or(StatError::Overflow)?,
@@ -1875,6 +1899,9 @@ impl ZoneState {
         let rules = Arc::clone(&self.phase3.as_ref().ok_or_else(missing)?.canonical.rules);
         let stats = Arc::clone(self.rules.as_ref().ok_or_else(missing)?);
         let classes = Arc::clone(self.classes.as_ref().ok_or_else(missing)?);
+        let equipment = self.phase4.as_ref().map(|items| {
+            (items.canonical.players.get(&target.entity).cloned(), Arc::clone(&items.rules))
+        });
         let mutation = state_damage::prepare_hp_reduction(
             &side,
             DamageResources {
@@ -1892,7 +1919,25 @@ impl ZoneState {
             &rules,
             |bound| draw(self, DamageRollSite::StunRemoval, target, bound),
             |side| {
-                let effective = derive_effective_v5(&stats, &classes, &rules, &recipient, side)?;
+                let effective = if let Some((player, items)) = &equipment {
+                    if recipient.kind == EntityKind::Player {
+                        crate::domain::zone::item_modifiers::derive_player(
+                            &stats,
+                            &classes,
+                            &rules,
+                            &recipient,
+                            side,
+                            crate::domain::zone::effective_stats::EquipmentStatContext {
+                                player: player.as_ref().ok_or(StatError::Overflow)?,
+                                rules: items,
+                            },
+                        )?
+                    } else {
+                        derive_effective_v5(&stats, &classes, &rules, &recipient, side)?
+                    }
+                } else {
+                    derive_effective_v5(&stats, &classes, &rules, &recipient, side)?
+                };
                 Ok(DamageMaxima {
                     hp: effective.physical.max_hp(),
                     mp: effective.physical.max_mp(),
