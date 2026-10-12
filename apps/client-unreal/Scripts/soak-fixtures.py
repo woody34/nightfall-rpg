@@ -50,7 +50,29 @@ def casting_scenario(waypoints):
     return '\n'.join(lines) + '\n'
 
 
-def prepare(repo: Path, out: Path, clients: int, casting: bool = False) -> None:
+def item_scenario(scenario, seed, key):
+    # Same explicit key repeats the frozen success on BotLoop; never spends a second scroll.
+    c_weapon = next(r for r in seed['inventory'] if r['template_id'] == 71)
+    lines = [
+        '# Phase4 equipment test inputs: phase4-packs.json; admitted min NG sword1 and C sword71.',
+        '# Added waits are owner delivery10ticks*100ms*3=3s each (A1); sum+30s grace below.',
+        'nf.WaitFor item_baseline 3',
+        f'nf.Enchant 951 instance:{c_weapon["instance_id"]} {key}',
+        'nf.WaitFor enchant_result_consistent 3', 'nf.Expect inventory_has 951 == 0',
+        'nf.Equip 1', 'nf.WaitFor equipped rhand == 1 3',
+        'nf.AutoShot 5789 on', 'nf.WaitFor autoshot_on 5789 3',
+        'nf.Equip 6', 'nf.WaitFor equipped rhand == 6 3',
+        'nf.AutoShot 2509 on', 'nf.WaitFor autoshot_on 2509 3',
+    ]
+    scenario = scenario.replace('nf.WaitFor in_world 15\n', 'nf.WaitFor in_world 15\n' + '\n'.join(lines) + '\n', 1)
+    scenario = scenario.replace('# covers: 3 E2.1', '# covers: 4 E6.4, 4 E6.5, 3 E2.1', 1)
+    waits = sum(int(line.split('#',1)[0].split()[-1]) for line in scenario.splitlines() if line.startswith('nf.WaitFor '))
+    return re.sub(r'^nf.Within \d+$', f'nf.Within {waits+30}', scenario, flags=re.M)
+
+
+def prepare(repo: Path, out: Path, clients: int, casting: bool = False, items: bool = False) -> None:
+    if items and not casting:
+        raise ValueError("Phase4 items soak requires retained casting workload")
     if not 1 <= clients <= 8:
         raise ValueError("clients must be between 1 and 8")
     data = out / "data"
@@ -59,9 +81,9 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False) -> None:
     if len(re.findall(r'^nf.ClickMove ', source, re.M)) != 3 or len(re.findall(r'^nf.WaitFor own_at ', source, re.M)) != 3:
         raise ValueError('kill scenario route changed; review soak lane adaptation')
     zone = ['id = "test_zone"', 'zone_id = 1', 'name = "Nightfall soak"',
-            '[bounds]', 'min = [0, 0]', 'max = [256, 256]', '[safe_point]', 'pos = [0, 0]']
+            '[bounds]', 'min = [0, 0]', 'max = [256, 256]', '[safe_point]', 'pos = [126, 126]' if items else 'pos = [0, 0]']
     roles = []
-    spec = importlib.util.spec_from_file_location('phase3_soak_inputs', repo / 'apps/client-unreal/Scripts/phase3-fixtures.py')
+    spec = importlib.util.spec_from_file_location('phase3_soak_inputs', repo / ('apps/client-unreal/Scripts/phase4-fixtures.py' if items else 'apps/client-unreal/Scripts/phase3-fixtures.py'))
     contracts = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(contracts)
     for i in range(clients):
@@ -87,6 +109,8 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False) -> None:
             roles.append({'name': f'client-{i + 1:02}', 'seed': seed, 'token_file': str(token.resolve()),
                           'scenario': str((role_dir / 'Scenarios/1-kill-one-monster.nfs').resolve())})
             scenario = casting_scenario(waypoints)
+            if items:
+                scenario = item_scenario(scenario, seed, str(uuid.uuid4()))
         path = out / f'client-{i + 1:02}' / 'Scenarios' / '1-kill-one-monster.nfs'
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(scenario)
@@ -94,7 +118,7 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False) -> None:
         # Test input HP1 permits one real cast kill without calculating damage.
         npc = data / 'npcs/keltir.toml'
         npc.write_text(npc.read_text().replace('max_hp = 44', 'max_hp = 1').replace('aggressive = true', 'aggressive = false'))
-        (out / 'roles.json').write_text(json.dumps({'schema_version': 1, 'casting': True, 'roles': roles}, indent=2) + '\n')
+        (out / 'roles.json').write_text(json.dumps({'schema_version': 1, 'casting': True, **({'items': True} if items else {}), 'roles': roles}, indent=2) + '\n')
     (data / 'zones/test_zone.toml').write_text('\n'.join(zone) + '\n')
 
 
@@ -104,5 +128,6 @@ if __name__ == '__main__':
     parser.add_argument('out', type=Path)
     parser.add_argument('clients', type=int)
     parser.add_argument('--casting', action='store_true')
+    parser.add_argument('--items', action='store_true')
     args = parser.parse_args()
-    prepare(args.repo, args.out, args.clients, args.casting)
+    prepare(args.repo, args.out, args.clients, args.casting, args.items)

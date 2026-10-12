@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 
 
 def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit: int, metrics_at: int | None = None,
-           require_casting: bool = False) -> int:
+           require_casting: bool = False, require_items: bool = False) -> int:
     errors = []
     metrics_at = metrics_at or end
     runner_errors = out / 'runner-errors.txt'
@@ -46,6 +46,8 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
             errors.append(f'{name}: missing or invalid JUnit: {exc}')
     casting_manifest = out / 'fixtures/roles.json'
     casting = require_casting or casting_manifest.is_file()
+    items = require_items
+    item_evidence = None
     if casting:
         try:
             manifest = json.loads(casting_manifest.read_text())
@@ -53,6 +55,8 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
                     or len(manifest['roles']) != clients
                     or [r['name'] for r in manifest['roles']] != [f'client-{i:02}' for i in range(1, clients + 1)]):
                 raise ValueError('casting role manifest mismatch')
+            items = require_items or manifest.get('items') is True
+            if items and manifest.get('items') is not True: raise ValueError('Phase4 item role manifest required')
             spec = importlib.util.spec_from_file_location('soak_contract', Path(__file__).with_name('sim-contract.py'))
             contract = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(contract)
@@ -66,13 +70,21 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
             gates = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(gates)
             coverage = gates.read_transitions(out / 'coverage.transitions.json')
-            if coverage['schema_version'] != 3:
-                raise ValueError('casting soak requires native schema3 coverage')
+            if coverage['schema_version'] != (4 if items else 3):
+                raise ValueError('casting/item soak requires matching native coverage schema')
             if coverage.get('recording_sha256') != hashlib.sha256((out / 'soak.nfr').read_bytes()).hexdigest():
                 raise ValueError('casting coverage does not identify this replay-verified recording')
             for table, pair in (('cast_states', ('Idle', 'Casting')), ('effect_states', ('Absent', 'Active'))):
                 if not any((r['from'], r['to']) == pair and r['count'] > 0 for r in coverage[table]):
                     raise ValueError('casting soak lacks committed ' + table + ' transition')
+            if items:
+                spec = importlib.util.spec_from_file_location('soak_item_evidence', Path(__file__).with_name('phase4-evidence.py'))
+                validator = importlib.util.module_from_spec(spec); spec.loader.exec_module(validator)
+                raw = validator.read_jsonl(out / 'phase4.raw.jsonl')
+                item_evidence = validator.soak(raw, out / 'soak.nfr', manifest, os.environ.get('SOAK_PHASE4_RULES_HASH', ''))
+                expected = json.loads((out / 'phase4-evidence.json').read_text())
+                validator.same(expected, item_evidence)
+                if not item_evidence['passed']: raise ValueError('per-client item replay evidence failed')
         except (OSError, ValueError, KeyError, TypeError) as exc:
             errors.append(f'casting evidence unavailable: {exc}')
     grafana = os.environ.get('SOAK_GRAFANA_URL', 'http://localhost:3300').rstrip('/')
@@ -125,7 +137,9 @@ def report(out: Path, clients: int, seconds: int, start: int, end: int, uat_exit
     if errors:
         ET.SubElement(case, 'failure', message='; '.join(errors)).text = '\n'.join(errors)
     ET.ElementTree(suites).write(out / 'soak.xml', encoding='utf-8', xml_declaration=True)
-    result = {'passed': not errors, 'workload': 'casting' if casting else 'legacy-attacks',
+    result = {'passed': not errors, 'workload': 'items-and-casting' if items else 'casting' if casting else 'legacy-attacks',
+              'phase4_acceptance': False,
+              'phase4_evidence_passed': not errors and items and item_evidence is not None and item_evidence['passed'] and clients == 8 and seconds >= 1200,
               'phase3_acceptance': False,
               'phase3_evidence_passed': not errors and casting and clients == 8 and seconds >= 1200,
               'clients': clients, 'requested_seconds': seconds,
@@ -155,6 +169,7 @@ def teardown(out: Path, exit_code: int) -> int:
     # clear an old report's acceptance bit when teardown fails.
     evidence = result.get('phase3_evidence_passed', result.get('phase3_acceptance', False))
     result['phase3_acceptance'] = bool(evidence and result['passed'] and not result['errors'] and not exit_code)
+    result['phase4_acceptance'] = bool(result.get('phase4_evidence_passed') and result['passed'] and not result['errors'] and not exit_code)
     if exit_code:
         error = f'Compose teardown failed or timed out (exit {exit_code}); inspect cleanup.log'
         result['errors'].append(error)
@@ -182,5 +197,6 @@ if __name__ == '__main__':
         p.add_argument(name, type=int)
     p.add_argument('--metrics-at', type=int)
     p.add_argument('--require-casting', action='store_true')
+    p.add_argument('--require-items', action='store_true')
     a = p.parse_args()
-    raise SystemExit(report(a.out, a.clients, a.seconds, a.start, a.end, a.uat_exit, a.metrics_at, a.require_casting))
+    raise SystemExit(report(a.out, a.clients, a.seconds, a.start, a.end, a.uat_exit, a.metrics_at, a.require_casting, a.require_items))

@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Eight role item workload and synthetic participation guards; no Unreal/API run."""
+import copy
+import importlib.util
+import json
+from pathlib import Path
+import re
+import tempfile
+import unittest
+
+SCRIPTS=Path(__file__).resolve().parents[1];REPO=SCRIPTS.parents[2]
+def load(name,path):
+    spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+fixtures=load('soak4_fixtures',SCRIPTS/'soak-fixtures.py')
+seed=load('soak4_seed',REPO/'infra/scripts/seed-phase4-soak.py')
+grammar=load('soak4_grammar',SCRIPTS/'phase4-grammar.py')
+variants=load('soak4_variants',SCRIPTS/'phase4-variants.py')
+
+
+class Soak(unittest.TestCase):
+    def test_eight_canonical_roles_have_keyed_enchant_swaps_autoshots_and_casting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp);fixtures.prepare(REPO,out,8,casting=True,items=True)
+            manifest=json.loads((out/'roles.json').read_text());roles=seed.validated_roles(manifest)
+            self.assertEqual(len(roles),8)
+            identities=set();keys=set()
+            for role in manifest['roles']:
+                source=Path(role['scenario']).read_text();supplied=role['seed']
+                identities.add(supplied['character_id'])
+                self.assertEqual(Path(role['token_file']).stat().st_mode&0o777,0o600)
+                self.assertIn('nf.Cast 1068 self',source);self.assertIn('nf.Cast 1177',source)
+                self.assertIn('nf.Equip 1',source);self.assertIn('nf.Equip 6',source)
+                self.assertIn('nf.AutoShot 2509 on',source);self.assertIn('nf.AutoShot 5789 on',source)
+                commands=re.findall(r'^nf.Enchant .+$',source,re.M);self.assertEqual(len(commands),1)
+                self.assertTrue(grammar.command(commands[0].split()));keys.add(commands[0].split()[-1])
+                count=sum(int(l.split('#',1)[0].split()[-1]) for l in source.splitlines() if l.startswith('nf.WaitFor '))
+                budget=int(re.search(r'^nf.Within (\d+)$',source,re.M)[1]);self.assertGreaterEqual(budget,count+30);self.assertLessEqual(budget,600)
+                moves=[tuple(map(int,m)) for m in re.findall(r'^nf.ClickMove (\d+) (\d+)$',source,re.M)]
+                previous=tuple(supplied['position'])
+                for move in moves:
+                    self.assertLessEqual((move[0]-previous[0])**2+(move[1]-previous[1])**2,60**2)
+                    self.assertFalse(116<=move[0]<=136 and 116<=move[1]<=136)
+                    previous=move
+            self.assertEqual(len(identities),8);self.assertEqual(len(keys),8)
+            bad=copy.deepcopy(manifest);bad['roles'][0]['seed']['inventory'][0]['count']=2
+            with self.assertRaises(ValueError):seed.validated_roles(bad)
+
+    def test_items_requires_casting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError):fixtures.prepare(REPO,Path(tmp),8,items=True)
+
+    def test_variants_remain_strict_and_live_pending(self):
+        data=variants.validate();self.assertEqual(len(data['runtime_cases']),26)
+        for row in data['runtime_cases']:self.assertIn('pending',row['execution'])
+        self.assertEqual(len({r['id'] for r in data['runtime_cases']}),26)
+
+
+if __name__=='__main__':unittest.main()
