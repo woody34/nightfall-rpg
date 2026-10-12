@@ -45,9 +45,31 @@ source_sets = { affectScope = "SINGLE", isMagic = "2", itemConsumeCount = "1", i
 condition_tables = { "#levelRange" = ["1;19", "20;39", "40;51", "52;60", "61;75", "76;85"] }
 
 [[conditions]]
-kind = "unsupported"
-tag = "player"
-attrs = { levelRange = "#levelRange" }
+kind = "player_level_range"
+
+[[conditions.ranges]]
+minimum = 1
+maximum = 19
+
+[[conditions.ranges]]
+minimum = 20
+maximum = 39
+
+[[conditions.ranges]]
+minimum = 40
+maximum = 51
+
+[[conditions.ranges]]
+minimum = 52
+maximum = 60
+
+[[conditions.ranges]]
+minimum = 61
+maximum = 75
+
+[[conditions.ranges]]
+minimum = 76
+maximum = 85
 
 [[item_consume]]
 item_id = [14688, 14689, 14690, 14691, 14692, 14693]
