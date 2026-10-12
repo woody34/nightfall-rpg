@@ -78,3 +78,11 @@ class ClassSlotTests(unittest.TestCase):
         vectors=oracle.make_vectors(self.src)
         with self.assertRaisesRegex(ValueError,'missing vectors'):
             oracle.verify_coverage(self.src,[v for v in vectors if not v['id'].startswith('class-slots-')])
+        for slot in ['rfinger','lfinger']:
+            name='class-slots-unequal-'+slot
+            row=next(v for v in vectors if v['id']==name)
+            self.assertEqual(row['inputs']['synthetic']['kind'],'synthetic')
+            self.assertEqual(row['expected']['m_def_base'],45)
+            self.assertEqual(row['expected']['m_def_subtraction'],7)
+            with self.subTest(name=name),self.assertRaisesRegex(ValueError,'missing vectors'):
+                oracle.verify_coverage(self.src,[v for v in vectors if v['id']!=name])

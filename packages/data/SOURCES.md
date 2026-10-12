@@ -884,3 +884,6 @@ the total. Independent oracle vectors cover empty/each occupied/all slots and
 fullarmor/onepiece legs subtraction against `FuncPDefMod.java:44-70` and
 `FuncMDefMod.java:44-66`. The manifest hashes effective and literal maps; the
 inventory ledger hashes every new source file. No historical class input changes.
+Two explicitly synthetic unequal-finger oracle vectors (RFINGER=7, LFINGER=999)
+distinguish the getter duplication even though all nine pinned XML pairs match;
+they preserve the complete overridden XML as inputs and are coverage-mandatory.

@@ -36,6 +36,14 @@ class Revision3Tests(unittest.TestCase):
         # Formula facts use the full sequence inputs rather than a golden-ID lookup.
         self.assertEqual(oracle.verify_facts([{'formula':'consumable_cast_sequence','inputs':row['inputs'],'expected':out}]),1)
 
+    def test_published_noop_heal_vectors_preserve_fraction(self):
+        for name in ['over-fraction-positive','over-fraction-zero','at-cap-fraction']:
+            row=self.by_id['heal-clamp-'+name]
+            self.assertEqual(row['expected']['applied_q'],0)
+            self.assertEqual(row['expected']['current_hp'],row['inputs']['current_hp'])
+            self.assertEqual(row['expected']['remainder_q'],500000)
+            self.assertEqual(oracle.verify_facts([{'formula':'heal','inputs':row['inputs'],'expected':row['expected']}]),1)
+
     def test_published_same_priority_inputs_are_distinguishing_and_synthetic(self):
         rows=[self.by_id[f'attribute-same-priority-{sequence}'] for sequence in [1,3]]
         self.assertEqual([v['expected']['base_stats']['STR'] for v in rows],[40,42])
@@ -45,12 +53,14 @@ class Revision3Tests(unittest.TestCase):
     def test_required_evidence_deletion_mutations(self):
         groups=[lambda v:v['id'].startswith('consumable-shared-reuse-'),
                 lambda v:v['id'].startswith('attribute-same-priority-'),
-                lambda v:v['id']=='consumable-same-tick-lanes']
+                lambda v:v['id']=='attribute-set-interaction',
+                lambda v:v['id']=='consumable-same-tick-lanes',
+                lambda v:v['id'].startswith(('heal-clamp-over-fraction-','heal-clamp-at-cap-fraction'))]
         for removed in groups:
             with self.assertRaisesRegex(ValueError,'missing vectors'):
                 oracle.verify_coverage(self.src,[v for v in self.vectors if not removed(v)])
         names=[v['id'] for v in self.vectors if any(group(v) for group in groups)]
-        self.assertEqual(len(names),9)
+        self.assertEqual(len(names),13)
         for name in names:
             with self.subTest(name=name),self.assertRaisesRegex(ValueError,'missing vectors'):
                 oracle.verify_coverage(self.src,[v for v in self.vectors if v['id']!=name])
