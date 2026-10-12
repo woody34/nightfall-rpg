@@ -57,14 +57,14 @@ void UInventoryStateSubsystem::Deinitialize()
   Net->OnWeightChanged.RemoveAll(this); Net->OnPenaltyChanged.RemoveAll(this); Net->OnEnchantResult.RemoveAll(this);
   Net->OnRefineResult.RemoveAll(this); Net->OnItemOperationResult.RemoveAll(this); Net->OnStatsChanged.RemoveAll(this);
   Net->OnItemReceiptPayload.RemoveAll(this); Net->OnIntentRejected.RemoveAll(this); Net->OnConnected.RemoveAll(this); Net->OnDisconnected.RemoveAll(this);
- } ++RpcSerial; ++CatalogSerial; Super::Deinitialize();
+ } ++RpcSerial; ++GrantSerial; ++CatalogSerial; Super::Deinitialize();
 }
 void UInventoryStateSubsystem::ClearOwner()
 {
  CurrentStats.Reset();
  // Keep comparison references across re-admission, scoped to the selected character.
  if(!Net || MarkOwner!=Net->GetOwnEntityId().ToLower()){MarkedStats.Reset();MarkRevision.Reset();MarkOwner.Reset();}
- ++RpcSerial; Inventory={}; Items.Reset(); PendingWeights.Reset(); PendingPenalties.Reset(); Enchant.Reset(); Refine.Reset(); Operation.Reset();
+ ++RpcSerial; ++GrantSerial; Inventory={}; Items.Reset(); PendingWeights.Reset(); PendingPenalties.Reset(); Enchant.Reset(); Refine.Reset(); Operation.Reset();
  ReceiptMatches.Reset(); DetachedViews.Reset(); OwnerTick=WeightTick=PenaltyTick=SyncTick=0; bBaseline=bResync=bRpcBusy=bRpcDone=false; StatusText.Reset();
 }
 void UInventoryStateSubsystem::AuthenticationChanged() { MarkedStats.Reset();MarkRevision.Reset();MarkOwner.Reset();Reset(); }
@@ -208,9 +208,19 @@ void UInventoryStateSubsystem::Remember(EGrpcNightfallV1ItemOperation Op,const F
  const FString Scope=RequestScope(Op,Key);if(Scope.IsEmpty())return;
  if(const auto* First=Receipts.Find(Scope))ReceiptMatches=(*First==Payload);
  else {Receipts.Add(Scope,Payload);ReceiptMatches.Reset();}
- if(const auto* Sequences=Outstanding.Find(Scope))for(uint32 Seq:*Sequences)SequenceRequests.Remove(Seq);
- Outstanding.Remove(Scope);
- StatusText=IsBusy()?TEXT("Waiting for server item result"):TEXT("Server committed item operation");OnChanged.Broadcast();
+ bool Completed=false;
+ // D43 settles the frozen request body; changed-body sequences await their own rejection.
+ if(const auto* Body=FrozenRequests.Find(Scope)){
+  TArray<uint8> Fingerprint;NightfallProto::Encode(*Body,Fingerprint);
+  if(auto* Sequences=Outstanding.Find(Scope)){
+   for(auto It=Sequences->CreateIterator();It;++It){
+    auto& Request=SequenceRequests.FindChecked(*It);
+    if(Request.Status==ERequestStatus::Pending && Request.Fingerprint==Fingerprint){Request.Status=ERequestStatus::Committed;It.RemoveCurrent();Completed=true;}
+   }
+   if(Sequences->IsEmpty())Outstanding.Remove(Scope);
+  }
+ }
+ if(Completed)StatusText=IsBusy()?TEXT("Waiting for server item result"):TEXT("Server committed item operation");OnChanged.Broadcast();
 }
 void UInventoryStateSubsystem::ApplyOperation(const FGrpcNightfallV1ItemOperationResult& S) { if (uint8(S.Operation)>0 && uint8(S.Operation)<=11 && S.Operation!=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_REFINE && S.Operation!=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE && Accept(S.EntityId,S.Incarnation,S.Tick,S.InventoryRevision)) {Operation=S.Operation; OnChanged.Broadcast();} }
 void UInventoryStateSubsystem::ApplyEnchant(const FGrpcNightfallV1EnchantResult& S)
@@ -281,14 +291,14 @@ TOptional<bool> UInventoryStateSubsystem::RefineConsistent() const
 
 void UInventoryStateSubsystem::ApplyRejected(const FIntentRejected& R)
 {
- const auto* Found=SequenceRequests.Find(R.Seq);if(!Found)return;const FString Scope=*Found;SequenceRequests.Remove(R.Seq);
+ auto* Found=SequenceRequests.Find(R.Seq);if(!Found || Found->Status!=ERequestStatus::Pending)return;const FString Scope=Found->Scope;Found->Status=ERequestStatus::Rejected;
  if(auto* Sequences=Outstanding.Find(Scope)){Sequences->Remove(R.Seq);if(Sequences->IsEmpty())Outstanding.Remove(Scope);}
  StatusText=R.Detail;OnChanged.Broadcast();
 }
-void UInventoryStateSubsystem::FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op)
+void UInventoryStateSubsystem::FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op,const FClientMessage& Body)
 {
  LastSendSeq=Seq;const FString Scope=RequestScope(Op,Key);
- if(Seq && !Scope.IsEmpty()){Outstanding.FindOrAdd(Scope).Add(Seq);SequenceRequests.Add(Seq,Scope);}
+ if(Seq && !Scope.IsEmpty()){Outstanding.FindOrAdd(Scope).Add(Seq);FSubmittedRequest Request;Request.Scope=Scope;NightfallProto::Encode(Body,Request.Fingerprint);SequenceRequests.Add(Seq,MoveTemp(Request));}
  StatusText=Seq?TEXT("Waiting for server item result"):TEXT("World channel unavailable");OnChanged.Broadcast();
 }
 FString UInventoryStateSubsystem::Blacksmith() const
@@ -349,8 +359,9 @@ void UInventoryStateSubsystem::Grant(uint32 Template,uint64 Count,const FString&
  // AUTH_DEV_TOKENS is enforced by the server; production/real-token refusals remain observable.
  if (!Session || !Net || bRpcBusy) return;
  FGrpcNightfallV1GrantItemRequest Q; Q.CharacterId=NightfallItems::UuidBytes(Net->GetOwnEntityId()); Q.TemplateId=Template; Q.Count=Count; Q.IdempotencyKey=Key;
- const uint64 Serial=++RpcSerial; bRpcBusy=true; bRpcDone=false;
- Session->GrantItem(Q,[Weak=TWeakObjectPtr<UInventoryStateSubsystem>(this),Serial](const FNetResult& R,const FGrpcNightfallV1GrantItemResponse&){if (!Weak.IsValid() || Serial!=Weak->RpcSerial) return; Weak->bRpcBusy=false; Weak->bRpcDone=true; Weak->LastRpc=R; Weak->StatusText=R.Message; Weak->OnChanged.Broadcast();});
+ const uint64 Serial=++GrantSerial; bRpcBusy=true; bRpcDone=false;
+ auto Callback=[Weak=TWeakObjectPtr<UInventoryStateSubsystem>(this),Serial](const FNetResult& R,const FGrpcNightfallV1GrantItemResponse&){if (!Weak.IsValid() || Serial!=Weak->GrantSerial) return; Weak->bRpcBusy=false; Weak->bRpcDone=true; Weak->LastRpc=R; Weak->StatusText=R.Message; Weak->OnChanged.Broadcast();};
+ if(GrantProvider)GrantProvider(Q,MoveTemp(Callback));else Session->GrantItem(Q,MoveTemp(Callback));
 }
 bool UInventoryStateSubsystem::Execute(const TArray<FString>& Tokens)
 {
@@ -370,7 +381,7 @@ bool UInventoryStateSubsystem::Execute(const TArray<FString>& Tokens)
  const auto* Previous=FrozenRequests.Find(Scope);
  TArray<FString> Original;FrozenArguments.FindRef(Scope).ParseIntoArrayWS(Original);
  if (const auto* Frozen=Previous) {
-  if (FrozenArguments.FindRef(Scope)==Arguments) {const uint32 Retry=Net->SendItemMessage(*Frozen); FinishSend(Retry,Key,Op); return Retry!=0;}
+  if (FrozenArguments.FindRef(Scope)==Arguments) {const uint32 Retry=Net->SendItemMessage(*Frozen); FinishSend(Retry,Key,Op,*Frozen); return Retry!=0;}
  }
  auto ResolveAt=[&](int32 Index,const FString& Selector)->TOptional<uint64>{
   // Unchanged selectors retain the originally received binding even after consumption.
@@ -420,7 +431,7 @@ bool UInventoryStateSubsystem::Execute(const TArray<FString>& Tokens)
   } else return false;
  }
  if(Seq && !FrozenRequests.Contains(Scope)){FrozenRequests.Add(Scope,FrozenMessage);FrozenArguments.Add(Scope,Arguments);}
- FinishSend(Seq,Key,Op);return Seq!=0;
+ FinishSend(Seq,Key,Op,FrozenMessage);return Seq!=0;
 }
 
 TArray<TPair<uint32,bool>> UInventoryStateSubsystem::Hotbar() const

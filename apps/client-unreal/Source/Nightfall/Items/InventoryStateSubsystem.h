@@ -77,6 +77,8 @@ public:
  using FInventoryProvider = TFunction<void(const FGrpcNightfallV1GetInventoryRequest&,USessionClient::FGetInventoryCallback)>;
  void SetInventoryProviderForTesting(FInventoryProvider P) { InventoryProvider=MoveTemp(P); }
  void Grant(uint32 Template, uint64 Count, const FString& Key);
+ using FGrantProvider = TFunction<void(const FGrpcNightfallV1GrantItemRequest&,USessionClient::FGrantItemCallback)>;
+ void SetGrantProviderForTesting(FGrantProvider P) { GrantProvider=MoveTemp(P); }
  const FNetResult& RpcResult() const { return LastRpc; }
  bool RpcDone() const { return bRpcDone; }
  bool IsBusy() const { return bRpcBusy || !Outstanding.IsEmpty(); }
@@ -92,7 +94,7 @@ private:
  bool Validate(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate) const;
  void Publish(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate);
  void Remember(EGrpcNightfallV1ItemOperation Op, const FString& Key, const TArray<uint8>& Payload);
- void FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op);
+ void FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op,const FClientMessage& Body);
  FString RequestScope(EGrpcNightfallV1ItemOperation Op,const FString& Key) const;
  void AuthenticationChanged();
  UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
@@ -105,10 +107,12 @@ private:
  TMap<uint64,FGrpcNightfallV1ItemWeightState> PendingWeights;
  TMap<uint64,FGrpcNightfallV1ItemPenaltyState> PendingPenalties;
  uint64 WeightTick=0,PenaltyTick=0;
- uint64 OwnerTick = 0, CatalogSerial = 0, RpcSerial = 0;
+ uint64 OwnerTick = 0, CatalogSerial = 0, RpcSerial = 0, GrantSerial = 0;
  bool bBaseline = false, bResync = false, bCatalog = false, bRpcDone = false, bRpcBusy = false;
  TMap<FString,TSet<uint32>> Outstanding;
- TMap<uint32,FString> SequenceRequests;
+ enum class ERequestStatus : uint8 { Pending, Committed, Rejected };
+ struct FSubmittedRequest { FString Scope; TArray<uint8> Fingerprint; ERequestStatus Status=ERequestStatus::Pending; };
+ TMap<uint32,FSubmittedRequest> SequenceRequests;
  uint32 LastSendSeq=0;
  uint64 SyncTick=0;
  FGrpcNightfallV1GetItemCatalogResponse Catalog;
@@ -116,6 +120,7 @@ private:
  struct FDetachedView { uint64 Generation=0, Serial=0; TOptional<FGrpcNightfallV1InventorySync> Inventory; };
  TMap<FString,FDetachedView> DetachedViews;
  FInventoryProvider InventoryProvider;
+ FGrantProvider GrantProvider;
  TOptional<FGrpcNightfallV1EnchantResult> Enchant;
  TOptional<FGrpcNightfallV1RefineResult> Refine;
  TOptional<FStatsChanged> CurrentStats,MarkedStats;
