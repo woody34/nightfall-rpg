@@ -535,7 +535,7 @@ class Source:
             file=path.relative_to(dp).as_posix();text=self.read(file)
             for row in ET.fromstring(text).findall('set'):self.sets.append((file,row))
         class_ids=self.read(G+'model/base/ClassId.java',True)
-        self.races={int(sid,16):race for sid,race in re.findall(r'\w+\((0x[0-9a-f]+), (?:true|false), (?:true, )?Race\.(\w+),',class_ids)}
+        self.races={int(sid,16):race for sid,race in re.findall(r'\w+\((0x[0-9a-fA-F]+), (?:true|false), (?:true, )?Race\.(\w+),',class_ids)}
         self.bonuses={s.tag:{int(r.get('value')):F(r.get('bonus')) for r in s.findall('stat')}
                       for s in self.xml(D+'stats/statBonus.xml')}
         self.hp={row.get('grade'):[int(b.text) for b in row.findall('bonus')]
@@ -906,17 +906,27 @@ def make_vectors(src):
             found=True;break
         if not found:raise ValueError('no supported '+kind+' source set vector')
     kits=src.xml(D+'stats/initialEquipment.xml')
-    for i,class_id,class_name in [(22,10,'HumanMystic'),(23,44,'OrcFighter'),(24,53,'DwarvenFighter')]:
-        kit=next(n for n in kits.findall('equipment') if int(n.get('classId'))==class_id);gear=[];weight=0
+    class_files={int(src.xml(path.relative_to(src.dp).as_posix()).findtext('classId')):path.relative_to(src.dp).as_posix()
+                 for path in sorted((src.dp/(D+'stats/chars/baseStats')).glob('*.xml'))}
+    named_kits={10:(22,'HumanMystic'),44:(23,'OrcFighter'),53:(24,'DwarvenFighter')}
+    for kit in kits.findall('equipment'):
+        class_id=int(kit.get('classId'));items=[dict(n.attrib) for n in kit.findall('item')]
+        add('F12',f'starter-kit-source-{class_id}',{'class_id':class_id,'items':items},
+            {'items':items,'race_supported':src.races[class_id]!='KAMAEL','draws':[]},
+            [D+'stats/initialEquipment.xml:4-109','design/12.1 starter source domains; Kamael remains deferred'])
+        if src.races[class_id]=='KAMAEL':continue
+        gear=[];weight=0
         for seq,n in enumerate(kit.findall('item'),1):
             sid=int(n.get('id'));p=src.properties(sid);weight+=int(p.get('weight','0'))*int(n.get('count'))
             if n.get('equipped')=='true':
                 body=p['bodypart'];slot='rhand' if body=='lrhand' else body
                 gear.append((sid,0,slot,seq))
-        class_file=D+'stats/chars/baseStats/'+class_name+'.xml'
+        class_file=class_files[class_id]
         result=gear_stats(src,class_file,1,gear);result['inventory_weight']=weight;result['capacity']=100 if class_id==53 else 80
         result['kit']=[dict(n.attrib) for n in kit.findall('item')]
-        add('F12',f'gear-{i:02d}-kit-{class_name}',{'class_file':class_file,'class_id':class_id,'equipment':gear,'level':1},result,[D+'stats/initialEquipment.xml:4-109',*core_sources])
+        name=f'gear-{named_kits[class_id][0]:02d}-kit-{named_kits[class_id][1]}' if class_id in named_kits else f'starter-kit-{class_id}'
+        add('F12',name,{'class_file':class_file,'class_id':class_id,'equipment':gear,'level':1,'kit':items},
+            result,[D+'stats/initialEquipment.xml:4-109',class_file+':15-31',*core_sources])
     sid=src.choose(lambda sid,n,p:'enchant4_skill' in p and 'time' not in p and 'duration' not in p)
     ref=src.properties(sid)['enchant4_skill'];skill_id,rank=map(int,ref.split('-'))
     add('F12','weapon-enchant4-provider',{'template_id':sid,'e3':3,'e4':4}, {'before':[],'after':[{'id':skill_id,'rank':rank}]},[src.citation(sid),'G/model/itemcontainer/PcInventory.java:969-976'])
@@ -958,9 +968,10 @@ def make_vectors(src):
              'design/12.1 deliberately unequal synthetic RFINGER/LFINGER'])
     # Every branch/grade at source enchant boundaries, including u32 storage endpoint.
     for grade in src.grades:
-        for body,kind in [('rhand','SWORD'),('lrhand','POLE'),('lrhand','BOW'),('lrhand','DUAL')]:
+        for body,kind in [('rhand','SWORD'),('lrhand','POLE'),('lrhand','BOW'),('lrhand','DUAL'),
+                          ('rhand','BOW'),('rhand','CROSSBOW'),('lrhand','CROSSBOW')]:
             for e in [0,3,4,19,20,65535,4294967295]:
-                for stat in ['pAtk','mAtk','pDef','mDef']:
+                for stat in ['pAtk','mAtk','pDef','mDef','sDef']:
                     add('F2',f'enchant-{grade}-{body}-{kind}-{stat}-{e}',{'stat':stat,'grade':grade,'bodypart':body,'weapon_type':kind,'enchant':e},
                         enchant_increment(stat,grade,body,kind,e),['G/model/stats/functions/FuncEnchant.java:43-155'])
         for weapon in [False,True]:
@@ -1105,6 +1116,10 @@ def make_vectors(src):
             inputs={'charges':['soul','spirit','blessed'],'use_spirit':use_spirit,'use_soul':use_soul,'landed':landed,'unequip':unequip}
             add('F8',f'charge-{landed}-{unequip}-{use_spirit}-{use_soul}',inputs,charge_transition(**inputs),['design/I2 shared charge, all miss retention and blessed precedence'])
     add_revision_vectors(src,add,human)
+    table=independent_angle_table()
+    for deg,relative in [(0,(1,0)),(90,(1,1)),(120,(1,2)),(180,(0,1)),(270,(-1,1)),(360,(-1,0))]:
+        add('F9',f'angle-{deg}-{relative}',{'degrees':deg,'facing':[1,0],'relative':relative},
+            angle_contains((1,0),relative,deg,table),['design/D21 bounded certified interval geometry'])
     return vectors
 
 
@@ -1266,55 +1281,31 @@ def add_revision_vectors(src,add,human):
 
 
 def verify_coverage(src,vectors):
-    """Design 12.1 data-only gates; live runtime/codec/scenarios remain 12.2/12.4."""
+    """Fail closed on independent §12.1 cases AND their source input dimensions."""
+    try:
+        from .item_coverage import required_cases, verify_case
+    except ImportError:
+        from item_coverage import required_cases, verify_case
+    required=required_cases(src)
     by_id={v['id']:v for v in vectors}
-    required={f'gear-{i:02d}-{kind}' for i,kind in enumerate(['SWORD','BLUNT','DAGGER','BOW','DUAL','DUALFIST','POLE'],1)}
-    required|={'gear-08-FIST','attribute-provider','attribute-set-interaction','consumable-same-tick-lanes'}
-    required|={'attribute-same-priority-1','attribute-same-priority-3'}
-    required|={f'consumable-shared-reuse-{sid}' for sid in [1539,1540,5591,5592,8628,14688]}
-    required|={f'provider-install-remove-reinstall-{step}' for step in range(3)}
-    required|={f'provider-overlap-{step}' for step in range(5)}
-    required|={f'heal-fraction-repeat-{step}' for step in range(3)}
-    required|={f'heal-clamp-{name}' for name in ['partial','full','over','static','negative-static','over-fraction-positive','over-fraction-zero','at-cap-fraction']}
-    required|={f'consumable-{kind}-{sid}' for sid in [736,1538,737,1539,1540,5591,5592,8628,14688] for kind in ['consume-once','lane']}
-    required|={f'shot-payment-{kind}-{toggle}-{case}' for kind in ['soul','spirit','blessed'] for toggle in [False,True]
-               for case in ['paid','splus','wrong-grade','empty','already','no-weapon']}
-    required|={f'gear-{i:02d}-{grade}-e4' for i,grade in enumerate(['D','C','B','A','S','S80'],9)}
-    required|={'gear-15-S84-e6','gear-16-chest-e4','gear-17-lhand-e6','gear-18-lfinger-e6'}
-    required|={f'gear-{i:02d}-{kind}-set' for i,kind in [(19,'HEAVY'),(20,'LIGHT'),(21,'MAGIC')]}
-    required|={f'magic-branch-{name}-{spirit}-{blessed}' for name in ['pve-critical','pvp-critical','playable-nonplayer-critical',
-        'half-success','resisted-level','resisted-second','nonplayer-failure','disabled-failures','perfect-skips','modifiers-magic','modifiers-physical']
-        for spirit,blessed in [(False,False),(True,False),(False,True),(True,True)]}
-    required|={f'shot-bundle-{caller}-{hits}-{canceled}-{unequip}' for caller,hits in [('dual',[False,False]),('dual',[True,False]),('dual',[False,True]),('dual',[True,True]),('pole',[False,True,True]),('multi-target',[True,True,True])]
-        for canceled,unequip in [(False,False),(True,False),(False,True)]}
-    reduced_sid=next(sid for sid in sorted(src.items) if 'reduced_soulshot' in src.properties(sid))
-    p=src.properties(reduced_sid);reduction=list(map(int,p['reduced_soulshot'].split(',')))
-    required|={f'shot-reduction-{reduced_sid}-{residue}-{available}' for residue in [0,reduction[0]-1,reduction[0],99]
-        for available in [0,reduction[1],int(p['soulshots'])]}
-    for sid in [2287,2288,2289,2860,2861,2862]:
-        table={n.get('name'):n.text.split() for n in src.skills[sid][1].findall('table')}
-        for rank,value in enumerate(table['#levelRange'],1):
-            lo,hi=map(int,value.split(';'))
-            required|={f'elixir-range-{sid}-{rank}-{level}' for level in [lo-1,lo,hi,hi+1]}
-    required|={name for name,inputs in class_slot_cases(src)}
-    required|={'class-slots-unequal-rfinger','class-slots-unequal-lfinger'}
-    missing=required-by_id.keys()
-    if missing:raise ValueError('design 12.1 missing vectors: '+','.join(sorted(missing)))
-    pole=by_id['gear-07-POLE']['inputs']
-    if pole['equipment'][0][0]!=15 or pole['skill_refs']!=[[3599,1,2]]:raise ValueError('missing player pole skill')
-    binding_count=0;level_count=0
-    for scroll,name,targets in scroll_bindings(src):
-        sid=int(scroll.get('id'));rows=sorted((v for v in vectors if v['id'].startswith(f'scroll-binding-{sid}-{name}-')),key=lambda v:v['inputs']['current_min'])
+    if len(by_id)!=len(vectors):raise ValueError('duplicate coverage vector identity')
+    missing=required.keys()-by_id.keys()
+    if missing:raise ValueError('design 12.1 coverage missing vectors: '+','.join(sorted(missing)))
+    for name,case in required.items():
+        verify_case(name,case,by_id[name])
+    bindings={};level_count=0
+    for name,case in required.items():
+        if not name.startswith('scroll-binding-'):continue
+        inputs=case['inputs'];key=(inputs['scroll_id'],inputs['group'])
+        bindings.setdefault(key,[]).append((inputs['current_min'],inputs['current_max']))
+    for intervals in bindings.values():
         cursor=0
-        for row in rows:
-            inputs=row['inputs']
-            if inputs['current_min']!=cursor or inputs['targets']!=targets:raise ValueError('scroll/group/level coverage gap')
-            cursor=inputs['current_max']+1
+        for lower,upper in sorted(intervals):
+            if lower!=cursor:raise ValueError('scroll/group/level coverage gap')
+            cursor=upper+1
         if cursor!=65536:raise ValueError('incomplete scroll/group/level coverage')
-        binding_count+=1;level_count+=cursor
-    for family in [f'F{i}' for i in range(1,13)]:
-        if not any(v['family']==family for v in vectors):raise ValueError('missing design 12.1 family '+family)
-    return {'design':'12.1','required_cases':len(required),'scroll_group_bindings':binding_count,
+        level_count+=cursor
+    return {'design':'12.1','required_cases':len(required),'scroll_group_bindings':len(bindings),
             'covered_scroll_group_levels':level_count,'level_encoding':'contiguous inclusive source-rate intervals',
             'live_integration_sections':['12.2','12.4']}
 
@@ -1390,9 +1381,6 @@ def generate(dp=DP,game=GAME):
     for row in table['angles']:
         angles.append({'degrees':row['degrees'],'certified':True,
                        'cos2_lower':F(row['cos2_lower']),'cos2_upper':F(row['cos2_upper'])})
-    for deg,relative in [(0,(1,0)),(90,(1,1)),(120,(1,2)),(180,(0,1)),(270,(-1,1)),(360,(-1,0))]:
-        vectors.append({'id':f'angle-{deg}-{relative}','family':'F9','inputs':{'degrees':deg,'facing':[1,0],'relative':relative},
-                        'expected':angle_contains((1,0),relative,deg,table),'sources':['design/D21 bounded certified interval geometry'],'draws':[]})
     for vector in vectors:
         vector['vector_sha256']=hashlib.sha256(json.dumps({k:v for k,v in vector.items() if k!='vector_sha256'},sort_keys=True,separators=(',',':')).encode()).hexdigest()
     if len({vector['id'] for vector in vectors})!=len(vectors):raise ValueError('duplicate oracle vector identity')
