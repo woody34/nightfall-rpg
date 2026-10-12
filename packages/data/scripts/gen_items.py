@@ -18,8 +18,10 @@ import xml.etree.ElementTree as ET
 try:
     import gen_class_phase3 as provenance
     import gen_skills
+    from gen_tables import STARTER_CLASSES
 except ModuleNotFoundError:
     from packages.data.scripts import gen_class_phase3 as provenance, gen_skills
+    from packages.data.scripts.gen_tables import STARTER_CLASSES
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DP = gen_skills.DEFAULT_DATAPACK_PATH
@@ -564,6 +566,31 @@ def encode_toml(data):
     return content
 
 
+def class_slots(inputs):
+    """D35: immutable base class slot getters, including the pinned RFINGER quirk."""
+    game_sources=[source(G+'model/actor/templates/L2PcTemplate.java','64-75','base slot getters',True),
+                  source(G+'data/xml/impl/PlayerTemplateData.java','106-108','slot sums; RFINGER twice',True)]
+    for citation in game_sources:inputs.read(citation['file'],True)
+    rows=[]
+    for stem,key,name,race,archetype in STARTER_CLASSES:
+        file=D+'stats/chars/baseStats/'+stem+'.xml';root=inputs.xml(file)
+        static=children(root,'staticData')[0];physical=children(static,'basePDef')[0];magical=children(static,'baseMDef')[0]
+        def slots(node,names):
+            values={n['tag']:int(n['text']) for n in node['children']}
+            if set(values)!=set(names):raise SourceError('unexpected defence slots: '+file)
+            return {name:values[name] for name in names}
+        pslots=slots(physical,['chest','legs','head','feet','gloves','underwear','cloak'])
+        pslots['under']=pslots.pop('underwear')
+        literal=slots(magical,['rear','lear','rfinger','lfinger','neck'])
+        effective=dict(literal,lfinger=literal['rfinger'])
+        lines=str(physical['line'])+'-'+str(max(n['line'] for n in walk(magical)))
+        rows.append({'base_class_id':int(children(root,'classId')[0]['text']),'key':key,
+                     'p_def_slots':pslots,'m_def_slots_xml':literal,'m_def_slots':effective,
+                     'source':source(file,lines,'basePDef/baseMDef')})
+    if len({r['base_class_id'] for r in rows})!=len(STARTER_CLASSES):raise SourceError('duplicate base class')
+    return {'schema':1,'sources':game_sources,'classes':sorted(rows,key=lambda r:r['base_class_id'])}
+
+
 def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
     inputs=Inputs(dp,game);slots=java_slots(inputs);classifications=java_classifications(inputs);all_items={};ledger=[]
     for rel in ['model/items/L2Weapon.java','model/items/L2Armor.java','model/items/L2EtcItem.java','enums/StatFunction.java','model/actor/instance/L2PcInstance.java','network/clientpackets/RequestEnchantItem.java','model/items/enchant/AbstractEnchantItem.java','model/items/enchant/EnchantScroll.java','model/items/enchant/EnchantSupportItem.java','data/xml/impl/EnchantItemHPBonusData.java','datatables/AugmentationData.java']:
@@ -576,6 +603,7 @@ def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
             all_items[sid]=r
             ledger.append({'template_id':sid,'kind':r['kind'],'source':r['source'],'node_sha256':digest(n)})
     tables=side_tables(inputs,all_items);tables.update(constants(inputs))
+    tables['class_slots.toml']=class_slots(inputs)
     blacklist=re.search(r'^EnchantBlacklist\s*=\s*([^\r\n]+)',inputs.read(provenance.CONFIG,True),re.M)
     if blacklist is None:raise SourceError('missing enchant blacklist')
     tables['enchant_scrolls.toml']['blacklist']=[int(x.strip()) for x in blacklist[1].split(',')]
