@@ -22,9 +22,8 @@ suite. `--require-live-api` and offline mode conflict.
 | 5.4 Privacy/presentation | `Nightfall.Item.Codec.IntentsAndEnrichments`, `Codec.AllTenIntents`, `Codec.PublicSpawnAndOwnerStats`, `Presentation.PublicGearEmptyAndGlow`: all intents, public equipment and owner stats transport, mesh/glow selection, present-empty clearing and private-state isolation |
 | 5.5 Scenario grammar | `Nightfall.Item.Bot.Phase4ScenarioRegistry`: native parser accepts all 23 canonical scenarios and 26 runtime variants; Python source-registration audit checks the same 49 files |
 
-The item suite contains 16 tests, including the original 13 and three added tests
-for revised E6 semantics and native scenario parsing. The complete offline suite
-contains 111 tests at this revision. Headless execution verifies widget controls
+The item suite contains 25 tests, retaining the original 16 and adding nine
+review regressions. The complete offline suite contains 120 tests at this revision. Headless execution verifies widget controls
 and mesh state; pixels are a separate gate.
 
 The client follows the current [E6 grammar](phase4-fixtures.md).
@@ -39,3 +38,23 @@ Live scenarios, required-live automation with zero skips, content generation,
 rendering/screenshots, zero-missing-reference cook, D26 live/replayed bytes and
 independent review remain integration gates. E5 stories are not marked globally
 complete by offline results.
+
+## Bounded revision 2 regressions
+
+| Review finding | Native behavioral evidence |
+|---|---|
+| Account/operation/normalized UUID scope and independent requests | `Receipt.AccountOperationUuidAndConcurrentRequests`, `Receipt.StableAccountAcrossRefreshAndSessionRenewal`: cross-character frozen body and history, cross-operation reuse, different accounts, concurrent sequences including same-scope retries, JWT refresh/logout |
+| Duplicate baseline rollback | `Reducer.DuplicateBaselineKeepsNewerSiblings`: weight/penalty/stats siblings survive duplicate/older baseline; fresh incarnation and reconnect hydrate |
+| Detached character/session binding | `UI.DetachedCharacterSessionPendingFailureAndDialogs`: A→B pending/failure, simultaneous dialogs, wrong entity/nonzero sentinel, unavailable and old-session callback |
+| Fresh action versus explicit retry | `UI.UnequipEquipUnequipFreshKeys`, `UI.AllOperationControlsSendCompleteReject`: distinct successful unequip keys; new confirm gets a fresh UUID; explicit retry retains original body/key after completion/rejection/ingredient consumption |
+| Original wire receipt bytes | `Receipt.ExactReceivedPayloadAndBounds`: identical frames pass; an equivalent explicit empty packed field differs; truncated/null/negative-size input fails closed |
+| Every mapping/widget | `Codec.AllTenIntents`, `Codec.AllEightEventPayloads`: distinctive complete payloads, optional absent/present, integer limits; `UI.AllOperationControlsSendCompleteReject` exercises enchant/crystallize/refine/cancel/SA sends and received results/rejections; `UI.HudManualAutoShotReceivedStateAndReset` exercises actual HUD buttons, counts, received auto state and disconnect |
+
+Exact receipt comparison uses the original result payload from received world
+frames. Synthetic native test events may reconstruct their payload; decoded
+GrantItem RPC replies expose their RPC status without manufacturing received
+wire bytes for this predicate. The inventory buttons always start new actions;
+the operation form has separate new-operation and previous-operation retry
+buttons. Request history uses the account UUID subject, independently of live
+character/incarnation fences. Detached replies are cached by character and
+bound to the authentication generation; refresh/failure clears that view.

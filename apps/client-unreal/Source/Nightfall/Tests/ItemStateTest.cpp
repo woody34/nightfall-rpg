@@ -6,6 +6,7 @@
 #include "Bot/BotPredicates.h"
 #include "Net/NetClientSubsystem.h"
 #include "NightfallWire.h"
+#include "Misc/Base64.h"
 #if WITH_DEV_AUTOMATION_TESTS
 namespace ItemTest
 {
@@ -83,18 +84,152 @@ bool FItemPredicateCarriersTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemAllIntentsTest,"Nightfall.Item.Codec.AllTenIntents",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemAllIntentsTest::RunTest(const FString&)
 {
- const FString Key=TEXT("12345678-1111-4111-8111-123456789abc");
- auto Verify=[&](const FClientMessage& M,EGrpcNightfallV1ClientMessageIntent Expected){TArray<uint8>B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage R;TestTrue(TEXT("wire decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),R));TestTrue(TEXT("allocated item intent retained"),R.Intent.IntentCase==Expected);};
- {FClientMessage M;FGrpcNightfallV1EquipItemRequest Q;Q.IdempotencyKey=Key;M.EquipItem=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::EquipItem);}
- {FClientMessage M;FGrpcNightfallV1UnequipItemRequest Q;Q.IdempotencyKey=Key;M.UnequipItem=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::UnequipItem);}
- {FClientMessage M;FGrpcNightfallV1UseItemRequest Q;Q.IdempotencyKey=Key;M.UseItem=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::UseItem);}
- {FClientMessage M;FGrpcNightfallV1DestroyItemRequest Q;Q.IdempotencyKey=Key;M.DestroyItem=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::DestroyItem);}
- {FClientMessage M;FGrpcNightfallV1EnchantItemRequest Q;Q.IdempotencyKey=Key;M.EnchantItem=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::EnchantItem);}
- {FClientMessage M;FGrpcNightfallV1ToggleAutoShotRequest Q;Q.IdempotencyKey=Key;M.ToggleAutoShot=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot);}
- {FClientMessage M;FGrpcNightfallV1RefineItemRequest Q;Q.IdempotencyKey=Key;M.RefineItem=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::RefineItem);}
- {FClientMessage M;FGrpcNightfallV1CancelRefineRequest Q;Q.IdempotencyKey=Key;M.CancelRefine=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::CancelRefine);}
- {FClientMessage M;FGrpcNightfallV1ExchangeSpecialAbilityRequest Q;Q.IdempotencyKey=Key;M.ExchangeSpecialAbility=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility);}
- {FClientMessage M;FGrpcNightfallV1CrystallizeItemRequest Q;Q.IdempotencyKey=Key;M.CrystallizeItem=Q;Verify(M,EGrpcNightfallV1ClientMessageIntent::CrystallizeItem);}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1EquipItemRequest Q;
+Q.IdempotencyKey=TEXT("EquipItemRequest-idempotency_key");
+Q.InstanceId=uint64(MAX_uint64-2);
+Q.PreferredSlot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_BELT;
+M.EquipItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("EquipItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("EquipItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::EquipItem);
+TestEqual(TEXT("EquipItem all payload fields optional absent"),Decoded.Intent.EquipItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1EquipItemRequest Q;
+Q.IdempotencyKey=TEXT("EquipItemRequest-idempotency_key");
+Q.InstanceId=uint64(MAX_uint64-2);
+Q.PreferredSlot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_BELT;
+M.EquipItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("EquipItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("EquipItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::EquipItem);
+TestEqual(TEXT("EquipItem all payload fields optional present"),Decoded.Intent.EquipItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1UnequipItemRequest Q;
+Q.IdempotencyKey=TEXT("UnequipItemRequest-idempotency_key");
+Q.Slot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_BELT;
+M.UnequipItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("UnequipItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("UnequipItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::UnequipItem);
+TestEqual(TEXT("UnequipItem all payload fields optional absent"),Decoded.Intent.UnequipItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1UnequipItemRequest Q;
+Q.IdempotencyKey=TEXT("UnequipItemRequest-idempotency_key");
+Q.Slot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_BELT;
+M.UnequipItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("UnequipItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("UnequipItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::UnequipItem);
+TestEqual(TEXT("UnequipItem all payload fields optional present"),Decoded.Intent.UnequipItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1UseItemRequest Q;
+Q.IdempotencyKey=TEXT("UseItemRequest-idempotency_key");
+Q.InstanceId=uint64(MAX_uint64-2);
+M.UseItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("UseItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("UseItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::UseItem);
+TestEqual(TEXT("UseItem all payload fields optional absent"),Decoded.Intent.UseItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1UseItemRequest Q;
+Q.IdempotencyKey=TEXT("UseItemRequest-idempotency_key");
+Q.InstanceId=uint64(MAX_uint64-2);
+Q.HasTarget=true;
+Q.Target.EntityId.Value.Init(18,16);
+Q.Target.Incarnation=uint32(MAX_uint32-2);
+M.UseItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("UseItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("UseItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::UseItem);
+TestEqual(TEXT("UseItem all payload fields optional present"),Decoded.Intent.UseItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1DestroyItemRequest Q;
+Q.IdempotencyKey=TEXT("DestroyItemRequest-idempotency_key");
+Q.InstanceId=uint64(MAX_uint64-2);
+Q.Count=uint64(MAX_uint64-3);
+M.DestroyItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("DestroyItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("DestroyItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::DestroyItem);
+TestEqual(TEXT("DestroyItem all payload fields optional absent"),Decoded.Intent.DestroyItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1DestroyItemRequest Q;
+Q.IdempotencyKey=TEXT("DestroyItemRequest-idempotency_key");
+Q.InstanceId=uint64(MAX_uint64-2);
+Q.Count=uint64(MAX_uint64-3);
+M.DestroyItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("DestroyItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("DestroyItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::DestroyItem);
+TestEqual(TEXT("DestroyItem all payload fields optional present"),Decoded.Intent.DestroyItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1EnchantItemRequest Q;
+Q.IdempotencyKey=TEXT("EnchantItemRequest-idempotency_key");
+Q.ScrollInstanceId=uint64(MAX_uint64-2);
+Q.TargetInstanceId=uint64(MAX_uint64-3);
+M.EnchantItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("EnchantItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("EnchantItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::EnchantItem);
+TestEqual(TEXT("EnchantItem all payload fields optional absent"),Decoded.Intent.EnchantItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1EnchantItemRequest Q;
+Q.IdempotencyKey=TEXT("EnchantItemRequest-idempotency_key");
+Q.ScrollInstanceId=uint64(MAX_uint64-2);
+Q.TargetInstanceId=uint64(MAX_uint64-3);
+Q._support_instance_id._support_instance_idCase=EGrpcNightfallV1EnchantItemRequest_support_instance_id::SupportInstanceId;
+Q._support_instance_id.SupportInstanceId=uint64(MAX_uint64-4);
+M.EnchantItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("EnchantItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("EnchantItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::EnchantItem);
+TestEqual(TEXT("EnchantItem all payload fields optional present"),Decoded.Intent.EnchantItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1ToggleAutoShotRequest Q;
+Q.IdempotencyKey=TEXT("ToggleAutoShotRequest-idempotency_key");
+Q.TemplateId=uint32(MAX_uint32-2);
+Q.Enabled=false;
+M.ToggleAutoShot=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("ToggleAutoShot decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("ToggleAutoShot case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot);
+TestEqual(TEXT("ToggleAutoShot all payload fields optional absent"),Decoded.Intent.ToggleAutoShot.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1ToggleAutoShotRequest Q;
+Q.IdempotencyKey=TEXT("ToggleAutoShotRequest-idempotency_key");
+Q.TemplateId=uint32(MAX_uint32-2);
+Q.Enabled=true;
+M.ToggleAutoShot=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("ToggleAutoShot decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("ToggleAutoShot case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot);
+TestEqual(TEXT("ToggleAutoShot all payload fields optional present"),Decoded.Intent.ToggleAutoShot.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1RefineItemRequest Q;
+Q.IdempotencyKey=TEXT("RefineItemRequest-idempotency_key");
+Q.TargetInstanceId=uint64(MAX_uint64-3);
+Q.StoneInstanceId=uint64(MAX_uint64-4);
+M.RefineItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("RefineItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("RefineItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::RefineItem);
+TestEqual(TEXT("RefineItem all payload fields optional absent"),Decoded.Intent.RefineItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1RefineItemRequest Q;
+Q.IdempotencyKey=TEXT("RefineItemRequest-idempotency_key");
+Q.HasNpc=true;
+Q.Npc.EntityId.Value.Init(18,16);
+Q.Npc.Incarnation=uint32(MAX_uint32-2);
+Q.TargetInstanceId=uint64(MAX_uint64-3);
+Q.StoneInstanceId=uint64(MAX_uint64-4);
+M.RefineItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("RefineItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("RefineItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::RefineItem);
+TestEqual(TEXT("RefineItem all payload fields optional present"),Decoded.Intent.RefineItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1CancelRefineRequest Q;
+Q.IdempotencyKey=TEXT("CancelRefineRequest-idempotency_key");
+Q.TargetInstanceId=uint64(MAX_uint64-3);
+M.CancelRefine=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("CancelRefine decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("CancelRefine case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::CancelRefine);
+TestEqual(TEXT("CancelRefine all payload fields optional absent"),Decoded.Intent.CancelRefine.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1CancelRefineRequest Q;
+Q.IdempotencyKey=TEXT("CancelRefineRequest-idempotency_key");
+Q.HasNpc=true;
+Q.Npc.EntityId.Value.Init(18,16);
+Q.Npc.Incarnation=uint32(MAX_uint32-2);
+Q.TargetInstanceId=uint64(MAX_uint64-3);
+M.CancelRefine=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("CancelRefine decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("CancelRefine case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::CancelRefine);
+TestEqual(TEXT("CancelRefine all payload fields optional present"),Decoded.Intent.CancelRefine.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1ExchangeSpecialAbilityRequest Q;
+Q.IdempotencyKey=TEXT("ExchangeSpecialAbilityRequest-idempotency_key");
+Q.TargetInstanceId=uint64(MAX_uint64-3);
+Q.RecipeId=uint64(MAX_uint64-4);
+M.ExchangeSpecialAbility=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("ExchangeSpecialAbility decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("ExchangeSpecialAbility case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility);
+TestEqual(TEXT("ExchangeSpecialAbility all payload fields optional absent"),Decoded.Intent.ExchangeSpecialAbility.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1ExchangeSpecialAbilityRequest Q;
+Q.IdempotencyKey=TEXT("ExchangeSpecialAbilityRequest-idempotency_key");
+Q.HasNpc=true;
+Q.Npc.EntityId.Value.Init(18,16);
+Q.Npc.Incarnation=uint32(MAX_uint32-2);
+Q.TargetInstanceId=uint64(MAX_uint64-3);
+Q.RecipeId=uint64(MAX_uint64-4);
+M.ExchangeSpecialAbility=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("ExchangeSpecialAbility decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("ExchangeSpecialAbility case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility);
+TestEqual(TEXT("ExchangeSpecialAbility all payload fields optional present"),Decoded.Intent.ExchangeSpecialAbility.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1CrystallizeItemRequest Q;
+Q.IdempotencyKey=TEXT("CrystallizeItemRequest-idempotency_key");
+Q.InstanceId=uint64(MAX_uint64-2);
+M.CrystallizeItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("CrystallizeItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("CrystallizeItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::CrystallizeItem);
+TestEqual(TEXT("CrystallizeItem all payload fields optional absent"),Decoded.Intent.CrystallizeItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
+ {FClientMessage M;M.Seq=MAX_uint32;FGrpcNightfallV1CrystallizeItemRequest Q;
+Q.IdempotencyKey=TEXT("CrystallizeItemRequest-idempotency_key");
+Q.InstanceId=uint64(MAX_uint64-2);
+M.CrystallizeItem=Q;TArray<uint8> B;NightfallProto::Encode(M,B);FGrpcNightfallV1ClientMessage Decoded;
+TestTrue(TEXT("CrystallizeItem decode"),NightfallWire::DecodeClientMessage(B.GetData(),B.Num(),Decoded));TestTrue(TEXT("CrystallizeItem case"),Decoded.Intent.IntentCase==EGrpcNightfallV1ClientMessageIntent::CrystallizeItem);
+TestEqual(TEXT("CrystallizeItem all payload fields optional present"),Decoded.Intent.CrystallizeItem.ToJsonString(false),Q.ToJsonString(false));TestEqual(TEXT("sequence boundary"),Decoded.Seq.Value,uint32(MAX_uint32));}
  return true;
 }
 #endif
@@ -173,5 +308,49 @@ bool FItemRefineJoinTest::RunTest(const FString&)
  Change.Tick=12;Change.PreviousRevision=2;Change.InventoryRevision=3;Change.Updated[0]._augment_id._augment_idCase=EGrpcNightfallV1OwnedItem_augment_id::NotSet;S->ApplyChanged(Change);TestTrue(TEXT("removed requires augment absence"),Eval(TEXT("refine_result_consistent")).bTrue);TestFalse(TEXT("cancellation never becomes operation33"),S->LastOperation().IsSet());
  Result._augment_id._augment_idCase=EGrpcNightfallV1RefineResult_augment_id::AugmentId;S->ApplyRefine(Result);TestFalse(TEXT("malformed removed payload is inconsistent"),Eval(TEXT("refine_result_consistent")).bTrue);
  S->Reset();TestFalse(TEXT("reset outcome UNKNOWN"),Eval(TEXT("refine_outcome == removed")).bTrue);TestFalse(TEXT("reset join UNKNOWN"),Eval(TEXT("refine_result_consistent")).bTrue);return true;
+}
+#endif
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemBaselineReplayTest,"Nightfall.Item.Reducer.DuplicateBaselineKeepsNewerSiblings",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemBaselineReplayTest::RunTest(const FString&)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());auto Base=ItemTest::Sync();S->ApplySync(Base);
+ FStatsChanged Stats;Stats.Entity=ItemTest::Owner;Stats.Incarnation=1;Stats.Tick=11;Stats.InventoryRevision=1;Stats.MaxHp=123;Stats.EffectiveStats=FEffectiveStats{};S->ApplyStats(Stats);TestTrue(TEXT("new stats mark"),S->MarkItemState());
+ FGrpcNightfallV1WeightChanged W;W.EntityId=Base.EntityId;W.Incarnation=1;W.Tick=11;W.InventoryRevision=1;W.HasWeight=true;W.Weight.Weight=77;S->ApplyWeight(W);
+ FGrpcNightfallV1PenaltyChanged P;P.EntityId=Base.EntityId;P.Incarnation=1;P.Tick=11;P.InventoryRevision=1;P.HasPenalties=true;P.Penalties.OverloadLevel=4;S->ApplyPenalty(P);S->ApplySync(Base);
+ TestEqual(TEXT("duplicate baseline keeps newer weight"),S->GetInventory().Weight.Weight,int64(77));TestEqual(TEXT("duplicate baseline keeps newer penalty"),S->GetInventory().Penalties.OverloadLevel.Value,uint32(4));TestTrue(TEXT("duplicate baseline keeps newer stats"),S->OwnerStatsMatchMark().IsSet() && *S->OwnerStatsMatchMark());
+ Base.Tick=Base.BaselineTick=9;S->ApplySync(Base);TestEqual(TEXT("older baseline keeps weight"),S->GetInventory().Weight.Weight,int64(77));
+ S->ApplySpawn(ItemTest::Spawn(ItemTest::Owner,20,2));Base.Tick=Base.BaselineTick=20;Base.Incarnation=2;Base.Weight.Weight=88;S->ApplySync(Base);TestTrue(TEXT("fresh identity hydrates"),S->HasBaseline());TestEqual(TEXT("fresh identity weight"),S->GetInventory().Weight.Weight,int64(88));
+ S->Reset();S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());TestTrue(TEXT("reconnect permits original baseline"),S->HasBaseline());return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemRawReceiptTest,"Nightfall.Item.Receipt.ExactReceivedPayloadAndBounds",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemRawReceiptTest::RunTest(const FString&)
+{
+ FScopedTestGameInstance Scope;Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());
+ FGrpcNightfallV1ItemOperationResult Result;Result.EntityId=ItemTest::Sync().EntityId;Result.Incarnation=1;Result.Tick=11;Result.InventoryRevision=1;Result.ReceiptId=TEXT("12345678-1111-4111-8111-123456789abc");Result.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EQUIP;
+ TArray<uint8> Payload;NightfallWire::EncodeItemReceipt(Result,Payload);
+ auto Varint=[](TArray<uint8>& B,uint64 V){while(V>=128){B.Add(uint8(V)|128);V>>=7;}B.Add(uint8(V));};
+ auto Frame=[&](const TArray<uint8>& P){TArray<uint8> Event;Varint(Event,(33<<3)|2);Varint(Event,P.Num());Event.Append(P);TArray<uint8> B;B.Add(0x12);Varint(B,Event.Num());B.Append(Event);return B;};
+ auto Receive=[&](const TArray<uint8>& B){FServerMessage M;TestTrue(TEXT("received frame decodes"),NightfallProto::Decode(B.GetData(),B.Num(),M));N->DispatchServerMessage(M);return M;};
+ auto Original=Frame(Payload);auto A=Receive(Original);Receive(Original);TestTrue(TEXT("identical replay bytes pass"),S->ReceiptMatchesFirst().IsSet() && *S->ReceiptMatchesFirst());
+ // An explicitly encoded empty packed field is equivalent to absent affected IDs.
+ Payload.Add(0x3a);Payload.Add(0);
+ auto Distinct=Frame(Payload);auto B=Receive(Distinct);TestEqual(TEXT("same decoded result"),B.Event->ItemOperationResult->ToJsonString(false),A.Event->ItemOperationResult->ToJsonString(false));TestTrue(TEXT("byte-distinct receipt fails equality"),S->ReceiptMatchesFirst().IsSet() && !*S->ReceiptMatchesFirst());
+ TArray<uint8> Extracted;NightfallWire::ItemReceiptBytes(Distinct.GetData(),Distinct.Num(),Extracted);TestTrue(TEXT("original payload preserved"),Extracted==Payload);
+ for(int32 Size=0;Size<Distinct.Num();++Size){NightfallWire::ItemReceiptBytes(Distinct.GetData(),Size,Extracted);TestTrue(TEXT("truncated envelope rejected"),Extracted.IsEmpty());}NightfallWire::ItemReceiptBytes(nullptr,1,Extracted);TestTrue(TEXT("null bounds rejected"),Extracted.IsEmpty());NightfallWire::ItemReceiptBytes(nullptr,-1,Extracted);TestTrue(TEXT("negative bounds rejected"),Extracted.IsEmpty());return true;
+}
+#endif
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemAuthenticationScopeTest,"Nightfall.Item.Receipt.StableAccountAcrossRefreshAndSessionRenewal",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemAuthenticationScopeTest::RunTest(const FString&)
+{
+ FScopedTestGameInstance Scope;auto* Session=Scope.Get<USessionClient>();
+ const FString Account=TEXT("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+ auto Token=[&](int32 Exp){FString Payload=FBase64::Encode(FString::Printf(TEXT("{\"sub\":\"%s\",\"exp\":%d}"),*Account,Exp)).Replace(TEXT("+"),TEXT("-")).Replace(TEXT("/"),TEXT("_"));Payload.RemoveFromEnd(TEXT("="));Payload.RemoveFromEnd(TEXT("="));return TEXT("e30.")+Payload+TEXT(".signature");};
+ Session->SetBearerToken(Token(1));TestEqual(TEXT("JWT subject is stable account UUID"),Session->AccountId(),Account);const uint64 First=Session->AuthenticationGeneration();
+ Session->SetBearerToken(Token(2));TestEqual(TEXT("refresh preserves account"),Session->AccountId(),Account);TestEqual(TEXT("refresh preserves authenticated session"),Session->AuthenticationGeneration(),First);
+ Session->SetBearerToken(TEXT("test:AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"));TestEqual(TEXT("dev token maps same normalized account"),Session->AccountId(),Account);TestEqual(TEXT("same account token format doesn't change session"),Session->AuthenticationGeneration(),First);
+ Session->SetBearerToken(TEXT(""));TestTrue(TEXT("logout removes account"),Session->AccountId().IsEmpty());Session->SetBearerToken(Token(3));TestTrue(TEXT("relogin creates a fresh session"),Session->AuthenticationGeneration()>First);
+ Session->SetBearerToken(TEXT("opaque-token"));TestTrue(TEXT("unknown subject fails closed"),Session->AccountId().IsEmpty());return true;
 }
 #endif
