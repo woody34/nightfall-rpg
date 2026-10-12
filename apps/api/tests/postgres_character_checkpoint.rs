@@ -321,3 +321,110 @@ async fn concurrent_different_keys_at_one_revision_apply_once() {
     got.sort_by_key(|o| matches!(o, CheckpointOutcome::Stale));
     assert_eq!(got, [CheckpointOutcome::Applied(1), CheckpointOutcome::Stale]);
 }
+
+#[derive(Clone)]
+struct TimingWriter(std::sync::Arc<parking_lot::Mutex<Vec<u8>>>);
+impl std::io::Write for TimingWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn storage_subphase_timings_distinguish_pool_wait_queries_and_commit_without_identity() {
+    use nightfall_api::application::replay_log::ZoneSnapshotStore;
+    use nightfall_api::domain::zone::{Tick, ZoneId};
+    use nightfall_api::infrastructure::postgres::PgZoneSnapshotStore;
+    use tracing::instrument::WithSubscriber as _;
+    let pool = fresh_pool().await.expect("owned DATABASE_URL required");
+    let schema: String = sqlx::query_scalar("SELECT current_schema()")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let options = (*pool.connect_options())
+        .clone()
+        .options([("search_path", schema.as_str())]);
+    let single = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_time_level(tracing::log::LevelFilter::Debug)
+        .connect_with(options)
+        .await
+        .unwrap();
+    let (repo, c) = seeded(&single).await;
+    sqlx::query("INSERT INTO zone_epochs(zone_id, epoch) VALUES(77,1)")
+        .execute(&single)
+        .await
+        .unwrap();
+    let index = PgZoneSnapshotStore::new(single.clone());
+    let output = std::sync::Arc::new(parking_lot::Mutex::new(Vec::new()));
+    let writer = TimingWriter(output.clone());
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter("nightfall_api::runtime_timing=debug,sqlx::pool::acquire=debug")
+        .with_ansi(false)
+        .without_time()
+        .with_writer(move || writer.clone())
+        .finish();
+    async {
+        let held = single.acquire().await.unwrap();
+        let release = async {
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            drop(held);
+        };
+        let cp = checkpoint(&c, 0, KEY_A);
+        let (result, ()) = tokio::join!(repo.checkpoint(&cp, &[]), release);
+        assert_eq!(result.unwrap(), CheckpointOutcome::Applied(1));
+        index.recording(ZoneId(77), 1, Tick(35)).await.unwrap();
+        index.checkpointed(ZoneId(77), 1, Tick(30)).await.unwrap();
+    }
+    .with_subscriber(subscriber)
+    .await;
+    let text = String::from_utf8(output.lock().clone()).unwrap();
+    assert!(
+        text.lines()
+            .any(|line| line.contains("phase=\"checkpoint\"")
+                && line.contains("acquired_after_secs=")
+                && line
+                    .split("acquired_after_secs=")
+                    .nth(1)
+                    .unwrap()
+                    .split_whitespace()
+                    .next()
+                    .unwrap()
+                    .parse::<f64>()
+                    .unwrap()
+                    >= 0.02),
+        "{text}"
+    );
+    for subphase in ["sql", "commit"] {
+        assert!(
+            text.lines()
+                .any(|line| line.contains("phase=\"checkpoint\"")
+                    && line.contains(&format!("subphase=\"{subphase}\""))),
+            "{text}"
+        );
+    }
+    for phase in ["recording_index", "checkpoint_index"] {
+        for subphase in ["pool", "sql_commit"] {
+            assert!(
+                text.lines()
+                    .any(|line| line.contains(&format!("phase=\"{phase}\""))
+                        && line.contains(&format!("subphase=\"{subphase}\""))),
+                "{text}"
+            );
+        }
+    }
+    for secret in [
+        c.id.to_string(),
+        c.account_id.to_string(),
+        KEY_A.to_owned(),
+        "UPDATE characters".to_owned(),
+    ] {
+        assert!(!text.contains(&secret));
+    }
+    let markers: (i64, i64) = sqlx::query_as("SELECT last_recorded_tick,last_checkpointed_tick FROM zone_epochs WHERE zone_id=77 AND epoch=1").fetch_one(&single).await.unwrap();
+    assert_eq!(markers, (35, 30));
+}
