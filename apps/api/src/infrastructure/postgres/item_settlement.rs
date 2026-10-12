@@ -66,7 +66,13 @@ impl ItemCheckpointRepository for PgCharacterRepository {
         work: &ItemCheckpointWork,
         learning: Option<&crate::application::ports::SuccessfulLearnReceipt>,
     ) -> Result<CheckpointOutcome, CheckpointError> {
-        match self.checkpoint_tx(cp, events, learning, Some(work)).await? {
+        match self
+            .timed(
+                "checkpoint_items",
+                Box::pin(self.checkpoint_tx(cp, events, learning, Some(work))),
+            )
+            .await?
+        {
             crate::application::ports::LearningCheckpointOutcome::Checkpoint(outcome) => {
                 Ok(outcome)
             },

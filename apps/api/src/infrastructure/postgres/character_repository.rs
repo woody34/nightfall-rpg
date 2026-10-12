@@ -135,7 +135,7 @@ impl PgCharacterRepository {
     }
 
     /// Runs `fut`, timing it when metrics are attached.
-    async fn timed<T>(&self, op: &'static str, fut: impl Future<Output = T>) -> T {
+    pub(super) async fn timed<T>(&self, op: &'static str, fut: impl Future<Output = T>) -> T {
         match &self.metrics {
             Some(m) => m.time_db("character", op, fut).await,
             None => fut.await,
@@ -614,6 +614,7 @@ impl PgCharacterRepository {
                 return Err(CheckpointError::Constraint("item_checkpoint_rules".into()));
             }
             work.validate(cp, original.account_id)?;
+            work.validate_catalogue(rules)?;
             work.validate_events(cp, events)?;
             if super::item_settlement::claim_receipts(&tx, cp, work).await? {
                 tx.rollback().await.map_err(other)?;
