@@ -117,7 +117,7 @@ pub use phase4_admission::{
     ItemCommand, ItemCommandKind, MaterializePendingItems, Phase4PlayerLoad,
 };
 pub use phase4_checkpoint::Phase4Checkpoint;
-pub use phase4_projection::Phase4Projection;
+pub use phase4_projection::{FrozenItemResult, ItemResultDetail, Phase4Projection};
 pub use progression::{add_xp, death_xp_loss, level_for_xp, xp_after_death, xp_cap};
 pub use scaled::{ceil_div, floor_div, isqrt, Scaled, StatError, Q};
 pub use stat_rules::{
