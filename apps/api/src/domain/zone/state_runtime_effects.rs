@@ -467,11 +467,14 @@ impl ZoneState {
                                 },
                                 Q,
                                 FunctionConditions {
-                                    weapon_kind: if self.sidecar(target.entity)?.player.is_some() {
-                                        "SWORD"
-                                    } else {
-                                        "NONE"
-                                    },
+                                    weapon_kind: self.item_weapon_kind(
+                                        target.entity,
+                                        if self.sidecar(target.entity)?.player.is_some() {
+                                            "SWORD"
+                                        } else {
+                                            "NONE"
+                                        },
+                                    )?,
                                     can_resurrect: true,
                                 },
                             )
@@ -1047,17 +1050,21 @@ impl ZoneState {
         let rate = if buff {
             let a = self.effective(caster.entity)?;
             let b = self.effective(target.entity)?;
-            let conditions = FunctionConditions {
-                weapon_kind: "SWORD",
+            let target_conditions = FunctionConditions {
+                weapon_kind: self.item_weapon_kind(target.entity, "SWORD")?,
+                can_resurrect: true,
+            };
+            let caster_conditions = FunctionConditions {
+                weapon_kind: self.item_weapon_kind(caster.entity, "SWORD")?,
                 can_resurrect: true,
             };
             skill_math::cancel_base_rate(
                 rate,
                 b.calculator
-                    .fold("cancelVuln", 0, conditions)
+                    .fold("cancelVuln", 0, target_conditions)
                     .map_err(invariant)?,
                 a.calculator
-                    .fold("cancelProf", 0, conditions)
+                    .fold("cancelProf", 0, caster_conditions)
                     .map_err(invariant)?,
             )
             .map_err(invariant)?

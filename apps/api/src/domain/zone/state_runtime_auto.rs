@@ -242,11 +242,14 @@ impl ZoneState {
             .checked_mul(Self::attack_traits_v5(
                 &a,
                 &b,
-                if self.sidecar(source.entity)?.player.is_some() {
-                    "SWORD"
-                } else {
-                    "NONE"
-                },
+                self.item_weapon_kind(
+                    source.entity,
+                    if self.sidecar(source.entity)?.player.is_some() {
+                        "SWORD"
+                    } else {
+                        "NONE"
+                    },
+                )?,
             )?)
             .map_err(invariant)?;
         damage = damage
