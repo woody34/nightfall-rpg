@@ -1,4 +1,4 @@
-> **BINDING RECORD (as of planning):** This document is the binding Phase 4 architecture decisions record. The source below is copied verbatim.
+> **BINDING RECORD (as of planning):** This document is the binding Phase 4 architecture decisions record (O1–O4, A1–A22, D1–D18). The source below is copied verbatim.
 
 > **ARCHITECT ERRATA (binding):**
 
@@ -65,3 +65,8 @@ Design (Z) ∥ plan (C) → review both → data (C) ∥ engine (Z) ∥ API skel
 - D11 Currency/ingredients: admit adena (57), ancient adena (5575) and every ingredient of the admitted SA/augment/cancel multisells as fixture-only inventory inputs (critical path, ledgered); no acquisition path in Phase 4; multisell maintainEnchantment semantics preserved as pinned.
 - D12 Starter-kit extras (tutorial/teleport/other handlers broader than Phase 4): keep every XML item/count/equipped flag; unsupported uses are named fail-closed capabilities (UseItem → NOT_YET_IMPLEMENTED-class reject), never a dropped item.
 - D13 Shot toggle/bundle mismatch, dual timing adaptation, overload transition quirk, simultaneous potion lane, glow placeholder: the design decides per pinned source and lists each as a numbered rule; glow tiers are a client placeholder (documented, not evidence).
+- D14 E4 (combat integration: shots/shield/positional/bows/poles/blows) is owned by Z (it edits shared combat/RNG callers), reviewed by C. Confirmed.
+- D15 GetInventory: refused FAILED_PRECONDITION while the character is admitted in a zone (the live baseline is InventorySync over the WebSocket); UNAVAILABLE when the zone or catalogue port is absent; never serve stale DB rows as a live baseline. Tested in the first proto/API contract commit.
+- D16 (A6 clarified, plan-review-1 F3) Equipment-derived System modifier sources (item funcs, set skills, item skills, penalties 4270/6209/6213, masteries) SURVIVE death and dead admission and are reconstructed from retained equipment regardless of the source skill's stayAfterDeath flag (skill default false, Skill.java:231); ordinary effects produced by active item/augment casts keep their own lifecycle. Tests: death, dead-admission, resurrection prove equipment contributions installed exactly once.
+- D17 (plan-review-1 F1/F2) Bow: ordinary-weapon reuse `trunc(reuse_delay*333/pAtkSpd)` (L2Character.java:4353-4357; the transformed branch :4344-4349 is excluded); bow damage `base=trunc(calcPhysDam)`, `damage=trunc(base*(distance_l2/4000 + 4/5))` (:1029-1033) in exact rational arithmetic with documented deterministic distance conversion; oracle vectors on both sides of integer boundaries. Damage rounding is specified per caller, never as a blanket single truncation.
+- D18 (plan-review-1 F4) E2.6 depends only on E3.1 reviewed adapters and E3.3's published pending-kit/materialization interface + isolated adapter tests; E3.3's live Done When follows E2.6 integration.
