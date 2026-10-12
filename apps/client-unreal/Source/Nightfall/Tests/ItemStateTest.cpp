@@ -25,11 +25,12 @@ bool FItemStateTest::RunTest(const FString&)
  TestEqual(TEXT("early sibling retained"),S->GetInventory().Weight.PerMille,int64(500));
  W.Weight.PerMille=600;S->ApplyWeight(W);TestEqual(TEXT("same-revision sibling applies"),S->GetInventory().Weight.PerMille,int64(600));
  FStatsChanged Stats;Stats.Entity=Owner;Stats.Incarnation=1;Stats.Tick=11;Stats.InventoryRevision=2;FGrpcNightfallV1ItemPenaltyState P;P.WeaponLevel=1;Stats.ItemPenalties=P;S->ApplyStats(Stats);TestEqual(TEXT("stats sibling applies"),S->GetInventory().Penalties.WeaponLevel.Value,uint32(1));
+ W.Tick=20;W.Weight.PerMille=700;S->ApplyWeight(W);W.Tick=12;W.Weight.PerMille=800;S->ApplyWeight(W);TestEqual(TEXT("older same-revision summary rejected"),S->GetInventory().Weight.PerMille,int64(700));
  C.Tick=10;C.InventoryRevision=3;C.PreviousRevision=2;S->ApplyChanged(C);TestEqual(TEXT("stale baseline tick rejected"),S->Revision(),uint64(2));
  C.Tick=12;C.InventoryRevision=4;C.PreviousRevision=3;S->ApplyChanged(C);TestTrue(TEXT("revision gap fails closed"),S->NeedsBaseline());TestFalse(TEXT("gap never predicts counts"),S->Count(6).IsSet());
  S->Reset();S->ApplySpawn(Spawn());auto Invalid=Sync();Invalid.Items.Add(Invalid.Items[0]);S->ApplySync(Invalid);TestFalse(TEXT("duplicate IDs atomic refusal"),S->HasBaseline());
  S->Reset();S->ApplySpawn(Spawn());S->ApplySync(Sync());auto R=FEntityRespawned{};R.Entity=Owner;R.Tick=11;R.Incarnation=2;S->ApplyRespawn(R);S->ApplySync(Sync());TestFalse(TEXT("old-life baseline rejected"),S->HasBaseline());
- FGrpcNightfallV1GetInventoryResponse Detached;Detached.HasInventory=true;Detached.Inventory=Sync();Detached.Inventory.Tick=Detached.Inventory.BaselineTick=Detached.Inventory.Incarnation=0;S->ApplyDetached(Detached);TestTrue(TEXT("detached sentinel accepted separately"),S->Detached().IsSet());TestFalse(TEXT("detached cannot hydrate"),S->HasBaseline());
+ FGrpcNightfallV1GetInventoryResponse Detached;Detached.HasInventory=true;Detached.Inventory=Sync();Detached.Inventory.Tick=Detached.Inventory.BaselineTick=0;Detached.Inventory.Incarnation=0;S->ApplyDetached(Detached);TestTrue(TEXT("detached sentinel accepted separately"),S->Detached().IsSet());TestFalse(TEXT("detached cannot hydrate"),S->HasBaseline());
  return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemWireTest,"Nightfall.Item.Codec.IntentsAndEnrichments",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
@@ -113,5 +114,14 @@ bool FItemAuditTest::RunTest(const FString&)
  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto* A=Scope.Get<UItemAuditSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());FString Detail;TestFalse(TEXT("no outcome isn't a pass"),A->Check(Detail).IsSet());
  FGrpcNightfallV1EnchantResult R;R.EntityId=ItemTest::Sync().EntityId;R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.TargetInstanceId=1;R.ReceiptId=TEXT("12345678-1111-4111-8111-123456789abc");R.Outcome=EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SUCCESS;R.NewEnchant=1;FWorldEvent E;E.EnchantResult=R;FServerMessage M;M.Event=E;N->DispatchServerMessage(M);const auto Invalid=A->Check(Detail);TestTrue(TEXT("mismatch is an observed failure"),Invalid.IsSet() && !*Invalid);
  R.Outcome=EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SAFE_FAILED;R.NewEnchant=0;E.EnchantResult=R;M.Event=E;N->DispatchServerMessage(M);TestTrue(TEXT("later coherent fact can't erase violation"),A->Check(Detail).IsSet() && !*A->Check(Detail));A->Reset();TestFalse(TEXT("transport reset invalidates audit"),A->Check(Detail).IsSet());return true;
+}
+#endif
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemHistoricalReceiptTest,"Nightfall.Item.Receipt.RevivalHistoryIsNotLiveState",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemHistoricalReceiptTest::RunTest(const FString&)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());
+ FGrpcNightfallV1ItemOperationResult R;R.EntityId=ItemTest::Sync().EntityId;R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=TEXT("12345678-1111-4111-8111-123456789abc");R.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EQUIP;FWorldEvent E;E.ItemOperationResult=R;FServerMessage M;M.Event=E;N->DispatchServerMessage(M);
+ S->ApplySpawn(ItemTest::Spawn(ItemTest::Owner,20,2));auto B=ItemTest::Sync();B.Tick=B.BaselineTick=20;B.Incarnation=2;S->ApplySync(B);N->DispatchServerMessage(M);TestTrue(TEXT("same frozen historical bytes compare across revival"),S->ReceiptMatchesFirst().IsSet() && *S->ReceiptMatchesFirst());TestFalse(TEXT("historical receipt never becomes new life operation"),S->LastOperation().IsSet());TestEqual(TEXT("historical receipt cannot modify inventory"),S->Revision(),uint64(1));return true;
 }
 #endif

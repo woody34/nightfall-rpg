@@ -84,7 +84,7 @@ private:
  bool Validate(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate) const;
  void Publish(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate);
  void Remember(EGrpcNightfallV1ItemOperation Op, const FString& Key, const TArray<uint8>& Payload);
- void FinishSend(uint32 Seq);
+ void FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op);
  UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
  UPROPERTY() TObjectPtr<USessionClient> Session;
  FPresentationFence Fence;
@@ -94,9 +94,12 @@ private:
  TMap<uint64,FGrpcNightfallV1OwnedItem> Items;
  TMap<uint64,FGrpcNightfallV1ItemWeightState> PendingWeights;
  TMap<uint64,FGrpcNightfallV1ItemPenaltyState> PendingPenalties;
+ uint64 WeightTick=0,PenaltyTick=0;
  uint64 OwnerTick = 0, CatalogSerial = 0, RpcSerial = 0;
  bool bBaseline = false, bResync = false, bCatalog = false, bRpcDone = false, bRpcBusy = false;
  uint32 PendingSeq = 0;
+ FString PendingKey;
+ EGrpcNightfallV1ItemOperation PendingOperation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED;
  FGrpcNightfallV1GetItemCatalogResponse Catalog;
  FCatalogProvider CatalogProvider;
  TOptional<FGrpcNightfallV1InventorySync> DetachedInventory;
