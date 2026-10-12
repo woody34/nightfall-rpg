@@ -77,7 +77,7 @@ with open(sys.argv[2], 'w') as output:
     output.write("file '" + str(frames[-1][0]).replace("'", "'\\''") + "'\n")
     output.write('option framerate 1000\n')
 PY
-ffmpeg -hide_banner -loglevel warning -y -safe 0 -f concat -i "$dest/frames.txt" \
+timeout --kill-after=10 "${SIM_VIDEO_ENCODE_TIMEOUT:-110}" ffmpeg -hide_banner -loglevel warning -y -safe 0 -f concat -i "$dest/frames.txt" \
   -vf 'scale=960:540:force_original_aspect_ratio=decrease,pad=960:540:(ow-iw)/2:(oh-ih)/2,format=yuv420p' \
   -fps_mode vfr -c:v libx264 -movflags +faststart "$dest/$(basename "$scenario" .nfs).mp4" >"$dest/ffmpeg.log" 2>&1
 sim_log "diagnostic video: $dest/$(basename "$scenario" .nfs).mp4 (retry exit $code)"

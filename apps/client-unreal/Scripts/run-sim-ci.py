@@ -21,6 +21,43 @@ _fixture_spec = importlib.util.spec_from_file_location('phase2_fixture', PROJECT
 phase2 = importlib.util.module_from_spec(_fixture_spec)
 _fixture_spec.loader.exec_module(phase2)
 
+# CI uses already-built candidate binaries. These are policy caps, not measured durations.
+API_WAIT = 180
+API_STOP_GRACE = 15
+PROCESS_STOP_GRACE = 10
+VIDEO_CAPTURE = 110
+VIDEO_ENCODE = 110
+WRAPPER_GRACE = 30  # local parser, artifact copying, JUnit and process scheduling
+COMPOSE_DOWN = 120
+COMPOSE_LOGS = 60
+
+
+def unit_allowances(batch, fresh_stack=True, video=False, timeout=None):
+    client = max(timeout or 0, phase2.scenario_budget(batch))
+    if not client:
+        raise ValueError('CI scenario requires nf.Within or explicit --timeout')
+    isolated = fixture(batch) in phase2.ISOLATED
+    # Three logged provision commands (up/migrate/seed), plus the seeder help probe.
+    provision = phase2.SEEDER_HELP_TIMEOUT + 3 * phase2.OPERATION_TIMEOUT if isolated else phase2.OPERATION_TIMEOUT if fresh_stack else 0
+    # The last curl (2s) and sleep (1s) can finish past the startup deadline.
+    startup = API_WAIT + 3 if isolated or fresh_stack else 2
+    cleanup = 2 * phase2.CLEANUP_COMMAND_TIMEOUT
+    return dict(client=client, fixture=provision + startup,
+                # All export/check/trace/coverage/formula work gets one client window per role.
+                # This policy is enforced by the wrapper watchdog, including shared group work.
+                replay=len(batch) * client,
+                cleanup=API_STOP_GRACE + (2 * cleanup if isolated else 0),
+                retry=VIDEO_CAPTURE + PROCESS_STOP_GRACE + VIDEO_ENCODE + PROCESS_STOP_GRACE if video and len(batch) == 1 else 0,
+                grace=WRAPPER_GRACE,
+                # Only the non-isolated dispatcher branch runs these outer Compose commands.
+                compose=COMPOSE_DOWN + COMPOSE_LOGS if fresh_stack and not isolated else 0,
+                fallback_cleanup=cleanup if isolated else 0,
+                termination=PROCESS_STOP_GRACE)
+
+
+def wrapper_seconds(allowances):
+    return sum(allowances[key] for key in ('client','fixture','replay','cleanup','retry','grace'))
+
 
 def run_clients(command, log, seconds, env=None):
     """Bound the entire client/API process group, including background children."""
@@ -30,7 +67,7 @@ def run_clients(command, log, seconds, env=None):
     except subprocess.TimeoutExpired:
         os.killpg(process.pid, signal.SIGTERM)
         try:
-            process.wait(timeout=10)
+            process.wait(timeout=PROCESS_STOP_GRACE)
         except subprocess.TimeoutExpired:
             os.killpg(process.pid, signal.SIGKILL)
             process.wait()
@@ -255,9 +292,9 @@ def main():
                         help="historical contract presence required across this suite")
     parser.add_argument("--fresh-stack", action="store_true", help="wipe this Compose project's volumes for each unit")
     parser.add_argument("--video", action="store_true", help="failure-only rendered retry for single-client cases")
-    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--timeout", type=int, help="explicit client minimum; default is each unit's nf.Within + 30s grace")
     args = parser.parse_args()
-    if args.timeout <= 0:
+    if args.timeout is not None and args.timeout <= 0:
         parser.error("--timeout must be positive")
     scenarios = sorted(args.scenarios.resolve().rglob("*.nfs"))
     if not scenarios:
@@ -266,6 +303,7 @@ def main():
         exempt = quarantine(args.quarantine, {p.stem for p in scenarios})
         batches = units(scenarios)
         fixtures = [fixture(batch) for batch in batches]
+        allowances = [unit_allowances(batch, args.fresh_stack, args.video, args.timeout) for batch in batches]
         if not args.fresh_stack and any(value != "default" for value in fixtures):
             raise ValueError("scenario fixture selection requires --fresh-stack; an attached API cannot switch fixtures")
     except (ValueError, OSError) as error:
@@ -294,13 +332,13 @@ def main():
         parser.error(str(error))
     report = []
     aggregate = ET.Element("testsuite", name="sim orchestration")
-    for batch, fixture_name in zip(batches, fixtures):
+    for batch, fixture_name, allowance in zip(batches, fixtures, allowances):
         names = [p.stem for p in batch]
         name = names[0][:-2] if len(batch) > 1 and names[0].endswith('-a') else names[0]
         dest = artifacts / name
         start = time.monotonic()
         script = "run-sim-multi.sh" if len(batch) > 1 else "run-sim.sh"
-        budget = max(args.timeout, phase2.scenario_budget(batch))
+        budget = allowance['client']
         command = ["bash", str(PROJECT / "Scripts" / script), "--api", "start" if args.fresh_stack else "attach",
                    "--artifacts", str(dest), "--timeout", str(budget)]
         if args.video and len(batch) == 1:
@@ -312,6 +350,10 @@ def main():
         env["SIM_PIPELINE_VERDICT"] = str(dest / "pipeline-verdict.json")
         env["SIM_REQUIRE_FRESH_ARTIFACTS"] = "1"
         env["SIM_REQUIRE_TRANSITION_COVERAGE"] = "1"
+        env["SIM_API_WAIT"] = str(API_WAIT)
+        env["SIM_COMPOSE_UP_TIMEOUT"] = str(phase2.OPERATION_TIMEOUT)
+        env["SIM_VIDEO_TIMEOUT"] = str(VIDEO_CAPTURE)
+        env["SIM_VIDEO_ENCODE_TIMEOUT"] = str(VIDEO_ENCODE)
         if args.fresh_stack:
             env["SIM_REQUIRE_OWNED_API"] = "1"
         env.pop("ZONE_SIM_FIXTURE", None)
@@ -325,8 +367,8 @@ def main():
             try:
                 if args.fresh_stack and fixture_name not in phase2.ISOLATED:
                     subprocess.run(["docker", "compose", "down", "--volumes", "--remove-orphans"], cwd=REPO,
-                                   stdout=log, stderr=subprocess.STDOUT, check=True, timeout=120)
-                code = run_clients(command, log, budget + 600, env=env)
+                                   stdout=log, stderr=subprocess.STDOUT, check=True, timeout=COMPOSE_DOWN)
+                code = run_clients(command, log, wrapper_seconds(allowance), env=env)
             except (OSError, subprocess.SubprocessError) as error:
                 log.write(f"orchestration failed: {error}\n")
                 orchestration_errors.append(str(error))
@@ -334,7 +376,7 @@ def main():
             with (dest / "compose.log").open("w") as log:
                 try:
                     subprocess.run(["docker", "compose", "logs", "--no-color"], cwd=REPO,
-                                   stdout=log, stderr=subprocess.STDOUT, timeout=60, check=True)
+                                   stdout=log, stderr=subprocess.STDOUT, timeout=COMPOSE_LOGS, check=True)
                 except (OSError, subprocess.SubprocessError) as error:
                     log.write(f"compose log collection failed: {error}\n")
                     orchestration_errors.append(str(error))
@@ -366,7 +408,7 @@ def main():
         status = "QUARANTINED" if quarantined else "FAIL" if failed else "PASS"
         elapsed = round(time.monotonic() - start, 3)
         report.append({"unit": name, "scenarios": names, "status": status, "exit_code": code,
-                       "seconds": elapsed, "failed_reports": bad_reports,
+                       "seconds": elapsed, "allowances": allowance, "failed_reports": bad_reports,
                        "infrastructure_errors": orchestration_errors,
                        "quarantine": {n: exempt[n] for n in names if n in exempt}})
         case = ET.SubElement(aggregate, "testcase", name=name, time=str(elapsed))

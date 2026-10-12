@@ -34,6 +34,9 @@ ISOLATED = PHASE2 | PHASE3 | PHASE4
 SUPPORTED = ISOLATED | {'default', 'phase1a-social-aggro', 'phase1a-late-entry'}
 OWNER = token_fixtures.OWNER
 OBSERVER = token_fixtures.OBSERVER
+OPERATION_TIMEOUT = 180
+SEEDER_HELP_TIMEOUT = 10
+CLEANUP_COMMAND_TIMEOUT = 60
 
 
 def scenario_budget(batch):
@@ -248,7 +251,7 @@ def compose(folder, value):
             '-f', str(folder / 'compose.json')]
 
 
-def logged(command, folder, name, env, seconds=180):
+def logged(command, folder, name, env, seconds=OPERATION_TIMEOUT):
     with (folder / name).open('w') as log:
         subprocess.run(command, cwd=folder, env=env, stdout=log, stderr=subprocess.STDOUT,
                        check=True, timeout=seconds)
@@ -261,7 +264,7 @@ def published_seeder(selected="phase2-transfer"):
     # Verify the published pack interface before creating any infrastructure. Old pair-only
     # seeders must fail here, rather than provisioning the wrong solo/missing-token ledger.
     contract = subprocess.run([sys.executable, str(seeder), '--help'], env=clean_env(),
-                              text=True, capture_output=True, check=True, timeout=10)
+                              text=True, capture_output=True, check=True, timeout=SEEDER_HELP_TIMEOUT)
     if '--fixture' not in contract.stdout or any(pack not in contract.stdout for pack in packs):
         raise ValueError('published seeder lacks the Phase2 fixture pack contract')
     return seeder
@@ -402,11 +405,11 @@ def cleanup(folder):
         return
     value = state(folder)
     try:
-        logged(compose(folder, value) + ['logs', '--no-color'], folder, 'compose.log', clean_env(), 60)
+        logged(compose(folder, value) + ['logs', '--no-color'], folder, 'compose.log', clean_env(), CLEANUP_COMMAND_TIMEOUT)
     finally:
         try:
             logged(compose(folder, value) + ['down', '--volumes', '--remove-orphans'],
-                   folder, 'cleanup.log', clean_env(), 60)
+                   folder, 'cleanup.log', clean_env(), CLEANUP_COMMAND_TIMEOUT)
         except BaseException:
             (folder / 'cleanup-status.json').write_text('{"completed": false}\n')
             raise

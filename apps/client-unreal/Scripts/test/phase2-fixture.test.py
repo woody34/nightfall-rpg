@@ -142,7 +142,7 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
 
     def scenario(self, name, pack=None):
         path = self.root / (name + '.nfs')
-        path.write_text((f'# fixture: {pack}\n' if pack else '# ordinary\n') + 'fake result pass\n')
+        path.write_text((f'# fixture: {pack}\n' if pack else '# ordinary\n') + 'nf.Within 30\nfake result pass\n')
         return path
 
     def run_wrapper(self, batch, multi=False, mode='start', **env):

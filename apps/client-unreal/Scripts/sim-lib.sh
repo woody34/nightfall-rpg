@@ -146,7 +146,7 @@ sim_api_prepare() {
         sim_api_endpoint_probe free || sim_die "cannot start an owned API at $SIM_API_URL"
       elif sim_api_healthy; then sim_log "API already healthy at $SIM_API_URL; attaching"; return 0; fi
       sim_log "starting compose stack and the API (AUTH_DEV_TOKENS=1)"
-      (cd "$SIM_REPO" && docker compose up -d --wait >&2) || sim_die "docker compose up failed"
+      (cd "$SIM_REPO" && timeout "${SIM_COMPOSE_UP_TIMEOUT:-180}" docker compose up -d --wait >&2) || sim_die "docker compose up failed"
       (
         cd "$SIM_REPO"
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
@@ -157,8 +157,8 @@ sim_api_prepare() {
       ) >"${SIM_API_LOG:-/dev/null}" 2>&1 &
       SIM_STARTED_API_PID=$!
       trap sim_exit_cleanup EXIT
-      local i
-      for ((i = 0; i < ${SIM_API_WAIT:-180}; i++)); do
+      local deadline=$((SECONDS + ${SIM_API_WAIT:-180}))
+      while ((SECONDS < deadline)); do
         kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "API exited during startup (see ${SIM_API_LOG:-its log})"
         if sim_api_healthy; then
           if [[ "${SIM_REQUIRE_OWNED_API:-0}" == 1 ]]; then
@@ -179,14 +179,12 @@ sim_api_cleanup() {
   [[ -n "$SIM_STARTED_API_PID" ]] || return 0
   pkill -TERM -P "$SIM_STARTED_API_PID" 2>/dev/null || true
   kill -TERM "$SIM_STARTED_API_PID" 2>/dev/null || true
-  if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
-    local grace
-    for ((grace=0; grace<15; grace++)); do
-      kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || break
-      sleep 1
-    done
-    kill -KILL "$SIM_STARTED_API_PID" 2>/dev/null || true
-  fi
+  local grace
+  for ((grace=0; grace<15; grace++)); do
+    kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || break
+    sleep 1
+  done
+  kill -KILL "$SIM_STARTED_API_PID" 2>/dev/null || true
   wait "$SIM_STARTED_API_PID" 2>/dev/null || true
   SIM_STARTED_API_PID=""
 }
@@ -530,8 +528,8 @@ sim_unit_prepare() {
   SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe free || sim_die "fixture gRPC endpoint occupied"
   python3 "$SIM_HERE/phase2-fixture.py" exec-api --folder "$SIM_FIXTURE_DIR" >"$SIM_FIXTURE_DIR/api.log" 2>&1 &
   SIM_STARTED_API_PID=$!
-  local i
-  for ((i = 0; i < ${SIM_API_WAIT:-180}; i++)); do
+  local deadline=$((SECONDS + ${SIM_API_WAIT:-180}))
+  while ((SECONDS < deadline)); do
     kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
     if sim_api_healthy; then
       sim_api_endpoint_probe owned || sim_die "fixture API ownership verification failed"

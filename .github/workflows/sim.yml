@@ -31,11 +31,12 @@ jobs:
       (github.event.pull_request.head.repo.full_name == github.repository &&
        (contains(github.event.pull_request.labels.*.name, 'sim') || vars.SIM_PR_REQUIRED == 'true'))
     runs-on: [self-hosted, linux, unreal]
-    # 106 units: sum(max(600, Within+30) + 600 orchestration + 180 Compose)
-    # = 150,959s including every Phase4 canonical/variant unit and existing margins.
-    # 2,525 minutes = 151,500s, leaving 9m01s for build/upload/other steps.
-    # Scripts/test/pipeline-corrections.test.py validates discovery and >=5m headroom.
-    timeout-minutes: 2525
+    # 106 units: sum(run-sim-ci.unit_allowances(batch, video=True)) = 187,200s.
+    # Within+30 clients; bounded fixture startup/teardown; one replay window per role;
+    # capture/encode retry caps; outer Compose only for 21 non-isolated units.
+    # 3,125 minutes = 187,500s, leaving 5m00s beyond the failure ceilings.
+    # pipeline-corrections.test.py checks each derivation and complete discovery.
+    timeout-minutes: 3125
     continue-on-error: ${{ vars.SIM_PR_REQUIRED != 'true' }}
     env:
       COMPOSE_PROJECT_NAME: nightfall-sim-${{ github.run_id }}-${{ github.run_attempt }}
@@ -61,6 +62,19 @@ jobs:
           moon run client-unreal:build
           moon run client-unreal:build-editor
           cargo build -p nightfall-api --bins
+          python3 - <<'PY'
+          import json, os, shlex, subprocess
+          from pathlib import Path
+          target = Path(json.loads(subprocess.check_output(
+              ['cargo', 'metadata', '--format-version', '1', '--no-deps']))['target_directory']) / 'debug'
+          replay = str(target / 'nightfall-replay')
+          values = {'SIM_API_BIN': str(target / 'nightfall-api'),
+                    'SIM_MIGRATE_BIN': str(target / 'nightfall-migrate'),
+                    'SIM_REPLAY_BIN': replay, 'SIM_TRACE_CMD': shlex.quote(replay),
+                    'SIM_COVERAGE_CMD': shlex.quote(replay), 'SIM_SKIP_BUILD': '1'}
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              for key, value in values.items(): env.write(f'{key}={value}\n')
+          PY
       - name: Scenario suite, fresh stack per single/group
         id: scenarios
         run: |
