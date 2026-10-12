@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -69,6 +70,8 @@ class CastingSoakTests(unittest.TestCase):
         self.assertEqual(sql.count("'l2.skill.1177'"), 8)
         for mutate in (
             lambda d: d['roles'][0]['seed'].update(sp=999),
+            lambda d: d['roles'][0]['seed'].update(position=[0, 0]),
+            lambda d: d['roles'][0]['seed'].update(position=d['roles'][1]['seed']['position']),
             lambda d: d['roles'][1]['seed'].update(account_id=d['roles'][0]['seed']['account_id']),
             lambda d: d['roles'].reverse(),
             lambda d: d.update(casting=False),
@@ -163,25 +166,45 @@ class CastingSoakTests(unittest.TestCase):
         self.assertIn('--compose-project "$COMPOSE_PROJECT" --compose-file "$OUT/compose.json"', runner)
 
     def test_two_iterations_include_persisted_endpoint_and_arrival_tolerance(self):
-        fixtures.prepare(REPO, self.out, 8, casting=True)
-        manifest = json.loads((self.out / 'roles.json').read_text())
-        for role in manifest['roles']:
-            source = Path(role['scenario']).read_text()
-            route = [line.split()[2:] for line in source.splitlines()
-                     if line.startswith('nf.WaitFor own_at ')]
-            position = (0, 0)
-            for iteration in range(2):
-                for x, y, tolerance, budget in route:
-                    destination = (int(x), int(y))
-                    # Worst start includes the previous own_at acceptance radius.
-                    distance = math.dist(position, destination) + (1 if iteration or position != (0, 0) else 0)
-                    self.assertGreaterEqual(int(budget), distance / 3.75 * 3)
-                    position = destination
-            waits = sum(int(line.split()[-1]) for line in source.splitlines()
-                        if line.startswith('nf.WaitFor '))
-            self.assertEqual(waits, 303)
-            self.assertIn('nf.Within 360', source)
-            self.assertGreaterEqual(360, waits + 30)
+        for clients in range(1, 9):
+            out = self.out / str(clients)
+            fixtures.prepare(REPO, out, clients, casting=True)
+            manifest = json.loads((out / 'roles.json').read_text())
+            roles = seed.validated_roles(manifest)
+            self.assertEqual(list(roles.values()), [role['seed'] for role in manifest['roles']])
+            zone = tomllib.loads((out / 'data/zones/test_zone.toml').read_text())
+            homes = [slot['home'] for slot in zone['spawn_slots']]
+            for index, role in enumerate(manifest['roles']):
+                with self.subTest(clients=clients, role=role['name']):
+                    source = Path(role['scenario']).read_text()
+                    route = [line.split()[2:] for line in source.splitlines()
+                             if line.startswith('nf.WaitFor own_at ')]
+                    moves = [tuple(map(int, line.split()[1:])) for line in source.splitlines()
+                             if line.startswith('nf.ClickMove ')]
+                    self.assertEqual(moves, [(int(x), int(y)) for x, y, _, _ in route])
+                    self.assertEqual(len(moves), 4)
+                    self.assertEqual(tuple(role['seed']['position']), moves[-1])
+                    position = role['seed']['position']
+                    for iteration in range(2):
+                        previous_tolerance = 1 if iteration else 0
+                        for x, y, tolerance, budget in route:
+                            destination = (int(x), int(y))
+                            leg = math.dist(position, destination)
+                            # Actual MoveTo start may be anywhere in the preceding own_at radius.
+                            distance = leg + previous_tolerance
+                            self.assertLessEqual(leg, 60)
+                            self.assertLessEqual(distance, 64)
+                            self.assertGreaterEqual(int(budget), distance / 3.75 * 3)
+                            position, previous_tolerance = destination, int(tolerance)
+                    self.assertLess(math.dist(position, homes[index]), 5)
+                    for other in homes[index + 1:]:
+                        self.assertGreaterEqual(math.dist(homes[index], other), 35)
+                    waits = sum(int(line.split()[-1]) for line in source.splitlines()
+                                if line.startswith('nf.WaitFor '))
+                    self.assertEqual(waits, 315)
+                    self.assertIn('nf.Within 360', source)
+                    self.assertIn('4*54s moves +99s other waits=315s', source)
+                    self.assertGreaterEqual(360, waits + 30)
         self.assertIn('-SoakScenarioSeconds=360', (SCRIPTS / 'run-soak.sh').read_text())
 
     def synthetic_reports(self):
