@@ -943,6 +943,19 @@ def make_vectors(src):
              'G/model/stats/functions/formulas/FuncPDefMod.java:44-70',
              'G/model/stats/functions/formulas/FuncMDefMod.java:44-66','G/model/stats/BaseStats.java:115-120',
              'G/datatables/ItemTable.java:79,104 fullarmor/onepiece share SLOT_FULL_ARMOR'])
+    # Pinned fingers are equal; unequal synthetic XML distinguishes the getter quirk.
+    root=src.xml(human)
+    root.find('staticData/baseMDef/rfinger').text='7'
+    root.find('staticData/baseMDef/lfinger').text='999'
+    proxy=SimpleNamespace(xml=lambda file:root,bonuses=src.bonuses)
+    for slot in ['rfinger','lfinger']:
+        inputs={'class_file':human,'level':84,'occupied_slots':[slot],'chest_bodypart':'none'}
+        synthetic={'kind':'synthetic','description':'class XML RFINGER=7, LFINGER=999; other nodes unchanged',
+                   'class_override_xml':ET.tostring(root,encoding='unicode')}
+        add('F1','class-slots-unequal-'+slot,dict(inputs,synthetic=synthetic),defence_slot_stats(proxy,**inputs),
+            [human+':24-30','G/model/actor/templates/L2PcTemplate.java:71-75',
+             'G/data/xml/impl/PlayerTemplateData.java:106-108','G/model/stats/functions/formulas/FuncMDefMod.java:44-66',
+             'design/12.1 deliberately unequal synthetic RFINGER/LFINGER'])
     # Every branch/grade at source enchant boundaries, including u32 storage endpoint.
     for grade in src.grades:
         for body,kind in [('rhand','SWORD'),('lrhand','POLE'),('lrhand','BOW'),('lrhand','DUAL')]:
@@ -1284,6 +1297,7 @@ def verify_coverage(src,vectors):
             lo,hi=map(int,value.split(';'))
             required|={f'elixir-range-{sid}-{rank}-{level}' for level in [lo-1,lo,hi,hi+1]}
     required|={name for name,inputs in class_slot_cases(src)}
+    required|={'class-slots-unequal-rfinger','class-slots-unequal-lfinger'}
     missing=required-by_id.keys()
     if missing:raise ValueError('design 12.1 missing vectors: '+','.join(sorted(missing)))
     pole=by_id['gear-07-POLE']['inputs']
