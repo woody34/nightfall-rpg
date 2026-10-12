@@ -50,7 +50,11 @@ DEFINE_JSON_FUNCTIONS(FGrpcNightfallV1VitalsChanged, ::nightfall::v1::VitalsChan
 FGrpcNightfallV1ClientMessageIntent UGrpcNightfallV1ClientMessageIntentHelperLibrary::MakeIntent(EGrpcNightfallV1ClientMessageIntent IntentCase,
     FGrpcNightfallV1MoveToRequest MoveTo, FGrpcNightfallV1StopMoveRequest StopMove, FGrpcNightfallV1SetTargetRequest SetTarget,
     FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn,
-    FGrpcNightfallV1CastSkillRequest CastSkill, FGrpcNightfallV1CancelCastRequest CancelCast, FGrpcNightfallV1AcceptResurrectRequest AcceptResurrect
+    FGrpcNightfallV1CastSkillRequest CastSkill, FGrpcNightfallV1CancelCastRequest CancelCast, FGrpcNightfallV1AcceptResurrectRequest AcceptResurrect,
+    FGrpcNightfallV1EquipItemRequest EquipItem, FGrpcNightfallV1UnequipItemRequest UnequipItem, FGrpcNightfallV1UseItemRequest UseItem,
+    FGrpcNightfallV1DestroyItemRequest DestroyItem, FGrpcNightfallV1EnchantItemRequest EnchantItem, FGrpcNightfallV1ToggleAutoShotRequest ToggleAutoShot,
+    FGrpcNightfallV1RefineItemRequest RefineItem, FGrpcNightfallV1CancelRefineRequest CancelRefine, FGrpcNightfallV1ExchangeSpecialAbilityRequest ExchangeSpecialAbility,
+    FGrpcNightfallV1CrystallizeItemRequest CrystallizeItem
 )
 {
     FGrpcNightfallV1ClientMessageIntent Intent;
@@ -64,6 +68,16 @@ FGrpcNightfallV1ClientMessageIntent UGrpcNightfallV1ClientMessageIntentHelperLib
     Intent.CastSkill = MakeShareable(new FGrpcNightfallV1CastSkillRequest(CastSkill));
     Intent.CancelCast = MakeShareable(new FGrpcNightfallV1CancelCastRequest(CancelCast));
     Intent.AcceptResurrect = MakeShareable(new FGrpcNightfallV1AcceptResurrectRequest(AcceptResurrect));
+    Intent.EquipItem = EquipItem;
+    Intent.UnequipItem = UnequipItem;
+    Intent.UseItem = UseItem;
+    Intent.DestroyItem = DestroyItem;
+    Intent.EnchantItem = EnchantItem;
+    Intent.ToggleAutoShot = ToggleAutoShot;
+    Intent.RefineItem = RefineItem;
+    Intent.CancelRefine = CancelRefine;
+    Intent.ExchangeSpecialAbility = ExchangeSpecialAbility;
+    Intent.CrystallizeItem = CrystallizeItem;
 
     return Intent;
 }
@@ -71,7 +85,11 @@ FGrpcNightfallV1ClientMessageIntent UGrpcNightfallV1ClientMessageIntentHelperLib
 void UGrpcNightfallV1ClientMessageIntentHelperLibrary::BreakIntent(const FGrpcNightfallV1ClientMessageIntent& Intent, EGrpcNightfallV1ClientMessageIntent& IntentCase,
     FGrpcNightfallV1MoveToRequest& MoveTo, FGrpcNightfallV1StopMoveRequest& StopMove, FGrpcNightfallV1SetTargetRequest& SetTarget,
     FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn,
-    FGrpcNightfallV1CastSkillRequest& CastSkill, FGrpcNightfallV1CancelCastRequest& CancelCast, FGrpcNightfallV1AcceptResurrectRequest& AcceptResurrect
+    FGrpcNightfallV1CastSkillRequest& CastSkill, FGrpcNightfallV1CancelCastRequest& CancelCast, FGrpcNightfallV1AcceptResurrectRequest& AcceptResurrect,
+    FGrpcNightfallV1EquipItemRequest& EquipItem, FGrpcNightfallV1UnequipItemRequest& UnequipItem, FGrpcNightfallV1UseItemRequest& UseItem,
+    FGrpcNightfallV1DestroyItemRequest& DestroyItem, FGrpcNightfallV1EnchantItemRequest& EnchantItem, FGrpcNightfallV1ToggleAutoShotRequest& ToggleAutoShot,
+    FGrpcNightfallV1RefineItemRequest& RefineItem, FGrpcNightfallV1CancelRefineRequest& CancelRefine, FGrpcNightfallV1ExchangeSpecialAbilityRequest& ExchangeSpecialAbility,
+    FGrpcNightfallV1CrystallizeItemRequest& CrystallizeItem
 )
 {
     IntentCase = Intent.IntentCase;
@@ -111,6 +129,16 @@ void UGrpcNightfallV1ClientMessageIntentHelperLibrary::BreakIntent(const FGrpcNi
     {
         AcceptResurrect = *(Intent.AcceptResurrect.Get());
     }
+    EquipItem = Intent.EquipItem;
+    UnequipItem = Intent.UnequipItem;
+    UseItem = Intent.UseItem;
+    DestroyItem = Intent.DestroyItem;
+    EnchantItem = Intent.EnchantItem;
+    ToggleAutoShot = Intent.ToggleAutoShot;
+    RefineItem = Intent.RefineItem;
+    CancelRefine = Intent.CancelRefine;
+    ExchangeSpecialAbility = Intent.ExchangeSpecialAbility;
+    CrystallizeItem = Intent.CrystallizeItem;
 }
 
 FGrpcNightfallV1CastSkillRequest_target UGrpcNightfallV1CastSkillRequest_targetHelperLibrary::Make_target(EGrpcNightfallV1CastSkillRequest_target _targetCase,
@@ -192,7 +220,9 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     FGrpcNightfallV1SkillCastCancelled SkillCastCancelled, FGrpcNightfallV1EffectApplied EffectApplied, FGrpcNightfallV1EffectRemoved EffectRemoved,
     FGrpcNightfallV1SkillReuse SkillReuse, FGrpcNightfallV1SkillLearned SkillLearned, FGrpcNightfallV1PvpStateChanged PvpStateChanged,
     FGrpcNightfallV1ResurrectOffer ResurrectOffer, FGrpcNightfallV1SpGained SpGained, FGrpcNightfallV1SkillStateSync SkillStateSync,
-    FGrpcNightfallV1VitalsChanged VitalsChanged
+    FGrpcNightfallV1VitalsChanged VitalsChanged, FGrpcNightfallV1InventorySync InventorySync, FGrpcNightfallV1InventoryChanged InventoryChanged,
+    FGrpcNightfallV1EquipmentChanged EquipmentChanged, FGrpcNightfallV1WeightChanged WeightChanged, FGrpcNightfallV1PenaltyChanged PenaltyChanged,
+    FGrpcNightfallV1EnchantResult EnchantResult, FGrpcNightfallV1RefineResult RefineResult, FGrpcNightfallV1ItemOperationResult ItemOperationResult
 )
 {
     FGrpcNightfallV1WorldEventEvent Event;
@@ -222,6 +252,14 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     Event.SpGained = MakeShareable(new FGrpcNightfallV1SpGained(SpGained));
     Event.SkillStateSync = MakeShareable(new FGrpcNightfallV1SkillStateSync(SkillStateSync));
     Event.VitalsChanged = MakeShareable(new FGrpcNightfallV1VitalsChanged(VitalsChanged));
+    Event.InventorySync = InventorySync;
+    Event.InventoryChanged = InventoryChanged;
+    Event.EquipmentChanged = EquipmentChanged;
+    Event.WeightChanged = WeightChanged;
+    Event.PenaltyChanged = PenaltyChanged;
+    Event.EnchantResult = EnchantResult;
+    Event.RefineResult = RefineResult;
+    Event.ItemOperationResult = ItemOperationResult;
 
     return Event;
 }
@@ -235,7 +273,9 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     FGrpcNightfallV1SkillCastCancelled& SkillCastCancelled, FGrpcNightfallV1EffectApplied& EffectApplied, FGrpcNightfallV1EffectRemoved& EffectRemoved,
     FGrpcNightfallV1SkillReuse& SkillReuse, FGrpcNightfallV1SkillLearned& SkillLearned, FGrpcNightfallV1PvpStateChanged& PvpStateChanged,
     FGrpcNightfallV1ResurrectOffer& ResurrectOffer, FGrpcNightfallV1SpGained& SpGained, FGrpcNightfallV1SkillStateSync& SkillStateSync,
-    FGrpcNightfallV1VitalsChanged& VitalsChanged
+    FGrpcNightfallV1VitalsChanged& VitalsChanged, FGrpcNightfallV1InventorySync& InventorySync, FGrpcNightfallV1InventoryChanged& InventoryChanged,
+    FGrpcNightfallV1EquipmentChanged& EquipmentChanged, FGrpcNightfallV1WeightChanged& WeightChanged, FGrpcNightfallV1PenaltyChanged& PenaltyChanged,
+    FGrpcNightfallV1EnchantResult& EnchantResult, FGrpcNightfallV1RefineResult& RefineResult, FGrpcNightfallV1ItemOperationResult& ItemOperationResult
 )
 {
     EventCase = Event.EventCase;
@@ -339,6 +379,14 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     {
         VitalsChanged = *(Event.VitalsChanged.Get());
     }
+    InventorySync = Event.InventorySync;
+    InventoryChanged = Event.InventoryChanged;
+    EquipmentChanged = Event.EquipmentChanged;
+    WeightChanged = Event.WeightChanged;
+    PenaltyChanged = Event.PenaltyChanged;
+    EnchantResult = Event.EnchantResult;
+    RefineResult = Event.RefineResult;
+    ItemOperationResult = Event.ItemOperationResult;
 }
 
 FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntitySpawn(
@@ -351,7 +399,7 @@ FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntity
     FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick,
     FUInt64 FlagUntilTick, FUInt32 Karma, TArray<FGrpcNightfallV1ActiveEffect> ActiveEffects,
     FGrpcNightfallV1SkillCastStarted PendingCast, FUInt32 PkCount, FUInt32 PvpCount,
-    FUInt64 StatusFlags
+    TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment, FUInt64 StatusFlags
 )
 {
     FGrpcNightfallV1EntitySpawn EntitySpawn;
@@ -385,6 +433,7 @@ FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntity
     EntitySpawn.PendingCast = MakeShareable(new FGrpcNightfallV1SkillCastStarted(PendingCast));
     EntitySpawn.PkCount = PkCount;
     EntitySpawn.PvpCount = PvpCount;
+    EntitySpawn.VisibleEquipment = VisibleEquipment;
     EntitySpawn.StatusFlags = StatusFlags;
 
     return EntitySpawn;
@@ -400,7 +449,7 @@ void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNight
     FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick,
     FUInt64& FlagUntilTick, FUInt32& Karma, TArray<FGrpcNightfallV1ActiveEffect>& ActiveEffects,
     FGrpcNightfallV1SkillCastStarted& PendingCast, FUInt32& PkCount, FUInt32& PvpCount,
-    FUInt64& StatusFlags
+    TArray<FGrpcNightfallV1VisibleEquipment>& VisibleEquipment, FUInt64& StatusFlags
 )
 {
     EntityId = EntitySpawn.EntityId;
@@ -439,6 +488,7 @@ void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNight
     }
     PkCount = EntitySpawn.PkCount;
     PvpCount = EntitySpawn.PvpCount;
+    VisibleEquipment = EntitySpawn.VisibleEquipment;
     StatusFlags = EntitySpawn.StatusFlags;
 }
 

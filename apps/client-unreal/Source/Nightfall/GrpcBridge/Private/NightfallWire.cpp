@@ -35,7 +35,17 @@ namespace NightfallWire
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::Respawn && Intent.Respawn.IsValid()) ||
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CastSkill && Intent.CastSkill.IsValid()) ||
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CancelCast && Intent.CancelCast.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::AcceptResurrect && Intent.AcceptResurrect.IsValid());
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::AcceptResurrect && Intent.AcceptResurrect.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::EquipItem && Intent.EquipItem.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::UnequipItem && Intent.UnequipItem.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::UseItem && Intent.UseItem.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::DestroyItem && Intent.DestroyItem.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::EnchantItem && Intent.EnchantItem.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot && Intent.ToggleAutoShot.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::RefineItem && Intent.RefineItem.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CancelRefine && Intent.CancelRefine.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility && Intent.ExchangeSpecialAbility.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CrystallizeItem && Intent.CrystallizeItem.IsValid());
 
 		::nightfall::v1::ClientMessage Msg;
 		if (bHasIntent)

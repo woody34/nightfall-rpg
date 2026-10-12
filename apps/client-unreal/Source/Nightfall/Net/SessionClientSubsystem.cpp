@@ -95,6 +95,9 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 	Client = Service->MakeClient();
 	Client->OnListLearnableSkillsResponse.AddDynamic(this, &USessionClient::HandleListLearnableSkills);
 	Client->OnLearnSkillResponse.AddDynamic(this, &USessionClient::HandleLearnSkill);
+	Client->OnGetItemCatalogResponse.AddDynamic(this, &USessionClient::HandleGetItemCatalog);
+	Client->OnGetInventoryResponse.AddDynamic(this, &USessionClient::HandleGetInventory);
+	Client->OnGrantItemResponse.AddDynamic(this, &USessionClient::HandleGrantItem);
 	Client->OnGetSkillCatalogResponse.AddDynamic(this, &USessionClient::HandleGetSkillCatalog);
 	Client->OnListClassesResponse.AddDynamic(this, &USessionClient::HandleListClasses);
 	Client->OnTransferOptionsResponse.AddDynamic(this, &USessionClient::HandleTransferOptions);
@@ -121,6 +124,9 @@ void USessionClient::Deinitialize()
 	// Callers may hold references captured in their callbacks; drop them without invoking.
 	PendingListLearnableSkills.Empty();
 	PendingLearnSkill.Empty();
+	PendingGetItemCatalog.Empty();
+	PendingGetInventory.Empty();
+	PendingGrantItem.Empty();
 	PendingGetSkillCatalog.Empty();
 	PendingListClasses.Empty();
 	PendingTransferOptions.Empty();
@@ -408,4 +414,40 @@ void USessionClient::GetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogReques
 void USessionClient::HandleGetSkillCatalog(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetSkillCatalogResponse& Response)
 {
 	Complete(PendingGetSkillCatalog, Handle.Value, Result, Response);
+}
+
+void USessionClient::GetItemCatalog(const FGrpcNightfallV1GetItemCatalogRequest& Request, FGetItemCatalogCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitGetItemCatalog();
+ PendingGetItemCatalog.Add(Handle.Value, MoveTemp(Callback));
+ Client->GetItemCatalog(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGetItemCatalog(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetItemCatalogResponse& Response)
+{
+ Complete(PendingGetItemCatalog, Handle.Value, Result, Response);
+}
+
+void USessionClient::GetInventory(const FGrpcNightfallV1GetInventoryRequest& Request, FGetInventoryCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitGetInventory();
+ PendingGetInventory.Add(Handle.Value, MoveTemp(Callback));
+ Client->GetInventory(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGetInventory(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetInventoryResponse& Response)
+{
+ Complete(PendingGetInventory, Handle.Value, Result, Response);
+}
+
+void USessionClient::GrantItem(const FGrpcNightfallV1GrantItemRequest& Request, FGrantItemCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitGrantItem();
+ PendingGrantItem.Add(Handle.Value, MoveTemp(Callback));
+ Client->GrantItem(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGrantItem(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GrantItemResponse& Response)
+{
+ Complete(PendingGrantItem, Handle.Value, Result, Response);
 }

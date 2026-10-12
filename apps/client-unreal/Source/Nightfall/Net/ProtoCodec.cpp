@@ -25,6 +25,12 @@ namespace
 		Out.AccuracyQ = S.AccuracyQ;
 		Out.EvasionQ = S.EvasionQ;
 		Out.CritPermille = S.CritPermille;
+		Out.ShieldDefQ = S.ShieldDefQ;
+		Out.ShieldRateQ = S.ShieldRateQ;
+		Out.ShieldAngleDegrees = S.ShieldAngleDegrees;
+		Out.PhysicalReachMillitiles = S.PhysicalReachMillitiles;
+		Out.PhysicalAngleDegrees = S.PhysicalAngleDegrees;
+
 		return Out;
 	}
 
@@ -309,6 +315,7 @@ namespace
 		Out.PkCount = S.PkCount;
 		Out.PvpCount = S.PvpCount;
 		Out.StatusFlags = S.StatusFlags;
+		Out.VisibleEquipment = S.VisibleEquipment;
 		return Out;
 	}
 
@@ -338,6 +345,9 @@ namespace
 		Out.bBaseline = S.Baseline;
 		Out.BaselineTick = S.BaselineTick;
 		Out.Incarnation = S.Incarnation;
+		if (S.HasItemWeight) Out.ItemWeight = S.ItemWeight;
+		if (S.HasItemPenalties) Out.ItemPenalties = S.ItemPenalties;
+		Out.InventoryRevision = S.InventoryRevision;
 		return Out;
 	}
 
@@ -480,6 +490,30 @@ namespace
 		case EGrpcNightfallV1WorldEventEvent::SkillStateSync:
 			if (Ev.SkillStateSync.IsValid()) Out.SkillStateSync = FromGrpc(*Ev.SkillStateSync);
 			break;
+		case EGrpcNightfallV1WorldEventEvent::InventorySync:
+			if (Ev.InventorySync.IsValid()) Out.InventorySync = *Ev.InventorySync;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::InventoryChanged:
+			if (Ev.InventoryChanged.IsValid()) Out.InventoryChanged = *Ev.InventoryChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::EquipmentChanged:
+			if (Ev.EquipmentChanged.IsValid()) Out.EquipmentChanged = *Ev.EquipmentChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::WeightChanged:
+			if (Ev.WeightChanged.IsValid()) Out.WeightChanged = *Ev.WeightChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::PenaltyChanged:
+			if (Ev.PenaltyChanged.IsValid()) Out.PenaltyChanged = *Ev.PenaltyChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::EnchantResult:
+			if (Ev.EnchantResult.IsValid()) Out.EnchantResult = *Ev.EnchantResult;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::RefineResult:
+			if (Ev.RefineResult.IsValid()) Out.RefineResult = *Ev.RefineResult;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::ItemOperationResult:
+			if (Ev.ItemOperationResult.IsValid()) Out.ItemOperationResult = *Ev.ItemOperationResult;
+			break;
 		case EGrpcNightfallV1WorldEventEvent::VitalsChanged:
 			if (Ev.VitalsChanged.IsValid()) Out.VitalsChanged = FromGrpc(*Ev.VitalsChanged);
 			break;
@@ -563,6 +597,56 @@ namespace NightfallProto
 			Req->Accept = In.AcceptResurrect->bAccept;
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::AcceptResurrect;
 			Msg.Intent.AcceptResurrect = Req;
+		}
+		else if (In.EquipItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::EquipItem;
+			Msg.Intent.EquipItem = MakeShared<FGrpcNightfallV1EquipItemRequest>(*In.EquipItem);
+		}
+		else if (In.UnequipItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::UnequipItem;
+			Msg.Intent.UnequipItem = MakeShared<FGrpcNightfallV1UnequipItemRequest>(*In.UnequipItem);
+		}
+		else if (In.UseItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::UseItem;
+			Msg.Intent.UseItem = MakeShared<FGrpcNightfallV1UseItemRequest>(*In.UseItem);
+		}
+		else if (In.DestroyItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::DestroyItem;
+			Msg.Intent.DestroyItem = MakeShared<FGrpcNightfallV1DestroyItemRequest>(*In.DestroyItem);
+		}
+		else if (In.EnchantItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::EnchantItem;
+			Msg.Intent.EnchantItem = MakeShared<FGrpcNightfallV1EnchantItemRequest>(*In.EnchantItem);
+		}
+		else if (In.ToggleAutoShot.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot;
+			Msg.Intent.ToggleAutoShot = MakeShared<FGrpcNightfallV1ToggleAutoShotRequest>(*In.ToggleAutoShot);
+		}
+		else if (In.RefineItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::RefineItem;
+			Msg.Intent.RefineItem = MakeShared<FGrpcNightfallV1RefineItemRequest>(*In.RefineItem);
+		}
+		else if (In.CancelRefine.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CancelRefine;
+			Msg.Intent.CancelRefine = MakeShared<FGrpcNightfallV1CancelRefineRequest>(*In.CancelRefine);
+		}
+		else if (In.ExchangeSpecialAbility.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility;
+			Msg.Intent.ExchangeSpecialAbility = MakeShared<FGrpcNightfallV1ExchangeSpecialAbilityRequest>(*In.ExchangeSpecialAbility);
+		}
+		else if (In.CrystallizeItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CrystallizeItem;
+			Msg.Intent.CrystallizeItem = MakeShared<FGrpcNightfallV1CrystallizeItemRequest>(*In.CrystallizeItem);
 		}
 		NightfallWire::EncodeClientMessage(Msg, Out);
 	}

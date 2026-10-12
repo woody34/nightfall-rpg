@@ -37,6 +37,14 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnResurrectOffer, const FResurrectOffer&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSpGained, const FSpGained&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillStateSync, const FSkillStateSync&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnVitalsChanged, const FVitalsChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInventorySync, const FGrpcNightfallV1InventorySync&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInventoryChanged, const FGrpcNightfallV1InventoryChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEquipmentChanged, const FGrpcNightfallV1EquipmentChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWeightChanged, const FGrpcNightfallV1WeightChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPenaltyChanged, const FGrpcNightfallV1PenaltyChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEnchantResult, const FGrpcNightfallV1EnchantResult&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRefineResult, const FGrpcNightfallV1RefineResult&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemOperationResult, const FGrpcNightfallV1ItemOperationResult&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWireFrameObserved, const TArray<uint8>&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWireCloseObserved, int32);
 
@@ -130,6 +138,19 @@ public:
 	 * Routes one decoded ServerMessage to the typed delegates and the entity cache. HandleRawMessage
 	 * ends here; tests and recorded-event replays call it directly.
 	 */
+	uint32 SendItemMessage(FClientMessage Message);
+	uint32 SendEquipItem(const FGrpcNightfallV1EquipItemRequest& Request);
+	uint32 SendUnequipItem(const FGrpcNightfallV1UnequipItemRequest& Request);
+	uint32 SendUseItem(const FGrpcNightfallV1UseItemRequest& Request);
+	uint32 SendDestroyItem(const FGrpcNightfallV1DestroyItemRequest& Request);
+	uint32 SendEnchantItem(const FGrpcNightfallV1EnchantItemRequest& Request);
+	uint32 SendToggleAutoShot(const FGrpcNightfallV1ToggleAutoShotRequest& Request);
+	uint32 SendRefineItem(const FGrpcNightfallV1RefineItemRequest& Request);
+	uint32 SendCancelRefine(const FGrpcNightfallV1CancelRefineRequest& Request);
+	uint32 SendExchangeSpecialAbility(const FGrpcNightfallV1ExchangeSpecialAbilityRequest& Request);
+	uint32 SendCrystallizeItem(const FGrpcNightfallV1CrystallizeItemRequest& Request);
+	/** Recover owner baseline through the existing fresh-ticket reconnect. */
+	void RequestInventoryBaseline();
 	void DispatchServerMessage(const FServerMessage& Msg);
 
 	/**
@@ -219,6 +240,14 @@ public:
 	FOnSpGained OnSpGained;
 	FOnSkillStateSync OnSkillStateSync;
 	FOnVitalsChanged OnVitalsChanged;
+	FOnInventorySync OnInventorySync;
+	FOnInventoryChanged OnInventoryChanged;
+	FOnEquipmentChanged OnEquipmentChanged;
+	FOnWeightChanged OnWeightChanged;
+	FOnPenaltyChanged OnPenaltyChanged;
+	FOnEnchantResult OnEnchantResult;
+	FOnRefineResult OnRefineResult;
+	FOnItemOperationResult OnItemOperationResult;
 	FOnWireFrameObserved OnWireSent;
 	FOnWireFrameObserved OnWireReceived;
 	FOnWireCloseObserved OnWireClosed;

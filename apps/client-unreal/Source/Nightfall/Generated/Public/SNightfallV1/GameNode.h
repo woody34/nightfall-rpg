@@ -488,3 +488,147 @@ private:
 
 	void Shutdown();
 };
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGetItemCatalog : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGetItemCatalogDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetItemCatalogResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GetItemCatalog",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGetItemCatalog* GetItemCatalog(UObject* WorldContextObject, const FGrpcNightfallV1GetItemCatalogRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetItemCatalogDelegate OnGetItemCatalogResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetItemCatalogDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GetItemCatalogRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetItemCatalogResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGetInventory : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGetInventoryDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetInventoryResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GetInventory",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGetInventory* GetInventory(UObject* WorldContextObject, const FGrpcNightfallV1GetInventoryRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetInventoryDelegate OnGetInventoryResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetInventoryDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GetInventoryRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetInventoryResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGrantItem : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGrantItemDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GrantItemResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GrantItem",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGrantItem* GrantItem(UObject* WorldContextObject, const FGrpcNightfallV1GrantItemRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGrantItemDelegate OnGrantItemResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGrantItemDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GrantItemRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GrantItemResponse& Response);
+
+	void Shutdown();
+};

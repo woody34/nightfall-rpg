@@ -28,11 +28,16 @@ PATCH = '''\t// C16: optional catalogue unavailability is warning-level; deliver
 def patch(root):
     path = root / 'Private/SNightfallV1/GameContext.cpp'
     text = path.read_text()
-    if START + PATCH in text:
-        return
-    if text.count(START) != 1:
-        raise ValueError('GetSkillCatalog context template drift')
-    path.write_text(text.replace(START, START + PATCH))
+    for rpc in ('GetSkillCatalog', 'GetItemCatalog'):
+        entry = START.replace('GetSkillCatalog', rpc)
+        patch = PATCH.replace('GetSkillCatalog', rpc)
+        if entry + patch in text:
+            continue
+        if text.count(entry) != 1:
+            raise ValueError(f'{rpc} context template drift')
+        text = text.replace(entry, entry + patch)
+    path.write_text(text)
+
 
 
 if __name__ == '__main__':

@@ -157,6 +157,38 @@ class GameService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>> PrepareAsyncGetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>>(PrepareAsyncGetSkillCatalogRaw(context, request, cq));
     }
+    // Authenticated immutable read; naturally idempotent. data_version=2.
+    // Errors: UNAUTHENTICATED, UNAVAILABLE (missing/unsupported catalogue), INTERNAL.
+    virtual ::grpc::Status GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::nightfall::v1::GetItemCatalogResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetItemCatalogResponse>> AsyncGetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetItemCatalogResponse>>(AsyncGetItemCatalogRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetItemCatalogResponse>> PrepareAsyncGetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetItemCatalogResponse>>(PrepareAsyncGetItemCatalogRaw(context, request, cq));
+    }
+    // Owner-only out-of-world retained read; naturally idempotent, no key.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (UUID bytes), NOT_FOUND, PERMISSION_DENIED,
+    // FAILED_PRECONDITION (admitted character), UNAVAILABLE (zone/catalogue absent), INTERNAL.
+    virtual ::grpc::Status GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::nightfall::v1::GetInventoryResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetInventoryResponse>> AsyncGetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetInventoryResponse>>(AsyncGetInventoryRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetInventoryResponse>> PrepareAsyncGetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetInventoryResponse>>(PrepareAsyncGetInventoryRaw(context, request, cq));
+    }
+    // Owner-only zone critical mutation, accepted only with AUTH_DEV_TOKENS=1.
+    // Required UUID key freezes the original result; changed body conflicts, failures consume
+    // no key. Success follows durable log acknowledgement and atomic checkpoint/ledger commit.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+    // FAILED_PRECONDITION (dev gate off, key conflict, item eligibility), UNAVAILABLE,
+    // RESOURCE_EXHAUSTED (capacity/queue), INTERNAL.
+    virtual ::grpc::Status GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::nightfall::v1::GrantItemResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>> AsyncGrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>>(AsyncGrantItemRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>> PrepareAsyncGrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>>(PrepareAsyncGrantItemRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -224,6 +256,23 @@ class GameService final {
       // Errors: UNAUTHENTICATED, UNAVAILABLE (catalogue unavailable, including rollout stub), INTERNAL.
       virtual void GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Authenticated immutable read; naturally idempotent. data_version=2.
+      // Errors: UNAUTHENTICATED, UNAVAILABLE (missing/unsupported catalogue), INTERNAL.
+      virtual void GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Owner-only out-of-world retained read; naturally idempotent, no key.
+      // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (UUID bytes), NOT_FOUND, PERMISSION_DENIED,
+      // FAILED_PRECONDITION (admitted character), UNAVAILABLE (zone/catalogue absent), INTERNAL.
+      virtual void GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Owner-only zone critical mutation, accepted only with AUTH_DEV_TOKENS=1.
+      // Required UUID key freezes the original result; changed body conflicts, failures consume
+      // no key. Success follows durable log acknowledgement and atomic checkpoint/ledger commit.
+      // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+      // FAILED_PRECONDITION (dev gate off, key conflict, item eligibility), UNAVAILABLE,
+      // RESOURCE_EXHAUSTED (capacity/queue), INTERNAL.
+      virtual void GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -249,6 +298,12 @@ class GameService final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::LearnSkillResponse>* PrepareAsyncLearnSkillRaw(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>* AsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetSkillCatalogResponse>* PrepareAsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetItemCatalogResponse>* AsyncGetItemCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetItemCatalogResponse>* PrepareAsyncGetItemCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetInventoryResponse>* AsyncGetInventoryRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetInventoryResponse>* PrepareAsyncGetInventoryRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>* AsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>* PrepareAsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -323,6 +378,27 @@ class GameService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>> PrepareAsyncGetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>>(PrepareAsyncGetSkillCatalogRaw(context, request, cq));
     }
+    ::grpc::Status GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::nightfall::v1::GetItemCatalogResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetItemCatalogResponse>> AsyncGetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetItemCatalogResponse>>(AsyncGetItemCatalogRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetItemCatalogResponse>> PrepareAsyncGetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetItemCatalogResponse>>(PrepareAsyncGetItemCatalogRaw(context, request, cq));
+    }
+    ::grpc::Status GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::nightfall::v1::GetInventoryResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>> AsyncGetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>>(AsyncGetInventoryRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>> PrepareAsyncGetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>>(PrepareAsyncGetInventoryRaw(context, request, cq));
+    }
+    ::grpc::Status GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::nightfall::v1::GrantItemResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>> AsyncGrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>>(AsyncGrantItemRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>> PrepareAsyncGrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>>(PrepareAsyncGrantItemRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -346,6 +422,12 @@ class GameService final {
       void LearnSkill(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest* request, ::nightfall::v1::LearnSkillResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, std::function<void(::grpc::Status)>) override;
       void GetSkillCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, std::function<void(::grpc::Status)>) override;
+      void GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -377,6 +459,12 @@ class GameService final {
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::LearnSkillResponse>* PrepareAsyncLearnSkillRaw(::grpc::ClientContext* context, const ::nightfall::v1::LearnSkillRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>* AsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetSkillCatalogResponse>* PrepareAsyncGetSkillCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetSkillCatalogRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetItemCatalogResponse>* AsyncGetItemCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetItemCatalogResponse>* PrepareAsyncGetItemCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>* AsyncGetInventoryRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>* PrepareAsyncGetInventoryRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>* AsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>* PrepareAsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_Ping_;
     const ::grpc::internal::RpcMethod rpcmethod_GetCharacter_;
     const ::grpc::internal::RpcMethod rpcmethod_CreateCharacter_;
@@ -387,6 +475,9 @@ class GameService final {
     const ::grpc::internal::RpcMethod rpcmethod_ListLearnableSkills_;
     const ::grpc::internal::RpcMethod rpcmethod_LearnSkill_;
     const ::grpc::internal::RpcMethod rpcmethod_GetSkillCatalog_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetItemCatalog_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetInventory_;
+    const ::grpc::internal::RpcMethod rpcmethod_GrantItem_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -448,6 +539,20 @@ class GameService final {
     // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
     // Errors: UNAUTHENTICATED, UNAVAILABLE (catalogue unavailable, including rollout stub), INTERNAL.
     virtual ::grpc::Status GetSkillCatalog(::grpc::ServerContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response);
+    // Authenticated immutable read; naturally idempotent. data_version=2.
+    // Errors: UNAUTHENTICATED, UNAVAILABLE (missing/unsupported catalogue), INTERNAL.
+    virtual ::grpc::Status GetItemCatalog(::grpc::ServerContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response);
+    // Owner-only out-of-world retained read; naturally idempotent, no key.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (UUID bytes), NOT_FOUND, PERMISSION_DENIED,
+    // FAILED_PRECONDITION (admitted character), UNAVAILABLE (zone/catalogue absent), INTERNAL.
+    virtual ::grpc::Status GetInventory(::grpc::ServerContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response);
+    // Owner-only zone critical mutation, accepted only with AUTH_DEV_TOKENS=1.
+    // Required UUID key freezes the original result; changed body conflicts, failures consume
+    // no key. Success follows durable log acknowledgement and atomic checkpoint/ledger commit.
+    // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+    // FAILED_PRECONDITION (dev gate off, key conflict, item eligibility), UNAVAILABLE,
+    // RESOURCE_EXHAUSTED (capacity/queue), INTERNAL.
+    virtual ::grpc::Status GrantItem(::grpc::ServerContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_Ping : public BaseClass {
@@ -649,7 +754,67 @@ class GameService final {
       ::grpc::Service::RequestAsyncUnary(9, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_Ping<WithAsyncMethod_GetCharacter<WithAsyncMethod_CreateCharacter<WithAsyncMethod_ListMyCharacters<WithAsyncMethod_ListClasses<WithAsyncMethod_TransferOptions<WithAsyncMethod_ChangeClass<WithAsyncMethod_ListLearnableSkills<WithAsyncMethod_LearnSkill<WithAsyncMethod_GetSkillCatalog<Service > > > > > > > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_GetItemCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetItemCatalog() {
+      ::grpc::Service::MarkMethodAsync(10);
+    }
+    ~WithAsyncMethod_GetItemCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetItemCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetItemCatalogRequest* /*request*/, ::nightfall::v1::GetItemCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetItemCatalog(::grpc::ServerContext* context, ::nightfall::v1::GetItemCatalogRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GetItemCatalogResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(10, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_GetInventory : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetInventory() {
+      ::grpc::Service::MarkMethodAsync(11);
+    }
+    ~WithAsyncMethod_GetInventory() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetInventory(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetInventoryRequest* /*request*/, ::nightfall::v1::GetInventoryResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetInventory(::grpc::ServerContext* context, ::nightfall::v1::GetInventoryRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GetInventoryResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(11, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_GrantItem : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GrantItem() {
+      ::grpc::Service::MarkMethodAsync(12);
+    }
+    ~WithAsyncMethod_GrantItem() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GrantItem(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGrantItem(::grpc::ServerContext* context, ::nightfall::v1::GrantItemRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GrantItemResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(12, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_Ping<WithAsyncMethod_GetCharacter<WithAsyncMethod_CreateCharacter<WithAsyncMethod_ListMyCharacters<WithAsyncMethod_ListClasses<WithAsyncMethod_TransferOptions<WithAsyncMethod_ChangeClass<WithAsyncMethod_ListLearnableSkills<WithAsyncMethod_LearnSkill<WithAsyncMethod_GetSkillCatalog<WithAsyncMethod_GetItemCatalog<WithAsyncMethod_GetInventory<WithAsyncMethod_GrantItem<Service > > > > > > > > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_Ping : public BaseClass {
    private:
@@ -920,7 +1085,88 @@ class GameService final {
     virtual ::grpc::ServerUnaryReactor* GetSkillCatalog(
       ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_Ping<WithCallbackMethod_GetCharacter<WithCallbackMethod_CreateCharacter<WithCallbackMethod_ListMyCharacters<WithCallbackMethod_ListClasses<WithCallbackMethod_TransferOptions<WithCallbackMethod_ChangeClass<WithCallbackMethod_ListLearnableSkills<WithCallbackMethod_LearnSkill<WithCallbackMethod_GetSkillCatalog<Service > > > > > > > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_GetItemCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetItemCatalog() {
+      ::grpc::Service::MarkMethodCallback(10,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetItemCatalogRequest, ::nightfall::v1::GetItemCatalogResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response) { return this->GetItemCatalog(context, request, response); }));}
+    void SetMessageAllocatorFor_GetItemCatalog(
+        ::grpc::MessageAllocator< ::nightfall::v1::GetItemCatalogRequest, ::nightfall::v1::GetItemCatalogResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(10);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetItemCatalogRequest, ::nightfall::v1::GetItemCatalogResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetItemCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetItemCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetItemCatalogRequest* /*request*/, ::nightfall::v1::GetItemCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetItemCatalog(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetItemCatalogRequest* /*request*/, ::nightfall::v1::GetItemCatalogResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_GetInventory : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetInventory() {
+      ::grpc::Service::MarkMethodCallback(11,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetInventoryRequest, ::nightfall::v1::GetInventoryResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response) { return this->GetInventory(context, request, response); }));}
+    void SetMessageAllocatorFor_GetInventory(
+        ::grpc::MessageAllocator< ::nightfall::v1::GetInventoryRequest, ::nightfall::v1::GetInventoryResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(11);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetInventoryRequest, ::nightfall::v1::GetInventoryResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetInventory() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetInventory(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetInventoryRequest* /*request*/, ::nightfall::v1::GetInventoryResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetInventory(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetInventoryRequest* /*request*/, ::nightfall::v1::GetInventoryResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_GrantItem : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GrantItem() {
+      ::grpc::Service::MarkMethodCallback(12,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GrantItemRequest, ::nightfall::v1::GrantItemResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response) { return this->GrantItem(context, request, response); }));}
+    void SetMessageAllocatorFor_GrantItem(
+        ::grpc::MessageAllocator< ::nightfall::v1::GrantItemRequest, ::nightfall::v1::GrantItemResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(12);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GrantItemRequest, ::nightfall::v1::GrantItemResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GrantItem() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GrantItem(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GrantItem(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_Ping<WithCallbackMethod_GetCharacter<WithCallbackMethod_CreateCharacter<WithCallbackMethod_ListMyCharacters<WithCallbackMethod_ListClasses<WithCallbackMethod_TransferOptions<WithCallbackMethod_ChangeClass<WithCallbackMethod_ListLearnableSkills<WithCallbackMethod_LearnSkill<WithCallbackMethod_GetSkillCatalog<WithCallbackMethod_GetItemCatalog<WithCallbackMethod_GetInventory<WithCallbackMethod_GrantItem<Service > > > > > > > > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_Ping : public BaseClass {
@@ -1088,6 +1334,57 @@ class GameService final {
     }
     // disable synchronous version of this method
     ::grpc::Status GetSkillCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetSkillCatalogRequest* /*request*/, ::nightfall::v1::GetSkillCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetItemCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetItemCatalog() {
+      ::grpc::Service::MarkMethodGeneric(10);
+    }
+    ~WithGenericMethod_GetItemCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetItemCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetItemCatalogRequest* /*request*/, ::nightfall::v1::GetItemCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetInventory : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetInventory() {
+      ::grpc::Service::MarkMethodGeneric(11);
+    }
+    ~WithGenericMethod_GetInventory() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetInventory(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetInventoryRequest* /*request*/, ::nightfall::v1::GetInventoryResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GrantItem : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GrantItem() {
+      ::grpc::Service::MarkMethodGeneric(12);
+    }
+    ~WithGenericMethod_GrantItem() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GrantItem(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -1290,6 +1587,66 @@ class GameService final {
     }
     void RequestGetSkillCatalog(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(9, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetItemCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetItemCatalog() {
+      ::grpc::Service::MarkMethodRaw(10);
+    }
+    ~WithRawMethod_GetItemCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetItemCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetItemCatalogRequest* /*request*/, ::nightfall::v1::GetItemCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetItemCatalog(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(10, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetInventory : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetInventory() {
+      ::grpc::Service::MarkMethodRaw(11);
+    }
+    ~WithRawMethod_GetInventory() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetInventory(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetInventoryRequest* /*request*/, ::nightfall::v1::GetInventoryResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetInventory(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(11, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GrantItem : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GrantItem() {
+      ::grpc::Service::MarkMethodRaw(12);
+    }
+    ~WithRawMethod_GrantItem() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GrantItem(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGrantItem(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(12, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -1510,6 +1867,72 @@ class GameService final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* GetSkillCatalog(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetItemCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetItemCatalog() {
+      ::grpc::Service::MarkMethodRawCallback(10,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetItemCatalog(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetItemCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetItemCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetItemCatalogRequest* /*request*/, ::nightfall::v1::GetItemCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetItemCatalog(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetInventory : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetInventory() {
+      ::grpc::Service::MarkMethodRawCallback(11,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetInventory(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetInventory() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetInventory(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetInventoryRequest* /*request*/, ::nightfall::v1::GetInventoryResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetInventory(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GrantItem : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GrantItem() {
+      ::grpc::Service::MarkMethodRawCallback(12,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GrantItem(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GrantItem() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GrantItem(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GrantItem(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -1782,9 +2205,90 @@ class GameService final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedGetSkillCatalog(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetSkillCatalogRequest,::nightfall::v1::GetSkillCatalogResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<Service > > > > > > > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetItemCatalog : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetItemCatalog() {
+      ::grpc::Service::MarkMethodStreamed(10,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GetItemCatalogRequest, ::nightfall::v1::GetItemCatalogResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GetItemCatalogRequest, ::nightfall::v1::GetItemCatalogResponse>* streamer) {
+                       return this->StreamedGetItemCatalog(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetItemCatalog() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetItemCatalog(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetItemCatalogRequest* /*request*/, ::nightfall::v1::GetItemCatalogResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetItemCatalog(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetItemCatalogRequest,::nightfall::v1::GetItemCatalogResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetInventory : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetInventory() {
+      ::grpc::Service::MarkMethodStreamed(11,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GetInventoryRequest, ::nightfall::v1::GetInventoryResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GetInventoryRequest, ::nightfall::v1::GetInventoryResponse>* streamer) {
+                       return this->StreamedGetInventory(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetInventory() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetInventory(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetInventoryRequest* /*request*/, ::nightfall::v1::GetInventoryResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetInventory(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetInventoryRequest,::nightfall::v1::GetInventoryResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GrantItem : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GrantItem() {
+      ::grpc::Service::MarkMethodStreamed(12,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GrantItemRequest, ::nightfall::v1::GrantItemResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GrantItemRequest, ::nightfall::v1::GrantItemResponse>* streamer) {
+                       return this->StreamedGrantItem(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GrantItem() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GrantItem(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGrantItem(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GrantItemRequest,::nightfall::v1::GrantItemResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<WithStreamedUnaryMethod_GetItemCatalog<WithStreamedUnaryMethod_GetInventory<WithStreamedUnaryMethod_GrantItem<Service > > > > > > > > > > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<Service > > > > > > > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<WithStreamedUnaryMethod_GetItemCatalog<WithStreamedUnaryMethod_GetInventory<WithStreamedUnaryMethod_GrantItem<Service > > > > > > > > > > > > > StreamedService;
 };
 
 }  // namespace v1
