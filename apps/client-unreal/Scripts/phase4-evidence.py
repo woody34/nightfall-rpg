@@ -397,25 +397,21 @@ def formula(name,inputs,actual):
         required={'recipe_id','before_instance','after_instance','ingredients_before','ingredients_after','tax_rate'}
         if set(inputs)!=required:raise ValueError('incomplete SA inputs')
         same(inputs['tax_rate'],'0') # D22 fixture policy, not universal source tax.
-        recipe_id=integer(inputs['recipe_id'],1);list_id,ordinal=divmod(recipe_id,2**32)
-        recipes=source().xml(oracle.D+f'multisell/{list_id}.xml').findall('item')
-        if ordinal>=len(recipes):raise ValueError('unknown SA recipe')
-        recipe=recipes[ordinal]
+        recipe=sa_recipe(integer(inputs['recipe_id'],1))
         before,after=inputs['before_instance'],inputs['after_instance']
         if set(before)!= {'id','template_id','enchant','augment_id'} or set(after)!=set(before):raise ValueError('incomplete SA instance')
         if integer(after['id'],1)==integer(before['id'],1):raise ValueError('SA must allocate fresh ID (D37)')
-        outputs=recipe.findall('production')
-        if len(outputs)!=1 or int(outputs[0].get('count'))!=1:raise ValueError('unsupported recipe product')
-        same(after['template_id'],int(outputs[0].get('id')))
+        outputs=recipe['products']
+        if len(outputs)!=1 or outputs[0]['count']!=1:raise ValueError('unsupported recipe product')
+        same(after['template_id'],outputs[0]['template_id'])
         # maintainEnchantment is list config, not an ingredient heuristic.
-        configuration=source().xml(oracle.D+f'multisell/{list_id}.xml')
-        maintain=configuration.get('maintainEnchantment','false')=='true'
+        maintain=recipe['maintain_enchantment']
         same(after['enchant'],before['enchant'] if maintain else 0)
         same(after['augment_id'],before['augment_id'] if maintain else None)
-        if not any(int(r.get('id'))==before['template_id'] and int(r.get('count'))==1 for r in recipe.findall('ingredient')):raise ValueError('wrong base weapon')
+        same(before['template_id'],recipe['base_template'])
         expected=dict(inputs['ingredients_before'])
-        for ingredient in recipe.findall('ingredient'):
-            template=ingredient.get('id');count=int(ingredient.get('count'))
+        for ingredient in recipe['ingredients']:
+            template=str(ingredient['template_id']);count=ingredient['count']
             if template==str(before['template_id']):
                 if count!=1:raise ValueError('unsupported base count')
                 continue # Base consumed instance is separate from ingredient stacks.
@@ -433,6 +429,21 @@ def formula(name,inputs,actual):
         oracle.verify_facts([dict(formula=name,inputs=inputs,expected=actual)])
         function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
         same(actual,oracle.rational(function(**oracle.decode_rationals(inputs))))
+
+
+@lru_cache(maxsize=None)
+def sa_recipe(recipe_id):
+    """Use the E1 recipe, cross-checked against its pinned multisell source."""
+    recipe=next((r for r in table('sa_variants')['recipes'] if r['recipe_id']==recipe_id),None)
+    if recipe is None:raise ValueError('unknown SA recipe')
+    list_id,ordinal=divmod(recipe_id,2**32)
+    same((recipe['list_id'],recipe['xml_ordinal']),(list_id,ordinal))
+    configuration=source().xml(oracle.D+f'multisell/{list_id}.xml')
+    raw=configuration.findall('item')[ordinal]
+    for field,tag in (('ingredients','ingredient'),('products','production')):
+        same(recipe[field],[dict(template_id=int(r.get('id')),count=int(r.get('count'))) for r in raw.findall(tag)])
+    same(recipe['maintain_enchantment'],configuration.get('maintainEnchantment','false')=='true')
+    return recipe
 
 
 def validate_instance(value):
@@ -492,8 +503,12 @@ def validate_transition(data):
 
 
 def validate_exchanges(rows):
-    """D52/D57: Exchange is a receipt linking consume(old) and grant(new)."""
-    exchanges={}
+    """D11/D22/D52: bind every receipt's constituents to its source recipe."""
+    exchanges={};resolutions={};bound=set()
+    for row in rows[1:-1]:
+        if row['kind']=='item_formula' and row['data']['formula']=='sa_exchange':
+            data=row['data'];formula('sa_exchange',data['inputs'],data['actual'])
+            resolutions[(row['entity'],row['incarnation'],data['resolution_id'])]=row
     for row in rows[1:-1]:
         if row['kind']!='item_delta':continue
         data=row['data']
@@ -501,15 +516,43 @@ def validate_exchanges(rows):
         for ref in refs:
             if ref is None or not ref.startswith('receipt:exchange:'):continue
             if not re.fullmatch(r'receipt:exchange:\S+',ref):raise ValueError('invalid Exchange receipt')
-            exchanges.setdefault((row['entity'],row['incarnation'],ref),[]).append(row)
-    for facts in exchanges.values():
+            facts=exchanges.setdefault((row['entity'],row['incarnation'],ref),[])
+            if row not in facts:facts.append(row)
+    for (entity,incarnation,ref),facts in exchanges.items():
         consumes=[r for r in facts if r['data']['operation']=='consume']
         grants=[r for r in facts if r['data']['operation']=='grant']
         if len(grants)!=1 or not consumes or len(consumes)+len(grants)!=len(facts):raise ValueError('Exchange requires consume and one grant row')
         grant=grants[0]
-        if not any(r['data']['after'] is None for r in consumes):raise ValueError('Exchange must consume the old instance')
+        identity=(entity,incarnation,grant['data']['resolution_id'])
+        resolution=resolutions.get(identity)
+        if resolution is None or identity in bound:raise ValueError('Exchange requires one bound source resolution')
+        bound.add(identity)
+        if resolution['tick']!=grant['tick']:raise ValueError('Exchange resolution differs from constituent tick')
+        inputs=resolution['data']['inputs'];recipe=sa_recipe(inputs['recipe_id'])
+        base=inputs['before_instance'];product=inputs['after_instance']
+        bases=[r['data'] for r in consumes if r['data']['instance']==base['id']]
+        if len(bases)!=1 or bases[0]['after'] is not None or bases[0]['before']['count']!=1:
+            raise ValueError('Exchange must exhaust the bound base instance')
+        same({k:bases[0]['before'][k] for k in base},base)
+        after=grant['data']['after']
+        same({k:after[k] for k in product},product)
+        if after['count']!=1 or after['location']!='inventory' or after['slot'] is not None:
+            raise ValueError('Exchange product must enter inventory')
+        expected={}
+        for ingredient in recipe['ingredients']:
+            if not ingredient['count']:continue
+            template=ingredient['template_id']
+            expected[template]=expected.get(template,0)+ingredient['count']
+        actual={}
+        for consume in consumes:
+            data=consume['data'];parts=[c['count_delta'] for c in data['causes'] if c['cause']==ref]
+            if len(parts)!=1:raise ValueError('Exchange requires one contribution per constituent stack')
+            template=data['before']['template_id']
+            actual[template]=actual.get(template,0)-parts[0]
+        same(actual,expected)
         if any(r['tick']!=grant['tick'] or r['sequence']>=grant['sequence'] or r['data']['instance']==grant['data']['instance'] for r in consumes):
             raise ValueError('Exchange must grant a fresh instance after its same-tick consumes')
+    if bound!=set(resolutions):raise ValueError('missing Exchange receipt constituents')
 
 
 def validate(rows,recording,rules_hash):

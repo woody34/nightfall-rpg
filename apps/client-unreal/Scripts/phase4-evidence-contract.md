@@ -52,6 +52,17 @@ JSONL contract (schema version 1 of this sidecar):
   the grant within the same owner/incarnation/tick; the old base is exhausted,
   while ingredient stacks may remain. Each consume includes that receipt in its
   causes and ordered receipt projection; the grant carries it in `receipt_ref`.
+  The grant's `resolution_id` binds exactly one same-owner/incarnation/tick
+  `sa_exchange` formula. Its `recipe_id` must name an E1 `sa_variants.toml`
+  recipe verified against the pinned multisell source. The bound
+  `inputs.before_instance` must be the exhausted base instance; the fresh grant
+  matches `inputs.after_instance`, including the recipe product template and
+  enchant/augmentation copied only when `maintain_enchantment` is true.
+  Every required ingredient (base, soul crystal, gemstones, adena under tax0)
+  contributes its exact recipe count under that Exchange receipt. Ingredient
+  stacks may remain or split across instances; shared aggregates count only
+  the negative cause belonging to this receipt, once per constituent stack.
+  Missing formula/receipt groups, constituents and conserved underpayment refuse.
   Missing/unlinked constituents and monolithic `operation=exchange` refuse.
   The old `receipt` field refuses.
   `before/after` are null or the complete canonical ItemInstance fields from

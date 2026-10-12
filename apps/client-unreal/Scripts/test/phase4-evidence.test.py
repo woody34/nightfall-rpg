@@ -155,41 +155,115 @@ class Evidence(unittest.TestCase):
                 causes=[dict(cause='auto_shot:transition:1',count_delta=count_delta)])
             with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
 
-    def exchange_rows(self):
+    def exchange_rows(self,recipe_id=4316442132481,enchant=3,extra=0):
         rows=self.transition_rows('consume',count=1)
+        recipe=next(r for r in gate.table('sa_variants')['recipes'] if r['recipe_id']==recipe_id)
         consume=next(r['data'] for r in rows if r['kind']=='item_delta')
-        consume['before'].update(template_id=72,enchant=3)
-        rows[1]['data']['instances'][0].update(template_id=72,enchant=3)
-        consume.update(after=None,receipt_refs=['receipt:exchange:key'],
+        consume['before'].update(template_id=recipe['base_template'],enchant=enchant)
+        rows[1]['data']['instances'][0]=copy.deepcopy(consume['before'])
+        consume.update(after=None,resolution_id='exchange:1',receipt_refs=['receipt:exchange:key'],
                        causes=[dict(cause='receipt:exchange:key',count_delta=-1)])
-        grant=dict(operation='grant',instance=101,before=None,after=item(101,1,4682)|{'enchant':3,'revision':1},
+        ingredients_before={};ingredients_after={}
+        for index,ingredient in enumerate(recipe['ingredients']):
+            template,count=ingredient['template_id'],ingredient['count']
+            if template==recipe['base_template'] or not count:continue
+            available=count+extra+(210000 if template==57 else 0)
+            before=item(102+index-1,available,template)
+            after=before|{'count':available-count,'revision':1} if available>count else None
+            rows[1]['data']['instances'].append(copy.deepcopy(before))
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+                data=dict(operation='consume',instance=before['id'],before=before,after=after,count_delta=-count,
+                          operation_ordinal=0,resolution_id='exchange:1',receipt_refs=['receipt:exchange:key'],
+                          causes=[dict(cause='receipt:exchange:key',count_delta=-count)])))
+            ingredients_before[str(template)]=available;ingredients_after[str(template)]=available-count
+        product=item(101,1,recipe['products'][0]['template_id'])|{'enchant':enchant if recipe['maintain_enchantment'] else 0,'revision':1}
+        grant=dict(operation='grant',instance=101,before=None,after=product,
                    count_delta=1,operation_ordinal=0,resolution_id='exchange:1',receipt_ref='receipt:exchange:key')
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=grant))
+        rows[2]['data']=dict(formula='sa_exchange',resolution_id='exchange:1',baseline=False,
+            inputs=dict(recipe_id=recipe_id,before_instance={k:consume['before'][k] for k in ('id','template_id','enchant','augment_id')},
+                        after_instance={k:product[k] for k in ('id','template_id','enchant','augment_id')},
+                        ingredients_before=ingredients_before,ingredients_after=ingredients_after,tax_rate='0'),
+            actual=dict(product_template=product['template_id'],new_instance_id=101))
         return self.repair(rows)
 
     def test_exchange_constituents_require_linked_consumption_and_fresh_grant(self):
         rows=self.exchange_rows();gate.validate(rows,self.recording,HASH)
-        # A retained ingredient stack may share the Exchange receipt with the base.
-        ingredient=copy.deepcopy(rows[3]);ingredient['data'].update(instance=102,before=item(102,3,17),
-            after=item(102,2,17)|{'revision':1})
-        rows[1]['data']['instances'].append(item(102,3,17));rows.insert(-2,ingredient);self.repair(rows)
-        gate.validate(rows,self.recording,HASH)
         for mutation in ('missing consume','missing grant','foreign receipt','foreign owner','fresh id','not exhausted','wrong operation','monolithic','reordered'):
             with self.subTest(mutation=mutation):
-                bad=self.exchange_rows();consume=bad[3]['data'];grant=bad[4]['data']
+                bad=self.exchange_rows();consume=bad[3]['data'];grant=bad[-2]['data']
                 if mutation=='missing consume':del bad[3]
-                elif mutation=='missing grant':del bad[4]
+                elif mutation=='missing grant':del bad[-2]
                 elif mutation=='foreign receipt':grant['receipt_ref']='receipt:exchange:other'
-                elif mutation=='foreign owner':bad[4]['entity']=OTHER
+                elif mutation=='foreign owner':bad[-2]['entity']=OTHER
                 elif mutation=='fresh id':grant['instance']=100;grant['after']['id']=100
                 elif mutation=='not exhausted':
                     bad[1]['data']['instances'][0]['count']=2;consume['before']['count']=2
                     consume['after']=consume['before']|{'count':1,'revision':1}
                 elif mutation=='wrong operation':grant['operation']='starter'
                 elif mutation=='monolithic':grant['operation']='exchange'
-                else:bad[3],bad[4]=bad[4],bad[3]
+                else:bad[3],bad[-2]=bad[-2],bad[3]
                 self.repair(bad)
                 with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+
+    def corrupt_exchange(self,rows,mutation):
+        deltas=[r for r in rows if r['kind']=='item_delta']
+        if mutation.startswith('delete '):
+            template=int(mutation.split()[1])
+            rows.remove(next(r for r in deltas if r['data']['before'] and r['data']['before']['template_id']==template))
+        elif mutation=='underpay':
+            debit=next(r['data'] for r in deltas if r['data']['before'] and r['data']['before']['template_id']==57)
+            debit.update(after=debit['before']|{'count':debit['before']['count']-1,'revision':1},count_delta=-1)
+            debit['causes']=[dict(cause='receipt:exchange:key',count_delta=-1)]
+        elif mutation=='product template':deltas[-1]['data']['after']['template_id']=4681
+        elif mutation=='product enchant':deltas[-1]['data']['after']['enchant']+=1
+        elif mutation=='unbound resolution':deltas[-1]['data']['resolution_id']='unrelated'
+        elif mutation=='missing resolution':rows.remove(next(r for r in rows if r['kind']=='item_formula'))
+        else:raise AssertionError(mutation)
+        return self.repair(rows)
+
+    def test_review12_exact_recipe_control_and_five_conserved_corruptions(self):
+        rows=self.exchange_rows()
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
+        for mutation in ('delete 72','delete 4645','delete 2131','delete 57','underpay',
+                         'product template','product enchant','unbound resolution','missing resolution'):
+            with self.subTest(mutation=mutation):
+                self.assert_rejected(self.corrupt_exchange(copy.deepcopy(rows),mutation),('sa_exchange',))
+        print('Review12 Exchange: source recipe4316442132481 control passes; 5 repaired deletions/underpayment + 4 binding mutations reject',flush=True)
+
+    def test_exchange_retained_stacks_split_ingredients_and_mixed_receipts(self):
+        rows=self.exchange_rows(extra=3)
+        adena=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['instance']==104)
+        adena['before']['count']+=3
+        rows[1]['data']['instances'][-1]['count']+=3
+        adena.update(resolution_id='cast:other',count_delta=adena['count_delta']-3,
+                     receipt_refs=['receipt:exchange:key','receipt:use:other'])
+        adena['causes'].insert(0,dict(cause='item_cast:cast:other',count_delta=-2))
+        adena['causes'].append(dict(cause='receipt:use:other',count_delta=-1))
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
+        # Split the gemstones across two retained stacks, with the exact recipe sum.
+        gem=next(r for r in rows if r['kind']=='item_delta' and r['data']['instance']==103)
+        part=copy.deepcopy(gem);part['data']['instance']=105
+        for endpoint in ('before','after'):part['data'][endpoint]['id']=105
+        for row,amount in ((gem,40),(part,57)):
+            debit=row['data'];debit['count_delta']=-amount;debit['causes'][0]['count_delta']=-amount
+            debit['after']['count']=debit['before']['count']-amount
+        rows[1]['data']['instances'].append(copy.deepcopy(part['data']['before']))
+        rows.insert(-2,part);self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
+        bad=copy.deepcopy(rows);debit=bad[-3]['data']
+        debit['causes'][0]['count_delta']+=1;debit['count_delta']+=1;debit['after']['count']+=1
+        self.assert_rejected(bad,('sa_exchange',))
+
+    def test_seeded_exchange_constituent_corruptions_2000_cases(self):
+        rng=random.Random(0xE613);mutations=('delete 72','delete 4645','delete 2131','delete 57','underpay',
+                                          'product template','product enchant','unbound resolution','missing resolution')
+        for case in range(2000):
+            rows=self.exchange_rows(enchant=rng.randrange(30),extra=rng.randrange(100))
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
+            for mutation in mutations:
+                self.assert_rejected(self.corrupt_exchange(copy.deepcopy(rows),mutation),('sa_exchange',))
+        print('Exchange property check: seed=0xE613; 2000 controls pass; 18000 constituent corruptions reject',flush=True)
 
     def test_seeded_per_operation_field_corruptions_2000_cases(self):
         rng=random.Random(0xE612);controls=corruptions=0
@@ -205,7 +279,7 @@ class Evidence(unittest.TestCase):
                 corruptions+=1
             rows=self.exchange_rows();gate.validate(rows,self.recording,HASH);controls+=1
             # Corrupt alternate constituent operations, keeping the Exchange link.
-            self.corrupt_transition(rows,fields[case%6],rng.randint(1,100),delta_index=case%2)
+            self.corrupt_transition(rows,fields[case%6],rng.randint(1,100),delta_index=0 if case%2==0 else -1)
             self.repair(rows)
             with self.assertRaises(ValueError,msg=('exchange',case)):gate.validate(rows,self.recording,HASH)
             corruptions+=1
@@ -721,9 +795,9 @@ class Evidence(unittest.TestCase):
         rows=self.exchange_rows()
         gate.validate(rows,self.recording,HASH)
         for value in (None,[],['exchange:1'],'',False):
-            bad=copy.deepcopy(rows);bad[4]['data']['receipt_ref']=value
+            bad=copy.deepcopy(rows);bad[-2]['data']['receipt_ref']=value
             with self.assertRaises(ValueError,msg=value):gate.validate(bad,self.recording,HASH)
-        bad=copy.deepcopy(rows);bad[4]['data']['receipt_refs']=['exchange:1']
+        bad=copy.deepcopy(rows);bad[-2]['data']['receipt_refs']=['exchange:1']
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
 
     def test_system_only_and_mixed_consume_causes(self):
