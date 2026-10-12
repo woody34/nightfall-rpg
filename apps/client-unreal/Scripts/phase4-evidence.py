@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """C14 verified-export / C15 actual-input item oracle consumer.
 
-Proposed E2 producer contract is explicit; unknown schemas, facts and baseline-only
+D46 freezes the E2 producer contract; unknown schemas, facts and baseline-only
 exports fail closed. Unit fixtures are synthetic, never live replay attestations.
 """
 import argparse
@@ -9,6 +9,8 @@ from functools import lru_cache
 import hashlib
 import importlib.util
 import json
+import inspect
+import tomllib
 from pathlib import Path
 import re
 import shlex
@@ -61,6 +63,18 @@ def integer(value,minimum=0):
 def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def phases(scenario):
+    result=[]
+    for line in scenario.read_text().splitlines():
+        if not line.startswith('# item-phase: '):continue
+        value=json.loads(line.removeprefix('# item-phase: '),object_pairs_hook=unique_object,parse_float=no_float)
+        if not {'name','formula'}<=set(value) or set(value)-{'name','formula','context','inputs','actual','providers','absent_providers','mutation'} or value['formula'] not in FORMULAS:
+            raise ValueError('invalid item phase specification')
+        if any(r['name']==value['name'] for r in result):raise ValueError('duplicate item phase')
+        result.append(value)
+    return result
+
+
 def requirements(scenario):
     result=[]
     for line in scenario.read_text().splitlines():
@@ -75,8 +89,76 @@ def requirements(scenario):
 def source():return oracle.Source()
 
 
+# Flags are typed per oracle parameter, not by a global name (support is numeric
+# for enchant_outcome but boolean for enchant_valid).
+BOOLEAN_REQUIRED = {
+    'crystal_count': {'weapon'}, 'failure_refund': {'weapon'},
+    'bow_launch': {'miss'}, 'resurrection_scroll': {'dead','repeat','restore_hp'},
+    'learned_item_cost': {'repeat'}, 'dual_plan': {'second_valid'},
+    'enchant_safe': {'fullarmor'}, 'retail_draw_contract': {'accessory'},
+    'item_regen_status': {'dead','stunned'},
+    'set_shield_history': {'previous','chest_present','matching_shield'},
+}
+INTEGER_INPUTS = {
+    'enchant_increment': {'enchant'}, 'enchant_hp': {'enchant'},
+    'crystal_count': {'base','bonus','enchant'}, 'failure_refund': {'base','bonus','enchant','crystal_id'},
+    'enchant_outcome': {'enchant','residue'}, 'enchant_valid': {'current','max_enchant'},
+    'fist_spread': {'level','residue','template_radius'}, 'pole_sequence': {'maximum'},
+    'bow_reuse': {'reuse_delay'}, 'bow_damage': {'dx_milli','dy_milli'},
+    'shield': {'perfect_residue','normal_residue'}, 'blow_success': {'residue'},
+    'lethal': {'full_residue','half_residue'}, 'retail_select': {'residue'},
+    'category': {'residue'}, 'pack_options': {'first','second'}, 'cancel_fee': {'crystals'},
+    'shot_payment': {'count','available','residue'}, 'gear_stats': {'level','base_delta_sequence'},
+    'grant_denied': {'ledger_rows','rng_before','rng_after'},
+    'enchant_safe': {'current','safe_enchant','safe_fullarmor','residue'},
+    'player_level_range': {'level','minimum','maximum'},
+}
+NESTED_FLAGS = set(('weapon arrow eligible hit admitted stackable equipped static simultaneous immediate '
+    'ex_immediate ex_immediate_effect immediate_effect dead invulnerable hp_blocked is_magic_weapon '
+    'is_crystallizable is_common is_hero is_pvp for_npc allow_self_resurrection is_oly_restricted '
+    'is_sellable is_droppable is_destroyable is_tradable is_depositable element_enabled is_questitem '
+    'is_freightable repeat').split())
+
+
+def input_types(name, inputs):
+    function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
+    flags=set(BOOLEAN_REQUIRED.get(name,()))
+    if function:
+        flags.update(k for k,p in inspect.signature(function).parameters.items() if type(p.default) is bool)
+    flags.update({'auth_dev_tokens'} if name=='grant_denied' else ())
+    if name=='magic_damage':flags.update({'is_pvp','second_success'})
+    def check(value, boolean=False, nested=False):
+        if type(value) is bool:
+            if not boolean:raise ValueError('boolean numeric input forbidden')
+        elif boolean:raise ValueError('boolean parameter required')
+        elif isinstance(value,float):raise ValueError('float input forbidden')
+        elif isinstance(value,dict):
+            if set(value)=={'numerator','denominator'}:
+                integer(value['numerator'],minimum=-(2**63));integer(value['denominator'],1)
+            else:
+                for key,child in value.items():check(child,key in NESTED_FLAGS,True)
+        elif isinstance(value,list):
+            for child in value:check(child,False,nested)
+    for key,value in inputs.items():
+        if value is None and name=='magic_damage' and key in ('is_pvp','second_success'):continue
+        if key in INTEGER_INPUTS.get(name,()) and value is not None and type(value) is not int:
+            raise ValueError('integer formula input required: '+key)
+        if name in ('dual_plan','shared_shot_bundle') and key=='hits':
+            if not isinstance(value,list):raise ValueError('boolean hit list required')
+            for child in value:check(child,True)
+        else:check(value,key in flags)
+
+
+@lru_cache(maxsize=1)
+def item_tables():
+    directory=REPO/'packages/data/tables-phase4'
+    return {r['template_id']:r for name in ('weapons','armors','etc_items')
+            for r in tomllib.loads((directory/(name+'.toml')).read_text())['items']}
+
+
 def formula(name,inputs,actual):
     if name not in FORMULAS:raise ValueError('unknown item formula')
+    input_types(name,inputs)
     # Match E1's finite function registry on arbitrary resolution inputs.
     if name=='gear_stats':
         required={'class_file','level','equipment','skill_refs','base_deltas','base_delta_sequence'}
@@ -127,6 +209,10 @@ def formula(name,inputs,actual):
         same(actual,oracle.rational(function(**oracle.decode_rationals(inputs))))
 
 
+SLOTS=set(('under head hair hair2 neck rhand chest lhand rear lear gloves legs feet '
+           'rfinger lfinger lbracelet rbracelet deco1 deco2 deco3 deco4 deco5 deco6 cloak belt').split())
+
+
 def validate_instance(value):
     fields={'id','template_id','count','location','slot','enchant','augment_id','charges','created_tick','revision'}
     if not isinstance(value,dict) or set(value)!=fields:raise ValueError('missing/unknown canonical item scalar')
@@ -134,6 +220,7 @@ def validate_instance(value):
     for name in ('enchant','charges','created_tick','revision'):integer(value[name])
     if value['id']>=2**63 or value['count']>=2**63 or value['template_id']>=2**31 or value['enchant']>=2**32 or value['charges']>7 or value['created_tick']>=2**63 or value['revision']>=2**63:raise ValueError('item scalar outside domain width')
     if value['location'] not in ('inventory','paperdoll') or (value['location']=='paperdoll')!=(value['slot'] is not None):raise ValueError('item location/slot mismatch')
+    if value['slot'] is not None and value['slot'] not in SLOTS:raise ValueError('unknown canonical slot')
     if value['charges'] and value['slot']!='rhand':raise ValueError('charge on nonweapon slot')
     if value['augment_id'] is not None:
         augment=integer(value['augment_id'],1)
@@ -161,9 +248,18 @@ def validate(rows,recording,rules_hash):
         tick=integer(row['tick'])
         if not previous<=tick<=last:raise ValueError('unordered/out-of-scope fact')
         previous=tick;data=row['data']
+        if row['kind'] in ('item_rng','item_delta'):
+            if not isinstance(data.get('resolution_id'),str) or not data['resolution_id']:raise ValueError('operation resolution identity required')
         if row['kind']=='item_formula':
-            if set(data)!= {'formula','inputs','actual','resolution_id','baseline'} or data['formula'] not in FORMULAS:raise ValueError('unknown/malformed formula fact')
+            if set(data)-{'context'}!= ({'formula','inputs','actual','resolution_id','baseline','operation'} if data.get('formula')=='enchant_outcome' else {'formula','inputs','actual','resolution_id','baseline'}) or data['formula'] not in FORMULAS:raise ValueError('unknown/malformed formula fact')
             same(data['baseline'],False)
+            if 'context' in data:
+                context=data['context']
+                if not isinstance(context,dict) or set(context)-{'weapon_template','skill_id','target_entity','event','set_id'}:raise ValueError('invalid formula context')
+                for key in ('weapon_template','skill_id','set_id'):
+                    if key in context and integer(context[key])>=2**32:raise ValueError('context ID outside u32')
+                if 'target_entity' in context:same(str(UUID(context['target_entity'])),context['target_entity'])
+                if 'event' in context and context['event'] not in ('equip','unequip','enchant','admission','attack','cast'):raise ValueError('unknown formula event')
             if not isinstance(data['resolution_id'],str) or not data['resolution_id']:raise ValueError('resolution identity required')
             identity=(row['entity'],row['incarnation'],data['resolution_id'],data['formula'])
             if identity in seen:raise ValueError('repeated formula resolution')
@@ -179,15 +275,26 @@ def validate(rows,recording,rules_hash):
                 identity=item['id']
                 if identity in ids:raise ValueError('duplicate baseline instance')
                 ids.add(identity)
-            if any(i not in ids for i in data['paperdoll'].values()):raise ValueError('dangling baseline paperdoll')
+            expected={}
+            for item in data['instances']:
+                if item['slot'] is not None:
+                    if item['slot'] in expected:raise ValueError('duplicate slot occupancy')
+                    expected[item['slot']]=item['id']
+            for slot,identity in data['paperdoll'].items():
+                if slot not in SLOTS:raise ValueError('unknown paperdoll slot')
+                integer(identity,1)
+            same(data['paperdoll'],expected)
+            for template in data['auto_shots']:
+                if integer(template,1)>=2**32:raise ValueError('auto-shot ID outside u32')
+            if len(set(data['auto_shots']))!=len(data['auto_shots']):raise ValueError('duplicate auto-shot')
         elif row['kind']=='item_rng':
-            if set(data)!= {'callsite','word_before','word_after','bound','value'}:raise ValueError('unknown/missing RNG fields')
+            if set(data)!= {'callsite','word_before','word_after','bound','value','resolution_id'}:raise ValueError('unknown/missing RNG fields')
             before,after=integer(data['word_before']),integer(data['word_after']);bound=integer(data['bound'],1);value=integer(data['value'])
             if after<=before or cursor is not None and before!=cursor or value>=bound:raise ValueError('invalid RNG cursor/residue')
             cursor=after
             if not isinstance(data['callsite'],str) or not data['callsite']:raise ValueError('RNG callsite required')
         elif row['kind']=='item_delta':
-            if set(data)!= {'operation','instance','before','after','count_delta','operation_ordinal','receipt'}:raise ValueError('unknown/missing ledger fields')
+            if set(data)!= {'operation','instance','before','after','count_delta','operation_ordinal','receipt','resolution_id'}:raise ValueError('unknown/missing ledger fields')
             if data['operation'] not in {'grant','starter','backfill','equip','unequip','consume','enchant','destroy','crystallize','refine','cancel_refine','exchange','use'}:raise ValueError('unknown ledger operation')
             instance=integer(data['instance'],1)
             before,after=data['before'],data['after']
@@ -200,7 +307,7 @@ def validate(rows,recording,rules_hash):
             net=(after['count'] if after else 0)-(before['count'] if before else 0)
             same(data['count_delta'],net)
             ordinal=integer(data['operation_ordinal'])
-            key=(row['entity'],tick,instance,data['operation'],ordinal)
+            key=(row['entity'],row['incarnation'],data['resolution_id'],instance,data['operation'],ordinal)
             if key in seen:raise ValueError('repeated ledger fact')
             seen.add(key)
             if data['operation']=='consume':same(ordinal,0)
@@ -208,9 +315,92 @@ def validate(rows,recording,rules_hash):
     return manifest
 
 
-def evaluate(rows,recording,entity,gates,rules_hash):
+def refund_inputs_for(target):
+    definition=item_tables()[target['template_id']]
+    grade=source().grades[definition['grade']]
+    return dict(base=definition['crystal_count'],bonus=grade['weapon_bonus' if definition['kind']=='Weapon' else 'armor_bonus'],
+                enchant=target['enchant'],weapon=definition['kind']=='Weapon',
+                crystallizable=definition['flags']['is_crystallizable'],crystal_id=grade['crystal_id'])
+
+
+def enchant_evidence(row, rows):
+    """RequestEnchantItem.java:123-139,154-271; EnchantScroll.java:149-155.
+
+    Even guaranteed success draws; safe/reset/no-increment have no fake target
+    ledger change. A noncrystallizable destruction legitimately has no refund.
+    """
+    data=row['data'];identity=(row['entity'],row['incarnation'],data['resolution_id'])
+    correlated=[r for r in rows[1:-1] if r['kind'] in ('item_formula','item_rng','item_delta')
+                and (r['entity'],r['incarnation'],r['data']['resolution_id'])==identity]
+    op=data['operation']
+    if set(op)!={'target_before','scroll_before','support_before'}:raise ValueError('incomplete enchant operation binding')
+    target,scroll,support=(op[k] for k in ('target_before','scroll_before','support_before'))
+    for item in (target,scroll,support):
+        if item is not None:validate_instance(item)
+    if target is None or scroll is None or len({i['id'] for i in (target,scroll,support) if i})!=2+int(support is not None):raise ValueError('invalid enchant instance binding')
+    formula('enchant_outcome',data['inputs'],data['actual'])
+    same(data['inputs']['enchant'],target['enchant'])
+    chance=[r for r in correlated if r['kind']=='item_formula' and r['data']['formula']=='enchant_chance']
+    if len(chance)!=1:raise ValueError('one correlated enchant chance required')
+    formula('enchant_chance',chance[0]['data']['inputs'],chance[0]['data']['actual'])
+    same(chance[0]['data']['actual'],oracle.enchant_chance(**{k:data['inputs'][k] for k in ('base','bonus','support')}))
+    draws=[r['data'] for r in correlated if r['kind']=='item_rng']
+    if len(draws)!=1 or draws[0]['callsite']!='enchant' or draws[0]['bound']!=100000:raise ValueError('one source enchant RNG draw required')
+    same(draws[0]['value'],data['inputs']['residue'])
+    deltas=[r['data'] for r in correlated if r['kind']=='item_delta']
+    required=[]
+    def require(instance,operation,before,after):
+        matched=[d for d in deltas if d['instance']==instance and d['operation']==operation]
+        if len(matched)!=1:raise ValueError('missing/duplicate enchant '+operation+' row')
+        same(matched[0]['before'],before)
+        if after is None:same(matched[0]['after'],None)
+        else:
+            actual=matched[0]['after']
+            if actual is None:raise ValueError('missing enchant post-instance')
+            same({k:v for k,v in actual.items() if k!='revision'},{k:v for k,v in after.items() if k!='revision'})
+            if actual['revision']<=before['revision']:raise ValueError('enchant item revision did not advance')
+        required.append(matched[0])
+    for spent in (scroll,support):
+        if spent is None:continue
+        after=spent|{'count':spent['count']-1} if spent['count']>1 else None
+        require(spent['id'],'consume',spent,after)
+    outcome=data['actual'];destroyed=outcome['destroyed']
+    if destroyed:require(target['id'],'destroy',target,None)
+    elif outcome['enchant']!=target['enchant']:require(target['id'],'enchant',target,target|{'enchant':outcome['enchant']})
+    refund_inputs=refund_inputs_for(target)
+    crystal=refund_inputs['crystal_id']
+    refund=oracle.failure_refund(**refund_inputs) if destroyed else 0
+    refunds=[r for r in correlated if r['kind']=='item_formula' and r['data']['formula']=='failure_refund']
+    if refund:
+        if len(refunds)!=1:raise ValueError('missing correlated refund computation')
+        same(refunds[0]['data']['inputs'],refund_inputs);formula('failure_refund',refund_inputs,refunds[0]['data']['actual'])
+    elif refunds:raise ValueError('refund on branch without source refund')
+    if refund:
+        candidates=[d for d in deltas if d['operation']=='grant' and d['after'] and d['after']['template_id']==crystal]
+        if len(candidates)!=1 or candidates[0]['count_delta']!=refund:raise ValueError('missing exact enchant crystal refund')
+        grant=candidates[0]
+        if grant['before'] is not None:
+            before,after=grant['before'],grant['after']
+            same({k:v for k,v in before.items() if k not in ('count','revision')},{k:v for k,v in after.items() if k not in ('count','revision')})
+            if after['revision']<=before['revision']:raise ValueError('refund revision did not advance')
+        elif grant['after']['location']!='inventory' or grant['after']['slot'] is not None:
+            raise ValueError('refund must enter inventory')
+        required.append(grant)
+    if len(required)!=len(deltas):raise ValueError('unexpected correlated enchant ledger row')
+
+
+def evaluate(rows,recording,entity,gates,rules_hash,phase_specs=()):
     manifest=validate(rows,recording,rules_hash)
     results=[]
+    enchant_errors=[]
+    for row in rows[1:-1]:
+        if row['entity']==entity and row['kind']=='item_formula' and row['data']['formula']=='enchant_outcome':
+            try:enchant_evidence(row,rows)
+            except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError) as error:enchant_errors.append(str(error))
+    resolutions={(r['entity'],r['incarnation'],r['data']['resolution_id']) for r in rows[1:-1] if r['entity']==entity and r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'}
+    for row in rows[1:-1]:
+        if row['entity']==entity and row['kind']=='item_formula' and row['data']['formula'] in ('enchant_chance','failure_refund') and (row['entity'],row['incarnation'],row['data']['resolution_id']) not in resolutions:
+            enchant_errors.append('missing correlated enchant outcome')
     owner=[r for r in rows[1:-1] if r['entity']==entity and r['kind']=='item_formula']
     for gate in gates:
         if gate=='grant_denied':
@@ -223,12 +413,12 @@ def evaluate(rows,recording,entity,gates,rules_hash):
             if grants:errors.append('disabled GrantItem nevertheless materialized a grant')
             results.append(dict(formula=gate,sequences=[r['sequence'] for r in baselines],applicable=True,errors=errors))
             continue
-        matched=[r for r in owner if r['data']['formula']==gate];errors=[]
+        matched=[r for r in owner if r['data']['formula']==gate];errors=list(enchant_errors) if gate in ('enchant_outcome','enchant_chance','failure_refund') else []
         applicable=True
         if gate=='failure_refund' and not matched:
             outcomes=[r for r in owner if r['data']['formula']=='enchant_outcome']
-            if outcomes and all(isinstance(r['data']['actual'],dict) and r['data']['actual'].get('destroyed') is False for r in outcomes):
-                # Only destruction executes the source refund branch; success/reset/safe do not.
+            if outcomes and not enchant_errors and all(not r['data']['actual']['destroyed'] or oracle.failure_refund(**refund_inputs_for(r['data']['operation']['target_before']))==0 for r in outcomes):
+                # Only refundable destruction executes this source branch.
                 for outcome in outcomes:formula('enchant_outcome',outcome['data']['inputs'],outcome['data']['actual'])
                 applicable=False
         if not matched and applicable:errors.append('missing owner actual-input resolution fact')
@@ -236,8 +426,32 @@ def evaluate(rows,recording,entity,gates,rules_hash):
             try:formula(gate,row['data']['inputs'],row['data']['actual'])
             except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError) as error:errors.append(str(error))
         results.append(dict(formula=gate,sequences=[r['sequence'] for r in matched],applicable=applicable,errors=errors))
+    for phase in phase_specs:
+        matched=[]
+        for row in owner:
+            data=row['data']
+            if data['formula']!=phase['formula']:continue
+            if any(data.get('context',{}).get(k)!=v for k,v in phase.get('context',{}).items()):continue
+            if any(k not in data['inputs'] or data['inputs'][k]!=v for k,v in phase.get('inputs',{}).items()):continue
+            if 'actual' in phase and data['actual']!=phase['actual']:continue
+            providers={r[0] for r in data['inputs'].get('skill_refs',[])}
+            if not set(phase.get('providers',[]))<=providers or set(phase.get('absent_providers',[]))&providers:continue
+            if 'mutation' in phase:
+                mutation=phase['mutation'];found=False
+                for delta in rows[1:-1]:
+                    if delta['kind']!='item_delta' or (delta['entity'],delta['incarnation'],delta['data']['resolution_id'])!=(row['entity'],row['incarnation'],data['resolution_id']):continue
+                    d=delta['data'];item=d['after'] if mutation['operation']=='equip' else d['before']
+                    if item and d['operation']==mutation['operation'] and item['template_id']==mutation['template'] and item['slot']==mutation['slot']:found=True
+                if not found:continue
+            try:formula(data['formula'],data['inputs'],data['actual'])
+            except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError):continue
+            matched.append(row)
+        results.append(dict(formula=phase['formula'],phase=phase['name'],sequences=[r['sequence'] for r in matched],applicable=True,
+                            errors=[] if matched else ['missing scoped owner phase resolution']))
+    if enchant_errors and not any(r['errors'] for r in results):
+        results.append(dict(formula='enchant_resolution_integrity',errors=enchant_errors))
     return dict(schema_version=1,recording_sha256=manifest['recording_sha256'],phase4_rules_hash=rules_hash,
-                entity=entity,gates=results,passed=bool(results) and not any(r['errors'] for r in results))
+                entity=entity,gates=results,passed=bool(results) and not enchant_errors and not any(r['errors'] for r in results))
 
 
 def run(scenario,recording,report,out,replay,rules_hash):
@@ -253,7 +467,7 @@ def run(scenario,recording,report,out,replay,rules_hash):
         for args in (['check','--file',str(recording),'--session',entity],
                      ['export','--file',str(recording),'--session',entity,'--items-evidence-out',str(raw)]):
             subprocess.run(command+args,cwd=REPO,stdout=log,stderr=subprocess.STDOUT,check=True)
-    result=evaluate(read_jsonl(raw),recording,entity,gates,rules_hash)
+    result=evaluate(read_jsonl(raw),recording,entity,gates,rules_hash,phases(scenario))
     out.write_text(json.dumps(result,sort_keys=True,indent=2)+'\n')
     return int(not result['passed'])
 
