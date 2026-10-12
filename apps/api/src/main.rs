@@ -130,6 +130,7 @@ async fn shutdown_signal() {
     }
 }
 
+#[allow(clippy::too_many_lines)] // Keep all views of each persistence adapter wired together at startup.
 async fn build_dependencies(
     cfg: &Config,
     zone_cfg: &ZoneRuntimeConfig,
@@ -168,6 +169,7 @@ async fn build_dependencies(
     }
     let characters = Arc::new(memory);
     deps.characters = characters.clone();
+    deps.item_inventory = Some(characters.clone());
     deps.learning = Some(characters);
     if let Some(path) = std::env::var_os("CHARACTER_NAME_BLOCKLIST_PATH") {
         let raw = std::fs::read_to_string(path)?;
@@ -197,6 +199,7 @@ async fn build_dependencies(
         }
         let characters = Arc::new(characters);
         deps.characters = characters.clone();
+        deps.item_inventory = Some(characters.clone());
         deps.learning = Some(characters);
         deps.accounts = Arc::new(
             infrastructure::postgres::PgAccountRepository::new(conn.clone())

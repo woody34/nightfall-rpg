@@ -40,6 +40,8 @@ pub const DEFAULT_WS_PUBLIC_URL: &str = "ws://localhost:3000/ws";
 pub struct Dependencies {
     /// Prevalidated V6 metadata; None keeps `GetItemCatalog` fail closed.
     pub item_catalogue: Option<Arc<dyn application::ports::ItemCataloguePort>>,
+    /// Same adapter as character persistence; None refuses detached inventory reads.
+    pub item_inventory: Option<Arc<dyn application::ports::ItemInventoryRepository>>,
     /// The same character adapter's atomic checkpoint/receipt writer, installed before
     /// recovery and actor admission. Absent adapters cannot enable paid learning.
     pub learning: Option<Arc<dyn application::ports::LearningCheckpointRepository>>,
@@ -83,6 +85,7 @@ impl Dependencies {
         let characters = Arc::new(infrastructure::memory::InMemoryCharacterRepository::default());
         Self {
             item_catalogue: None,
+            item_inventory: Some(characters.clone()),
             learning: Some(characters.clone()),
             classes: None,
             class_transfers: None,
@@ -161,6 +164,14 @@ pub async fn build_live_grpc_services(
     realtime: &Realtime,
 ) -> anyhow::Result<GrpcServices> {
     let mut services = build_grpc_services(deps)?;
+    services.game = services
+        .game
+        .with_get_inventory(application::use_cases::GetInventory::new(
+            deps.characters.clone(),
+            deps.item_inventory.clone(),
+            Some(realtime.sessions.clone()),
+            deps.item_catalogue.clone(),
+        ));
     if realtime.sessions.zone.phase3_enabled() {
         services.game = services.game.with_phase3(
             interface::grpc::Phase3UseCases::for_runtime(

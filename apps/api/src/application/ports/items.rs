@@ -177,3 +177,15 @@ pub trait ItemCataloguePort: Send + Sync {
         &self,
     ) -> Result<std::sync::Arc<crate::domain::zone::Phase4Rules>, crate::application::AppError>;
 }
+
+/// Zone/lifecycle boundary for a detached retained read. Implementations hold the same
+/// admission/departure barrier until the repository's revision-consistent read completes.
+#[async_trait]
+pub trait ItemInventoryRuntime: Send + Sync {
+    /// `UNAVAILABLE` if the zone stopped, `FAILED_PRECONDITION` while admitted; no live DB baseline.
+    async fn detached_inventory(
+        &self,
+        character: CharacterId,
+        repository: &dyn ItemInventoryRepository,
+    ) -> Result<Option<RetainedInventory>, crate::application::AppError>;
+}
