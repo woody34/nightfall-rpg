@@ -8,6 +8,53 @@ use super::{
 use crate::domain::zone::state_death::{death_penalty_roll_required, prepare_death, DeathContext};
 
 impl ZoneState {
+    /// Escape.java:62 and design§8: relocation preserves life/resources and uses the
+    /// epoch safe point. AOI output is reconciled by the normal end-of-tick observer pass.
+    pub(super) fn escape_v6(
+        &mut self,
+        tick: Tick,
+        target: effects::TargetBinding,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<crate::domain::zone::SkillTargetResult, TickError> {
+        if self.phase4.is_none() || self.binding(target.entity) != Some(target) {
+            return Err(missing());
+        }
+        let to = self.safe_point.ok_or_else(missing)?;
+        self.disengage(tick, target.entity, super::SwingCancel::Stopped, events);
+        self.note_progress(target.entity);
+        let entity = self.entities.get_mut(&target.entity).ok_or_else(missing)?;
+        let combat = entity.combat.as_ref().ok_or_else(missing)?;
+        if combat.hp == 0 || entity.kind != EntityKind::Player {
+            return Err(missing());
+        }
+        let hp = combat.hp;
+        let from = entity.pos;
+        let moved = from != to || entity.dest.is_some();
+        entity.pos = to;
+        entity.dest = None;
+        if moved {
+            events.push(ZoneEvent::EntityMove {
+                tick,
+                entity: target.entity,
+                pos: to,
+                dest: None,
+                speed: entity.speed,
+            });
+        }
+        self.aoi.relocate(target.entity, from, to);
+        Ok(crate::domain::zone::SkillTargetResult {
+            target,
+            resolution_kind: crate::domain::zone::SkillResolutionKind::Effect,
+            outcome: crate::domain::zone::SkillOutcome::Hit,
+            rolled: 0,
+            cp_absorbed: 0,
+            hp_removed: 0,
+            heal: 0,
+            target_hp_after: hp,
+            applied_effect_ids: Vec::new(),
+        })
+    }
+
     pub(super) fn expire_policy_v5(
         &mut self,
         tick: Tick,

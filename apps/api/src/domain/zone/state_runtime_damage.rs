@@ -5520,6 +5520,7 @@ mod tests {
                 skill,
                 rank,
                 CastStatContext {
+                    world: None,
                     player_level: Some(effective.physical.level()),
                     calculator: &effective.calculator,
                     conditions: FunctionConditions {
@@ -6155,5 +6156,110 @@ mod tests {
             .canonical
             .item_casts
             .is_empty());
+    }
+    #[test]
+    fn v6_escape_scrolls_keep_source_timing_life_and_cold_replay() {
+        // L2Character.java:1636/1643,4581: clamp launch then add the 400ms impact stage.
+        for (template, duration) in [(736, 200), (1538, 4)] {
+            let (mut zone, owner, _, ids) = use_fixture(&[template]);
+            let town = Vec2Fixed::from_tiles(126, 126);
+            zone = zone.with_safe_point(town);
+            let cursor = zone.rng.get_word_pos();
+            let start = zone.next_tick;
+            let applied = zone
+                .run_tick(zone.draft(vec![use_input(&zone, owner, 940, 1, ids[0], None)]))
+                .unwrap();
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+            let CastState::Casting(cast) = zone.sidecar(owner.entity).unwrap().cast.clone() else {
+                unreachable!()
+            };
+            assert_eq!(cast.complete_at.0 - start.0, duration);
+            assert_eq!(
+                zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]]
+                    .count,
+                2
+            );
+            let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+            let mut cold =
+                ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+            let mut relocated = false;
+            while zone.next_tick <= cast.complete_at {
+                let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+                assert_eq!(tick, cold.run_tick(cold.draft(Vec::new())).unwrap());
+                assert!(!tick
+                    .events
+                    .iter()
+                    .any(|e| matches!(e, ZoneEvent::EntityRespawned { .. })));
+                relocated |= tick.events.iter().any(|e| matches!(e, ZoneEvent::EntityMove { entity, pos, .. } if *entity == owner.entity && *pos == town));
+                if tick.tick < cast.complete_at {
+                    assert_ne!(zone.entities[&owner.entity].pos, town);
+                }
+            }
+            assert!(relocated);
+            assert_eq!(zone.binding(owner.entity), Some(owner));
+            assert_eq!(zone.entities[&owner.entity].pos, town);
+            assert!(!zone.entities[&owner.entity].targeting.dead);
+            assert_eq!(zone.rng.get_word_pos(), cursor);
+            assert!(zone
+                .phase4
+                .as_ref()
+                .unwrap()
+                .canonical
+                .item_casts
+                .is_empty());
+            zone.validate_runtime_v5().unwrap();
+        }
+    }
+
+    #[test]
+    fn v6_escape_refuses_without_destination_and_damage_cancel_keeps_payment() {
+        let (mut zone, owner, _, ids) = use_fixture(&[736]);
+        zone.safe_point = None;
+        let cursor = zone.rng.get_word_pos();
+        let refused = zone
+            .run_tick(zone.draft(vec![use_input(&zone, owner, 950, 1, ids[0], None)]))
+            .unwrap();
+        assert_eq!(refused.dispositions[0].reason, RejectReason::NotPermitted);
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]].count,
+            3
+        );
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        zone = zone.with_safe_point(Vec2Fixed::from_tiles(126, 126));
+        let accepted = zone
+            .run_tick(zone.draft(vec![use_input(&zone, owner, 951, 2, ids[0], None)]))
+            .unwrap();
+        assert!(accepted.dispositions.is_empty());
+        let mut trace = Vec::new();
+        let mut events = Vec::new();
+        zone.attack_break_v5(
+            zone.next_tick,
+            owner,
+            1,
+            &mut events,
+            &mut scripted(&[(DamageRollSite::AttackBreak, 100, 0)], &mut trace),
+        )
+        .unwrap();
+        assert_eq!(trace.len(), 1);
+        assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Idle);
+        assert!(zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .item_casts
+            .is_empty());
+        assert!(events.iter().any(|e| matches!(
+            e,
+            ZoneEvent::SkillCastCancelled {
+                reason: CastCancelReason::Damage,
+                ..
+            }
+        )));
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]].count,
+            2
+        );
+        assert_ne!(zone.entities[&owner.entity].pos, zone.safe_point.unwrap());
     }
 }

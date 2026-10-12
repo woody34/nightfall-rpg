@@ -1603,6 +1603,11 @@ impl ZoneState {
             })
         }
         .ok_or(RejectReason::InvalidTargetType)?;
+        if skill.effects.iter().any(|handler| handler.name == "Escape")
+            && (self.phase4.is_none() || self.safe_point.is_none() || target != entry.caster)
+        {
+            return Err(RejectReason::NotPermitted);
+        }
         let point_blank = skill
             .affect_scope
             .at(reference.rank, skill.max_level)
@@ -1640,6 +1645,15 @@ impl ZoneState {
             skill,
             reference.rank,
             CastStatContext {
+                world: self
+                    .phase4
+                    .as_ref()
+                    .map(|_| state_skill::CastWorldConditions {
+                        // The hash-validated test_zone has no L2 boss/instance zones; fear,
+                        // duels, mounts, Olympiad and combat flags are not admitted in V6.
+                        can_escape: caster.kind == EntityKind::Player,
+                        inside_zone_ids: &[],
+                    }),
                 player_level: self.phase4.as_ref().map(|_| effective.physical.level()),
                 calculator: &effective.calculator,
                 conditions: FunctionConditions {
@@ -1891,6 +1905,7 @@ impl ZoneState {
                 &skill,
                 cast.skill.rank,
                 CastStatContext {
+                    world: None,
                     player_level: self.phase4.as_ref().map(|_| stats.physical.level()),
                     calculator: &stats.calculator,
                     conditions: FunctionConditions {
@@ -1968,6 +1983,10 @@ impl ZoneState {
             .iter()
             .filter(|h| !crate::domain::zone::effects::continuous_handler(&h.name))
         {
+            if handler.name == "Escape" {
+                results.push(self.escape_v6(tick, target, events)?);
+                continue;
+            }
             if handler.name == "Resurrection" {
                 results.push(self.resurrect_offer_v5(
                     tick,
@@ -3001,6 +3020,7 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
             matches!(
                 h.name.as_str(),
                 "Resurrection"
+                    | "Escape"
                     | "PhysicalAttack"
                     | "MagicalAttack"
                     | "MagicalAttackRange"
@@ -3024,6 +3044,11 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
                     | "DefenceTrait"
                     | "AttackTrait"
             ) && h.section == "effects"
+                && (h.name != "Escape"
+                    || h.params
+                        .get("escapeType")
+                        .and_then(|value| value.at(rank, skill.max_level))
+                        .is_some_and(|value| value == "TOWN"))
                 && h.conditions.is_empty()
                 && h.section_conditions.is_empty()
                 && (!matches!(h.name.as_str(), "MaxHp" | "MaxMp")
