@@ -590,16 +590,21 @@ def validate_exchanges(rows):
 
 
 def validate_instance_history(rows):
-    """D67/D69: IDs are allocated once across every owner, tick and incarnation.
+    """D67/D69/D71: IDs are allocated once across every owner, tick and incarnation.
 
     Every observation (baseline instance, enchant before binding, and the
     `before` of every ledger operation) is compared against the recorded
     identity: same owning entity while live, and every canonical field except
-    count/revision unchanged. Nothing resets at an incarnation boundary. The
-    stored record advances from `after` only once its `before` has matched.
+    count/revision unchanged. D71: at an incarnation boundary (the first
+    observation of an instance under a later incarnation of its owner) exactly
+    the transient `charges` field is exempt; slot/location and every other
+    canonical field must still match. The stored record advances from `after`
+    only once its `before` has matched.
     """
-    canonical={};owners={};exhausted=set()
-    def strip(state):return {k:v for k,v in state.items() if k not in ('count','revision')}
+    canonical={};owners={};incarnations={};exhausted=set()
+    def strip(state,boundary):
+        transient={'count','revision'}|({'charges'} if boundary else set())
+        return {k:v for k,v in state.items() if k not in transient}
     def bind(identity,entity):
         # Owner-binding part of an observation; also applied to malformed enchant bindings.
         if identity in exhausted:raise ValueError('exhausted instance reappeared')
@@ -608,8 +613,9 @@ def validate_instance_history(rows):
     def observe(state,row):
         identity=state['id'];bind(identity,row['entity'])
         if identity in canonical:
-            if strip(state)!=strip(canonical[identity]):raise ValueError('instance identity drifted between observations')
-        canonical[identity]=state
+            boundary=row['incarnation']>incarnations[identity]
+            if strip(state,boundary)!=strip(canonical[identity],boundary):raise ValueError('instance identity drifted between observations')
+        canonical[identity]=state;incarnations[identity]=row['incarnation']
     for row in rows[1:-1]:
         data=row['data']
         if row['kind']=='item_baseline':
@@ -639,6 +645,7 @@ def validate_instance_history(rows):
             else:observe(before,row)
             # Keep the last canonical metadata even after removal; absence is a tombstone.
             canonical[identity]=after if after is not None else before
+            incarnations[identity]=row['incarnation']
             if after is None:exhausted.add(identity)
 
 

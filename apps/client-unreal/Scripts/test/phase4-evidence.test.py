@@ -564,6 +564,52 @@ class Evidence(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
         print(f'Review14 F1/F1b/F1d/F2/F2b/F3: {cases+2} boundary identity drifts reject; unchanged re-admission and distinct-ID controls pass',flush=True)
 
+    def readmission_rows(self,variant,field=None,value=None):
+        """D71: a charged rhand weapon retained across a re-admission (incarnation 1 -> 2)."""
+        rows=copy.deepcopy(self.rows)
+        weapon=item(100,1,71,'rhand')|{'charges':1}
+        rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=0,instances=[copy.deepcopy(weapon)],paperdoll={'rhand':100},auto_shots=[5789])))
+        incarnation=1 if variant=='same-incarnation' else 2
+        seen=weapon|{'charges':0}
+        if field:seen[field]=value
+        if field=='slot':seen['location']='paperdoll' if value else 'inventory'
+        paperdoll={seen['slot']:100} if seen['slot'] else {}
+        if variant!='no-baseline':
+            rows.insert(-1,dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=1,sequence=0,
+                data=dict(inventory_revision=0,instances=[copy.deepcopy(seen)],paperdoll=paperdoll,auto_shots=[])))
+        before=copy.deepcopy(seen)
+        if variant=='later-drift':before['charges']=1 # charges change again inside incarnation 2 with no row.
+        # Every variant observes the instance through a ledger before as well (unequip, or equip when drifted out).
+        operation,moved=('unequip',{'slot':None,'location':'inventory','charges':0}) if before['slot'] else ('equip',{'slot':'rhand','location':'paperdoll'})
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=1,sequence=0,
+            data=dict(operation=operation,instance=100,before=before,after=before|moved|{'revision':1},
+                      count_delta=0,operation_ordinal=0,resolution_id=f'{operation}:9',receipt_ref=None)))
+        rows[0]['watermark'].update(records=2,last_tick=1);rows[-1].update(ticks=2,last_tick=1)
+        return self.repair(rows)
+
+    def test_d71_readmission_clears_only_shot_charges(self):
+        # Controls: charges (and the auto-shot set) cleared on re-admission, with and without a baseline.
+        for variant in ('control','no-baseline'):
+            rows=self.readmission_rows(variant)
+            gate.validate_instance_history(rows)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'],variant)
+        cases=0
+        # Slot/location drift at the boundary still rejects (the paperdoll is retained, D16).
+        for variant,field,value in [('control','slot',None),('no-baseline','slot',None),('control','slot','lhand')]+[('control',f,v) for f,v in self.BOUNDARY_DRIFT if f!='template_id']:
+            with self.subTest(variant=variant,field=field,value=value):
+                bad=self.readmission_rows(variant,field,value)
+                self.assert_rejected(bad,('pole_damage',))
+                with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
+                cases+=1
+        # Charges drift inside one incarnation still rejects: same incarnation, and again after the boundary.
+        for variant in ('same-incarnation','later-drift'):
+            with self.subTest(variant=variant):
+                bad=self.readmission_rows(variant);self.assert_rejected(bad,('pole_damage',))
+                with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
+                cases+=1
+        print(f'D71: charges/auto-shots cleared on re-admission pass; {cases} slot/field/same-incarnation charge drifts reject',flush=True)
+
     def foreign_binding_rows(self,mutation,identity=8,first=False):
         """Review15 F1: OTHER's malformed enchant binding names OWNER's live instance."""
         rows=copy.deepcopy(self.rows)
