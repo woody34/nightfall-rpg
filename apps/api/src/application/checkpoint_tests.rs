@@ -917,3 +917,44 @@ async fn recorded_checkpoint_accounting() {
         eprintln!("ACCOUNTING historical={} requests={requests} distinct={distinct} repeats={} causes={:?}", index == 0, requests - distinct, counts[index]);
     }
 }
+
+#[tokio::test]
+async fn pending_lag_never_publishes_zero_while_a_peer_remains() {
+    #[derive(Default)]
+    struct LagHistory(parking_lot::Mutex<Vec<Duration>>);
+    impl CheckpointMetrics for LagHistory {
+        fn failed(&self) {}
+        fn lag(&self, age: Duration) {
+            self.0.lock().push(age);
+        }
+    }
+    let metrics = LagHistory::default();
+    let young = IdempotencyKey::from_uuid(Uuid::from_u128(1));
+    let old = IdempotencyKey::from_uuid(Uuid::from_u128(2));
+    let now = Instant::now();
+    let pending = parking_lot::Mutex::new(BTreeMap::from([
+        (young, now.checked_sub(Duration::from_secs(1)).unwrap()),
+        (old, now.checked_sub(Duration::from_secs(2)).unwrap()),
+    ]));
+    let young_save = PendingSave {
+        metrics: &metrics,
+        pending: &pending,
+        key: young,
+    };
+    let old_save = PendingSave {
+        metrics: &metrics,
+        pending: &pending,
+        key: old,
+    };
+    young_save.lag(Duration::ZERO);
+    assert!(metrics.0.lock().last().unwrap() >= &Duration::from_secs(2));
+    // Even an explicit per-request zero and the oldest request's completion cannot
+    // transiently publish "drained" before the remaining peer settles.
+    old_save.lag(Duration::ZERO);
+    drop(old_save);
+    assert_eq!(pending.lock().len(), 1);
+    assert!(metrics.0.lock().iter().all(|age| !age.is_zero()));
+    drop(young_save);
+    assert!(pending.lock().is_empty());
+    assert!(metrics.0.lock().last().unwrap().is_zero());
+}
