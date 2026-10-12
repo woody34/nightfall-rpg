@@ -392,6 +392,7 @@ mod tests {
                 (
                     id,
                     ItemInstance {
+                        creation_origin: None,
                         id,
                         template_id: *template,
                         count: 1,

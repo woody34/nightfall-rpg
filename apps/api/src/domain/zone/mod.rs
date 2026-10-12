@@ -104,7 +104,8 @@ pub use command::{
 pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
 pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
 pub use item::{
-    EquipSlot, ItemError, ItemInstance, ItemInstanceId, ItemInstanceRange, ItemLocation,
+    EquipSlot, ItemCreationOrigin, ItemError, ItemInstance, ItemInstanceId, ItemInstanceRange,
+    ItemLocation,
 };
 pub use item_enchant::EnchantAttempt;
 pub use item_exchange::ExchangeAudit;

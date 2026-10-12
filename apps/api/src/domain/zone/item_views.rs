@@ -43,6 +43,7 @@ impl From<&ItemInstance> for OwnedItem {
 impl OwnedItem {
     fn validate(&self) -> Result<(), ItemError> {
         ItemInstance {
+            creation_origin: None,
             id: self.id,
             template_id: self.template_id,
             count: self.count,

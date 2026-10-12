@@ -87,6 +87,7 @@ fn cp(c: &Character) -> Phase4Checkpoint {
         inventory_revision: 9,
         instances: vec![
             ItemInstance {
+                creation_origin: None,
                 id: ItemInstanceId::new(77).unwrap(),
                 template_id: 57,
                 count: 5,
@@ -99,6 +100,7 @@ fn cp(c: &Character) -> Phase4Checkpoint {
                 revision: 9,
             },
             ItemInstance {
+                creation_origin: None,
                 id: ItemInstanceId::new(78).unwrap(),
                 template_id: 2369,
                 count: 1,

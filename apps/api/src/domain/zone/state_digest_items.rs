@@ -115,6 +115,10 @@ impl Writer {
             self.u32(item.enchant);
             self.option(item.augment_id.as_ref(), |w, id| w.u32(*id));
             self.u8(item.charges);
+            self.option(item.creation_origin.as_ref(), |writer, origin| {
+                writer.u32(origin.zone.0);
+                writer.u64(origin.epoch);
+            });
             self.u64(item.created_tick.0);
             self.u64(item.revision);
         }

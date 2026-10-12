@@ -70,6 +70,7 @@ fn decode_item(row: &sea_orm::QueryResult) -> anyhow::Result<ItemInstance> {
         _ => anyhow::bail!("unknown item location"),
     };
     let item = ItemInstance {
+        creation_origin: None,
         id: ItemInstanceId::new(u64::try_from(row.try_get::<i64>("", "id")?)?)?,
         template_id: u32::try_from(row.try_get::<i32>("", "template_id")?)?,
         count: u64::try_from(row.try_get::<i64>("", "count")?)?,

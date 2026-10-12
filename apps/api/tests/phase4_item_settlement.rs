@@ -60,6 +60,7 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
         .items
         .iter()
         .map(|row| ItemInstance {
+            creation_origin: None,
             id: allocation.allocate().unwrap(),
             template_id: row.template_id,
             count: row.count,
@@ -903,6 +904,7 @@ async fn rejected_contract<
     let mut transient = valid.clone();
     let id = transient.allocation.allocate().unwrap();
     let created = ItemInstance {
+        creation_origin: None,
         id,
         template_id: 57,
         count: 5,

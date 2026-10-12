@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 fn facts() -> Vec<DomainEvent> {
     let item = ItemInstance {
+        creation_origin: None,
         id: ItemInstanceId::new(1).unwrap(),
         template_id: 57,
         count: 1,
@@ -133,6 +134,7 @@ fn v5_snapshot_grammar_rejects_every_item_audit_subject() {
 #[test]
 fn exchanged_fact_preserves_distinct_before_after_templates_and_selects_current_template() {
     let item = ItemInstance {
+        creation_origin: None,
         id: ItemInstanceId::new(1).unwrap(),
         template_id: 72,
         count: 1,

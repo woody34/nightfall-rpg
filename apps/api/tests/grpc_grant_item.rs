@@ -208,6 +208,7 @@ fn frozen(
                 rules_hash: request.rules_hash,
                 inventory_revision: 3,
                 instances: vec![ItemInstance {
+                    creation_origin: None,
                     id,
                     template_id: request.template_id,
                     count: request.count,
