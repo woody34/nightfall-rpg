@@ -168,3 +168,12 @@ pub trait ItemInventoryRepository: Send + Sync {
         character: CharacterId,
     ) -> anyhow::Result<Option<RetainedInventory>>;
 }
+
+/// Startup-resolved immutable catalogue. Implementations validate the epoch skill binding;
+/// requests never parse generated files or synthesize an empty rollout response.
+pub trait ItemCataloguePort: Send + Sync {
+    /// Unsupported or absent bundles are UNAVAILABLE; corrupt data is infrastructure.
+    fn catalogue(
+        &self,
+    ) -> Result<std::sync::Arc<crate::domain::zone::Phase4Rules>, crate::application::AppError>;
+}

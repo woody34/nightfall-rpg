@@ -382,6 +382,145 @@ pub(super) fn skill_catalogue_to_pb(
     }
 }
 
+/// Full immutable metadata projection; integers/rationals are checked at the wire boundary.
+pub(super) fn item_catalogue_to_pb(
+    rules: &crate::domain::zone::Phase4Rules,
+) -> Result<pb::GetItemCatalogResponse, crate::application::AppError> {
+    let parts = rules.parts();
+    let items = parts
+        .items
+        .values()
+        .map(|item| {
+            let cap = parts
+                .capabilities
+                .get(&item.template_id)
+                .ok_or_else(|| anyhow::anyhow!("missing item capability"))?;
+            let mut blockers = std::collections::BTreeSet::new();
+            blockers.extend(cap.blockers.iter().cloned());
+            blockers.extend(cap.use_blockers.iter().cloned());
+            let skills = item
+                .skills
+                .iter()
+                .map(|skill| pb::ItemSkillReference {
+                    id: skill.id,
+                    rank: skill.level,
+                    source: pb::ItemSkillSource::Item.into(),
+                })
+                .chain(
+                    item.enchant4_skills
+                        .iter()
+                        .map(|skill| pb::ItemSkillReference {
+                            id: skill.id,
+                            rank: skill.level,
+                            source: pb::ItemSkillSource::EnchantFour.into(),
+                        }),
+                )
+                .collect();
+            Ok(pb::ItemDefinition {
+                template_id: item.template_id,
+                name: item.name.clone(),
+                kind: item_kind_to_pb(&item.kind)?.into(),
+                grade: item_grade_to_pb(&item.grade)?.into(),
+                bodypart_mask: item.bodypart_mask,
+                weight: item.weight,
+                stackable: item.stackable,
+                usable: cap.admitted && blockers.is_empty(),
+                blockers: blockers.into_iter().collect(),
+                icon_key: item.icon.clone(),
+                stats: item
+                    .functions
+                    .iter()
+                    .map(|function| {
+                        let (numerator, denominator) = function.value.value().parts();
+                        Ok(pb::ItemStatDescription {
+                            stat: function.stat.clone(),
+                            operation: function.operation.clone(),
+                            numerator: i64::try_from(numerator)?,
+                            denominator: i64::try_from(denominator)?,
+                            order: u32::try_from(function.order)?,
+                        })
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>()?,
+                skills,
+            })
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let recipes = parts
+        .sa_recipes
+        .values()
+        .filter(|recipe| {
+            parts
+                .recipe_capabilities
+                .get(&recipe.recipe_id)
+                .is_some_and(|cap| cap.admitted)
+        })
+        .map(|recipe| {
+            anyhow::ensure!(
+                recipe.products.len() == 1,
+                "catalogue SA recipe has multiple products"
+            );
+            let product = recipe
+                .products
+                .first()
+                .ok_or_else(|| anyhow::anyhow!("catalogue SA product missing"))?;
+            anyhow::ensure!(
+                product.count == 1,
+                "catalogue SA product is not a single equipment instance"
+            );
+            Ok(pb::SaRecipe {
+                recipe_id: recipe.recipe_id,
+                base_template: recipe.base_template,
+                ingredients: recipe
+                    .ingredients
+                    .iter()
+                    .map(|ingredient| pb::ItemIngredient {
+                        template: ingredient.template_id,
+                        count: ingredient.count,
+                    })
+                    .collect(),
+                product_template: product.template_id,
+                maintain_enchantment: recipe.maintain_enchantment,
+            })
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let capabilities = items
+        .iter()
+        .map(|item| pb::ItemCapability {
+            template_id: item.template_id,
+            blockers: item.blockers.clone(),
+        })
+        .collect();
+    Ok(pb::GetItemCatalogResponse {
+        data_version: 2,
+        rules_hash: rules.hash().to_vec(),
+        items,
+        recipes,
+        capabilities,
+    })
+}
+
+fn item_kind_to_pb(kind: &str) -> anyhow::Result<pb::ItemKind> {
+    match kind {
+        "Weapon" => Ok(pb::ItemKind::Weapon),
+        "Armor" => Ok(pb::ItemKind::Armor),
+        "EtcItem" => Ok(pb::ItemKind::Etc),
+        _ => anyhow::bail!("unsupported catalogue item kind"),
+    }
+}
+fn item_grade_to_pb(grade: &str) -> anyhow::Result<pb::ItemGrade> {
+    match grade {
+        "NONE" => Ok(pb::ItemGrade::Ng),
+        "D" => Ok(pb::ItemGrade::D),
+        "C" => Ok(pb::ItemGrade::C),
+        "B" => Ok(pb::ItemGrade::B),
+        "A" => Ok(pb::ItemGrade::A),
+        "S" => Ok(pb::ItemGrade::S),
+        "S80" => Ok(pb::ItemGrade::S80),
+        "S84" => Ok(pb::ItemGrade::S84),
+        _ => anyhow::bail!("unsupported catalogue item grade"),
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {

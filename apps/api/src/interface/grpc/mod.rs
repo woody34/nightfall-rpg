@@ -52,6 +52,7 @@ pub struct GameServiceImpl {
     change_class: ChangeClass,
     transfer_options: TransferOptions,
     phase3: Option<Phase3UseCases>,
+    get_item_catalog: crate::application::use_cases::GetItemCatalog,
 }
 
 /// Phase 3 use cases shared by live composition and transport tests.
@@ -88,6 +89,7 @@ impl GameServiceImpl {
             change_class,
             transfer_options,
             phase3: None,
+            get_item_catalog: crate::application::use_cases::GetItemCatalog::new(None),
         }
     }
 
@@ -95,6 +97,16 @@ impl GameServiceImpl {
     #[must_use]
     pub fn with_phase3(mut self, use_cases: Phase3UseCases) -> Self {
         self.phase3 = Some(use_cases);
+        self
+    }
+
+    /// Installs a startup-validated catalogue without enabling live item mutations.
+    #[must_use]
+    pub fn with_item_catalogue(
+        mut self,
+        use_case: crate::application::use_cases::GetItemCatalog,
+    ) -> Self {
+        self.get_item_catalog = use_case;
         self
     }
 
@@ -112,7 +124,9 @@ impl GameService for GameServiceImpl {
         req: Request<pb::GetItemCatalogRequest>,
     ) -> Result<Response<pb::GetItemCatalogResponse>, Status> {
         auth::caller(&req)?;
-        Err(to_status(AppError::Unavailable("item catalogue is not yet available".into())))
+        let rules = self.get_item_catalog.execute().map_err(to_status)?;
+        let response = mapping::item_catalogue_to_pb(&rules).map_err(to_status)?;
+        Ok(Response::new(response))
     }
 
     async fn get_inventory(
