@@ -6,7 +6,7 @@ domain_separator = "nightfall.phase4.rules.1\u0000"
 formula_revision = 1
 skill_bundle_sha256 = "e4ad994b5704458d8d20f7e6331160b16078a27466d3b125251c1a7426fd3d4a"
 profile_bundle_sha256 = "06b56a9a0f66d6645554b1254253f2dc5345a6a50623690de8ac94705570955c"
-data_sha256 = "7407a5fda00473b9bfddd83158b4d1b5fe0912371a02e8da2156605f6bddea8c"
+data_sha256 = "5b77911ec6bba0b186b9de16d63ea832726943475152a82ea40a5ebd203c4656"
 
 [[files]]
 file = "angle_table.toml"
@@ -39,6 +39,10 @@ semantic_sha256 = "e667b74cf0f49ce5e8ed73906bfabafb57dcd9fb821275c6bf28e47b84927
 [[files]]
 file = "capacities.toml"
 semantic_sha256 = "a93181a02131baec58c6a5d52fcb27e97438380567228d22afee37255dac1b75"
+
+[[files]]
+file = "class_slots.toml"
+semantic_sha256 = "afada4c6208089f78de5c04ace2e17252af77c16a2acb0d777e91f1f38a9b965"
 
 [[files]]
 file = "enchant_groups.toml"

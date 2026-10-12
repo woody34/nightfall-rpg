@@ -874,3 +874,13 @@ Paths beginning `game/` above are under the game's `src/main/java/com/l2jserver/
 `datapack/handlers/` under DP `src/main/java/com/l2jserver/datapack/handlers/`,
 and `data/` under DP `src/main/resources/data/`. Adjacent XML basenames retain
 that row's `data/stats/items/` or `data/stats/skills/` directory.
+
+Phase 4 D35 class slot projection: `gen_items.py` reads the nine starting-class
+`data/stats/chars/baseStats/*.xml` live `basePDef/baseMDef` nodes (15-31), with
+per-row pinned provenance, and emits `tables-phase4/class_slots.toml`.
+`L2PcTemplate.java:64-75` maps physical UNDER to XML underwear and deliberately
+maps LFINGER to RFINGER; `PlayerTemplateData.java:106-108` uses RFINGER twice in
+the total. Independent oracle vectors cover empty/each occupied/all slots and
+fullarmor/onepiece legs subtraction against `FuncPDefMod.java:44-70` and
+`FuncMDefMod.java:44-66`. The manifest hashes effective and literal maps; the
+inventory ledger hashes every new source file. No historical class input changes.
