@@ -128,7 +128,7 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
             command_kind_seen = true;
         }
         let (expected, mut child, json) = if schema >= 8
-            && ((node == "PbCommand" && (20..=29).contains(&tag))
+            && ((node == "PbCommand" && ((20..=29).contains(&tag) || tag == 31))
                 || (node == "PbPlayerLoad" && tag == 10)
                 || (node == "PbOutput" && (32..=40).contains(&tag)))
         {

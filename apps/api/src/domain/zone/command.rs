@@ -86,6 +86,11 @@ impl ZoneInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ZoneCommand {
+    /// Recorded server reservation; only replaces an exhausted V6 allocator range.
+    ExtendItemRange {
+        /// New globally reserved block, starting at its unused first identity.
+        range: super::ItemInstanceRange,
+    },
     /// Authenticated owner item intent. V6 only; costs and outcomes are resolved by the zone.
     Item(Box<super::ItemCommand>),
     /// Stage a skill start; learned rank and selected target are resolved by the zone.
@@ -246,7 +251,7 @@ impl ZoneCommand {
 
     /// Item intents must never enter a pre-V6 replay epoch.
     pub const fn requires_phase4(&self) -> bool {
-        matches!(self, Self::Item(_))
+        matches!(self, Self::Item(_) | Self::ExtendItemRange { .. })
             || matches!(self, Self::SpawnPlayer { load: Some(load), .. } if load.phase4.is_some())
     }
 
@@ -271,7 +276,7 @@ impl ZoneCommand {
             | Self::StopAttack { entity }
             | Self::Respawn { entity } => Some(*entity),
             Self::AddAggro { npc, .. } => Some(*npc),
-            Self::SpawnNpc { .. } => None,
+            Self::SpawnNpc { .. } | Self::ExtendItemRange { .. } => None,
         }
     }
 }

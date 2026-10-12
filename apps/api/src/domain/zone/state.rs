@@ -1139,7 +1139,8 @@ impl ZoneState {
                     Some(_) | None => Ok(()),
                 }
             },
-            ZoneCommand::Item(_)
+            ZoneCommand::ExtendItemRange { .. }
+            | ZoneCommand::Item(_)
             | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
@@ -1167,7 +1168,8 @@ impl ZoneState {
         match &c.command {
             // Only the V5 dispatcher may execute these; legacy run_tick rejects the entire
             // draft before mutation. Keep this dispatcher exhaustive while rollout is fenced.
-            ZoneCommand::Item(_)
+            ZoneCommand::ExtendItemRange { .. }
+            | ZoneCommand::Item(_)
             | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
@@ -1338,7 +1340,8 @@ impl ZoneState {
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::ReplaceSession { .. }
-            | ZoneCommand::AddAggro { .. } => Ok(()),
+            | ZoneCommand::AddAggro { .. }
+            | ZoneCommand::ExtendItemRange { .. } => Ok(()),
         }
     }
 

@@ -74,6 +74,15 @@ pub(in crate::application::replay_log) fn result_from_json(
     Ok(ZoneEvent::ItemResult(Box::new(result)))
 }
 
+pub(super) fn range_from_json(bytes: &[u8]) -> Result<ZoneCommand, CodecError> {
+    let range: crate::domain::zone::ItemInstanceRange =
+        serde_json::from_slice(bytes).map_err(super::err)?;
+    if canonical_json(&range) != bytes {
+        return Err(CodecError("noncanonical allocator reservation".into()));
+    }
+    Ok(ZoneCommand::ExtendItemRange { range })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
@@ -92,6 +101,43 @@ mod tests {
         .with_account(AccountId::from_uuid(uuid::Uuid::from_u128(3)))
         .unwrap()
     }
+    #[test]
+    fn allocator_reservation_uses_tag_thirty_one_only_in_record_eight() {
+        use crate::domain::zone::{AppliedCommand, CommandSource, ItemInstanceRange, Ordinal};
+        let range = ItemInstanceRange::new(100, 100, 200).unwrap();
+        let command = AppliedCommand {
+            ordinal: Ordinal(1),
+            source: CommandSource::System,
+            seq: None,
+            command: ZoneCommand::ExtendItemRange { range },
+        };
+        let encoded = super::super::command_to_pb(&command);
+        assert!(matches!(encoded.kind, Some(PbCommandKind::ExtendItemRange(_))));
+        for schema in 3..=8 {
+            let record = super::super::PbRecord {
+                schema,
+                commands: vec![encoded.clone()],
+                state_digest: vec![0; 32].into(),
+                ..Default::default()
+            };
+            assert_eq!(super::super::decode_record(&record.encode_to_vec()).is_ok(), schema == 8);
+        }
+        let bytes = canonical_json(&range);
+        assert_eq!(range_from_json(&bytes).unwrap(), command.command);
+        let mut whitespace = bytes;
+        whitespace.push(b' ');
+        assert!(range_from_json(&whitespace).is_err());
+        for bad in [
+            r#"{"range_start":0,"next_item_instance":0,"range_end_exclusive":200}"#,
+            r#"{"range_start":100,"next_item_instance":99,"range_end_exclusive":200}"#,
+            r#"{"range_start":100,"next_item_instance":100,"range_end_exclusive":9223372036854775808}"#,
+            r#"{"range_start":100,"next_item_instance":100,"range_end_exclusive":200,"unknown":1}"#,
+            r#"{"range_start":100,"range_start":101,"next_item_instance":100,"range_end_exclusive":200}"#,
+        ] {
+            assert!(range_from_json(bad.as_bytes()).is_err());
+        }
+    }
+
     #[test]
     fn item_rejections_are_additive_and_record_eight_only() {
         use crate::domain::zone::RejectReason as R;

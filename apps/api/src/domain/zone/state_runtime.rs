@@ -1098,6 +1098,15 @@ impl ZoneState {
                     })
                     .map_err(cast_reject)?;
             },
+            ZoneCommand::ExtendItemRange { range } => {
+                self.phase4
+                    .as_mut()
+                    .ok_or(RejectReason::NotYetImplemented)?
+                    .canonical
+                    .allocator
+                    .extend(*range)
+                    .map_err(|_| RejectReason::InvalidLoad)?;
+            },
             ZoneCommand::Item(item) => {
                 self.item_command_v6(tick, item, events, &mut staged.item_receipts)?;
             },
@@ -1144,6 +1153,7 @@ impl ZoneState {
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
                     | ZoneCommand::Item(_)
+                    | ZoneCommand::ExtendItemRange { .. }
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnPlayer { .. }
                     | ZoneCommand::SpawnNpc { .. }

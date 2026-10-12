@@ -1087,6 +1087,10 @@ fn item_intent_never_mutates_a_historical_epoch() {
     let draft = state.draft(vec![input]);
     assert_eq!(state.run_tick(draft), Err(TickError::Phase4CommandInLegacy));
     assert_eq!(state.snapshot(), before);
+    let range = crate::domain::zone::ItemInstanceRange::new(100, 100, 200).unwrap();
+    let draft = state.draft(vec![ZoneInput::system(ZoneCommand::ExtendItemRange { range })]);
+    assert_eq!(state.run_tick(draft), Err(TickError::Phase4CommandInLegacy));
+    assert_eq!(state.snapshot(), before);
 }
 
 #[test]
