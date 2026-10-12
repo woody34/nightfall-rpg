@@ -542,7 +542,7 @@ def capabilities(items,tables,skills):
             use.add('use:no_handler')
         if row['kind']=='EtcItem' and use and row['skills']:b.update(use)
         rows.append({'template_id':sid,'admitted':not b,
-                     'storable':True,'blockers':sorted(b),'use_blockers':sorted(b|use)})
+                     'storable':not bool(b & {'context:common','context:shadow','context:time_limited','context:npc_only','context:pet'}),'blockers':sorted(b),'use_blockers':sorted(b|use)})
     item_index={r['template_id']:r for r in rows}
     recipes=[]
     for recipe in tables['sa_variants.toml']['recipes']:
