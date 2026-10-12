@@ -34,7 +34,7 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
     name: &str,
 ) -> (Character, CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
     let character = Character::create(
-        AccountId::from_uuid(Uuid::nil()),
+        AccountId::from_uuid(Uuid::from_u128(1)),
         CharacterName::new(name).unwrap(),
         Race::Human,
     );
@@ -137,7 +137,10 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
                     before: None,
                     after: Some(item.clone()),
                     count_delta: i64::try_from(item.count).unwrap(),
-                    receipt: Some(pending.request_id),
+                    receipt: Some(ItemReceiptRef {
+                        operation: ItemOperation::Starter,
+                        key: pending.request_id,
+                    }),
                     causes: Vec::new(),
                 })
                 .collect(),
@@ -162,11 +165,15 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
                 manifest_version: pending.manifest_version,
                 manifest_hash: pending.manifest_hash,
                 inventory_revision: 1,
-                receipt: pending.request_id,
+                receipt: ItemReceiptRef {
+                    operation: ItemOperation::Starter,
+                    key: pending.request_id,
+                },
             }],
             evidence: Vec::new(),
         },
     };
+    work.projection.validate_structure(0).unwrap();
     let events = events(&cp, &work);
     (character, cp, work, events)
 }
@@ -267,7 +274,10 @@ fn interleaved(
             before: Some(grant_before),
             after: Some(grant_after),
             count_delta: 5,
-            receipt: Some(request),
+            receipt: Some(ItemReceiptRef {
+                operation: ItemOperation::Grant,
+                key: request,
+            }),
             causes: Vec::new(),
         },
         ItemDeltaPlan {
@@ -277,7 +287,10 @@ fn interleaved(
             before: Some(before),
             after: Some(after),
             count_delta: -6,
-            receipt: None,
+            receipt: Some(ItemReceiptRef {
+                operation: ItemOperation::Use,
+                key: request,
+            }),
             causes: vec![cause(0, 2), cause(2, 4)],
         },
     ];
@@ -297,6 +310,15 @@ fn interleaved(
             },
         },
     }];
+    let mut use_receipt = work.projection.receipts.first().unwrap().clone();
+    use_receipt.fingerprint = "use-body-six".into();
+    use_receipt.result.inventory_revision = 4;
+    use_receipt.result.detail = ItemResultDetail::Operation {
+        operation: ItemOperation::Use,
+        affected: vec![target_id],
+        recipe: None,
+    };
+    work.projection.receipts.push(use_receipt);
     work.projection.materializations.clear();
     let facts = events(&cp, &work);
     (cp, work, facts)
@@ -329,7 +351,10 @@ fn destroy(
         before: Some(before.clone()),
         after: None,
         count_delta: i64::try_from(before.count).unwrap().checked_neg().unwrap(),
-        receipt: Some(request),
+        receipt: Some(ItemReceiptRef {
+            operation: ItemOperation::Destroy,
+            key: request,
+        }),
         causes: Vec::new(),
     }];
     work.projection.receipts = vec![ItemReceiptFact {
@@ -400,6 +425,20 @@ async fn contract<
     );
     let receipt = second_work.projection.receipts.first().unwrap();
     let key = IdempotencyKey::from_uuid(receipt.request_id);
+    let use_receipt = second_work.projection.receipts.get(1).unwrap();
+    let ItemReceiptLookup::Known(used) = repo
+        .item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::UseItem,
+            &key,
+            &use_receipt.fingerprint,
+        )
+        .await
+        .unwrap()
+    else {
+        panic!("same-tick Use receipt must coexist with Grant");
+    };
+    assert_eq!(used.result, use_receipt.result);
     let known = repo
         .item_receipt_lookup(
             character.account_id,
@@ -526,6 +565,7 @@ async fn memory_atomic_item_projection_receipts_batching_and_revision_fences() {
     assert_eq!(consumed.len(), 1);
     assert_eq!(consumed[0].delta.count_delta, -6);
     assert_eq!(consumed[0].delta.causes.len(), 2);
+    assert_eq!(consumed[0].delta.receipt.unwrap().operation, ItemOperation::Use);
     assert_eq!(consumed[0].instance_id, work.projection.ledger[0].instance);
 }
 #[tokio::test]
@@ -533,7 +573,7 @@ async fn postgres_atomic_item_projection_receipts_batching_and_revision_fences()
     let Some(pool) = common::pg::migrated_pool().await else {
         return;
     };
-    common::pg::insert_account(&pool, Uuid::nil()).await;
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
     let bundle = embedded_phase4_bundle().unwrap();
     let repo = PgCharacterRepository::new(pool.clone())
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
@@ -551,6 +591,7 @@ async fn postgres_atomic_item_projection_receipts_batching_and_revision_fences()
     let delta: ItemLedgerDelta = serde_json::from_value(rows[0].1.clone()).unwrap();
     assert_eq!(delta.count_delta, -6);
     assert_eq!(delta.causes.len(), 2);
+    assert_eq!(delta.receipt.unwrap().operation, ItemOperation::Use);
     let cursor: i64 =
         sqlx::query_scalar("SELECT next_reserved FROM item_id_ranges WHERE zone_id=1 AND epoch=1")
             .fetch_one(&pool)
@@ -563,7 +604,7 @@ async fn postgres_outbox_failure_rolls_back_items_ledger_receipts_pending_range_
     let Some(pool) = common::pg::migrated_pool().await else {
         return;
     };
-    common::pg::insert_account(&pool, Uuid::nil()).await;
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
     let bundle = embedded_phase4_bundle().unwrap();
     let repo = PgCharacterRepository::new(pool.clone())
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
@@ -681,7 +722,7 @@ async fn postgres_concurrent_item_keys_settle_once() {
     let Some(pool) = common::pg::migrated_pool().await else {
         return;
     };
-    common::pg::insert_account(&pool, Uuid::nil()).await;
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
     let bundle = embedded_phase4_bundle().unwrap();
     let repo = PgCharacterRepository::new(pool.clone())
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
@@ -788,7 +829,7 @@ async fn postgres_rejects_unconserved_counts_wrong_initial_scalar_owner_and_stal
     let Some(pool) = common::pg::migrated_pool().await else {
         return;
     };
-    common::pg::insert_account(&pool, Uuid::nil()).await;
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
     let bundle = embedded_phase4_bundle().unwrap();
     let repo = PgCharacterRepository::new(pool)
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())

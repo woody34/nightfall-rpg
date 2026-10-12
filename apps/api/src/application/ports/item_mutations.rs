@@ -367,13 +367,20 @@ impl ItemCheckpointWork {
         for completion in &self.projection.materializations {
             let pending = requests
                 .iter()
-                .find(|request| request.request_id == completion.request_id)
+                .find(|request| {
+                    request.request_id == completion.request_id
+                        && match request.kind {
+                            PendingItemKind::Starter => ItemOperation::Starter,
+                            PendingItemKind::Backfill => ItemOperation::Backfill,
+                            PendingItemKind::Grant => ItemOperation::Grant,
+                        } == completion.receipt.operation
+                })
                 .ok_or_else(|| invalid("pending_item_completion_missing"))?;
             let receipt = self
                 .projection
                 .receipts
                 .iter()
-                .find(|fact| fact.request_id == completion.receipt)
+                .find(|fact| fact.reference() == completion.receipt)
                 .ok_or_else(|| invalid("pending_item_completion_receipt"))?;
             let expected = match pending.kind {
                 PendingItemKind::Starter => ItemMutationOperation::Starter,
@@ -397,7 +404,7 @@ impl ItemCheckpointWork {
                     .starter_kit_receipt
                     .as_ref()
                     .ok_or_else(|| invalid("pending_kit_receipt"))?;
-                if kit.request_id != completion.receipt
+                if kit.request_id != completion.receipt.key
                     || kit.manifest_hash != completion.manifest_hash
                     || kit.manifest_version != completion.manifest_version
                     || kit.source_class != manifest.source_class_id
@@ -426,6 +433,7 @@ impl ItemCheckpointWork {
                     instance_id: delta.instance,
                     operation_ordinal: delta.operation_ordinal,
                     delta: ItemLedgerDelta {
+                        receipt: delta.receipt,
                         before: delta.before.clone(),
                         after: delta.after.clone(),
                         count_delta: delta.count_delta,
@@ -436,7 +444,7 @@ impl ItemCheckpointWork {
                             .collect::<Result<_, _>>()
                             .map_err(anyhow::Error::from)?,
                     },
-                    receipt_ref: delta.receipt,
+                    receipt_ref: delta.receipt.map(|receipt| receipt.key),
                 })
             })
             .collect()
