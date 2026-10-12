@@ -2,13 +2,13 @@
 //! has no repository. Requests are immutable until acknowledged, including after a lost commit
 //! response. The durable applied prefix is the recovery queue.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures_util::StreamExt as _;
 use sha2::{Digest, Sha256};
 use tokio::time::Instant;
-use tokio_stream::StreamExt as _;
 use uuid::Uuid;
 
 use super::ports::{
@@ -391,6 +391,7 @@ impl CheckpointService {
                 );
             }
         }
+        let mut due = BTreeSet::new();
         for entity in &snapshot.entities {
             if snapshot.phase3.is_some() && entity.kind == crate::domain::zone::EntityKind::Player {
                 anyhow::ensure!(
@@ -636,18 +637,10 @@ impl CheckpointService {
                 player.events.extend(facts);
             }
             if immediate || tick.tick.0.saturating_sub(player.last_saved.0) >= 50 {
-                save(
-                    self.repo.as_ref(),
-                    self.learning_repo.as_deref(),
-                    self.audit.as_ref(),
-                    self.metrics.as_ref(),
-                    self.sessions.get(&entity.id).copied(),
-                    player,
-                )
-                .await?;
-                player.last_saved = tick.tick;
+                due.insert(entity.id);
             }
         }
+        self.save_due(&due, tick.tick).await?;
         self.players.retain(|id, _| {
             let present = snapshot.entities.iter().any(|e| e.id == *id);
             if !present {
@@ -656,10 +649,53 @@ impl CheckpointService {
             present
         });
         self.last = Some((tick.epoch, tick.tick));
+        let index_started = std::time::Instant::now();
         self.index_tick(snapshot.seed.zone, tick.epoch, tick.tick, true)
             .await;
+        super::zone_actor::runtime_phase("checkpoint_index", index_started);
         self.refresh_if_due(snapshot).await;
         Ok(())
+    }
+
+    async fn save_due(&mut self, due: &BTreeSet<EntityId>, tick: Tick) -> anyhow::Result<()> {
+        // Account-scoped receipts and outbox facts retain entity order. Independent resource
+        // checkpoints may overlap, but the whole batch still gates index completion/output.
+        let concurrency = if due.iter().any(|id| {
+            self.players
+                .get(id)
+                .is_some_and(|p| !p.events.is_empty() || p.learning.is_some())
+        }) {
+            1
+        } else {
+            8
+        };
+        let repo = self.repo.as_ref();
+        let learning = self.learning_repo.as_deref();
+        let audit = self.audit.as_ref();
+        let metrics = self.metrics.as_ref();
+        let sessions = &self.sessions;
+        let mut saves = Vec::new();
+        for (id, player) in &mut self.players {
+            if !due.contains(id) {
+                continue;
+            }
+            let session = sessions.get(id).copied();
+            saves.push(async move {
+                save(repo, learning, audit, metrics, session, player).await?;
+                player.last_saved = tick;
+                Ok(())
+            });
+        }
+        let mut saves = futures_util::stream::iter(saves).buffered(concurrency);
+        if concurrency == 1 {
+            while let Some(result) = saves.next().await {
+                result?;
+            }
+            return Ok(());
+        }
+        // Settle every started transaction even on failure; never cancel an in-flight commit.
+        let results: Vec<anyhow::Result<()>> = saves.collect().await;
+        results.into_iter().collect()
     }
 
     async fn refresh_if_due(&mut self, snapshot: &ZoneSnapshot) {

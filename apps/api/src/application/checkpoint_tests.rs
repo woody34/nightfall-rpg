@@ -205,6 +205,7 @@ struct Flaky {
     inner: Arc<InMemoryCharacterRepository>,
     attempts: AtomicUsize,
     after_commit: bool,
+    gate: Option<(Arc<tokio::sync::Semaphore>, Arc<tokio::sync::Semaphore>)>,
 }
 #[async_trait::async_trait]
 impl CharacterRepository for Flaky {
@@ -233,6 +234,10 @@ impl CharacterRepository for Flaky {
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
+        if let Some((entered, release)) = &self.gate {
+            entered.add_permits(1);
+            release.acquire().await.unwrap().forget();
+        }
         let first = self.attempts.fetch_add(1, Ordering::SeqCst) == 0;
         if first && !self.after_commit {
             return Err(anyhow::anyhow!("before transaction").into());
@@ -253,6 +258,7 @@ async fn failures_before_and_after_commit_retry_identical_body_once_and_count() 
             inner: h.repo.clone(),
             attempts: AtomicUsize::new(0),
             after_commit,
+            gate: None,
         });
         let metrics = Metrics::detached();
         h.service.repo = repo.clone();
@@ -668,4 +674,101 @@ async fn recovery_refuses_to_close_an_epoch_without_its_original_prefix() {
             .unwrap(),
         crate::application::replay_log::EpochStatus::Complete(_)
     ));
+}
+
+#[tokio::test]
+async fn independent_saves_overlap_but_the_entire_batch_still_gates_output() {
+    use crate::application::zone_actor::{manual_ticks, TickOutcome, ZoneActor};
+    let mut h = Harness::new().await;
+    let c = Character::create(
+        AccountId::from_uuid(Uuid::nil()),
+        CharacterName::new("Second").unwrap(),
+        Race::Human,
+    );
+    h.repo.insert_for_test(c.clone());
+    let second = EntityId::from_uuid(c.id.as_uuid());
+    let record = h
+        .state
+        .run_tick(
+            h.state
+                .draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+                    entity: second,
+                    name: "Second".into(),
+                    pos: Vec2Fixed::from_tiles(10, 10),
+                    speed: Speed::DEFAULT,
+                    generation: SessionGeneration(1),
+                    load: Some(Box::new(PlayerLoad {
+                        checkpoint_revision: Some(0),
+                        ..PlayerLoad::fresh("human_fighter")
+                    })),
+                })]),
+        )
+        .unwrap();
+    h.service
+        .admitted(&record, &h.state.snapshot())
+        .await
+        .unwrap();
+    h.service.players.get_mut(&second).unwrap().last_saved = Tick(0);
+    while h.state.next_tick() < Tick(50) {
+        h.step().await;
+    }
+    let entered = Arc::new(tokio::sync::Semaphore::new(0));
+    let release = Arc::new(tokio::sync::Semaphore::new(0));
+    h.service.repo = Arc::new(Flaky {
+        inner: h.repo.clone(),
+        attempts: AtomicUsize::new(1),
+        after_commit: false,
+        gate: Some((entered.clone(), release.clone())),
+    });
+    let (ticks, driver) = manual_ticks();
+    let zone = ZoneActor::spawn(h.state, ticks);
+    zone.checkpoints.install(h.service);
+    let mut outputs = zone.subscribe();
+    for entity in [h.id, second] {
+        zone.send(ZoneInput::system(ZoneCommand::MoveTo {
+            entity,
+            dest: Vec2Fixed::from_tiles(11, 10),
+        }))
+        .unwrap();
+    }
+    let step = tokio::spawn(async move { driver.step().await });
+    tokio::time::timeout(Duration::from_secs(5), entered.acquire_many(2))
+        .await
+        .unwrap()
+        .unwrap()
+        .forget();
+    assert!(outputs.try_recv().is_err());
+    release.add_permits(1);
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let first = h
+                .repo
+                .load_for_admission(h.id.as_uuid().into())
+                .await
+                .unwrap()
+                .unwrap();
+            let other = h.repo.load_for_admission(c.id).await.unwrap().unwrap();
+            if first.revision + other.revision == 1 {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(outputs.try_recv().is_err(), "one commit cannot release the tick");
+    release.add_permits(1);
+    assert_eq!(step.await.unwrap().unwrap(), TickOutcome::Ran(Tick(50)));
+    assert_eq!(outputs.try_recv().unwrap().tick, Tick(50));
+    for id in [h.id, second] {
+        assert_eq!(
+            h.repo
+                .load_for_admission(id.as_uuid().into())
+                .await
+                .unwrap()
+                .unwrap()
+                .revision,
+            1
+        );
+    }
 }
