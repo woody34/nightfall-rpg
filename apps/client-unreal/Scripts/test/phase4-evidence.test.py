@@ -735,19 +735,22 @@ class Evidence(unittest.TestCase):
         rows[0].update(snapshot_tick=start)
         rows[0]['watermark'].update(records=ticks,last_tick=start+ticks-1)
         rows.append(dict(kind='complete',facts=0,ticks=ticks,last_tick=start+ticks-1))
+        # D67 allocations are recording-wide, including the second owner's stacks.
         other=copy.deepcopy(rows[1:-1])
         for row in other:
             row['entity']=OTHER
             data=row['data']
             if row['kind']=='item_baseline':
                 data['inventory_revision']+=100
-                for state in data['instances']:state['revision']+=100
+                for state in data['instances']:state.update(id=state['id']+1000,revision=state['revision']+100)
+                data['paperdoll']={slot:identity+1000 for slot,identity in data['paperdoll'].items()}
             elif row['kind']=='item_delta':
+                data['instance']+=1000
                 for key in ('before','after'):
-                    if data[key] is not None:data[key]['revision']+=100
+                    if data[key] is not None:data[key].update(id=data[key]['id']+1000,revision=data[key]['revision']+100)
             elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':
                 for state in data['operation'].values():
-                    if isinstance(state,dict):state['revision']+=100
+                    if isinstance(state,dict):state.update(id=state['id']+1000,revision=state['revision']+100)
         rows[1:-1]=sorted(rows[1:-1]+other,key=lambda row:row['tick'])
         for index,row in enumerate(r for r in rows if r['kind']=='item_rng'):
             row['data'].update(word_before=index,word_after=index+1)
@@ -863,8 +866,10 @@ class Evidence(unittest.TestCase):
                 elif mutation=='cross-owner contamination':
                     aggregate=rng.choice(aggregates)
                     foreign=next(r for r in aggregates if r['entity']!=aggregate['entity'] and r['tick']==aggregate['tick']
-                                 and r['data']['instance']==aggregate['data']['instance'])
-                    for key in ('before','after'):aggregate['data'][key]=copy.deepcopy(foreign['data'][key])
+                                 and r['data']['instance']==aggregate['data']['instance']+(1000 if aggregate['entity']==OWNER else -1000))
+                    for key in ('before','after'):
+                        state=copy.deepcopy(foreign['data'][key])
+                        aggregate['data'][key]=state|{'id':aggregate['data']['instance']} if state else None
                 elif mutation=='canonical count discontinuity':
                     aggregate=next(r for r in aggregates if r['tick']>rows[0]['snapshot_tick'])
                     for key in ('before','after'):
