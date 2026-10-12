@@ -69,6 +69,18 @@ JSONL contract (schema version 1 of this sidecar):
   `domain/zone/item.rs`, not partial count projections. Exact widths, identity,
   real change, count conservation, duplicate logical rows and consume ordinal0
   are checked. Pure toggles/reuse never fabricate a ledger instance (D28).
+  D64 fixes the canonical order per `(entity,incarnation,tick,instance)`:
+  the Consume aggregate comes FIRST at ordinal0. Its before is the tick-start
+  state; its after reduces that count by all negative causes. Positive rows
+  (`grant`, including refunds and Exchange grants) follow in cause order with
+  increasing ordinals. Every next before equals the preceding after; the last
+  after is the tick-end state. Validate
+  `tick_end_count = tick_start_count + sum(count_delta)` across all rows.
+  Internal tick observations are not intermediate ledger endpoints (A3).
+  For example, runtime counts `3→2→5→4` export as Consume `3→1, -2`
+  followed by Grant `1→4, +3`. A positive row may increase an existing stack;
+  it preserves all canonical fields except count/revision. Fresh Exchange
+  products still require null before and a new product instance (D37/D52).
   ONE shared operation transition table applies to EVERY delta, independently of
   formula correlation. Revision is governed by D55 below; all other canonical
   fields outside the allowed set must remain identical:
@@ -80,7 +92,8 @@ JSONL contract (schema version 1 of this sidecar):
   | enchant | Both endpoints; only enchant changes. Outcome correlation requires the exact source result; unchanged outcomes have no row. Destruction/refund uses separate destroy/grant rows. |
   | refine / cancel_refine | Both endpoints; only augment_id changes. Refine installs a packed option pair; cancel removes it. |
   | destroy / crystallize | Existing before; after is null. Refunds are separate grant rows. |
-  | grant / starter / backfill | Before is null; after is canonical. Existing-stack increments cannot masquerade as creation. |
+  | grant | Canonical after; strictly positive count_delta. Before is null for creation, or canonical for a retained stack with only count changing. |
+  | starter / backfill | Before is null; after is canonical. |
 
   `count_delta` is an exact signed-bigint integer equal to the endpoint count
   difference for every operation. Revision-only rows and `operation=use` refuse;
@@ -158,7 +171,7 @@ For example, two enchant debits can share a stack with an intervening item-cast 
 An automatic-only shot aggregate instead has
 `causes=[{"cause":"auto_shot:attack1","count_delta":-1}]`, `receipt_refs=[]`.
 
-D55–D57 and D62 revise this same schema-version1 sidecar for the accepted producer:
+D55–D57 and D62–D64 revise this same schema-version1 sidecar for the accepted producer:
 same-tick enchant/consume/refund rows may share revisions, offline facts must
 emit the explicit top-level origin, and Consume aggregates emit ordered
 `receipt_refs` and `causes`; Exchange grants emit `receipt_ref` and their consumes

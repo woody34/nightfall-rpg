@@ -16,7 +16,7 @@ OWNER='01970000-0000-7000-8000-000000000040';OTHER='01970000-0000-7000-8000-0000
 ALLOWED_CHANGES={
     'consume':{'count'},'equip':{'slot','location'},'unequip':{'slot','location'},
     'enchant':{'enchant'},'refine':{'augment_id'},'cancel_refine':{'augment_id'},
-    'destroy':set(),'crystallize':set(),'grant':set(),'starter':set(),'backfill':set(),
+    'destroy':set(),'crystallize':set(),'grant':{'count'},'starter':set(),'backfill':set(),
 }
 
 
@@ -237,9 +237,9 @@ class Evidence(unittest.TestCase):
         adena['before']['count']+=3
         rows[1]['data']['instances'][-1]['count']+=3
         adena.update(resolution_id='cast:other',count_delta=adena['count_delta']-3,
-                     receipt_refs=['receipt:exchange:key','receipt:use:other'])
+                     receipt_refs=['receipt:use:other','receipt:exchange:key'])
         adena['causes'].insert(0,dict(cause='item_cast:cast:other',count_delta=-2))
-        adena['causes'].append(dict(cause='receipt:use:other',count_delta=-1))
+        adena['causes'].insert(1,dict(cause='receipt:use:other',count_delta=-1))
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
         # Split the gemstones across two retained stacks, with the exact recipe sum.
         gem=next(r for r in rows if r['kind']=='item_delta' and r['data']['instance']==103)
@@ -250,6 +250,9 @@ class Evidence(unittest.TestCase):
             debit['after']['count']=debit['before']['count']-amount
         rows[1]['data']['instances'].append(copy.deepcopy(part['data']['before']))
         rows.insert(-2,part);self.repair(rows)
+        inputs=rows[2]['data']['inputs']
+        inputs['ingredients_before']['2131']=gem['data']['before']['count']+part['data']['before']['count']
+        inputs['ingredients_after']['2131']=gem['data']['after']['count']+part['data']['after']['count']
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
         bad=copy.deepcopy(rows);debit=bad[-3]['data']
         debit['causes'][0]['count_delta']+=1;debit['count_delta']+=1;debit['after']['count']+=1
@@ -264,6 +267,86 @@ class Evidence(unittest.TestCase):
             for mutation in mutations:
                 self.assert_rejected(self.corrupt_exchange(copy.deepcopy(rows),mutation),('sa_exchange',))
         print('Exchange property check: seed=0xE613; 2000 controls pass; 18000 constituent corruptions reject',flush=True)
+
+    def consume_then_grants(self,count=3,debits=(1,1),credits=(3,)):
+        rows=self.transition_rows('consume',count=count,enchant=0)
+        consume=rows[3]['data'];remaining=count-sum(debits)
+        consume.update(after=consume['before']|{'count':remaining,'revision':1} if remaining else None,
+                       count_delta=-sum(debits),resolution_id='attack:0',
+                       causes=[dict(cause=f'auto_shot:attack:{index}',count_delta=-amount) for index,amount in enumerate(debits)])
+        before=consume['after']
+        for ordinal,amount in enumerate(credits,1):
+            after=(before or consume['before'])|{'count':remaining+amount,'revision':1}
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+                data=dict(operation='grant',instance=100,before=copy.deepcopy(before),after=after,count_delta=amount,
+                          operation_ordinal=ordinal,resolution_id=f'grant:{ordinal}',receipt_ref=f'receipt:grant:{ordinal}')))
+            before=after;remaining+=amount
+        return self.repair(rows)
+
+    def corrupt_interleaving(self,rows,mutation):
+        consume=rows[3]['data'];grant=rows[4]['data']
+        if mutation=='wrong order':rows[3],rows[4]=rows[4],rows[3]
+        elif mutation=='broken continuity':
+            grant['before']['count']+=1;grant['after']['count']+=1
+        elif mutation=='conservation mismatch':grant['count_delta']+=1
+        elif mutation=='consume ordinal':consume['operation_ordinal']=1
+        elif mutation=='positive ordinal':grant['operation_ordinal']=0
+        elif mutation=='tick-start revision':consume['before']['revision']=1
+        elif mutation=='positive field drift':grant['after']['enchant']+=1
+        else:raise AssertionError(mutation)
+        return self.repair(rows)
+
+    def test_d64_canonical_3_to_1_to_4_and_order_continuity_conservation(self):
+        rows=self.consume_then_grants()
+        self.assertEqual([(r['data']['before']['count'],r['data']['after']['count'],r['data']['count_delta'])
+                          for r in rows if r['kind']=='item_delta'],[(3,1,-2),(1,4,3)])
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        for field in ('template_id','enchant','created_tick','slot','augment_id','id','charges','location'):
+            bad=copy.deepcopy(rows);self.corrupt_transition(bad,field,delta_index=1)
+            with self.assertRaises(ValueError,msg=field):gate.validate(bad,self.recording,HASH)
+        for mutation in ('wrong order','broken continuity','conservation mismatch','consume ordinal',
+                         'positive ordinal','tick-start revision','positive field drift'):
+            with self.subTest(mutation=mutation):
+                bad=self.corrupt_interleaving(copy.deepcopy(rows),mutation)
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        bad=self.corrupt_interleaving(copy.deepcopy(rows),'conservation mismatch')
+        with self.assertRaisesRegex(ValueError,'tick count conservation'):gate.inventory_history(bad)
+        # Exhaustion, multiple grants, next-tick carry and baseline-free slices.
+        for count,credits in ((2,(3,)),(3,(1,2,3))):
+            control=self.consume_then_grants(count=count,credits=credits)
+            gate.validate(control,self.recording,HASH)
+            del control[1];self.repair(control);gate.validate(control,self.recording,HASH)
+        later=copy.deepcopy(rows[3]);later['tick']=1
+        later['data'].update(before=item(100,4,2509)|{'revision':1},after=item(100,2,2509)|{'revision':2},
+                             resolution_id='attack:next',causes=[dict(cause='auto_shot:attack:next',count_delta=-2)])
+        rows.insert(-1,later);rows[0]['watermark'].update(records=2,last_tick=1)
+        rows[-1].update(ticks=2,last_tick=1);self.repair(rows);gate.validate(rows,self.recording,HASH)
+        print('D64: consume(3->1,-2) then grant(1->4,+3) passes; order/continuity/conservation + 4 mutations reject',flush=True)
+
+    def test_d64_exchange_ingredients_accept_later_grants_but_product_stays_fresh(self):
+        rows=self.exchange_rows()
+        debit=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['instance']==104)
+        before=debit['after'];after=before|{'count':before['count']+3}
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(operation='grant',instance=104,before=copy.deepcopy(before),after=after,count_delta=3,
+                      operation_ordinal=1,resolution_id='grant:other',receipt_ref='receipt:grant:other')))
+        self.repair(rows);self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
+        bad=copy.deepcopy(rows);product=bad[-3]['data']
+        product['before']=product['after']|{'count':1};product['after']['count']=2
+        with self.assertRaisesRegex(ValueError,'fresh product'):gate.validate(bad,self.recording,HASH)
+
+    def test_seeded_d64_interleaving_corruptions_2000_cases(self):
+        rng=random.Random(0xD64);mutations=('wrong order','broken continuity','conservation mismatch','consume ordinal',
+                                         'positive ordinal','tick-start revision','positive field drift')
+        for case in range(2000):
+            debits=tuple(rng.randint(1,10) for _ in range(rng.randint(1,4)))
+            credits=tuple(rng.randint(1,100) for _ in range(rng.randint(1,4)))
+            rows=self.consume_then_grants(count=sum(debits)+rng.randint(1,100),debits=debits,credits=credits)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+            for mutation in mutations:
+                bad=self.corrupt_interleaving(copy.deepcopy(rows),mutation)
+                with self.assertRaises(ValueError,msg=(case,mutation)):gate.validate(bad,self.recording,HASH)
+        print('D64 property check: seed=0xD64; 2000 controls pass; 14000 order/continuity/conservation corruptions reject',flush=True)
 
     def test_seeded_per_operation_field_corruptions_2000_cases(self):
         rng=random.Random(0xE612);controls=corruptions=0
@@ -718,9 +801,12 @@ class Evidence(unittest.TestCase):
         rows=self.enchant_rows(base=70,residue=99999,enchant=3)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)['passed'])
         refund=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='grant')
-        refund['before']=refund['after']|{'count':5,'revision':1}
+        refund['before']=refund['after']|{'count':5,'revision':0}
         refund['after']=refund['after']|{'count':5+refund['count_delta'],'revision':1}
-        with self.assertRaisesRegex(ValueError,'must create'):gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='grant')['after']['enchant']+=1
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
 
     def test_every_later_same_tick_post_revision_must_advance_and_share_step(self):
         rows=self.same_tick_enchants()

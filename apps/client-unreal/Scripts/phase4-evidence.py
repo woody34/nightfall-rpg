@@ -472,7 +472,7 @@ ITEM_TRANSITIONS={
     'cancel_refine':('retain',frozenset({'augment_id'})),
     'destroy':('remove',frozenset()),
     'crystallize':('remove',frozenset()),
-    'grant':('create',frozenset()),
+    'grant':('positive',frozenset({'count'})),
     'starter':('create',frozenset()),
     'backfill':('create',frozenset()),
 }
@@ -486,6 +486,8 @@ def validate_transition(data):
     same(delta,(after['count'] if after else 0)-(before['count'] if before else 0))
     if shape=='create':
         if before is not None or after is None:raise ValueError(operation+' must create a canonical instance')
+    elif shape=='positive':
+        if after is None or delta<=0:raise ValueError('grant must add a positive count to a canonical instance')
     elif shape=='remove':
         if before is None or after is not None:raise ValueError(operation+' must remove the instance')
     elif shape=='consume':
@@ -523,6 +525,7 @@ def validate_exchanges(rows):
         grants=[r for r in facts if r['data']['operation']=='grant']
         if len(grants)!=1 or not consumes or len(consumes)+len(grants)!=len(facts):raise ValueError('Exchange requires consume and one grant row')
         grant=grants[0]
+        if grant['data']['before'] is not None:raise ValueError('Exchange must create a fresh product')
         identity=(entity,incarnation,grant['data']['resolution_id'])
         resolution=resolutions.get(identity)
         if resolution is None or identity in bound:raise ValueError('Exchange requires one bound source resolution')
@@ -672,13 +675,14 @@ def validate(rows,recording,rules_hash):
 
 
 def inventory_history(rows,targets=None):
-    """D55: one owner step per changed tick; canonical endpoints survive ticks."""
+    """D55/D64: one owner step, ordered continuity and conservation per tick."""
     groups={};owners={};steps={}
     for row in rows[1:-1]:
         groups.setdefault((row['entity'],row['incarnation'],row['tick']),[]).append(row)
     for scope,facts in groups.items():
         owner=scope[:2];tick=scope[2]
         revision,states,complete=owners.get(owner,(None,{},False))
+        balances={}
         for row in facts:
             if row['kind']=='item_baseline':
                 baseline=row['data'];bound={item['id']:item for item in baseline['instances']}
@@ -716,9 +720,15 @@ def inventory_history(rows,targets=None):
                 if after['revision']!=current:raise ValueError('owner item revision changed within tick')
             if before is not None and before['revision'] not in (revision,current):raise ValueError('owner before revision differs from tick step')
             identity=delta['instance']
+            balance=balances.setdefault(identity,[before['count'] if before else 0,0])
+            balance[1]+=delta['count_delta']
             if identity in states or complete:
                 same(before,states.get(identity))
             states[identity]=after
+        for identity,(start_count,net_delta) in balances.items():
+            end=states[identity]
+            if (end['count'] if end else 0)!=start_count+net_delta:
+                raise ValueError('per-instance tick count conservation mismatch')
         # Canonical snapshots use the owner's revision, also for untouched instances.
         states={identity:state|{'revision':current} if state is not None else None for identity,state in states.items()}
         owners[owner]=(current,states,complete)
