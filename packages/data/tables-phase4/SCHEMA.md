@@ -56,7 +56,7 @@ Item fields:
   `enchant4_skills:SkillRef[]`; `conditions:Node[]`.
 - Function = `{stat:string, operation:string, order:int, xml_ordinal:int,
   value:string, conditions:Node[], source:Source}`. SET/ENCHANT order 0;
-  ADD/SUB order 16; MUL/DIV order 48; ENCHANTHP order 40 unless explicitly
+  ADD/SUB order 30; MUL/DIV order 20; ENCHANTHP order 40 unless explicitly
   overridden. An implicit enchant HP flag is separate from literal XML funcs.
 - SkillRef = `{id:int, level:int, kind:string, xml_ordinal:int}`; kind preserves
   item/enchant4/set/shield/enchant6/passive/active/trigger context.
