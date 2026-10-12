@@ -130,6 +130,46 @@ bool FItemConflictingBodyTest::RunTest(const FString&)
  Rejected.Detail=TEXT("duplicate rejection");S->ApplyRejected(Rejected);TestEqual(TEXT("terminal rejection is not processed twice"),S->Status(),FString(TEXT("D43 fingerprint conflict: FAILED_PRECONDITION")));
  N->Disconnect();return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemCorrectedBodyTest,"Nightfall.Item.Receipt.CorrectedBodyAfterValidationRejection",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemCorrectedBodyTest::RunTest(const FString&)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto Socket=ItemUiTest::Connect(N);ItemUiTest::Seed(N,S);
+ const FString Key=TEXT("abcdefab-1111-4111-8111-123456789abc");
+ TestTrue(TEXT("excessive count submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));const uint32 First=N->GetLastSentSeq();
+ TestTrue(TEXT("excessive count retry submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));const uint32 Retry=N->GetLastSentSeq();
+ FIntentRejected Rejected;Rejected.Seq=First;Rejected.Detail=TEXT("excessive count: FAILED_PRECONDITION");S->ApplyRejected(Rejected);TestTrue(TEXT("one rejection leaves other attempt outstanding"),S->IsBusy());
+ Rejected.Seq=Retry;S->ApplyRejected(Rejected);TestFalse(TEXT("all validation rejections clear busy"),S->IsBusy());TestEqual(TEXT("validation failure displayed"),S->Status(),Rejected.Detail);
+ TestTrue(TEXT("corrected same-key body submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));const uint32 Corrected=N->GetLastSentSeq();
+ FGrpcNightfallV1ClientMessage Accepted;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Accepted);TestEqual(TEXT("corrected wire count"),Accepted.Intent.DestroyItem.Count.Value,uint64(1));TestEqual(TEXT("corrected wire key unchanged"),Accepted.Intent.DestroyItem.IdempotencyKey,Key);
+ TestTrue(TEXT("corrected request awaiting receipt"),S->IsBusy());TestEqual(TEXT("pending display"),S->Status(),FString(TEXT("Waiting for server item result")));
+ FGrpcNightfallV1InventoryChanged Changed;Changed.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);Changed.Incarnation=1;Changed.Tick=11;Changed.PreviousRevision=1;Changed.InventoryRevision=2;Changed.RemovedIds.Add(1);S->ApplyChanged(Changed);
+ FGrpcNightfallV1ItemOperationResult Receipt;Receipt.EntityId=Changed.EntityId;Receipt.Incarnation=1;Receipt.Tick=11;Receipt.InventoryRevision=2;Receipt.ReceiptId=Key;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;
+ FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);
+ TestFalse(TEXT("corrected receipt clears pending and busy"),S->IsBusy());TestEqual(TEXT("successful receipt displayed"),S->Status(),FString(TEXT("Server committed item operation")));TestEqual(TEXT("committed destroy removes displayed count"),*S->Count(6),uint64(0));
+ Rejected.Seq=Corrected;Rejected.Detail=TEXT("late rejection");S->ApplyRejected(Rejected);TestEqual(TEXT("corrected sequence is terminal"),S->Status(),FString(TEXT("Server committed item operation")));
+ TestTrue(TEXT("identical corrected retry after consumption"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));FGrpcNightfallV1ClientMessage Replay;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Replay);TestEqual(TEXT("corrected arguments retain exact committed body"),Replay.Intent.DestroyItem.ToJsonString(false),Accepted.Intent.DestroyItem.ToJsonString(false));
+ S->ApplyReceiptPayload(Event);TestFalse(TEXT("corrected retry receipt clears busy"),S->IsBusy());TestTrue(TEXT("identical receipt replay matches"),S->ReceiptMatchesFirst().IsSet() && *S->ReceiptMatchesFirst());TestEqual(TEXT("retry success displayed"),S->Status(),FString(TEXT("Server committed item operation")));
+ S->ApplyReceiptPayload(Event);TestFalse(TEXT("duplicate receipt stays complete"),S->IsBusy());N->Disconnect();return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemCommittedBodyTest,"Nightfall.Item.Receipt.CommittedBodySurvivesLaterConflict",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemCommittedBodyTest::RunTest(const FString&)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto Socket=ItemUiTest::Connect(N);ItemUiTest::Seed(N,S);
+ const FString Key=TEXT("abcdefab-1111-4111-8111-123456789abc");
+ TestTrue(TEXT("original count submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));
+ FGrpcNightfallV1ClientMessage Original;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Original);
+ FGrpcNightfallV1ItemOperationResult Receipt;Receipt.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);Receipt.Incarnation=1;Receipt.Tick=11;Receipt.InventoryRevision=2;Receipt.ReceiptId=Key;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;
+ FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);TestFalse(TEXT("original receipt commits before conflict"),S->IsBusy());
+ for(int32 Attempt=0;Attempt<2;++Attempt){
+  TestTrue(TEXT("later different body sent for server refusal"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));const uint32 Conflict=N->GetLastSentSeq();
+  FGrpcNightfallV1ClientMessage Different;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Different);TestEqual(TEXT("later body differs on wire"),Different.Intent.DestroyItem.Count.Value,uint64(2));
+  S->ApplyReceiptPayload(Event);TestTrue(TEXT("committed replay cannot complete conflicting body"),S->IsBusy());
+  FIntentRejected Rejected;Rejected.Seq=Conflict;Rejected.Detail=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");S->ApplyRejected(Rejected);TestFalse(TEXT("later conflict rejection clears busy"),S->IsBusy());TestEqual(TEXT("later conflict refusal displayed"),S->Status(),Rejected.Detail);
+  S->ApplyReceiptPayload(Event);TestEqual(TEXT("receipt replay preserves later refusal"),S->Status(),Rejected.Detail);
+ }
+ TestTrue(TEXT("original committed body still retryable"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));FGrpcNightfallV1ClientMessage Retry;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Retry);TestEqual(TEXT("committed body remains frozen"),Retry.Intent.DestroyItem.ToJsonString(false),Original.Intent.DestroyItem.ToJsonString(false));
+ S->ApplyReceiptPayload(Event);TestFalse(TEXT("original retry completes"),S->IsBusy());TestEqual(TEXT("original retry success displayed"),S->Status(),FString(TEXT("Server committed item operation")));N->Disconnect();return true;
+}
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemGrantDetachedOverlapTest,"Nightfall.Item.Rpc.GrantDetachedOverlapAndLifecycle",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemGrantDetachedOverlapTest::RunTest(const FString&)
 {
