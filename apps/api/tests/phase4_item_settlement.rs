@@ -81,6 +81,7 @@ async fn unified_learning_contract<R>(
     work.projection.receipts.clear();
     work.projection.materializations.clear();
     work.projection.ledger = vec![ItemDeltaPlan {
+        receipt_refs: Vec::new(),
         operation: ItemOperation::Consume,
         operation_ordinal: 0,
         instance: old_scroll.id,
@@ -371,6 +372,7 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
             ledger: instances
                 .iter()
                 .map(|item| ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
                     operation: ItemOperation::Starter,
                     operation_ordinal: 0,
                     instance: item.id,
@@ -509,6 +511,7 @@ fn interleaved(
     work.projection.checkpoint = retained.clone();
     work.projection.ledger = vec![
         ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Grant,
             operation_ordinal: 1,
             instance: target_id,
@@ -522,6 +525,7 @@ fn interleaved(
             causes: Vec::new(),
         },
         ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Consume,
             operation_ordinal: 0,
             instance: target_id,
@@ -591,6 +595,7 @@ fn destroy(
     work.projection.tick = Tick(75);
     work.projection.checkpoint = checkpoint.clone();
     work.projection.ledger = vec![ItemDeltaPlan {
+        receipt_refs: Vec::new(),
         operation: ItemOperation::Destroy,
         operation_ordinal: 0,
         instance: target,
@@ -1154,6 +1159,7 @@ async fn rejected_contract<
     let reference = transient.projection.receipts[0].reference();
     transient.projection.ledger.extend([
         ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Grant,
             operation_ordinal: 3,
             instance: id,
@@ -1164,6 +1170,7 @@ async fn rejected_contract<
             causes: vec![],
         },
         ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Consume,
             operation_ordinal: 0,
             instance: id,

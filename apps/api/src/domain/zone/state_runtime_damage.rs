@@ -6800,6 +6800,40 @@ mod tests {
             assert_eq!(rows.len(), 1);
             assert_eq!(rows[0].causes.len(), 2);
             assert_eq!(
+                rows[0].receipt_refs,
+                projection
+                    .exchanges
+                    .iter()
+                    .map(|audit| audit.receipt)
+                    .collect::<Vec<_>>()
+            );
+            for corrupt in 0..5 {
+                let mut invalid = projection.as_ref().clone();
+                let aggregate = invalid
+                    .ledger
+                    .iter_mut()
+                    .find(|row| row.instance == id && row.operation == ItemOperation::Consume)
+                    .unwrap();
+                match corrupt {
+                    0 => aggregate.receipt_refs.clear(),
+                    1 => aggregate.receipt_refs.reverse(),
+                    2 => aggregate.receipt_refs.push(aggregate.receipt_refs[0]),
+                    3 => aggregate.receipt_refs[0].key = Uuid::from_u128(99999),
+                    _ => {
+                        aggregate.receipt = aggregate.receipt_refs.first().copied();
+                        aggregate.receipt_refs.clear();
+                    },
+                }
+                assert!(invalid
+                    .validate_structure(
+                        zone.sidecar(owner.entity)
+                            .unwrap()
+                            .modifier_install_order
+                            .len()
+                    )
+                    .is_err());
+            }
+            assert_eq!(
                 rows[0].count_delta,
                 -i64::try_from(old.players[&owner.entity].inventory[&id].count).unwrap()
             );

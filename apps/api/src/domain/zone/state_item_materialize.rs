@@ -284,6 +284,7 @@ impl ZoneState {
             .iter()
             .map(|item| {
                 Ok(ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
                     operation,
                     operation_ordinal: 1,
                     instance: item.id,

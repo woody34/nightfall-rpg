@@ -139,6 +139,7 @@ impl ZoneState {
                 .map_err(invalid)?;
             // Private restoration allocates temporary provider/effect ordinals only. Neither
             // those nor its caches, schedules, entities or observer state enter the zone.
+            self.adopt_offline_item_evidence(&candidate, command.entity)?;
             self.phase4
                 .as_mut()
                 .ok_or(RejectReason::InvalidLoad)?
@@ -329,7 +330,7 @@ impl ZoneState {
             .ok()
             .and_then(|n| n.checked_add(1))
             .ok_or(RejectReason::InvalidLoad)?;
-        if self.items_evidence_enabled() && incarnation > 0 {
+        if self.items_evidence_enabled() {
             let subject = self.binding(id).ok_or(RejectReason::InvalidLoad)?;
             for change in &mutation.changes {
                 self.item_evidence_delta(
@@ -381,6 +382,7 @@ impl ZoneState {
             )
             .map_err(invalid)?;
             projection.ledger.push(ItemDeltaPlan {
+                receipt_refs: Vec::new(),
                 operation: ItemOperation::Grant,
                 operation_ordinal: ordinal,
                 instance: after.id,
@@ -425,6 +427,7 @@ impl ZoneState {
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,
+    clippy::panic,
     clippy::indexing_slicing,
     clippy::too_many_lines,
     clippy::wildcard_enum_match_arm
@@ -568,6 +571,9 @@ mod tests {
         second.paused = first.paused.clone();
         let mut control = zone.clone();
         let empty = control.run_tick(control.draft(Vec::new())).unwrap();
+        zone.enable_items_replay_evidence().unwrap();
+        zone.take_items_replay_evidence();
+        let snapshot = zone.snapshot();
         let tick = replay(&mut zone, vec![input(&first), input(&second)]);
         assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
         assert_eq!(tick.outputs, empty.outputs);
@@ -598,6 +604,41 @@ mod tests {
             control.phase3.as_ref().unwrap().canonical
         );
         assert_eq!(zone.rng.get_word_pos(), control.rng.get_word_pos());
+        let facts = zone.take_items_replay_evidence();
+        assert_eq!(facts.len(), 4);
+        assert!(facts.iter().all(|fact| fact.entity == owner.entity
+            && fact.incarnation == 0
+            && fact.origin == crate::domain::zone::evidence::ItemEvidenceOrigin::Offline));
+        assert!(matches!(
+            facts[0].fact,
+            crate::domain::zone::evidence::ItemEvidenceData::Baseline(_)
+        ));
+        let deltas: Vec<_> = facts
+            .iter()
+            .filter_map(|fact| match &fact.fact {
+                crate::domain::zone::evidence::ItemEvidenceData::Delta(data) => Some(data),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(deltas.len(), 2);
+        for (data, expected_ordinal) in deltas.iter().zip([1, 2]) {
+            assert_eq!(data["operation_ordinal"], expected_ordinal);
+        }
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_OFFLINE_EVIDENCE_RECORDING") {
+            use crate::application::replay_log::{Watermark, WatermarkReason};
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: snapshot.seed.zone,
+                    epoch: snapshot.seed.epoch,
+                    records: 1,
+                    last_tick: Some(tick.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records: vec![AppliedTickRecord::from_applied(snapshot.seed.zone, &tick)],
+                snapshot,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
         let saved = final_core.clone();
         let mut corrupt = first.clone();
         corrupt.request_id = uuid::Uuid::from_u128(9013);
@@ -617,6 +658,7 @@ mod tests {
         let failed = replay(&mut zone, vec![input(&corrupt)]);
         assert_eq!(failed.dispositions[0].reason, RejectReason::InvalidLoad);
         assert!(projections(&failed).is_empty());
+        assert!(zone.take_items_replay_evidence().is_empty());
         assert_eq!(zone.phase4.as_ref().unwrap().canonical.allocator, allocation);
         let admitted = replay(
             &mut zone,
@@ -633,5 +675,94 @@ mod tests {
         assert!(zone.entities[&owner.entity].targeting.dead);
         assert!(projections(&admitted).is_empty());
         assert_eq!(zone.phase4.as_ref().unwrap().canonical.allocator, allocation);
+    }
+
+    #[test]
+    fn v6_offline_pending_kits_export_only_character_origin_without_candidate_state() {
+        use crate::domain::zone::evidence::{ItemEvidenceData, ItemEvidenceOrigin};
+        use crate::domain::zone::phase4_admission::{
+            ItemKitManifest, ItemMaterialization, PendingItemMaterialization, StarterKitSeed,
+        };
+        let (mut base, owner, _) = ZoneState::item_checkpoint_fixture();
+        let mut core = paused(&base, owner.entity);
+        core.load.phase3 = Some(crate::domain::zone::Phase3Checkpoint::new());
+        let lineage = core
+            .load
+            .progression
+            .as_ref()
+            .unwrap()
+            .identity
+            .base_class_id;
+        let source = base
+            .phase4
+            .as_ref()
+            .unwrap()
+            .rules
+            .parts()
+            .starter_kits
+            .iter()
+            .find(|kit| kit.class_id == lineage.0)
+            .unwrap();
+        let manifest = ItemKitManifest {
+            source_class_id: lineage,
+            items: source
+                .items
+                .iter()
+                .map(|row| StarterKitSeed {
+                    template_id: row.template_id,
+                    count: row.count,
+                    equipped: row.equipped,
+                })
+                .collect(),
+        };
+        replay(
+            &mut base,
+            vec![ZoneInput::system(ZoneCommand::Despawn {
+                entity: owner.entity,
+            })],
+        );
+        for backfill in [false, true] {
+            let mut zone = base.clone();
+            let materialization = if backfill {
+                ItemMaterialization::Backfill(manifest.clone())
+            } else {
+                ItemMaterialization::Starter(manifest.clone())
+            };
+            core.load.phase4 = Some(Phase4PlayerLoad {
+                checkpoint: None,
+                pending: vec![PendingItemMaterialization {
+                    request_id: uuid::Uuid::from_u128(9090),
+                    request_fingerprint: "offline-source-kit-fixture".into(),
+                    manifest_version: 1,
+                    manifest_hash: materialization.manifest_hash().unwrap(),
+                    materialization,
+                }],
+            });
+            let mut command = grant(&zone, owner.entity, 9091, 10);
+            command.paused = Some(Box::new(core.clone()));
+            zone.enable_items_replay_evidence().unwrap();
+            zone.take_items_replay_evidence();
+            let before = zone.snapshot();
+            let tick = replay(&mut zone, vec![input(&command)]);
+            assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+            assert_eq!(zone.entities, base.entities);
+            assert_eq!(zone.rng.get_word_pos(), before.rng.word_pos);
+            let facts = zone.take_items_replay_evidence();
+            assert!(facts.iter().all(|fact| fact.entity == owner.entity
+                && fact.incarnation == 0
+                && fact.origin == ItemEvidenceOrigin::Offline));
+            let operations: Vec<_> = facts
+                .iter()
+                .filter_map(|fact| match &fact.fact {
+                    ItemEvidenceData::Delta(data) => Some(data["operation"].as_str().unwrap()),
+                    _ => None,
+                })
+                .collect();
+            assert!(operations.len() > 1);
+            assert_eq!(operations.last(), Some(&"grant"));
+            assert!(operations[..operations.len().saturating_sub(1)]
+                .iter()
+                .all(|op| *op == if backfill { "backfill" } else { "starter" }));
+        }
     }
 }
