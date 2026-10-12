@@ -26,6 +26,7 @@ fn retained() -> Phase4Checkpoint {
         rules_hash: [1; 32],
         inventory_revision: 1,
         instances: vec![ItemInstance {
+            creation_origin: None,
             id,
             template_id: 1146,
             count: 1,

@@ -1876,7 +1876,7 @@ mod tests {
         player.inventory.insert(
             id,
             crate::domain::zone::ItemInstance {
-                id,
+                creation_origin: None,                id,
                 template_id: 17,
                 count,
                 location: crate::domain::zone::ItemLocation::Inventory,
@@ -4300,7 +4300,7 @@ mod tests {
             .insert(
                 restricted,
                 ItemInstance {
-                    id: restricted,
+                    creation_origin: None,                    id: restricted,
                     template_id: 9210,
                     count: 1,
                     location: ItemLocation::Inventory,
@@ -7122,4 +7122,65 @@ mod tests {
                 .snapshot()
         );
     }
+    #[test]
+    fn v6_item_creation_provenance_changes_digest_and_round_trips() {
+        use crate::domain::zone::{EquipSlot, ItemCreationOrigin, ZoneId};
+        let (zone, owner, _) = equipment_fixture();
+        let weapon = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].paperdoll
+            [&EquipSlot::Rhand];
+        let mut baseline = zone.clone();
+        let item = baseline
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .get_mut(&weapon)
+            .unwrap();
+        item.created_tick = Tick(900);
+        item.creation_origin = Some(ItemCreationOrigin {
+            zone: ZoneId(99),
+            epoch: 2,
+        });
+        let digest = baseline.state_digest();
+        assert_ne!(digest, zone.state_digest());
+        let restored = ZoneState::from_snapshot_with_items(
+            baseline.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        assert_eq!(restored.state_digest(), digest);
+        assert_eq!(restored.snapshot(), baseline.snapshot());
+        for changed in [
+            None,
+            Some(ItemCreationOrigin {
+                zone: ZoneId(100),
+                epoch: 2,
+            }),
+            Some(ItemCreationOrigin {
+                zone: ZoneId(99),
+                epoch: 3,
+            }),
+        ] {
+            let mut candidate = baseline.clone();
+            candidate
+                .phase4
+                .as_mut()
+                .unwrap()
+                .canonical
+                .players
+                .get_mut(&owner.entity)
+                .unwrap()
+                .inventory
+                .get_mut(&weapon)
+                .unwrap()
+                .creation_origin = changed;
+            assert_ne!(digest, candidate.state_digest());
+        }
+    }
+
+
 }

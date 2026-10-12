@@ -717,6 +717,7 @@ pub(crate) mod tests {
 
     fn item(template_id: u32) -> ItemInstance {
         ItemInstance {
+            creation_origin: None,
             id: ItemInstanceId::new(7).unwrap(),
             template_id,
             count: 1,

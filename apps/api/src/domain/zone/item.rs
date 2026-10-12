@@ -167,11 +167,32 @@ pub enum ItemLocation {
     Paperdoll,
 }
 
+/// Immutable clock namespace of an item's creation; retained items can cross epochs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemCreationOrigin {
+    pub zone: super::ZoneId,
+    pub epoch: u64,
+}
+impl ItemCreationOrigin {
+    /// Provenance must fit the persisted positive zone/epoch namespace.
+    pub fn validate(self) -> Result<(), ItemError> {
+        if self.zone.0 == 0 || self.epoch == 0 || i64::try_from(self.epoch).is_err() {
+            return Err(ItemError("invalid item creation origin"));
+        }
+        Ok(())
+    }
+}
+
 /// Persistent scalar item record. SA is the template ID, not an independent modifier.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(missing_docs)]
 pub struct ItemInstance {
+    /// Absent only for historical inputs; persistence resolves their recorded row origin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub creation_origin: Option<ItemCreationOrigin>,
     pub id: ItemInstanceId,
     pub template_id: u32,
     pub count: u64,
@@ -187,6 +208,9 @@ impl ItemInstance {
     /// Structural checks shared by admission and checkpoints. Template compatibility and
     /// option references additionally require the immutable item rules.
     pub fn validate(&self) -> Result<(), ItemError> {
+        if let Some(origin) = self.creation_origin {
+            origin.validate()?;
+        }
         if self.template_id == 0 || self.template_id > i32::MAX as u32 {
             return Err(ItemError("invalid item template ID"));
         }
@@ -217,6 +241,47 @@ impl ItemInstance {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+
+    #[test]
+    fn creation_origin_is_optional_only_for_historical_scalars_and_validates_its_namespace() {
+        let original = serde_json::json!({"id":1,"template_id":57,"count":1,
+            "location":"inventory","slot":null,"enchant":0,"augment_id":null,
+            "charges":0,"created_tick":900,"revision":3});
+        let mut item: ItemInstance = serde_json::from_value(original.clone()).unwrap();
+        item.validate().unwrap();
+        assert_eq!(item.creation_origin, None);
+        assert_eq!(serde_json::to_value(&item).unwrap(), original);
+        let valid = ItemCreationOrigin {
+            zone: super::super::ZoneId(7),
+            epoch: 2,
+        };
+        item.creation_origin = Some(valid);
+        item.validate().unwrap();
+        let encoded = serde_json::to_value(&item).unwrap();
+        assert_eq!(encoded.get("creation_origin"), Some(&serde_json::json!({"zone":7,"epoch":2})));
+        assert_eq!(serde_json::from_value::<ItemInstance>(encoded).unwrap(), item);
+        for origin in [
+            ItemCreationOrigin {
+                zone: super::super::ZoneId(0),
+                ..valid
+            },
+            ItemCreationOrigin { epoch: 0, ..valid },
+            ItemCreationOrigin {
+                epoch: u64::MAX,
+                ..valid
+            },
+        ] {
+            item.creation_origin = Some(origin);
+            assert!(item.validate().is_err());
+        }
+        assert!(serde_json::from_value::<ItemCreationOrigin>(
+            serde_json::json!({"zone":7,"epoch":2,"tick":900})
+        )
+        .is_err());
+        assert!(
+            serde_json::from_value::<ItemCreationOrigin>(serde_json::json!({"zone":7})).is_err()
+        );
+    }
 
     #[test]
     fn signed_bigint_endpoints_exhaustion_and_extensions_are_strict() {

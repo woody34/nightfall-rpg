@@ -264,6 +264,7 @@ impl InventoryMutation {
         for _ in 0..slots {
             let id = self.allocator.allocate()?;
             let item = ItemInstance {
+                creation_origin: None,
                 id,
                 template_id: template,
                 count: if definition.stackable { count } else { 1 },
@@ -375,6 +376,7 @@ mod tests {
 
     fn seed(id: u64, template_id: u32, count: u64) -> ItemInstance {
         ItemInstance {
+            creation_origin: None,
             id: ItemInstanceId::new(id).unwrap(),
             template_id,
             count,

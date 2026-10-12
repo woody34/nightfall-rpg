@@ -8,6 +8,7 @@ use nightfall_api::domain::{
 
 fn entry() -> ItemLedgerEntry {
     let before = ItemInstance {
+        creation_origin: None,
         id: ItemInstanceId::new(1).unwrap(),
         template_id: 1835,
         count: 10,
