@@ -83,6 +83,14 @@ JSONL contract (schema version 1 of this sidecar):
   A positive row may increase an existing stack; it preserves all canonical
   fields except count/revision. Fresh Exchange products still require null
   before and a new product instance (D37/D52).
+  D67 requires every null-before positive row to allocate an ID never seen earlier
+  in the whole recording, across owners, ticks and incarnations. Baselines,
+  ledger endpoints and canonical observed before bindings establish allocation;
+  formula outputs describe a product without allocating it. Retained positives
+  preserve every canonical field except count/revision. Removal leaves a tombstone
+  with the last canonical metadata: exhausted IDs cannot be regranted, restored
+  with a non-null before, or reintroduced by a later baseline. Genuinely fresh
+  grants/refunds/Exchange products remain legal.
   ONE shared operation transition table applies to EVERY delta, independently of
   formula correlation. Revision is governed by D55 below; all other canonical
   fields outside the allowed set must remain identical:
@@ -116,7 +124,8 @@ JSONL contract (schema version 1 of this sidecar):
   aggregate must start at the established retained state, after recorded intervening
   changes; untouched canonical snapshots advance to the owner's revision at tick
   end. Creation starts from null and removal establishes absence. Incarnation
-  boundaries have independent histories.
+  boundaries have independent state/revision histories; allocation freshness and
+  exhausted-ID tombstones are recording-wide.
 - `item_baseline`: `inventory_revision,instances,paperdoll,auto_shots`. Complete
   canonical instances and valid paperdoll references bind an owner. A baseline
   cannot satisfy formula gates. Disabled GrantItem is rejected before actor

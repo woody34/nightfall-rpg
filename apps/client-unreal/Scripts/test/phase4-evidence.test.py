@@ -377,6 +377,99 @@ class Evidence(unittest.TestCase):
                 with self.assertRaises(ValueError,msg=(case,mutation)):gate.validate(bad,self.recording,HASH)
         print('D66 property check: seed=0xD66; 2000 fresh/retained/exhaustion controls pass; 14000 corruptions reject',flush=True)
 
+    def exhausted_then_fresh_grant(self,entity=OWNER,incarnation=1):
+        rows=self.transition_rows('consume',count=2,enchant=0)
+        debit=rows[-2]['data']
+        debit.update(after=None,count_delta=-2,causes=[dict(cause='auto_shot:transition:1',count_delta=-2)])
+        rows.insert(-1,dict(kind='item_delta',entity=entity,incarnation=incarnation,tick=1,sequence=0,
+            data=dict(operation='grant',instance=200,before=None,after=item(200,3,2509)|{'revision':2 if entity==OWNER and incarnation==1 else 1},
+                      count_delta=3,operation_ordinal=0,resolution_id='grant:fresh',receipt_ref=None)))
+        rows[0]['watermark'].update(records=2,last_tick=1);rows[-1].update(ticks=2,last_tick=1)
+        return self.repair(rows)
+
+    def reuse_exhausted_id(self,rows,field=None,value=None):
+        grant=rows[-2]['data'];grant['instance']=100;grant['after']['id']=100
+        if field:grant['after'][field]=value
+        return rows
+
+    def test_review13_exhausted_id_field_corruptions_and_global_freshness(self):
+        fields=((None,None),('template_id',2510),('enchant',99),('created_tick',99),('augment_id',65537))
+        for entity,incarnation in ((OWNER,1),(OTHER,1),(OWNER,2)):
+            rows=self.exhausted_then_fresh_grant(entity,incarnation)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+            for field,value in fields:
+                with self.subTest(entity=entity,incarnation=incarnation,field=field):
+                    bad=self.reuse_exhausted_id(copy.deepcopy(rows),field,value)
+                    self.assert_rejected(bad,('pole_damage',))
+                    with self.assertRaisesRegex(ValueError,'fresh instance'):gate.validate_instance_history(bad)
+        # Exact review13 same-tick consume-to-null/regrant is now illegal under D66/D67.
+        rows=self.exhausted_then_fresh_grant();rows[-2]['tick']=0
+        rows[-2]['data'].update(operation_ordinal=1,after=item(200,3,2509)|{'revision':1})
+        for field,value in fields:
+            bad=self.reuse_exhausted_id(copy.deepcopy(rows),field,value)
+            self.assert_rejected(bad,('pole_damage',))
+            with self.assertRaisesRegex(ValueError,'fresh instance'):gate.validate_instance_history(bad)
+        # Retained-before resurrection and a new baseline must also honor the tombstone.
+        rows=self.exhausted_then_fresh_grant();bad=self.reuse_exhausted_id(copy.deepcopy(rows))
+        bad[-2]['data'].update(before=item(100,1,2509)|{'revision':1},count_delta=2)
+        self.assert_rejected(bad,('pole_damage',))
+        with self.assertRaisesRegex(ValueError,'exhausted'):gate.validate_instance_history(bad)
+        bad=copy.deepcopy(rows);bad[-2].update(kind='item_baseline',entity=OTHER,
+            data=dict(inventory_revision=1,instances=[item(100,1,2509)|{'revision':1}],paperdoll={},auto_shots=[]))
+        self.assert_rejected(bad,('pole_damage',))
+        print('D67/review13: fresh grants pass; exhausted ID reuse with template2509->2510/enchant0->99/created_tick0->99/augment null->65537 rejects across ticks/owners/incarnations',flush=True)
+
+    def test_d67_seen_retained_ids_and_observed_before_bindings_are_not_fresh(self):
+        rows=self.exhausted_then_fresh_grant(OTHER)
+        rows[-3]['data'].update(after=item(100,1,2509)|{'revision':1},count_delta=-1,
+                               causes=[dict(cause='auto_shot:transition:1',count_delta=-1)])
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        self.assert_rejected(self.reuse_exhausted_id(copy.deepcopy(rows)),('pole_damage',))
+        # A baseline alone, even under another owner, already establishes allocation.
+        del rows[-3];self.repair(rows)
+        self.assert_rejected(self.reuse_exhausted_id(copy.deepcopy(rows)),('pole_damage',))
+        for operation in ('starter','backfill'):
+            bad=self.reuse_exhausted_id(copy.deepcopy(rows));bad[-2]['data']['operation']=operation
+            self.assert_rejected(bad,('pole_damage',))
+        # Before bindings establish existence even in a baseline-free projection.
+        rows=self.enchant_rows();grant=copy.deepcopy(self.exhausted_then_fresh_grant()[-2])
+        grant.update(tick=0);grant['data'].update(instance=8,after=item(8,3,71)|{'revision':1},operation_ordinal=1)
+        rows.insert(-1,grant);self.repair(rows)
+        with self.assertRaisesRegex(ValueError,'fresh instance'):gate.validate_instance_history(rows)
+
+    def test_review13_exchange_exhausted_ingredient_cannot_be_product_id(self):
+        rows=self.exchange_rows()
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
+        bad=copy.deepcopy(rows);grant=bad[-2]['data'];inputs=bad[2]['data']['inputs']
+        self.assertEqual(next(r['data']['before']['template_id'] for r in bad if r['kind']=='item_delta' and r['data']['instance']==102),4645)
+        grant.update(instance=102,operation_ordinal=1);grant['after']['id']=102
+        inputs['after_instance']['id']=102;bad[2]['data']['actual']['new_instance_id']=102
+        self.assert_rejected(bad,('sa_exchange',))
+        with self.assertRaisesRegex(ValueError,'fresh instance'):gate.validate_instance_history(bad)
+        # Isolate history from same-tick order and Exchange's existing constituent checks.
+        grant.update(receipt_ref=None,operation_ordinal=0);bad[-2]['tick']=1
+        grant['after']['revision']=2;bad[0]['watermark'].update(records=2,last_tick=1);bad[-1].update(ticks=2,last_tick=1)
+        self.assert_rejected(bad,('sa_exchange',))
+        print('Review13 Exchange: fresh product control passes; exhausted ingredient102/template4645 -> product2510 rejects',flush=True)
+
+    def test_seeded_d67_id_reuse_corruptions_2000_cases(self):
+        rng=random.Random(0xD67);corruptions=0
+        fields=((None,None),('template_id',2510),('enchant',99),('created_tick',99),('augment_id',65537))
+        for case in range(2000):
+            entity,incarnation=((OWNER,1),(OTHER,1),(OWNER,2))[case%3]
+            rows=self.exhausted_then_fresh_grant(entity,incarnation)
+            rows[-2]['data']['after']['count']=rows[-2]['data']['count_delta']=rng.randint(1,100)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+            for field,value in fields:
+                bad=self.reuse_exhausted_id(copy.deepcopy(rows),field,value)
+                self.assert_rejected(bad,('pole_damage',));corruptions+=1
+            exchange=self.exchange_rows(enchant=rng.randrange(30))
+            self.assertTrue(gate.evaluate(exchange,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
+            exchange[-2]['data'].update(instance=102,operation_ordinal=1);exchange[-2]['data']['after']['id']=102
+            exchange[2]['data']['inputs']['after_instance']['id']=102;exchange[2]['data']['actual']['new_instance_id']=102
+            self.assert_rejected(exchange,('sa_exchange',));corruptions+=1
+        print(f'D67 property check: seed=0xD67; 4000 fresh grant/Exchange controls pass; {corruptions} ID/metadata reuse corruptions reject',flush=True)
+
     def test_seeded_per_operation_field_corruptions_2000_cases(self):
         rng=random.Random(0xE612);controls=corruptions=0
         fields=('template_id','enchant','created_tick','slot','augment_id','id','count','charges','location')
@@ -702,16 +795,16 @@ class Evidence(unittest.TestCase):
         facts=[dict(operation='grant',before=None,after=first,count_delta=2),
                dict(operation='enchant',before=first,after=first|{'enchant':1},count_delta=0),
                dict(operation='destroy',before=first|{'enchant':1},after=None,count_delta=-2),
-               dict(operation='grant',before=None,after=first,count_delta=2)]
+               dict(operation='grant',before=None,after=first|{'id':71},count_delta=2)]
         for ordinal,data in enumerate(facts):
             rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
-                data=data|dict(instance=70,operation_ordinal=ordinal,resolution_id=f'change:{ordinal}',receipt_ref=None)))
+                data=data|dict(instance=71 if ordinal==3 else 70,operation_ordinal=ordinal,resolution_id=f'change:{ordinal}',receipt_ref=None)))
         self.repair(rows);gate.validate(rows,self.recording,HASH)
         for key in ('count','enchant','revision','template_id'):
             bad=copy.deepcopy(rows);bad[3]['data']['before']=bad[3]['data']['before']|{key:4 if key=='count' else 2 if key!='template_id' else 952}
             if key=='count':bad[3]['data']['count_delta']=-1
             with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
-        # An incarnation boundary starts a separate history, even for the same ID.
+        # Incarnations have separate state/revision histories; allocations stay unique.
         for row in rows[3:-1]:row['incarnation']=2
         gate.validate(rows,self.recording,HASH)
 

@@ -558,6 +558,40 @@ def validate_exchanges(rows):
     if bound!=set(resolutions):raise ValueError('missing Exchange receipt constituents')
 
 
+def validate_instance_history(rows):
+    """D67: IDs are allocated once across every owner, tick and incarnation."""
+    canonical={};exhausted=set()
+    def observe(state):
+        identity=state['id']
+        if identity in exhausted:raise ValueError('exhausted instance reappeared')
+        canonical.setdefault(identity,state)
+    for row in rows[1:-1]:
+        data=row['data']
+        if row['kind']=='item_baseline':
+            for state in data['instances']:observe(state)
+        elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':
+            # Before bindings attest existing instances; formula outputs do not allocate.
+            operation=data.get('operation',{})
+            if not isinstance(operation,dict):continue
+            for field in ('target_before','scroll_before','support_before'):
+                state=operation.get(field)
+                try:validate_instance(state)
+                except (ValueError,TypeError,KeyError):continue # Enchant correlation reports malformed bindings.
+                observe(state)
+        elif row['kind']=='item_delta':
+            identity=data['instance'];before,after=data['before'],data['after']
+            if before is None:
+                if identity in canonical:raise ValueError('positive row must allocate a fresh instance ID')
+            else:
+                observe(before)
+                if data['operation'] in ('grant','starter','backfill'):
+                    same({k:v for k,v in before.items() if k not in ('count','revision')},
+                         {k:v for k,v in canonical[identity].items() if k not in ('count','revision')})
+            # Keep the last canonical metadata even after removal; absence is a tombstone.
+            canonical[identity]=after if after is not None else before
+            if after is None:exhausted.add(identity)
+
+
 def validate(rows,recording,rules_hash):
     if not isinstance(rows,list) or len(rows)<3:raise ValueError('manifest, facts and complete trailer required')
     manifest,complete=rows[0],rows[-1]
@@ -677,6 +711,7 @@ def validate(rows,recording,rules_hash):
         if any(d['operation'] not in ('grant','starter','backfill') for d in positives):raise ValueError('only positive rows may precede Consume')
         for ordinal,delta in enumerate(deltas):same(delta['operation_ordinal'],ordinal)
     validate_exchanges(rows)
+    validate_instance_history(rows)
     inventory_history(rows)
     return manifest
 
