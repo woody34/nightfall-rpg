@@ -69,6 +69,28 @@ phases fail even if the generic gate is already satisfied. `providers` and
 providers. Mutation selectors require the same owner/incarnation/resolution ID.
 Admission phases verify retained history after reconnect.
 
+Revision 3 binds scroll/support templates to E1 `enchant_scrolls.toml`, target
+kind/grade/enchant eligibility and blacklist to the item catalogue, and the base
+chance to `enchant_groups.toml` (slot, magic-weapon route and current enchant range).
+Safe/blessed flags and both bonus contributions must match before deciding which
+ledger/refund branch applies. Citations: DP@3ca488dd enchantItemData.xml:4-254 and
+enchantItemGroups.xml:4-93; GAME@abfde049 AbstractEnchantItem.java:111-145,
+EnchantScroll.java:100-157, EnchantRateItem.java:71-77, ItemTable.java:74-109
+(overlapping slot masks and aliases) and L2Item.java:539-540. Formula inputs enforce count/tick
+domains, u32 enchant values and draw bounds before calling the oracle; signed
+coordinates and additive stat modifiers remain signed. Canonical template IDs must
+exist, including dormant starters; auto-shot IDs additionally require an admitted
+SHOT with a supported SoulShots/SpiritShot/BlessedSpiritShot handler in E1.
+
+The `equipment` phase selector maps concrete slots to templates (null means absent).
+The active incomplete armour admission requires chest58, shield628, starter legs461,
+absent head47 and retained provider3543. All three armour workloads reconnect there
+and require unchanged received stats before removing the provider. They retain the
+shield→chest inactive checkpoint and complete-set checkpoint. Source: DP@3ca488dd
+stats/armorsets/d_grade.xml:4-15; GAME@abfde049 PcInventory.java:1147-1208,1232-1285.
+The mutation probe recomputes the sheet with `full_set && shield`: the generic
+formula passes, but the incomplete admission provider requirement fails.
+
 `# item-gate: <formula>` declarations use the finite E1 function registry plus
 pinned-source gear/SA checks. Enchant's refund gate requires a destruction refund
 only if independently verified actual EnchantResult executed destruction; a
