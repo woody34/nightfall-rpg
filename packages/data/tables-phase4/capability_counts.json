@@ -11,8 +11,8 @@
       "deferred": 200
     },
     "phase4": {
-      "imported": 2699,
-      "admitted": 1485,
+      "imported": 2705,
+      "admitted": 1491,
       "deferred": 1214
     },
     "changed_definitions": [
@@ -852,6 +852,20 @@
         "after": []
       },
       {
+        "id": 2008,
+        "before": [
+          "not_imported"
+        ],
+        "after": []
+      },
+      {
+        "id": 2009,
+        "before": [
+          "not_imported"
+        ],
+        "after": []
+      },
+      {
         "id": 2011,
         "before": [
           "not_imported"
@@ -979,6 +993,13 @@
       },
       {
         "id": 2032,
+        "before": [
+          "not_imported"
+        ],
+        "after": []
+      },
+      {
+        "id": 2033,
         "before": [
           "not_imported"
         ],
@@ -17418,6 +17439,27 @@
         ]
       },
       {
+        "id": 22036,
+        "before": [
+          "not_imported"
+        ],
+        "after": []
+      },
+      {
+        "id": 22037,
+        "before": [
+          "not_imported"
+        ],
+        "after": []
+      },
+      {
+        "id": 22038,
+        "before": [
+          "not_imported"
+        ],
+        "after": []
+      },
+      {
         "id": 22042,
         "before": [
           "not_imported"
@@ -20132,10 +20174,10 @@
     },
     "EtcItem": {
       "source_total": 11481,
-      "imported": 699,
+      "imported": 705,
       "admitted": 372,
-      "deferred": 327,
-      "not_imported": 10782
+      "deferred": 333,
+      "not_imported": 10776
     }
   },
   "options": {
@@ -20166,10 +20208,12 @@
     "condition:player:vehicleMounted": 2,
     "configuration:mana_potions_disabled": 2,
     "context:common": 772,
-    "context:npc_only": 274,
+    "context:npc_only": 280,
     "context:shadow": 483,
     "context:time_limited": 1111,
     "enchant_option:24983": 2,
+    "handler:BeastSoulShot": 2,
+    "handler:BeastSpiritShot": 4,
     "handler:SummonItems": 1,
     "property:equip_condition": 42,
     "property:oncrit_skill": 170,
@@ -21336,5 +21380,59 @@
     "imported": 1464,
     "admitted": 170,
     "deferred": 1294
+  },
+  "required_condition_closure": {
+    "condition": "player_level_range",
+    "architect": "D34",
+    "runtime_support": "pending_zone_publication",
+    "skill_ids": [
+      2287,
+      2288,
+      2289,
+      2860,
+      2861,
+      2862
+    ],
+    "template_ids": [
+      8622,
+      8623,
+      8624,
+      8625,
+      8626,
+      8627,
+      8628,
+      8629,
+      8630,
+      8631,
+      8632,
+      8633,
+      8634,
+      8635,
+      8636,
+      8637,
+      8638,
+      8639,
+      14682,
+      14683,
+      14684,
+      14685,
+      14686,
+      14687,
+      14688,
+      14689,
+      14690,
+      14691,
+      14692,
+      14693,
+      14694,
+      14695,
+      14696,
+      14697,
+      14698,
+      14699
+    ],
+    "imported": 36,
+    "admitted": 0,
+    "deferred": 36
   }
 }

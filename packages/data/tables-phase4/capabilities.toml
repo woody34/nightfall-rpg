@@ -13122,6 +13122,27 @@ blockers = ["condition:player:isHero", "property:oncrit_skill", "skill:3591:1"]
 use_blockers = ["condition:player:isHero", "property:oncrit_skill", "skill:3591:1"]
 
 [[items]]
+template_id = 6645
+admitted = false
+storable = false
+blockers = ["context:npc_only", "handler:BeastSoulShot"]
+use_blockers = ["context:npc_only", "handler:BeastSoulShot"]
+
+[[items]]
+template_id = 6646
+admitted = false
+storable = false
+blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+use_blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+
+[[items]]
+template_id = 6647
+admitted = false
+storable = false
+blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+use_blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+
+[[items]]
 template_id = 6656
 admitted = false
 storable = true
@@ -53120,6 +53141,27 @@ blockers = []
 use_blockers = []
 
 [[items]]
+template_id = 20332
+admitted = false
+storable = false
+blockers = ["context:npc_only", "handler:BeastSoulShot"]
+use_blockers = ["context:npc_only", "handler:BeastSoulShot"]
+
+[[items]]
+template_id = 20333
+admitted = false
+storable = false
+blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+use_blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+
+[[items]]
+template_id = 20334
+admitted = false
+storable = false
+blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+use_blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+
+[[items]]
 template_id = 20353
 admitted = true
 storable = true
@@ -61239,6 +61281,18 @@ admitted = true
 blockers = []
 
 [[skills]]
+id = 2008
+max_level = 1
+admitted = true
+blockers = []
+
+[[skills]]
+id = 2009
+max_level = 1
+admitted = true
+blockers = []
+
+[[skills]]
 id = 2011
 max_level = 1
 admitted = true
@@ -61348,6 +61402,12 @@ blockers = []
 
 [[skills]]
 id = 2032
+max_level = 1
+admitted = true
+blockers = []
+
+[[skills]]
+id = 2033
 max_level = 1
 admitted = true
 blockers = []
@@ -73405,6 +73465,24 @@ id = 22034
 max_level = 1
 admitted = false
 blockers = ["effect:SummonNpc"]
+
+[[skills]]
+id = 22036
+max_level = 1
+admitted = true
+blockers = []
+
+[[skills]]
+id = 22037
+max_level = 1
+admitted = true
+blockers = []
+
+[[skills]]
+id = 22038
+max_level = 1
+admitted = true
+blockers = []
 
 [[skills]]
 id = 22042
