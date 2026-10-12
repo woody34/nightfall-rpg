@@ -34,3 +34,25 @@ pub use record::{
     phase3_snapshot_size, AppliedTickRecord, CodecError, EpochStatus, OutputForm, PlayerOutput,
     Seq, SessionInRecord, SessionOutRecord, StoredSnapshot, Watermark, WatermarkReason,
 };
+
+/// Resolve immutable V6 inputs before domain restoration; historical epochs load only
+/// their recorded inputs. A missing or mismatched compiled bundle is a hard error.
+pub fn restore_snapshot(
+    snapshot: crate::domain::zone::ZoneSnapshot,
+) -> Result<crate::domain::zone::ZoneState, crate::domain::zone::SnapshotError> {
+    use crate::domain::zone::{SnapshotError, ZoneState};
+    let rules = snapshot
+        .phase4
+        .as_ref()
+        .map(|p| {
+            let skills = snapshot
+                .phase3
+                .as_ref()
+                .ok_or(SnapshotError::CombatMismatch)?;
+            crate::infrastructure::item_data::resolve_phase4_bundle(p.rules_hash, skills.rules_hash)
+                .map(|bundle| bundle.items)
+                .map_err(SnapshotError::Rules)
+        })
+        .transpose()?;
+    ZoneState::from_snapshot_with_items(snapshot, rules)
+}

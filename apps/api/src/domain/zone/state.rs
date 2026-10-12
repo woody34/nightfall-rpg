@@ -7,6 +7,8 @@
 mod digest;
 #[path = "state_evidence.rs"]
 mod evidence_hooks;
+#[path = "state_items.rs"]
+mod items;
 #[path = "state_runtime.rs"]
 mod runtime;
 
@@ -47,7 +49,7 @@ pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 /// 7: resolved class registry, verified immutable hash, player identity and transfer ledger.
 /// 8: `BinaryV4` once-ever token policy; older epochs keep supply disabled.
 /// 9: isolated Phase 3 skills/effects/player-combat policy with `BinaryV5`.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 9;
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 10;
 
 /// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -63,6 +65,8 @@ pub enum StateDigestVersion {
     BinaryV4,
     /// Phase 3 skills, effects, regeneration and player combat.
     BinaryV5,
+    /// Item/equipment epochs with hash-resolved immutable rules.
+    BinaryV6,
 }
 
 /// Identity of a zone.
@@ -222,6 +226,9 @@ impl SnapshotMeta {
 /// [`AppliedTick`]s, which replay (Story 3.3) relies on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ZoneSnapshot {
+    /// V6 item state; never synthesized for historical epochs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase4: Option<super::Phase4Snapshot>,
     /// Phase 3 canonical state; absent for every legacy epoch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase3: Option<super::Phase3Snapshot>,
@@ -405,7 +412,10 @@ impl ZoneSnapshot {
     /// All decoding and encoding boundaries share this check; old epochs never normalize
     /// an unsupported digest into an accepted one.
     pub fn validate_version(&self) -> Result<(), SnapshotError> {
-        use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, JsonV1};
+        use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, BinaryV6, JsonV1};
+        if self.meta.schema_version < 10 && self.phase4.is_some() {
+            return Err(SnapshotError::CombatMismatch);
+        }
         let valid =
             match (self.meta.schema_version, self.meta.digest_version, self.classes.is_some()) {
                 (4 | 5, JsonV1, false)
@@ -430,41 +440,19 @@ impl ZoneSnapshot {
                                 })
                         })
                 },
-                (9, BinaryV5, true) => {
-                    self.phase3
-                        .as_ref()
-                        .is_some_and(|phase3| phase3.rules.runtime_revision() <= 2)
-                        && self
-                            .meta
-                            .phase3_admission_policy
-                            .is_some_and(super::Phase3AdmissionPolicy::is_valid)
-                        && self.rules.as_ref().zip(self.phase3.as_ref()).is_some_and(
-                            |(stats, phase3)| {
-                                phase3
-                                    .rules
-                                    .profiles()
-                                    .starter_weapon
-                                    .validate_physical(&stats.starter_weapon)
-                                    .is_ok()
-                            },
-                        )
+                (9, BinaryV5, true) => self.validate_skill_boundary(2, 1),
+                (10, BinaryV6, true) => {
+                    self.validate_skill_boundary(3, 2)
                         && self
                             .phase3
                             .as_ref()
-                            .is_some_and(super::Phase3Snapshot::validate)
+                            .is_some_and(|p| p.rules.runtime_revision() == 3)
                         && self
-                            .phase3
+                            .phase4
                             .as_ref()
-                            .is_some_and(|p| p.rules.geometry().peace_square(self.bounds).is_ok())
-                        && self
-                            .classes
-                            .as_deref()
-                            .zip(self.phase3.as_ref())
-                            .is_some_and(|(classes, phase3)| {
-                                phase3.rules.validate_catalogue(classes).is_ok()
-                            })
+                            .is_some_and(|p| p.formula_revision == 1 && p.timer_policy_version == 1)
                 },
-                (4..=9, _, _) => false,
+                (4..=10, _, _) => false,
                 (version, _, _) => return Err(SnapshotError::Schema(version)),
             };
         if valid {
@@ -482,6 +470,7 @@ pub struct ZoneState {
     // Opt-in replay diagnostics only: never snapshot, hash, encode or send these facts.
     evidence: Option<super::evidence::EvidenceBuffer>,
     phase3: Option<super::phase3::Phase3Zone>,
+    phase4: Option<super::phase4::Phase4Zone>,
     classes: Option<Arc<crate::domain::class::ClassRegistry>>,
     seed: ZoneSeed,
     checkpoints: Vec<CheckpointSnapshot>,
@@ -532,6 +521,7 @@ impl ZoneState {
             seed,
             classes: None,
             phase3: None,
+            phase4: None,
             evidence: None,
             checkpoints: Vec::new(),
             meta: SnapshotMeta::legacy(),
@@ -568,6 +558,17 @@ impl ZoneState {
                 "V6 skill bundle requires an explicit V6 epoch".into(),
             ));
         }
+        Self::new_skill_epoch(seed, bounds, time_origin_ms, rules, classes, phase3_rules)
+    }
+
+    fn new_skill_epoch(
+        seed: ZoneSeed,
+        bounds: ZoneBounds,
+        time_origin_ms: i64,
+        rules: Arc<StatRules>,
+        classes: Arc<crate::domain::class::ClassRegistry>,
+        phase3_rules: super::Phase3Rules,
+    ) -> Result<Self, SnapshotError> {
         Self::validate_damage_profiles_v5(&phase3_rules)?;
         phase3_rules
             .validate_catalogue(&classes)
@@ -592,7 +593,7 @@ impl ZoneState {
             super::phase3::Phase3Zone::from_canonical(canonical)
                 .map_err(|error| SnapshotError::Rules(error.to_string()))?,
         );
-        state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
+        state.meta.schema_version = 9;
         state.meta.digest_version = StateDigestVersion::BinaryV5;
         state.meta.phase3_admission_policy = Some(super::Phase3AdmissionPolicy::version_one());
         Ok(state)
@@ -633,7 +634,34 @@ impl ZoneState {
 
     /// Rebuilds a zone from a snapshot, validating it.
     pub fn from_snapshot(snapshot: ZoneSnapshot) -> Result<Self, SnapshotError> {
+        Self::from_snapshot_with_items(snapshot, None)
+    }
+
+    /// Restore V6 with explicitly resolved immutable item rules. Historical snapshots must
+    /// pass None; neither restoration path upgrades a recorded epoch.
+    pub fn from_snapshot_with_items(
+        snapshot: ZoneSnapshot,
+        rules: Option<Arc<super::Phase4Rules>>,
+    ) -> Result<Self, SnapshotError> {
         snapshot.validate_version()?;
+        let phase4 = match (snapshot.phase4.clone(), rules) {
+            (None, None) => None,
+            (Some(canonical), Some(rules)) => {
+                canonical
+                    .validate_allocations(
+                        &rules,
+                        snapshot
+                            .phase3
+                            .as_ref()
+                            .ok_or(SnapshotError::CombatMismatch)?,
+                    )
+                    .map_err(|e| SnapshotError::Rules(e.to_string()))?;
+                Some(super::phase4::Phase4Zone { canonical, rules })
+            },
+            _ => {
+                return Err(SnapshotError::Rules("explicit matching V6 item rules required".into()))
+            },
+        };
         if snapshot.rng.key != snapshot.seed.key() {
             return Err(SnapshotError::SeedMismatch);
         }
@@ -656,6 +684,7 @@ impl ZoneState {
         {
             return Err(SnapshotError::SafePointOutOfBounds);
         }
+        state.phase4 = phase4;
         state.meta = snapshot.meta;
         state.classes = snapshot.classes;
         state.phase3 = snapshot
@@ -727,6 +756,7 @@ impl ZoneState {
     #[must_use]
     pub fn snapshot(&self) -> ZoneSnapshot {
         ZoneSnapshot {
+            phase4: self.phase4.as_ref().map(|p| p.canonical.clone()),
             phase3: self.phase3.as_ref().map(|p| p.canonical.clone()),
             classes: self.classes.clone(),
             checkpoints: self.checkpoints.clone(),
@@ -914,7 +944,10 @@ impl ZoneState {
 
     /// Policy is selected only by the validated epoch version, never registry presence.
     pub fn phase3_enabled(&self) -> bool {
-        self.meta.schema_version == 9 && self.meta.digest_version == StateDigestVersion::BinaryV5
+        matches!(
+            (self.meta.schema_version, self.meta.digest_version),
+            (9, StateDigestVersion::BinaryV5) | (10, StateDigestVersion::BinaryV6)
+        )
     }
 
     fn run_tick_legacy(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
@@ -971,6 +1004,7 @@ impl ZoneState {
             StateDigestVersion::BinaryV3 => self.phase2_state_digest(),
             StateDigestVersion::BinaryV4 => self.token_state_digest(),
             StateDigestVersion::BinaryV5 => self.phase3_state_digest(),
+            StateDigestVersion::BinaryV6 => self.phase4_state_digest(),
         }
     }
 
@@ -1989,4 +2023,36 @@ fn registry_hash(
     // Resolved integer rules and ordered collections; computed only at bootstrap/restore.
     let bytes = serde_json::to_vec(registry).map_err(|e| SnapshotError::Rules(e.to_string()))?;
     Ok(Sha256::digest(bytes).into())
+}
+
+impl ZoneSnapshot {
+    fn validate_skill_boundary(&self, runtime: u32, policy: u32) -> bool {
+        self.meta
+            .phase3_admission_policy
+            .is_some_and(|p| p.version == policy && p.is_valid())
+            && self
+                .phase3
+                .as_ref()
+                .is_some_and(|p| p.rules.runtime_revision() <= runtime && p.validate())
+            && self
+                .rules
+                .as_ref()
+                .zip(self.phase3.as_ref())
+                .is_some_and(|(stats, p)| {
+                    p.rules
+                        .profiles()
+                        .starter_weapon
+                        .validate_physical(&stats.starter_weapon)
+                        .is_ok()
+                })
+            && self
+                .phase3
+                .as_ref()
+                .is_some_and(|p| p.rules.geometry().peace_square(self.bounds).is_ok())
+            && self
+                .classes
+                .as_deref()
+                .zip(self.phase3.as_ref())
+                .is_some_and(|(classes, p)| p.rules.validate_catalogue(classes).is_ok())
+    }
 }

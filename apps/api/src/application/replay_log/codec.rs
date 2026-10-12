@@ -639,6 +639,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
             StateDigestVersion::BinaryV3 => 5,
             StateDigestVersion::BinaryV4 => 6,
             StateDigestVersion::BinaryV5 => 7,
+            StateDigestVersion::BinaryV6 => 8,
         },
     }
 }
@@ -647,7 +648,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
 /// combat commands and facts. 3 (E2.4/E2.6): progression facts, the
 /// `alive` load flag, XP on `StatsChanged`. 4: binary v2 state digest. Schema 3 remains
 /// readable and writable for JSON v1 replay; earlier versions are refused (1 reads 0).
-pub const RECORD_SCHEMA_VERSION: u32 = 7;
+pub const RECORD_SCHEMA_VERSION: u32 = 8;
 
 pub(super) fn encode_events(events: &[ZoneEvent]) -> Vec<u8> {
     PbOutputs {
@@ -1457,9 +1458,9 @@ fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOu
 
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
     let pb = PbRecord::decode(bytes).map_err(err)?;
-    if ![3, 4, 5, 6, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
+    if ![3, 4, 5, 6, 7, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
         return Err(CodecError(format!(
-            "record schema {} is not supported (this build reads 3, 4, 5, 6 and {RECORD_SCHEMA_VERSION})",
+            "record schema {} is not supported (this build reads 3, 4, 5, 6, 7 and {RECORD_SCHEMA_VERSION})",
             pb.schema
         )));
     }
@@ -1503,8 +1504,10 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
             StateDigestVersion::BinaryV3
         } else if pb.schema == 6 {
             StateDigestVersion::BinaryV4
-        } else {
+        } else if pb.schema == 7 {
             StateDigestVersion::BinaryV5
+        } else {
+            StateDigestVersion::BinaryV6
         },
     })
 }
@@ -2050,7 +2053,7 @@ mod combat_tests {
             ..Default::default()
         };
         let error = super::decode_record(&prost::Message::encode_to_vec(&pb)).unwrap_err();
-        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6 and 7)");
+        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6, 7 and 7)");
     }
 
     use super::*;

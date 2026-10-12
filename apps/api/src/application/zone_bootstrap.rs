@@ -240,7 +240,7 @@ impl ZoneBootstrap {
         }
 
         // Keep provenance in all subsequent recovery snapshots.
-        state = ZoneState::from_snapshot(snapshot.clone())?;
+        state = crate::application::replay_log::restore_snapshot(snapshot.clone())?;
 
         // Snapshot first: no gate (and so no applied record) exists without this proof.
         let started = start_epoch(self.log.as_ref(), &snapshot)

@@ -5,9 +5,7 @@ mod phase3;
 use std::collections::BTreeMap;
 
 use nightfall_api::application::replay_log::{decode_events, AppliedTickRecord, OutputForm};
-use nightfall_api::domain::zone::{
-    AppliedTickDraft, EntityId, EntityKind, ZoneCommand, ZoneEvent, ZoneState,
-};
+use nightfall_api::domain::zone::{AppliedTickDraft, EntityId, EntityKind, ZoneCommand, ZoneEvent};
 use nightfall_api::infrastructure::eventlog::Recording;
 use serde::Serialize;
 
@@ -178,7 +176,7 @@ pub(super) fn collect(rec: &Recording) -> anyhow::Result<Coverage> {
         report.phase3 = Some(phase3::Stats::new());
     }
     let mut phase3 = phase3::Tracker::baseline(&rec.snapshot);
-    let mut zone = ZoneState::from_snapshot(rec.snapshot.clone())?;
+    let mut zone = nightfall_api::application::replay_log::restore_snapshot(rec.snapshot.clone())?;
     let mut kinds = BTreeMap::new();
     let mut lives = BTreeMap::new();
     let mut targets = BTreeMap::new();

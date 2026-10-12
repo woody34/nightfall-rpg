@@ -32,11 +32,20 @@ impl Phase3AdmissionPolicy {
         }
     }
 
+    /// V6 uses the same hard byte ceilings under a distinct recorded policy.
+    #[must_use]
+    pub const fn version_two() -> Self {
+        Self {
+            version: 2,
+            ..Self::version_one()
+        }
+    }
+
     /// Portable structural checks. Exact protobuf framing/recipient feasibility and the
     /// backend ceiling remain application-layer checks; this module has no codec dependency.
     #[must_use]
     pub const fn is_valid(self) -> bool {
-        self.version == 1
+        matches!(self.version, 1 | 2)
             && self.max_command_bytes > 0
             && self.max_command_bytes <= 262_144
             && self.record_budget > self.max_command_bytes

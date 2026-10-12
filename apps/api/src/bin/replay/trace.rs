@@ -8,7 +8,6 @@ use nightfall_api::application::replay_log::{
 };
 use nightfall_api::domain::zone::{
     AppliedTickDraft, AttackOutcome, EntityId, ObserverOutput, Vec2Fixed, ZoneCommand, ZoneEvent,
-    ZoneState,
 };
 use nightfall_api::infrastructure::eventlog::Recording;
 use serde::Serialize;
@@ -397,7 +396,7 @@ pub(super) fn render(
         .iter()
         .any(|r| r.output_form == OutputForm::Sha256)
     {
-        Some(ZoneState::from_snapshot(rec.snapshot.clone())?)
+        Some(nightfall_api::application::replay_log::restore_snapshot(rec.snapshot.clone())?)
     } else {
         None
     };
