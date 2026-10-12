@@ -186,3 +186,12 @@ async fn absent_unsupported_and_corrupt_catalogues_are_fail_closed_with_sanitize
         assert!(app.bus.published().is_empty());
     }
 }
+
+#[test]
+fn production_registry_accepts_only_the_matching_compiled_v6_bundle() {
+    let bundle = nightfall_api::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+    let adapter = RegistryItemCatalogue::new(bundle.items.clone(), &bundle.skills).unwrap();
+    let read = GetItemCatalog::new(Some(Arc::new(adapter)));
+    assert_eq!(read.execute().unwrap().hash(), bundle.items.hash());
+    assert_eq!(bundle.items.parts().phase3_hash, bundle.skills.hash());
+}
