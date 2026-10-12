@@ -188,6 +188,7 @@ impl ZoneState {
 
     /// Formulas.java:1054-1063 and :665-743: condition multiplication precedes clamp;
     /// critical/traits/spread/penalty remain rational until the caller's integer cast.
+    #[allow(clippy::too_many_lines)] // Shared legacy/V6 draw order: hit, shield, critical.
     pub(super) fn auto_damage_v5(
         &mut self,
         source: TargetBinding,
@@ -208,6 +209,18 @@ impl ZoneState {
                     .ok_or_else(missing)?,
             )
             .ok_or_else(missing)?;
+        // V6: actual victim-relative position (design §5.3); legacy keeps the front bonus.
+        let v6 = self.phase4.is_some();
+        let proximity = if v6 {
+            self.proximity_v6(source.entity, target.entity)?
+        } else {
+            crate::domain::zone::item_combat::Proximity::Front
+        };
+        let position = match proximity {
+            crate::domain::zone::item_combat::Proximity::Front => HitPosition::Front,
+            crate::domain::zone::item_combat::Proximity::Side => HitPosition::Side,
+            crate::domain::zone::item_combat::Proximity::Back => HitPosition::Back,
+        };
         let condition = self
             .phase3
             .as_ref()
@@ -216,7 +229,7 @@ impl ZoneState {
             .rules
             .npc()
             .hit_condition
-            .multiplier(0, false, HitPosition::Front)
+            .multiplier(0, false, position)
             .map_err(invariant)?;
         let chance = ExactRatio::new(base, 1)
             .and_then(|v| v.checked_mul(condition))
@@ -228,19 +241,29 @@ impl ZoneState {
         {
             return Ok((AttackOutcome::Miss, 0));
         }
+        // L2Character.java:1324-1335: hit, then shield, then critical, then damage.
+        let shield = if v6 {
+            self.shield_v6(source, target, draw)?
+        } else {
+            crate::domain::zone::phase4::ShieldOutcome::None
+        };
         let critical = draw(self, DamageRollSite::AutoCritical, target, 1000).map_err(invariant)?
             < a.physical.crit_permille();
+        let outcome = if critical {
+            AttackOutcome::Crit
+        } else {
+            AttackOutcome::Hit
+        };
+        if v6 {
+            return self
+                .auto_damage_v6(source, target, &a, &b, proximity, shield, critical, draw)
+                .map(|damage| (outcome, damage));
+        }
         let mut damage = q(a.physical.p_atk().raw())
             .map_err(invariant)?
             .checked_mul(ExactRatio::whole(76))
             .and_then(|v| v.checked_div(q(b.physical.p_def().raw())?))
             .map_err(invariant)?;
-        // Formulas.java:684,690 ssboost doubles P.Atk before the critical branch (V6 only).
-        if self.attack_soulshot_v6(source.entity) {
-            damage = damage
-                .checked_mul(ExactRatio::whole(2))
-                .map_err(invariant)?;
-        }
         if critical {
             let race_q = if self.entities.get(&source.entity).and_then(|e| e.combat.as_ref()).is_some_and(|c| matches!(&c.role, CombatRole::Player { progression: Some(p), .. } if p.identity.race == crate::domain::Race::DarkElf)) { 1_050_000 } else { Q };
             damage = damage
@@ -299,5 +322,125 @@ impl ZoneState {
             },
             u32::try_from(damage.trunc().map_err(invariant)?.max(1)).map_err(invariant)?,
         ))
+    }
+
+    /// Formulas.java:667-733 ordinary auto (design §5.2 "Ordinary auto"): shield defence and
+    /// `PvP` defence on `D'`, `P'=P×(charged?2:1)`, position `B`, H5 critical terms, then
+    /// trait→spread→PvP damage→attribute→NPC penalty and max(1). A perfect block returns 1
+    /// before the formula's spread draw.
+    #[allow(clippy::too_many_arguments)] // Frozen caller inputs drawn in source order.
+    fn auto_damage_v6(
+        &mut self,
+        source: TargetBinding,
+        target: TargetBinding,
+        a: &EffectiveStats,
+        b: &EffectiveStats,
+        proximity: crate::domain::zone::item_combat::Proximity,
+        shield: crate::domain::zone::phase4::ShieldOutcome,
+        critical: bool,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<u32, TickError> {
+        use crate::domain::zone::phase4::ShieldOutcome;
+        use crate::domain::zone::skill_npc::NpcPenaltyPath;
+        if shield == ShieldOutcome::Perfect {
+            return Ok(1);
+        }
+        let shield_defence = if shield == ShieldOutcome::Normal {
+            self.damage_stat_v5(target.entity, b, "sDef", 0)?
+                .trunc()
+                .map_err(invariant)?
+        } else {
+            0
+        };
+        let defence = q(b.physical.p_def().raw())
+            .map_err(invariant)?
+            .checked_add(ExactRatio::new(shield_defence, 1).map_err(invariant)?)
+            .and_then(|d| {
+                d.checked_mul(
+                    self.item_pvp_damage_bonus(target.entity, source.entity, b, "pvpPhysDef")
+                        .map_err(|_| StatError::Overflow)?,
+                )
+            })
+            .map_err(invariant)?;
+        let attack = q(a.physical.p_atk().raw())
+            .map_err(invariant)?
+            .checked_mul(ExactRatio::whole(if self.attack_soulshot_v6(source.entity) {
+                2
+            } else {
+                1
+            }))
+            .map_err(invariant)?;
+        let base = attack
+            .checked_mul(ExactRatio::whole(76))
+            .and_then(|v| v.checked_mul(proximity.blow_damage()?))
+            .and_then(|v| v.checked_div(defence))
+            .map_err(invariant)?;
+        let mut damage = if critical {
+            let race_q = if self.entities.get(&source.entity).and_then(|e| e.combat.as_ref()).is_some_and(|c| matches!(&c.role, CombatRole::Player { progression: Some(p), .. } if p.identity.race == crate::domain::Race::DarkElf)) { 1_050_000 } else { Q };
+            ExactRatio::whole(2)
+                .checked_mul(self.damage_stat_v5(source.entity, a, "critDmg", race_q)?)
+                .and_then(|v| {
+                    v.checked_mul(
+                        self.damage_stat_v5(source.entity, a, "critDmgPos", Q)
+                            .map_err(|_| StatError::Overflow)?,
+                    )
+                })
+                .and_then(|v| {
+                    v.checked_mul(
+                        self.damage_stat_v5(target.entity, b, "defCritDamage", Q)
+                            .map_err(|_| StatError::Overflow)?,
+                    )
+                })
+                .and_then(|v| v.checked_mul(base))
+                .and_then(|v| {
+                    v.checked_add(
+                        self.damage_stat_v5(source.entity, a, "critDmgAdd", 0)
+                            .map_err(|_| StatError::Overflow)?
+                            .checked_mul(ExactRatio::whole(77))?
+                            .checked_div(defence)?,
+                    )
+                })
+                .and_then(|v| {
+                    v.checked_add(
+                        self.damage_stat_v5(target.entity, b, "defCritDamageAdd", 0)
+                            .map_err(|_| StatError::Overflow)?,
+                    )
+                })
+                .map_err(invariant)?
+        } else {
+            base
+        };
+        damage = damage
+            .checked_mul(Self::attack_traits_v5(
+                a,
+                b,
+                self.item_weapon_kind(
+                    source.entity,
+                    if self.sidecar(source.entity)?.player.is_some() {
+                        "SWORD"
+                    } else {
+                        "NONE"
+                    },
+                )?,
+            )?)
+            .map_err(invariant)?;
+        damage = damage
+            .checked_mul(self.spread_v5(a.physical.random_damage(), target, draw)?)
+            .and_then(|v| {
+                v.checked_mul(
+                    self.item_pvp_damage_bonus(source.entity, target.entity, a, "pvpPhysDmg")
+                        .map_err(|_| StatError::Overflow)?,
+                )
+            })
+            .and_then(|v| v.checked_mul(skill_math::attribute_bonus(0, 0, false, false)?))
+            .map_err(invariant)?;
+        damage = damage
+            .checked_mul(self.npc_penalty_v5(
+                source.entity,
+                target.entity,
+                NpcPenaltyPath::Physical { critical },
+            )?)
+            .map_err(invariant)?;
+        u32::try_from(damage.trunc().map_err(invariant)?.max(1)).map_err(invariant)
     }
 }

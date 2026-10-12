@@ -7518,6 +7518,134 @@ mod tests {
         assert_eq!(trace.len(), 5);
     }
     #[test]
+    #[allow(clippy::too_many_lines)] // One shielded victim exercised through every auto branch.
+    fn v6_auto_attack_shield_block_position_and_draw_order() {
+        use crate::domain::zone::{phase4::ShieldOutcome, AttackOutcome, EquipSlot};
+        use DamageRollSite as R;
+        let (mut zone, owner, npc) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let shield_id = crate::domain::zone::ItemInstanceId::new(901).unwrap();
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        let mut item =
+            player.inventory[&crate::domain::zone::ItemInstanceId::new(900).unwrap()].clone();
+        item.id = shield_id;
+        item.template_id = 628;
+        item.count = 1;
+        player.inventory.insert(shield_id, item);
+        zone.rebuild_v5(owner.entity).unwrap();
+        let command = item_intent(
+            &zone,
+            owner.entity,
+            982,
+            crate::domain::zone::ItemCommandKind::Equip {
+                instance: shield_id,
+                preferred_slot: Some(EquipSlot::Lhand),
+            },
+        );
+        let tick = zone
+            .run_tick(zone.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                1,
+                ZoneCommand::Item(Box::new(command)),
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        let radius = zone.effective(npc.entity).unwrap().physical.random_damage();
+        let spread = (R::Spread, radius * 2 + 1, radius);
+        // Coincident attacker counts as front and inside the shield angle (design §5.3).
+        let before = zone.entities[&npc.entity].pos;
+        let pos = zone.entities[&owner.entity].pos;
+        zone.entities.get_mut(&npc.entity).unwrap().pos = pos;
+        zone.aoi.relocate(npc.entity, before, pos);
+        let run = |zone: &ZoneState, rolls: &[(DamageRollSite, u32, u32)]| {
+            let mut zone = zone.clone();
+            let mut trace = Vec::new();
+            let result = zone
+                .auto_damage_v5(npc, owner, &mut scripted(rolls, &mut trace))
+                .unwrap();
+            assert_eq!(trace.len(), rolls.len());
+            result
+        };
+        // L2Character.java:1324-1335: hit, shield, critical; a perfect block returns 1
+        // before the formula's spread draw (Formulas.java:676-678).
+        let perfect = run(
+            &zone,
+            &[
+                (R::AutoHit, 1000, 0),
+                (R::ShieldPerfect, 100, 91),
+                (R::AutoCritical, 1000, 999),
+            ],
+        );
+        assert_eq!(perfect, (AttackOutcome::Hit, 1));
+        let blocked = run(
+            &zone,
+            &[
+                (R::AutoHit, 1000, 0),
+                (R::ShieldPerfect, 100, 90),
+                (R::ShieldNormal, 100, 0),
+                (R::AutoCritical, 1000, 999),
+                spread,
+            ],
+        );
+        let open = run(
+            &zone,
+            &[
+                (R::AutoHit, 1000, 0),
+                (R::ShieldPerfect, 100, 90),
+                (R::ShieldNormal, 100, 99),
+                (R::AutoCritical, 1000, 999),
+                spread,
+            ],
+        );
+        assert_eq!(blocked.0, AttackOutcome::Hit);
+        assert!(blocked.1 < open.1, "{blocked:?} {open:?}");
+        // A miss draws nothing after the hit roll.
+        assert_eq!(run(&zone, &[(R::AutoHit, 1000, 999)]), (AttackOutcome::Miss, 0));
+        // Behind the victim's east facing: no shield draws, back damage multiplier 6/5.
+        let mut behind = zone.clone();
+        let back = Vec2Fixed::from_tiles(9, 10);
+        behind.entities.get_mut(&npc.entity).unwrap().pos = back;
+        behind.aoi.relocate(npc.entity, pos, back);
+        assert_eq!(
+            behind.proximity_v6(npc.entity, owner.entity).unwrap(),
+            crate::domain::zone::item_combat::Proximity::Back
+        );
+        let mut trace = Vec::new();
+        assert_eq!(
+            behind
+                .clone()
+                .shield_v6(npc, owner, &mut scripted(&[], &mut trace))
+                .unwrap(),
+            ShieldOutcome::None
+        );
+        let rear = run(&behind, &[(R::AutoHit, 1000, 0), (R::AutoCritical, 1000, 999), spread]);
+        assert!(rear.1 > open.1, "{rear:?} {open:?}");
+        // The legacy V5 formula keeps its draw order without shield or position terms.
+        let mut legacy = zone.clone();
+        legacy.phase4 = None;
+        let mut trace = Vec::new();
+        let result = legacy
+            .auto_damage_v5(
+                npc,
+                owner,
+                &mut scripted(
+                    &[(R::AutoHit, 1000, 0), (R::AutoCritical, 1000, 999), spread],
+                    &mut trace,
+                ),
+            )
+            .unwrap();
+        assert_eq!(result.0, AttackOutcome::Hit);
+    }
+
+    #[test]
     fn v6_blow_xml_order_lethal_can_land_when_fatal_blow_misses() {
         use crate::domain::zone::skill::SkillId;
         let (mut zone, owner, npc) = equipment_fixture();
