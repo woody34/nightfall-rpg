@@ -36,6 +36,7 @@ pub mod evidence;
 mod fixed;
 pub mod item;
 pub mod item_angles;
+mod item_cast;
 pub mod item_conditions;
 pub mod item_enchant;
 pub mod item_equipment;
@@ -148,12 +149,13 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 75] = [
+    const SOURCES: [(&str, &str); 76] = [
         ("mod.rs", include_str!("mod.rs")),
         ("item.rs", include_str!("item.rs")),
         ("item_rules.rs", include_str!("item_rules.rs")),
         ("item_sources.rs", include_str!("item_sources.rs")),
         ("item_angles.rs", include_str!("item_angles.rs")),
+        ("item_cast.rs", include_str!("item_cast.rs")),
         ("phase4.rs", include_str!("phase4.rs")),
         ("phase4_projection.rs", include_str!("phase4_projection.rs")),
         ("item_inventory.rs", include_str!("item_inventory.rs")),

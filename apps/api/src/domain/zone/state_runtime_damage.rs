@@ -5500,4 +5500,151 @@ mod tests {
             assert_eq!(zone.phase3.as_ref().unwrap().canonical, phase3);
         }
     }
+    #[test]
+    #[allow(clippy::too_many_lines)] // Synthetic retained-state boundary test; actual Use producer is a separate gate.
+    fn v6_item_cast_snapshot_requires_exact_paid_source_and_preserves_both_lanes() {
+        use crate::domain::zone::phase4::{ItemCastState, ItemPayment};
+        use crate::domain::zone::{
+            skill::{SkillId, SkillRef},
+            ItemInstanceId,
+        };
+        let (mut zone, owner, _) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let now = Tick(zone.next_tick.0 - 1);
+        let cursor = zone.rng.get_word_pos();
+        let rules = Arc::clone(&zone.phase3.as_ref().unwrap().canonical.rules);
+        let mut next = zone.phase3.as_ref().unwrap().canonical.next_cast_id;
+        let mut main = None;
+        for (template, skill, rank, simultaneous) in [(737, 2014, 1, false), (5591, 2166, 1, true)]
+        {
+            let skill = rules.skills().get(SkillId(skill)).unwrap();
+            let mut local = zone.sidecar(owner.entity).unwrap().clone();
+            local.cast = CastState::Idle;
+            let effective = zone.effective(owner.entity).unwrap();
+            let terms = state_skill::cast_terms(
+                skill,
+                rank,
+                CastStatContext {
+                    player_level: Some(effective.physical.level()),
+                    calculator: &effective.calculator,
+                    conditions: FunctionConditions {
+                        weapon_kind: "SWORD",
+                        can_resurrect: true,
+                    },
+                    attack_speed: 1,
+                    cast_speed: effective.cast_speed,
+                    flags: effective.flags,
+                },
+            )
+            .unwrap();
+            let mut mp = zone.entities[&owner.entity].combat.as_ref().unwrap().mp;
+            let cast = local
+                .begin_cast(
+                    &mut next,
+                    &mut mp,
+                    zone.entities[&owner.entity].combat.as_ref().unwrap().hp,
+                    CastStart {
+                        now,
+                        ordinal: Ordinal(1),
+                        incarnation: owner.incarnation,
+                        terms,
+                        target: Some(owner),
+                        affect_limit: 0,
+                        targets: vec![owner],
+                    },
+                )
+                .unwrap();
+            local.launch_cast(now, cast.id, |_| true);
+            let CastState::Casting(cast) = local.cast else {
+                unreachable!()
+            };
+            if !simultaneous {
+                main = Some(cast.clone());
+            }
+            zone.phase4.as_mut().unwrap().canonical.item_casts.insert(
+                cast.id,
+                ItemCastState {
+                    caster: owner,
+                    cast,
+                    origin: Some(ItemPayment {
+                        instance: ItemInstanceId::new(if simultaneous { 902 } else { 901 })
+                            .unwrap(),
+                        template,
+                        count: 1,
+                    }),
+                    simultaneous,
+                    weapon: None,
+                    shots: 0,
+                },
+            );
+        }
+        let main = main.unwrap();
+        let main_id = main.id;
+        let phase = &mut zone.phase3.as_mut().unwrap().canonical;
+        phase.next_cast_id = next;
+        phase.entities.get_mut(&owner.entity).unwrap().cast = CastState::Casting(main.clone());
+        // The item skill must never be inserted into the permanent class ledger.
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+        else {
+            unreachable!()
+        };
+        assert!(!player
+            .class_state
+            .learned_skills
+            .iter()
+            .any(|entry| entry.key == "l2.skill.2014"));
+        zone.validate_runtime_v5().unwrap();
+        let snapshot = zone.snapshot();
+        let item_rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let restored =
+            ZoneState::from_snapshot_with_items(snapshot.clone(), Some(Arc::clone(&item_rules)))
+                .unwrap();
+        assert_eq!(snapshot, restored.snapshot());
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Casting(main));
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical.item_casts.len(), 2);
+        for mutation in 0..8 {
+            let mut invalid = snapshot.clone();
+            let items = invalid.phase4.as_mut().unwrap();
+            if mutation == 0 {
+                items.item_casts.remove(&main_id);
+            } else {
+                let lane = items.item_casts.get_mut(&main_id).unwrap();
+                match mutation {
+                    1 => lane.origin = None,
+                    2 => lane.origin.as_mut().unwrap().template = 951,
+                    3 => lane.origin.as_mut().unwrap().count = 0,
+                    4 => lane.caster.incarnation += 1,
+                    5 => lane.simultaneous = true,
+                    6 => lane.shots = 8,
+                    7 => {
+                        lane.cast.skill = SkillRef {
+                            id: SkillId(2014),
+                            rank: 2,
+                        }
+                    },
+                    _ => unreachable!(),
+                }
+            }
+            assert!(
+                ZoneState::from_snapshot_with_items(invalid, Some(Arc::clone(&item_rules)))
+                    .is_err(),
+                "mutation {mutation}"
+            );
+        }
+        let mut invalid = snapshot;
+        let simultaneous = invalid
+            .phase4
+            .as_mut()
+            .unwrap()
+            .item_casts
+            .values_mut()
+            .find(|lane| lane.simultaneous)
+            .unwrap();
+        simultaneous.cast.complete_at = now;
+        assert!(ZoneState::from_snapshot_with_items(invalid, Some(item_rules)).is_err());
+    }
 }

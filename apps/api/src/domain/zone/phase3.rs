@@ -394,14 +394,29 @@ impl Phase3Snapshot {
         &self,
         combatants: &BTreeMap<super::EntityId, super::Phase3EntityContext<'_>>,
     ) -> Result<(), super::effects::EffectError> {
-        if !self.validate() || combatants.len() != self.entities.len() {
+        self.validate_live_with_item_casts(combatants, &BTreeMap::new())
+    }
+
+    pub(super) fn validate_live_with_item_casts(
+        &self,
+        combatants: &BTreeMap<super::EntityId, super::Phase3EntityContext<'_>>,
+        item_skills: &BTreeMap<super::EntityId, super::skill::SkillRef>,
+    ) -> Result<(), super::effects::EffectError> {
+        if !self.validate()
+            || combatants.len() != self.entities.len()
+            || item_skills.keys().any(|id| !combatants.contains_key(id))
+        {
             return Err(super::effects::EffectError::Invalid("Phase3 sidecar cardinality/policy"));
         }
         for (id, context) in combatants {
             self.entities
                 .get(id)
                 .ok_or(super::effects::EffectError::Invalid("missing combatant sidecar"))?
-                .validate_live(&self.rules, *context)?;
+                .validate_live_with_item_cast(
+                    &self.rules,
+                    *context,
+                    item_skills.get(id).copied(),
+                )?;
         }
         Ok(())
     }

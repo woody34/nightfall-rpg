@@ -567,9 +567,20 @@ impl ZoneState {
                 })
             })
             .collect();
+        let item_skills = self
+            .phase4
+            .as_ref()
+            .map(|items| {
+                items
+                    .canonical
+                    .validate_casts(&items.rules, &phase.canonical, &contexts)
+            })
+            .transpose()
+            .map_err(|_| SnapshotError::CombatMismatch)?
+            .unwrap_or_default();
         phase
             .canonical
-            .validate_live(&contexts)
+            .validate_live_with_item_casts(&contexts, &item_skills)
             .map_err(|_| SnapshotError::CombatMismatch)?;
         for (id, e) in &self.entities {
             let Some(c) = &e.combat else { continue };

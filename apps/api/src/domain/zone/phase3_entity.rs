@@ -140,6 +140,15 @@ impl Phase3Entity {
         rules: &Phase3Rules,
         context: Phase3EntityContext<'_>,
     ) -> Result<(), EffectError> {
+        self.validate_live_with_item_cast(rules, context, None)
+    }
+
+    pub(super) fn validate_live_with_item_cast(
+        &self,
+        rules: &Phase3Rules,
+        context: Phase3EntityContext<'_>,
+        item_skill: Option<super::skill::SkillRef>,
+    ) -> Result<(), EffectError> {
         self.fractions.validate()?;
         if self.ordinal.0 == 0
             || context.incarnation == 0
@@ -201,7 +210,7 @@ impl Phase3Entity {
         }
         self.validate_modifiers(rules, context.learned)?;
         if let CastState::Casting(cast) = &self.cast {
-            cast.validate(rules, context)?;
+            cast.validate(rules, context, item_skill)?;
         }
         if let Some(player) = &self.player {
             player.validate(rules, context)?;
@@ -274,10 +283,11 @@ impl Phase3Entity {
 }
 
 impl CastInFlight {
-    fn validate(
+    pub(super) fn validate(
         &self,
         rules: &Phase3Rules,
         context: Phase3EntityContext<'_>,
+        item_skill: Option<super::skill::SkillRef>,
     ) -> Result<(), EffectError> {
         let skill = rules
             .skills()
@@ -305,6 +315,7 @@ impl CastInFlight {
             || (self.launched && self.launch_at >= context.next_tick)
             || (!self.launched && self.launch_at < context.next_tick)
             || (context.player
+                && item_skill != Some(self.skill)
                 && !context
                     .learned
                     .iter()
