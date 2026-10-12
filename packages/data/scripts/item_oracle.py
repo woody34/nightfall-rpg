@@ -550,6 +550,7 @@ class Source:
             'model/stats/Formulas.java','model/stats/BaseStats.java','network/clientpackets/RequestEnchantItem.java','network/clientpackets/RequestRefineCancel.java',
             'network/clientpackets/AbstractRefinePacket.java','datatables/AugmentationData.java','model/itemcontainer/PcInventory.java',
             'model/stats/functions/formulas/FuncPDefMod.java','model/stats/functions/formulas/FuncMDefMod.java',
+            'model/actor/templates/L2PcTemplate.java','data/xml/impl/PlayerTemplateData.java','datatables/ItemTable.java',
             'enums/StatFunction.java']:
             self.read(G+file,True)
         for path in sorted((game/(G+'model/stats/functions/formulas')).glob('*.java')):
@@ -763,6 +764,42 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None,bas
             'enchant_hp':hp_bonus,'traits':traits,'weight':sum(int(src.properties(sid).get('weight','0')) for sid,e,slot,seq in equipment)}
 
 
+def defence_slot_stats(src,class_file,level,occupied_slots,chest_bodypart='none'):
+    """Independent player FuncPDefMod/FuncMDefMod projection, before item additions."""
+    static=src.xml(class_file).find('staticData')
+    pslots={('under' if n.tag=='underwear' else n.tag):int(n.text) for n in static.find('basePDef')}
+    mslots={n.tag:int(n.text) for n in static.find('baseMDef')}
+    mslots['lfinger']=mslots['rfinger']
+    occupied=set(occupied_slots)
+    if len(occupied)!=len(occupied_slots) or not occupied<=pslots.keys()|mslots.keys():raise ValueError('invalid defence slot')
+    poccupied=set(occupied)&pslots.keys()
+    if 'chest' in occupied and chest_bodypart in {'fullarmor','onepiece'}:poccupied.add('legs')
+    moccupied=occupied&mslots.keys()
+    psub=sum(pslots[slot] for slot in poccupied);msub=sum(mslots[slot] for slot in moccupied)
+    lm=F(level+89,100);men=src.bonuses['MEN'][int(static.findtext('baseMEN'))]
+    pdef=(sum(pslots.values())-psub)*lm;mdef=(sum(mslots.values())-msub)*men*lm
+    return {'p_def_base':sum(pslots.values()),'m_def_base':sum(mslots.values()),
+            'p_def_subtracted_slots':sorted(poccupied),'m_def_subtracted_slots':sorted(moccupied),
+            'p_def_subtraction':psub,'m_def_subtraction':msub,'level_modifier':lm,'men_bonus':men,
+            'p_def':pdef,'m_def':mdef,'p_def_q':q(pdef),'m_def_q':q(mdef)}
+
+
+def class_slot_cases(src):
+    # Select base classes independently from the pinned class graph (parent absent).
+    graph=src.xml(D+'stats/chars/classList.xml')
+    base_ids={int(n.get('classId')) for n in graph.findall('class') if n.get('parentClassId') is None and src.races.get(int(n.get('classId'))) in {'HUMAN','ELF','DARK_ELF','ORC','DWARF'}}
+    if len(base_ids)!=9:raise ValueError('unexpected supported base classes')
+    for path in sorted((src.dp/(D+'stats/chars/baseStats')).glob('*.xml')):
+        file=path.relative_to(src.dp).as_posix();root=src.xml(file);cid=int(root.findtext('classId'))
+        if cid not in base_ids:continue
+        physical=['chest','legs','head','feet','gloves','under','cloak'];magical=['rear','lear','rfinger','lfinger','neck']
+        cases=[('empty',[],'none')]+[(slot,[slot],'none') for slot in physical+magical]
+        cases += [('all',physical+magical,'none'),('fullarmor',['chest'],'fullarmor'),
+                  ('onepiece',['chest'],'onepiece'),('fullarmor-legs',['chest','legs'],'fullarmor')]
+        for name,occupied,body in cases:
+            yield f'class-slots-{cid}-{name}',{'class_file':file,'level':84,'occupied_slots':occupied,'chest_bodypart':body}
+
+
 def consumable_definition(src,template_id):
     properties=src.properties(template_id);result=[]
     for reference in properties.get('item_skill','').split(';'):
@@ -899,6 +936,13 @@ def make_vectors(src):
             refs=[(sid,rank,100)];sheet=gear_stats(src,human,84,[],refs)
             for lifecycle in ['living','death','dead_admission','resurrection']:
                 add('F1',f'system-{sid}-{rank}-{lifecycle}',{'skill_refs':refs,'lifecycle':lifecycle},sheet,[src.skills[sid][0],'design/D16 retained System providers'])
+    for name,inputs in class_slot_cases(src):
+        add('F1',name,inputs,defence_slot_stats(src,**inputs),
+            [inputs['class_file']+':15-31','G/model/actor/templates/L2PcTemplate.java:64-75',
+             'G/data/xml/impl/PlayerTemplateData.java:106-108',
+             'G/model/stats/functions/formulas/FuncPDefMod.java:44-70',
+             'G/model/stats/functions/formulas/FuncMDefMod.java:44-66','G/model/stats/BaseStats.java:115-120',
+             'G/datatables/ItemTable.java:79,104 fullarmor/onepiece share SLOT_FULL_ARMOR'])
     # Every branch/grade at source enchant boundaries, including u32 storage endpoint.
     for grade in src.grades:
         for body,kind in [('rhand','SWORD'),('lrhand','POLE'),('lrhand','BOW'),('lrhand','DUAL')]:
@@ -1239,6 +1283,7 @@ def verify_coverage(src,vectors):
         for rank,value in enumerate(table['#levelRange'],1):
             lo,hi=map(int,value.split(';'))
             required|={f'elixir-range-{sid}-{rank}-{level}' for level in [lo-1,lo,hi,hi+1]}
+    required|={name for name,inputs in class_slot_cases(src)}
     missing=required-by_id.keys()
     if missing:raise ValueError('design 12.1 missing vectors: '+','.join(sorted(missing)))
     pole=by_id['gear-07-POLE']['inputs']

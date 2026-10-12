@@ -362,6 +362,105 @@
       "source": {
         "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
         "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/DarkFighter.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "787a1dca16affaf39b5931c26c27c58053334f4a9c6f4cc6273a1e1c0cf7e7e2",
+      "bytes": 16156
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/DarkMystic.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "281dd7d2be9578e5615f6b2dc05267fe92eb51550517339eb8e6dcb7ca228dd4",
+      "bytes": 16263
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/DwarvenFighter.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "d3a0fd7b4edd90fe383545a1f9b01fb4a9a13b39635a5f8fc7781f78e8247298",
+      "bytes": 16259
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElvenFighter.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c2c8e8b67055295af09e326078e2b42d2ab210c56b1718cabc0e18efede4994e",
+      "bytes": 16236
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElvenMystic.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c1f99abba61575c373d30da830896216d9859a65e19e4e07b4fd4f2619e5ff6b",
+      "bytes": 16260
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "1ce252a68f1a897e9c3d6b95f36f6b5b62ab80d8e0608f75bf9ec46fdbc1748f",
+      "bytes": 16247
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/HumanMystic.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "e7e98ce26ed492c92b59725bf1d95211435f94070f373a7329a2716835ae0ba7",
+      "bytes": 16264
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/OrcFighter.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "964578571aab832ab5bb3e68f774b410b6a36f207e43ce81db8b0f96860931f6",
+      "bytes": 16175
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/OrcMystic.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "6446fe92a11686d542701a555ce166aadf8ce439ca107b02ea9dc43e0db00e9e",
+      "bytes": 16262
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
         "file": "src/main/resources/data/stats/enchantHPBonus.xml",
         "lines": "1-95",
         "symbol": "source file"
@@ -6049,6 +6148,17 @@
       "source": {
         "repository": "https://bitbucket.org/l2jserver/l2j-server-game",
         "revision": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+        "file": "src/main/java/com/l2jserver/gameserver/data/xml/impl/PlayerTemplateData.java",
+        "lines": "1-148",
+        "symbol": "source file"
+      },
+      "sha256": "c24ad1d85c313ecba16b1cc062ca8027c19b9c4c294249d955623b37c333c6b5",
+      "bytes": 5940
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-game",
+        "revision": "abfde0490ac52a2106e884b7242c0276c44cdf76",
         "file": "src/main/java/com/l2jserver/gameserver/datatables/AugmentationData.java",
         "lines": "1-796",
         "symbol": "source file"
@@ -6088,6 +6198,17 @@
       },
       "sha256": "a30f766fb14b270d4f284bb6365ed64a9ea8a874e3ec0fad89e8f89d25091a8a",
       "bytes": 336575
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-game",
+        "revision": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+        "file": "src/main/java/com/l2jserver/gameserver/model/actor/templates/L2PcTemplate.java",
+        "lines": "1-183",
+        "symbol": "source file"
+      },
+      "sha256": "6384c9faafb29d66de515402b240807d67352de0c51f9e0c844521d8e10db72b",
+      "bytes": 5930
     },
     {
       "source": {

@@ -126,3 +126,18 @@ Diagnostic `capability_counts.json.required_condition_closure` records
 `condition:string`, `architect:string`, `runtime_support:string`,
 `skill_ids:int[]`, `template_ids:int[]`, `imported/admitted/deferred:int` for the
 D34 required elixir closure. This JSON remains outside semantic runtime hashes.
+
+D35 `class_slots.toml` adds hash-bound slot bases for the nine supported immutable
+base classes (ascending `base_class_id`): `schema:int=1`, `sources:Source[]`,
+`classes:ClassSlots[]`. ClassSlots is `{base_class_id:int,key:string,
+p_def_slots:{chest:int,legs:int,head:int,feet:int,gloves:int,under:int,cloak:int},
+m_def_slots_xml:{rear:int,lear:int,rfinger:int,lfinger:int,neck:int},
+m_def_slots:{rear:int,lear:int,rfinger:int,lfinger:int,neck:int},source:Source}`.
+Values are integer defence bases, before level/MEN scaling. `under` maps XML
+`underwear`; `m_def_slots_xml` preserves literal XML, while effective
+`m_def_slots.lfinger` duplicates RFINGER (`L2PcTemplate.java:64-75`). Totals use
+these effective maps (`PlayerTemplateData.java:106-108`). Occupied physical slots
+subtract their bases; fullarmor/onepiece CHEST also subtracts LEGS once. Occupied
+magical slots subtract their effective bases. Existing V5 inputs are unchanged.
+The table participates in `rules_manifest.files` and `data_sha256`; source byte
+hashes remain in `source_inventory.json`.
