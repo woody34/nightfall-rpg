@@ -89,170 +89,225 @@ def requirements(scenario):
 def source():return oracle.Source()
 
 
-# Flags are typed per oracle parameter, not by a global name (support is numeric
-# for enchant_outcome but boolean for enchant_valid).
-BOOLEAN_REQUIRED = {
-    'crystal_count': {'weapon'}, 'failure_refund': {'weapon'},
-    'bow_launch': {'miss'}, 'resurrection_scroll': {'dead','repeat'},
-    'learned_item_cost': {'repeat'}, 'dual_plan': {'second_valid'},
-    'enchant_safe': {'fullarmor'}, 'retail_draw_contract': {'accessory'},
-    'item_regen_status': {'dead','stunned'},
-    'set_shield_history': {'previous','chest_present','matching_shield'},
+# E1 item_oracle/item_behavior_oracle signatures and design §12.1 operand families.
+# Structured operands use records/maps/tuples; optional means absent, not nullable.
+I64_MAX=2**63-1
+NONNEG_INT=('nonneg-int',0,I64_MAX)
+IDENTITY=('nonneg-int',1,I64_MAX)
+SIGNED_INT=('int',-2**63,I64_MAX)
+U32=('u32',0,2**32-1)
+TEMPLATE=('u32',1,2**32-1)
+NUMERIC=('exact-numeric',None,None)
+NONNEG_NUMERIC=('exact-numeric',0,None)
+POSITIVE_NUMERIC=('exact-numeric',0,None,'positive')
+BOOL=('bool',)
+TEXT=('string',)
+
+
+def enum(*values):return ('enum',values)
+def nullable(kind):return ('nullable',kind)
+def list_of(kind):return ('list',kind)
+def tuple_of(*kinds):return ('tuple',kinds)
+def record(required,optional=None):return ('record',required,optional or {})
+def map_of(key,value):return ('map',key,value)
+def int_range(minimum,maximum):return ('nonneg-int',minimum,maximum)
+
+
+GRADES=enum('NONE','D','C','B','A','S','S80','S84')
+CHARGE=enum('soul','spirit','blessed')
+PROXIMITY=enum('front','side','back')
+SLOTS=set(('under head hair hair2 neck rhand chest lhand rear lear gloves legs feet '
+           'rfinger lfinger lbracelet rbracelet deco1 deco2 deco3 deco4 deco5 deco6 cloak belt').split())
+SLOT=enum(*sorted(SLOTS))
+BODY_PART=enum(*sorted(SLOTS|{'none','lrhand','onepiece','fullarmor','alldress','hairall'}))
+WEAPON_TYPE=enum('NONE','SWORD','BLUNT','DAGGER','BOW','CROSSBOW','DUAL','DUALFIST','POLE',
+                 'FIST','ETC','BIGSWORD','BIGBLUNT','RAPIER','ANCIENTSWORD','DUALDAGGER')
+COUNT_MAP=map_of(('id-key',),NONNEG_INT)
+ITEM=record(dict(instance_id=IDENTITY,template_id=TEMPLATE,count=NONNEG_INT),
+            dict(enchant=U32,charges=int_range(0,7),grade=GRADES,kind=TEXT,augment_id=nullable(U32)))
+WEAPON=record(dict(template_id=TEMPLATE,grade=GRADES,mp_cost=NONNEG_INT,
+                   reduced_chance=int_range(0,100),reduced_cost=NONNEG_INT,spread_radius=NONNEG_INT))
+CONTEXT=record({},dict(canEscape=BOOL,canResurrect=BOOL,inside_zone_ids=list_of(U32),
+    race=enum('HUMAN','ELF','DARK_ELF','ORC','DWARF','KAMAEL'),level=IDENTITY,
+    weapon_type=WEAPON_TYPE,armor_type=enum('NONE','LIGHT','HEAVY','MAGIC'),slots=list_of(SLOT),
+    sitting=BOOL,moving=BOOL,running=BOOL))
+SKILL=record(dict(id=TEMPLATE,rank=TEMPLATE),dict(hit_time_ms=NONNEG_INT,static=BOOL,simultaneous=BOOL,
+    reuse_delay_ms=NONNEG_INT,item_consume_id=U32,item_consume_count=NONNEG_INT,
+    conditions=list_of(TEXT),effects=list_of(record(dict(name=TEXT,params=map_of(TEXT,TEXT)))),
+    source=TEXT,blockers=list_of(TEXT)))
+DEFINITION=record(dict(template_id=TEMPLATE,handler=TEXT,default_action=TEXT,etcitem_type=TEXT,
+    reuse_delay_ms=NONNEG_INT,reuse_group=NONNEG_INT,immediate=BOOL,ex_immediate=BOOL,skills=list_of(SKILL)))
+OFFER=record(dict(offer_id=IDENTITY,target_incarnation=IDENTITY,created_at=NONNEG_INT,
+    expires_at=NONNEG_INT,restore_percent=NONNEG_NUMERIC,recoverable_xp=NONNEG_INT))
+SA_INSTANCE=record(dict(id=IDENTITY,template_id=TEMPLATE,enchant=U32,augment_id=nullable(U32)))
+RETAIL_ROWS=list_of(tuple_of(int_range(1,65535),('exact-numeric',0,100)))
+
+INPUT_SCHEMAS={
+    'enchant_increment':dict(stat=enum('pAtk','mAtk','pDef','mDef','sDef'),grade=GRADES,
+        bodypart=BODY_PART,weapon_type=WEAPON_TYPE,enchant=U32),
+    'enchant_hp':dict(bonuses=list_of(NONNEG_NUMERIC),enchant=U32,onepiece=BOOL),
+    'crystal_count':dict(base=NONNEG_INT,bonus=NONNEG_INT,enchant=U32,weapon=BOOL),
+    'failure_refund':dict(base=NONNEG_INT,bonus=NONNEG_INT,enchant=U32,weapon=BOOL,crystallizable=BOOL,crystal_id=U32),
+    'enchant_chance':dict(base=NONNEG_NUMERIC,bonus=NONNEG_NUMERIC,support=NONNEG_NUMERIC),
+    'enchant_outcome':dict(base=NONNEG_NUMERIC,bonus=NONNEG_NUMERIC,support=NONNEG_NUMERIC,
+        residue=int_range(0,99999),enchant=U32,blessed=BOOL,safe=BOOL),
+    'enchant_valid':dict(current=U32,max_enchant=U32,blessed=BOOL,support=BOOL),
+    'max_load':dict(con_bonus=NONNEG_NUMERIC,weight_limit=NONNEG_NUMERIC,multiplier=NONNEG_NUMERIC,add=NUMERIC),
+    'overload':dict(weight=NONNEG_INT,maximum=SIGNED_INT,bonus=NONNEG_NUMERIC,
+        previous_level=int_range(0,4),previous_overloaded=BOOL),
+    'grade_penalties':dict(equipped=list_of(record(dict(instance_id=IDENTITY,grade=int_range(0,7),weapon=BOOL),
+        dict(arrow=BOOL,slot=NONNEG_INT))),expertise=NONNEG_INT,bonus=SIGNED_INT),
+    'fist_spread':dict(level=IDENTITY,residue=nullable(NONNEG_INT),template_radius=nullable(NONNEG_INT)),
+    'pole_damage':dict(formula=NUMERIC,percent=NONNEG_NUMERIC,primary=BOOL),
+    'pole_sequence':dict(candidates=list_of(record(dict(eligible=BOOL,hit=BOOL,formula=NUMERIC))),maximum=NONNEG_INT),
+    'bow_reuse':dict(reuse_delay=NONNEG_INT,attack_speed=POSITIVE_NUMERIC,weapon_reuse_modifier=NONNEG_NUMERIC),
+    'bow_damage':dict(formula=NUMERIC,dx_milli=SIGNED_INT,dy_milli=SIGNED_INT),
+    'dual_damage':dict(formula=NUMERIC,miss=BOOL),
+    'dual_timing':dict(attack_speed=POSITIVE_NUMERIC),
+    'skill_caller_damage':dict(formula=NUMERIC,critical=BOOL),
+    'position':dict(facing=tuple_of(SIGNED_INT,SIGNED_INT),relative=tuple_of(SIGNED_INT,SIGNED_INT)),
+    'shield':dict(rate=NONNEG_NUMERIC,dex_bonus=NONNEG_NUMERIC,bow=BOOL,eligible=BOOL,facing=BOOL,
+        sigil=BOOL,perfect_residue=nullable(int_range(0,99)),normal_residue=nullable(int_range(0,99))),
+    'physical_damage':dict(p_atk=NONNEG_NUMERIC,defence=NONNEG_NUMERIC,power=NUMERIC,
+        caller=enum('auto','physical','blow'),shot=BOOL,proximity=PROXIMITY,shield_def=NONNEG_NUMERIC,
+        perfect=BOOL,critical=BOOL,crit_dmg=NONNEG_NUMERIC,crit_pos=NONNEG_NUMERIC,
+        def_crit_dmg=NONNEG_NUMERIC,crit_add=NUMERIC,def_crit_add=NUMERIC,trait=NONNEG_NUMERIC,
+        spread=NONNEG_NUMERIC,pvp=NONNEG_NUMERIC,attribute=NONNEG_NUMERIC,npc=NONNEG_NUMERIC),
+    'magic_damage':dict(power=NONNEG_NUMERIC,m_atk=NONNEG_NUMERIC,m_def=NONNEG_NUMERIC,spirit=BOOL,
+        blessed=BOOL,shield_def=NONNEG_NUMERIC,perfect=BOOL,critical=BOOL,attacker_player=BOOL,
+        target_player=BOOL,is_pvp=nullable(BOOL),skill_is_magic=BOOL,pvp_magic_def=NONNEG_NUMERIC,
+        pvp_skill_def=NONNEG_NUMERIC,magic_failures=BOOL,first_success=BOOL,second_success=nullable(BOOL),
+        level_difference=SIGNED_INT,magic_crit_damage=NONNEG_NUMERIC,spread=NONNEG_NUMERIC,
+        pvp_magic_damage=NONNEG_NUMERIC,pvp_skill_damage=NONNEG_NUMERIC,attribute=NONNEG_NUMERIC,npc=NONNEG_NUMERIC),
+    'cast_time':dict(hit_time=NONNEG_INT,casting_speed=POSITIVE_NUMERIC,spirit=BOOL,blessed=BOOL,static=BOOL,is_magic=BOOL),
+    'heal':dict(power=NUMERIC,m_atk=NONNEG_NUMERIC,mp_consume2=NONNEG_NUMERIC,mage=BOOL,npc=BOOL,
+        grade=GRADES,spirit=BOOL,blessed=BOOL,static=BOOL,heal_effect=NONNEG_NUMERIC,critical=BOOL,is_magic=BOOL,
+        current_hp=NONNEG_INT,recoverable_hp=nullable(NONNEG_NUMERIC),remainder_q=int_range(0,oracle.Q-1)),
+    'blow_success':dict(chance=NONNEG_NUMERIC,dex=NONNEG_NUMERIC,proximity=PROXIMITY,
+        residue=int_range(0,999),modifier=NONNEG_NUMERIC),
+    'lethal':dict(full=NONNEG_NUMERIC,half=NONNEG_NUMERIC,full_residue=int_range(0,999),
+        half_residue=int_range(0,999),eligible=BOOL,attribute=NONNEG_NUMERIC,trait=NONNEG_NUMERIC),
+    'retail_select':dict(rows=RETAIL_ROWS,residue=int_range(0,9999)),
+    'retail_distribution':dict(rows=RETAIL_ROWS),
+    'category':dict(residue=int_range(0,9999),accessory=BOOL),
+    'pack_options':dict(first=int_range(1,65535),second=int_range(1,65535)),
+    'cancel_fee':dict(grade=enum('C','B','A','S','S80','S84'),crystals=NONNEG_INT),
+    'set_shield_history':dict(previous=BOOL,mutation=enum('remove','equip_shield','equip_chest'),
+        chest_present=BOOL,matching_shield=BOOL,complete=BOOL,required_part=BOOL),
+    'clamp_no_heal':dict(current=NONNEG_NUMERIC,new_max=NONNEG_NUMERIC),
+    'charge_transition':dict(charges=list_of(CHARGE),use_spirit=BOOL,use_soul=BOOL,landed=BOOL,unequip=BOOL),
+    'shot_payment':dict(charges=list_of(CHARGE),kind=CHARGE,count=NONNEG_INT,available=NONNEG_INT,
+        weapon_grade=nullable(GRADES),shot_grade=GRADES,toggle=BOOL,
+        reduction=('list-tuple',tuple_of(int_range(0,100),NONNEG_INT)),residue=nullable(int_range(0,99))),
+    'shared_shot_bundle':dict(charges=list_of(CHARGE),hits=list_of(BOOL),use_spirit=BOOL,use_soul=BOOL,canceled=BOOL,unequip=BOOL),
+    'winning_providers':dict(providers=list_of(record(dict(key=TEXT,skill_id=TEMPLATE,rank=TEMPLATE,sequence=NONNEG_INT)))),
+    'consumable_use':dict(definition=DEFINITION,tick=NONNEG_INT,available=COUNT_MAP,
+        item_deadlines=nullable(COUNT_MAP),skill_deadlines=nullable(COUNT_MAP),main_casting=BOOL,condition_context=nullable(CONTEXT)),
+    'consumable_cast_sequence':dict(starts=list_of(record(dict(definition=DEFINITION,tick=NONNEG_INT,
+        cast_id=IDENTITY),dict(available=COUNT_MAP,condition_context=nullable(CONTEXT)))),caster_ordinal=NONNEG_INT,caster_id=IDENTITY),
+    'player_level_range':dict(condition=record(dict(kind=enum('player_level_range'),
+        ranges=list_of(record(dict(minimum=NONNEG_INT,maximum=NONNEG_INT))))),rank=TEMPLATE,level=IDENTITY),
+    'bow_launch':dict(weapon=WEAPON,inventory=list_of(ITEM),lhand=nullable(IDENTITY),mp=NONNEG_NUMERIC,
+        mp_modifier=NONNEG_NUMERIC,reduction_residue=nullable(int_range(0,99)),miss=BOOL,
+        reuse_remaining=NONNEG_INT,hit_chance=int_range(0,1000),hit_residue=nullable(int_range(0,999))),
+    'bow_refill':dict(weapon=WEAPON,arrow=ITEM,mp=NONNEG_NUMERIC),
+    'resurrection_scroll':dict(definition=DEFINITION,start_tick=NONNEG_INT,available=NONNEG_INT,
+        death_incarnation=IDENTITY,current_incarnation=IDENTITY,dead=BOOL,
+        response=enum('offer','accept','decline','expire'),response_tick=NONNEG_INT,response_offer_id=nullable(IDENTITY),
+        existing_offer=nullable(OFFER),repeat=BOOL,hp=NONNEG_NUMERIC,max_hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,
+        cp=NONNEG_NUMERIC,recoverable_xp=NONNEG_INT,restore_percent=NONNEG_NUMERIC,restore_hp=('exact-numeric',0,1)),
+    'dormant_use':dict(template_id=TEMPLATE,properties=map_of(TEXT,TEXT),inventory=list_of(ITEM),
+        selected_instance=IDENTITY,paperdoll=map_of(SLOT,IDENTITY),allocator_next=IDENTITY,reuse=COUNT_MAP),
+    'learned_item_cost':dict(skill_id=TEMPLATE,rank=TEMPLATE,consume_id=U32,consume_count=NONNEG_INT,
+        inventory=list_of(ITEM),phase=enum('complete','cancel'),repeat=BOOL),
+    'escape_timing':dict(definition=DEFINITION,start_tick=NONNEG_INT,casting_speed=POSITIVE_NUMERIC,
+        available=NONNEG_INT,resources=record(dict(hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,cp=NONNEG_NUMERIC,xp=NONNEG_INT)),incarnation=IDENTITY),
+    'dual_plan':dict(hits=tuple_of(BOOL,BOOL),formulas=tuple_of(NUMERIC,NUMERIC),second_valid=BOOL,
+        hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(0,1000),spread_radius=NONNEG_INT),
+    'enchant_safe':dict(current=U32,fullarmor=BOOL,safe_enchant=U32,safe_fullarmor=U32,
+        base=NONNEG_NUMERIC,residue=int_range(0,99999)),
+    'quantized_enchant':dict(base=NONNEG_NUMERIC,bonus=NONNEG_NUMERIC,support=NONNEG_NUMERIC),
+    'augmentation_provider':dict(option_id=IDENTITY,option_xml=TEXT,
+        event=enum('install','death','dead_admission','resurrection','unequip','cancel'),other_provider=nullable(IDENTITY),
+        hp=NONNEG_NUMERIC,maximum=NONNEG_NUMERIC,stat_baseline=map_of(TEXT,NUMERIC)),
+    'retail_draw_contract':dict(accessory=BOOL),
+    'item_regen_status':dict(base=NONNEG_NUMERIC,level_modifier=NONNEG_NUMERIC,stat_bonus=NONNEG_NUMERIC,
+        posture_modifier=NONNEG_NUMERIC,regen_modifier=NONNEG_NUMERIC,periodic_credit=NONNEG_NUMERIC,
+        current=NONNEG_INT,maximum=NONNEG_INT,remainder_q=int_range(0,oracle.Q-1),dead=BOOL,stunned=BOOL,invulnerable=BOOL,hp_blocked=BOOL),
+    'gear_stats':dict(class_file=TEXT,level=IDENTITY,equipment=list_of(tuple_of(TEMPLATE,U32,SLOT,NONNEG_INT)),
+        skill_refs=list_of(tuple_of(TEMPLATE,TEMPLATE,NONNEG_INT)),base_deltas=nullable(map_of(enum('str','dex','con','int','wit','men'),SIGNED_INT)),
+        base_delta_sequence=('int',-1,I64_MAX)),
+    'sa_exchange':dict(recipe_id=IDENTITY,before_instance=SA_INSTANCE,after_instance=SA_INSTANCE,
+        ingredients_before=COUNT_MAP,ingredients_after=COUNT_MAP,tax_rate=enum('0')),
+    'grant_denied':dict(auth_dev_tokens=BOOL,status=enum('FAILED_PRECONDITION'),before=list_of(IDENTITY),
+        after=list_of(IDENTITY),ledger_rows=NONNEG_INT,rng_before=NONNEG_INT,rng_after=NONNEG_INT),
 }
-INTEGER_INPUTS = {
-    'enchant_increment': {'enchant'}, 'enchant_hp': {'enchant'},
-    'crystal_count': {'base','bonus','enchant'}, 'failure_refund': {'base','bonus','enchant','crystal_id'},
-    'enchant_outcome': {'enchant','residue'}, 'enchant_valid': {'current','max_enchant'},
-    'fist_spread': {'level','residue','template_radius'}, 'pole_sequence': {'maximum'},
-    'bow_reuse': {'reuse_delay'}, 'bow_damage': {'dx_milli','dy_milli'},
-    'shield': {'perfect_residue','normal_residue'}, 'blow_success': {'residue'},
-    'lethal': {'full_residue','half_residue'}, 'retail_select': {'residue'},
-    'category': {'residue'}, 'pack_options': {'first','second'}, 'cancel_fee': {'crystals'},
-    'shot_payment': {'count','available','residue'}, 'gear_stats': {'level','base_delta_sequence'},
-    'grant_denied': {'ledger_rows','rng_before','rng_after'},
-    'enchant_safe': {'current','safe_enchant','safe_fullarmor','residue'},
-    'player_level_range': {'level','minimum','maximum'},
-}
-# Canonical counts/ticks are signed-bigint, enchant values are u32 (E1 item
-# oracle checked_u32; D17/D28). Additive stat modifiers and coordinates stay signed.
-INTEGER_INPUTS.update({
-    'crystal_count': {'base','bonus','enchant'}, 'failure_refund': {'base','bonus','enchant','crystal_id'},
-    'cast_time': {'hit_time'}, 'heal': {'current_hp','remainder_q'},
-    'overload': {'weight','maximum','previous_level'}, 'grade_penalties': {'expertise','bonus'},
-    'consumable_use': {'tick'}, 'consumable_cast_sequence': {'caster_ordinal'},
-    'player_level_range': {'rank','level'},
-    'resurrection_scroll': {'start_tick','available','death_incarnation','current_incarnation','response_tick','response_offer_id','recoverable_xp'},
-    'learned_item_cost': {'skill_id','rank','consume_id','consume_count'},
-    'escape_timing': {'start_tick','available','incarnation'},
-    'dual_plan': {'hit_chance','spread_radius'},
-    'dormant_use': {'template_id','selected_instance','allocator_next'},
-    'augmentation_provider': {'option_id','other_provider'},
-    'item_regen_status': {'current','maximum','remainder_q'},
-    'bow_launch': {'lhand','reuse_remaining','hit_chance','hit_residue','reduction_residue'},
-    'magic_damage': {'level_difference'},
-})
-NONNEGATIVE_INPUTS = {
-    'enchant_hp': {'bonuses'}, 'enchant_chance': {'base','bonus','support'},
-    'enchant_outcome': {'base','bonus','support'}, 'quantized_enchant': {'base','bonus','support'},
-    'enchant_safe': {'base'}, 'max_load': {'con_bonus','weight_limit','multiplier'},
-    'overload': {'bonus'}, 'pole_damage': {'percent'},
-    'bow_reuse': {'weapon_reuse_modifier'}, 'shield': {'rate','dex_bonus'},
-    'physical_damage': {'p_atk','defence','power','shield_def','crit_dmg','crit_pos','def_crit_dmg','trait','spread','pvp','attribute','npc'},
-    'magic_damage': {'power','m_atk','m_def','shield_def','pvp_magic_def','pvp_skill_def','magic_crit_damage','spread','pvp_magic_damage','pvp_skill_damage','attribute','npc'},
-    'heal': {'power','m_atk','mp_consume2','heal_effect','recoverable_hp'},
-    'blow_success': {'chance','dex','modifier'}, 'lethal': {'full','half','attribute','trait'},
-    'clamp_no_heal': {'current','new_max'}, 'bow_launch': {'mp','mp_modifier'},
-    'bow_refill': {'mp'}, 'resurrection_scroll': {'hp','max_hp','mp','cp','restore_percent','restore_hp'},
-    'augmentation_provider': {'hp','maximum'},
-    'item_regen_status': {'base','level_modifier','stat_bonus','posture_modifier','regen_modifier','periodic_credit'},
-}
-POSITIVE_INPUTS = {'dual_timing': {'attack_speed'}, 'bow_reuse': {'attack_speed'},
-                   'cast_time': {'casting_speed'}, 'escape_timing': {'casting_speed'}}
-U32_INPUTS = {'enchant_increment': {'enchant'}, 'enchant_hp': {'enchant'},
-    'crystal_count': {'enchant'}, 'failure_refund': {'enchant'}, 'enchant_outcome': {'enchant'},
-    'enchant_valid': {'current','max_enchant'}, 'enchant_safe': {'current','safe_enchant','safe_fullarmor'}}
+
+
+def validate_input(value,schema,path,bounds=False):
+    kind=schema[0]
+    def invalid():raise ValueError('invalid formula input '+path+' ('+kind+')')
+    if kind=='nullable':
+        if value is not None:validate_input(value,schema[1],path,bounds)
+    elif kind in ('list','tuple','list-tuple'):
+        if type(value) is not list:invalid()
+        if kind=='list':
+            for index,child in enumerate(value):validate_input(child,schema[1],f'{path}[{index}]',bounds)
+        elif kind=='list-tuple':
+            if value:validate_input(value,schema[1],path,bounds)
+        else:
+            if len(value)!=len(schema[1]):invalid()
+            for index,(child,child_schema) in enumerate(zip(value,schema[1])):
+                validate_input(child,child_schema,f'{path}[{index}]',bounds)
+    elif kind=='record':
+        required,optional=schema[1:]
+        if type(value) is not dict or not set(required)<=set(value) or set(value)-set(required)-set(optional):invalid()
+        for key,child in value.items():validate_input(child,(required|optional)[key],path+'.'+key,bounds)
+    elif kind=='map':
+        if type(value) is not dict:invalid()
+        for key,child in value.items():
+            validate_input(key,schema[1],path+'.key',bounds)
+            validate_input(child,schema[2],path+'['+str(key)+']',bounds)
+    elif kind=='bool':
+        if type(value) is not bool:invalid()
+    elif kind=='string':
+        if type(value) is not str:invalid()
+    elif kind=='enum':
+        if type(value) is not str or value not in schema[1]:invalid()
+    elif kind=='id-key':
+        if not (type(value) is int or type(value) is str and re.fullmatch(r'[1-9][0-9]*',value)):invalid()
+        if bounds and not 1<=int(value)<=2**32-1:invalid()
+    elif kind in ('int','nonneg-int','u32'):
+        if type(value) is not int:invalid()
+        if bounds and not schema[1]<=value<=schema[2]:invalid()
+    elif kind=='exact-numeric':
+        if type(value) is dict:
+            if set(value)!={'numerator','denominator'} or any(type(v) is not int for v in value.values()):invalid()
+            if value['denominator']<=0:invalid()
+            if bounds and (not -2**63<=value['numerator']<=I64_MAX or value['denominator']>I64_MAX):invalid()
+            number=oracle.F(value['numerator'],value['denominator'])
+        elif type(value) in (int,str,oracle.F):
+            try:number=oracle.exact(value)
+            except (ValueError,TypeError,ZeroDivisionError):invalid()
+        else:invalid()
+        if bounds and (not -2**63<=number.numerator<=I64_MAX or not 1<=number.denominator<=I64_MAX):invalid()
+        if bounds and (schema[1] is not None and number<schema[1] or
+                       schema[2] is not None and number>schema[2] or len(schema)>3 and number==0):invalid()
+    else:raise ValueError('unknown input schema kind: '+kind)
 
 
 def input_domains(name,inputs):
-    def bounded(value,minimum=0,maximum=2**63-1):
-        integer(value,minimum)
-        if value>maximum:raise ValueError('formula integer outside domain')
-    for key in INTEGER_INPUTS.get(name,()):
-        if inputs.get(key) is None:continue
-        minimum=0
-        if key in ('dx_milli','dy_milli','level_difference') or name=='grade_penalties' and key=='bonus':minimum=-2**63
-        elif key=='base_delta_sequence':minimum=-1
-        elif key in ('level','rank','incarnation','death_incarnation','current_incarnation','template_id','skill_id','selected_instance','allocator_next','option_id','other_provider'):minimum=1
-        bounded(inputs[key],minimum,2**32-1 if key in U32_INPUTS.get(name,()) or key in ('crystal_id','template_id','skill_id','consume_id','rank') else 2**63-1)
-    decoded=oracle.decode_rationals(inputs)
-    for key in NONNEGATIVE_INPUTS.get(name,set()) | POSITIVE_INPUTS.get(name,set()):
-        value=decoded.get(key)
-        if value is None:continue
-        for number in value if isinstance(value,list) else [value]:
-            number=oracle.exact(number)
-            if number<0 or key in POSITIVE_INPUTS.get(name,()) and number==0:
-                raise ValueError('formula numeric outside domain: '+key)
-            if name=='resurrection_scroll' and key=='restore_hp' and number>1:
-                raise ValueError('restoration ratio outside domain')
-    bounds={'enchant_outcome': {'residue':99999}, 'enchant_safe': {'residue':99999},
-            'blow_success': {'residue':999}, 'lethal': {'full_residue':999,'half_residue':999},
-            'shield': {'perfect_residue':99,'normal_residue':99},
-            'retail_select': {'residue':9999}, 'category': {'residue':9999},
-            'pack_options': {'first':65535,'second':65535},
-            'heal': {'remainder_q':oracle.Q-1}, 'item_regen_status': {'remainder_q':oracle.Q-1},
-            'overload': {'previous_level':4}, 'bow_launch': {'hit_residue':999,'reduction_residue':99,'hit_chance':1000}}
-    bounds['shot_payment']={'residue':99}
-    for key,maximum in bounds.get(name,{}).items():
-        if inputs.get(key) is not None:bounded(inputs[key],1 if name=='pack_options' else 0,maximum)
-    # Nested canonical operands, including inventories and gear enchant levels.
-    def nested(value,key='',top_level=False):
-        # Shot formulas take charge-name lists; item records take scalar charges.
-        shot_charges=key=='charges' and top_level and name in ('charge_transition','shot_payment','shared_shot_bundle') and isinstance(value,list)
-        if key in ('count','enchant','tick','start_tick','expires_at','created_at','created_tick','revision','charges','sequence','hit_time_ms','reuse_delay_ms','item_consume_count','mp_cost','reduced_cost','spread_radius','crystal_count','instance_id','template_id') and not shot_charges:
-            bounded(value,1 if key in ('instance_id','template_id') else 0,
-                    2**32-1 if key in ('enchant','template_id') else 2**63-1)
-        elif isinstance(value,dict):
-            if key in ('available','inventory','ingredients_before','ingredients_after','item_deadlines','skill_deadlines'):
-                for count in value.values():bounded(count)
-            elif set(value)!={'numerator','denominator'}:
-                for child_key,child in value.items():nested(child,child_key,value is inputs)
-        elif isinstance(value,list):
-            for child in value:nested(child)
-    nested(inputs)
-    for template,enchant,slot,sequence in inputs.get('equipment',[]):
-        bounded(template,1,2**32-1);bounded(enchant,0,2**32-1);bounded(sequence)
-    for skill,rank,sequence in inputs.get('skill_refs',[]):
-        bounded(skill,1,2**32-1);bounded(rank,1,2**32-1);bounded(sequence)
-    for key in ('hit_residues',):
-        for value in inputs.get(key,[]):bounded(value,0,999)
-    if inputs.get('reduction'):
-        chance,count=inputs['reduction'];bounded(chance,0,100);bounded(count)
-    if name in ('retail_select','retail_distribution'):
-        for option,chance in decoded['rows']:
-            bounded(option,1,65535)
-            if not 0<=oracle.exact(chance)<=100:raise ValueError('retail chance outside domain')
-    if name=='winning_providers':
-        for provider in inputs['providers']:
-            bounded(provider['skill_id'],1,2**32-1);bounded(provider['rank'],1,2**32-1);bounded(provider['sequence'])
-NESTED_FLAGS = set(('weapon arrow eligible hit admitted stackable equipped static simultaneous immediate '
-    'ex_immediate ex_immediate_effect immediate_effect dead invulnerable hp_blocked is_magic_weapon '
-    'is_crystallizable is_common is_hero is_pvp for_npc allow_self_resurrection is_oly_restricted '
-    'is_sellable is_droppable is_destroyable is_tradable is_depositable element_enabled is_questitem '
-    'is_freightable repeat').split())
-
-
-def input_types(name, inputs):
+    if name not in INPUT_SCHEMAS or type(inputs) is not dict:raise ValueError('unknown formula input schema')
     function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
-    parameters=inspect.signature(function).parameters if function else {}
-    flags=set(BOOLEAN_REQUIRED.get(name,()))
     if function:
-        flags.update(k for k,p in inspect.signature(function).parameters.items() if type(p.default) is bool)
-    flags.update({'auth_dev_tokens'} if name=='grant_denied' else ())
-    if name=='magic_damage':flags.update({'is_pvp','second_success'})
-    def check(value, boolean=False, nested=False):
-        if type(value) is bool:
-            if not boolean:raise ValueError('boolean numeric input forbidden')
-        elif boolean:raise ValueError('boolean parameter required')
-        elif isinstance(value,float):raise ValueError('float input forbidden')
-        elif isinstance(value,dict):
-            if set(value)=={'numerator','denominator'}:
-                integer(value['numerator'],minimum=-(2**63));integer(value['denominator'],1)
-            else:
-                for key,child in value.items():check(child,key in NESTED_FLAGS,True)
-        elif isinstance(value,list):
-            for child in value:check(child,False,nested)
-    for key,value in inputs.items():
-        if value is None and name=='magic_damage' and key in ('is_pvp','second_success'):continue
-        if key in INTEGER_INPUTS.get(name,()):
-            nullable=key in parameters and parameters[key].default is None or (name,key) in {
-                ('bow_launch','lhand'),('bow_launch','reduction_residue'),
-                ('resurrection_scroll','response_offer_id'),('augmentation_provider','other_provider')}
-            if not (value is None and nullable) and type(value) is not int:
-                raise ValueError('integer formula input required: '+key)
-        if name in ('dual_plan','shared_shot_bundle') and key=='hits':
-            if not isinstance(value,list):raise ValueError('boolean hit list required')
-            for child in value:check(child,True)
-        else:check(value,key in flags)
+        parameters=inspect.signature(function).parameters
+        required={key for key,p in parameters.items() if key!='src' and p.default is inspect.Parameter.empty}
+    else:required=set(INPUT_SCHEMAS[name])
+    schema=record({k:INPUT_SCHEMAS[name][k] for k in required},
+                  {k:v for k,v in INPUT_SCHEMAS[name].items() if k not in required})
+    # Complete shape validation precedes bounds and every oracle branch.
+    validate_input(inputs,schema,name)
+    validate_input(inputs,schema,name,bounds=True)
 
 
 @lru_cache(maxsize=1)
@@ -329,7 +384,6 @@ def enchant_source_inputs(target,scroll,support):
 
 def formula(name,inputs,actual):
     if name not in FORMULAS:raise ValueError('unknown item formula')
-    input_types(name,inputs)
     input_domains(name,inputs)
     # Match E1's finite function registry on arbitrary resolution inputs.
     if name=='gear_stats':
@@ -379,10 +433,6 @@ def formula(name,inputs,actual):
         oracle.verify_facts([dict(formula=name,inputs=inputs,expected=actual)])
         function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
         same(actual,oracle.rational(function(**oracle.decode_rationals(inputs))))
-
-
-SLOTS=set(('under head hair hair2 neck rhand chest lhand rear lear gloves legs feet '
-           'rfinger lfinger lbracelet rbracelet deco1 deco2 deco3 deco4 deco5 deco6 cloak belt').split())
 
 
 def validate_instance(value):
