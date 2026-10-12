@@ -184,6 +184,11 @@ impl ZoneState {
                 .filter(|r| i64::try_from(*r).is_ok())
                 .ok_or(RejectReason::InvalidLoad)?
         };
+        let operation_ordinal = u32::try_from(previous.as_ref().map_or(0, |p| p.receipts.len()))
+            .ok()
+            .and_then(|n| n.checked_add(1))
+            .ok_or(RejectReason::InvalidLoad)?;
+        let mut enchant = None;
         let mut allocator = items.canonical.allocator;
         let mutation = match command.kind {
             ItemCommandKind::Equip {
@@ -277,8 +282,39 @@ impl ZoneState {
                 allocator = next;
                 plan
             },
+            ItemCommandKind::Enchant {
+                target,
+                scroll,
+                support,
+            } => {
+                for instance in [Some(target), Some(scroll), support].into_iter().flatten() {
+                    self.guard_item_removal_v6(
+                        id,
+                        player
+                            .inventory
+                            .get(&instance)
+                            .ok_or(RejectReason::ItemNotOwned)?,
+                    )?;
+                }
+                let candidates = super::item_enchant::prepare(
+                    player,
+                    &items.rules,
+                    allocator,
+                    &command.kind,
+                    crate::domain::zone::item_inventory::InventoryBoundary { tick, revision },
+                    reference,
+                    operation_ordinal,
+                )?;
+                if candidates.changes_weapon() {
+                    self.guard_equipment_cast_v6(id)?;
+                }
+                let word_before = self.rng.get_word_pos();
+                let resolved = candidates.resolve(self.rng.next_u32(), word_before);
+                allocator = resolved.allocator;
+                enchant = Some((resolved.detail, resolved.attempt, resolved.payments));
+                resolved.mutation
+            },
             ItemCommandKind::Use { .. }
-            | ItemCommandKind::Enchant { .. }
             | ItemCommandKind::ToggleAutoShot { .. }
             | ItemCommandKind::Refine { .. }
             | ItemCommandKind::CancelRefine { .. }
@@ -355,10 +391,6 @@ impl ZoneState {
             evidence: Vec::new(),
         });
         projection.checkpoint = checkpoint;
-        let operation_ordinal = u32::try_from(projection.receipts.len())
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .ok_or(RejectReason::InvalidLoad)?;
         let mut affected = std::collections::BTreeSet::new();
         for change in mutation.changes {
             let instance = change
@@ -374,8 +406,22 @@ impl ZoneState {
             )
             .map_err(invalid)?;
             affected.insert(instance);
+            if let Some((_, attempt, payments)) = &enchant {
+                if payments.contains(&instance) {
+                    append_consumption(&mut projection, change, count_delta, attempt)?;
+                    continue;
+                }
+            }
             projection.ledger.push(ItemDeltaPlan {
-                operation: if count_delta < 0 {
+                operation: if enchant
+                    .as_ref()
+                    .is_some_and(|(_, attempt, _)| attempt.target == instance)
+                    && change.before.as_ref().and_then(|i| i.slot)
+                        == change.after.as_ref().and_then(|i| i.slot)
+                    && count_delta == 0
+                {
+                    ItemOperation::Enchant
+                } else if count_delta < 0 {
                     ItemOperation::Destroy
                 } else if count_delta > 0 {
                     ItemOperation::Grant
@@ -397,17 +443,24 @@ impl ZoneState {
                 causes: Vec::new(),
             });
         }
+        let detail = if let Some((detail, attempt, _)) = enchant {
+            projection.evidence.push(attempt.cause.clone());
+            projection.enchant_attempts.push(attempt);
+            detail
+        } else {
+            ItemResultDetail::Operation {
+                operation: reference.operation,
+                affected: affected.into_iter().collect(),
+                recipe: None,
+            }
+        };
         let result = FrozenItemResult {
             entity: id,
             incarnation,
             tick,
             inventory_revision: projection.checkpoint.inventory_revision,
             receipt: command.request_id,
-            detail: ItemResultDetail::Operation {
-                operation: reference.operation,
-                affected: affected.into_iter().collect(),
-                recipe: None,
-            },
+            detail,
         };
         projection.receipts.push(ItemReceiptFact {
             request_id: command.request_id,
@@ -682,4 +735,49 @@ fn removal_plan(
     plan.inventory = mutation.inventory;
     plan.changes.extend(mutation.changes);
     Ok((plan, mutation.allocator))
+}
+
+fn append_consumption(
+    projection: &mut Phase4Projection,
+    change: crate::domain::zone::item_inventory::InventoryChange,
+    count_delta: i64,
+    attempt: &crate::domain::zone::EnchantAttempt,
+) -> Result<(), RejectReason> {
+    use crate::domain::zone::phase4_projection::{ItemAuditEvidence, ItemEvidenceValue as V};
+    let instance = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?.id;
+    let cause = ItemAuditEvidence {
+        family: "enchant_payment".into(),
+        fields: BTreeMap::from([
+            ("receipt".into(), V::Text(attempt.receipt.key.to_string())),
+            ("operation_ordinal".into(), V::Unsigned(u64::from(attempt.operation_ordinal))),
+            ("count_delta".into(), V::Signed(count_delta)),
+        ]),
+    };
+    if let Some(index) = projection
+        .ledger
+        .iter()
+        .position(|delta| delta.operation == ItemOperation::Consume && delta.instance == instance)
+    {
+        let mut aggregate = projection.ledger.remove(index);
+        aggregate.count_delta = aggregate
+            .count_delta
+            .checked_add(count_delta)
+            .ok_or(RejectReason::InvalidLoad)?;
+        aggregate.after = change.after;
+        aggregate.causes.push(cause);
+        // The last scalar must remain after intervening grants in the ordered ledger.
+        projection.ledger.push(aggregate);
+    } else {
+        projection.ledger.push(ItemDeltaPlan {
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance,
+            before: change.before,
+            after: change.after,
+            count_delta,
+            receipt: None,
+            causes: vec![cause],
+        });
+    }
+    Ok(())
 }

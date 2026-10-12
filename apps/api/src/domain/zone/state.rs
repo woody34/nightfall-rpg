@@ -9,6 +9,8 @@ mod digest;
 mod evidence_hooks;
 #[path = "state_item_commands.rs"]
 mod item_commands;
+#[path = "state_item_enchant.rs"]
+mod item_enchant;
 #[path = "state_item_grant.rs"]
 mod item_grant;
 #[path = "state_item_materialize.rs"]
