@@ -66,6 +66,68 @@ mod tests {
         .unwrap()
     }
     #[test]
+    fn item_load_uses_tag_ten_with_strict_cross_sidecar_validation() {
+        use crate::domain::zone::{
+            AppliedCommand, CommandSource, Ordinal, Phase3Checkpoint, Phase4PlayerLoad, PlayerLoad,
+            SessionGeneration, Speed, Vec2Fixed,
+        };
+        let mut load = PlayerLoad::fresh("human_fighter");
+        load.phase3 = Some(Phase3Checkpoint::new());
+        load.phase4 = Some(Phase4PlayerLoad {
+            checkpoint: Some(
+                crate::domain::zone::phase4_projection::tests::projection().checkpoint,
+            ),
+            pending: Vec::new(),
+        });
+        let applied = AppliedCommand {
+            ordinal: Ordinal(1),
+            source: CommandSource::System,
+            seq: None,
+            command: ZoneCommand::SpawnPlayer {
+                entity: EntityId::from_uuid(uuid::Uuid::from_u128(1)),
+                name: "Owner".into(),
+                pos: Vec2Fixed::from_tiles(1, 1),
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                load: Some(Box::new(load.clone())),
+            },
+        };
+        let wire = super::super::command_to_pb(&applied);
+        assert_eq!(super::super::command_from_pb(wire.clone()).unwrap(), applied);
+        for schema in 3..=8 {
+            let record = super::super::PbRecord {
+                schema,
+                commands: vec![wire.clone()],
+                state_digest: vec![0; 32].into(),
+                ..Default::default()
+            };
+            assert_eq!(super::super::decode_record(&record.encode_to_vec()).is_ok(), schema == 8);
+        }
+        let mut spawn = if let Some(PbCommandKind::SpawnPlayer(spawn)) = wire.kind {
+            Some(spawn)
+        } else {
+            None
+        }
+        .unwrap();
+        let encoded_load = spawn.load.as_mut().unwrap();
+        assert!(encoded_load.phase4.is_some());
+        encoded_load.phase3 = None;
+        let mut corrupt = super::super::command_to_pb(&applied);
+        corrupt.kind = Some(PbCommandKind::SpawnPlayer(spawn));
+        assert!(super::super::command_from_pb(corrupt).is_err());
+        load.phase3 = None;
+        assert!(load.validate_phase4().is_err());
+        let bytes = canonical_json(load.phase4.as_ref().unwrap());
+        let mut whitespace = bytes.clone();
+        whitespace.push(b' ');
+        assert!(super::super::phase4_load_from_json(&whitespace).is_err());
+        let unknown = String::from_utf8(bytes)
+            .unwrap()
+            .replacen('{', "{\"unexpected\":0,", 1);
+        assert!(super::super::phase4_load_from_json(unknown.as_bytes()).is_err());
+    }
+
+    #[test]
     fn private_item_checkpoint_roundtrips_only_in_v6_event_stream() {
         let projection = crate::domain::zone::phase4_projection::tests::projection();
         let event = crate::domain::zone::ZoneEvent::ItemCheckpoint(Box::new(projection));

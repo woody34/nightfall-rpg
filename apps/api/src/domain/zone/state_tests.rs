@@ -9,6 +9,28 @@ use super::*;
 
 const GEN1: SessionGeneration = SessionGeneration(1);
 
+#[test]
+fn phase4_load_is_rejected_before_a_legacy_tick_mutates() {
+    let mut state = zone();
+    let before = state.snapshot();
+    let mut load = PlayerLoad::fresh("human_fighter");
+    load.phase3 = Some(crate::domain::zone::Phase3Checkpoint::new());
+    load.phase4 = Some(crate::domain::zone::Phase4PlayerLoad {
+        checkpoint: Some(crate::domain::zone::phase4_projection::tests::projection().checkpoint),
+        pending: Vec::new(),
+    });
+    let draft = state.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+        entity: id(1),
+        name: "Owner".into(),
+        pos: Vec2Fixed::from_tiles(1, 1),
+        speed: Speed::DEFAULT,
+        generation: GEN1,
+        load: Some(Box::new(load)),
+    })]);
+    assert_eq!(state.run_tick(draft), Err(TickError::Phase4CommandInLegacy));
+    assert_eq!(state.snapshot(), before);
+}
+
 fn zone() -> ZoneState {
     let bounds =
         ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256)).unwrap();

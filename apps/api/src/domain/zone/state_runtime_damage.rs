@@ -1725,6 +1725,7 @@ mod tests {
         let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
         let (mut zone, source, target, npc) = fixture();
         zone.phase3.as_mut().unwrap().canonical.rules = Arc::clone(&bundle.skills);
+        zone.phase3.as_mut().unwrap().canonical.rules_hash = bundle.skills.hash();
         zone.meta.schema_version = 10;
         zone.meta.digest_version = StateDigestVersion::BinaryV6;
         zone.meta.phase3_admission_policy =
@@ -1849,9 +1850,8 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)] // One lifecycle proves failed and successful admission share no providers.
     fn v6_equipment_survives_death_dead_checkpoint_restore_and_town_resurrection() {
-        use crate::domain::zone::Phase4Player;
-        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
         let (mut zone, target, npc) = equipment_fixture();
         let equipment_before =
             zone.phase4.as_ref().unwrap().canonical.players[&target.entity].clone();
@@ -1887,42 +1887,102 @@ mod tests {
         let combat = zone.entities[&target.entity].combat.as_ref().unwrap();
         let CombatRole::Player {
             progression: Some(progression),
-            ..
+            class,
+            xp,
         } = &combat.role
         else {
             panic!("player");
         };
-        let first = phase.next_install_sequence;
-        let timers = checkpoint
-            .stage_restore(
-                &bundle.skills,
-                &progression.class_state.learned_skills,
-                false,
-                combat.incarnation,
-                Tick(2),
-                phase.next_effect_id,
-                first,
-            )
-            .unwrap();
-        let (restored, timers) =
-            Phase4Player::restore(&item_checkpoint, &timers, Tick(2), first).unwrap();
-        zone.phase4
+        let load = PlayerLoad {
+            phase4: Some(crate::domain::zone::Phase4PlayerLoad {
+                checkpoint: Some(item_checkpoint),
+                pending: Vec::new(),
+            }),
+            phase3: Some(checkpoint),
+            progression: Some(progression.clone()),
+            checkpoint_revision: Some(1),
+            class: class.clone(),
+            xp: *xp,
+            level: combat.sheet.level(),
+            hp: Some(0),
+            mp: Some(combat.mp),
+            alive: false,
+        };
+        let sources = load.phase3.as_ref().unwrap().modifier_install_order.len()
+            + equipment_before.equipment_sources.len();
+        let next_sequence = phase.next_install_sequence;
+        let mut invalid = load.clone();
+        invalid
+            .phase4
             .as_mut()
             .unwrap()
-            .canonical
-            .players
-            .insert(target.entity, restored);
-        let phase = &mut zone.phase3.as_mut().unwrap().canonical;
-        phase.next_install_sequence = timers.next_install_sequence;
-        phase.next_effect_id = timers.next_effect_id;
-        let side = phase.entities.get_mut(&target.entity).unwrap();
-        side.effects = timers.effects;
-        side.reuse = timers.reuse;
-        side.modifier_install_order = timers.modifier_install_order;
-        zone.rebuild_v5(target.entity).unwrap();
+            .checkpoint
+            .as_mut()
+            .unwrap()
+            .rules_hash = [0; 32];
+        assert_eq!(zone.validate_paused_load_v5(Some(&invalid)), Err(RejectReason::InvalidLoad));
+        let mut corrupt_sources = load.clone();
+        corrupt_sources
+            .phase4
+            .as_mut()
+            .unwrap()
+            .checkpoint
+            .as_mut()
+            .unwrap()
+            .equipment_install_order
+            .pop();
+        let spawn = ZoneCommand::SpawnPlayer {
+            entity: target.entity,
+            name: "Second".into(),
+            pos: zone.entities[&target.entity].pos,
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(2),
+            load: Some(Box::new(load)),
+        };
+        let mut invalid_spawn = spawn.clone();
+        if let ZoneCommand::SpawnPlayer { load, .. } = &mut invalid_spawn {
+            *load = Some(Box::new(corrupt_sources));
+        }
+        let result = zone
+            .run_tick(zone.draft(vec![
+                ZoneInput::system(ZoneCommand::Despawn {
+                    entity: target.entity,
+                }),
+                ZoneInput::system(invalid_spawn),
+                ZoneInput::system(spawn),
+            ]))
+            .unwrap();
+        assert_eq!(result.dispositions.len(), 1);
+        assert_eq!(result.dispositions[0].reason, RejectReason::InvalidLoad);
+        assert_eq!(
+            zone.phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .next_install_sequence,
+            next_sequence
+                .checked_add(u64::try_from(sources).unwrap())
+                .unwrap()
+        );
+        let restored = &zone.phase4.as_ref().unwrap().canonical.players[&target.entity];
+        assert_eq!(restored.inventory, equipment_before.inventory);
+        assert_eq!(
+            restored.equipment_sources.values().collect::<Vec<_>>(),
+            equipment_before
+                .equipment_sources
+                .values()
+                .collect::<Vec<_>>()
+        );
         assert_eq!(zone.effective(target.entity).unwrap().physical, living.physical);
         assert_eq!(zone.entities[&target.entity].combat.as_ref().unwrap().hp, 0);
         let retained = zone.phase4.as_ref().unwrap().canonical.players[&target.entity].clone();
+        assert_eq!(zone.entities[&target.entity].generation, SessionGeneration(2));
+        let cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        assert_eq!(cold.state_digest(), zone.state_digest());
         zone.respawn_town_v5(Tick(2), target.entity).unwrap();
         assert_eq!(zone.phase4.as_ref().unwrap().canonical.players[&target.entity], retained);
         assert_eq!(zone.effective(target.entity).unwrap().physical, living.physical);

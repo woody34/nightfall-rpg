@@ -230,6 +230,8 @@ struct PbAddAggro {
 
 #[derive(Clone, PartialEq, Message)]
 struct PbPlayerLoad {
+    #[prost(bytes = "vec", optional, tag = "10")]
+    phase4: Option<Vec<u8>>,
     #[prost(bytes = "vec", optional, tag = "9")]
     phase3: Option<Vec<u8>>,
     #[prost(bytes = "vec", optional, tag = "8")]
@@ -748,6 +750,7 @@ struct PbSetTarget {
     target: Option<Vec<u8>>,
 }
 
+#[allow(clippy::too_many_lines)] // Exhaustive mapping preserves every historical command tag.
 fn command_to_pb(c: &AppliedCommand) -> PbCommand {
     let kind = match &c.command {
         ZoneCommand::CastSkill {
@@ -801,6 +804,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             speed: speed.milli_tiles_per_tick(),
             generation: generation.0,
             load: load.as_ref().map(|l| PbPlayerLoad {
+                phase4: l.phase4.as_ref().map(canonical_json),
                 phase3: l.phase3.as_ref().map(canonical_json),
                 progression: l.progression.as_ref().map(canonical_json),
                 checkpoint_revision: l.checkpoint_revision,
@@ -1646,7 +1650,8 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
             load: s
                 .load
                 .map(|l| {
-                    Ok::<_, CodecError>(Box::new(PlayerLoad {
+                    let load = PlayerLoad {
+                        phase4: l.phase4.map(|b| phase4_load_from_json(&b)).transpose()?,
                         phase3: l
                             .phase3
                             .map(|b| serde_json::from_slice(&b).map_err(err))
@@ -1662,7 +1667,9 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
                         hp: l.hp,
                         mp: l.mp,
                         alive: !l.dead,
-                    }))
+                    };
+                    load.validate_phase4().map_err(err)?;
+                    Ok::<_, CodecError>(Box::new(load))
                 })
                 .transpose()?,
         },
@@ -2101,6 +2108,16 @@ pub(super) fn phase4_projection_from_json(
         return Err(err("noncanonical private item projection"));
     }
     Ok(projection)
+}
+
+pub(super) fn phase4_load_from_json(
+    bytes: &[u8],
+) -> Result<crate::domain::zone::Phase4PlayerLoad, CodecError> {
+    let load = serde_json::from_slice(bytes).map_err(err)?;
+    if canonical_json(&load) != bytes {
+        return Err(err("noncanonical item admission load"));
+    }
+    Ok(load)
 }
 
 fn canonical_json<T: serde::Serialize>(value: &T) -> Vec<u8> {

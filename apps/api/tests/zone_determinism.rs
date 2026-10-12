@@ -344,6 +344,7 @@ fn arena(epoch: u64) -> (ZoneState, Vec<EntityId>) {
                 generation: SessionGeneration(1),
                 load: Some(Box::new(if n == 0 {
                     PlayerLoad {
+                        phase4: None,
                         phase3: None,
                         level: 2,
                         xp: 70,

@@ -950,6 +950,13 @@ impl ZoneState {
             return Err(TickError::Phase4CommandInLegacy);
         }
         for command in &draft.commands {
+            if let ZoneCommand::SpawnPlayer {
+                load: Some(load), ..
+            } = &command.command
+            {
+                load.validate_phase4()
+                    .map_err(|_| TickError::Phase4CommandMalformed)?;
+            }
             if let ZoneCommand::Item(item) = &command.command {
                 item.authenticated_account()
                     .map_err(|_| TickError::Phase4CommandMalformed)?;

@@ -115,7 +115,10 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         let key = varint(&mut bytes)?;
         let tag = u32::try_from(key >> 3).map_err(|e| CodecError(e.to_string()))?;
         let wire = key & 7;
-        if schema >= 8 && node == "PbCommand" && !command_fields.insert(tag) {
+        if schema >= 8
+            && matches!(node, "PbCommand" | "PbPlayerLoad")
+            && !command_fields.insert(tag)
+        {
             return Err(CodecError("duplicate V6 command field".into()));
         }
         if schema >= 8 && node == "PbCommand" && tag >= 4 {
@@ -126,6 +129,7 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         }
         let (expected, mut child, json) = if schema >= 8
             && ((node == "PbCommand" && (20..=29).contains(&tag))
+                || (node == "PbPlayerLoad" && tag == 10)
                 || (node == "PbOutput" && tag == 40))
         {
             (2, None, false)
@@ -182,6 +186,9 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
             }
             if schema >= 8 && node == "PbOutput" && tag == 40 {
                 super::codec::phase4_projection_from_json(payload)?;
+            }
+            if schema >= 8 && node == "PbPlayerLoad" && tag == 10 {
+                super::codec::phase4_load_from_json(payload)?;
             }
             if let Some(child) = child {
                 message(payload, child, schema, digested)?;

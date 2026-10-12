@@ -93,6 +93,7 @@ fn validate(root: &Path, manifest: &Path) -> anyhow::Result<()> {
                 .context("account overflow")?;
             let [x, y] = role.position;
             let load = PlayerLoad {
+                phase4: None,
                 phase3: Some(checkpoint),
                 progression: Some(Box::new(PlayerProgression {
                     identity: CharacterIdentity {
@@ -244,6 +245,7 @@ fn evidence_load(role: &Role, account: u128) -> PlayerLoad {
         .modifier_install_order
         .clone_from(&role.modifier_install_order);
     PlayerLoad {
+        phase4: None,
         phase3: Some(checkpoint),
         progression: Some(Box::new(PlayerProgression {
             identity: CharacterIdentity {
