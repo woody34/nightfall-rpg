@@ -138,7 +138,8 @@ impl FunctionConditions<'_> {
             SkillCondition::Not { conditions, .. } if conditions.len() == 1 => self
                 .matches(conditions.first().ok_or(StatError::Overflow)?)
                 .map(|value| !value),
-            SkillCondition::PlayerInsideZoneIds { .. }
+            SkillCondition::PlayerLevelRange { .. }
+            | SkillCondition::PlayerInsideZoneIds { .. }
             | SkillCondition::PlayerResting { .. }
             | SkillCondition::PlayerStanding { .. }
             | SkillCondition::PlayerMoving { .. }
