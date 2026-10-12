@@ -7,23 +7,17 @@ use crate::domain::zone::phase4_projection::{
     FrozenItemResult, ItemDeltaPlan, ItemOperation, ItemReceiptFact, ItemReceiptRef,
     ItemResultDetail,
 };
-use crate::domain::zone::state_skill::ItemReceiptState;
+use crate::domain::zone::state_skill::{ItemCommandTiming, ItemReceiptState};
 use crate::domain::zone::{CastState, EquipSlot, ItemCommand, ItemCommandKind, Phase4Projection};
 
 fn invalid<E>(_: E) -> RejectReason {
     RejectReason::InvalidLoad
 }
 impl ZoneState {
-    pub(super) fn item_command_v6(
-        &mut self,
-        tick: Tick,
+    pub(super) fn item_account_v6(
+        &self,
         command: &ItemCommand,
-        events: &mut Vec<ZoneEvent>,
-        receipts: &mut BTreeMap<
-            (crate::domain::account::AccountId, ItemReceiptRef),
-            ItemReceiptState,
-        >,
-    ) -> Result<(), RejectReason> {
+    ) -> Result<crate::domain::AccountId, RejectReason> {
         let account = command.authenticated_account().map_err(invalid)?;
         let entity = self
             .entities
@@ -39,6 +33,53 @@ impl ZoneState {
         if player.identity.account_id != account {
             return Err(RejectReason::NotPermitted);
         }
+        Ok(account)
+    }
+
+    #[cfg(test)]
+    pub(super) fn item_command_v6(
+        &mut self,
+        tick: Tick,
+        command: &ItemCommand,
+        events: &mut Vec<ZoneEvent>,
+        receipts: &mut BTreeMap<
+            (crate::domain::account::AccountId, ItemReceiptRef),
+            ItemReceiptState,
+        >,
+    ) -> Result<(), RejectReason> {
+        self.item_command_at_v6(
+            tick,
+            command,
+            ItemCommandTiming {
+                ordinal: self.next_ordinal,
+                accepted_sequence: None,
+                target: if let ItemCommandKind::Use { target, .. } = command.kind {
+                    target.map(|target| crate::domain::zone::state_skill::CapturedTarget {
+                        entity: target.entity,
+                        incarnation: Some(target.incarnation),
+                    })
+                } else {
+                    None
+                },
+                initial_inventory_revision: None,
+            },
+            events,
+            receipts,
+        )
+    }
+
+    pub(super) fn item_command_at_v6(
+        &mut self,
+        tick: Tick,
+        command: &ItemCommand,
+        timing: ItemCommandTiming,
+        events: &mut Vec<ZoneEvent>,
+        receipts: &mut BTreeMap<
+            (crate::domain::account::AccountId, ItemReceiptRef),
+            ItemReceiptState,
+        >,
+    ) -> Result<(), RejectReason> {
+        let account = self.item_account_v6(command)?;
         let operation = command.operation();
         let fingerprint = command.fingerprint_hex().map_err(invalid)?;
         let existing = events.iter().find_map(|event| {
@@ -109,6 +150,7 @@ impl ZoneState {
         let projection = candidate.resolve_item_command_v6(
             tick,
             command,
+            timing,
             existing.cloned(),
             reference,
             fingerprint,
@@ -135,6 +177,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         command: &ItemCommand,
+        timing: ItemCommandTiming,
         previous: Option<Phase4Projection>,
         reference: ItemReceiptRef,
         fingerprint: String,
@@ -165,6 +208,17 @@ impl ZoneState {
         ) {
             return Err(RejectReason::Incapacitated);
         }
+        if matches!(command.kind, ItemCommandKind::Use { .. }) {
+            return self.resolve_item_use_v6(
+                tick,
+                command,
+                timing,
+                previous,
+                reference,
+                fingerprint,
+                events,
+            );
+        }
         let items = self
             .phase4
             .as_ref()
@@ -174,7 +228,10 @@ impl ZoneState {
             .players
             .get(&id)
             .ok_or(RejectReason::InvalidLoad)?;
-        let already_changed = previous.as_ref().is_some_and(|p| !p.ledger.is_empty());
+        let already_changed = timing.initial_inventory_revision.map_or_else(
+            || previous.as_ref().is_some_and(|p| !p.ledger.is_empty()),
+            |initial| initial != player.inventory_revision,
+        );
         let revision = if already_changed {
             player.inventory_revision
         } else {
@@ -455,6 +512,7 @@ impl ZoneState {
             }
         };
         let result = FrozenItemResult {
+            accepted_sequence: timing.accepted_sequence,
             request_fingerprint: fingerprint.clone(),
             entity: id,
             incarnation,
@@ -482,7 +540,7 @@ impl ZoneState {
         Ok(projection)
     }
 
-    fn guard_item_removal_v6(
+    pub(super) fn guard_item_removal_v6(
         &self,
         id: EntityId,
         item: &crate::domain::zone::ItemInstance,
@@ -745,7 +803,6 @@ fn append_consumption(
     attempt: &crate::domain::zone::EnchantAttempt,
 ) -> Result<(), RejectReason> {
     use crate::domain::zone::phase4_projection::{ItemAuditEvidence, ItemEvidenceValue as V};
-    let instance = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?.id;
     let cause = ItemAuditEvidence {
         family: "enchant_payment".into(),
         fields: BTreeMap::from([
@@ -754,6 +811,16 @@ fn append_consumption(
             ("count_delta".into(), V::Signed(count_delta)),
         ]),
     };
+    append_item_consumption(projection, change, count_delta, cause)
+}
+
+pub(super) fn append_item_consumption(
+    projection: &mut Phase4Projection,
+    change: crate::domain::zone::item_inventory::InventoryChange,
+    count_delta: i64,
+    cause: crate::domain::zone::phase4_projection::ItemAuditEvidence,
+) -> Result<(), RejectReason> {
+    let instance = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?.id;
     if let Some(index) = projection
         .ledger
         .iter()

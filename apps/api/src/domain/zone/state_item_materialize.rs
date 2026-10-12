@@ -266,6 +266,7 @@ impl ZoneState {
             key: request.request_id,
         };
         let result = FrozenItemResult {
+            accepted_sequence: None,
             request_fingerprint: request.request_fingerprint.clone(),
             entity: id,
             incarnation,

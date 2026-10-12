@@ -508,6 +508,7 @@ mod tests {
     }
     fn result(detail: ItemResultDetail) -> FrozenItemResult {
         FrozenItemResult {
+            accepted_sequence: None,
             request_fingerprint: "a".repeat(64),
             entity: owner(),
             incarnation: 7,

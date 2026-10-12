@@ -28,6 +28,54 @@ pub(super) fn simultaneous(
                 .any(|key| definition.flags.get(*key) == Some(&true))))
 }
 
+/// ItemSkillsTemplate.java:82–148 and L2Character.java:1560–1566: one whole-item
+/// cost plan, with selected-stack preference and a single source fallback debit.
+pub(super) fn payment_edits(
+    definition: &ItemDefinition,
+    registry: &super::skill::SkillRegistry,
+    instance: super::ItemInstanceId,
+) -> Result<Vec<super::item_inventory::InventoryEdit>, ItemError> {
+    use super::item_inventory::InventoryEdit;
+    let mut edits = Vec::new();
+    for source in definition
+        .skills
+        .iter()
+        .filter(|source| source.kind == "item")
+    {
+        let skill = registry
+            .get(super::skill::SkillId(source.id))
+            .ok_or(ItemError("unknown item skill cost"))?;
+        for cost in &skill.item_consume {
+            let template = *cost
+                .item_id
+                .at(source.level, skill.max_level)
+                .ok_or(ItemError("invalid item cost rank"))?;
+            let count = *cost
+                .count
+                .at(source.level, skill.max_level)
+                .ok_or(ItemError("invalid item cost rank"))?;
+            if template == 0 || count == 0 {
+                return Err(ItemError("invalid item skill cost"));
+            }
+            edits.push(InventoryEdit::TakeTemplate {
+                template,
+                count: u64::from(count),
+                preferred: (template == definition.template_id).then_some(instance),
+            });
+        }
+    }
+    if edits.is_empty()
+        && definition.flags.get("immediate_effect") == Some(&true)
+        && definition
+            .properties
+            .get("default_action")
+            .is_some_and(|action| matches!(action.as_str(), "CAPSULE" | "SKILL_REDUCE"))
+    {
+        edits.push(InventoryEdit::TakeInstance { instance, count: 1 });
+    }
+    Ok(edits)
+}
+
 impl Phase4Snapshot {
     /// Validate both lanes before allowing an unlearned main cast through Phase3 checks.
     /// A consumed last unit remains an origin fact; a still-held origin must match its owner.
@@ -69,7 +117,9 @@ impl Phase4Snapshot {
                 }
             }
             let authority = if let Some(origin) = &lane.origin {
-                if origin.count == 0
+                if (origin.count == 0 && !player.inventory.contains_key(&origin.instance))
+                    || origin.receipt.key.is_nil()
+                    || origin.receipt.operation != super::phase4_projection::ItemOperation::Use
                     || i64::try_from(origin.count).is_err()
                     || (origin.instance.get() >= start
                         && origin.instance.get() < end
@@ -99,11 +149,35 @@ impl Phase4Snapshot {
                     .ok_or(ItemError("unknown item cast skill"))?;
                 if !definition.skills.iter().any(|source| {
                     source.kind == "item"
+                        && source.xml_ordinal == origin.skill_ordinal
                         && source.id == lane.cast.skill.id.0
                         && source.level == lane.cast.skill.rank
                 }) || lane.simultaneous != simultaneous(definition, skill, lane.cast.skill.rank)?
                 {
                     return Err(ItemError("item cast origin does not grant this skill/lane"));
+                }
+                let mut clicked_cost = 0_u64;
+                for edit in payment_edits(definition, phase3.rules.skills(), origin.instance)? {
+                    use super::item_inventory::InventoryEdit;
+                    let count = match edit {
+                        InventoryEdit::TakeTemplate {
+                            template, count, ..
+                        } if template == origin.template => count,
+                        InventoryEdit::TakeInstance { count, .. } => count,
+                        InventoryEdit::TakeTemplate { .. } | InventoryEdit::Add { .. } => 0,
+                    };
+                    clicked_cost = clicked_cost
+                        .checked_add(count)
+                        .ok_or(ItemError("item origin cost overflow"))?;
+                }
+                if (clicked_cost == 0 && origin.count != 0)
+                    || (clicked_cost > 0
+                        && (origin.count == 0
+                            || origin.count > clicked_cost
+                            || (player.inventory.contains_key(&origin.instance)
+                                && origin.count != clicked_cost)))
+                {
+                    return Err(ItemError("item origin does not match its source payment"));
                 }
                 Some(lane.cast.skill)
             } else {

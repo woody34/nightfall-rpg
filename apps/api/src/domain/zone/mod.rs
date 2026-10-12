@@ -149,7 +149,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 77] = [
+    const SOURCES: [(&str, &str); 78] = [
         ("mod.rs", include_str!("mod.rs")),
         ("item.rs", include_str!("item.rs")),
         ("item_rules.rs", include_str!("item_rules.rs")),
@@ -220,6 +220,7 @@ mod tests {
         ("state_items.rs", include_str!("state_items.rs")),
         ("state_item_commands.rs", include_str!("state_item_commands.rs")),
         ("state_item_enchant.rs", include_str!("state_item_enchant.rs")),
+        ("state_item_use.rs", include_str!("state_item_use.rs")),
         ("state_item_materialize.rs", include_str!("state_item_materialize.rs")),
         ("item_grant.rs", include_str!("item_grant.rs")),
         ("item_enchant.rs", include_str!("item_enchant.rs")),

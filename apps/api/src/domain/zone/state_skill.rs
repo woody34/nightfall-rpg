@@ -119,11 +119,32 @@ pub struct StagedCast {
     pub canceled: Option<CastCancelReason>,
 }
 
+/// Item intents retain their original fingerprint body while capturing cast timing separately.
+#[derive(Debug, Clone, Copy)]
+#[allow(missing_docs)]
+pub struct ItemCommandTiming {
+    pub accepted_sequence: Option<u32>,
+    pub ordinal: Ordinal,
+    pub target: Option<CapturedTarget>,
+    pub initial_inventory_revision: Option<u64>,
+}
+
+/// Item-granted skills use the same phase-eight start barrier as learned skills.
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub struct StagedItemUse {
+    pub caster: TargetBinding,
+    pub command: Box<super::ItemCommand>,
+    pub timing: ItemCommandTiming,
+    pub canceled: bool,
+}
+
 /// Receive-ordered actions with command-time identity bindings and phase-eight guards.
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub enum StagedAction {
     Cast(StagedCast),
+    Use(Box<StagedItemUse>),
     Attack {
         ordinal: Ordinal,
         caster: TargetBinding,
@@ -143,6 +164,7 @@ impl StagedAction {
     pub const fn ordinal(&self) -> Ordinal {
         match self {
             Self::Cast(cast) => cast.ordinal,
+            Self::Use(item) => item.timing.ordinal,
             Self::Attack { ordinal, .. } | Self::AcceptResurrect { ordinal, .. } => *ordinal,
         }
     }
@@ -190,10 +212,17 @@ impl StagedActions {
     pub fn cancel(&mut self, caster: EntityId, cast_id: Option<CastId>, reason: CastCancelReason) {
         if cast_id.is_none() {
             for entry in &mut self.entries {
-                if let StagedAction::Cast(entry) = entry {
-                    if entry.caster.entity == caster && entry.canceled.is_none() {
-                        entry.canceled = Some(reason);
-                    }
+                match entry {
+                    StagedAction::Cast(entry) if entry.caster.entity == caster => {
+                        entry.canceled.get_or_insert(reason);
+                    },
+                    StagedAction::Use(entry) if entry.caster.entity == caster => {
+                        entry.canceled = true;
+                    },
+                    StagedAction::Cast(_)
+                    | StagedAction::Use(_)
+                    | StagedAction::Attack { .. }
+                    | StagedAction::AcceptResurrect { .. } => {},
                 }
             }
         }
@@ -203,6 +232,7 @@ impl StagedActions {
         self.entries.iter().filter_map(|entry| match entry {
             StagedAction::Cast(cast) if cast.canceled.is_none() => Some(cast),
             StagedAction::Cast(_)
+            | StagedAction::Use(_)
             | StagedAction::Attack { .. }
             | StagedAction::AcceptResurrect { .. } => None,
         })
@@ -232,10 +262,21 @@ impl StagedActions {
                 ..
             } => Some((*caster, *target)),
             StagedAction::Cast(_)
+            | StagedAction::Use(_)
             | StagedAction::Attack { .. }
             | StagedAction::AcceptResurrect { .. } => None,
         })
     }
+    pub(crate) fn pending_item_uses(&self) -> impl Iterator<Item = &StagedItemUse> {
+        self.entries.iter().filter_map(|entry| match entry {
+            StagedAction::Use(entry) if !entry.canceled => Some(entry.as_ref()),
+            StagedAction::Cast(_)
+            | StagedAction::Use(_)
+            | StagedAction::Attack { .. }
+            | StagedAction::AcceptResurrect { .. } => None,
+        })
+    }
+
     /// Consume once at phase8, retaining cross-actor receive order and canceled entries.
     pub fn drain(&mut self) -> impl Iterator<Item = StagedAction> + '_ {
         self.entries.drain(..)

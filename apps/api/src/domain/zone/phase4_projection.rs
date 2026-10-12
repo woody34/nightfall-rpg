@@ -189,6 +189,9 @@ pub struct FrozenItemResult {
     pub receipt: uuid::Uuid,
     /// Exact committed request identity, retained in Known payloads (D53).
     pub request_fingerprint: String,
+    /// Original owner-intent sequence when supplied; RPC/system origins have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accepted_sequence: Option<u32>,
     pub detail: ItemResultDetail,
 }
 
@@ -562,6 +565,7 @@ pub(crate) mod tests {
                 request_id: key,
                 fingerprint: "body".into(),
                 result: FrozenItemResult {
+                    accepted_sequence: None,
                     request_fingerprint: "body".into(),
                     entity,
                     incarnation: 1,

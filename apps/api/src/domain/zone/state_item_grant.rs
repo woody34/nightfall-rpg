@@ -381,6 +381,7 @@ impl ZoneState {
             request_id: command.request_id,
             fingerprint: command.fingerprint.clone(),
             result: FrozenItemResult {
+                accepted_sequence: None,
                 request_fingerprint: command.fingerprint.clone(),
                 entity: id,
                 incarnation,
