@@ -127,6 +127,19 @@ def formula(name,inputs,actual):
         same(actual,oracle.rational(function(**oracle.decode_rationals(inputs))))
 
 
+def validate_instance(value):
+    fields={'id','template_id','count','location','slot','enchant','augment_id','charges','created_tick','revision'}
+    if not isinstance(value,dict) or set(value)!=fields:raise ValueError('missing/unknown canonical item scalar')
+    for name in ('id','template_id','count'):integer(value[name],1)
+    for name in ('enchant','charges','created_tick','revision'):integer(value[name])
+    if value['id']>=2**63 or value['count']>=2**63 or value['template_id']>=2**31 or value['enchant']>=2**32 or value['charges']>7 or value['created_tick']>=2**63 or value['revision']>=2**63:raise ValueError('item scalar outside domain width')
+    if value['location'] not in ('inventory','paperdoll') or (value['location']=='paperdoll')!=(value['slot'] is not None):raise ValueError('item location/slot mismatch')
+    if value['charges'] and value['slot']!='rhand':raise ValueError('charge on nonweapon slot')
+    if value['augment_id'] is not None:
+        augment=integer(value['augment_id'],1)
+        if augment>=2**32 or augment>>16==0 or augment&65535==0:raise ValueError('invalid packed option pair')
+
+
 def validate(rows,recording,rules_hash):
     if not isinstance(rows,list) or len(rows)<3:raise ValueError('manifest, facts and complete trailer required')
     manifest,complete=rows[0],rows[-1]
@@ -156,6 +169,17 @@ def validate(rows,recording,rules_hash):
             if identity in seen:raise ValueError('repeated formula resolution')
             seen.add(identity)
             if not isinstance(data['inputs'],dict):raise ValueError('actual input object required')
+        elif row['kind']=='item_baseline':
+            if set(data)!={'inventory_revision','instances','paperdoll','auto_shots'}:raise ValueError('unknown/missing inventory baseline fields')
+            integer(data['inventory_revision'])
+            if not isinstance(data['instances'],list) or not isinstance(data['paperdoll'],dict) or not isinstance(data['auto_shots'],list):raise ValueError('invalid baseline collections')
+            ids=set()
+            for item in data['instances']:
+                validate_instance(item)
+                identity=item['id']
+                if identity in ids:raise ValueError('duplicate baseline instance')
+                ids.add(identity)
+            if any(i not in ids for i in data['paperdoll'].values()):raise ValueError('dangling baseline paperdoll')
         elif row['kind']=='item_rng':
             if set(data)!= {'callsite','word_before','word_after','bound','value'}:raise ValueError('unknown/missing RNG fields')
             before,after=integer(data['word_before']),integer(data['word_after']);bound=integer(data['bound'],1);value=integer(data['value'])
@@ -170,8 +194,9 @@ def validate(rows,recording,rules_hash):
             if before==after or before is None and after is None:raise ValueError('ledger must contain actual change (D28)')
             for value in (before,after):
                 if value is not None:
-                    if value.get('id')!=instance:raise ValueError('ledger identity mismatch')
-                    integer(value['count'],1)
+                    # Canonical domain instances, not partial count-only projections.
+                    validate_instance(value)
+                    if value['id']!=instance:raise ValueError('ledger identity mismatch')
             net=(after['count'] if after else 0)-(before['count'] if before else 0)
             same(data['count_delta'],net)
             ordinal=integer(data['operation_ordinal'])
@@ -188,6 +213,16 @@ def evaluate(rows,recording,entity,gates,rules_hash):
     results=[]
     owner=[r for r in rows[1:-1] if r['entity']==entity and r['kind']=='item_formula']
     for gate in gates:
+        if gate=='grant_denied':
+            # Auth-dev gating happens BEFORE enqueue: no denied command/formula exists in the zone log.
+            # Client JUnit proves the RPC status; complete C14 evidence proves no actor grant.
+            baselines=[r for r in rows[1:-1] if r['entity']==entity and r['kind']=='item_baseline']
+            grants=[r for r in rows[1:-1] if r['entity']==entity and r['kind']=='item_delta' and r['data']['operation']=='grant']
+            errors=[]
+            if not baselines:errors.append('missing received owner baseline binding')
+            if grants:errors.append('disabled GrantItem nevertheless materialized a grant')
+            results.append(dict(formula=gate,sequences=[r['sequence'] for r in baselines],applicable=True,errors=errors))
+            continue
         matched=[r for r in owner if r['data']['formula']==gate];errors=[]
         applicable=True
         if gate=='failure_refund' and not matched:
