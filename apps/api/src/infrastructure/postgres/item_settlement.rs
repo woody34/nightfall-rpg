@@ -31,7 +31,9 @@ impl ItemReceiptRepository for PgCharacterRepository {
             return Ok(ItemReceiptLookup::Unknown);
         };
         if stored.fingerprint != fingerprint {
-            return Ok(ItemReceiptLookup::Conflict);
+            return Ok(ItemReceiptLookup::Conflict {
+                stored_fingerprint: stored.fingerprint,
+            });
         }
         let frozen = entities::item_mutation_receipts::Entity::find_by_id((
             account.as_uuid(),

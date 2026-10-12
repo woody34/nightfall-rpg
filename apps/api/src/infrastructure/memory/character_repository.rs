@@ -421,7 +421,9 @@ impl crate::application::ports::ItemReceiptRepository for InMemoryCharacterRepos
         let state = self.state.lock();
         Ok(match state.item_receipts.get(&(account, operation, *key)) {
             None => ItemReceiptLookup::Unknown,
-            Some(receipt) if receipt.fingerprint != fingerprint => ItemReceiptLookup::Conflict,
+            Some(receipt) if receipt.fingerprint != fingerprint => ItemReceiptLookup::Conflict {
+                stored_fingerprint: receipt.fingerprint.clone(),
+            },
             Some(receipt) => {
                 receipt.validate()?;
                 ItemReceiptLookup::Known(Box::new(receipt.clone()))

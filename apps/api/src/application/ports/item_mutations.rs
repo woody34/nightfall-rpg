@@ -48,6 +48,22 @@ impl ItemMutationOperation {
             Self::Backfill => "backfill",
         }
     }
+    /// Canonical command scope, independent of any resulting per-instance ledger operation.
+    pub const fn from_command_kind(kind: &crate::domain::zone::ItemCommandKind) -> Self {
+        use crate::domain::zone::ItemCommandKind as K;
+        match kind {
+            K::Equip { .. } => Self::EquipItem,
+            K::Unequip { .. } => Self::UnequipItem,
+            K::Use { .. } => Self::UseItem,
+            K::Destroy { .. } => Self::DestroyItem,
+            K::Enchant { .. } => Self::EnchantItem,
+            K::ToggleAutoShot { .. } => Self::ToggleAutoShot,
+            K::Refine { .. } => Self::RefineItem,
+            K::CancelRefine { .. } => Self::CancelRefine,
+            K::ExchangeSpecialAbility { .. } => Self::ExchangeSpecialAbility,
+            K::Crystallize { .. } => Self::CrystallizeItem,
+        }
+    }
     /// The typed frozen result binds its operation; automatic consumption has no request.
     pub fn from_result(result: &FrozenItemResult) -> Result<Self, CheckpointError> {
         Ok(match result.detail {
@@ -148,7 +164,10 @@ pub enum ItemReceiptLookup {
     /// No successful request in this account/operation scope.
     Unknown,
     /// Same key names a different normalized body.
-    Conflict,
+    Conflict {
+        /// Immutable repository fingerprint, recorded before gameplay.
+        stored_fingerprint: String,
+    },
     /// Frozen original result, including the Grant baseline when applicable.
     Known(Box<ItemMutationReceipt>),
 }
