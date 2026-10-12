@@ -2,7 +2,7 @@
 """Keep the optional catalogue's UNAVAILABLE status fail-closed without an Error log.
 
 TurboLink 1.4.2 unary contexts log all RPC statuses at Error before the callback.
-This one RPC may legitimately be unavailable (C16); other RPC/status errors keep
+These catalogue RPCs may legitimately be unavailable (C16/A16); other errors keep
 TurboLink's normal path. Run after generation; idempotent, fail on template drift.
 """
 from pathlib import Path

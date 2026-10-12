@@ -54,6 +54,7 @@ public:
 
 	/** Set by the spawner so the actor can drive itself from server state. */
 	void Bind(class UNetClientSubsystem* InNet);
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Nightfall") TObjectPtr<class UEquipmentPresentationComponent> Equipment;
 
 	/** True when SkeletalBody shows imported art (false: the placeholder Body). */
 	bool HasAnimatedBody() const { return bAnimatedBody; }

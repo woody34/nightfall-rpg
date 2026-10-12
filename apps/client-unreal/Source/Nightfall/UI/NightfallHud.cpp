@@ -1,6 +1,7 @@
 #include "NightfallHud.h"
 #include "Nightfall.h"
 #include "Skills/SkillStateSubsystem.h"
+#include "Items/InventoryStateSubsystem.h"
 #include "Effects/EffectStateSubsystem.h"
 #include "Net/NetClientSubsystem.h"
 #include "Components/HorizontalBox.h"
@@ -111,6 +112,7 @@ void UNightfallHud::BuildLayout()
 
 	UButton* SkillsButton=WidgetTree->ConstructWidget<UButton>();SkillsButton->AddChild(MakeText(nullptr,TEXT("Skill trainer"),14));
  SkillsButton->OnClicked.AddDynamic(this,&UNightfallHud::HandleSkillsClicked);
+ auto* InventoryButton=WidgetTree->ConstructWidget<UButton>();InventoryButton->AddChild(MakeText(nullptr,TEXT("Inventory (I)"),14));SkillsPanel->AddChild(InventoryButton);InventoryButton->OnClicked.AddDynamic(this,&UNightfallHud::HandleInventoryClicked);
  if(auto* Slot=Root->AddChildToCanvas(SkillsButton)){Slot->SetPosition(FVector2D(16,242));Slot->SetSize(FVector2D(260,28));}
  auto* SkillsPanel=WidgetTree->ConstructWidget<UVerticalBox>();
  SkillResources=MakeText(SkillsPanel,TEXT("SP —"),14); EffectsText=MakeText(SkillsPanel,TEXT(""),12);EffectsText->SetAutoWrapText(true);
@@ -124,7 +126,9 @@ void UNightfallHud::BuildLayout()
   auto* H=NewObject<UNightfallHotbarClick>(this);H->Index=I;HotbarClicks.Add(H);B->OnClicked.AddDynamic(H,&UNightfallHotbarClick::Click);
   HotbarButtons.Add(B);HotbarLabels.Add(Label);Cooldowns.Add(MakeBar(Col,FLinearColor(0.2f,0.6f,1.f),78,5));
  }
- if(auto* Slot=Root->AddChildToCanvas(SkillsPanel)){Slot->SetAnchors(FAnchors(0.5f,1));Slot->SetAlignment(FVector2D(0.5f,1));Slot->SetPosition(FVector2D(0,-65));Slot->SetSize(FVector2D(720,150));}
+ auto* ItemsRow=WidgetTree->ConstructWidget<UHorizontalBox>();SkillsPanel->AddChild(ItemsRow);
+ for(int32 I=0;I<9;++I){auto* B=WidgetTree->ConstructWidget<UButton>();auto* L=MakeText(nullptr,FString::Printf(TEXT("F%d empty"),I+1),11);B->AddChild(L);ItemsRow->AddChild(B);ItemButtons.Add(B);ItemLabels.Add(L);auto* H=NewObject<UNightfallHotbarClick>(this);H->Index=I;H->bItem=true;ItemClicks.Add(H);B->OnClicked.AddDynamic(H,&UNightfallHotbarClick::Click);}
+ if(auto* Slot=Root->AddChildToCanvas(SkillsPanel)){Slot->SetAnchors(FAnchors(0.5f,1));Slot->SetAlignment(FVector2D(0.5f,1));Slot->SetPosition(FVector2D(0,-65));Slot->SetSize(FVector2D(720,225));}
  // Target frame, top-centre.
 	TargetPanel = WidgetTree->ConstructWidget<UVerticalBox>();
 	TargetPanel->SetVisibility(ESlateVisibility::Collapsed);
@@ -436,7 +440,8 @@ void UNightfallHotbarClick::Click()
 {
  auto* Hud=Cast<UNightfallHud>(GetOuter());auto* GI=Hud?Hud->GetGameInstance():nullptr;if(!GI)return;
  auto* C=GI->GetSubsystem<UCombatStateSubsystem>();if(C && C->IsOwnDead())return;
- if(auto* S=GI->GetSubsystem<USkillStateSubsystem>())S->CastSlot(Index);
+ if(bItem){if(auto* S=GI->GetSubsystem<UInventoryStateSubsystem>())S->ActivateHotbar(Index);}
+ else if(auto* S=GI->GetSubsystem<USkillStateSubsystem>())S->CastSlot(Index);
 }
 void UNightfallHud::HandleSkillsClicked(){if(auto* PC=Cast<ANightfallPlayerController>(GetOwningPlayer()))PC->OpenSkillDialog();}
 void UNightfallHud::AcceptResurrect()
@@ -498,10 +503,18 @@ void UNightfallHud::RefreshPresentation()
  EnsureLayout();
  const auto* GI = GetGameInstance();
  if (const auto* Combat = GI ? GI->GetSubsystem<UCombatStateSubsystem>() : nullptr) ApplyModel(Combat->BuildHudModel());
- UpdateSkills();
+ UpdateSkills(); UpdateItems();
 }
 float UNightfallHud::CastProgress() const { return CastBar ? CastBar->GetPercent() : 0.f; }
 FString UNightfallHud::EffectLabel() const { return EffectsText ? EffectsText->GetText().ToString() : FString(); }
 FString UNightfallHud::CastStatus() const { return CastLabel ? CastLabel->GetText().ToString() : FString(); }
 FLinearColor UNightfallHud::OwnFlagColor() const { return OwnLabel ? OwnLabel->GetColorAndOpacity().GetSpecifiedColor() : FLinearColor::White; }
 FLinearColor UNightfallHud::TargetFlagColor() const { return TargetLabel ? TargetLabel->GetColorAndOpacity().GetSpecifiedColor() : FLinearColor::White; }
+
+void UNightfallHud::HandleInventoryClicked(){if(auto* PC=Cast<ANightfallPlayerController>(GetOwningPlayer()))PC->OpenInventoryDialog();}
+void UNightfallHud::UpdateItems()
+{
+ const auto* GI=GetGameInstance();const auto* S=GI?GI->GetSubsystem<UInventoryStateSubsystem>():nullptr;if(!S)return;const auto Slots=S->Hotbar();
+ for(int32 I=0;I<ItemButtons.Num();++I){const auto& Slot=Slots[I];const auto* D=S->Definition(Slot.Key);const auto Count=S->Count(Slot.Key);ItemLabels[I]->SetText(FText::FromString(FString::Printf(TEXT("F%d %s
+x%llu%s"),I+1,D?*D->Name:TEXT("empty"),Count.IsSet()?*Count:0,Slot.Value?(S->AutoShot(Slot.Key)?TEXT(" AUTO ON"):TEXT(" AUTO OFF")):TEXT(""))));ItemButtons[I]->SetIsEnabled(S->HasBaseline() && D && Count.IsSet() && (Slot.Value || *Count>0));}
+}

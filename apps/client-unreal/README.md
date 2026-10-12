@@ -1201,3 +1201,55 @@ Manifest paths, casting mode, role order/count and private token permissions are
 validated before launching. A manifest/build pass does not prove a casting soak.
 
 Round 3 UI corrections: clicking a visible player corpse selects its received identity locally; a hotbar click or number key sends that corpse explicitly in CastSkill. Despawn, replacement generation, revival/new incarnation, a live selection, ground click, or transport reset clears it. This selection does not issue auto-attack. Catalogue replies survive owner admission and use an independent request lifetime; a transport reset still discards outdated callbacks. Native automation exercises the production mouse-hit resolver and key delegate, HUD cast progress/terminal state, effect countdown/pool/expiry, PvP colours and the actual accept/decline button delegates. These are headless state/input checks, not rendered screenshots or live gameplay proof.
+
+Phase 4 items use the existing WebSocket and authenticated GameService. The
+owner inventory reducer requires identity followed by InventorySync, accepts
+all same-revision summary siblings, and reconnects with a fresh ticket when it
+misses a revision. Detached GetInventory responses (`tick/baseline_tick/incarnation
+= 0`) are shown separately through each character row's **View inventory** button.
+They never establish a world baseline or overwrite live inventory.
+
+**Inventory (I)** opens the code-built grid, exact counts/enchant/augment badges,
+paperdoll, weight/penalty view and received catalogue tooltips. Select an item
+for equip/manual use or select a paperdoll slot for unequip. Enchant/crystallize
+and blacksmith forms select received item instances and SA recipes. Confirming
+again retains the UUID and originally resolved body, including after a scroll
+or base weapon was consumed. A changed body with the same key reaches the
+server's conflict path. Pending requests finish only on their matching receipt
+or seq rejection; no widget predicts item counts, stats or random results.
+
+The inventory form assigns nine per-character item hotbar slots. **F1–F9** or
+the second HUD hotbar row uses those slots; each slot is explicitly manual use
+or an auto-shot toggle. Toggle labels read the received auto-shot set. Number
+keys continue to use the skill hotbar. Item bindings persist in
+`GeneratedConfig/NightfallItems.ini`.
+
+E6's command/predicate authority is
+[phase4-fixtures.md](Scripts/phase4-fixtures.md) and
+[phase4-grammar.py](Scripts/phase4-grammar.py). The client additionally registers
+the architect's `refine_outcome == applied|removed` amendment. `weight_pct`
+compares raw received weight/max-load against exact decimal/rational literals,
+including large literals, and remains UNKNOWN for nonpositive max-load. Arrow
+classification is generated from pinned E1 ARROW metadata, checked against the
+received catalogue name/kind; regenerate with
+`python3 Scripts/gen-item-client-metadata.py` after an E1 catalogue update.
+`nf.GrantItem` uses the authenticated RPC; AUTH_DEV_TOKENS is enforced by the
+server, and refusal is observable through `item_rpc_error`.
+
+`Scripts/create_content.py` now imports a deterministic three-kind placeholder
+icon atlas and creates `/Game/Items/M_ItemGlow`. Pawn and proxy weapon meshes
+consume only public VisibleEquipment. Alternating cube/cylinder shapes are
+cosmetic template placeholders, not weapon-kind models. Glow colours consume
+the server's tier, with the design §1.5/I6 placeholder policy (weapon +7/+15,
+armour +6); this is not retail client material evidence. Empty gear baselines
+and slot tombstones hide meshes. Content generation and pixel/cook checks are
+integration gates; the native component guards absent optional generated art.
+
+`Scripts/run-tests.sh --offline` selects `Nightfall.Item` and avoids obtaining
+credentials. Tests cover wire fields/presence, identity/revision/privacy/reset,
+received predicates and exact comparisons, catalogue failure/lifetime, sticky
+outcome coherence, actual widget delegates, frozen retry, hotbar keys and public
+gear projection. Headless input/state tests do not certify rendered pixels or
+live gameplay. Use `--require-live-api` and the canonical Phase 4 scenarios at
+integration. E5 story Done When remains open until those gates and independent
+review pass.

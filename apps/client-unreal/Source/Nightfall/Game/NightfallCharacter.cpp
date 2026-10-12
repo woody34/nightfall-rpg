@@ -1,4 +1,6 @@
 #include "NightfallCharacter.h"
+#include "Items/EquipmentPresentationComponent.h"
+#include "Items/InventoryStateSubsystem.h"
 #include "OwnEntityComponent.h"
 #include "Anim/EntityAnimationComponent.h"
 #include "Net/NetClientSubsystem.h"
@@ -33,6 +35,7 @@ ANightfallCharacter::ANightfallCharacter()
 		Body->SetStaticMesh(Cylinder.Object);
 	}
 
+	Equipment=CreateDefaultSubobject<UEquipmentPresentationComponent>(TEXT("Equipment"));Equipment->SetupAttachment(RootComponent);Equipment->SetRelativeLocation(FVector(0,0,-96));
 	OwnEntity = CreateDefaultSubobject<UOwnEntityComponent>(TEXT("OwnEntity"));
 
 	Animation = CreateDefaultSubobject<UEntityAnimationComponent>(TEXT("Animation"));
@@ -64,5 +67,6 @@ void ANightfallCharacter::BeginPlay()
 	if (UNetClientSubsystem* Net = GI ? GI->GetSubsystem<UNetClientSubsystem>() : nullptr)
 	{
 		Animation->Bind(Net, Net->GetOwnEntityId());
+		Equipment->Bind(GI->GetSubsystem<UInventoryStateSubsystem>(),Net->GetOwnEntityId());
 	}
 }

@@ -89,6 +89,11 @@ private:
 	UFUNCTION() void HandleRespawnClicked();
 	UFUNCTION() void HandleClassesClicked();
  UFUNCTION() void HandleSkillsClicked();
+ UFUNCTION() void HandleInventoryClicked();
+ void UpdateItems();
+ UPROPERTY() TArray<TObjectPtr<UButton>> ItemButtons;
+ UPROPERTY() TArray<TObjectPtr<UTextBlock>> ItemLabels;
+ UPROPERTY() TArray<TObjectPtr<UNightfallHotbarClick>> ItemClicks;
  UFUNCTION() void AcceptResurrect();
  UFUNCTION() void DeclineResurrect();
  void UpdateSkills();
@@ -139,5 +144,6 @@ class NIGHTFALL_API UNightfallHotbarClick : public UObject
  GENERATED_BODY()
 public:
  int32 Index=0;
+ bool bItem=false;
  UFUNCTION() void Click();
 };
