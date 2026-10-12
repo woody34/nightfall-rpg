@@ -127,7 +127,7 @@ fn cp(c: &Character) -> Phase4Checkpoint {
         active_sets: BTreeMap::new(),
         weight: 1000,
         max_load: 5000,
-        ordinary_capacity: 80,
+        ordinary_capacity: 123,
         quest_capacity: 100,
         weight_penalty_bonus: 42,
         overload_level: 1,
@@ -260,7 +260,7 @@ async fn detached_owner_baseline_has_exact_fields_and_cannot_be_a_live_ws_baseli
     assert!(response.baseline);
     assert_eq!(response.inventory_revision, 9);
     assert_eq!(response.rules_hash, rules().hash());
-    assert_eq!(response.ordinary_capacity, rules().parts().capacities.dwarf_inventory);
+    assert_eq!(response.ordinary_capacity, 123);
     assert_eq!(response.quest_capacity, rules().parts().capacities.quest_inventory);
     assert_eq!(
         response.items,

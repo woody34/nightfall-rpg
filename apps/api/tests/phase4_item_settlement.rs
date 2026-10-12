@@ -122,7 +122,6 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
         zone: ZoneId(1),
         epoch: 1,
         allocation,
-        grant_capacities: None,
         projection: Phase4Projection {
             tick: Tick(73),
             entity: EntityId::from_uuid(character.id.as_uuid()),
@@ -265,7 +264,6 @@ fn interleaved(
     let mut work = first_work.clone();
     work.projection.tick = Tick(74);
     work.projection.checkpoint = retained.clone();
-    work.grant_capacities = Some((80, 100));
     work.projection.ledger = vec![
         ItemDeltaPlan {
             operation: ItemOperation::Grant,
@@ -341,7 +339,6 @@ fn destroy(
     let before = checkpoint.instances.remove(index);
     let request = Uuid::now_v7();
     let mut work = previous_work.clone();
-    work.grant_capacities = None;
     work.projection.tick = Tick(75);
     work.projection.checkpoint = checkpoint.clone();
     work.projection.ledger = vec![ItemDeltaPlan {

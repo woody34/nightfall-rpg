@@ -131,8 +131,8 @@ impl ItemMutationReceipt {
             if i64::try_from(inventory.character_revision).is_err()
                 || inventory.checkpoint.inventory_revision < self.result.inventory_revision
                 || inventory.checkpoint.starter_kit_receipt.is_none()
-                || inventory.ordinary_capacity == 0
-                || inventory.quest_capacity == 0
+                || inventory.ordinary_capacity != inventory.checkpoint.ordinary_capacity
+                || inventory.quest_capacity != inventory.checkpoint.quest_capacity
             {
                 return Err(invalid("item_receipt_inventory"));
             }
@@ -174,7 +174,6 @@ pub struct ItemCheckpointWork {
     pub epoch: u64,
     pub allocation: ItemInstanceRange,
     pub projection: Phase4Projection,
-    pub grant_capacities: Option<(u32, u32)>,
 }
 impl ItemCheckpointWork {
     /// Structural agreement with the ordinary checkpoint; contextual fold validation is zone-owned.
@@ -461,9 +460,8 @@ impl ItemCheckpointWork {
             .map(|fact| {
                 let operation = ItemMutationOperation::from_result(&fact.result)?;
                 let inventory = if operation == ItemMutationOperation::GrantItem {
-                    let (ordinary_capacity, quest_capacity) = self
-                        .grant_capacities
-                        .ok_or_else(|| invalid("grant_inventory_capacity"))?;
+                    let ordinary_capacity = self.projection.checkpoint.ordinary_capacity;
+                    let quest_capacity = self.projection.checkpoint.quest_capacity;
                     Some(FrozenItemInventory {
                         phase3_source_count: u32::try_from(
                             cp.phase3

@@ -21,7 +21,7 @@ pub fn require_out_of_world(
 
 use crate::application::ports::{ItemCataloguePort, ItemInventoryRepository, ItemInventoryRuntime};
 use crate::application::CharacterRepository;
-use crate::domain::{zone::Phase4Checkpoint, AccountId, CharacterId, Race};
+use crate::domain::{zone::Phase4Checkpoint, AccountId, CharacterId};
 use std::sync::Arc;
 
 /// Detached baseline: the zero tick/life is explicit and cannot replace a live WS baseline.
@@ -111,17 +111,12 @@ impl GetInventory {
                 "retained inventory catalogue is unavailable".into(),
             ));
         }
-        let capacities = &catalogue.parts().capacities;
         Ok(GetInventoryOutput {
             character_id: id,
             character_revision: retained.character_revision,
+            ordinary_capacity: checkpoint.ordinary_capacity,
+            quest_capacity: checkpoint.quest_capacity,
             checkpoint,
-            ordinary_capacity: if character.race == Race::Dwarf {
-                capacities.dwarf_inventory
-            } else {
-                capacities.inventory
-            },
-            quest_capacity: capacities.quest_inventory,
         })
     }
 }
