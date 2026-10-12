@@ -1991,6 +1991,7 @@ dependencies = [
  "futures-util",
  "http-body-util",
  "jsonwebtoken",
+ "num-bigint 0.4.8",
  "opentelemetry",
  "opentelemetry-appender-tracing",
  "opentelemetry-otlp",

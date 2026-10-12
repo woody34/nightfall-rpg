@@ -19,6 +19,7 @@ pub mod class_data;
 pub mod data_hash;
 pub mod eventlog;
 mod exact_decimal;
+pub mod item_data;
 pub mod memory;
 pub mod nats;
 pub mod npc_data;
