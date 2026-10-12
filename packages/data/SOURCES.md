@@ -848,7 +848,7 @@ recipes rather than falsely deferring their ordinary item operations.
 
 Architect D33 resolves Mana Potion728: pinned
 `game/src/main/resources/config/customs.properties:234` is
-`EnableManaPotionSupport = False`; `ManaPotion.java:35-44` refuses use when false.
+`EnableManaPotionSupport = False`; `datapack/handlers/itemhandlers/ManaPotion.java:30-32` refuses use when false.
 The NPC-only flag remains, and configuration:mana_potions_disabled is explicit.
 The default is hashed in capacities.policy.mana_potion_support; player use is
 excluded in Phase4, superseding A14's earlier inclusion. MP elixirs remain in scope.
@@ -856,3 +856,21 @@ D32 preserves deferred trigger/effect option selectors, without reroll/rebalanci
 D27/D31 make all V6 rules/skill definitions hash-referenced from build-embedded
 tables rather than serialized into snapshots/records; per-file semantic hashes
 remain stable inputs and mismatched runtime rules must reject admission/replay.
+
+Data review revision 2 (same pinned DP/game revisions):
+
+| Finding | Pinned evidence and corrected contract |
+|---|---|
+| 1 | `game/model/items/L2EtcItem.java:51-55`: effective SHOT overrides literal etcitem_type for four default actions. Ordinary Soulshot D1463 `data/stats/items/01400-01499.xml:627-638`, Spiritshot No Grade2509 `02500-02599.xml:210-220`, Blessed Spiritshot3947 `03900-03999.xml:861-874`, summon6645/6646/6647 `06600-06699.xml:900-937`. Literal properties/raw remain intact. |
+| 2 | `game/model/stats/Formulas.java:815-847` shield/PvP defence/shot precedence; `:848-873` failure with player-only second success, level-difference≤9 and critical player-PvP5/2 versus PvE3; `:876-896` spread→PvP→attribute→resolved NPC penalty. Perfect return precedes other inputs. |
+| 3 | `datapack/handlers/effecthandlers/instant/Heal.java:68-104` exact dynamic/static branches and recoverable HP clamp. Q restoration/remainder is the deliberate Phase3 contract (`docs/plans/phase-3-zone-design.md:128`), retained by Phase4 §5.2; restoration is certified at Q before whole-unit transfer. |
+| 4 | `data/stats/skills/08400-08499.xml:1906-1916` skill8498 +2STR; `game/model/stats/BaseStats.java:80-85` effective STR; `game/model/stats/functions/formulas/FuncPAtkMod.java:42-43` derived bonus; `FuncArmorSet.java:46-67` priority1 set attributes. The complete set interaction uses `data/stats/armorsets/a_grade.xml:37-52` (set41, STR+1/CON−1 plus both full-set skills). Attribute functions retain priority, install sequence and XML order before dependent stats. Unsupported stats/conditions fail closed. |
+| 5 | Phase4 D21/§5.3: independent pi identity `pi/4=2atan(1/3)+atan(1/7)`, rational Taylor enclosures, nine exact squared boundaries and bounded-denominator separation; generated angles are validation inputs only. Mutations of exact values, certificates, enclosures, separation and coordinate bounds reject. |
+| 6 | Player pole15 `data/stats/items/00000-00099.xml:322-343` with skill3599 `stats/skills/03500-03599.xml:1695-1705`; NPC8205 `08200-08299.xml:76-94` rejects. Scrolls/groups `data/enchantItemData.xml:4-136`, `enchantItemGroups.xml:4-99`, `game/model/items/enchant/EnchantScroll.java:49-56,102-157`; payment/reduction `datapack/handlers/itemhandlers/SoulShots.java:61-98`, `SpiritShot.java:60-92`, `BlessedSpiritShot.java:63-95`; consumable costs/lane `ItemSkillsTemplate.java:81-149`, `game/model/actor/L2Character.java:1560-1566`. §12.1 coverage gate requires the lifecycle/overlap, payment/shared-bundle, consume-once/reuse/lane vectors and contiguous coverage of every scroll/group/current level. Live §12.2/12.4 gates remain integration-owned. |
+| 7 | Elixir2287–2289 `data/stats/skills/02200-02299.xml:2027-2082`, greater2860–2862 `02800-02899.xml:1473-1540`; `game/model/conditions/ConditionPlayerLevelRange.java:41-43` inclusive effector-level comparison. One expanded range per rank, tested below/at both endpoints/above. D34 keeps all36 elixirs deferred until Z publishes execution; capability_counts.required_condition_closure records IDs/counts and pending status. |
+| 8 | `datapack/handlers/itemhandlers/ManaPotion.java:30-32` disabled-support guard; `game/src/main/resources/config/customs.properties:234` remains False. |
+
+Paths beginning `game/` above are under the game's `src/main/java/com/l2jserver/gameserver/`,
+`datapack/handlers/` under DP `src/main/java/com/l2jserver/datapack/handlers/`,
+and `data/` under DP `src/main/resources/data/`. Adjacent XML basenames retain
+that row's `data/stats/items/` or `data/stats/skills/` directory.
