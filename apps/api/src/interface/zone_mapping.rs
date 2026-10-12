@@ -472,6 +472,9 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             tick: tick.0,
             session_generation: u32::try_from(generation.0).unwrap_or(u32::MAX),
         }))],
+        ZoneEvent::ItemResult(result) => items::frozen_item_result_to_pb(result)
+            .map(|event| vec![world(event)])
+            .unwrap_or_default(),
         // Internal; never in an observer's output.
         ZoneEvent::TokensReconciled { .. }
         | ZoneEvent::ClassTransfer { .. }

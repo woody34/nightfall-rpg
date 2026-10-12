@@ -1,6 +1,8 @@
 //! Strict V6 item intents. Replay tags are independent of WebSocket intent numbers.
 use super::{canonical_json, CodecError, PbCommandKind, ZoneCommand};
-use crate::domain::zone::{ItemCommand, ItemCommandKind};
+use crate::domain::zone::{
+    FrozenItemResult, ItemCommand, ItemCommandKind, ItemResultDetail, ZoneEvent,
+};
 
 pub(super) const fn tag(kind: &ItemCommandKind) -> u32 {
     match kind {
@@ -47,6 +49,32 @@ pub(super) fn command_from_json(
     Ok(ZoneCommand::Item(Box::new(command)))
 }
 
+pub(super) fn result_to_pb(result: &FrozenItemResult) -> super::PbOutputItem {
+    let bytes = canonical_json(result);
+    match result.detail {
+        ItemResultDetail::Enchant { .. } => super::PbOutputItem::EnchantResult(bytes),
+        ItemResultDetail::Refine { .. } => super::PbOutputItem::RefineResult(bytes),
+        ItemResultDetail::Operation { .. } => super::PbOutputItem::ItemOperationResult(bytes),
+    }
+}
+
+pub(in crate::application::replay_log) fn result_from_json(
+    bytes: &[u8],
+    expected_tag: u32,
+) -> Result<ZoneEvent, CodecError> {
+    let result: FrozenItemResult = serde_json::from_slice(bytes).map_err(super::err)?;
+    result.validate().map_err(super::err)?;
+    let tag = match result.detail {
+        ItemResultDetail::Enchant { .. } => 37,
+        ItemResultDetail::Refine { .. } => 38,
+        ItemResultDetail::Operation { .. } => 39,
+    };
+    if expected_tag != tag || canonical_json(&result) != bytes || result.incarnation == 0 {
+        return Err(CodecError("noncanonical or mismatched live item result".into()));
+    }
+    Ok(ZoneEvent::ItemResult(Box::new(result)))
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
@@ -65,6 +93,90 @@ mod tests {
         .with_account(AccountId::from_uuid(uuid::Uuid::from_u128(3)))
         .unwrap()
     }
+    #[test]
+    fn frozen_item_results_pin_tags_and_owner_only_record_eight_routing() {
+        use crate::domain::zone::phase4_projection::{ItemEnchantOutcome, ItemRefineOutcome};
+        let mut result = crate::domain::zone::phase4_projection::tests::projection()
+            .receipts
+            .remove(0)
+            .result;
+        let target = ItemInstanceId::new(7).unwrap();
+        let details = [
+            (
+                37,
+                ItemResultDetail::Enchant {
+                    target,
+                    old_enchant: 3,
+                    new_enchant: 4,
+                    outcome: ItemEnchantOutcome::Success,
+                    refunds: Vec::new(),
+                    announcement_tier: 0,
+                },
+            ),
+            (
+                38,
+                ItemResultDetail::Refine {
+                    target,
+                    augment: Some(1),
+                    outcome: ItemRefineOutcome::Applied,
+                },
+            ),
+            (39, result.detail.clone()),
+        ];
+        for (tag, detail) in details {
+            result.detail = detail;
+            let event = ZoneEvent::ItemResult(Box::new(result.clone()));
+            let json = canonical_json(&result);
+            assert_eq!(result_from_json(&json, tag).unwrap(), event);
+            assert!(result_from_json(&json, 40).is_err());
+            let bytes = super::super::encode_events(std::slice::from_ref(&event));
+            // One output container and exactly the pinned result tag.
+            let wire = super::super::PbOutputs::decode(bytes.as_slice()).unwrap();
+            assert_eq!(wire.items[0].item, Some(result_to_pb(&result)));
+            assert_eq!(super::super::decode_events(&bytes).unwrap(), vec![event.clone()]);
+            let mapped = crate::interface::zone_mapping::world_event_to_pb(&event, 0);
+            assert_eq!(mapped.len(), 1);
+            assert_eq!(
+                mapped[0].event,
+                Some(crate::interface::zone_mapping::frozen_item_result_to_pb(&result).unwrap())
+            );
+            for schema in 3..=8 {
+                let mut record = super::super::PbRecord {
+                    schema,
+                    tick: 20,
+                    events: bytes.clone().into(),
+                    state_digest: vec![0; 32].into(),
+                    outputs: vec![super::super::PbPlayerOutput {
+                        entity: result.entity.as_uuid().as_bytes().to_vec(),
+                        encoded: bytes.clone().into(),
+                        sha256: bytes::Bytes::new(),
+                    }],
+                    ..Default::default()
+                };
+                // A Known receipt may carry an earlier result tick than this record.
+                assert_eq!(
+                    super::super::decode_record(&record.encode_to_vec()).is_ok(),
+                    schema == 8
+                );
+                record.outputs[0].entity = uuid::Uuid::from_u128(99).as_bytes().to_vec();
+                assert!(super::super::decode_record(&record.encode_to_vec()).is_err());
+            }
+            let mut whitespace = json.clone();
+            whitespace.push(b' ');
+            assert!(result_from_json(&whitespace, tag).is_err());
+            let unknown = String::from_utf8(json)
+                .unwrap()
+                .replacen('{', "{\"unexpected\":0,", 1);
+            assert!(result_from_json(unknown.as_bytes(), tag).is_err());
+            let mut detached = result.clone();
+            detached.incarnation = 0;
+            assert!(result_from_json(&canonical_json(&detached), tag).is_err());
+            detached = result.clone();
+            detached.receipt = uuid::Uuid::nil();
+            assert!(result_from_json(&canonical_json(&detached), tag).is_err());
+        }
+    }
+
     #[test]
     fn item_load_uses_tag_ten_with_strict_cross_sidecar_validation() {
         use crate::domain::zone::{

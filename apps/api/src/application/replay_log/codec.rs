@@ -87,6 +87,7 @@ pub use sizing::{
 
 #[path = "codec_items.rs"]
 mod items;
+pub(super) use items::result_from_json;
 #[path = "codec_phase3.rs"]
 mod phase3;
 
@@ -462,13 +463,19 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 40"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 37, 38, 39, 40"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    #[prost(bytes, tag = "37")]
+    EnchantResult(Vec<u8>),
+    #[prost(bytes, tag = "38")]
+    RefineResult(Vec<u8>),
+    #[prost(bytes, tag = "39")]
+    ItemOperationResult(Vec<u8>),
     #[prost(bytes, tag = "40")]
     ItemCheckpoint(Vec<u8>),
     #[prost(bytes, tag = "26")]
@@ -1216,6 +1223,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::ItemResult(result) => items::result_to_pb(result),
         ZoneEvent::ItemCheckpoint(projection) => {
             PbOutputItem::ItemCheckpoint(canonical_json(projection))
         },
@@ -1468,7 +1476,11 @@ fn output_form_from_pb(v: i32) -> Result<OutputForm, CodecError> {
     }
 }
 
-fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOutput, CodecError> {
+fn player_output_from_pb(
+    o: PbPlayerOutput,
+    form: OutputForm,
+    phase4: bool,
+) -> Result<PlayerOutput, CodecError> {
     let fits = match form {
         OutputForm::Encoded => o.sha256.is_empty(),
         OutputForm::Sha256 => o.encoded.is_empty() && o.sha256.len() == 32,
@@ -1480,14 +1492,21 @@ fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOu
             o.sha256.len()
         )));
     }
+    let entity = entity_from(&o.entity)?;
+    if phase4 && form == OutputForm::Encoded {
+        for output in decode_outputs(&o.encoded)? {
+            if let ObserverOutput::Event(ZoneEvent::ItemResult(result)) = output {
+                if result.entity != entity {
+                    return Err(CodecError("item result in another owner's output".into()));
+                }
+            }
+        }
+    }
     let bytes = match form {
         OutputForm::Encoded => o.encoded,
         OutputForm::Sha256 => o.sha256,
     };
-    Ok(PlayerOutput {
-        entity: entity_from(&o.entity)?,
-        bytes,
-    })
+    Ok(PlayerOutput { entity, bytes })
 }
 
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
@@ -1525,7 +1544,7 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
         outputs: pb
             .outputs
             .into_iter()
-            .map(|o| player_output_from_pb(o, output_form))
+            .map(|o| player_output_from_pb(o, output_form, pb.schema == 8))
             .collect::<Result<_, _>>()?,
         output_form,
         events: pb.events,
@@ -1792,6 +1811,9 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::EnchantResult(bytes) => items::result_from_json(&bytes, 37)?,
+        PbOutputItem::RefineResult(bytes) => items::result_from_json(&bytes, 38)?,
+        PbOutputItem::ItemOperationResult(bytes) => items::result_from_json(&bytes, 39)?,
         PbOutputItem::ItemCheckpoint(bytes) => {
             ZoneEvent::ItemCheckpoint(Box::new(phase4_projection_from_json(&bytes)?))
         },

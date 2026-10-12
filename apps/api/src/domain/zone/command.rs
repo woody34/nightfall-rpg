@@ -544,6 +544,8 @@ pub enum SkillOutcome {
 pub enum ZoneEvent {
     /// Private final-tick item settlement; never an observer or WebSocket event.
     ItemCheckpoint(Box<super::Phase4Projection>),
+    /// Frozen operation result, visible only to the owning player.
+    ItemResult(Box<super::FrozenItemResult>),
     /// Final public flag/karma/counters, also used for identity bootstrap.
     #[allow(missing_docs)]
     PvpStateChanged {
@@ -942,6 +944,7 @@ impl ZoneEvent {
             | Self::HateChanged { tick, .. }
             | Self::NpcIntentionChanged { tick, .. } => *tick,
             Self::ItemCheckpoint(p) => p.tick,
+            Self::ItemResult(result) => result.tick,
             Self::Progression(d) => d.tick,
         }
     }
@@ -976,6 +979,7 @@ impl ZoneEvent {
             | Self::TargetChanged { entity, .. }
             | Self::NpcIntentionChanged { entity, .. } => *entity,
             Self::ItemCheckpoint(p) => p.entity,
+            Self::ItemResult(result) => result.entity,
             Self::Progression(d) => d.entity,
             Self::AttackResult { attacker, .. }
             | Self::AttackStarted { attacker, .. }

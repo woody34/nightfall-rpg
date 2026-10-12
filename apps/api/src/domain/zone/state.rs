@@ -1610,6 +1610,7 @@ impl ZoneState {
 fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bool {
     let sees = |id: &EntityId| *id == observer || known.binary_search(id).is_ok();
     match event {
+        ZoneEvent::ItemResult(result) => result.entity == observer,
         ZoneEvent::TargetChanged { entity, target, .. } => {
             *entity == observer && target.as_ref().is_none_or(sees)
         },
@@ -1699,6 +1700,7 @@ impl<'a> CellFacts<'a> {
             .collect();
         for (index, event) in events.iter().enumerate() {
             let (entity, other, private) = match event {
+                ZoneEvent::ItemResult(result) => (result.entity, None, true),
                 ZoneEvent::TargetChanged { entity, target, .. } => (*entity, *target, true),
                 ZoneEvent::StatsChanged { entity, .. }
                 | ZoneEvent::XpGained { entity, .. }
