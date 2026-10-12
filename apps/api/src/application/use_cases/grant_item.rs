@@ -98,7 +98,7 @@ impl GrantItem {
                 validate_reply(&receipt, input.caller, character, key, &fingerprint)?;
                 return Ok(*receipt);
             },
-            ItemReceiptLookup::Conflict => return Err(AppError::IdempotencyConflict),
+            ItemReceiptLookup::Conflict { .. } => return Err(AppError::IdempotencyConflict),
             ItemReceiptLookup::Unknown => {},
         }
         let owner = self

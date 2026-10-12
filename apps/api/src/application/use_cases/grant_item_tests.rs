@@ -59,7 +59,9 @@ impl ItemReceiptRepository for Actor {
         assert_eq!(operation, ItemMutationOperation::GrantItem);
         Ok(match self.receipts.lock().get(&(account, *key)) {
             None => ItemReceiptLookup::Unknown,
-            Some(receipt) if receipt.fingerprint != fingerprint => ItemReceiptLookup::Conflict,
+            Some(receipt) if receipt.fingerprint != fingerprint => ItemReceiptLookup::Conflict {
+                stored_fingerprint: receipt.fingerprint.clone(),
+            },
             Some(receipt) => ItemReceiptLookup::Known(Box::new(receipt.clone())),
         })
     }

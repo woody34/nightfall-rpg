@@ -460,7 +460,7 @@ async fn contract<
         .unwrap();
     let frozen = match &known {
         ItemReceiptLookup::Known(receipt) => Some(receipt),
-        ItemReceiptLookup::Unknown | ItemReceiptLookup::Conflict => None,
+        ItemReceiptLookup::Unknown | ItemReceiptLookup::Conflict { .. } => None,
     }
     .unwrap();
     assert_eq!(frozen.inventory.as_ref().unwrap().character_revision, 2);
@@ -507,7 +507,9 @@ async fn contract<
         )
         .await
         .unwrap(),
-        ItemReceiptLookup::Conflict
+        ItemReceiptLookup::Conflict {
+            stored_fingerprint: receipt.fingerprint.clone()
+        }
     );
     assert_eq!(
         repo.item_receipt_lookup(

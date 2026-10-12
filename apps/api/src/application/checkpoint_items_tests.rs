@@ -19,7 +19,7 @@ use crate::infrastructure::memory::{
     AuditedFrame, InMemoryCharacterRepository, InMemorySessionAudit,
 };
 use crate::infrastructure::{item_data, telemetry::Metrics};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tokio::sync::Notify;
 
 type Attempt = (CharacterCheckpoint, Vec<DomainEvent>, ItemCheckpointWork);
@@ -181,6 +181,8 @@ struct FlakyItems {
     entered: Notify,
     released: Notify,
     calls: AtomicUsize,
+    lookup_calls: AtomicUsize,
+    lookup_failure: AtomicBool,
     after_commit: bool,
     permanent: bool,
 }
@@ -192,6 +194,8 @@ impl FlakyItems {
             entered: Notify::new(),
             released: Notify::new(),
             calls: AtomicUsize::new(0),
+            lookup_calls: AtomicUsize::new(0),
+            lookup_failure: AtomicBool::new(false),
             after_commit,
             permanent,
         }
@@ -206,6 +210,8 @@ impl ItemReceiptRepository for FlakyItems {
         key: &IdempotencyKey,
         fingerprint: &str,
     ) -> anyhow::Result<ItemReceiptLookup> {
+        self.lookup_calls.fetch_add(1, Ordering::SeqCst);
+        anyhow::ensure!(!self.lookup_failure.load(Ordering::SeqCst), "injected receipt failure");
         self.inner
             .item_receipt_lookup(account, operation, key, fingerprint)
             .await
@@ -661,5 +667,241 @@ async fn refuses_item_actor_without_durable_gate_before_database_and_visibility(
         .frames(h.session)
         .iter()
         .all(|frame| !matches!(frame, AuditedFrame::Checkpoint(_))));
+    assert!(outputs.try_recv().is_err());
+}
+
+async fn receipt_actor(
+    state: ZoneState,
+    service: CheckpointService,
+) -> (
+    crate::application::zone_actor::ZoneHandle,
+    crate::application::zone_actor::ManualTickDriver,
+    ZoneSnapshot,
+    Arc<dyn EventLog>,
+) {
+    use crate::application::replay_log::{
+        start_epoch, DurableTickGate, GateConfig, NoReplayMetrics,
+    };
+    use crate::application::zone_actor::{manual_ticks, ZoneActor};
+    let mut baseline = state.snapshot();
+    service.snapshot(&mut baseline);
+    let log: Arc<dyn EventLog> =
+        Arc::new(crate::infrastructure::eventlog::InMemoryEventLog::default());
+    let started = start_epoch(log.as_ref(), &baseline).await.unwrap();
+    let gate = DurableTickGate::new(
+        &started,
+        log.clone(),
+        Arc::new(NoReplayMetrics),
+        GateConfig::default(),
+        tokio_util::sync::CancellationToken::new(),
+    );
+    let (ticks, driver) = manual_ticks();
+    let handle = ZoneActor::spawn_gated(state, ticks, gate);
+    handle.checkpoints.install(service);
+    (handle, driver, baseline, log)
+}
+
+#[tokio::test]
+async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexecution() {
+    use crate::application::zone_actor::TickOutcome;
+    use crate::domain::zone::{AppliedTickDraft, ItemInstanceId, RejectReason, ZoneEvent};
+    let mut h = Harness::new().await;
+    let initial = h.equipment_inputs();
+    let tick = h.equipment_tick();
+    h.service
+        .admitted(&tick, &h.state.snapshot())
+        .await
+        .unwrap();
+    let original: Vec<_> = tick
+        .events
+        .iter()
+        .filter_map(|event| {
+            if let ZoneEvent::ItemResult(result) = event {
+                Some(result.as_ref().clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    // A later committed unequip makes replaying the old Equip command observably wrong.
+    let later = ZoneInput::session(
+        h.entity,
+        SessionGeneration(1),
+        4,
+        ZoneCommand::Item(Box::new(
+            ItemCommand::new(
+                h.entity,
+                Uuid::from_u128(992),
+                ItemCommandKind::Unequip {
+                    slot: EquipSlot::Rhand,
+                },
+            )
+            .unwrap()
+            .with_account(h.account)
+            .unwrap(),
+        )),
+    );
+    let tick = h.state.run_tick(h.state.draft(vec![later])).unwrap();
+    h.service
+        .admitted(&tick, &h.state.snapshot())
+        .await
+        .unwrap();
+    let before = h.state.snapshot();
+    let rows = h.repo.item_ledger_for_test();
+    let events = h.repo.staged_events();
+    let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
+    h.service.item_repo = Some(writer.clone());
+    let (handle, driver, baseline, _) = receipt_actor(h.state, h.service).await;
+    let mut outputs = handle.subscribe();
+    for (index, input) in initial.into_iter().enumerate() {
+        let ZoneCommand::Item(command) = input.command else {
+            unreachable!()
+        };
+        let mut kind = command.kind;
+        // The middle body conflicts in the Equip scope; first/third replay both scopes.
+        if index == 1 {
+            kind = ItemCommandKind::Equip {
+                instance: ItemInstanceId::new(99999).unwrap(),
+                preferred_slot: None,
+            };
+        }
+        handle
+            .send(ZoneInput::session(
+                h.entity,
+                SessionGeneration(1),
+                u32::try_from(index + 1).unwrap(),
+                ZoneCommand::Item(Box::new(
+                    ItemCommand::new(h.entity, command.request_id, kind).unwrap(),
+                )),
+            ))
+            .unwrap();
+    }
+    assert_eq!(driver.step().await.unwrap(), TickOutcome::Ran(baseline.tick));
+    let applied = outputs.recv().await.unwrap();
+    assert_eq!(applied.commands.len(), 3);
+    assert_eq!(applied.dispositions.len(), 1);
+    assert_eq!(applied.dispositions[0].reason, RejectReason::ItemOperationConflict);
+    let results: Vec<_> = applied
+        .events
+        .iter()
+        .filter_map(|event| {
+            if let ZoneEvent::ItemResult(result) = event {
+                Some(result.as_ref().clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(results, vec![original[0].clone(), original[1].clone()]);
+    for (index, command) in applied.commands.iter().enumerate() {
+        let ZoneCommand::Item(command) = &command.command else {
+            unreachable!()
+        };
+        assert_eq!(command.authenticated_account().unwrap(), h.account);
+        assert_eq!(command.has_known_receipt(), index != 1);
+        assert_eq!(command.receipt_conflict().unwrap().is_some(), index == 1);
+    }
+    assert!(!applied
+        .events
+        .iter()
+        .any(|event| matches!(event, ZoneEvent::ItemCheckpoint(_))));
+    assert_eq!(h.repo.item_ledger_for_test(), rows);
+    assert_eq!(h.repo.staged_events(), events);
+    assert!(writer.attempts.lock().is_empty());
+    assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 6);
+    let recorded = AppliedTickRecord::from_applied(baseline.seed.zone, &applied);
+    let decoded = AppliedTickRecord::decode(&recorded.encode()).unwrap();
+    let mut cold = crate::application::replay_log::restore_snapshot(baseline).unwrap();
+    let rerun = cold
+        .run_tick(AppliedTickDraft {
+            epoch: decoded.epoch,
+            tick: decoded.tick,
+            commands: decoded.commands,
+        })
+        .unwrap();
+    assert!(recorded.reproduced_by(&AppliedTickRecord::from_applied(before.seed.zone, &rerun)));
+    assert_eq!(cold.snapshot().phase4, before.phase4);
+    assert_eq!(cold.snapshot().rng, before.rng);
+    drop(driver);
+    handle.stopped().await;
+    assert!(!handle.persistence_failed());
+}
+
+#[tokio::test]
+async fn item_receipt_preflight_remeasures_enriched_known_before_drafting() {
+    use crate::application::replay_log::command_admission_size;
+    use crate::application::zone_actor::TickOutcome;
+    let mut h = Harness::new().await;
+    let mut input = h.equipment_inputs().remove(1);
+    let tick = h.equipment_tick();
+    h.service
+        .admitted(&tick, &h.state.snapshot())
+        .await
+        .unwrap();
+    let limit = command_admission_size(&input).unwrap().normalized_bytes();
+    let ZoneCommand::Item(command) = &input.command else {
+        unreachable!()
+    };
+    input.command = ZoneCommand::Item(Box::new(
+        ItemCommand::new(command.entity, command.request_id, command.kind.clone()).unwrap(),
+    ));
+    let mut snapshot = h.state.snapshot();
+    snapshot
+        .meta
+        .phase3_admission_policy
+        .as_mut()
+        .unwrap()
+        .max_command_bytes = u64::try_from(limit).unwrap();
+    h.state = crate::application::replay_log::restore_snapshot(snapshot).unwrap();
+    let rows = h.repo.item_ledger_for_test();
+    let events = h.repo.staged_events();
+    let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
+    h.service.item_repo = Some(writer.clone());
+    let (handle, driver, baseline, _) = receipt_actor(h.state, h.service).await;
+    let mut failures = handle.subscribe_admission_failures();
+    handle.send(input).unwrap();
+    assert_eq!(driver.step().await.unwrap(), TickOutcome::Ran(baseline.tick));
+    let failure = failures.try_recv().unwrap();
+    assert_eq!(
+        failure.reason,
+        crate::application::zone_admission::AdmissionFailureReason::CommandTooLarge
+    );
+    assert!(failure.normalized_bytes > limit);
+    assert_eq!(handle.stats().borrow().commands_applied, 0);
+    assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 1);
+    assert!(writer.attempts.lock().is_empty());
+    assert_eq!(h.repo.item_ledger_for_test(), rows);
+    assert_eq!(h.repo.staged_events(), events);
+    drop(driver);
+    handle.stopped().await;
+    assert!(!handle.persistence_failed());
+}
+
+#[tokio::test]
+async fn item_receipt_preflight_lookup_failure_fences_before_log_database_or_output() {
+    use crate::application::zone_actor::TickOutcome;
+    use tokio_stream::StreamExt as _;
+    let mut h = Harness::new().await;
+    let input = h.equipment_inputs().remove(0);
+    let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
+    writer.lookup_failure.store(true, Ordering::SeqCst);
+    h.service.item_repo = Some(writer.clone());
+    let (handle, driver, baseline, log) = receipt_actor(h.state, h.service).await;
+    let mut outputs = handle.subscribe();
+    handle.send(input).unwrap();
+    assert_eq!(driver.step().await.unwrap(), TickOutcome::Held(baseline.tick));
+    handle.stopped().await;
+    assert!(handle.persistence_failed());
+    assert!(log
+        .read_epoch(baseline.seed.zone, baseline.seed.epoch)
+        .await
+        .unwrap()
+        .next()
+        .await
+        .is_none());
+    assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 1);
+    assert!(writer.attempts.lock().is_empty());
+    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.staged_events().is_empty());
     assert!(outputs.try_recv().is_err());
 }
