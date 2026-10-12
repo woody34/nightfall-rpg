@@ -20,6 +20,7 @@ Command forms (optional target is `self|target|entity:<uuid>` for UseItem,
 
 ```
 nf.ItemCatalog
+nf.MarkItemState
 nf.Equip <item> [slot] [key]
 nf.Unequip <slot> [key]
 nf.UseItem <item> [target] [key]
@@ -53,9 +54,39 @@ lrhand weapon; chest for onepiece). Numeric comparisons support == != >= <= > <.
 | item_operation == operation | Last received keyed ItemOperationResult, operation names in grammar |
 | enchant_outcome == outcome | Last received EnchantResult, normalized enum suffix |
 | enchant_result_consistent | Join received result to received owner post-revision item state: success+1, no-increment unchanged, safe unchanged, blessed0, destroyed absent; refunds join received counts. No RNG/formula computation |
+| refine_outcome == applied\|removed | Last received owner RefineResult (WorldEvent32), normalized enum; never ItemOperationResult33 |
+| refine_result_consistent | Last RefineResult joined by owner/incarnation/target_instance_id to owner InventorySync/Changed at its inventory_revision or later; applied requires the received augment_id, removed requires augment_id absent. A stale/lower revision is UNKNOWN |
+| inventory_revision_since_mark cmp revision | Owner inventory revision minus revision saved by nf.MarkItemState |
+| owner_stat_delta max_hp\|p_def cmp signed-integer | Received StatsChanged.max_hp or EffectiveStats.p_def_q minus saved received scalar; exact integers, p_def uses Q1e6. Require current stats synchronized to the latest mutation revision; otherwise UNKNOWN |
+| owner_stats_match_mark | Received effective sheet and whole maxima equal saved sheet/maxima after current identity+inventory baseline and synchronized stats; excludes changing current HP/MP/CP |
 | refined item | Received RefineResult + owner item has augment_id |
 | item_rpc_error == status | Last completed item RPC status; none only after a successful RPC, not reset default |
 | item_receipt_matches_first | Exact received keyed result bytes equal first result in that operation/account scope |
+
+`nf.MarkItemState` takes no arguments/key. It saves a complete received owner
+inventory revision, effective sheet and whole maxima; missing carriers fail.
+Reset on account/character/new incarnation, but retain this comparison snapshot
+across DropSocket/reconnect of the same character/incarnation. Current projections
+remain UNKNOWN until the fresh baseline/stats arrive. It makes no mechanics prediction.
+CancelRefine requires `refine_outcome == removed`, a new inventory revision, and
+`refine_result_consistent`; the join proves that augment_id is absent.
+
+Armour selection: admitted set3 (DP@3ca488dd stats/armorsets/d_grade.xml:4-15):
+chest58, legs59, head47, shield628, shield provider3543 and enchant6 provider3611.
+`armor-enchant6` seeds the required parts at+6; `armor-enchant4` uses actual
+shirt10491+4/provider3439 (stats/items/10400-10499.xml:1911-1926).
+E1 capabilities admits every chosen item/provider; selectors recheck admission.
+D20 runs incomplete chest→shield and shield→chest with identical final gear,
+compares received maxHP (3543's source MaxHp), and restores inactive/active history
+across reconnect. Full-set/+6 installation/removal and shirt+4 installation/removal
+require provider-specific correlated gear_stats export facts.
+
+Combat phases use nf.Mark/target_hits_since_mark; template15's pole receives
+primary108,100 and secondary108,101 /108,99 targets (explicit fixture positions).
+The unarmed phase unequips rhand; source-bound phases require actual weapon caller
+context. Blow/lethal remain blocked by the current E1 capability manifest: no
+admitted FatalBlow/Backstab/Lethal definition exists. Deferred skills are never
+seeded or represented as executable. Required blow_success/lethal gates remain.
 
 UNKNOWN until appropriate carrier/catalogue/baseline arrives; UNKNOWN is never
 allow-listed. Reset on account/character/session generation change. New incarnation
