@@ -228,6 +228,15 @@ def suite_coverage(artifacts, batches, baseline):
                 raise ValueError('missing suite contract summary')
     except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:
         errors.append(f'suite contract coverage missing or invalid: {error}')
+    if any(path.name.startswith('4-') for batch in batches for path in batch):
+        try:
+            spec = importlib.util.spec_from_file_location('suite_phase4_coverage', PROJECT / 'Scripts/phase4-coverage.py')
+            phase4_coverage = importlib.util.module_from_spec(spec); spec.loader.exec_module(phase4_coverage)
+            result = phase4_coverage.check(artifacts / 'coverage.contract.json', artifacts / 'coverage.transitions.json', baseline, phase4_coverage.required_wire())
+            gates.write_json(artifacts / 'phase4-coverage.json', result)
+            if not result['passed']: errors.extend(result['errors'])
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            errors.append(f'Phase4 suite coverage missing or invalid: {error}')
     for line in lines:
         print(line, flush=True)
     for error in errors:
