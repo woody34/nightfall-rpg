@@ -23,6 +23,10 @@ pub struct Model {
     pub receipt_ref: Option<Uuid>,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub account_id: Uuid,
+    #[sea_orm(primary_key, auto_increment = false, column_type = "Text")]
+    pub operation: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -34,13 +38,15 @@ pub enum Relation {
         on_update = "NoAction",
         on_delete = "NoAction"
     )]
-    Characters,
-}
-
-impl Related<super::characters::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Characters.def()
-    }
+    Characters2,
+    #[sea_orm(
+        belongs_to = "super::characters::Entity",
+        from = "(Column::CharacterId, Column::AccountId)",
+        to = "(super::characters::Column::Id, super::characters::Column::AccountId)",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    Characters1,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

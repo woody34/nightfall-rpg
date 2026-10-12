@@ -1,5 +1,6 @@
 //! API-owned durable allocator and pending item inputs; simulation owns actual item state.
 use crate::application::CheckpointError;
+use crate::domain::AccountId;
 use crate::domain::{class::ClassId, zone::ZoneId, CharacterId};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -75,22 +76,11 @@ impl StarterKitManifest {
     }
 }
 
-/// Dev grant input; no owned item exists before actor materialization commits.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[allow(missing_docs)]
-pub struct PendingGrantManifest {
-    pub template_id: u32,
-    pub count: u64,
-}
-
 /// Typed pending contents, encoded as the contained value in the SQL payload column.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PendingItemManifest {
     /// Source kit, selected from base creation class.
     Kit(StarterKitManifest),
-    /// Authenticated fixture-only dev request.
-    Grant(PendingGrantManifest),
 }
 
 /// The source of first-admission materialization (and its ledger operation).
@@ -101,8 +91,16 @@ pub enum PendingItemKind {
     Starter,
     /// Existing character selected by migration 000011.
     Backfill,
-    /// Dev RPC, gated before any persistence.
-    Grant,
+}
+
+impl PendingItemKind {
+    /// Pending rows are only durable kit inputs; direct Grant is a recorded command (D41).
+    pub const fn operation(self) -> super::ItemMutationOperation {
+        match self {
+            Self::Starter => super::ItemMutationOperation::Starter,
+            Self::Backfill => super::ItemMutationOperation::Backfill,
+        }
+    }
 }
 
 /// Completion proof is separate from pending inputs, never speculative ownership.
@@ -123,6 +121,8 @@ pub enum PendingItemStatus {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub struct PendingItemRequest {
+    pub account_id: AccountId,
+    pub operation: super::ItemMutationOperation,
     pub request_id: uuid::Uuid,
     pub character_id: CharacterId,
     pub kind: PendingItemKind,

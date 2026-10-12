@@ -225,7 +225,6 @@ async fn complete(
 ) -> Result<(), CheckpointError> {
     let payload = match &request.manifest {
         PendingItemManifest::Kit(kit) => serde_json::to_value(kit),
-        PendingItemManifest::Grant(grant) => serde_json::to_value(grant),
     }
     .map_err(anyhow::Error::from)?;
     let hash = request
@@ -236,9 +235,9 @@ async fn complete(
             let _ = write!(output, "{byte:02x}");
             output
         });
-    let rows = execute(tx,"UPDATE pending_item_requests SET status='materialized',materialized_revision=$3,receipt_ref=$4,updated_at=now() WHERE request_id=$1 AND character_id=$2 AND status='pending' AND manifest_version=$5 AND manifest_hash=$6 AND payload=$7 AND request_fingerprint=$8",
+    let rows = execute(tx,"UPDATE pending_item_requests SET status='materialized',materialized_revision=$3,receipt_ref=$4,updated_at=now() WHERE request_id=$1 AND character_id=$2 AND status='pending' AND manifest_version=$5 AND manifest_hash=$6 AND payload=$7 AND request_fingerprint=$8 AND account_id=$9 AND operation=$10",
         vec![request.request_id.into(),request.character_id.as_uuid().into(),signed(revision)?.into(),receipt.into(),
-            i32::try_from(request.manifest_version).map_err(anyhow::Error::from)?.into(),hash.into(),payload.into(),request.fingerprint.clone().into()]).await?;
+            i32::try_from(request.manifest_version).map_err(anyhow::Error::from)?.into(),hash.into(),payload.into(),request.fingerprint.clone().into(),request.account_id.as_uuid().into(),request.operation.as_str().into()]).await?;
     if rows != 1 {
         return Err(CheckpointError::Constraint("pending_item_completion_fence".into()));
     }

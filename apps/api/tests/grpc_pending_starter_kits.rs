@@ -38,7 +38,6 @@ async fn every_base_lineage_records_one_kit_and_wire_retry_adds_none() {
         assert_eq!(pending.len(), 1);
         let kit = match &pending.first().unwrap().manifest {
             PendingItemManifest::Kit(kit) => Some(kit),
-            PendingItemManifest::Grant(_) => None,
         }
         .unwrap();
         assert_eq!(kit.source_class_id.0, base);

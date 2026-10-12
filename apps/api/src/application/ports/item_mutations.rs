@@ -371,7 +371,6 @@ impl ItemCheckpointWork {
                         && match request.kind {
                             PendingItemKind::Starter => ItemOperation::Starter,
                             PendingItemKind::Backfill => ItemOperation::Backfill,
-                            PendingItemKind::Grant => ItemOperation::Grant,
                         } == completion.receipt.operation
                 })
                 .ok_or_else(|| invalid("pending_item_completion_missing"))?;
@@ -384,9 +383,10 @@ impl ItemCheckpointWork {
             let expected = match pending.kind {
                 PendingItemKind::Starter => ItemMutationOperation::Starter,
                 PendingItemKind::Backfill => ItemMutationOperation::Backfill,
-                PendingItemKind::Grant => ItemMutationOperation::GrantItem,
             };
             if pending.character_id.as_uuid() != self.projection.entity.as_uuid()
+                || pending.account_id != self.projection.account
+                || pending.operation != expected
                 || pending.status != PendingItemStatus::Pending
                 || pending.manifest_version != completion.manifest_version
                 || pending.manifest_hash != completion.manifest_hash
@@ -396,7 +396,8 @@ impl ItemCheckpointWork {
             {
                 return Err(invalid("pending_item_completion_identity"));
             }
-            if let PendingItemManifest::Kit(manifest) = &pending.manifest {
+            let PendingItemManifest::Kit(manifest) = &pending.manifest;
+            {
                 let kit = self
                     .projection
                     .checkpoint

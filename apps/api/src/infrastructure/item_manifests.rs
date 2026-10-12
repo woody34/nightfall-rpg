@@ -53,6 +53,8 @@ pub(super) fn starter_request(character: &Character) -> anyhow::Result<PendingIt
         write!(hash, "{byte:02x}")?;
     }
     Ok(PendingItemRequest {
+        account_id: character.account_id,
+        operation: PendingItemKind::Starter.operation(),
         request_id: uuid::Uuid::from_bytes(identity),
         character_id: character.id,
         kind: PendingItemKind::Starter,
@@ -73,8 +75,7 @@ pub(super) fn admission_load(
     rules: &crate::domain::zone::Phase4Rules,
 ) -> anyhow::Result<crate::domain::zone::Phase4PlayerLoad> {
     use crate::domain::zone::phase4_admission::{
-        ItemGrantManifest, ItemKitManifest, ItemMaterialization, PendingItemMaterialization,
-        StarterKitSeed,
+        ItemKitManifest, ItemMaterialization, PendingItemMaterialization, StarterKitSeed,
     };
     use crate::domain::zone::Phase4PlayerLoad;
     if let Some(cp) = &checkpoint {
@@ -84,17 +85,13 @@ pub(super) fn admission_load(
     for request in requests {
         anyhow::ensure!(
             request.character_id == character.id
+                && request.account_id == character.account_id
+                && request.operation == request.kind.operation()
                 && request.manifest_version == 1
                 && !request.fingerprint.is_empty(),
             "invalid pending item identity"
         );
         let materialization = match (&request.kind, &request.manifest) {
-            (PendingItemKind::Grant, PendingItemManifest::Grant(grant)) => {
-                ItemMaterialization::Grant(ItemGrantManifest {
-                    template_id: grant.template_id,
-                    count: grant.count,
-                })
-            },
             (
                 kind @ (PendingItemKind::Starter | PendingItemKind::Backfill),
                 PendingItemManifest::Kit(kit),
@@ -121,7 +118,6 @@ pub(super) fn admission_load(
                     ItemMaterialization::Backfill(kit)
                 }
             },
-            _ => anyhow::bail!("pending item kind/payload mismatch"),
         };
         anyhow::ensure!(
             materialization.manifest_hash()? == request.manifest_hash,
@@ -143,7 +139,7 @@ pub(super) fn admission_load(
                     receipt == request.request_id && revision <= cp.inventory_revision,
                     "pending item completion mismatch"
                 );
-                if request.kind != PendingItemKind::Grant {
+                {
                     let kit = cp
                         .starter_kit_receipt
                         .as_ref()
