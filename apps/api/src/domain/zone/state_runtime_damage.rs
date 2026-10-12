@@ -4,6 +4,24 @@ mod auto;
 use super::*;
 
 impl ZoneState {
+    /// Formulas.java:708–710,767–770,880–883: player-versus-player only, before
+    /// caller truncation. Historical epochs retain their admitted multiplier of one.
+    fn item_pvp_damage_bonus(
+        &self,
+        source: EntityId,
+        target: EntityId,
+        stats: &EffectiveStats,
+        stat: &str,
+    ) -> Result<ExactRatio, TickError> {
+        if self.phase4.is_none()
+            || self.sidecar(source)?.player.is_none()
+            || self.sidecar(target)?.player.is_none()
+        {
+            return Ok(ExactRatio::whole(1));
+        }
+        self.damage_stat_v5(source, stats, stat, Q)
+    }
+
     fn project_damage_v5(&self, tick: Tick, request: DamageRequest) -> Result<u32, TickError> {
         let c = self
             .entities
@@ -299,6 +317,8 @@ impl ZoneState {
             .and_then(|p| p.at(rank, skill.max_level))
             .map_or(Ok(ExactRatio::whole(0)), |s| ExactRatio::parse_literal(s))
             .map_err(invariant)?;
+        let pvp_bonus =
+            self.item_pvp_damage_bonus(caster.entity, target.entity, &a, "pvpPhysSkillsDmg")?;
         // Formulas.java:774-809: no shots/shield/facing equipment in Phase 3.
         // Penalty uses acting-player level and precedes the max(1) and caller critical.
         // physicalSkillPower has no supported provider in the capability manifest.
@@ -309,6 +329,8 @@ impl ZoneState {
             ExactRatio::whole(1),
             false,
         )
+        .map_err(invariant)?
+        .checked_mul(pvp_bonus)
         .map_err(invariant)?
         .checked_mul(Self::attack_traits_v5(&a, &b, "SWORD")?)
         .map_err(invariant)?
@@ -475,6 +497,8 @@ impl ZoneState {
         )
         .map_err(invariant)?
         .checked_mul(spread).map_err(invariant)?
+        .checked_mul(self.item_pvp_damage_bonus(caster.entity, target.entity, &a,
+            if skill.is_magic == 1 { "pvpMagicalDmg" } else { "pvpPhysSkillsDmg" })?).map_err(invariant)?
         // Unelemented starter equipment returns 1 before skill attributePower is read.
         .checked_mul(skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?)
         .map_err(invariant)?
@@ -2132,6 +2156,188 @@ mod tests {
     }
 
     type Trace = Vec<(DamageRollSite, TargetBinding, u32, u32, u128)>;
+
+    fn pvp_stat_fixture(zone: &mut ZoneState, id: EntityId) {
+        use crate::domain::zone::{
+            stat_functions::{FunctionKey, FunctionOp, StatCalculator, StatFunction},
+            FinalStats, Scaled,
+        };
+        // Synthetic, distinguishable multipliers isolate caller selection without promoting
+        // deferred skill3552/catalogue rows ahead of the coordinated generated-table update.
+        let mut stats = (*zone.effective(id).unwrap()).clone();
+        stats.physical = StatSheet::from_final(FinalStats {
+            level: 1,
+            max_hp: 10_000,
+            max_mp: 10_000,
+            p_atk: Scaled::from_int(77).unwrap(),
+            p_def: Scaled::from_int(76).unwrap(),
+            accuracy: Scaled::ZERO,
+            evasion: Scaled::ZERO,
+            crit_permille: 0,
+            attack_speed: Scaled::from_int(300).unwrap(),
+            random_damage: 0,
+        })
+        .unwrap();
+        stats.m_atk_q = 64 * Q;
+        stats.m_def_q = 91 * Q;
+        stats.magic_crit = 0;
+        stats.traits.clear();
+        stats.calculator = StatCalculator::try_new(
+            [
+                ("pvpPhysDmg", 2),
+                ("pvpPhysSkillsDmg", 3),
+                ("pvpMagicalDmg", 5),
+            ]
+            .into_iter()
+            .map(|(stat, factor)| StatFunction {
+                key: FunctionKey {
+                    stat: stat.into(),
+                    priority: 32,
+                    install_sequence: 1,
+                    handler_ordinal: 0,
+                    function_ordinal: 0,
+                },
+                operation: FunctionOp::Mul(Scaled::from_int(factor).unwrap().raw()),
+                conditions: Vec::new(),
+            }),
+        )
+        .unwrap();
+        zone.phase3
+            .as_mut()
+            .unwrap()
+            .effective
+            .insert(id, Arc::new(stats));
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // Compare V5/V6 and all physical/magic/static callers with their draw traces.
+    fn v6_pvp_damage_callers_select_stats_before_truncation_without_extra_draws() {
+        use crate::domain::zone::skill::{RankValue, SkillId};
+        use crate::domain::zone::AttackOutcome;
+        use DamageRollSite as R;
+        let (mut original, target, npc) = equipment_fixture();
+        let source = original
+            .binding(EntityId::from_uuid(Uuid::from_u128(1)))
+            .unwrap();
+        for id in [source.entity, target.entity, npc.entity] {
+            pvp_stat_fixture(&mut original, id);
+        }
+        set_resources(&mut original, target, 10_000, 10_000);
+        // Formulas.java:696–709: 76*77/76 = 77, then the PvP multiplier, then truncation.
+        // Physical :774,799–809: 77*(37+77)/76*3 = 346.5, trunc=346 (not trunc(115.5)*3=345).
+        // Magic :829,878–887: 91*7*sqrt(64)/91 = 56; magic uses5, physical/static uses3.
+        for legacy in [false, true] {
+            let mut baseline = original.clone();
+            if legacy {
+                baseline.phase4 = None;
+            }
+            let a = baseline.effective(source.entity).unwrap();
+            for stat in ["pvpPhysDmg", "pvpPhysSkillsDmg", "pvpMagicalDmg"] {
+                assert_eq!(
+                    baseline
+                        .item_pvp_damage_bonus(source.entity, npc.entity, &a, stat)
+                        .unwrap(),
+                    ExactRatio::whole(1)
+                );
+                assert_eq!(
+                    baseline
+                        .item_pvp_damage_bonus(npc.entity, target.entity, &a, stat)
+                        .unwrap(),
+                    ExactRatio::whole(1)
+                );
+            }
+            let mut auto = baseline.clone();
+            let mut trace = Vec::new();
+            let expected = [(R::AutoHit, 1000, 0), (R::AutoCritical, 1000, 999)];
+            assert_eq!(
+                auto.auto_damage_v5(source, target, &mut scripted(&expected, &mut trace))
+                    .unwrap(),
+                (AttackOutcome::Hit, if legacy { 77 } else { 154 })
+            );
+            assert_eq!(trace.len(), 2);
+            for magic in [None, Some(0), Some(1), Some(2)] {
+                let mut zone = baseline.clone();
+                let mut skill = zone
+                    .phase3
+                    .as_ref()
+                    .unwrap()
+                    .canonical
+                    .rules
+                    .skills()
+                    .get(SkillId(if magic.is_some() { 1177 } else { 3 }))
+                    .unwrap()
+                    .clone();
+                if let Some(kind) = magic {
+                    skill.is_magic = kind;
+                }
+                skill.cast_range = RankValue::Scalar(600);
+                let mut handler = skill
+                    .effects
+                    .iter()
+                    .find(|handler| {
+                        handler.name
+                            == if magic.is_some() {
+                                "MagicalAttackRange"
+                            } else {
+                                "PhysicalAttack"
+                            }
+                    })
+                    .unwrap()
+                    .clone();
+                handler.params.insert(
+                    "power".into(),
+                    RankValue::Scalar(if magic.is_some() { "7" } else { "37" }.into()),
+                );
+                handler
+                    .params
+                    .insert("criticalChance".into(), RankValue::Scalar("0".into()));
+                let expected = if magic.is_some() {
+                    vec![
+                        (R::MagicCritical, 1000, 999),
+                        (R::MagicSuccess, 100, 0),
+                        (R::MagicVengeance, 100, 99),
+                    ]
+                } else {
+                    vec![(R::PhysicalEvasion, 100, 99)]
+                };
+                let mut trace = Vec::new();
+                let row = if magic.is_some() {
+                    zone.magic_handler_rolled_v5(
+                        Tick(1),
+                        source,
+                        target,
+                        &skill,
+                        1,
+                        &handler,
+                        &mut Vec::new(),
+                        &mut scripted(&expected, &mut trace),
+                    )
+                } else {
+                    zone.physical_handler_rolled_v5(
+                        Tick(1),
+                        source,
+                        target,
+                        &skill,
+                        1,
+                        &handler,
+                        &mut Vec::new(),
+                        &mut scripted(&expected, &mut trace),
+                    )
+                }
+                .unwrap();
+                let expected_damage = match (legacy, magic) {
+                    (true, None) => 115,
+                    (false, None) => 346,
+                    (true, Some(_)) => 56,
+                    (false, Some(1)) => 280,
+                    (false, Some(_)) => 168,
+                };
+                assert_eq!(row.rolled, expected_damage, "legacy={legacy}, magic={magic:?}");
+                assert_eq!(trace.len(), expected.len());
+            }
+        }
+    }
+
     fn scripted<'a>(
         expected: &'a [(DamageRollSite, u32, u32)],
         trace: &'a mut Trace,

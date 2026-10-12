@@ -778,7 +778,7 @@ fn condition_capabilities(
 ) {
     match condition {
         SkillCondition::PlayerLevelRange { .. } => {
-            // D34: retain the generated blocker until the live cast caller executes it.
+            // D34: caller support lands before the coordinated generated-table promotion.
             missing.insert("cond:player:levelRange".into());
         },
         SkillCondition::UsingKind { weapon_kinds } => {

@@ -173,7 +173,7 @@ impl ZoneState {
 
     /// Formulas.java:1054-1063 and :665-743: condition multiplication precedes clamp;
     /// critical/traits/spread/penalty remain rational until the caller's integer cast.
-    fn auto_damage_v5(
+    pub(super) fn auto_damage_v5(
         &mut self,
         source: TargetBinding,
         target: TargetBinding,
@@ -251,6 +251,14 @@ impl ZoneState {
             .map_err(invariant)?;
         damage = damage
             .checked_mul(self.spread_v5(a.physical.random_damage(), target, draw)?)
+            .map_err(invariant)?;
+        damage = damage
+            .checked_mul(self.item_pvp_damage_bonus(
+                source.entity,
+                target.entity,
+                &a,
+                "pvpPhysDmg",
+            )?)
             .map_err(invariant)?;
         damage = damage
             .checked_mul(self.npc_penalty_v5(

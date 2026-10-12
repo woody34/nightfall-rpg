@@ -114,14 +114,34 @@ pub struct FunctionConditions<'a> {
 impl FunctionConditions<'_> {
     /// Evaluate every supported recursive condition without a mutable game-state callback.
     pub fn matches(self, condition: &SkillCondition) -> Result<bool, StatError> {
+        self.matches_at_rank(condition, None, 0)
+    }
+
+    /// V6 cast admission supplies the authoritative caster level and resolved skill rank.
+    /// Missing context stays unsupported in historical callers, including nested conditions.
+    pub fn matches_at_rank(
+        self,
+        condition: &SkillCondition,
+        player_level: Option<u32>,
+        rank: u32,
+    ) -> Result<bool, StatError> {
         match condition {
+            SkillCondition::PlayerLevelRange { ranges } => {
+                let level = player_level.ok_or(StatError::Overflow)?;
+                let range = rank
+                    .checked_sub(1)
+                    .and_then(|index| usize::try_from(index).ok())
+                    .and_then(|index| ranges.get(index))
+                    .ok_or(StatError::Overflow)?;
+                Ok(range.minimum <= level && level <= range.maximum)
+            },
             SkillCondition::UsingKind { weapon_kinds } => {
                 Ok(weapon_kinds.iter().any(|kind| kind == self.weapon_kind))
             },
             SkillCondition::PlayerCanResurrect { value } => Ok(*value == self.can_resurrect),
             SkillCondition::And { conditions, .. } => {
                 for condition in conditions {
-                    if !self.matches(condition)? {
+                    if !self.matches_at_rank(condition, player_level, rank)? {
                         return Ok(false);
                     }
                 }
@@ -129,17 +149,16 @@ impl FunctionConditions<'_> {
             },
             SkillCondition::Or { conditions, .. } => {
                 for condition in conditions {
-                    if self.matches(condition)? {
+                    if self.matches_at_rank(condition, player_level, rank)? {
                         return Ok(true);
                     }
                 }
                 Ok(false)
             },
             SkillCondition::Not { conditions, .. } if conditions.len() == 1 => self
-                .matches(conditions.first().ok_or(StatError::Overflow)?)
+                .matches_at_rank(conditions.first().ok_or(StatError::Overflow)?, player_level, rank)
                 .map(|value| !value),
-            SkillCondition::PlayerLevelRange { .. }
-            | SkillCondition::PlayerInsideZoneIds { .. }
+            SkillCondition::PlayerInsideZoneIds { .. }
             | SkillCondition::PlayerResting { .. }
             | SkillCondition::PlayerStanding { .. }
             | SkillCondition::PlayerMoving { .. }
