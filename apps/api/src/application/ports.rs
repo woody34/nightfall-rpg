@@ -1,5 +1,7 @@
 //! Ports: the traits the application layer needs the outside world to implement.
 
+mod item_grants;
+pub use item_grants::*;
 mod item_mutations;
 pub use item_mutations::*;
 mod items;
