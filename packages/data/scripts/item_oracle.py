@@ -328,7 +328,7 @@ def heal(power,m_atk,mp_consume2=0,mage=False,npc=False,grade='NONE',spirit=Fals
     capacity_q=None if recoverable_hp is None else max(0,q(recoverable_hp)-current_q)
     applied_q=restoration_q if capacity_q is None else min(restoration_q,capacity_q)
     new_hp,new_remainder=divmod(current_q+applied_q,Q)
-    if capacity_q is not None and applied_q==capacity_q:new_remainder=0
+    if capacity_q is not None and applied_q>0 and applied_q==capacity_q:new_remainder=0
     return {'amount':F(applied_q,Q),'restoration_q':restoration_q,'applied_q':applied_q,
             'current_hp':new_hp,'remainder_q':new_remainder,'whole_credit':new_hp-current_hp,
             'coefficient':F(coefficient),'static_bonus':static_bonus,'root_lower':lo,'root_upper':hi}
@@ -477,6 +477,41 @@ def consumable_use(definition,tick,available,item_deadlines=None,skill_deadlines
         if skill['reuse_delay_ms']>0:skill_deadlines[skill['id']]=tick+(skill['reuse_delay_ms']+99)//100
     return {'accepted':True,'consumed':dict(consumed),'lanes':lanes,'item_deadlines':item_deadlines,
             'skill_deadlines':skill_deadlines,'main_cast_preserved':all(lane=='item' for lane in lanes)}
+
+
+def consumable_cast_sequence(starts,caster_ordinal,caster_id):
+    """V6 I5/2.1 schedule: prepaid starts, one-tick minimum, shared total order."""
+    available={int(k):v for k,v in starts[0]['available'].items()}
+    item_deadlines={};skill_deadlines={};main=None;pending=[];trace=[];consumed=Counter()
+    for start in starts:
+        definition=start['definition'];tick=start['tick']
+        result=consumable_use(definition,tick,available,item_deadlines,skill_deadlines,
+                              main_casting=main is not None,condition_context=start.get('condition_context'))
+        if not result['accepted']:raise ValueError('rejected sequence start')
+        if len(definition['skills'])!=1:raise ValueError('sequence requires one source skill')
+        skill=definition['skills'][0];lane=result['lanes'][0]
+        if lane=='main' and main is not None:raise ValueError('occupied main lane')
+        hit_ms=cast_time(skill['hit_time_ms'],333,static=skill['static'])
+        cast={'cast_id':start['cast_id'],'lane':lane,'skill_id':skill['id'],
+              'start_tick':tick,'completion_tick':tick+max(1,(hit_ms+99)//100),
+              'caster_ordinal':caster_ordinal,'caster_id':caster_id,'prepaid':True}
+        for sid,count in result['consumed'].items():available[sid]-=count;consumed[sid]+=count
+        item_deadlines=result['item_deadlines'];skill_deadlines=result['skill_deadlines']
+        if lane=='main':main=cast
+        pending.append(cast)
+        trace.append({'event':'start','tick':tick,'cast':dict(cast),'consumed':result['consumed'],
+                      'inventory':dict(available),'main_cast':None if main is None else dict(main)})
+    if len({c['completion_tick'] for c in pending})!=1:raise ValueError('casts are not due together')
+    if len({c['cast_id'] for c in pending})!=len(pending):raise ValueError('duplicate cast id')
+    ordered=sorted(pending,key=lambda c:(c['completion_tick'],c['caster_ordinal'],c['caster_id'],c['cast_id']))
+    for cast in ordered:
+        if cast['lane']=='main':main=None
+        trace.append({'event':'complete','tick':cast['completion_tick'],'cast_id':cast['cast_id'],
+                      'lane':cast['lane'],'consumed':{},'inventory':dict(available),
+                      'main_cast':None if main is None else dict(main)})
+    return {'trace':trace,'completion_order':[c['cast_id'] for c in ordered],
+            'total_consumed':dict(consumed),'completion_consumed':{},'inventory':available,
+            'main_cast':main,'item_casts':[],'item_deadlines':item_deadlines,'skill_deadlines':skill_deadlines}
 
 
 class Source:
@@ -774,7 +809,7 @@ def verify_facts(facts):
     formulas={function.__name__:function for function in [enchant_increment,enchant_hp,crystal_count,failure_refund,
         enchant_chance,enchant_outcome,enchant_valid,max_load,overload,grade_penalties,fist_spread,pole_damage,pole_sequence,
         bow_reuse,bow_damage,dual_damage,dual_timing,skill_caller_damage,position,shield,physical_damage,magic_damage,cast_time,heal,blow_success,lethal,retail_select,
-        retail_distribution,category,pack_options,cancel_fee,set_shield_history,clamp_no_heal,charge_transition,shot_payment,shared_shot_bundle,winning_providers,consumable_use,player_level_range]}
+        retail_distribution,category,pack_options,cancel_fee,set_shield_history,clamp_no_heal,charge_transition,shot_payment,shared_shot_bundle,winning_providers,consumable_use,consumable_cast_sequence,player_level_range]}
     if not facts:raise ValueError('missing item facts')
     for fact in facts:
         if set(fact)!={'formula','inputs','expected'} or fact['formula'] not in formulas:raise ValueError('unsupported or malformed item fact')
@@ -1054,6 +1089,9 @@ def add_revision_vectors(src,add,human):
     for name,kwargs in [('partial',{'current_hp':950,'recoverable_hp':1000,'remainder_q':500000}),
                         ('full',{'current_hp':1000,'recoverable_hp':1000}),
                         ('over',{'current_hp':1001,'recoverable_hp':1000}),
+                        ('over-fraction-positive',{'current_hp':1001,'recoverable_hp':1000,'remainder_q':500000}),
+                        ('over-fraction-zero',{'static':True,'power':0,'current_hp':1001,'recoverable_hp':1000,'remainder_q':500000}),
+                        ('at-cap-fraction',{'current_hp':1000,'recoverable_hp':1000,'remainder_q':500000}),
                         ('static',{'static':True,'power':'1.25','heal_effect':9,'critical':True,'current_hp':9,'recoverable_hp':10}),
                         ('negative-static',{'static':True,'power':-1})]:
         inputs=dict(power=100,m_atk=121);inputs.update(kwargs)
@@ -1075,6 +1113,19 @@ def add_revision_vectors(src,add,human):
         add('F1','attribute-set-interaction',dict(inputs,set_id=int(set_node.get('id'))),sheet,[file+':'+str(anchor),*attribute_sources])
         break
     else:raise ValueError('no source-executable attribute/set interaction')
+    # Synthetic priority-1 SET makes ADD/SET install ordering observable; not a DP skill.
+    proxy=SimpleNamespace(**vars(src));proxy.xml=src.xml;proxy.properties=src.properties
+    proxy.skills=dict(src.skills)
+    file,node=src.skills[8498];node=ET.fromstring(ET.tostring(node))
+    stat=node.find('effects/effect/add');stat.tag='set';stat.set('order','1');stat.set('val','40')
+    proxy.skills[8498]=(file,node)
+    for sequence in [1,3]:
+        inputs={'class_file':human,'level':1,'equipment':[(1,0,'rhand',1)],'skill_refs':[(8498,1,2)],
+                'base_deltas':{'str':2},'base_delta_sequence':sequence}
+        synthetic={'kind':'synthetic','description':'skill8498 STR ADD replaced with priority-1 SET40; set STR+2 at priority1',
+                   'skill_override_xml':ET.tostring(node,encoding='unicode')}
+        add('F1',f'attribute-same-priority-{sequence}',dict(inputs,synthetic=synthetic),gear_stats(proxy,**inputs),
+            ['design/3.2 FunctionKey install order; synthetic SET operand',*attribute_sources])
     # Source SET/enchant installation, complete removal, and fresh reinstallation.
     for step,gear in enumerate([[(69,4,'rhand',1)],[],[(69,4,'rhand',3)]]):
         inputs={'class_file':human,'level':1,'equipment':gear}
@@ -1136,10 +1187,16 @@ def add_revision_vectors(src,add,human):
             add('F12',f'consumable-shared-reuse-{template}',dict(next_inputs,stack_identity=2),consumable_use(**next_inputs),[src.citation(template),'design/8 reuse shared-group across stack identities'])
         inputs['main_casting']=True
         add('F12',f'consumable-lane-{template}',inputs,consumable_use(**inputs),[src.citation(template),'H/itemhandlers/ItemSkillsTemplate.java:98-115','design/I5 ordered lane'])
-    # Same-tick lane decisions and consumption remain distinct with an in-flight main cast.
+    # Real static Escape20s starts at10; immediate potion0ms at209 completes at210.
     lane_defs=[consumable_definition(src,sid) for sid in [736,1539]]
-    add('F12','consumable-same-tick-lanes',{'tick':10,'definitions':lane_defs},
-        [consumable_use(d,10,{d['template_id']:1},main_casting=False,condition_context={'level':1,'canEscape':True,'canResurrect':True,'inside_zone_ids':[]}) for d in lane_defs],['H/itemhandlers/ItemSkillsTemplate.java:98-129','design/I5 same tick main/item lanes'])
+    starts=[{'tick':10,'cast_id':1,'definition':lane_defs[0],'available':{736:1,1539:2},
+             'condition_context':{'canEscape':True,'inside_zone_ids':[]}},
+            {'tick':209,'cast_id':2,'definition':lane_defs[1]}]
+    inputs={'starts':starts,'caster_ordinal':0,'caster_id':100}
+    add('F12','consumable-same-tick-lanes',inputs,consumable_cast_sequence(**inputs),
+        [src.citation(736),src.citation(1539),'D/stats/skills/02000-02099.xml (2013/2037)',
+         'H/itemhandlers/ItemSkillsTemplate.java:98-129','G/model/actor/L2Character.java:1560-1566',
+         'design/2.1 phase5 (deadline,caster ordinal,caster id,cast id); 5.5 minimum one tick; I5 prepaid lanes'])
     for sid in [2287,2288,2289,2860,2861,2862]:
         if sid not in src.skills:raise ValueError('missing elixir skill')
         file,skill=src.skills[sid];tables={n.get('name'):n.text.split() for n in skill.findall('table')}
@@ -1156,10 +1213,12 @@ def verify_coverage(src,vectors):
     by_id={v['id']:v for v in vectors}
     required={f'gear-{i:02d}-{kind}' for i,kind in enumerate(['SWORD','BLUNT','DAGGER','BOW','DUAL','DUALFIST','POLE'],1)}
     required|={'gear-08-FIST','attribute-provider','attribute-set-interaction','consumable-same-tick-lanes'}
+    required|={'attribute-same-priority-1','attribute-same-priority-3'}
+    required|={f'consumable-shared-reuse-{sid}' for sid in [1539,1540,5591,5592,8628,14688]}
     required|={f'provider-install-remove-reinstall-{step}' for step in range(3)}
     required|={f'provider-overlap-{step}' for step in range(5)}
     required|={f'heal-fraction-repeat-{step}' for step in range(3)}
-    required|={f'heal-clamp-{name}' for name in ['partial','full','over','static','negative-static']}
+    required|={f'heal-clamp-{name}' for name in ['partial','full','over','static','negative-static','over-fraction-positive','over-fraction-zero','at-cap-fraction']}
     required|={f'consumable-{kind}-{sid}' for sid in [736,1538,737,1539,1540,5591,5592,8628,14688] for kind in ['consume-once','lane']}
     required|={f'shot-payment-{kind}-{toggle}-{case}' for kind in ['soul','spirit','blessed'] for toggle in [False,True]
                for case in ['paid','splus','wrong-grade','empty','already','no-weapon']}
