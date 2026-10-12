@@ -338,6 +338,26 @@ impl ZoneState {
             } => return Err(missing()),
         };
         let value = kind.of(&base);
+        // CharStat's six attribute getters fold before their integer cast and bonus lookup.
+        let value = if self.phase4.is_some() {
+            let effective = self.effective(id)?;
+            let folded = effective
+                .calculator
+                .fold(
+                    name,
+                    i64::from(value).checked_mul(Q).ok_or_else(missing)?,
+                    FunctionConditions {
+                        weapon_kind: self.item_weapon_kind(id, "NONE")?,
+                        can_resurrect: !effective.flags.intersects(
+                            crate::domain::zone::effects::StatusFlags::RESURRECTION_BLOCK,
+                        ),
+                    },
+                )
+                .map_err(invariant)?;
+            u32::try_from(folded / Q).map_err(invariant)?
+        } else {
+            value
+        };
         Ok((
             value,
             q(self
@@ -1136,5 +1156,106 @@ impl ZoneState {
             }
         }
         Ok(removals)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod item_attribute_tests {
+    use super::*;
+    use crate::domain::zone::stat_functions::{
+        FunctionKey, FunctionOp, StatCalculator, StatFunction,
+    };
+    use crate::domain::zone::{skill::SkillCondition, StatKind};
+
+    #[test]
+    fn v6_attribute_callers_fold_current_weapon_before_bonus_and_keep_legacy_bases() {
+        let (mut zone, owner, npc) = ZoneState::item_checkpoint_fixture();
+        for id in [owner.entity, npc.entity] {
+            let stats = [
+                ("STR", StatKind::Str),
+                ("DEX", StatKind::Dex),
+                ("CON", StatKind::Con),
+                ("INT", StatKind::Int),
+                ("WIT", StatKind::Wit),
+                ("MEN", StatKind::Men),
+            ];
+            let phase4 = zone.phase4.take();
+            let bases: Vec<_> = stats
+                .iter()
+                .map(|(name, _)| zone.base_property_v5(id, name).unwrap())
+                .collect();
+            zone.phase4 = phase4;
+            let mut effective = (*zone.effective(id).unwrap()).clone();
+            let weapon = if id == owner.entity { "SWORD" } else { "NONE" };
+            effective.calculator =
+                StatCalculator::try_new(stats.iter().map(|(name, _)| StatFunction {
+                    key: FunctionKey {
+                        stat: (*name).into(),
+                        priority: 48,
+                        install_sequence: 1,
+                        handler_ordinal: 0,
+                        function_ordinal: 0,
+                    },
+                    operation: FunctionOp::Add(3 * Q + Q / 2),
+                    conditions: vec![SkillCondition::UsingKind {
+                        weapon_kinds: vec![weapon.into()],
+                    }],
+                }))
+                .unwrap();
+            zone.phase3
+                .as_mut()
+                .unwrap()
+                .effective
+                .insert(id, Arc::new(effective));
+            for ((name, kind), original) in stats.iter().zip(&bases) {
+                let expected = original.0 + 3;
+                let (value, bonus) = zone.base_property_v5(id, name).unwrap();
+                assert_eq!(value, expected);
+                assert_eq!(
+                    bonus,
+                    q(zone
+                        .rules
+                        .as_ref()
+                        .unwrap()
+                        .bonus()
+                        .bonus(*kind, expected)
+                        .unwrap()
+                        .raw())
+                    .unwrap()
+                );
+            }
+            if id == owner.entity {
+                let items = zone.phase4.as_mut().unwrap();
+                let player = items.canonical.players.get_mut(&id).unwrap();
+                let weapon = player
+                    .paperdoll
+                    .remove(&crate::domain::zone::EquipSlot::Rhand)
+                    .unwrap();
+                // Keep the synthetic calculator: the getter itself must select FIST now.
+                let removed = player.inventory.remove(&weapon).unwrap();
+                for ((name, _), original) in stats.iter().zip(&bases) {
+                    assert_eq!(zone.base_property_v5(id, name).unwrap(), *original);
+                }
+                let player = zone
+                    .phase4
+                    .as_mut()
+                    .unwrap()
+                    .canonical
+                    .players
+                    .get_mut(&id)
+                    .unwrap();
+                player.inventory.insert(weapon, removed);
+                player
+                    .paperdoll
+                    .insert(crate::domain::zone::EquipSlot::Rhand, weapon);
+            }
+            let phase4 = zone.phase4.take();
+            for ((name, _), original) in stats.iter().zip(&bases) {
+                assert_eq!(zone.base_property_v5(id, name).unwrap(), *original);
+            }
+            zone.phase4 = phase4;
+        }
+        assert_eq!(zone.base_property_v5(owner.entity, "NONE").unwrap(), (0, ExactRatio::whole(1)));
     }
 }
