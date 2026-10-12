@@ -63,7 +63,96 @@ pub struct PlayerStatInputs {
     pub functions: Vec<StatFunction>,
     pub limits: EffectiveStatLimits,
 }
+/// V6 canonical equipment and its separately hash-bound catalogue.
+#[derive(Clone, Copy)]
+pub struct EquipmentStatContext<'a> {
+    /// Retained instances and provider installation order.
+    pub player: &'a super::Phase4Player,
+    /// Immutable item and class-slot definitions.
+    pub rules: &'a super::Phase4Rules,
+}
+impl<'a> EquipmentStatContext<'a> {
+    /// Actual weapon kind; an empty right hand uses class fist bases.
+    pub fn weapon_kind(self) -> Result<&'a str, StatError> {
+        let Some(id) = self.player.paperdoll.get(&super::EquipSlot::Rhand) else {
+            return Ok("FIST");
+        };
+        let item = self.player.inventory.get(id).ok_or(StatError::Overflow)?;
+        let definition = self
+            .rules
+            .parts()
+            .items
+            .get(&item.template_id)
+            .ok_or(StatError::Overflow)?;
+        Ok(&definition.weapon_type)
+    }
+}
 impl PlayerStatInputs {
+    /// Build V6 from actual item providers and hash-bound class defence slots. Legacy
+    /// construction remains unchanged; equipment removal returns to class fist bases.
+    pub fn from_equipment(
+        stats: &super::StatRules,
+        classes: &crate::domain::class::ClassRegistry,
+        rules: &Phase3Rules,
+        class_id: crate::domain::class::ClassId,
+        level: u32,
+        equipment: EquipmentStatContext<'_>,
+    ) -> Result<Self, StatError> {
+        use super::item_functions::{equipped_functions, subtract_defence_slots};
+        super::item_equipment::validate_paperdoll(
+            &equipment.player.inventory,
+            &equipment.player.paperdoll,
+            equipment.rules,
+        )
+        .map_err(|_| StatError::Overflow)?;
+        let mut inputs = Self::from_class(stats, classes, rules, class_id, level)?;
+        let class = classes.get(class_id).ok_or(StatError::Overflow)?;
+        let weapon = equipment
+            .player
+            .paperdoll
+            .get(&super::EquipSlot::Rhand)
+            .map(|id| {
+                equipment
+                    .player
+                    .inventory
+                    .get(id)
+                    .ok_or(StatError::Overflow)
+            })
+            .transpose()?;
+        inputs.bases.random_damage = match weapon {
+            Some(item) => {
+                equipment
+                    .rules
+                    .parts()
+                    .items
+                    .get(&item.template_id)
+                    .ok_or(StatError::Overflow)?
+                    .random_damage
+            },
+            None => super::fist_random_damage(stats.constants(), level)?,
+        };
+        inputs.functions = super::stat_functions::standard_functions(
+            &class.base_stats,
+            stats.bonus(),
+            super::level_mod(stats.constants(), level)?,
+            level,
+            true,
+            weapon.is_some(),
+        )?;
+        let slots = equipment
+            .rules
+            .parts()
+            .class_slots
+            .iter()
+            .find(|row| row.base_class_id == class.base_class_id.0)
+            .ok_or(StatError::Overflow)?;
+        subtract_defence_slots(&mut inputs.functions, equipment.player, equipment.rules, slots)?;
+        inputs
+            .functions
+            .extend(equipped_functions(equipment.player, equipment.rules)?);
+        Ok(inputs)
+    }
+
     /// Build from the current profession's growth and source templates plus the actually
     /// equipped starter weapon. Order0 weapon SET replaces class6 with weapon5 for M.Atk.
     pub fn from_class(
