@@ -122,8 +122,13 @@ def validate_seed_manifest(seed, selected, owner, observer, repo, paired):
         raise ValueError('Phase3 seed manifest does not match exact pre-admission inputs')
 
 
-def soak_lane(index, clients):
-    """Canonical radial lane for a zero-based role index among 1..8 clients."""
+def soak_lane(index, clients, casting=True):
+    """Fixed edge lanes for casting; preserve origin-based legacy radial lanes."""
+    if casting:
+        x = 36 + 60 * (index % 4)
+        home_y, direction = (20, 1) if index < 4 else (236, -1)
+        end_y = home_y + 3 * direction
+        return (x, home_y), [(x, end_y + offset * direction) for offset in (120, 60, 0)]
     angle = math.radians(5 + 80 * index / max(1, clients - 1))
     home = (round(180 * math.cos(angle)), round(180 * math.sin(angle)))
     end = (round(177 * math.cos(angle)), round(177 * math.sin(angle)))

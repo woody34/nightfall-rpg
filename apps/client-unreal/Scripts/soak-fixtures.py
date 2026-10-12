@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Give each real soak client a radial lane, with attack or received-state casting assertions."""
+"""Give each real soak client a lane, with attack or received-state casting assertions."""
 import argparse
 import importlib.util
 import json
@@ -17,7 +17,11 @@ def casting_scenario(waypoints):
         '# Pinned dp3ca488dd skills/01100-01199.xml:1645 and01000-01099.xml:1560:',
         '# Base cast4000ms *3=12s; A1 state10ticks *100ms *3=3s.',
         '# Seed at lane end (wp3); BotLoop retains that endpoint for later iterations.',
-        '# Every iteration routes end -> wp2 -> wp1 -> wp2 -> wp3, each leg about59tiles.',
+        '# Fixed top/bottom edge lanes: end -> wp2 -> wp1 -> wp2 -> wp3, each leg60tiles.',
+        '# Homes/end >=93tiles from peace (Chebyshev); homes >=60tiles apart.',
+        '# Peace: packages/data/zones/test_zone_phase3.toml:7-11 (inclusive square).',
+        '# Wander: domain/zone/ai.rs:24-30, <=9.375tiles/axis (sqrt(2)*9.375 <13.3tiles).',
+        '# Home spacing >2*13.3+8tiles clan-help (npcs/keltir.toml:26); combat stays clear.',
         '# For1..8 clients, legs <=60tiles; +1tile own_at tolerance <=61 <64tile move cap.',
         '# Move cap: domain/zone/state.rs:39,1376; tolerance: Bot/BotPredicates.cpp:681-691.',
         '# Move waits: (60+1)tiles /3.75tiles/s *3=48.8s <=54s per leg.',
@@ -60,7 +64,7 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False) -> None:
     for i in range(clients):
         # At most 8 roles: >=35 tiles between homes. This includes both NPCs'
         # maximum wander (sqrt(2)*9.375 each; domain/zone/ai.rs) plus clan-help(8).
-        home, waypoints = contracts.soak_lane(i, clients)
+        home, waypoints = contracts.soak_lane(i, clients, casting=casting)
         zone += ['[[spawn_slots]]', f'id = "soak_{i + 1:02}"', 'template = "keltir"',
                  f'home = [{home[0]}, {home[1]}]', 'count = 1',
                  'respawn_delay_secs = 5', 'respawn_random_secs = 0']
