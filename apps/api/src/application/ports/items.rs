@@ -189,3 +189,95 @@ pub trait ItemInventoryRuntime: Send + Sync {
         repository: &dyn ItemInventoryRepository,
     ) -> Result<Option<RetainedInventory>, crate::application::AppError>;
 }
+/// The SQL ledger operation vocabulary (D29). Pure owner-sidecar changes have no row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum ItemLedgerOperation {
+    Grant,
+    Starter,
+    Backfill,
+    Equip,
+    Unequip,
+    Consume,
+    Enchant,
+    Destroy,
+    Crystallize,
+    Refine,
+    CancelRefine,
+    Exchange,
+    Use,
+}
+impl ItemLedgerOperation {
+    /// Stable SQL spelling; never derive it from a client-provided string.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Grant => "grant",
+            Self::Starter => "starter",
+            Self::Backfill => "backfill",
+            Self::Equip => "equip",
+            Self::Unequip => "unequip",
+            Self::Consume => "consume",
+            Self::Enchant => "enchant",
+            Self::Destroy => "destroy",
+            Self::Crystallize => "crystallize",
+            Self::Refine => "refine",
+            Self::CancelRefine => "cancel_refine",
+            Self::Exchange => "exchange",
+            Self::Use => "use",
+        }
+    }
+}
+
+/// Exact before/after scalar endpoints plus the explicit net operation count delta.
+/// Consumption aggregates may interleave with other facts; endpoint subtraction is not
+/// a substitute for this delta or the ordered verified cause/evidence objects.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemLedgerDelta {
+    pub before: Option<crate::domain::zone::ItemInstance>,
+    pub after: Option<crate::domain::zone::ItemInstance>,
+    pub count_delta: i64,
+    pub causes: Vec<serde_json::Value>,
+}
+
+/// One actual instance change in a single acknowledged zone tick. No live-row FK is needed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemLedgerEntry {
+    pub character_id: CharacterId,
+    pub zone_id: ZoneId,
+    pub epoch: u64,
+    pub tick: crate::domain::zone::Tick,
+    pub revision: u64,
+    pub operation: ItemLedgerOperation,
+    pub instance_id: crate::domain::zone::ItemInstanceId,
+    pub operation_ordinal: u32,
+    pub delta: ItemLedgerDelta,
+    pub receipt_ref: Option<uuid::Uuid>,
+}
+impl ItemLedgerEntry {
+    /// Mirror SQL widths before any claim/write and reject fabricated pure-sidecar rows.
+    pub fn validate(&self) -> Result<(), CheckpointError> {
+        if i32::try_from(self.zone_id.0).is_err()
+            || i64::try_from(self.epoch).is_err()
+            || i64::try_from(self.tick.0).is_err()
+            || i64::try_from(self.revision).is_err()
+            || i32::try_from(self.operation_ordinal).is_err()
+            || (self.operation == ItemLedgerOperation::Consume && self.operation_ordinal != 0)
+            || (self.delta.before.is_none() && self.delta.after.is_none())
+        {
+            return Err(CheckpointError::Constraint("item_ledger_projection".into()));
+        }
+        for item in self.delta.before.iter().chain(self.delta.after.iter()) {
+            item.validate()
+                .map_err(|_| CheckpointError::Constraint("item_ledger_scalar".into()))?;
+            if item.id != self.instance_id || item.revision > self.revision {
+                return Err(CheckpointError::Constraint("item_ledger_identity".into()));
+            }
+        }
+        Ok(())
+    }
+}
