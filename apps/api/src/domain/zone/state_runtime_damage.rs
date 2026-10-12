@@ -7752,7 +7752,20 @@ mod tests {
         let weapon = player.paperdoll[&EquipSlot::Rhand];
         let revision = player.inventory_revision;
         // Retained toggles may outlive their stack or a previous charge/weapon.
-        player.auto_shots.extend([1464, 2511, 3949, 1835]);
+        player.auto_shots.extend([1464, 2511, 3949, 1465]);
+        for invalid in [1835, 57, u32::MAX] {
+            let mut corrupt = zone.snapshot();
+            corrupt
+                .phase4
+                .as_mut()
+                .unwrap()
+                .players
+                .get_mut(&owner.entity)
+                .unwrap()
+                .auto_shots
+                .insert(invalid);
+            assert!(ZoneState::from_snapshot_with_items(corrupt, Some(Arc::clone(&rules))).is_err());
+        }
         let snapshot = zone.snapshot();
         let mut cold = ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
         let mut observed = zone.clone();
