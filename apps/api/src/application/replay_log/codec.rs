@@ -460,13 +460,15 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 40"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    #[prost(bytes, tag = "40")]
+    ItemCheckpoint(Vec<u8>),
     #[prost(bytes, tag = "26")]
     PvpStateChanged(Vec<u8>),
     #[prost(bytes, tag = "27")]
@@ -1210,6 +1212,9 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::ItemCheckpoint(projection) => {
+            PbOutputItem::ItemCheckpoint(canonical_json(projection))
+        },
         ZoneEvent::PvpStateChanged { .. } => PbOutputItem::PvpStateChanged(canonical_json(e)),
         ZoneEvent::ResurrectOffer { .. } => PbOutputItem::ResurrectOffer(canonical_json(e)),
         ZoneEvent::SkillLearned { .. } => PbOutputItem::SkillLearned(canonical_json(e)),
@@ -1780,6 +1785,9 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::ItemCheckpoint(bytes) => {
+            ZoneEvent::ItemCheckpoint(Box::new(phase4_projection_from_json(&bytes)?))
+        },
         PbOutputItem::PvpStateChanged(bytes) => {
             let event = phase3_event_from_json(&bytes)?;
             if !matches!(event, ZoneEvent::PvpStateChanged { incarnation, .. } if incarnation != 0)
@@ -2075,6 +2083,26 @@ fn phase3_event_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
 
 // These plain structs contain only bounded integer/string data and ordered vectors. JSON
 // serialization cannot fail; using one canonical encoding retains absent legacy fields.
+/// Validate opaque private DTO bytes while traversing the enclosing record grammar.
+pub(super) fn phase4_projection_from_json(
+    bytes: &[u8],
+) -> Result<crate::domain::zone::Phase4Projection, CodecError> {
+    use crate::domain::zone::phase4_checkpoint::RetainedEquipmentSource;
+    let projection: crate::domain::zone::Phase4Projection =
+        serde_json::from_slice(bytes).map_err(err)?;
+    let count = projection
+        .checkpoint
+        .equipment_install_order
+        .iter()
+        .filter(|source| matches!(source, RetainedEquipmentSource::Phase3(_)))
+        .count();
+    projection.validate_structure(count).map_err(err)?;
+    if canonical_json(&projection) != bytes {
+        return Err(err("noncanonical private item projection"));
+    }
+    Ok(projection)
+}
+
 fn canonical_json<T: serde::Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).unwrap_or_default()
 }

@@ -66,6 +66,63 @@ mod tests {
         .unwrap()
     }
     #[test]
+    fn private_item_checkpoint_roundtrips_only_in_v6_event_stream() {
+        let projection = crate::domain::zone::phase4_projection::tests::projection();
+        let event = crate::domain::zone::ZoneEvent::ItemCheckpoint(Box::new(projection));
+        let bytes = super::super::encode_events(std::slice::from_ref(&event));
+        assert_eq!(super::super::decode_events(&bytes).unwrap(), vec![event.clone()]);
+        assert!(crate::interface::zone_mapping::world_event_to_pb(&event, 0).is_empty());
+        for schema in 3..=8 {
+            let record = super::super::PbRecord {
+                schema,
+                tick: 10,
+                events: bytes.clone().into(),
+                state_digest: vec![0; 32].into(),
+                ..Default::default()
+            };
+            assert_eq!(super::super::decode_record(&record.encode_to_vec()).is_ok(), schema == 8);
+        }
+        let record = super::super::PbRecord {
+            schema: 8,
+            tick: 10,
+            state_digest: vec![0; 32].into(),
+            outputs: vec![super::super::PbPlayerOutput {
+                entity: event.entity().as_uuid().as_bytes().to_vec(),
+                encoded: bytes.into(),
+                sha256: bytes::Bytes::new(),
+            }],
+            ..Default::default()
+        };
+        assert!(super::super::decode_record(&record.encode_to_vec()).is_err());
+        let reserved = super::super::PbRecord {
+            schema: 8,
+            state_digest: vec![0; 32].into(),
+            events: vec![10, 3, 226, 1, 0].into(),
+            ..Default::default()
+        };
+        assert!(super::super::decode_record(&reserved.encode_to_vec()).is_err());
+    }
+
+    #[test]
+    fn private_item_checkpoint_rejects_unknown_fields_and_corrupt_invariants() {
+        let original = crate::domain::zone::phase4_projection::tests::projection();
+        let bytes = canonical_json(&original);
+        assert_eq!(super::super::phase4_projection_from_json(&bytes).unwrap(), original);
+        let mut whitespace = bytes.clone();
+        whitespace.push(b' ');
+        assert!(super::super::phase4_projection_from_json(&whitespace).is_err());
+        let mut corrupted = original.clone();
+        corrupted.checkpoint.ordinary_capacity = u32::MAX;
+        assert!(super::super::phase4_projection_from_json(&canonical_json(&corrupted)).is_err());
+        corrupted = original.clone();
+        corrupted.account = AccountId::from_uuid(uuid::Uuid::nil());
+        assert!(super::super::phase4_projection_from_json(&canonical_json(&corrupted)).is_err());
+        let mut json = serde_json::to_value(original).unwrap();
+        json["checkpoint"]["injected"] = serde_json::Value::Null;
+        assert!(super::super::phase4_projection_from_json(&canonical_json(&json)).is_err());
+    }
+
+    #[test]
     fn item_intents_have_ten_pinned_tags_and_are_rejected_before_record_eight() {
         let instance = ItemInstanceId::new(1).unwrap();
         let target = ItemInstanceId::new(2).unwrap();

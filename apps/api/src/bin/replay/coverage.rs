@@ -453,6 +453,7 @@ fn facts(
             | ZoneEvent::LevelUp { .. }
             | ZoneEvent::TargetChanged { .. }
             | ZoneEvent::EntityMove { .. }
+            | ZoneEvent::ItemCheckpoint(_)
             | ZoneEvent::Progression(_) => {},
         }
     }

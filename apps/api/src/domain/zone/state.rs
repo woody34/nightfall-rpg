@@ -1637,6 +1637,7 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
+        | ZoneEvent::ItemCheckpoint(_)
         | ZoneEvent::Progression(_)
         | ZoneEvent::EntitySpawn { .. }
         | ZoneEvent::EntityMove { .. }
@@ -1723,6 +1724,7 @@ impl<'a> CellFacts<'a> {
                 | ZoneEvent::ClassTransfer { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::ItemCheckpoint(_)
                 | ZoneEvent::Progression(_)
                 | ZoneEvent::EntitySpawn { .. }
                 | ZoneEvent::EntityMove { .. }

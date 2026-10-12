@@ -476,6 +476,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
         | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
+        | ZoneEvent::ItemCheckpoint(_)
         | ZoneEvent::Progression(_) => Vec::new(),
         ZoneEvent::EntityRespawned {
             entity,

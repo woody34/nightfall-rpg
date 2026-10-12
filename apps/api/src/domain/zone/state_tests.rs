@@ -96,6 +96,7 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::ItemCheckpoint(_)
                 | ZoneEvent::Progression(_)),
             ) => (4, 0, None),
         };
@@ -1062,4 +1063,20 @@ fn item_intent_never_mutates_a_historical_epoch() {
     let draft = state.draft(vec![input]);
     assert_eq!(state.run_tick(draft), Err(TickError::Phase4CommandInLegacy));
     assert_eq!(state.snapshot(), before);
+}
+
+#[test]
+fn private_item_checkpoint_is_never_sent_to_owner_or_peer() {
+    let mut state = zone();
+    run(&mut state, vec![spawn_player(1, 10, 10), spawn_player(2, 10, 10)]);
+    let event = ZoneEvent::ItemCheckpoint(Box::new(
+        crate::domain::zone::phase4_projection::tests::projection(),
+    ));
+    for observer in [id(1), id(2)] {
+        assert!(!fact_visible(&event, observer, &[id(1), id(2)]));
+    }
+    let outputs = state.observe(Tick(10), BTreeMap::new(), std::slice::from_ref(&event));
+    assert!(outputs
+        .values()
+        .all(|events| !events.contains(&ObserverOutput::Event(event.clone()))));
 }

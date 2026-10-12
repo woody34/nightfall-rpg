@@ -168,6 +168,7 @@ fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::ItemCheckpoint(_)
                 | ZoneEvent::Progression(_)),
             ) => (4, 0, None),
         };

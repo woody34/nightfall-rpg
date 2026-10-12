@@ -293,6 +293,7 @@ impl TickTelemetry for CombatConsumer {
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::StatsChanged { .. }
                 | ZoneEvent::TargetChanged { .. }
+                | ZoneEvent::ItemCheckpoint(_)
                 | ZoneEvent::Progression(_)
                 | ZoneEvent::EntityMove { .. } => {},
             }
