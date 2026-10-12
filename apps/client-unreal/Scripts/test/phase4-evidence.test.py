@@ -167,7 +167,8 @@ class Evidence(unittest.TestCase):
         for index,ingredient in enumerate(recipe['ingredients']):
             template,count=ingredient['template_id'],ingredient['count']
             if template==recipe['base_template'] or not count:continue
-            available=count+extra+(210000 if template==57 else 0)
+            # D68: a non-stackable ingredient (soul crystal 4645) is one instance of count 1.
+            available=count+(extra if gate.item_tables()[template]['stackable'] else 0)+(210000 if template==57 else 0)
             before=item(102+index-1,available,template)
             after=before|{'count':available-count,'revision':1} if available>count else None
             rows[1]['data']['instances'].append(copy.deepcopy(before))
@@ -361,7 +362,9 @@ class Evidence(unittest.TestCase):
         self.repair(rows);self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
         bad=copy.deepcopy(rows);product=bad[-2]['data']
         product['before']=product['after']|{'count':1};product['after']['count']=2
-        with self.assertRaisesRegex(ValueError,'fresh product'):gate.validate(bad,self.recording,HASH)
+        # Non-stackable 4682 count 2 now also fails D68; isolate the freshness rule too.
+        with self.assertRaisesRegex(ValueError,'fresh product|template cap'):gate.validate(bad,self.recording,HASH)
+        with self.assertRaisesRegex(ValueError,'fresh product'):gate.validate_exchanges(bad)
 
     def test_seeded_d66_interleaving_corruptions_2000_cases(self):
         rng=random.Random(0xD66);mutations=('wrong order','broken continuity','conservation mismatch','consume ordinal',
@@ -500,6 +503,40 @@ class Evidence(unittest.TestCase):
         bad=self.boundary_rows('F3','template_id',72,template=71,count=1);self.assert_rejected(bad,('pole_damage',))
         with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
         print(f'Review14 F1/F1b/F1d/F2/F2b/F3: {cases+2} boundary identity drifts reject; unchanged re-admission and distinct-ID controls pass',flush=True)
+
+    def fresh_grant(self,template,count,identity=400):
+        rows=copy.deepcopy(self.rows)
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(operation='grant',instance=identity,before=None,after=item(identity,count,template)|{'revision':1},
+                      count_delta=count,operation_ordinal=0,resolution_id='grant:cap',receipt_ref='receipt:grant:cap')))
+        return self.repair(rows)
+
+    def test_d68_pinned_count_caps_per_template_class(self):
+        # character.properties:671 MaxAdena; L2ItemInstance.java:422 Integer.MAX_VALUE; E1 stackable=false -> 1.
+        self.assertEqual(gate.count_caps(),(57,99_900_000_000,2**31-1))
+        for template,cap in ((57,99_900_000_000),(17,2**31-1),(2509,2**31-1),(71,1),(4645,1)):
+            with self.subTest(template=template):
+                self.assertEqual(gate.count_cap(template),cap)
+                self.assertTrue(gate.evaluate(self.fresh_grant(template,cap),self.recording,OWNER,['pole_damage'],HASH)['passed'])
+                for count in (cap+1,cap*2):
+                    bad=self.fresh_grant(template,count);self.assert_rejected(bad,('pole_damage',))
+                    with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
+        # Review14 F4 exact repros, plus a retained grant crossing the cap and an over-cap baseline.
+        for template,count in ((57,10**15),(71,2)):
+            with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(self.fresh_grant(template,count),self.recording,HASH)
+        rows=self.grants_then_consume(count=3,debits=(1,),credits=(3,))
+        for delta in (r['data'] for r in rows if r['kind']=='item_delta'):
+            for state in (delta['before'],delta['after']):
+                if state:state['template_id']=57
+        rows[1]['data']['instances'][0]['template_id']=57
+        gate.validate(rows,self.recording,HASH)
+        bad=copy.deepcopy(rows);grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        grant['after']['count']=99_900_000_001;grant['count_delta']=99_900_000_001-3
+        consume['before']['count']=99_900_000_001;consume['after']['count']=99_900_000_000
+        with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[1]['data']['instances'][0]['count']=99_900_000_001
+        with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
+        print('D68: adena 99900000000 / stackable 2147483647 / non-stackable 1 at-cap controls pass; over-cap grants, intermediates and baselines reject',flush=True)
 
     def test_seeded_d67_id_reuse_corruptions_2000_cases(self):
         rng=random.Random(0xD67);corruptions=0
@@ -728,7 +765,7 @@ class Evidence(unittest.TestCase):
         rows=[copy.deepcopy(self.rows[0])]
         baseline=[item(identity,count,12363 if identity==9 else 22227)|{'revision':initial} for identity,count in counts.items() if count]
         baseline.extend(item(identity,1,71)|{'revision':initial,'enchant':level} for identity,level in levels.items())
-        baseline.append(item(50,ticks*3+1,146)|{'revision':initial})
+        baseline.append(item(50,ticks*3+1,1835)|{'revision':initial})
         rows.append(dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=start,sequence=0,
                          data=dict(inventory_revision=initial,instances=baseline,paperdoll={},auto_shots=[])))
         for tick,plan in enumerate(plans):
@@ -781,7 +818,7 @@ class Evidence(unittest.TestCase):
                               count_delta=sum(delta for _,_,_,delta in parts),operation_ordinal=0,resolution_id=resolution,
                               receipt_refs=[ref for _,ref,_,_ in parts if ref.startswith('receipt:')],
                               causes=[dict(cause=ref,count_delta=delta) for _,ref,_,delta in parts])))
-            shot=item(50,(ticks-tick)*3+1,146)|{'revision':initial+tick}
+            shot=item(50,(ticks-tick)*3+1,1835)|{'revision':initial+tick}
             rows.append(dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=start+tick,sequence=0,
                 data=dict(operation='consume',instance=50,before=shot,after=shot|{'count':shot['count']-3,'revision':initial+tick+1},
                           count_delta=-3,operation_ordinal=0,resolution_id=f'attack:{tick}:0',receipt_refs=[],
@@ -1070,7 +1107,7 @@ class Evidence(unittest.TestCase):
     def test_system_only_and_mixed_consume_causes(self):
         rows=copy.deepcopy(self.rows)
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
-            data=dict(operation='consume',instance=50,before=item(50,5,146),after=item(50,2,146)|{'revision':1},
+            data=dict(operation='consume',instance=50,before=item(50,5,1835),after=item(50,2,1835)|{'revision':1},
                       count_delta=-3,operation_ordinal=0,resolution_id='attack:1',receipt_refs=[],
                       causes=[dict(cause='auto_shot:attack:1',count_delta=-1),dict(cause='auto_shot:attack:2',count_delta=-2)])))
         self.repair(rows)

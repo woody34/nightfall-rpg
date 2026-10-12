@@ -115,6 +115,14 @@ JSONL contract (schema version 1 of this sidecar):
   | grant | Canonical after; strictly positive count_delta. Before is null for creation, or canonical for a retained stack with only count changing. |
   | starter / backfill | Before is null; after is canonical. |
 
+  D68 bounds every canonical count (baseline instances, enchant bindings and
+  both endpoints of every ledger row, which are the only intermediate states
+  under D66/D69) by the pinned per-template cap: adena (template 57,
+  `Inventory.java:51`) at `MaxAdena = 99900000000` (`character.properties:671`);
+  any other E1 item with `stackable=true` at `Integer.MAX_VALUE = 2147483647`
+  (`L2ItemInstance.java:422`, the pinned stack ceiling; the E1 tables carry
+  `stackable` but no per-template maximum); `stackable=false` items at 1. Python
+  integers are unbounded, so sums never wrap (i128-equivalent).
   `count_delta` is an exact signed-bigint integer equal to the endpoint count
   difference for every operation. Revision-only rows and `operation=use` refuse;
   item-use costs belong in Consume aggregates.

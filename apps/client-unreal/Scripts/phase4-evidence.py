@@ -446,6 +446,32 @@ def sa_recipe(recipe_id):
     return recipe
 
 
+@lru_cache(maxsize=1)
+def count_caps():
+    """D68 caps read from the pinned sources at use (GAME@abfde049).
+
+    L2ItemInstance.java:422 caps a stack at MaxAdena for ADENA_ID and at
+    Integer.MAX_VALUE otherwise; Inventory.java:51 ADENA_ID = 57;
+    character.properties:671 MaxAdena = 99900000000. Non-stackable instances
+    (E1 items `stackable=false`) are single items, cap 1.
+    """
+    properties=source().read('src/main/resources/config/character.properties',True)
+    instance=source().read(oracle.G+'model/items/instance/L2ItemInstance.java',True)
+    inventory=source().read(oracle.G+'model/itemcontainer/Inventory.java',True)
+    adena=re.search(r'^MaxAdena = (\d+)\s*$',properties,re.M)
+    adena_id=re.search(r'public static final int ADENA_ID = (\d+);',inventory)
+    if not adena or not adena_id or 'long max = getId() == ADENA_ID ? character().getMaxAdena() : Integer.MAX_VALUE;' not in instance:
+        raise ValueError('pinned D68 count-cap source changed')
+    return int(adena_id[1]),int(adena[1]),2**31-1
+
+
+def count_cap(template):
+    """D68: adena 99,900,000,000; other stackables Integer.MAX_VALUE; non-stackables 1."""
+    adena_id,adena,stack=count_caps()
+    if template==adena_id:return adena
+    return stack if item_tables()[template]['stackable'] is True else 1
+
+
 def validate_instance(value):
     fields={'id','template_id','count','location','slot','enchant','augment_id','charges','created_tick','revision'}
     if not isinstance(value,dict) or set(value)!=fields:raise ValueError('missing/unknown canonical item scalar')
@@ -454,6 +480,8 @@ def validate_instance(value):
     if value['id']>=2**63 or value['count']>=2**63 or value['template_id']>=2**31 or value['enchant']>=2**32 or value['charges']>7 or value['created_tick']>=2**63 or value['revision']>=2**63:raise ValueError('item scalar outside domain width')
     # Dormant starter items remain canonical catalogue members (D17).
     if value['template_id'] not in item_tables():raise ValueError('unknown canonical template')
+    # Every ledger endpoint is an intermediate state under D66/D69, so this covers them (D68).
+    if value['count']>count_cap(value['template_id']):raise ValueError('item count above pinned template cap (D68)')
     if value['location'] not in ('inventory','paperdoll') or (value['location']=='paperdoll')!=(value['slot'] is not None):raise ValueError('item location/slot mismatch')
     if value['slot'] is not None and value['slot'] not in SLOTS:raise ValueError('unknown canonical slot')
     if value['charges'] and value['slot']!='rhand':raise ValueError('charge on nonweapon slot')
