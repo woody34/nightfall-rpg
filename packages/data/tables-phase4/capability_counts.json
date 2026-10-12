@@ -20119,8 +20119,8 @@
     "Weapon": {
       "source_total": 3893,
       "imported": 3893,
-      "admitted": 637,
-      "deferred": 3256,
+      "admitted": 907,
+      "deferred": 2986,
       "not_imported": 0
     },
     "Armor": {
@@ -20164,13 +20164,13 @@
     "condition:player:pledgeClass": 70,
     "condition:player:subclass": 12,
     "condition:player:vehicleMounted": 2,
+    "configuration:mana_potions_disabled": 2,
     "context:common": 772,
     "context:npc_only": 274,
     "context:shadow": 483,
     "context:time_limited": 1111,
     "enchant_option:24983": 2,
     "handler:SummonItems": 1,
-    "property:change_weaponId": 804,
     "property:equip_condition": 42,
     "property:oncrit_skill": 170,
     "property:onmagic_skill": 128,
@@ -21334,7 +21334,7 @@
   },
   "recipes": {
     "imported": 1464,
-    "admitted": 64,
-    "deferred": 1400
+    "admitted": 170,
+    "deferred": 1294
   }
 }

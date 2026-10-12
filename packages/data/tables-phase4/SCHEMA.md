@@ -98,3 +98,14 @@ selection handler for EnchantItem, not a missing cast effect. Sample286 carries
 `storable` is false for excluded Common/shadow/time-limited/NPC-only/pet contexts;
 V6 has no lifecycle/owner state for those items. Unsupported ordinary equipment
 effects or starter-extra uses remain storable while equip/use fails closed.
+
+`properties.change_weaponId` is preserved conversion metadata. It is read only
+by the deferred ConvertItem skill/ConditionChangeWeapon path, not ordinary equip,
+enchant or SA exchange. `capacities.policy.weapon_conversion` explicitly defers
+that skill mechanic; it does not defer an otherwise complete weapon template.
+
+Architect D27/D31: V6 rules and skill definitions are hash-referenced from
+build-embedded data; snapshots/records carry hashes, not rule bodies. Runtime
+must verify the content hash before admission/replay. Generator per-file semantic
+hashes remain unchanged by this transport decision. D33 preserves pinned disabled
+Mana Potion support in capacities.policy.mana_potion_support.
