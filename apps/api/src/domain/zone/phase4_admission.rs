@@ -283,12 +283,22 @@ pub struct ItemCommand {
     account: Option<crate::domain::AccountId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     known: Option<RecordedItemReceipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    conflict: Option<RecordedItemConflict>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RecordedItemReceipt {
     fingerprint: String,
     payload: super::phase4_projection::ItemResultPayload,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RecordedItemConflict {
+    stored_fingerprint: String,
+    fingerprint: String,
+    request_id: uuid::Uuid,
 }
 
 impl ItemCommand {
@@ -304,6 +314,7 @@ impl ItemCommand {
             kind,
             account: None,
             known: None,
+            conflict: None,
         };
         command.validate_shape()?;
         Ok(command)
@@ -375,6 +386,30 @@ impl ItemCommand {
         self.known = Some(known);
         self.validate_shape()?;
         Ok(self)
+    }
+    /// Actor-only recorded refusal after a scoped durable fingerprint conflict. Successful
+    /// and conflicting receipt contexts cannot be substituted for each other.
+    pub fn with_receipt_conflict(mut self, stored_fingerprint: String) -> Result<Self, ItemError> {
+        self.authenticated_account()?;
+        let conflict = RecordedItemConflict {
+            stored_fingerprint,
+            fingerprint: self.body_fingerprint_hex()?,
+            request_id: self.request_id,
+        };
+        if self.known.is_some() || self.conflict.as_ref().is_some_and(|old| old != &conflict) {
+            return Err(ItemError("item preflight result changed"));
+        }
+        self.conflict = Some(conflict);
+        self.validate_shape()?;
+        Ok(self)
+    }
+    /// Existing fingerprint from the recorded repository decision; never read on the tick.
+    pub fn receipt_conflict(&self) -> Result<Option<&str>, ItemError> {
+        self.validate_shape()?;
+        Ok(self
+            .conflict
+            .as_ref()
+            .map(|conflict| conflict.stored_fingerprint.as_str()))
     }
     /// Known receipts bypass current gameplay eligibility; session/account checks remain.
     pub const fn has_known_receipt(&self) -> bool {
@@ -469,6 +504,21 @@ impl ItemCommand {
             | ItemCommandKind::ExchangeSpecialAbility { .. }
             | ItemCommandKind::Crystallize { .. } => Ok(()),
         }?;
+        if let Some(conflict) = &self.conflict {
+            if self.account.is_none()
+                || self.known.is_some()
+                || conflict.request_id != self.request_id
+                || conflict.fingerprint != self.body_fingerprint_hex()?
+                || conflict.stored_fingerprint.len() != 64
+                || !conflict
+                    .stored_fingerprint
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                || conflict.stored_fingerprint == conflict.fingerprint
+            {
+                return Err(ItemError("invalid item receipt conflict"));
+            }
+        }
         if let Some(known) = &self.known {
             let result = known.payload.result()?;
             if self.account.is_none()
@@ -491,6 +541,57 @@ mod command_tests {
     use super::super::ItemInstanceId;
     use super::*;
     use crate::domain::AccountId;
+
+    #[test]
+    fn receipt_conflict_is_bound_to_request_and_cannot_replace_a_known_result() {
+        let fresh = command(1, 22)
+            .with_account(AccountId::from_uuid(uuid::Uuid::from_u128(3)))
+            .unwrap();
+        let current = fresh.fingerprint_hex().unwrap();
+        for bad in [
+            String::new(),
+            "f".repeat(63),
+            "F".repeat(64),
+            "g".repeat(64),
+            current.clone(),
+        ] {
+            assert!(fresh.clone().with_receipt_conflict(bad).is_err());
+        }
+        assert!(command(1, 22)
+            .with_receipt_conflict("f".repeat(64))
+            .is_err());
+        let conflict = fresh.with_receipt_conflict("f".repeat(64)).unwrap();
+        assert_eq!(conflict.fingerprint_hex().unwrap(), current);
+        assert_eq!(conflict.receipt_conflict().unwrap(), Some("f".repeat(64).as_str()));
+        assert_eq!(
+            serde_json::from_slice::<ItemCommand>(&serde_json::to_vec(&conflict).unwrap()).unwrap(),
+            conflict
+        );
+        assert!(conflict
+            .clone()
+            .with_receipt_conflict("e".repeat(64))
+            .is_err());
+        for change in 0..3 {
+            let mut wrong = conflict.clone();
+            match change {
+                0 => wrong.request_id = uuid::Uuid::from_u128(99),
+                1 => wrong.entity = super::super::EntityId::from_uuid(uuid::Uuid::from_u128(99)),
+                _ => {
+                    wrong.kind = ItemCommandKind::Unequip {
+                        slot: super::super::EquipSlot::Rhand,
+                    }
+                },
+            }
+            assert!(wrong.validate_shape().is_err());
+        }
+        let payload = super::super::phase4_projection::tests::projection()
+            .receipts
+            .remove(0)
+            .result
+            .payload()
+            .unwrap();
+        assert!(conflict.with_known_receipt(current, payload).is_err());
+    }
 
     #[test]
     fn known_receipt_is_actor_only_and_bound_to_body_owner_key_and_operation() {

@@ -4562,7 +4562,23 @@ mod tests {
         conflicting.kind = K::Unequip {
             slot: EquipSlot::Lhand,
         };
+        let recorded_conflict = conflicting
+            .clone()
+            .with_receipt_conflict(command.fingerprint_hex().unwrap())
+            .unwrap();
         let draft = zone.draft(vec![
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                10,
+                ZoneCommand::Item(Box::new(recorded_conflict)),
+            ),
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                11,
+                ZoneCommand::Item(Box::new(conflicting.clone())),
+            ),
             ZoneInput::session(
                 owner.entity,
                 SessionGeneration(1),
@@ -4584,8 +4600,11 @@ mod tests {
         ]);
         let applied = zone.run_tick(draft.clone()).unwrap();
         assert_eq!(applied, cold.run_tick(draft).unwrap());
-        assert_eq!(applied.dispositions.len(), 1);
-        assert_eq!(applied.dispositions[0].reason, RejectReason::ItemOperationConflict);
+        assert_eq!(applied.dispositions.len(), 3);
+        assert!(applied
+            .dispositions
+            .iter()
+            .all(|d| d.reason == RejectReason::ItemOperationConflict));
         assert_eq!(zone.phase4.as_ref().unwrap().canonical, before);
         assert_eq!(zone.rng.get_word_pos(), rng);
         assert_eq!(
