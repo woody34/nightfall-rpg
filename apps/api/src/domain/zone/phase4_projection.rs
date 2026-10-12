@@ -74,7 +74,8 @@ impl ItemAuditEvidence {
         let operation = match self.family.as_str() {
             "enchant_payment" => ItemOperation::Enchant,
             "exchange_payment" => ItemOperation::Exchange,
-            "item_cast_payment" => ItemOperation::Use,
+            "item_cast_payment" | "manual_shot_payment" => ItemOperation::Use,
+            "toggle_shot_payment" => ItemOperation::ToggleAutoShot,
             _ => return Ok(None),
         };
         let Some(ItemEvidenceValue::Text(key)) = self.fields.get("receipt") else {

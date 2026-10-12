@@ -5810,6 +5810,7 @@ mod tests {
     ) {
         use crate::domain::zone::ItemInstanceId;
         let (mut zone, owner, npc) = equipment_fixture();
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
         let player = zone
             .phase4
             .as_mut()
@@ -5827,7 +5828,11 @@ mod tests {
             let mut item = seed.clone();
             item.id = id;
             item.template_id = *template;
-            item.count = 3;
+            item.count = if rules.parts().items[template].stackable {
+                3
+            } else {
+                1
+            };
             player.inventory.insert(id, item);
             ids.push(id);
         }
@@ -7528,5 +7533,262 @@ mod tests {
         assert!(!zone.entities[&npc.entity].targeting.dead);
         assert!(events.is_empty());
         assert_eq!(zone.rng.get_word_pos(), expected_end);
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn v6_shot_manual_toggle_payment_duplicate_and_cold_replay() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (mut zone, owner, _, ids) = use_fixture(&[1464, 2511, 3949, 1463]);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let weapon = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].paperdoll
+            [&EquipSlot::Rhand];
+        let revision =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory_revision;
+        let cursor = zone.rng.get_word_pos();
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let mut observed = zone.clone();
+        observed.enable_items_replay_evidence().unwrap();
+        let draft = zone.draft(vec![
+            use_input(&zone, owner, 2300, 1, ids[0], None),
+            use_input(&zone, owner, 2300, 2, ids[0], None),
+            use_input(&zone, owner, 2301, 3, ids[0], None),
+            use_input(&zone, owner, 2302, 4, ids[1], None),
+            use_input(&zone, owner, 2303, 5, ids[2], None),
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                6,
+                ZoneCommand::Item(Box::new(item_intent(
+                    &zone,
+                    owner.entity,
+                    2304,
+                    K::ToggleAutoShot {
+                        template: 1463,
+                        enabled: true,
+                    },
+                ))),
+            ),
+        ]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft.clone()).unwrap());
+        assert_eq!(applied, observed.run_tick(draft).unwrap());
+        assert_eq!(zone.snapshot(), cold.snapshot());
+        assert_eq!(zone.snapshot(), observed.snapshot());
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory[&weapon].charges, 7);
+        for id in &ids[..3] {
+            assert_eq!(player.inventory[id].count, 1);
+        }
+        assert_eq!(player.inventory[&ids[3]].count, 3);
+        assert!(player.auto_shots.contains(&1463));
+        assert_eq!(player.inventory_revision, revision + 1);
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|event| {
+                if let ZoneEvent::ItemCheckpoint(p) = event {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(projection.receipts.len(), 5);
+        assert_eq!(
+            projection
+                .ledger
+                .iter()
+                .filter(|row| row.operation == ItemOperation::Consume)
+                .count(),
+            3
+        );
+        for row in projection
+            .ledger
+            .iter()
+            .filter(|row| row.operation == ItemOperation::Consume)
+        {
+            assert_eq!(row.count_delta, -2);
+            assert_eq!(row.receipt_refs.len(), 1);
+        }
+        let facts = observed.take_items_replay_evidence();
+        let formulas = facts
+            .iter()
+            .filter_map(|fact| {
+                if let crate::domain::zone::evidence::ItemEvidenceData::Formula(value) = &fact.fact
+                {
+                    Some(value)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(formulas.len(), 5);
+        assert_eq!(
+            formulas
+                .iter()
+                .filter(|fact| fact["actual"]["outcome"] == "already_charged")
+                .count(),
+            1
+        );
+        assert_eq!(
+            formulas
+                .iter()
+                .filter(|fact| fact["actual"]["outcome"] == "wrong_grade")
+                .count(),
+            1
+        );
+        let tick = zone
+            .run_tick(zone.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                7,
+                ZoneCommand::Item(Box::new(item_intent(
+                    &zone,
+                    owner.entity,
+                    2305,
+                    K::Unequip {
+                        slot: EquipSlot::Rhand,
+                    },
+                ))),
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory[&weapon].charges, 0);
+        for id in &ids[..3] {
+            assert_eq!(player.inventory[id].count, 1);
+        }
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn v6_shot_reduced_stock_refusal_retains_draw_and_disables_toggle() {
+        use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        use crate::infrastructure::eventlog::Recording;
+        let (mut zone, owner, _, ids) = use_fixture(&[4814, 1464]);
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .get_mut(&ids[0])
+            .unwrap()
+            .count = 1;
+        let equip = zone
+            .run_tick(zone.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                1,
+                ZoneCommand::Item(Box::new(item_intent(
+                    &zone,
+                    owner.entity,
+                    2400,
+                    K::Equip {
+                        instance: ids[0],
+                        preferred_slot: Some(EquipSlot::Rhand),
+                    },
+                ))),
+            )]))
+            .unwrap();
+        assert!(equip.dispositions.is_empty(), "{:?}", equip.dispositions);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let snapshot = zone.snapshot();
+        let mut cold =
+            ZoneState::from_snapshot_with_items(snapshot.clone(), Some(Arc::clone(&rules)))
+                .unwrap();
+        let mut observed = zone.clone();
+        observed.enable_items_replay_evidence().unwrap();
+        let before = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
+        let mut probe = zone.clone();
+        let first = probe.roll_below(100);
+        let second = probe.roll_below(100);
+        let draft = zone.draft(vec![
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                2,
+                ZoneCommand::Item(Box::new(item_intent(
+                    &zone,
+                    owner.entity,
+                    2401,
+                    K::ToggleAutoShot {
+                        template: 1464,
+                        enabled: true,
+                    },
+                ))),
+            ),
+            use_input(&zone, owner, 2402, 3, ids[1], None),
+        ]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied.dispositions.len(), 1, "{:?}", applied.dispositions);
+        assert_eq!(applied.dispositions[0].reason, RejectReason::InsufficientItems);
+        assert_eq!(applied, cold.run_tick(draft.clone()).unwrap());
+        assert_eq!(applied, observed.run_tick(draft).unwrap());
+        assert_eq!(zone.rng.get_word_pos(), probe.rng.get_word_pos());
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory, before.inventory);
+        assert_eq!(player.inventory_revision, before.inventory_revision);
+        assert!(!player.auto_shots.contains(&1464));
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|event| {
+                if let ZoneEvent::ItemCheckpoint(p) = event {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert!(projection.ledger.is_empty());
+        assert_eq!(projection.receipts.len(), 1);
+        assert_eq!(projection.evidence.len(), 2);
+        let facts = observed.take_items_replay_evidence();
+        let draws = facts
+            .iter()
+            .filter_map(|fact| {
+                if let crate::domain::zone::evidence::ItemEvidenceData::Rng { value, .. } =
+                    &fact.fact
+                {
+                    Some(*value)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(draws, vec![first, second]);
+        assert_eq!(zone.snapshot(), cold.snapshot());
+        assert_eq!(zone.snapshot(), observed.snapshot());
+        let recording = Recording {
+            watermark: Watermark {
+                zone: snapshot.seed.zone,
+                epoch: snapshot.seed.epoch,
+                records: 1,
+                last_tick: Some(applied.tick),
+                reason: WatermarkReason::Shutdown,
+            },
+            records: vec![AppliedTickRecord::from_applied(
+                snapshot.seed.zone,
+                &applied,
+            )],
+            snapshot,
+        };
+        let bytes = recording.to_bytes().unwrap();
+        let decoded = Recording::from_bytes(&bytes).unwrap();
+        assert!(decoded.records[0].reproduced_by(&recording.records[0]));
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_SHOTS_EVIDENCE_RECORDING") {
+            std::fs::write(path, bytes).unwrap();
+        }
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
     }
 }

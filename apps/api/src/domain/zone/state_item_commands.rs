@@ -147,7 +147,7 @@ impl ZoneState {
         }
         let mut candidate = self.clone();
         let mut local = Vec::new();
-        let projection = candidate.resolve_item_command_v6(
+        let (projection, refusal) = candidate.resolve_item_command_v6(
             tick,
             command,
             timing,
@@ -160,16 +160,20 @@ impl ZoneState {
             .receipts
             .iter()
             .find(|r| r.reference() == reference)
-            .ok_or(RejectReason::InvalidLoad)?
-            .clone();
+            .cloned();
+        if refusal.is_none() && receipt.is_none() {
+            return Err(RejectReason::InvalidLoad);
+        }
         *self = candidate;
-        receipts.insert((account, reference), ItemReceiptState::Known(receipt));
+        if let Some(receipt) = receipt {
+            receipts.insert((account, reference), ItemReceiptState::Known(receipt));
+        }
         events.retain(
             |event| !matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == command.entity),
         );
         events.extend(local);
         events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
-        Ok(())
+        refusal.map_or(Ok(()), Err)
     }
 
     #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // Explicit staged operation and receipt inputs.
@@ -182,7 +186,7 @@ impl ZoneState {
         reference: ItemReceiptRef,
         fingerprint: String,
         events: &mut Vec<ZoneEvent>,
-    ) -> Result<Phase4Projection, RejectReason> {
+    ) -> Result<(Phase4Projection, Option<RejectReason>), RejectReason> {
         let id = command.entity;
         let entity = self.entities.get(&id).ok_or(RejectReason::UnknownEntity)?;
         let combat = entity.combat.as_ref().ok_or(RejectReason::NotAPlayer)?;
@@ -208,8 +212,8 @@ impl ZoneState {
         ) {
             return Err(RejectReason::Incapacitated);
         }
-        if matches!(command.kind, ItemCommandKind::Use { .. }) {
-            return self.resolve_item_use_v6(
+        if self.is_shot_command_v6(command)? {
+            return self.resolve_shot_command_v6(
                 tick,
                 command,
                 timing,
@@ -218,6 +222,19 @@ impl ZoneState {
                 fingerprint,
                 events,
             );
+        }
+        if matches!(command.kind, ItemCommandKind::Use { .. }) {
+            return self
+                .resolve_item_use_v6(
+                    tick,
+                    command,
+                    timing,
+                    previous,
+                    reference,
+                    fingerprint,
+                    events,
+                )
+                .map(|projection| (projection, None));
         }
         let items = self
             .phase4
@@ -651,7 +668,7 @@ impl ZoneState {
             )
             .map_err(invalid)?;
         events.push(ZoneEvent::ItemResult(Box::new(result)));
-        Ok(projection)
+        Ok((projection, None))
     }
 
     fn guard_blacksmith_v6(

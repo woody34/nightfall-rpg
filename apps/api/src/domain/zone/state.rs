@@ -17,6 +17,8 @@ mod item_evidence_hooks;
 mod item_grant;
 #[path = "state_item_materialize.rs"]
 mod item_materialize;
+#[path = "state_item_shots.rs"]
+mod item_shots;
 #[path = "state_item_use.rs"]
 mod item_use;
 #[path = "state_item_views.rs"]
