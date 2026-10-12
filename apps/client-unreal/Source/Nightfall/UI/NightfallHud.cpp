@@ -112,9 +112,9 @@ void UNightfallHud::BuildLayout()
 
 	UButton* SkillsButton=WidgetTree->ConstructWidget<UButton>();SkillsButton->AddChild(MakeText(nullptr,TEXT("Skill trainer"),14));
  SkillsButton->OnClicked.AddDynamic(this,&UNightfallHud::HandleSkillsClicked);
- auto* InventoryButton=WidgetTree->ConstructWidget<UButton>();InventoryButton->AddChild(MakeText(nullptr,TEXT("Inventory (I)"),14));SkillsPanel->AddChild(InventoryButton);InventoryButton->OnClicked.AddDynamic(this,&UNightfallHud::HandleInventoryClicked);
  if(auto* Slot=Root->AddChildToCanvas(SkillsButton)){Slot->SetPosition(FVector2D(16,242));Slot->SetSize(FVector2D(260,28));}
  auto* SkillsPanel=WidgetTree->ConstructWidget<UVerticalBox>();
+ auto* InventoryButton=WidgetTree->ConstructWidget<UButton>();InventoryButton->AddChild(MakeText(nullptr,TEXT("Inventory (I)"),14));SkillsPanel->AddChild(InventoryButton);InventoryButton->OnClicked.AddDynamic(this,&UNightfallHud::HandleInventoryClicked);
  SkillResources=MakeText(SkillsPanel,TEXT("SP —"),14); EffectsText=MakeText(SkillsPanel,TEXT(""),12);EffectsText->SetAutoWrapText(true);
  CastLabel=MakeText(SkillsPanel,TEXT(""),14);CastBar=MakeBar(SkillsPanel,FLinearColor(0.55f,0.3f,0.85f),700,8);
  auto* Row=WidgetTree->ConstructWidget<UHorizontalBox>();SkillsPanel->AddChild(Row);
@@ -515,6 +515,5 @@ void UNightfallHud::HandleInventoryClicked(){if(auto* PC=Cast<ANightfallPlayerCo
 void UNightfallHud::UpdateItems()
 {
  const auto* GI=GetGameInstance();const auto* S=GI?GI->GetSubsystem<UInventoryStateSubsystem>():nullptr;if(!S)return;const auto Slots=S->Hotbar();
- for(int32 I=0;I<ItemButtons.Num();++I){const auto& Slot=Slots[I];const auto* D=S->Definition(Slot.Key);const auto Count=S->Count(Slot.Key);ItemLabels[I]->SetText(FText::FromString(FString::Printf(TEXT("F%d %s
-x%llu%s"),I+1,D?*D->Name:TEXT("empty"),Count.IsSet()?*Count:0,Slot.Value?(S->AutoShot(Slot.Key)?TEXT(" AUTO ON"):TEXT(" AUTO OFF")):TEXT(""))));ItemButtons[I]->SetIsEnabled(S->HasBaseline() && D && Count.IsSet() && (Slot.Value || *Count>0));}
+ for(int32 I=0;I<ItemButtons.Num();++I){const auto& Slot=Slots[I];const auto* D=S->Definition(Slot.Key);const auto Count=S->Count(Slot.Key);ItemLabels[I]->SetText(FText::FromString(FString::Printf(TEXT("F%d %s\nx%llu%s"),I+1,D?*D->Name:TEXT("empty"),Count.IsSet()?*Count:0,Slot.Value?(S->AutoShot(Slot.Key)?TEXT(" AUTO ON"):TEXT(" AUTO OFF")):TEXT(""))));ItemButtons[I]->SetIsEnabled(S->HasBaseline() && D && Count.IsSet() && (Slot.Value || *Count>0));}
 }

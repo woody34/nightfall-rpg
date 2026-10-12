@@ -40,7 +40,7 @@ void UNightfallItemOperationDialog::Render()
  bRendering=false;ConfirmButton->SetIsEnabled(CanConfirm());FString Text=State->Status();
  if(State->GetEnchant().IsSet()){const auto& E=*State->GetEnchant();Text+=FString::Printf(TEXT("\nReceived enchant outcome %u: +%u → +%u"),uint8(E.Outcome),E.OldEnchant.Value,E.NewEnchant.Value);for(const auto& R:E.Refunds)Text+=FString::Printf(TEXT("\nRefund template %u x%llu"),R.TemplateId.Value,R.Count.Value);}
  if(State->GetRefine().IsSet())Text+=State->GetRefine()->Outcome==EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_APPLIED?TEXT("\nAugmentation applied"):TEXT("\nAugmentation removed");
- if(Action->GetSelectedOption()==TEXT("ExchangeSA"))for(const auto& R:State->GetCatalog().Recipes)if(R.RecipeId.Value==Recipes.FindRef(Ingredient->GetSelectedOption())){Text+=TEXT("\nRequired ingredients:");for(const auto& I:R.Ingredients){const auto* D=State->Definition(I.Template);Text+=FString::Printf(TEXT("\n%s x%llu"),D?*D->Name:TEXT("Item"),I.Count.Value);}Text+=R.MaintainEnchantment?TEXT("\nRetains enchantment"):TEXT("\nResets enchantment");}
+ if(Action->GetSelectedOption()==TEXT("ExchangeSA"))for(const auto& R:State->GetCatalog().Recipes)if(R.RecipeId.Value==Recipes.FindRef(Ingredient->GetSelectedOption())){Text+=TEXT("\nRequired ingredients:");for(const auto& Input:R.Ingredients){const auto* D=State->Definition(Input.Template);Text+=FString::Printf(TEXT("\n%s x%llu"),D?*D->Name:TEXT("Item"),Input.Count.Value);}Text+=R.MaintainEnchantment?TEXT("\nRetains enchantment"):TEXT("\nResets enchantment");}
  if(bBlacksmith && State->Blacksmith().IsEmpty())Text+=TEXT("\nWaiting for the Blacksmith to be visible");Status->SetText(FText::FromString(Text));
 }
 bool UNightfallItemOperationDialog::CanConfirm() const

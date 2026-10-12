@@ -491,28 +491,28 @@ namespace
 			if (Ev.SkillStateSync.IsValid()) Out.SkillStateSync = FromGrpc(*Ev.SkillStateSync);
 			break;
 		case EGrpcNightfallV1WorldEventEvent::InventorySync:
-			if (Ev.InventorySync.IsValid()) Out.InventorySync = *Ev.InventorySync;
+			Out.InventorySync = Ev.InventorySync;
 			break;
 		case EGrpcNightfallV1WorldEventEvent::InventoryChanged:
-			if (Ev.InventoryChanged.IsValid()) Out.InventoryChanged = *Ev.InventoryChanged;
+			Out.InventoryChanged = Ev.InventoryChanged;
 			break;
 		case EGrpcNightfallV1WorldEventEvent::EquipmentChanged:
-			if (Ev.EquipmentChanged.IsValid()) Out.EquipmentChanged = *Ev.EquipmentChanged;
+			Out.EquipmentChanged = Ev.EquipmentChanged;
 			break;
 		case EGrpcNightfallV1WorldEventEvent::WeightChanged:
-			if (Ev.WeightChanged.IsValid()) Out.WeightChanged = *Ev.WeightChanged;
+			Out.WeightChanged = Ev.WeightChanged;
 			break;
 		case EGrpcNightfallV1WorldEventEvent::PenaltyChanged:
-			if (Ev.PenaltyChanged.IsValid()) Out.PenaltyChanged = *Ev.PenaltyChanged;
+			Out.PenaltyChanged = Ev.PenaltyChanged;
 			break;
 		case EGrpcNightfallV1WorldEventEvent::EnchantResult:
-			if (Ev.EnchantResult.IsValid()) Out.EnchantResult = *Ev.EnchantResult;
+			Out.EnchantResult = Ev.EnchantResult;
 			break;
 		case EGrpcNightfallV1WorldEventEvent::RefineResult:
-			if (Ev.RefineResult.IsValid()) Out.RefineResult = *Ev.RefineResult;
+			Out.RefineResult = Ev.RefineResult;
 			break;
 		case EGrpcNightfallV1WorldEventEvent::ItemOperationResult:
-			if (Ev.ItemOperationResult.IsValid()) Out.ItemOperationResult = *Ev.ItemOperationResult;
+			Out.ItemOperationResult = Ev.ItemOperationResult;
 			break;
 		case EGrpcNightfallV1WorldEventEvent::VitalsChanged:
 			if (Ev.VitalsChanged.IsValid()) Out.VitalsChanged = FromGrpc(*Ev.VitalsChanged);
@@ -601,52 +601,52 @@ namespace NightfallProto
 		else if (In.EquipItem.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::EquipItem;
-			Msg.Intent.EquipItem = MakeShared<FGrpcNightfallV1EquipItemRequest>(*In.EquipItem);
+			Msg.Intent.EquipItem = *In.EquipItem;
 		}
 		else if (In.UnequipItem.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::UnequipItem;
-			Msg.Intent.UnequipItem = MakeShared<FGrpcNightfallV1UnequipItemRequest>(*In.UnequipItem);
+			Msg.Intent.UnequipItem = *In.UnequipItem;
 		}
 		else if (In.UseItem.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::UseItem;
-			Msg.Intent.UseItem = MakeShared<FGrpcNightfallV1UseItemRequest>(*In.UseItem);
+			Msg.Intent.UseItem = *In.UseItem;
 		}
 		else if (In.DestroyItem.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::DestroyItem;
-			Msg.Intent.DestroyItem = MakeShared<FGrpcNightfallV1DestroyItemRequest>(*In.DestroyItem);
+			Msg.Intent.DestroyItem = *In.DestroyItem;
 		}
 		else if (In.EnchantItem.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::EnchantItem;
-			Msg.Intent.EnchantItem = MakeShared<FGrpcNightfallV1EnchantItemRequest>(*In.EnchantItem);
+			Msg.Intent.EnchantItem = *In.EnchantItem;
 		}
 		else if (In.ToggleAutoShot.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot;
-			Msg.Intent.ToggleAutoShot = MakeShared<FGrpcNightfallV1ToggleAutoShotRequest>(*In.ToggleAutoShot);
+			Msg.Intent.ToggleAutoShot = *In.ToggleAutoShot;
 		}
 		else if (In.RefineItem.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::RefineItem;
-			Msg.Intent.RefineItem = MakeShared<FGrpcNightfallV1RefineItemRequest>(*In.RefineItem);
+			Msg.Intent.RefineItem = *In.RefineItem;
 		}
 		else if (In.CancelRefine.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CancelRefine;
-			Msg.Intent.CancelRefine = MakeShared<FGrpcNightfallV1CancelRefineRequest>(*In.CancelRefine);
+			Msg.Intent.CancelRefine = *In.CancelRefine;
 		}
 		else if (In.ExchangeSpecialAbility.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility;
-			Msg.Intent.ExchangeSpecialAbility = MakeShared<FGrpcNightfallV1ExchangeSpecialAbilityRequest>(*In.ExchangeSpecialAbility);
+			Msg.Intent.ExchangeSpecialAbility = *In.ExchangeSpecialAbility;
 		}
 		else if (In.CrystallizeItem.IsSet())
 		{
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CrystallizeItem;
-			Msg.Intent.CrystallizeItem = MakeShared<FGrpcNightfallV1CrystallizeItemRequest>(*In.CrystallizeItem);
+			Msg.Intent.CrystallizeItem = *In.CrystallizeItem;
 		}
 		NightfallWire::EncodeClientMessage(Msg, Out);
 	}

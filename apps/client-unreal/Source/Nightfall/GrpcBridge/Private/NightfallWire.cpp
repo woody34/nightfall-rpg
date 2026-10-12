@@ -37,16 +37,16 @@ namespace NightfallWire
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CastSkill && Intent.CastSkill.IsValid()) ||
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CancelCast && Intent.CancelCast.IsValid()) ||
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::AcceptResurrect && Intent.AcceptResurrect.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::EquipItem && Intent.EquipItem.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::UnequipItem && Intent.UnequipItem.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::UseItem && Intent.UseItem.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::DestroyItem && Intent.DestroyItem.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::EnchantItem && Intent.EnchantItem.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot && Intent.ToggleAutoShot.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::RefineItem && Intent.RefineItem.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CancelRefine && Intent.CancelRefine.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility && Intent.ExchangeSpecialAbility.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CrystallizeItem && Intent.CrystallizeItem.IsValid());
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::EquipItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::UnequipItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::UseItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::DestroyItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::EnchantItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::RefineItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CancelRefine) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CrystallizeItem);
 
 		::nightfall::v1::ClientMessage Msg;
 		if (bHasIntent)
