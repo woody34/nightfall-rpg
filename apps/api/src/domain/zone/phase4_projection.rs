@@ -235,6 +235,9 @@ pub struct ItemMaterializationFact {
 #[serde(deny_unknown_fields)]
 #[allow(missing_docs)]
 pub struct Phase4Projection {
+    /// Resolution-time receipt-bound exchange plans, before tick consumption aggregation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exchanges: Vec<super::ExchangeAudit>,
     /// Every accepted attempt, including unchanged safe/bonus-only outcomes, in operation order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub enchant_attempts: Vec<super::EnchantAttempt>,
@@ -337,6 +340,7 @@ impl Phase4Projection {
         }) {
             return Err(ItemError("enchant receipt lacks its captured attempt"));
         }
+        self.validate_exchanges()?;
         let mut pending = BTreeSet::new();
         for result in &self.materializations {
             if result.manifest_version != 1
@@ -351,6 +355,46 @@ impl Phase4Projection {
             {
                 return Err(ItemError("invalid pending item completion"));
             }
+        }
+        Ok(())
+    }
+    fn validate_exchanges(&self) -> Result<(), ItemError> {
+        let mut exchanges = BTreeSet::new();
+        let mut previous_ordinal = 0;
+        for exchange in &self.exchanges {
+            let receipt = self
+                .receipts
+                .iter()
+                .find(|r| r.reference() == exchange.receipt)
+                .ok_or(ItemError("SA exchange receipt is absent"))?;
+            exchange.validate(receipt)?;
+            for row in &exchange.rows {
+                let linked = if row.operation == ItemOperation::Consume {
+                    self.ledger.iter().any(|delta| {
+                        delta.operation == ItemOperation::Consume
+                            && delta.instance == row.instance
+                            && delta.count_delta <= row.count_delta
+                            && row.causes.iter().all(|cause| delta.causes.contains(cause))
+                    })
+                } else {
+                    self.ledger.contains(row)
+                };
+                if !linked {
+                    return Err(ItemError("SA audit is not backed by physical ledger"));
+                }
+            }
+
+            if exchange.operation_ordinal <= previous_ordinal || !exchanges.insert(exchange.receipt)
+            {
+                return Err(ItemError("duplicate or unordered SA exchange"));
+            }
+            previous_ordinal = exchange.operation_ordinal;
+        }
+        if self.receipts.iter().any(|r| {
+            r.reference().operation == ItemOperation::Exchange
+                && !exchanges.contains(&r.reference())
+        }) {
+            return Err(ItemError("SA exchange receipt lacks its captured audit"));
         }
         Ok(())
     }
@@ -527,6 +571,7 @@ pub(crate) mod tests {
         let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
         Phase4Projection {
             enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
             paused_core: None,
             tick: Tick(10),
             entity,

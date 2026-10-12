@@ -298,6 +298,7 @@ impl ZoneState {
             .collect::<Result<Vec<_>, TickError>>()?;
         let projection = Phase4Projection {
             enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
             paused_core: None,
             tick,
             entity: id,

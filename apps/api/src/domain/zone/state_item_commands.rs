@@ -246,6 +246,8 @@ impl ZoneState {
             .and_then(|n| n.checked_add(1))
             .ok_or(RejectReason::InvalidLoad)?;
         let mut enchant = None;
+        let mut exchange = None;
+        let mut exchange_formula = None;
         let mut allocator = items.canonical.allocator;
         let mutation = match command.kind {
             ItemCommandKind::Equip {
@@ -371,13 +373,42 @@ impl ZoneState {
                 enchant = Some((resolved.detail, resolved.attempt, resolved.payments));
                 resolved.mutation
             },
+            ItemCommandKind::ExchangeSpecialAbility {
+                npc,
+                target,
+                recipe,
+            } => {
+                self.guard_blacksmith_v6(id, npc)?;
+                let plan = crate::domain::zone::item_exchange::prepare(
+                    player,
+                    &items.rules,
+                    allocator,
+                    target,
+                    recipe,
+                    crate::domain::zone::item_inventory::InventoryBoundary { tick, revision },
+                    reference,
+                    operation_ordinal,
+                )?;
+                for row in &plan.audit.rows {
+                    if let Some(before) = &row.before {
+                        self.guard_item_removal_v6(id, before)?;
+                    }
+                }
+                if self.items_evidence_enabled() {
+                    exchange_formula = Some(crate::domain::zone::item_exchange::evidence(
+                        &plan.audit,
+                        &player.inventory,
+                        &plan.mutation.inventory,
+                    )?);
+                }
+                allocator = plan.allocator;
+                exchange = Some(plan.audit);
+                plan.mutation
+            },
             ItemCommandKind::Use { .. }
             | ItemCommandKind::ToggleAutoShot { .. }
             | ItemCommandKind::Refine { .. }
-            | ItemCommandKind::CancelRefine { .. }
-            | ItemCommandKind::ExchangeSpecialAbility { .. } => {
-                return Err(RejectReason::NotYetImplemented)
-            },
+            | ItemCommandKind::CancelRefine { .. } => return Err(RejectReason::NotYetImplemented),
         };
         let weapon_changed = mutation.changes.iter().any(|change| {
             change
@@ -430,6 +461,12 @@ impl ZoneState {
         if self.items_evidence_enabled() {
             let subject = self.binding(id).ok_or(RejectReason::InvalidLoad)?;
             let resolution = format!("{:?}:{}", reference.operation, reference.key).to_lowercase();
+            if let Some(fact) = exchange_formula {
+                self.item_evidence(
+                    subject,
+                    crate::domain::zone::evidence::ItemEvidenceData::Formula(fact),
+                );
+            }
             if let Some((detail, attempt, _)) = &enchant {
                 self.item_evidence_enchant(subject, attempt, detail)?;
             }
@@ -442,9 +479,14 @@ impl ZoneState {
                     .id;
                 let before_count = change.before.as_ref().map_or(0, |i| i.count);
                 let after_count = change.after.as_ref().map_or(0, |i| i.count);
-                let operation = if enchant
-                    .as_ref()
-                    .is_some_and(|(_, _, payments)| payments.contains(&instance))
+                let operation = if exchange.as_ref().is_some_and(|audit| {
+                    audit.rows.iter().any(|row| {
+                        row.instance == instance && row.operation == ItemOperation::Consume
+                    })
+                }) && after_count < before_count
+                    || enchant
+                        .as_ref()
+                        .is_some_and(|(_, _, payments)| payments.contains(&instance))
                 {
                     ItemOperation::Consume
                 } else if enchant
@@ -488,6 +530,7 @@ impl ZoneState {
             .map_err(invalid)?;
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
@@ -520,6 +563,17 @@ impl ZoneState {
                     continue;
                 }
             }
+            if let Some(row) = exchange.as_ref().and_then(|audit| {
+                audit.rows.iter().find(|row| {
+                    row.instance == instance
+                        && row.operation == ItemOperation::Consume
+                        && count_delta < 0
+                })
+            }) {
+                let cause = row.causes.first().ok_or(RejectReason::InvalidLoad)?.clone();
+                append_item_consumption(&mut projection, change, count_delta, cause)?;
+                continue;
+            }
             projection.ledger.push(ItemDeltaPlan {
                 operation: if enchant
                     .as_ref()
@@ -551,7 +605,15 @@ impl ZoneState {
                 causes: Vec::new(),
             });
         }
-        let detail = if let Some((detail, attempt, _)) = enchant {
+        let detail = if let Some(audit) = exchange {
+            let recipe = audit.recipe;
+            projection.exchanges.push(audit);
+            ItemResultDetail::Operation {
+                operation: ItemOperation::Exchange,
+                affected: affected.into_iter().collect(),
+                recipe: Some(recipe),
+            }
+        } else if let Some((detail, attempt, _)) = enchant {
             projection.evidence.push(attempt.cause.clone());
             projection.enchant_attempts.push(attempt);
             detail
@@ -589,6 +651,49 @@ impl ZoneState {
             .map_err(invalid)?;
         events.push(ZoneEvent::ItemResult(Box::new(result)));
         Ok(projection)
+    }
+
+    fn guard_blacksmith_v6(
+        &self,
+        owner: EntityId,
+        binding: crate::domain::zone::effects::TargetBinding,
+    ) -> Result<(), RejectReason> {
+        let policy = &self
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .rules
+            .parts()
+            .capacities
+            .blacksmith;
+        let npc = self
+            .entities
+            .get(&binding.entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        // Noncombat fixtures have no combat life; their wire incarnation is zero.
+        if npc.kind != EntityKind::Npc
+            || npc.name != policy.template
+            || npc.combat.is_some()
+            || npc.targeting.attackable
+            || npc.targeting.dead
+            || binding.incarnation != 0
+            || npc.pos != Vec2Fixed::from_tiles(policy.x, policy.y)
+        {
+            return Err(RejectReason::NotPermitted);
+        }
+        let actor = self
+            .entities
+            .get(&owner)
+            .ok_or(RejectReason::UnknownEntity)?;
+        let radius = u128::from(policy.radius_millitiles);
+        if actor.pos.distance_sq(npc.pos)
+            > radius
+                .checked_mul(radius)
+                .ok_or(RejectReason::InvalidLoad)?
+        {
+            return Err(RejectReason::OutOfRange);
+        }
+        Ok(())
     }
 
     pub(super) fn guard_item_removal_v6(

@@ -462,9 +462,10 @@ impl ItemCommand {
             | ItemCommandKind::ToggleAutoShot { .. }
             | ItemCommandKind::Crystallize { .. } => None,
         };
-        if binding
-            .is_some_and(|binding| binding.entity.as_uuid().is_nil() || binding.incarnation == 0)
-        {
+        if binding.is_some_and(|binding| {
+            binding.entity.as_uuid().is_nil()
+                || (binding.incarnation == 0 && matches!(self.kind, ItemCommandKind::Use { .. }))
+        }) {
             return Err(ItemError("invalid item target binding"));
         }
         match &self.kind {
