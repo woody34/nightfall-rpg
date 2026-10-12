@@ -147,7 +147,23 @@ fn model_to_character(m: characters::Model) -> anyhow::Result<Character> {
     let race = Race::parse(&m.race)
         .ok_or_else(|| anyhow::anyhow!("unknown race in database: {}", m.race))?;
     let stat = |v: i16| -> anyhow::Result<u32> { Ok(u32::try_from(v)?) };
+    let item_metadata = m
+        .phase4_checkpoint
+        .as_ref()
+        .map(|value| -> anyhow::Result<_> {
+            let checkpoint: crate::domain::zone::Phase4Checkpoint =
+                serde_json::from_value(value.clone())?;
+            let sources = m
+                .modifier_install_order
+                .as_array()
+                .ok_or_else(|| anyhow::anyhow!("invalid retained source order"))?
+                .len();
+            checkpoint.validate_structure(sources)?;
+            Ok(crate::domain::CharacterItemMetadata::from(&checkpoint))
+        })
+        .transpose()?;
     Ok(Character {
+        item_metadata,
         appearance: character_ledger::appearance(&m)?,
         class_state: character_ledger::state(&m)?,
         xp: u64::try_from(m.xp)?,

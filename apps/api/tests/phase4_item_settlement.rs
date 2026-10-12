@@ -507,6 +507,20 @@ async fn contract<
         .unwrap();
     assert_eq!(current.character_revision, 3);
     assert_eq!(current.checkpoint, third.phase4);
+    let metadata = repo
+        .get(character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .item_metadata
+        .unwrap();
+    assert_eq!(metadata.inventory_revision, 5);
+    assert_eq!(metadata.rules_hash, bundle.items.hash());
+    assert_eq!(
+        repo.list_by_account(character.account_id).await.unwrap()[0].item_metadata,
+        Some(metadata)
+    );
+
     (character, second_work)
 }
 #[tokio::test]

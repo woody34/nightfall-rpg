@@ -43,6 +43,15 @@ struct State {
 }
 
 impl State {
+    fn character_view(&self, character: &Character) -> Character {
+        let mut view = character.clone();
+        view.item_metadata = self
+            .item_inventories
+            .get(&character.id)
+            .map(crate::domain::CharacterItemMetadata::from);
+        view
+    }
+
     fn put(&mut self, c: &Character) {
         self.progression.insert(
             c.id,
@@ -596,7 +605,10 @@ impl CharacterRepository for InMemoryCharacterRepository {
                 progression.alive,
             )?;
         }
-        Ok(state.characters.get(&id).cloned())
+        Ok(state
+            .characters
+            .get(&id)
+            .map(|character| state.character_view(character)))
     }
 
     async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
@@ -617,7 +629,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
                 progression.phase3.as_ref(),
                 progression.alive,
             )?;
-            out.push(c.clone());
+            out.push(state.character_view(c));
         }
         out.sort_by_key(|c| c.id.as_uuid());
         Ok(out)
@@ -635,11 +647,15 @@ impl CharacterRepository for InMemoryCharacterRepository {
             if stored_fp != fingerprint {
                 return Ok(CreateOutcome::KeyReused);
             }
-            let existing = s.characters.get(id).cloned().ok_or_else(|| {
-                RepositoryError::Other(anyhow::anyhow!(
-                    "idempotency key points at missing character"
-                ))
-            })?;
+            let existing = s
+                .characters
+                .get(id)
+                .map(|character| s.character_view(character))
+                .ok_or_else(|| {
+                    RepositoryError::Other(anyhow::anyhow!(
+                        "idempotency key points at missing character"
+                    ))
+                })?;
             return Ok(CreateOutcome::Replayed(existing));
         }
         self.validate(character)?;

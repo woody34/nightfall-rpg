@@ -401,6 +401,7 @@ async fn corpse_fixture() -> (TestApp, ManualTickDriver, Character, Character, C
             continue;
         };
         let mut c = Character {
+            item_metadata: None,
             id: CharacterId::from_uuid(e.id.as_uuid()),
             account_id: p.identity.account_id,
             name: CharacterName::new(&e.name).unwrap(),

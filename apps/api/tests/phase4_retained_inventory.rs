@@ -118,6 +118,25 @@ async fn memory_retains_exact_history_and_legacy_none_without_synthesizing_items
     let view = repo.retained_inventory(c.id).await.unwrap().unwrap();
     assert_eq!(view.character_revision, 1);
     assert_eq!(view.checkpoint, Some(retained()));
+    let header = repo
+        .get(c.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .item_metadata
+        .unwrap();
+    assert_eq!(header.inventory_revision, retained().inventory_revision);
+    assert_eq!(header.rules_hash, retained().rules_hash);
+    assert_eq!(
+        repo.list_by_account(c.account_id)
+            .await
+            .unwrap()
+            .first()
+            .unwrap()
+            .item_metadata,
+        Some(header)
+    );
+
     assert!(repo
         .retained_inventory(nightfall_api::domain::CharacterId::new())
         .await
@@ -152,6 +171,25 @@ async fn postgres_retains_full_u32_widths_history_and_rejects_projection_corrupt
     let view = repo.retained_inventory(c.id).await.unwrap().unwrap();
     assert_eq!(view.character_revision, 1);
     assert_eq!(view.checkpoint, Some(retained()));
+    let header = repo
+        .get(c.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .item_metadata
+        .unwrap();
+    assert_eq!(header.inventory_revision, retained().inventory_revision);
+    assert_eq!(header.rules_hash, retained().rules_hash);
+    assert_eq!(
+        repo.list_by_account(c.account_id)
+            .await
+            .unwrap()
+            .first()
+            .unwrap()
+            .item_metadata,
+        Some(header)
+    );
+
     sqlx::query("UPDATE item_instances SET enchant=0 WHERE id=1")
         .execute(&pool)
         .await
