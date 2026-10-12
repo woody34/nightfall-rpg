@@ -887,3 +887,20 @@ inventory ledger hashes every new source file. No historical class input changes
 Two explicitly synthetic unequal-finger oracle vectors (RFINGER=7, LFINGER=999)
 distinguish the getter duplication even though all nine pinned XML pairs match;
 they preserve the complete overridden XML as inputs and are coverage-mandatory.
+
+Data review revision 4: `scripts/item_coverage.py` independently enumerates
+§12.1 requirements from the design boundaries and pinned source domains;
+`make_vectors`, generated fixtures and their counts are never requirement inputs.
+Each case binds its family and required input dimensions, including exact starter
+kit XML order/count/equipped flags, every scroll/group/rate interval, CON/grade/HP
+row, retail selector, cancellation cut point, SA ingredient/product row and soul
+transition. Every required case and each separate mandatory family has deletion
+mutations; required input dimensions have deletion/type/value mutations.
+The added bow/crossbow bodypart and shield-distinction enchant cases cite
+`FuncEnchant.java:43-155` (bow/crossbow checks at 105-107, 123-125, 143-145).
+All eleven source starter kits cite `data/stats/initialEquipment.xml:4-109`;
+the nine supported races receive effective-stat vectors citing their class XML
+and the existing slot/stat formulas. Both Kamael kits are source-only evidence,
+remaining deferred. `ClassId.java:185-186` contains mixed-case hex IDs, now parsed
+without dropping the female starter row. Angle vectors are part of `make_vectors`
+so every coverage caller sees the same mandatory positional evidence.
