@@ -30,6 +30,12 @@ pub(super) fn race_from_pb(n: i32) -> Option<Race> {
 
 pub(super) fn character_to_pb(c: &Character) -> pb::Character {
     pb::Character {
+        inventory_revision: c
+            .item_metadata
+            .map_or(0, |metadata| metadata.inventory_revision),
+        item_rules_hash: c
+            .item_metadata
+            .map_or_else(Vec::new, |metadata| metadata.rules_hash.to_vec()),
         id: c.id.to_string(),
         name: c.name.as_str().to_owned(),
         race: race_to_pb(c.race) as i32,
@@ -60,7 +66,6 @@ pub(super) fn character_to_pb(c: &Character) -> pb::Character {
         hair_style: c.appearance.hair_style,
         hair_color: c.appearance.hair_color,
         face: c.appearance.face,
-        ..Default::default()
     }
 }
 
@@ -108,6 +113,7 @@ pub(super) fn transfer_result_to_pb(result: &FrozenTransferResult) -> pb::Change
     class_state.sp = result.sp;
     let [x, y] = result.position_millitiles;
     let character = Character {
+        item_metadata: None,
         id: result.character_id,
         account_id: result.identity.account_id,
         name: result.name.clone(),
@@ -684,5 +690,23 @@ mod tests {
         assert_eq!(p.level, 1);
         assert_eq!(p.stats.unwrap().con, Race::Dwarf.starting_stats().con);
         assert!(p.position.is_some());
+        assert_eq!(p.inventory_revision, 0);
+        assert!(p.item_rules_hash.is_empty());
+        let mut retained = c.clone();
+        retained.item_metadata = Some(crate::domain::CharacterItemMetadata {
+            inventory_revision: i64::MAX as u64,
+            rules_hash: [7; 32],
+        });
+        let wire = character_to_pb(&retained);
+        assert_eq!(wire.inventory_revision, i64::MAX as u64);
+        assert_eq!(wire.item_rules_hash, [7; 32]);
+        assert!(serde_json::to_value(&c)
+            .unwrap()
+            .get("item_metadata")
+            .is_none());
+        assert_eq!(
+            serde_json::from_value::<Character>(serde_json::to_value(&c).unwrap()).unwrap(),
+            c
+        );
     }
 }

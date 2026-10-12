@@ -524,6 +524,7 @@ async fn postgres_detached_transport_reads_consistent_revision_and_rejects_row_d
         .inventory
         .unwrap();
     assert_eq!(first.inventory_revision, 9);
+    assert_character_header(&app, &c, 9, &first.rules_hash).await;
     assert_eq!(
         repo.retained_inventory(c.id)
             .await
@@ -558,6 +559,7 @@ async fn postgres_detached_transport_reads_consistent_revision_and_rejects_row_d
         .inventory
         .unwrap();
     assert_eq!((latest.inventory_revision, latest.items.first().unwrap().count), (10, 6));
+    assert_character_header(&app, &c, 10, &latest.rules_hash).await;
     assert_eq!(
         repo.retained_inventory(c.id)
             .await
@@ -579,4 +581,33 @@ async fn postgres_detached_transport_reads_consistent_revision_and_rejects_row_d
     assert_eq!(error.code(), Code::Internal);
     assert_eq!(error.message(), "internal error");
     assert!(app.bus.published().is_empty());
+}
+
+async fn assert_character_header(
+    app: &TestApp,
+    character: &Character,
+    revision: u64,
+    rules_hash: &[u8],
+) {
+    let header = app
+        .grpc
+        .clone()
+        .get_character(pb::GetCharacterRequest {
+            character_id: character.id.to_string(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(header.inventory_revision, revision);
+    assert_eq!(header.item_rules_hash, rules_hash);
+    let listed = app
+        .grpc
+        .clone()
+        .list_my_characters(pb::ListMyCharactersRequest {})
+        .await
+        .unwrap()
+        .into_inner();
+    let header = listed.characters.first().unwrap();
+    assert_eq!(header.inventory_revision, revision);
+    assert_eq!(header.item_rules_hash, rules_hash);
 }
