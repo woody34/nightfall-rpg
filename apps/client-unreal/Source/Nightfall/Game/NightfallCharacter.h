@@ -9,6 +9,7 @@ class USpringArmComponent;
 class UStaticMeshComponent;
 class UOwnEntityComponent;
 class UEntityAnimationComponent;
+class UEquipmentPresentationComponent;
 
 /**
  * The local player's pawn: a capsule with a placeholder body and a fixed top-down camera, walked
@@ -41,5 +42,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Nightfall")
 	TObjectPtr<UEntityAnimationComponent> Animation;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Nightfall") TObjectPtr<UEquipmentPresentationComponent> Equipment;
 	virtual void BeginPlay() override;
 };

@@ -33,6 +33,9 @@ static const char* GameService_method_names[] = {
   "/nightfall.v1.GameService/ListLearnableSkills",
   "/nightfall.v1.GameService/LearnSkill",
   "/nightfall.v1.GameService/GetSkillCatalog",
+  "/nightfall.v1.GameService/GetItemCatalog",
+  "/nightfall.v1.GameService/GetInventory",
+  "/nightfall.v1.GameService/GrantItem",
 };
 
 std::unique_ptr< GameService::Stub> GameService::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -52,6 +55,9 @@ GameService::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channe
   , rpcmethod_ListLearnableSkills_(GameService_method_names[7], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_LearnSkill_(GameService_method_names[8], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_GetSkillCatalog_(GameService_method_names[9], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetItemCatalog_(GameService_method_names[10], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetInventory_(GameService_method_names[11], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GrantItem_(GameService_method_names[12], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status GameService::Stub::Ping(::grpc::ClientContext* context, const ::nightfall::v1::PingRequest& request, ::nightfall::v1::PingResponse* response) {
@@ -284,6 +290,75 @@ void GameService::Stub::async::GetSkillCatalog(::grpc::ClientContext* context, c
   return result;
 }
 
+::grpc::Status GameService::Stub::GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::nightfall::v1::GetItemCatalogResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GetItemCatalogRequest, ::nightfall::v1::GetItemCatalogResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetItemCatalog_, context, request, response);
+}
+
+void GameService::Stub::async::GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GetItemCatalogRequest, ::nightfall::v1::GetItemCatalogResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetItemCatalog_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GetItemCatalog(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetItemCatalog_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetItemCatalogResponse>* GameService::Stub::PrepareAsyncGetItemCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GetItemCatalogResponse, ::nightfall::v1::GetItemCatalogRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetItemCatalog_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetItemCatalogResponse>* GameService::Stub::AsyncGetItemCatalogRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetItemCatalogRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetItemCatalogRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::nightfall::v1::GetInventoryResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GetInventoryRequest, ::nightfall::v1::GetInventoryResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetInventory_, context, request, response);
+}
+
+void GameService::Stub::async::GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GetInventoryRequest, ::nightfall::v1::GetInventoryResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetInventory_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetInventory_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>* GameService::Stub::PrepareAsyncGetInventoryRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GetInventoryResponse, ::nightfall::v1::GetInventoryRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetInventory_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>* GameService::Stub::AsyncGetInventoryRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetInventoryRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::nightfall::v1::GrantItemResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GrantItemRequest, ::nightfall::v1::GrantItemResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GrantItem_, context, request, response);
+}
+
+void GameService::Stub::async::GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GrantItemRequest, ::nightfall::v1::GrantItemResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GrantItem_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GrantItem_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>* GameService::Stub::PrepareAsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GrantItemResponse, ::nightfall::v1::GrantItemRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GrantItem_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>* GameService::Stub::AsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGrantItemRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 GameService::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       GameService_method_names[0],
@@ -385,6 +460,36 @@ GameService::Service::Service() {
              ::nightfall::v1::GetSkillCatalogResponse* resp) {
                return service->GetSkillCatalog(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[10],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GetItemCatalogRequest, ::nightfall::v1::GetItemCatalogResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GetItemCatalogRequest* req,
+             ::nightfall::v1::GetItemCatalogResponse* resp) {
+               return service->GetItemCatalog(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[11],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GetInventoryRequest, ::nightfall::v1::GetInventoryResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GetInventoryRequest* req,
+             ::nightfall::v1::GetInventoryResponse* resp) {
+               return service->GetInventory(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[12],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GrantItemRequest, ::nightfall::v1::GrantItemResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GrantItemRequest* req,
+             ::nightfall::v1::GrantItemResponse* resp) {
+               return service->GrantItem(ctx, req, resp);
+             }, this)));
 }
 
 GameService::Service::~Service() {
@@ -454,6 +559,27 @@ GameService::Service::~Service() {
 }
 
 ::grpc::Status GameService::Service::GetSkillCatalog(::grpc::ServerContext* context, const ::nightfall::v1::GetSkillCatalogRequest* request, ::nightfall::v1::GetSkillCatalogResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GetItemCatalog(::grpc::ServerContext* context, const ::nightfall::v1::GetItemCatalogRequest* request, ::nightfall::v1::GetItemCatalogResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GetInventory(::grpc::ServerContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GrantItem(::grpc::ServerContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response) {
   (void) context;
   (void) request;
   (void) response;

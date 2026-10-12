@@ -3,6 +3,7 @@
 #include "SNightfallV1/GameClient.h"
 #include "GameService_Private.h"
 #include "GameMarshaling.h"
+#include "SNightfallV1/ItemsMarshaling.h"
 #include "TurboLinkGrpcManager.h"
 
 GrpcContext_GameService_Ping::GrpcContext_GameService_Ping(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
@@ -362,6 +363,122 @@ void GrpcContext_GameService_GetSkillCatalog::OnRpcEvent(bool Ok, const void* Ev
 				GRPC_TO_TURBOLINK(_RpcResponse, &response);
 			}
 			client->OnGetSkillCatalogResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GetItemCatalog::GrpcContext_GameService_GetItemCatalog(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GetItemCatalog::Call(const FGrpcNightfallV1GetItemCatalogRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GetItemCatalogRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGetItemCatalog(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GetItemCatalog::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	// C16: optional catalogue unavailability is warning-level; deliver the failure unchanged.
+	if (Ok && RpcStatus.error_code() == grpc::StatusCode::UNAVAILABLE)
+	{
+		const FGrpcResult Result = GrpcContext::MakeGrpcResult(RpcStatus);
+		UE_LOG(LogTurboLink, Warning, TEXT("GetItemCatalog unavailable: %s"), *Result.GetMessageString());
+		UGameServiceClient* GameClient = (UGameServiceClient*)Client;
+		FGrpcNightfallV1GetItemCatalogResponse Response;
+		GameClient->OnGetItemCatalogResponse.Broadcast(Handle, Result, Response);
+		UpdateState(EGrpcContextState::Done);
+		return;
+	}
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GetItemCatalogResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGetItemCatalogResponse.IsBound())) return;
+
+			FGrpcNightfallV1GetItemCatalogResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGetItemCatalogResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GetInventory::GrpcContext_GameService_GetInventory(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GetInventory::Call(const FGrpcNightfallV1GetInventoryRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GetInventoryRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGetInventory(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GetInventory::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GetInventoryResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGetInventoryResponse.IsBound())) return;
+
+			FGrpcNightfallV1GetInventoryResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGetInventoryResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GrantItem::GrpcContext_GameService_GrantItem(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GrantItem::Call(const FGrpcNightfallV1GrantItemRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GrantItemRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGrantItem(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GrantItem::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GrantItemResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGrantItemResponse.IsBound())) return;
+
+			FGrpcNightfallV1GrantItemResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGrantItemResponse.Broadcast(Handle, _Result, response);
 		}
 	);
 }

@@ -11,8 +11,15 @@
 #include "SNightfallV1/WorldMessage.h"
 #include "SNightfallV1/GameMessage.h"
 
+#include "SNightfallV1/ItemsMessage.h"
+
 namespace NightfallWire
 {
+ TURBOLINKGRPC_API void ItemReceiptBytes(const uint8* Data,int32 Size,TArray<uint8>& Out);
+ TURBOLINKGRPC_API void EncodeItemReceipt(const FGrpcNightfallV1EnchantResult& In,TArray<uint8>& Out);
+ TURBOLINKGRPC_API void EncodeItemReceipt(const FGrpcNightfallV1RefineResult& In,TArray<uint8>& Out);
+ TURBOLINKGRPC_API void EncodeItemReceipt(const FGrpcNightfallV1ItemOperationResult& In,TArray<uint8>& Out);
+
 	/** Serializes a populated server envelope for offline contract/replay tests. */
 	TURBOLINKGRPC_API void EncodeServerMessage(const FGrpcNightfallV1ServerMessage& In, TArray<uint8>& Out);
 	/** Serialises nightfall.v1.ClientMessage. An Intent whose active case has no payload is omitted. */

@@ -38,6 +38,7 @@
 #include "google/protobuf/extension_set.h"  // IWYU pragma: export
 #include "google/protobuf/generated_enum_reflection.h"
 #include "google/protobuf/unknown_field_set.h"
+#include "nightfall/v1/items.pb.h"
 // @@protoc_insertion_point(includes)
 
 // Must be included last.
@@ -1801,6 +1802,7 @@ class Character final :
     kClassesFieldNumber = 10,
     kIdFieldNumber = 1,
     kNameFieldNumber = 2,
+    kItemRulesHashFieldNumber = 16,
     kStatsFieldNumber = 5,
     kPositionFieldNumber = 6,
     kRaceFieldNumber = 3,
@@ -1811,6 +1813,7 @@ class Character final :
     kSexFieldNumber = 11,
     kHairStyleFieldNumber = 12,
     kHairColorFieldNumber = 13,
+    kInventoryRevisionFieldNumber = 15,
     kFaceFieldNumber = 14,
   };
   // repeated .nightfall.v1.ClassProgress classes = 10;
@@ -1871,6 +1874,26 @@ class Character final :
   inline PROTOBUF_ALWAYS_INLINE void _internal_set_name(
       const std::string& value);
   std::string* _internal_mutable_name();
+
+  public:
+  // bytes item_rules_hash = 16;
+  void clear_item_rules_hash() ;
+  const std::string& item_rules_hash() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_item_rules_hash(Arg_&& arg, Args_... args);
+  std::string* mutable_item_rules_hash();
+  PROTOBUF_NODISCARD std::string* release_item_rules_hash();
+  void set_allocated_item_rules_hash(std::string* ptr);
+
+  private:
+  const std::string& _internal_item_rules_hash() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_item_rules_hash(
+      const std::string& value);
+  std::string* _internal_mutable_item_rules_hash();
 
   public:
   // .nightfall.v1.BaseStats stats = 5;
@@ -1981,6 +2004,16 @@ class Character final :
   void _internal_set_hair_color(::uint32_t value);
 
   public:
+  // uint64 inventory_revision = 15;
+  void clear_inventory_revision() ;
+  ::uint64_t inventory_revision() const;
+  void set_inventory_revision(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_inventory_revision() const;
+  void _internal_set_inventory_revision(::uint64_t value);
+
+  public:
   // uint32 face = 14;
   void clear_face() ;
   ::uint32_t face() const;
@@ -2004,6 +2037,7 @@ class Character final :
     ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ClassProgress > classes_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr id_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr name_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr item_rules_hash_;
     ::nightfall::v1::BaseStats* stats_;
     ::nightfall::v1::Position* position_;
     int race_;
@@ -2014,6 +2048,7 @@ class Character final :
     int sex_;
     ::uint32_t hair_style_;
     ::uint32_t hair_color_;
+    ::uint64_t inventory_revision_;
     ::uint32_t face_;
   };
   union { Impl_ _impl_; };
@@ -7640,7 +7675,12 @@ class EffectiveStats final :
     kSpeedQFieldNumber = 7,
     kAccuracyQFieldNumber = 8,
     kEvasionQFieldNumber = 9,
+    kShieldDefQFieldNumber = 11,
     kCritPermilleFieldNumber = 10,
+    kShieldAngleDegreesFieldNumber = 13,
+    kShieldRateQFieldNumber = 12,
+    kPhysicalReachMillitilesFieldNumber = 14,
+    kPhysicalAngleDegreesFieldNumber = 15,
   };
   // int64 p_atk_q = 1;
   void clear_p_atk_q() ;
@@ -7732,6 +7772,16 @@ class EffectiveStats final :
   void _internal_set_evasion_q(::int64_t value);
 
   public:
+  // int64 shield_def_q = 11;
+  void clear_shield_def_q() ;
+  ::int64_t shield_def_q() const;
+  void set_shield_def_q(::int64_t value);
+
+  private:
+  ::int64_t _internal_shield_def_q() const;
+  void _internal_set_shield_def_q(::int64_t value);
+
+  public:
   // uint32 crit_permille = 10;
   void clear_crit_permille() ;
   ::uint32_t crit_permille() const;
@@ -7740,6 +7790,46 @@ class EffectiveStats final :
   private:
   ::uint32_t _internal_crit_permille() const;
   void _internal_set_crit_permille(::uint32_t value);
+
+  public:
+  // uint32 shield_angle_degrees = 13;
+  void clear_shield_angle_degrees() ;
+  ::uint32_t shield_angle_degrees() const;
+  void set_shield_angle_degrees(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_shield_angle_degrees() const;
+  void _internal_set_shield_angle_degrees(::uint32_t value);
+
+  public:
+  // int64 shield_rate_q = 12;
+  void clear_shield_rate_q() ;
+  ::int64_t shield_rate_q() const;
+  void set_shield_rate_q(::int64_t value);
+
+  private:
+  ::int64_t _internal_shield_rate_q() const;
+  void _internal_set_shield_rate_q(::int64_t value);
+
+  public:
+  // int64 physical_reach_millitiles = 14;
+  void clear_physical_reach_millitiles() ;
+  ::int64_t physical_reach_millitiles() const;
+  void set_physical_reach_millitiles(::int64_t value);
+
+  private:
+  ::int64_t _internal_physical_reach_millitiles() const;
+  void _internal_set_physical_reach_millitiles(::int64_t value);
+
+  public:
+  // uint32 physical_angle_degrees = 15;
+  void clear_physical_angle_degrees() ;
+  ::uint32_t physical_angle_degrees() const;
+  void set_physical_angle_degrees(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_physical_angle_degrees() const;
+  void _internal_set_physical_angle_degrees(::uint32_t value);
 
   public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.EffectiveStats)
@@ -7759,7 +7849,12 @@ class EffectiveStats final :
     ::int64_t speed_q_;
     ::int64_t accuracy_q_;
     ::int64_t evasion_q_;
+    ::int64_t shield_def_q_;
     ::uint32_t crit_permille_;
+    ::uint32_t shield_angle_degrees_;
+    ::int64_t shield_rate_q_;
+    ::int64_t physical_reach_millitiles_;
+    ::uint32_t physical_angle_degrees_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -8899,6 +8994,73 @@ inline ::uint32_t Character::_internal_face() const {
 inline void Character::_internal_set_face(::uint32_t value) {
   ;
   _impl_.face_ = value;
+}
+
+// uint64 inventory_revision = 15;
+inline void Character::clear_inventory_revision() {
+  _impl_.inventory_revision_ = ::uint64_t{0u};
+}
+inline ::uint64_t Character::inventory_revision() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.Character.inventory_revision)
+  return _internal_inventory_revision();
+}
+inline void Character::set_inventory_revision(::uint64_t value) {
+  _internal_set_inventory_revision(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.Character.inventory_revision)
+}
+inline ::uint64_t Character::_internal_inventory_revision() const {
+  return _impl_.inventory_revision_;
+}
+inline void Character::_internal_set_inventory_revision(::uint64_t value) {
+  ;
+  _impl_.inventory_revision_ = value;
+}
+
+// bytes item_rules_hash = 16;
+inline void Character::clear_item_rules_hash() {
+  _impl_.item_rules_hash_.ClearToEmpty();
+}
+inline const std::string& Character::item_rules_hash() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.Character.item_rules_hash)
+  return _internal_item_rules_hash();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void Character::set_item_rules_hash(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.item_rules_hash_.SetBytes(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.Character.item_rules_hash)
+}
+inline std::string* Character::mutable_item_rules_hash() {
+  std::string* _s = _internal_mutable_item_rules_hash();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.Character.item_rules_hash)
+  return _s;
+}
+inline const std::string& Character::_internal_item_rules_hash() const {
+  return _impl_.item_rules_hash_.Get();
+}
+inline void Character::_internal_set_item_rules_hash(const std::string& value) {
+  ;
+
+
+  _impl_.item_rules_hash_.Set(value, GetArenaForAllocation());
+}
+inline std::string* Character::_internal_mutable_item_rules_hash() {
+  ;
+  return _impl_.item_rules_hash_.Mutable( GetArenaForAllocation());
+}
+inline std::string* Character::release_item_rules_hash() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.Character.item_rules_hash)
+  return _impl_.item_rules_hash_.Release();
+}
+inline void Character::set_allocated_item_rules_hash(std::string* value) {
+  _impl_.item_rules_hash_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.item_rules_hash_.IsDefault()) {
+          _impl_.item_rules_hash_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.Character.item_rules_hash)
 }
 
 // -------------------------------------------------------------------
@@ -13700,6 +13862,106 @@ inline ::uint32_t EffectiveStats::_internal_crit_permille() const {
 inline void EffectiveStats::_internal_set_crit_permille(::uint32_t value) {
   ;
   _impl_.crit_permille_ = value;
+}
+
+// int64 shield_def_q = 11;
+inline void EffectiveStats::clear_shield_def_q() {
+  _impl_.shield_def_q_ = ::int64_t{0};
+}
+inline ::int64_t EffectiveStats::shield_def_q() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectiveStats.shield_def_q)
+  return _internal_shield_def_q();
+}
+inline void EffectiveStats::set_shield_def_q(::int64_t value) {
+  _internal_set_shield_def_q(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectiveStats.shield_def_q)
+}
+inline ::int64_t EffectiveStats::_internal_shield_def_q() const {
+  return _impl_.shield_def_q_;
+}
+inline void EffectiveStats::_internal_set_shield_def_q(::int64_t value) {
+  ;
+  _impl_.shield_def_q_ = value;
+}
+
+// int64 shield_rate_q = 12;
+inline void EffectiveStats::clear_shield_rate_q() {
+  _impl_.shield_rate_q_ = ::int64_t{0};
+}
+inline ::int64_t EffectiveStats::shield_rate_q() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectiveStats.shield_rate_q)
+  return _internal_shield_rate_q();
+}
+inline void EffectiveStats::set_shield_rate_q(::int64_t value) {
+  _internal_set_shield_rate_q(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectiveStats.shield_rate_q)
+}
+inline ::int64_t EffectiveStats::_internal_shield_rate_q() const {
+  return _impl_.shield_rate_q_;
+}
+inline void EffectiveStats::_internal_set_shield_rate_q(::int64_t value) {
+  ;
+  _impl_.shield_rate_q_ = value;
+}
+
+// uint32 shield_angle_degrees = 13;
+inline void EffectiveStats::clear_shield_angle_degrees() {
+  _impl_.shield_angle_degrees_ = 0u;
+}
+inline ::uint32_t EffectiveStats::shield_angle_degrees() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectiveStats.shield_angle_degrees)
+  return _internal_shield_angle_degrees();
+}
+inline void EffectiveStats::set_shield_angle_degrees(::uint32_t value) {
+  _internal_set_shield_angle_degrees(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectiveStats.shield_angle_degrees)
+}
+inline ::uint32_t EffectiveStats::_internal_shield_angle_degrees() const {
+  return _impl_.shield_angle_degrees_;
+}
+inline void EffectiveStats::_internal_set_shield_angle_degrees(::uint32_t value) {
+  ;
+  _impl_.shield_angle_degrees_ = value;
+}
+
+// int64 physical_reach_millitiles = 14;
+inline void EffectiveStats::clear_physical_reach_millitiles() {
+  _impl_.physical_reach_millitiles_ = ::int64_t{0};
+}
+inline ::int64_t EffectiveStats::physical_reach_millitiles() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectiveStats.physical_reach_millitiles)
+  return _internal_physical_reach_millitiles();
+}
+inline void EffectiveStats::set_physical_reach_millitiles(::int64_t value) {
+  _internal_set_physical_reach_millitiles(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectiveStats.physical_reach_millitiles)
+}
+inline ::int64_t EffectiveStats::_internal_physical_reach_millitiles() const {
+  return _impl_.physical_reach_millitiles_;
+}
+inline void EffectiveStats::_internal_set_physical_reach_millitiles(::int64_t value) {
+  ;
+  _impl_.physical_reach_millitiles_ = value;
+}
+
+// uint32 physical_angle_degrees = 15;
+inline void EffectiveStats::clear_physical_angle_degrees() {
+  _impl_.physical_angle_degrees_ = 0u;
+}
+inline ::uint32_t EffectiveStats::physical_angle_degrees() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EffectiveStats.physical_angle_degrees)
+  return _internal_physical_angle_degrees();
+}
+inline void EffectiveStats::set_physical_angle_degrees(::uint32_t value) {
+  _internal_set_physical_angle_degrees(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EffectiveStats.physical_angle_degrees)
+}
+inline ::uint32_t EffectiveStats::_internal_physical_angle_degrees() const {
+  return _impl_.physical_angle_degrees_;
+}
+inline void EffectiveStats::_internal_set_physical_angle_degrees(::uint32_t value) {
+  ;
+  _impl_.physical_angle_degrees_ = value;
 }
 
 #ifdef __GNUC__

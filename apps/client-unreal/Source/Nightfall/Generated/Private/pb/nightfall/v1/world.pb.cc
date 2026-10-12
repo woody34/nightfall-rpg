@@ -274,6 +274,7 @@ PROTOBUF_CONSTEXPR EntitySpawn::EntitySpawn(
     /*decltype(_impl_._has_bits_)*/{}
   , /*decltype(_impl_._cached_size_)*/{}
   , /*decltype(_impl_.active_effects_)*/{}
+  , /*decltype(_impl_.visible_equipment_)*/{}
   , /*decltype(_impl_.entity_id_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
@@ -545,6 +546,8 @@ PROTOBUF_CONSTEXPR StatsChanged::StatsChanged(
   }
 
   , /*decltype(_impl_.effective_stats_)*/nullptr
+  , /*decltype(_impl_.item_weight_)*/nullptr
+  , /*decltype(_impl_.item_penalties_)*/nullptr
   , /*decltype(_impl_.hp_)*/ 0u
 
   , /*decltype(_impl_.max_hp_)*/ 0u
@@ -586,6 +589,8 @@ PROTOBUF_CONSTEXPR StatsChanged::StatsChanged(
   , /*decltype(_impl_.baseline_)*/ false
 
   , /*decltype(_impl_.incarnation_)*/ 0u
+
+  , /*decltype(_impl_.inventory_revision_)*/ ::uint64_t{0u}
 } {}
 struct StatsChangedDefaultTypeInternal {
   PROTOBUF_CONSTEXPR StatsChangedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -1243,6 +1248,16 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClientMessage, _impl_.intent_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::MoveToRequest, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::MoveToRequest, _internal_metadata_),
@@ -1393,6 +1408,14 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::WorldEvent, _impl_.event_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _internal_metadata_),
@@ -1429,6 +1452,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pending_cast_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pk_count_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pvp_count_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.visible_equipment_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.status_flags_),
     ~0u,
     ~0u,
@@ -1455,6 +1479,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,
     ~0u,
     2,
+    ~0u,
     ~0u,
     ~0u,
     ~0u,
@@ -1602,6 +1627,9 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.baseline_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.baseline_tick_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.incarnation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.item_weight_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.item_penalties_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StatsChanged, _impl_.inventory_revision_),
     ~0u,
     ~0u,
     ~0u,
@@ -1624,6 +1652,9 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     0,
     ~0u,
     ~0u,
+    ~0u,
+    1,
+    2,
     ~0u,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::XpGained, _internal_metadata_),
@@ -1997,48 +2028,48 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
 static const ::_pbi::MigrationSchema
     schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
         { 0, -1, -1, sizeof(::nightfall::v1::ClientMessage)},
-        { 19, 28, -1, sizeof(::nightfall::v1::MoveToRequest)},
-        { 29, -1, -1, sizeof(::nightfall::v1::StopMoveRequest)},
-        { 37, -1, -1, sizeof(::nightfall::v1::SetTargetRequest)},
-        { 46, -1, -1, sizeof(::nightfall::v1::AttackRequest)},
-        { 54, -1, -1, sizeof(::nightfall::v1::StopAttackRequest)},
-        { 62, -1, -1, sizeof(::nightfall::v1::RespawnRequest)},
-        { 70, 80, -1, sizeof(::nightfall::v1::CastSkillRequest)},
-        { 82, 91, -1, sizeof(::nightfall::v1::CancelCastRequest)},
-        { 92, -1, -1, sizeof(::nightfall::v1::AcceptResurrectRequest)},
-        { 102, -1, -1, sizeof(::nightfall::v1::ServerMessage)},
-        { 114, -1, -1, sizeof(::nightfall::v1::Ack)},
-        { 124, -1, -1, sizeof(::nightfall::v1::IntentRejected)},
-        { 135, -1, -1, sizeof(::nightfall::v1::WorldEvent)},
-        { 169, 205, -1, sizeof(::nightfall::v1::EntitySpawn)},
-        { 233, 247, -1, sizeof(::nightfall::v1::EntityMove)},
-        { 253, -1, -1, sizeof(::nightfall::v1::EntityDespawn)},
-        { 262, -1, -1, sizeof(::nightfall::v1::AttackResult)},
-        { 278, -1, -1, sizeof(::nightfall::v1::EntityDied)},
-        { 290, 307, -1, sizeof(::nightfall::v1::AttackStarted)},
-        { 316, -1, -1, sizeof(::nightfall::v1::AttackCancelled)},
-        { 328, 341, -1, sizeof(::nightfall::v1::EntityRespawned)},
-        { 346, 377, -1, sizeof(::nightfall::v1::StatsChanged)},
-        { 400, -1, -1, sizeof(::nightfall::v1::XpGained)},
-        { 411, -1, -1, sizeof(::nightfall::v1::LevelUp)},
-        { 421, 435, -1, sizeof(::nightfall::v1::TargetChanged)},
-        { 441, -1, -1, sizeof(::nightfall::v1::ClassChanged)},
-        { 453, 469, -1, sizeof(::nightfall::v1::ActiveEffect)},
-        { 477, 498, -1, sizeof(::nightfall::v1::SkillCastStarted)},
-        { 511, -1, -1, sizeof(::nightfall::v1::SkillTargetResult)},
-        { 530, 546, -1, sizeof(::nightfall::v1::SkillCastResult)},
-        { 554, -1, -1, sizeof(::nightfall::v1::SkillCastCancelled)},
-        { 567, 591, -1, sizeof(::nightfall::v1::EffectApplied)},
-        { 607, -1, -1, sizeof(::nightfall::v1::EffectRemoved)},
-        { 620, -1, -1, sizeof(::nightfall::v1::SkillReuse)},
-        { 633, -1, -1, sizeof(::nightfall::v1::SkillLearned)},
-        { 649, -1, -1, sizeof(::nightfall::v1::PvpStateChanged)},
-        { 666, 686, -1, sizeof(::nightfall::v1::ResurrectOffer)},
-        { 698, -1, -1, sizeof(::nightfall::v1::SpGained)},
-        { 711, -1, -1, sizeof(::nightfall::v1::LearnedSkillRank)},
-        { 721, -1, -1, sizeof(::nightfall::v1::SkillReuseState)},
-        { 731, -1, -1, sizeof(::nightfall::v1::SkillStateSync)},
-        { 752, -1, -1, sizeof(::nightfall::v1::VitalsChanged)},
+        { 29, 38, -1, sizeof(::nightfall::v1::MoveToRequest)},
+        { 39, -1, -1, sizeof(::nightfall::v1::StopMoveRequest)},
+        { 47, -1, -1, sizeof(::nightfall::v1::SetTargetRequest)},
+        { 56, -1, -1, sizeof(::nightfall::v1::AttackRequest)},
+        { 64, -1, -1, sizeof(::nightfall::v1::StopAttackRequest)},
+        { 72, -1, -1, sizeof(::nightfall::v1::RespawnRequest)},
+        { 80, 90, -1, sizeof(::nightfall::v1::CastSkillRequest)},
+        { 92, 101, -1, sizeof(::nightfall::v1::CancelCastRequest)},
+        { 102, -1, -1, sizeof(::nightfall::v1::AcceptResurrectRequest)},
+        { 112, -1, -1, sizeof(::nightfall::v1::ServerMessage)},
+        { 124, -1, -1, sizeof(::nightfall::v1::Ack)},
+        { 134, -1, -1, sizeof(::nightfall::v1::IntentRejected)},
+        { 145, -1, -1, sizeof(::nightfall::v1::WorldEvent)},
+        { 187, 224, -1, sizeof(::nightfall::v1::EntitySpawn)},
+        { 253, 267, -1, sizeof(::nightfall::v1::EntityMove)},
+        { 273, -1, -1, sizeof(::nightfall::v1::EntityDespawn)},
+        { 282, -1, -1, sizeof(::nightfall::v1::AttackResult)},
+        { 298, -1, -1, sizeof(::nightfall::v1::EntityDied)},
+        { 310, 327, -1, sizeof(::nightfall::v1::AttackStarted)},
+        { 336, -1, -1, sizeof(::nightfall::v1::AttackCancelled)},
+        { 348, 361, -1, sizeof(::nightfall::v1::EntityRespawned)},
+        { 366, 400, -1, sizeof(::nightfall::v1::StatsChanged)},
+        { 426, -1, -1, sizeof(::nightfall::v1::XpGained)},
+        { 437, -1, -1, sizeof(::nightfall::v1::LevelUp)},
+        { 447, 461, -1, sizeof(::nightfall::v1::TargetChanged)},
+        { 467, -1, -1, sizeof(::nightfall::v1::ClassChanged)},
+        { 479, 495, -1, sizeof(::nightfall::v1::ActiveEffect)},
+        { 503, 524, -1, sizeof(::nightfall::v1::SkillCastStarted)},
+        { 537, -1, -1, sizeof(::nightfall::v1::SkillTargetResult)},
+        { 556, 572, -1, sizeof(::nightfall::v1::SkillCastResult)},
+        { 580, -1, -1, sizeof(::nightfall::v1::SkillCastCancelled)},
+        { 593, 617, -1, sizeof(::nightfall::v1::EffectApplied)},
+        { 633, -1, -1, sizeof(::nightfall::v1::EffectRemoved)},
+        { 646, -1, -1, sizeof(::nightfall::v1::SkillReuse)},
+        { 659, -1, -1, sizeof(::nightfall::v1::SkillLearned)},
+        { 675, -1, -1, sizeof(::nightfall::v1::PvpStateChanged)},
+        { 692, 712, -1, sizeof(::nightfall::v1::ResurrectOffer)},
+        { 724, -1, -1, sizeof(::nightfall::v1::SpGained)},
+        { 737, -1, -1, sizeof(::nightfall::v1::LearnedSkillRank)},
+        { 747, -1, -1, sizeof(::nightfall::v1::SkillReuseState)},
+        { 757, -1, -1, sizeof(::nightfall::v1::SkillStateSync)},
+        { 778, -1, -1, sizeof(::nightfall::v1::VitalsChanged)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -2088,299 +2119,345 @@ static const ::_pb::Message* const file_default_instances[] = {
 };
 const char descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
     "\n\030nightfall/v1/world.proto\022\014nightfall.v1"
-    "\032\027nightfall/v1/game.proto\"\210\004\n\rClientMess"
-    "age\022\013\n\003seq\030\001 \001(\r\022.\n\007move_to\030\n \001(\0132\033.nigh"
-    "tfall.v1.MoveToRequestH\000\0222\n\tstop_move\030\013 "
-    "\001(\0132\035.nightfall.v1.StopMoveRequestH\000\0224\n\n"
-    "set_target\030\014 \001(\0132\036.nightfall.v1.SetTarge"
-    "tRequestH\000\022-\n\006attack\030\r \001(\0132\033.nightfall.v"
-    "1.AttackRequestH\000\0226\n\013stop_attack\030\016 \001(\0132\037"
-    ".nightfall.v1.StopAttackRequestH\000\022/\n\007res"
-    "pawn\030\017 \001(\0132\034.nightfall.v1.RespawnRequest"
-    "H\000\0224\n\ncast_skill\030\020 \001(\0132\036.nightfall.v1.Ca"
-    "stSkillRequestH\000\0226\n\013cancel_cast\030\021 \001(\0132\037."
-    "nightfall.v1.CancelCastRequestH\000\022@\n\020acce"
-    "pt_resurrect\030\022 \001(\0132$.nightfall.v1.Accept"
-    "ResurrectRequestH\000B\010\n\006intent\"<\n\rMoveToRe"
-    "quest\022+\n\013destination\030\001 \001(\0132\026.nightfall.v"
-    "1.Position\"\021\n\017StopMoveRequest\"%\n\020SetTarg"
-    "etRequest\022\021\n\tentity_id\030\001 \001(\t\"\017\n\rAttackRe"
-    "quest\"\023\n\021StopAttackRequest\"\020\n\016RespawnReq"
-    "uest\"D\n\020CastSkillRequest\022\020\n\010skill_id\030\001 \001"
-    "(\r\022\023\n\006target\030\002 \001(\tH\000\210\001\001B\t\n\007_target\"5\n\021Ca"
-    "ncelCastRequest\022\024\n\007cast_id\030\001 \001(\004H\000\210\001\001B\n\n"
-    "\010_cast_id\":\n\026AcceptResurrectRequest\022\020\n\010o"
-    "ffer_id\030\001 \001(\004\022\016\n\006accept\030\002 \001(\010\"\231\001\n\rServer"
-    "Message\022 \n\003ack\030\001 \001(\0132\021.nightfall.v1.AckH"
-    "\000\022)\n\005event\030\002 \001(\0132\030.nightfall.v1.WorldEve"
-    "ntH\000\0220\n\010rejected\030\003 \001(\0132\034.nightfall.v1.In"
-    "tentRejectedH\000B\t\n\007payload\" \n\003Ack\022\013\n\003seq\030"
-    "\001 \001(\r\022\014\n\004tick\030\002 \001(\004\"Y\n\016IntentRejected\022\013\n"
-    "\003seq\030\001 \001(\r\022*\n\006reason\030\002 \001(\0162\032.nightfall.v"
-    "1.RejectReason\022\016\n\006detail\030\003 \001(\t\"\312\n\n\nWorld"
-    "Event\022*\n\005spawn\030\001 \001(\0132\031.nightfall.v1.Enti"
-    "tySpawnH\000\022(\n\004move\030\002 \001(\0132\030.nightfall.v1.E"
-    "ntityMoveH\000\022.\n\007despawn\030\003 \001(\0132\033.nightfall"
-    ".v1.EntityDespawnH\000\0223\n\rattack_result\030\004 \001"
-    "(\0132\032.nightfall.v1.AttackResultH\000\022/\n\013enti"
-    "ty_died\030\005 \001(\0132\030.nightfall.v1.EntityDiedH"
-    "\000\0229\n\020entity_respawned\030\006 \001(\0132\035.nightfall."
-    "v1.EntityRespawnedH\000\0223\n\rstats_changed\030\007 "
-    "\001(\0132\032.nightfall.v1.StatsChangedH\000\022+\n\txp_"
-    "gained\030\010 \001(\0132\026.nightfall.v1.XpGainedH\000\022)"
-    "\n\010level_up\030\t \001(\0132\025.nightfall.v1.LevelUpH"
-    "\000\0225\n\016target_changed\030\n \001(\0132\033.nightfall.v1"
-    ".TargetChangedH\000\0225\n\016attack_started\030\013 \001(\013"
-    "2\033.nightfall.v1.AttackStartedH\000\0229\n\020attac"
-    "k_cancelled\030\014 \001(\0132\035.nightfall.v1.AttackC"
-    "ancelledH\000\0223\n\rclass_changed\030\r \001(\0132\032.nigh"
-    "tfall.v1.ClassChangedH\000\022<\n\022skill_cast_st"
-    "arted\030\016 \001(\0132\036.nightfall.v1.SkillCastStar"
-    "tedH\000\022:\n\021skill_cast_result\030\017 \001(\0132\035.night"
-    "fall.v1.SkillCastResultH\000\022@\n\024skill_cast_"
-    "cancelled\030\020 \001(\0132 .nightfall.v1.SkillCast"
-    "CancelledH\000\0225\n\016effect_applied\030\021 \001(\0132\033.ni"
-    "ghtfall.v1.EffectAppliedH\000\0225\n\016effect_rem"
-    "oved\030\022 \001(\0132\033.nightfall.v1.EffectRemovedH"
-    "\000\022/\n\013skill_reuse\030\023 \001(\0132\030.nightfall.v1.Sk"
-    "illReuseH\000\0223\n\rskill_learned\030\024 \001(\0132\032.nigh"
-    "tfall.v1.SkillLearnedH\000\022:\n\021pvp_state_cha"
-    "nged\030\025 \001(\0132\035.nightfall.v1.PvpStateChange"
-    "dH\000\0227\n\017resurrect_offer\030\026 \001(\0132\034.nightfall"
-    ".v1.ResurrectOfferH\000\022+\n\tsp_gained\030\027 \001(\0132"
-    "\026.nightfall.v1.SpGainedH\000\0228\n\020skill_state"
-    "_sync\030\030 \001(\0132\034.nightfall.v1.SkillStateSyn"
-    "cH\000\0225\n\016vitals_changed\030\031 \001(\0132\033.nightfall."
-    "v1.VitalsChangedH\000B\007\n\005event\"\312\005\n\013EntitySp"
-    "awn\022\021\n\tentity_id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022(\n\010"
-    "position\030\003 \001(\0132\026.nightfall.v1.Position\022&"
-    "\n\004kind\030\004 \001(\0162\030.nightfall.v1.EntityKind\022\032"
-    "\n\022session_generation\030\005 \001(\r\022\021\n\tcombatant\030"
-    "\006 \001(\010\022\023\n\013template_id\030\007 \001(\t\022\030\n\020life_incar"
-    "nation\030\010 \001(\r\022\014\n\004dead\030\t \001(\010\022\022\n\nattackable"
-    "\030\n \001(\010\022\n\n\002hp\030\013 \001(\r\022\016\n\006max_hp\030\014 \001(\r\022\r\n\005le"
-    "vel\030\r \001(\r\0222\n\rpending_swing\030\016 \001(\0132\033.night"
-    "fall.v1.AttackStarted\022 \n\004race\030\017 \001(\0162\022.ni"
-    "ghtfall.v1.Race\022\020\n\010class_id\030\020 \001(\r\022\036\n\003sex"
-    "\030\021 \001(\0162\021.nightfall.v1.Sex\022\022\n\nhair_style\030"
-    "\022 \001(\r\022\022\n\nhair_color\030\023 \001(\r\022\014\n\004face\030\024 \001(\r\022"
-    "\022\n\nstate_tick\030\025 \001(\004\022\027\n\017flag_until_tick\030\026"
-    " \001(\004\022\r\n\005karma\030\027 \001(\r\0222\n\016active_effects\030\030 "
-    "\003(\0132\032.nightfall.v1.ActiveEffect\0224\n\014pendi"
-    "ng_cast\030\031 \001(\0132\036.nightfall.v1.SkillCastSt"
-    "arted\022\020\n\010pk_count\030\032 \001(\r\022\021\n\tpvp_count\030\033 \001"
-    "(\r\022\024\n\014status_flags\030\034 \001(\004\"\253\001\n\nEntityMove\022"
-    "\021\n\tentity_id\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.n"
-    "ightfall.v1.Position\022+\n\013destination\030\003 \001("
-    "\0132\026.nightfall.v1.Position\022\r\n\005speed\030\004 \001(\002"
-    "\022\026\n\016server_time_ms\030\005 \001(\003\022\014\n\004tick\030\006 \001(\004\"\""
-    "\n\rEntityDespawn\022\021\n\tentity_id\030\001 \001(\t\"\304\001\n\014A"
-    "ttackResult\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030"
-    "\002 \001(\t\022\014\n\004tick\030\003 \001(\004\022,\n\007outcome\030\004 \001(\0162\033.n"
-    "ightfall.v1.AttackOutcome\022\016\n\006damage\030\005 \001("
-    "\r\022\027\n\017target_hp_after\030\006 \001(\r\022\032\n\022target_inc"
-    "arnation\030\007 \001(\r\022\021\n\tcp_damage\030\010 \001(\r\"O\n\nEnt"
-    "ityDied\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022\016\n"
-    "\006killer\030\003 \001(\t\022\023\n\013incarnation\030\004 \001(\r\"\351\001\n\rA"
-    "ttackStarted\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target"
-    "\030\002 \001(\t\022\014\n\004tick\030\003 \001(\004\022\023\n\013impact_tick\030\004 \001("
-    "\004\022\022\n\nready_tick\030\005 \001(\004\022\032\n\022target_incarnat"
-    "ion\030\006 \001(\r\022\020\n\010baseline\030\007 \001(\010\022\025\n\rbaseline_"
-    "tick\030\010 \001(\004\022!\n\024attacker_incarnation\030\t \001(\r"
-    "H\000\210\001\001B\027\n\025_attacker_incarnation\"r\n\017Attack"
-    "Cancelled\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 "
-    "\001(\t\022\014\n\004tick\030\003 \001(\004\022/\n\006reason\030\004 \001(\0162\037.nigh"
-    "tfall.v1.SwingCancelReason\"z\n\017EntityResp"
-    "awned\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022(\n\010p"
-    "osition\030\003 \001(\0132\026.nightfall.v1.Position\022\n\n"
-    "\002hp\030\004 \001(\r\022\023\n\013incarnation\030\005 \001(\r\"\320\003\n\014Stats"
-    "Changed\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006m"
-    "ax_hp\030\003 \001(\r\022\n\n\002mp\030\004 \001(\r\022\016\n\006max_mp\030\005 \001(\r\022"
-    "\r\n\005level\030\006 \001(\r\022\n\n\002xp\030\007 \001(\004\022\n\n\002cp\030\010 \001(\r\022\016"
-    "\n\006max_cp\030\t \001(\r\022\020\n\010class_id\030\n \001(\r\022\n\n\002sp\030\013"
-    " \001(\004\022\032\n\022token_tier_1_count\030\014 \001(\r\022\032\n\022toke"
-    "n_tier_2_count\030\r \001(\r\022\014\n\004tick\030\016 \001(\004\022\r\n\005ka"
-    "rma\030\017 \001(\r\022\020\n\010pk_count\030\020 \001(\r\022\021\n\tpvp_count"
-    "\030\021 \001(\r\022\027\n\017flag_until_tick\030\022 \001(\004\022\033\n\023death"
-    "_penalty_level\030\023 \001(\r\0225\n\017effective_stats\030"
-    "\024 \001(\0132\034.nightfall.v1.EffectiveStats\022\020\n\010b"
-    "aseline\030\025 \001(\010\022\025\n\rbaseline_tick\030\026 \001(\004\022\023\n\013"
-    "incarnation\030\027 \001(\r\"9\n\010XpGained\022\016\n\006entity\030"
-    "\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\"(\n\007"
-    "LevelUp\022\016\n\006entity\030\001 \001(\t\022\r\n\005level\030\002 \001(\r\"\236"
-    "\001\n\rTargetChanged\022\016\n\006entity\030\001 \001(\t\022\016\n\006targ"
-    "et\030\002 \001(\t\022\020\n\010baseline\030\003 \001(\010\022\025\n\rbaseline_t"
-    "ick\030\004 \001(\004\022\037\n\022target_incarnation\030\005 \001(\rH\000\210"
-    "\001\001\022\014\n\004tick\030\006 \001(\004B\025\n\023_target_incarnation\""
-    "Z\n\014ClassChanged\022\016\n\006entity\030\001 \001(\t\022\020\n\010class"
-    "_id\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022\032\n\022session_gener"
-    "ation\030\004 \001(\r\"\350\001\n\014ActiveEffect\022\020\n\010skill_id"
-    "\030\001 \001(\r\022\023\n\013skill_level\030\002 \001(\r\022\027\n\017remaining"
-    "_ticks\030\003 \001(\004\022\021\n\tis_debuff\030\004 \001(\010\022\023\n\006caste"
-    "r\030\005 \001(\tH\000\210\001\001\022\021\n\teffect_id\030\006 \001(\004\022\037\n\022caste"
-    "r_incarnation\030\007 \001(\rH\001\210\001\001\022\032\n\022target_incar"
-    "nation\030\010 \001(\rB\t\n\007_casterB\025\n\023_caster_incar"
-    "nation\"\305\002\n\020SkillCastStarted\022\016\n\006caster\030\001 "
-    "\001(\t\022\023\n\006target\030\002 \001(\tH\000\210\001\001\022\020\n\010skill_id\030\003 \001"
-    "(\r\022\023\n\013skill_level\030\004 \001(\r\022\017\n\007cast_id\030\005 \001(\004"
-    "\022\014\n\004tick\030\006 \001(\004\022\025\n\rcomplete_tick\030\007 \001(\004\022\032\n"
-    "\022caster_incarnation\030\010 \001(\r\022\037\n\022target_inca"
-    "rnation\030\t \001(\rH\001\210\001\001\022\020\n\010baseline\030\n \001(\010\022\025\n\r"
-    "baseline_tick\030\013 \001(\004\022\023\n\013launch_tick\030\014 \001(\004"
-    "\022\022\n\nstart_tick\030\r \001(\004B\t\n\007_targetB\025\n\023_targ"
-    "et_incarnation\"\262\002\n\021SkillTargetResult\022\016\n\006"
-    "target\030\001 \001(\t\022\032\n\022target_incarnation\030\002 \001(\r"
-    "\022\014\n\004tick\030\003 \001(\004\022:\n\017resolution_kind\030\004 \001(\0162"
-    "!.nightfall.v1.SkillResolutionKind\022\016\n\006ro"
-    "lled\030\005 \001(\r\022\023\n\013cp_absorbed\030\006 \001(\r\022\022\n\nhp_re"
-    "moved\030\007 \001(\r\022\014\n\004heal\030\010 \001(\r\022+\n\007outcome\030\t \001"
-    "(\0162\032.nightfall.v1.SkillOutcome\022\027\n\017target"
-    "_hp_after\030\n \001(\r\022\032\n\022applied_effect_ids\030\013 "
-    "\003(\004\"\333\001\n\017SkillCastResult\022\016\n\006caster\030\001 \001(\t\022"
-    "\032\n\022caster_incarnation\030\002 \001(\r\022\017\n\007cast_id\030\003"
-    " \001(\004\022\014\n\004tick\030\004 \001(\004\022\020\n\010skill_id\030\005 \001(\r\022\023\n\013"
-    "skill_level\030\006 \001(\r\0220\n\007targets\030\007 \003(\0132\037.nig"
-    "htfall.v1.SkillTargetResult\022\026\n\teffect_id"
-    "\030\010 \001(\004H\000\210\001\001B\014\n\n_effect_id\"\217\001\n\022SkillCastC"
-    "ancelled\022\016\n\006caster\030\001 \001(\t\022\017\n\007cast_id\030\002 \001("
-    "\004\022.\n\006reason\030\003 \001(\0162\036.nightfall.v1.CastCan"
-    "celReason\022\014\n\004tick\030\004 \001(\004\022\032\n\022caster_incarn"
-    "ation\030\005 \001(\r\"\231\003\n\rEffectApplied\022\016\n\006target\030"
-    "\001 \001(\t\022\032\n\022target_incarnation\030\002 \001(\r\022\023\n\006cas"
-    "ter\030\003 \001(\tH\000\210\001\001\022\037\n\022caster_incarnation\030\004 \001"
-    "(\rH\001\210\001\001\022\021\n\teffect_id\030\005 \001(\004\022\020\n\010skill_id\030\006"
-    " \001(\r\022\023\n\013skill_level\030\007 \001(\r\022&\n\004pool\030\010 \001(\0162"
-    "\030.nightfall.v1.EffectPool\022\014\n\004tick\030\t \001(\004\022"
-    "\020\n\010end_tick\030\n \001(\004\022\025\n\rabnormal_type\030\013 \001(\t"
-    "\022\026\n\016abnormal_level\030\014 \001(\r\022\024\n\014status_flags"
-    "\030\r \001(\004\022\020\n\010baseline\030\016 \001(\010\022\025\n\rbaseline_tic"
-    "k\030\017 \001(\004\022\024\n\014applied_tick\030\020 \001(\004B\t\n\007_caster"
-    "B\025\n\023_caster_incarnation\"\216\001\n\rEffectRemove"
+    "\032\027nightfall/v1/game.proto\032\030nightfall/v1/"
+    "items.proto\"\346\010\n\rClientMessage\022\013\n\003seq\030\001 \001"
+    "(\r\022.\n\007move_to\030\n \001(\0132\033.nightfall.v1.MoveT"
+    "oRequestH\000\0222\n\tstop_move\030\013 \001(\0132\035.nightfal"
+    "l.v1.StopMoveRequestH\000\0224\n\nset_target\030\014 \001"
+    "(\0132\036.nightfall.v1.SetTargetRequestH\000\022-\n\006"
+    "attack\030\r \001(\0132\033.nightfall.v1.AttackReques"
+    "tH\000\0226\n\013stop_attack\030\016 \001(\0132\037.nightfall.v1."
+    "StopAttackRequestH\000\022/\n\007respawn\030\017 \001(\0132\034.n"
+    "ightfall.v1.RespawnRequestH\000\0224\n\ncast_ski"
+    "ll\030\020 \001(\0132\036.nightfall.v1.CastSkillRequest"
+    "H\000\0226\n\013cancel_cast\030\021 \001(\0132\037.nightfall.v1.C"
+    "ancelCastRequestH\000\022@\n\020accept_resurrect\030\022"
+    " \001(\0132$.nightfall.v1.AcceptResurrectReque"
+    "stH\000\0224\n\nequip_item\030\023 \001(\0132\036.nightfall.v1."
+    "EquipItemRequestH\000\0228\n\014unequip_item\030\024 \001(\013"
+    "2 .nightfall.v1.UnequipItemRequestH\000\0220\n\010"
+    "use_item\030\025 \001(\0132\034.nightfall.v1.UseItemReq"
+    "uestH\000\0228\n\014destroy_item\030\026 \001(\0132 .nightfall"
+    ".v1.DestroyItemRequestH\000\0228\n\014enchant_item"
+    "\030\027 \001(\0132 .nightfall.v1.EnchantItemRequest"
+    "H\000\022\?\n\020toggle_auto_shot\030\030 \001(\0132#.nightfall"
+    ".v1.ToggleAutoShotRequestH\000\0226\n\013refine_it"
+    "em\030\031 \001(\0132\037.nightfall.v1.RefineItemReques"
+    "tH\000\022:\n\rcancel_refine\030\032 \001(\0132!.nightfall.v"
+    "1.CancelRefineRequestH\000\022O\n\030exchange_spec"
+    "ial_ability\030\033 \001(\0132+.nightfall.v1.Exchang"
+    "eSpecialAbilityRequestH\000\022@\n\020crystallize_"
+    "item\030\034 \001(\0132$.nightfall.v1.CrystallizeIte"
+    "mRequestH\000B\010\n\006intent\"<\n\rMoveToRequest\022+\n"
+    "\013destination\030\001 \001(\0132\026.nightfall.v1.Positi"
+    "on\"\021\n\017StopMoveRequest\"%\n\020SetTargetReques"
+    "t\022\021\n\tentity_id\030\001 \001(\t\"\017\n\rAttackRequest\"\023\n"
+    "\021StopAttackRequest\"\020\n\016RespawnRequest\"D\n\020"
+    "CastSkillRequest\022\020\n\010skill_id\030\001 \001(\r\022\023\n\006ta"
+    "rget\030\002 \001(\tH\000\210\001\001B\t\n\007_target\"5\n\021CancelCast"
+    "Request\022\024\n\007cast_id\030\001 \001(\004H\000\210\001\001B\n\n\010_cast_i"
+    "d\":\n\026AcceptResurrectRequest\022\020\n\010offer_id\030"
+    "\001 \001(\004\022\016\n\006accept\030\002 \001(\010\"\231\001\n\rServerMessage\022"
+    " \n\003ack\030\001 \001(\0132\021.nightfall.v1.AckH\000\022)\n\005eve"
+    "nt\030\002 \001(\0132\030.nightfall.v1.WorldEventH\000\0220\n\010"
+    "rejected\030\003 \001(\0132\034.nightfall.v1.IntentReje"
+    "ctedH\000B\t\n\007payload\" \n\003Ack\022\013\n\003seq\030\001 \001(\r\022\014\n"
+    "\004tick\030\002 \001(\004\"Y\n\016IntentRejected\022\013\n\003seq\030\001 \001"
+    "(\r\022*\n\006reason\030\002 \001(\0162\032.nightfall.v1.Reject"
+    "Reason\022\016\n\006detail\030\003 \001(\t\"\233\016\n\nWorldEvent\022*\n"
+    "\005spawn\030\001 \001(\0132\031.nightfall.v1.EntitySpawnH"
+    "\000\022(\n\004move\030\002 \001(\0132\030.nightfall.v1.EntityMov"
+    "eH\000\022.\n\007despawn\030\003 \001(\0132\033.nightfall.v1.Enti"
+    "tyDespawnH\000\0223\n\rattack_result\030\004 \001(\0132\032.nig"
+    "htfall.v1.AttackResultH\000\022/\n\013entity_died\030"
+    "\005 \001(\0132\030.nightfall.v1.EntityDiedH\000\0229\n\020ent"
+    "ity_respawned\030\006 \001(\0132\035.nightfall.v1.Entit"
+    "yRespawnedH\000\0223\n\rstats_changed\030\007 \001(\0132\032.ni"
+    "ghtfall.v1.StatsChangedH\000\022+\n\txp_gained\030\010"
+    " \001(\0132\026.nightfall.v1.XpGainedH\000\022)\n\010level_"
+    "up\030\t \001(\0132\025.nightfall.v1.LevelUpH\000\0225\n\016tar"
+    "get_changed\030\n \001(\0132\033.nightfall.v1.TargetC"
+    "hangedH\000\0225\n\016attack_started\030\013 \001(\0132\033.night"
+    "fall.v1.AttackStartedH\000\0229\n\020attack_cancel"
+    "led\030\014 \001(\0132\035.nightfall.v1.AttackCancelled"
+    "H\000\0223\n\rclass_changed\030\r \001(\0132\032.nightfall.v1"
+    ".ClassChangedH\000\022<\n\022skill_cast_started\030\016 "
+    "\001(\0132\036.nightfall.v1.SkillCastStartedH\000\022:\n"
+    "\021skill_cast_result\030\017 \001(\0132\035.nightfall.v1."
+    "SkillCastResultH\000\022@\n\024skill_cast_cancelle"
+    "d\030\020 \001(\0132 .nightfall.v1.SkillCastCancelle"
+    "dH\000\0225\n\016effect_applied\030\021 \001(\0132\033.nightfall."
+    "v1.EffectAppliedH\000\0225\n\016effect_removed\030\022 \001"
+    "(\0132\033.nightfall.v1.EffectRemovedH\000\022/\n\013ski"
+    "ll_reuse\030\023 \001(\0132\030.nightfall.v1.SkillReuse"
+    "H\000\0223\n\rskill_learned\030\024 \001(\0132\032.nightfall.v1"
+    ".SkillLearnedH\000\022:\n\021pvp_state_changed\030\025 \001"
+    "(\0132\035.nightfall.v1.PvpStateChangedH\000\0227\n\017r"
+    "esurrect_offer\030\026 \001(\0132\034.nightfall.v1.Resu"
+    "rrectOfferH\000\022+\n\tsp_gained\030\027 \001(\0132\026.nightf"
+    "all.v1.SpGainedH\000\0228\n\020skill_state_sync\030\030 "
+    "\001(\0132\034.nightfall.v1.SkillStateSyncH\000\0225\n\016v"
+    "itals_changed\030\031 \001(\0132\033.nightfall.v1.Vital"
+    "sChangedH\000\0225\n\016inventory_sync\030\032 \001(\0132\033.nig"
+    "htfall.v1.InventorySyncH\000\022;\n\021inventory_c"
+    "hanged\030\033 \001(\0132\036.nightfall.v1.InventoryCha"
+    "ngedH\000\022;\n\021equipment_changed\030\034 \001(\0132\036.nigh"
+    "tfall.v1.EquipmentChangedH\000\0225\n\016weight_ch"
+    "anged\030\035 \001(\0132\033.nightfall.v1.WeightChanged"
+    "H\000\0227\n\017penalty_changed\030\036 \001(\0132\034.nightfall."
+    "v1.PenaltyChangedH\000\0225\n\016enchant_result\030\037 "
+    "\001(\0132\033.nightfall.v1.EnchantResultH\000\0223\n\rre"
+    "fine_result\030  \001(\0132\032.nightfall.v1.RefineR"
+    "esultH\000\022B\n\025item_operation_result\030! \001(\0132!"
+    ".nightfall.v1.ItemOperationResultH\000B\007\n\005e"
+    "vent\"\205\006\n\013EntitySpawn\022\021\n\tentity_id\030\001 \001(\t\022"
+    "\014\n\004name\030\002 \001(\t\022(\n\010position\030\003 \001(\0132\026.nightf"
+    "all.v1.Position\022&\n\004kind\030\004 \001(\0162\030.nightfal"
+    "l.v1.EntityKind\022\032\n\022session_generation\030\005 "
+    "\001(\r\022\021\n\tcombatant\030\006 \001(\010\022\023\n\013template_id\030\007 "
+    "\001(\t\022\030\n\020life_incarnation\030\010 \001(\r\022\014\n\004dead\030\t "
+    "\001(\010\022\022\n\nattackable\030\n \001(\010\022\n\n\002hp\030\013 \001(\r\022\016\n\006m"
+    "ax_hp\030\014 \001(\r\022\r\n\005level\030\r \001(\r\0222\n\rpending_sw"
+    "ing\030\016 \001(\0132\033.nightfall.v1.AttackStarted\022 "
+    "\n\004race\030\017 \001(\0162\022.nightfall.v1.Race\022\020\n\010clas"
+    "s_id\030\020 \001(\r\022\036\n\003sex\030\021 \001(\0162\021.nightfall.v1.S"
+    "ex\022\022\n\nhair_style\030\022 \001(\r\022\022\n\nhair_color\030\023 \001"
+    "(\r\022\014\n\004face\030\024 \001(\r\022\022\n\nstate_tick\030\025 \001(\004\022\027\n\017"
+    "flag_until_tick\030\026 \001(\004\022\r\n\005karma\030\027 \001(\r\0222\n\016"
+    "active_effects\030\030 \003(\0132\032.nightfall.v1.Acti"
+    "veEffect\0224\n\014pending_cast\030\031 \001(\0132\036.nightfa"
+    "ll.v1.SkillCastStarted\022\020\n\010pk_count\030\032 \001(\r"
+    "\022\021\n\tpvp_count\030\033 \001(\r\0229\n\021visible_equipment"
+    "\030\035 \003(\0132\036.nightfall.v1.VisibleEquipment\022\024"
+    "\n\014status_flags\030\034 \001(\004\"\253\001\n\nEntityMove\022\021\n\te"
+    "ntity_id\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.night"
+    "fall.v1.Position\022+\n\013destination\030\003 \001(\0132\026."
+    "nightfall.v1.Position\022\r\n\005speed\030\004 \001(\002\022\026\n\016"
+    "server_time_ms\030\005 \001(\003\022\014\n\004tick\030\006 \001(\004\"\"\n\rEn"
+    "tityDespawn\022\021\n\tentity_id\030\001 \001(\t\"\304\001\n\014Attac"
+    "kResult\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001("
+    "\t\022\014\n\004tick\030\003 \001(\004\022,\n\007outcome\030\004 \001(\0162\033.night"
+    "fall.v1.AttackOutcome\022\016\n\006damage\030\005 \001(\r\022\027\n"
+    "\017target_hp_after\030\006 \001(\r\022\032\n\022target_incarna"
+    "tion\030\007 \001(\r\022\021\n\tcp_damage\030\010 \001(\r\"O\n\nEntityD"
+    "ied\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022\016\n\006kil"
+    "ler\030\003 \001(\t\022\023\n\013incarnation\030\004 \001(\r\"\351\001\n\rAttac"
+    "kStarted\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001"
+    "(\t\022\014\n\004tick\030\003 \001(\004\022\023\n\013impact_tick\030\004 \001(\004\022\022\n"
+    "\nready_tick\030\005 \001(\004\022\032\n\022target_incarnation\030"
+    "\006 \001(\r\022\020\n\010baseline\030\007 \001(\010\022\025\n\rbaseline_tick"
+    "\030\010 \001(\004\022!\n\024attacker_incarnation\030\t \001(\rH\000\210\001"
+    "\001B\027\n\025_attacker_incarnation\"r\n\017AttackCanc"
+    "elled\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\022"
+    "\014\n\004tick\030\003 \001(\004\022/\n\006reason\030\004 \001(\0162\037.nightfal"
+    "l.v1.SwingCancelReason\"z\n\017EntityRespawne"
+    "d\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022(\n\010posit"
+    "ion\030\003 \001(\0132\026.nightfall.v1.Position\022\n\n\002hp\030"
+    "\004 \001(\r\022\023\n\013incarnation\030\005 \001(\r\"\330\004\n\014StatsChan"
+    "ged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006max_h"
+    "p\030\003 \001(\r\022\n\n\002mp\030\004 \001(\r\022\016\n\006max_mp\030\005 \001(\r\022\r\n\005l"
+    "evel\030\006 \001(\r\022\n\n\002xp\030\007 \001(\004\022\n\n\002cp\030\010 \001(\r\022\016\n\006ma"
+    "x_cp\030\t \001(\r\022\020\n\010class_id\030\n \001(\r\022\n\n\002sp\030\013 \001(\004"
+    "\022\032\n\022token_tier_1_count\030\014 \001(\r\022\032\n\022token_ti"
+    "er_2_count\030\r \001(\r\022\014\n\004tick\030\016 \001(\004\022\r\n\005karma\030"
+    "\017 \001(\r\022\020\n\010pk_count\030\020 \001(\r\022\021\n\tpvp_count\030\021 \001"
+    "(\r\022\027\n\017flag_until_tick\030\022 \001(\004\022\033\n\023death_pen"
+    "alty_level\030\023 \001(\r\0225\n\017effective_stats\030\024 \001("
+    "\0132\034.nightfall.v1.EffectiveStats\022\020\n\010basel"
+    "ine\030\025 \001(\010\022\025\n\rbaseline_tick\030\026 \001(\004\022\023\n\013inca"
+    "rnation\030\027 \001(\r\0222\n\013item_weight\030\030 \001(\0132\035.nig"
+    "htfall.v1.ItemWeightState\0226\n\016item_penalt"
+    "ies\030\031 \001(\0132\036.nightfall.v1.ItemPenaltyStat"
+    "e\022\032\n\022inventory_revision\030\032 \001(\004\"9\n\010XpGaine"
+    "d\022\016\n\006entity\030\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005tot"
+    "al\030\003 \001(\004\"(\n\007LevelUp\022\016\n\006entity\030\001 \001(\t\022\r\n\005l"
+    "evel\030\002 \001(\r\"\236\001\n\rTargetChanged\022\016\n\006entity\030\001"
+    " \001(\t\022\016\n\006target\030\002 \001(\t\022\020\n\010baseline\030\003 \001(\010\022\025"
+    "\n\rbaseline_tick\030\004 \001(\004\022\037\n\022target_incarnat"
+    "ion\030\005 \001(\rH\000\210\001\001\022\014\n\004tick\030\006 \001(\004B\025\n\023_target_"
+    "incarnation\"Z\n\014ClassChanged\022\016\n\006entity\030\001 "
+    "\001(\t\022\020\n\010class_id\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022\032\n\022s"
+    "ession_generation\030\004 \001(\r\"\350\001\n\014ActiveEffect"
+    "\022\020\n\010skill_id\030\001 \001(\r\022\023\n\013skill_level\030\002 \001(\r\022"
+    "\027\n\017remaining_ticks\030\003 \001(\004\022\021\n\tis_debuff\030\004 "
+    "\001(\010\022\023\n\006caster\030\005 \001(\tH\000\210\001\001\022\021\n\teffect_id\030\006 "
+    "\001(\004\022\037\n\022caster_incarnation\030\007 \001(\rH\001\210\001\001\022\032\n\022"
+    "target_incarnation\030\010 \001(\rB\t\n\007_casterB\025\n\023_"
+    "caster_incarnation\"\305\002\n\020SkillCastStarted\022"
+    "\016\n\006caster\030\001 \001(\t\022\023\n\006target\030\002 \001(\tH\000\210\001\001\022\020\n\010"
+    "skill_id\030\003 \001(\r\022\023\n\013skill_level\030\004 \001(\r\022\017\n\007c"
+    "ast_id\030\005 \001(\004\022\014\n\004tick\030\006 \001(\004\022\025\n\rcomplete_t"
+    "ick\030\007 \001(\004\022\032\n\022caster_incarnation\030\010 \001(\r\022\037\n"
+    "\022target_incarnation\030\t \001(\rH\001\210\001\001\022\020\n\010baseli"
+    "ne\030\n \001(\010\022\025\n\rbaseline_tick\030\013 \001(\004\022\023\n\013launc"
+    "h_tick\030\014 \001(\004\022\022\n\nstart_tick\030\r \001(\004B\t\n\007_tar"
+    "getB\025\n\023_target_incarnation\"\262\002\n\021SkillTarg"
+    "etResult\022\016\n\006target\030\001 \001(\t\022\032\n\022target_incar"
+    "nation\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022:\n\017resolution"
+    "_kind\030\004 \001(\0162!.nightfall.v1.SkillResoluti"
+    "onKind\022\016\n\006rolled\030\005 \001(\r\022\023\n\013cp_absorbed\030\006 "
+    "\001(\r\022\022\n\nhp_removed\030\007 \001(\r\022\014\n\004heal\030\010 \001(\r\022+\n"
+    "\007outcome\030\t \001(\0162\032.nightfall.v1.SkillOutco"
+    "me\022\027\n\017target_hp_after\030\n \001(\r\022\032\n\022applied_e"
+    "ffect_ids\030\013 \003(\004\"\333\001\n\017SkillCastResult\022\016\n\006c"
+    "aster\030\001 \001(\t\022\032\n\022caster_incarnation\030\002 \001(\r\022"
+    "\017\n\007cast_id\030\003 \001(\004\022\014\n\004tick\030\004 \001(\004\022\020\n\010skill_"
+    "id\030\005 \001(\r\022\023\n\013skill_level\030\006 \001(\r\0220\n\007targets"
+    "\030\007 \003(\0132\037.nightfall.v1.SkillTargetResult\022"
+    "\026\n\teffect_id\030\010 \001(\004H\000\210\001\001B\014\n\n_effect_id\"\217\001"
+    "\n\022SkillCastCancelled\022\016\n\006caster\030\001 \001(\t\022\017\n\007"
+    "cast_id\030\002 \001(\004\022.\n\006reason\030\003 \001(\0162\036.nightfal"
+    "l.v1.CastCancelReason\022\014\n\004tick\030\004 \001(\004\022\032\n\022c"
+    "aster_incarnation\030\005 \001(\r\"\231\003\n\rEffectApplie"
     "d\022\016\n\006target\030\001 \001(\t\022\032\n\022target_incarnation\030"
-    "\002 \001(\r\022\021\n\teffect_id\030\003 \001(\004\0220\n\006reason\030\004 \001(\016"
-    "2 .nightfall.v1.EffectRemoveReason\022\014\n\004ti"
-    "ck\030\005 \001(\004\"e\n\nSkillReuse\022\016\n\006entity\030\001 \001(\t\022\020"
-    "\n\010skill_id\030\002 \001(\r\022\022\n\nready_tick\030\003 \001(\004\022\014\n\004"
-    "tick\030\004 \001(\004\022\023\n\013incarnation\030\005 \001(\r\"\250\001\n\014Skil"
-    "lLearned\022\016\n\006entity\030\001 \001(\t\022\020\n\010skill_id\030\002 \001"
-    "(\r\022\023\n\013skill_level\030\003 \001(\r\022\017\n\007sp_cost\030\004 \001(\004"
-    "\022\024\n\014sp_remaining\030\005 \001(\004\022\027\n\017idempotency_ke"
-    "y\030\006 \001(\t\022\014\n\004tick\030\007 \001(\004\022\023\n\013incarnation\030\010 \001"
-    "(\r\"\272\001\n\017PvpStateChanged\022\016\n\006entity\030\001 \001(\t\022\027"
-    "\n\017flag_until_tick\030\002 \001(\004\022\r\n\005karma\030\003 \001(\r\022\020"
-    "\n\010pk_count\030\004 \001(\r\022\021\n\tpvp_count\030\005 \001(\r\022\014\n\004t"
-    "ick\030\006 \001(\004\022\023\n\013incarnation\030\007 \001(\r\022\020\n\010baseli"
-    "ne\030\010 \001(\010\022\025\n\rbaseline_tick\030\t \001(\004\"\327\002\n\016Resu"
-    "rrectOffer\022\016\n\006target\030\001 \001(\t\022\032\n\022target_inc"
-    "arnation\030\002 \001(\r\022\020\n\010offer_id\030\003 \001(\004\022\023\n\006cast"
-    "er\030\004 \001(\tH\000\210\001\001\022\037\n\022caster_incarnation\030\005 \001("
-    "\rH\001\210\001\001\022\031\n\021restore_percent_q\030\006 \001(\003\022\026\n\016rec"
-    "overable_xp\030\007 \001(\004\022\023\n\013expiry_tick\030\010 \001(\004\0220"
-    "\n\005state\030\t \001(\0162!.nightfall.v1.ResurrectOf"
-    "ferState\022\014\n\004tick\030\n \001(\004\022\020\n\010baseline\030\013 \001(\010"
-    "\022\025\n\rbaseline_tick\030\014 \001(\004B\t\n\007_casterB\025\n\023_c"
-    "aster_incarnation\"\\\n\010SpGained\022\016\n\006entity\030"
-    "\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\022\014\n\004"
-    "tick\030\004 \001(\004\022\023\n\013incarnation\030\005 \001(\r\"9\n\020Learn"
-    "edSkillRank\022\020\n\010skill_id\030\001 \001(\r\022\023\n\013skill_l"
-    "evel\030\002 \001(\r\"7\n\017SkillReuseState\022\020\n\010skill_i"
-    "d\030\001 \001(\r\022\022\n\nready_tick\030\002 \001(\004\"\301\002\n\016SkillSta"
-    "teSync\022\016\n\006entity\030\001 \001(\t\022/\n\007learned\030\002 \003(\0132"
-    "\036.nightfall.v1.LearnedSkillRank\022,\n\005reuse"
-    "\030\003 \003(\0132\035.nightfall.v1.SkillReuseState\022\n\n"
-    "\002sp\030\004 \001(\004\022\r\n\005karma\030\005 \001(\r\022\020\n\010pk_count\030\006 \001"
-    "(\r\022\021\n\tpvp_count\030\007 \001(\r\022\027\n\017flag_until_tick"
-    "\030\010 \001(\004\022\033\n\023death_penalty_level\030\t \001(\r\022\014\n\004t"
-    "ick\030\n \001(\004\022\023\n\013incarnation\030\013 \001(\r\022\020\n\010baseli"
-    "ne\030\014 \001(\010\022\025\n\rbaseline_tick\030\r \001(\004\"\207\001\n\rVita"
-    "lsChanged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n"
-    "\006max_hp\030\003 \001(\r\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarnati"
-    "on\030\005 \001(\r\022\020\n\010baseline\030\006 \001(\010\022\025\n\rbaseline_t"
-    "ick\030\007 \001(\004*\321\006\n\014RejectReason\022\035\n\031REJECT_REA"
-    "SON_UNSPECIFIED\020\000\022\037\n\033REJECT_REASON_OUT_O"
-    "F_BOUNDS\020\001\022\031\n\025REJECT_REASON_TOO_FAR\020\002\022 \n"
-    "\034REJECT_REASON_UNKNOWN_ENTITY\020\003\022\034\n\030REJEC"
-    "T_REASON_OVERLOADED\020\004\022\036\n\032REJECT_REASON_R"
-    "ATE_LIMITED\020\005\022\031\n\025REJECT_REASON_INVALID\020\006"
-    "\022\034\n\030REJECT_REASON_DEAD_ACTOR\020\007\022\'\n#REJECT"
-    "_REASON_NON_ATTACKABLE_TARGET\020\010\022#\n\037REJEC"
-    "T_REASON_TARGET_NOT_IN_AOI\020\t\022\036\n\032REJECT_R"
-    "EASON_OUT_OF_RANGE\020\n\022\033\n\027REJECT_REASON_PR"
-    "OTECTED\020\013\022%\n!REJECT_REASON_NOT_YET_IMPLE"
-    "MENTED\020\014\022\037\n\033REJECT_REASON_SKILL_UNKNOWN\020"
-    "\r\022#\n\037REJECT_REASON_SKILL_NOT_LEARNED\020\016\022 "
-    "\n\034REJECT_REASON_SKILL_COOLDOWN\020\017\022!\n\035REJE"
-    "CT_REASON_INSUFFICIENT_MP\020\020\022!\n\035REJECT_RE"
-    "ASON_INSUFFICIENT_HP\020\021\022!\n\035REJECT_REASON_"
-    "ALREADY_CASTING\020\022\022\037\n\033REJECT_REASON_INCAP"
-    "ACITATED\020\023\022\032\n\026REJECT_REASON_SILENCED\020\024\022%"
-    "\n!REJECT_REASON_INVALID_TARGET_TYPE\020\025\022\034\n"
-    "\030REJECT_REASON_PEACE_ZONE\020\026\022\"\n\036REJECT_RE"
-    "ASON_WEAPON_CONDITION\020\027\022$\n REJECT_REASON"
-    "_NO_RESURRECT_OFFER\020\030*V\n\nEntityKind\022\033\n\027E"
-    "NTITY_KIND_UNSPECIFIED\020\000\022\026\n\022ENTITY_KIND_"
-    "PLAYER\020\001\022\023\n\017ENTITY_KIND_NPC\020\002*y\n\rAttackO"
-    "utcome\022\036\n\032ATTACK_OUTCOME_UNSPECIFIED\020\000\022\027"
-    "\n\023ATTACK_OUTCOME_MISS\020\001\022\026\n\022ATTACK_OUTCOM"
-    "E_HIT\020\002\022\027\n\023ATTACK_OUTCOME_CRIT\020\003*\222\002\n\021Swi"
-    "ngCancelReason\022#\n\037SWING_CANCEL_REASON_UN"
-    "SPECIFIED\020\000\022\037\n\033SWING_CANCEL_REASON_STOPP"
-    "ED\020\001\022&\n\"SWING_CANCEL_REASON_TARGET_CHANG"
-    "ED\020\002\022\035\n\031SWING_CANCEL_REASON_MOVED\020\003\022$\n S"
-    "WING_CANCEL_REASON_OUT_OF_RANGE\020\004\022#\n\037SWI"
-    "NG_CANCEL_REASON_TARGET_LOST\020\005\022%\n!SWING_"
-    "CANCEL_REASON_ATTACKER_DIED\020\006*\355\001\n\023SkillR"
-    "esolutionKind\022%\n!SKILL_RESOLUTION_KIND_U"
-    "NSPECIFIED\020\000\022\"\n\036SKILL_RESOLUTION_KIND_PH"
-    "YSICAL\020\001\022!\n\035SKILL_RESOLUTION_KIND_MAGICA"
-    "L\020\002\022 \n\034SKILL_RESOLUTION_KIND_EFFECT\020\003\022\036\n"
-    "\032SKILL_RESOLUTION_KIND_HEAL\020\004\022&\n\"SKILL_R"
-    "ESOLUTION_KIND_RESURRECTION\020\005*\246\001\n\014SkillO"
-    "utcome\022\035\n\031SKILL_OUTCOME_UNSPECIFIED\020\000\022\026\n"
-    "\022SKILL_OUTCOME_MISS\020\001\022\025\n\021SKILL_OUTCOME_H"
-    "IT\020\002\022\026\n\022SKILL_OUTCOME_CRIT\020\003\022\030\n\024SKILL_OU"
-    "TCOME_RESIST\020\004\022\026\n\022SKILL_OUTCOME_HALF\020\005*\214"
-    "\003\n\020CastCancelReason\022\"\n\036CAST_CANCEL_REASO"
-    "N_UNSPECIFIED\020\000\022\036\n\032CAST_CANCEL_REASON_ST"
-    "OPPED\020\001\022\034\n\030CAST_CANCEL_REASON_MOVED\020\002\022\035\n"
-    "\031CAST_CANCEL_REASON_DAMAGE\020\003\022$\n CAST_CAN"
-    "CEL_REASON_INCAPACITATED\020\004\022\"\n\036CAST_CANCE"
-    "L_REASON_TARGET_LOST\020\005\022#\n\037CAST_CANCEL_RE"
-    "ASON_OUT_OF_RANGE\020\006\022 \n\034CAST_CANCEL_REASO"
-    "N_RESOURCES\020\007\022\"\n\036CAST_CANCEL_REASON_CAST"
-    "ER_DIED\020\010\022!\n\035CAST_CANCEL_REASON_PEACE_ZO"
-    "NE\020\t\022\037\n\033CAST_CANCEL_REASON_TRANSFER\020\n*s\n"
-    "\nEffectPool\022\033\n\027EFFECT_POOL_UNSPECIFIED\020\000"
-    "\022\024\n\020EFFECT_POOL_BUFF\020\001\022\032\n\026EFFECT_POOL_SO"
-    "NG_DANCE\020\002\022\026\n\022EFFECT_POOL_DEBUFF\020\003*\252\002\n\022E"
-    "ffectRemoveReason\022$\n EFFECT_REMOVE_REASO"
-    "N_UNSPECIFIED\020\000\022 \n\034EFFECT_REMOVE_REASON_"
-    "EXPIRED\020\001\022!\n\035EFFECT_REMOVE_REASON_REPLAC"
-    "ED\020\002\022!\n\035EFFECT_REMOVE_REASON_OVERFLOW\020\003\022"
-    "\"\n\036EFFECT_REMOVE_REASON_DISPELLED\020\004\022\037\n\033E"
-    "FFECT_REMOVE_REASON_DAMAGE\020\005\022\036\n\032EFFECT_R"
-    "EMOVE_REASON_DEATH\020\006\022!\n\035EFFECT_REMOVE_RE"
-    "ASON_TRANSFER\020\007*\312\001\n\023ResurrectOfferState\022"
-    "%\n!RESURRECT_OFFER_STATE_UNSPECIFIED\020\000\022!"
-    "\n\035RESURRECT_OFFER_STATE_OFFERED\020\001\022\"\n\036RES"
-    "URRECT_OFFER_STATE_DECLINED\020\002\022!\n\035RESURRE"
-    "CT_OFFER_STATE_EXPIRED\020\003\022\"\n\036RESURRECT_OF"
-    "FER_STATE_ACCEPTED\020\004b\006proto3"
+    "\002 \001(\r\022\023\n\006caster\030\003 \001(\tH\000\210\001\001\022\037\n\022caster_inc"
+    "arnation\030\004 \001(\rH\001\210\001\001\022\021\n\teffect_id\030\005 \001(\004\022\020"
+    "\n\010skill_id\030\006 \001(\r\022\023\n\013skill_level\030\007 \001(\r\022&\n"
+    "\004pool\030\010 \001(\0162\030.nightfall.v1.EffectPool\022\014\n"
+    "\004tick\030\t \001(\004\022\020\n\010end_tick\030\n \001(\004\022\025\n\rabnorma"
+    "l_type\030\013 \001(\t\022\026\n\016abnormal_level\030\014 \001(\r\022\024\n\014"
+    "status_flags\030\r \001(\004\022\020\n\010baseline\030\016 \001(\010\022\025\n\r"
+    "baseline_tick\030\017 \001(\004\022\024\n\014applied_tick\030\020 \001("
+    "\004B\t\n\007_casterB\025\n\023_caster_incarnation\"\216\001\n\r"
+    "EffectRemoved\022\016\n\006target\030\001 \001(\t\022\032\n\022target_"
+    "incarnation\030\002 \001(\r\022\021\n\teffect_id\030\003 \001(\004\0220\n\006"
+    "reason\030\004 \001(\0162 .nightfall.v1.EffectRemove"
+    "Reason\022\014\n\004tick\030\005 \001(\004\"e\n\nSkillReuse\022\016\n\006en"
+    "tity\030\001 \001(\t\022\020\n\010skill_id\030\002 \001(\r\022\022\n\nready_ti"
+    "ck\030\003 \001(\004\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarnation\030\005 "
+    "\001(\r\"\250\001\n\014SkillLearned\022\016\n\006entity\030\001 \001(\t\022\020\n\010"
+    "skill_id\030\002 \001(\r\022\023\n\013skill_level\030\003 \001(\r\022\017\n\007s"
+    "p_cost\030\004 \001(\004\022\024\n\014sp_remaining\030\005 \001(\004\022\027\n\017id"
+    "empotency_key\030\006 \001(\t\022\014\n\004tick\030\007 \001(\004\022\023\n\013inc"
+    "arnation\030\010 \001(\r\"\272\001\n\017PvpStateChanged\022\016\n\006en"
+    "tity\030\001 \001(\t\022\027\n\017flag_until_tick\030\002 \001(\004\022\r\n\005k"
+    "arma\030\003 \001(\r\022\020\n\010pk_count\030\004 \001(\r\022\021\n\tpvp_coun"
+    "t\030\005 \001(\r\022\014\n\004tick\030\006 \001(\004\022\023\n\013incarnation\030\007 \001"
+    "(\r\022\020\n\010baseline\030\010 \001(\010\022\025\n\rbaseline_tick\030\t "
+    "\001(\004\"\327\002\n\016ResurrectOffer\022\016\n\006target\030\001 \001(\t\022\032"
+    "\n\022target_incarnation\030\002 \001(\r\022\020\n\010offer_id\030\003"
+    " \001(\004\022\023\n\006caster\030\004 \001(\tH\000\210\001\001\022\037\n\022caster_inca"
+    "rnation\030\005 \001(\rH\001\210\001\001\022\031\n\021restore_percent_q\030"
+    "\006 \001(\003\022\026\n\016recoverable_xp\030\007 \001(\004\022\023\n\013expiry_"
+    "tick\030\010 \001(\004\0220\n\005state\030\t \001(\0162!.nightfall.v1"
+    ".ResurrectOfferState\022\014\n\004tick\030\n \001(\004\022\020\n\010ba"
+    "seline\030\013 \001(\010\022\025\n\rbaseline_tick\030\014 \001(\004B\t\n\007_"
+    "casterB\025\n\023_caster_incarnation\"\\\n\010SpGaine"
+    "d\022\016\n\006entity\030\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005tot"
+    "al\030\003 \001(\004\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarnation\030\005 "
+    "\001(\r\"9\n\020LearnedSkillRank\022\020\n\010skill_id\030\001 \001("
+    "\r\022\023\n\013skill_level\030\002 \001(\r\"7\n\017SkillReuseStat"
+    "e\022\020\n\010skill_id\030\001 \001(\r\022\022\n\nready_tick\030\002 \001(\004\""
+    "\301\002\n\016SkillStateSync\022\016\n\006entity\030\001 \001(\t\022/\n\007le"
+    "arned\030\002 \003(\0132\036.nightfall.v1.LearnedSkillR"
+    "ank\022,\n\005reuse\030\003 \003(\0132\035.nightfall.v1.SkillR"
+    "euseState\022\n\n\002sp\030\004 \001(\004\022\r\n\005karma\030\005 \001(\r\022\020\n\010"
+    "pk_count\030\006 \001(\r\022\021\n\tpvp_count\030\007 \001(\r\022\027\n\017fla"
+    "g_until_tick\030\010 \001(\004\022\033\n\023death_penalty_leve"
+    "l\030\t \001(\r\022\014\n\004tick\030\n \001(\004\022\023\n\013incarnation\030\013 \001"
+    "(\r\022\020\n\010baseline\030\014 \001(\010\022\025\n\rbaseline_tick\030\r "
+    "\001(\004\"\207\001\n\rVitalsChanged\022\016\n\006entity\030\001 \001(\t\022\n\n"
+    "\002hp\030\002 \001(\r\022\016\n\006max_hp\030\003 \001(\r\022\014\n\004tick\030\004 \001(\004\022"
+    "\023\n\013incarnation\030\005 \001(\r\022\020\n\010baseline\030\006 \001(\010\022\025"
+    "\n\rbaseline_tick\030\007 \001(\004*\270\n\n\014RejectReason\022\035"
+    "\n\031REJECT_REASON_UNSPECIFIED\020\000\022\037\n\033REJECT_"
+    "REASON_OUT_OF_BOUNDS\020\001\022\031\n\025REJECT_REASON_"
+    "TOO_FAR\020\002\022 \n\034REJECT_REASON_UNKNOWN_ENTIT"
+    "Y\020\003\022\034\n\030REJECT_REASON_OVERLOADED\020\004\022\036\n\032REJ"
+    "ECT_REASON_RATE_LIMITED\020\005\022\031\n\025REJECT_REAS"
+    "ON_INVALID\020\006\022\034\n\030REJECT_REASON_DEAD_ACTOR"
+    "\020\007\022\'\n#REJECT_REASON_NON_ATTACKABLE_TARGE"
+    "T\020\010\022#\n\037REJECT_REASON_TARGET_NOT_IN_AOI\020\t"
+    "\022\036\n\032REJECT_REASON_OUT_OF_RANGE\020\n\022\033\n\027REJE"
+    "CT_REASON_PROTECTED\020\013\022%\n!REJECT_REASON_N"
+    "OT_YET_IMPLEMENTED\020\014\022\037\n\033REJECT_REASON_SK"
+    "ILL_UNKNOWN\020\r\022#\n\037REJECT_REASON_SKILL_NOT"
+    "_LEARNED\020\016\022 \n\034REJECT_REASON_SKILL_COOLDO"
+    "WN\020\017\022!\n\035REJECT_REASON_INSUFFICIENT_MP\020\020\022"
+    "!\n\035REJECT_REASON_INSUFFICIENT_HP\020\021\022!\n\035RE"
+    "JECT_REASON_ALREADY_CASTING\020\022\022\037\n\033REJECT_"
+    "REASON_INCAPACITATED\020\023\022\032\n\026REJECT_REASON_"
+    "SILENCED\020\024\022%\n!REJECT_REASON_INVALID_TARG"
+    "ET_TYPE\020\025\022\034\n\030REJECT_REASON_PEACE_ZONE\020\026\022"
+    "\"\n\036REJECT_REASON_WEAPON_CONDITION\020\027\022$\n R"
+    "EJECT_REASON_NO_RESURRECT_OFFER\020\030\022 \n\034REJ"
+    "ECT_REASON_ITEM_NOT_OWNED\020\031\022!\n\035REJECT_RE"
+    "ASON_ITEM_NOT_USABLE\020\032\022$\n REJECT_REASON_"
+    "INVALID_EQUIP_SLOT\020\033\022$\n REJECT_REASON_IN"
+    "SUFFICIENT_ITEMS\020\034\022 \n\034REJECT_REASON_INVE"
+    "NTORY_FULL\020\035\022%\n!REJECT_REASON_ITEM_GRADE"
+    "_MISMATCH\020\036\022\034\n\030REJECT_REASON_ITEM_REUSE\020"
+    "\037\022!\n\035REJECT_REASON_INVALID_ENCHANT\020 \022$\n "
+    "REJECT_REASON_INVALID_REFINEMENT\020!\022 \n\034RE"
+    "JECT_REASON_INVALID_RECIPE\020\"\022)\n%REJECT_R"
+    "EASON_ITEM_OPERATION_CONFLICT\020#\022*\n&REJEC"
+    "T_REASON_ITEM_CAPABILITY_DEFERRED\020$\022+\n\'R"
+    "EJECT_REASON_CRYSTALLIZE_LEVEL_TOO_LOW\020%"
+    "*V\n\nEntityKind\022\033\n\027ENTITY_KIND_UNSPECIFIE"
+    "D\020\000\022\026\n\022ENTITY_KIND_PLAYER\020\001\022\023\n\017ENTITY_KI"
+    "ND_NPC\020\002*y\n\rAttackOutcome\022\036\n\032ATTACK_OUTC"
+    "OME_UNSPECIFIED\020\000\022\027\n\023ATTACK_OUTCOME_MISS"
+    "\020\001\022\026\n\022ATTACK_OUTCOME_HIT\020\002\022\027\n\023ATTACK_OUT"
+    "COME_CRIT\020\003*\222\002\n\021SwingCancelReason\022#\n\037SWI"
+    "NG_CANCEL_REASON_UNSPECIFIED\020\000\022\037\n\033SWING_"
+    "CANCEL_REASON_STOPPED\020\001\022&\n\"SWING_CANCEL_"
+    "REASON_TARGET_CHANGED\020\002\022\035\n\031SWING_CANCEL_"
+    "REASON_MOVED\020\003\022$\n SWING_CANCEL_REASON_OU"
+    "T_OF_RANGE\020\004\022#\n\037SWING_CANCEL_REASON_TARG"
+    "ET_LOST\020\005\022%\n!SWING_CANCEL_REASON_ATTACKE"
+    "R_DIED\020\006*\355\001\n\023SkillResolutionKind\022%\n!SKIL"
+    "L_RESOLUTION_KIND_UNSPECIFIED\020\000\022\"\n\036SKILL"
+    "_RESOLUTION_KIND_PHYSICAL\020\001\022!\n\035SKILL_RES"
+    "OLUTION_KIND_MAGICAL\020\002\022 \n\034SKILL_RESOLUTI"
+    "ON_KIND_EFFECT\020\003\022\036\n\032SKILL_RESOLUTION_KIN"
+    "D_HEAL\020\004\022&\n\"SKILL_RESOLUTION_KIND_RESURR"
+    "ECTION\020\005*\246\001\n\014SkillOutcome\022\035\n\031SKILL_OUTCO"
+    "ME_UNSPECIFIED\020\000\022\026\n\022SKILL_OUTCOME_MISS\020\001"
+    "\022\025\n\021SKILL_OUTCOME_HIT\020\002\022\026\n\022SKILL_OUTCOME"
+    "_CRIT\020\003\022\030\n\024SKILL_OUTCOME_RESIST\020\004\022\026\n\022SKI"
+    "LL_OUTCOME_HALF\020\005*\214\003\n\020CastCancelReason\022\""
+    "\n\036CAST_CANCEL_REASON_UNSPECIFIED\020\000\022\036\n\032CA"
+    "ST_CANCEL_REASON_STOPPED\020\001\022\034\n\030CAST_CANCE"
+    "L_REASON_MOVED\020\002\022\035\n\031CAST_CANCEL_REASON_D"
+    "AMAGE\020\003\022$\n CAST_CANCEL_REASON_INCAPACITA"
+    "TED\020\004\022\"\n\036CAST_CANCEL_REASON_TARGET_LOST\020"
+    "\005\022#\n\037CAST_CANCEL_REASON_OUT_OF_RANGE\020\006\022 "
+    "\n\034CAST_CANCEL_REASON_RESOURCES\020\007\022\"\n\036CAST"
+    "_CANCEL_REASON_CASTER_DIED\020\010\022!\n\035CAST_CAN"
+    "CEL_REASON_PEACE_ZONE\020\t\022\037\n\033CAST_CANCEL_R"
+    "EASON_TRANSFER\020\n*s\n\nEffectPool\022\033\n\027EFFECT"
+    "_POOL_UNSPECIFIED\020\000\022\024\n\020EFFECT_POOL_BUFF\020"
+    "\001\022\032\n\026EFFECT_POOL_SONG_DANCE\020\002\022\026\n\022EFFECT_"
+    "POOL_DEBUFF\020\003*\252\002\n\022EffectRemoveReason\022$\n "
+    "EFFECT_REMOVE_REASON_UNSPECIFIED\020\000\022 \n\034EF"
+    "FECT_REMOVE_REASON_EXPIRED\020\001\022!\n\035EFFECT_R"
+    "EMOVE_REASON_REPLACED\020\002\022!\n\035EFFECT_REMOVE"
+    "_REASON_OVERFLOW\020\003\022\"\n\036EFFECT_REMOVE_REAS"
+    "ON_DISPELLED\020\004\022\037\n\033EFFECT_REMOVE_REASON_D"
+    "AMAGE\020\005\022\036\n\032EFFECT_REMOVE_REASON_DEATH\020\006\022"
+    "!\n\035EFFECT_REMOVE_REASON_TRANSFER\020\007*\312\001\n\023R"
+    "esurrectOfferState\022%\n!RESURRECT_OFFER_ST"
+    "ATE_UNSPECIFIED\020\000\022!\n\035RESURRECT_OFFER_STA"
+    "TE_OFFERED\020\001\022\"\n\036RESURRECT_OFFER_STATE_DE"
+    "CLINED\020\002\022!\n\035RESURRECT_OFFER_STATE_EXPIRE"
+    "D\020\003\022\"\n\036RESURRECT_OFFER_STATE_ACCEPTED\020\004b"
+    "\006proto3"
 };
-static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fworld_2eproto_deps[1] =
+static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fworld_2eproto_deps[2] =
     {
         &::descriptor_table_nightfall_2fv1_2fgame_2eproto,
+        &::descriptor_table_nightfall_2fv1_2fitems_2eproto,
 };
 static ::absl::once_flag descriptor_table_nightfall_2fv1_2fworld_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fworld_2eproto = {
     false,
     false,
-    11148,
+    12927,
     descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto,
     "nightfall/v1/world.proto",
     &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
     descriptor_table_nightfall_2fv1_2fworld_2eproto_deps,
-    1,
+    2,
     43,
     schemas,
     file_default_instances,
@@ -2440,6 +2517,19 @@ bool RejectReason_IsValid(int value) {
     case 22:
     case 23:
     case 24:
+    case 25:
+    case 26:
+    case 27:
+    case 28:
+    case 29:
+    case 30:
+    case 31:
+    case 32:
+    case 33:
+    case 34:
+    case 35:
+    case 36:
+    case 37:
       return true;
     default:
       return false;
@@ -2613,6 +2703,16 @@ class ClientMessage::_Internal {
   static const ::nightfall::v1::CastSkillRequest& cast_skill(const ClientMessage* msg);
   static const ::nightfall::v1::CancelCastRequest& cancel_cast(const ClientMessage* msg);
   static const ::nightfall::v1::AcceptResurrectRequest& accept_resurrect(const ClientMessage* msg);
+  static const ::nightfall::v1::EquipItemRequest& equip_item(const ClientMessage* msg);
+  static const ::nightfall::v1::UnequipItemRequest& unequip_item(const ClientMessage* msg);
+  static const ::nightfall::v1::UseItemRequest& use_item(const ClientMessage* msg);
+  static const ::nightfall::v1::DestroyItemRequest& destroy_item(const ClientMessage* msg);
+  static const ::nightfall::v1::EnchantItemRequest& enchant_item(const ClientMessage* msg);
+  static const ::nightfall::v1::ToggleAutoShotRequest& toggle_auto_shot(const ClientMessage* msg);
+  static const ::nightfall::v1::RefineItemRequest& refine_item(const ClientMessage* msg);
+  static const ::nightfall::v1::CancelRefineRequest& cancel_refine(const ClientMessage* msg);
+  static const ::nightfall::v1::ExchangeSpecialAbilityRequest& exchange_special_ability(const ClientMessage* msg);
+  static const ::nightfall::v1::CrystallizeItemRequest& crystallize_item(const ClientMessage* msg);
 };
 
 const ::nightfall::v1::MoveToRequest&
@@ -2650,6 +2750,46 @@ ClientMessage::_Internal::cancel_cast(const ClientMessage* msg) {
 const ::nightfall::v1::AcceptResurrectRequest&
 ClientMessage::_Internal::accept_resurrect(const ClientMessage* msg) {
   return *msg->_impl_.intent_.accept_resurrect_;
+}
+const ::nightfall::v1::EquipItemRequest&
+ClientMessage::_Internal::equip_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.equip_item_;
+}
+const ::nightfall::v1::UnequipItemRequest&
+ClientMessage::_Internal::unequip_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.unequip_item_;
+}
+const ::nightfall::v1::UseItemRequest&
+ClientMessage::_Internal::use_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.use_item_;
+}
+const ::nightfall::v1::DestroyItemRequest&
+ClientMessage::_Internal::destroy_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.destroy_item_;
+}
+const ::nightfall::v1::EnchantItemRequest&
+ClientMessage::_Internal::enchant_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.enchant_item_;
+}
+const ::nightfall::v1::ToggleAutoShotRequest&
+ClientMessage::_Internal::toggle_auto_shot(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.toggle_auto_shot_;
+}
+const ::nightfall::v1::RefineItemRequest&
+ClientMessage::_Internal::refine_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.refine_item_;
+}
+const ::nightfall::v1::CancelRefineRequest&
+ClientMessage::_Internal::cancel_refine(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.cancel_refine_;
+}
+const ::nightfall::v1::ExchangeSpecialAbilityRequest&
+ClientMessage::_Internal::exchange_special_ability(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.exchange_special_ability_;
+}
+const ::nightfall::v1::CrystallizeItemRequest&
+ClientMessage::_Internal::crystallize_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.crystallize_item_;
 }
 void ClientMessage::set_allocated_move_to(::nightfall::v1::MoveToRequest* move_to) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
@@ -2786,6 +2926,246 @@ void ClientMessage::set_allocated_accept_resurrect(::nightfall::v1::AcceptResurr
   }
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.accept_resurrect)
 }
+void ClientMessage::set_allocated_equip_item(::nightfall::v1::EquipItemRequest* equip_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (equip_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(equip_item));
+    if (message_arena != submessage_arena) {
+      equip_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, equip_item, submessage_arena);
+    }
+    set_has_equip_item();
+    _impl_.intent_.equip_item_ = equip_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.equip_item)
+}
+void ClientMessage::clear_equip_item() {
+  if (intent_case() == kEquipItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.equip_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_unequip_item(::nightfall::v1::UnequipItemRequest* unequip_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (unequip_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(unequip_item));
+    if (message_arena != submessage_arena) {
+      unequip_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, unequip_item, submessage_arena);
+    }
+    set_has_unequip_item();
+    _impl_.intent_.unequip_item_ = unequip_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.unequip_item)
+}
+void ClientMessage::clear_unequip_item() {
+  if (intent_case() == kUnequipItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.unequip_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_use_item(::nightfall::v1::UseItemRequest* use_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (use_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(use_item));
+    if (message_arena != submessage_arena) {
+      use_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, use_item, submessage_arena);
+    }
+    set_has_use_item();
+    _impl_.intent_.use_item_ = use_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.use_item)
+}
+void ClientMessage::clear_use_item() {
+  if (intent_case() == kUseItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.use_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_destroy_item(::nightfall::v1::DestroyItemRequest* destroy_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (destroy_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(destroy_item));
+    if (message_arena != submessage_arena) {
+      destroy_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, destroy_item, submessage_arena);
+    }
+    set_has_destroy_item();
+    _impl_.intent_.destroy_item_ = destroy_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.destroy_item)
+}
+void ClientMessage::clear_destroy_item() {
+  if (intent_case() == kDestroyItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.destroy_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_enchant_item(::nightfall::v1::EnchantItemRequest* enchant_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (enchant_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(enchant_item));
+    if (message_arena != submessage_arena) {
+      enchant_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, enchant_item, submessage_arena);
+    }
+    set_has_enchant_item();
+    _impl_.intent_.enchant_item_ = enchant_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.enchant_item)
+}
+void ClientMessage::clear_enchant_item() {
+  if (intent_case() == kEnchantItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.enchant_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_toggle_auto_shot(::nightfall::v1::ToggleAutoShotRequest* toggle_auto_shot) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (toggle_auto_shot) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(toggle_auto_shot));
+    if (message_arena != submessage_arena) {
+      toggle_auto_shot = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, toggle_auto_shot, submessage_arena);
+    }
+    set_has_toggle_auto_shot();
+    _impl_.intent_.toggle_auto_shot_ = toggle_auto_shot;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.toggle_auto_shot)
+}
+void ClientMessage::clear_toggle_auto_shot() {
+  if (intent_case() == kToggleAutoShot) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.toggle_auto_shot_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_refine_item(::nightfall::v1::RefineItemRequest* refine_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (refine_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(refine_item));
+    if (message_arena != submessage_arena) {
+      refine_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, refine_item, submessage_arena);
+    }
+    set_has_refine_item();
+    _impl_.intent_.refine_item_ = refine_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.refine_item)
+}
+void ClientMessage::clear_refine_item() {
+  if (intent_case() == kRefineItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.refine_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_cancel_refine(::nightfall::v1::CancelRefineRequest* cancel_refine) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (cancel_refine) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(cancel_refine));
+    if (message_arena != submessage_arena) {
+      cancel_refine = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, cancel_refine, submessage_arena);
+    }
+    set_has_cancel_refine();
+    _impl_.intent_.cancel_refine_ = cancel_refine;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.cancel_refine)
+}
+void ClientMessage::clear_cancel_refine() {
+  if (intent_case() == kCancelRefine) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.cancel_refine_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_exchange_special_ability(::nightfall::v1::ExchangeSpecialAbilityRequest* exchange_special_ability) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (exchange_special_ability) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(exchange_special_ability));
+    if (message_arena != submessage_arena) {
+      exchange_special_ability = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, exchange_special_ability, submessage_arena);
+    }
+    set_has_exchange_special_ability();
+    _impl_.intent_.exchange_special_ability_ = exchange_special_ability;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.exchange_special_ability)
+}
+void ClientMessage::clear_exchange_special_ability() {
+  if (intent_case() == kExchangeSpecialAbility) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.exchange_special_ability_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_crystallize_item(::nightfall::v1::CrystallizeItemRequest* crystallize_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (crystallize_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(crystallize_item));
+    if (message_arena != submessage_arena) {
+      crystallize_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, crystallize_item, submessage_arena);
+    }
+    set_has_crystallize_item();
+    _impl_.intent_.crystallize_item_ = crystallize_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.crystallize_item)
+}
+void ClientMessage::clear_crystallize_item() {
+  if (intent_case() == kCrystallizeItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.crystallize_item_;
+    }
+    clear_has_intent();
+  }
+}
 ClientMessage::ClientMessage(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -2848,6 +3228,56 @@ ClientMessage::ClientMessage(const ClientMessage& from)
     case kAcceptResurrect: {
       _this->_internal_mutable_accept_resurrect()->::nightfall::v1::AcceptResurrectRequest::MergeFrom(
           from._internal_accept_resurrect());
+      break;
+    }
+    case kEquipItem: {
+      _this->_internal_mutable_equip_item()->::nightfall::v1::EquipItemRequest::MergeFrom(
+          from._internal_equip_item());
+      break;
+    }
+    case kUnequipItem: {
+      _this->_internal_mutable_unequip_item()->::nightfall::v1::UnequipItemRequest::MergeFrom(
+          from._internal_unequip_item());
+      break;
+    }
+    case kUseItem: {
+      _this->_internal_mutable_use_item()->::nightfall::v1::UseItemRequest::MergeFrom(
+          from._internal_use_item());
+      break;
+    }
+    case kDestroyItem: {
+      _this->_internal_mutable_destroy_item()->::nightfall::v1::DestroyItemRequest::MergeFrom(
+          from._internal_destroy_item());
+      break;
+    }
+    case kEnchantItem: {
+      _this->_internal_mutable_enchant_item()->::nightfall::v1::EnchantItemRequest::MergeFrom(
+          from._internal_enchant_item());
+      break;
+    }
+    case kToggleAutoShot: {
+      _this->_internal_mutable_toggle_auto_shot()->::nightfall::v1::ToggleAutoShotRequest::MergeFrom(
+          from._internal_toggle_auto_shot());
+      break;
+    }
+    case kRefineItem: {
+      _this->_internal_mutable_refine_item()->::nightfall::v1::RefineItemRequest::MergeFrom(
+          from._internal_refine_item());
+      break;
+    }
+    case kCancelRefine: {
+      _this->_internal_mutable_cancel_refine()->::nightfall::v1::CancelRefineRequest::MergeFrom(
+          from._internal_cancel_refine());
+      break;
+    }
+    case kExchangeSpecialAbility: {
+      _this->_internal_mutable_exchange_special_ability()->::nightfall::v1::ExchangeSpecialAbilityRequest::MergeFrom(
+          from._internal_exchange_special_ability());
+      break;
+    }
+    case kCrystallizeItem: {
+      _this->_internal_mutable_crystallize_item()->::nightfall::v1::CrystallizeItemRequest::MergeFrom(
+          from._internal_crystallize_item());
       break;
     }
     case INTENT_NOT_SET: {
@@ -2943,6 +3373,66 @@ void ClientMessage::clear_intent() {
     case kAcceptResurrect: {
       if (GetArenaForAllocation() == nullptr) {
         delete _impl_.intent_.accept_resurrect_;
+      }
+      break;
+    }
+    case kEquipItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.equip_item_;
+      }
+      break;
+    }
+    case kUnequipItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.unequip_item_;
+      }
+      break;
+    }
+    case kUseItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.use_item_;
+      }
+      break;
+    }
+    case kDestroyItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.destroy_item_;
+      }
+      break;
+    }
+    case kEnchantItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.enchant_item_;
+      }
+      break;
+    }
+    case kToggleAutoShot: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.toggle_auto_shot_;
+      }
+      break;
+    }
+    case kRefineItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.refine_item_;
+      }
+      break;
+    }
+    case kCancelRefine: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.cancel_refine_;
+      }
+      break;
+    }
+    case kExchangeSpecialAbility: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.exchange_special_ability_;
+      }
+      break;
+    }
+    case kCrystallizeItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.crystallize_item_;
       }
       break;
     }
@@ -3061,6 +3551,96 @@ const char* ClientMessage::_InternalParse(const char* ptr, ::_pbi::ParseContext*
           goto handle_unusual;
         }
         continue;
+      // .nightfall.v1.EquipItemRequest equip_item = 19;
+      case 19:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 154)) {
+          ptr = ctx->ParseMessage(_internal_mutable_equip_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.UnequipItemRequest unequip_item = 20;
+      case 20:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 162)) {
+          ptr = ctx->ParseMessage(_internal_mutable_unequip_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.UseItemRequest use_item = 21;
+      case 21:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 170)) {
+          ptr = ctx->ParseMessage(_internal_mutable_use_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.DestroyItemRequest destroy_item = 22;
+      case 22:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 178)) {
+          ptr = ctx->ParseMessage(_internal_mutable_destroy_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EnchantItemRequest enchant_item = 23;
+      case 23:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 186)) {
+          ptr = ctx->ParseMessage(_internal_mutable_enchant_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ToggleAutoShotRequest toggle_auto_shot = 24;
+      case 24:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 194)) {
+          ptr = ctx->ParseMessage(_internal_mutable_toggle_auto_shot(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.RefineItemRequest refine_item = 25;
+      case 25:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 202)) {
+          ptr = ctx->ParseMessage(_internal_mutable_refine_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.CancelRefineRequest cancel_refine = 26;
+      case 26:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 210)) {
+          ptr = ctx->ParseMessage(_internal_mutable_cancel_refine(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ExchangeSpecialAbilityRequest exchange_special_ability = 27;
+      case 27:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 218)) {
+          ptr = ctx->ParseMessage(_internal_mutable_exchange_special_ability(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.CrystallizeItemRequest crystallize_item = 28;
+      case 28:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 226)) {
+          ptr = ctx->ParseMessage(_internal_mutable_crystallize_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -3152,6 +3732,66 @@ failure:
           _Internal::accept_resurrect(this).GetCachedSize(), target, stream);
       break;
     }
+    case kEquipItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(19, _Internal::equip_item(this),
+          _Internal::equip_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kUnequipItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(20, _Internal::unequip_item(this),
+          _Internal::unequip_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kUseItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(21, _Internal::use_item(this),
+          _Internal::use_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kDestroyItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(22, _Internal::destroy_item(this),
+          _Internal::destroy_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kEnchantItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(23, _Internal::enchant_item(this),
+          _Internal::enchant_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kToggleAutoShot: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(24, _Internal::toggle_auto_shot(this),
+          _Internal::toggle_auto_shot(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kRefineItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(25, _Internal::refine_item(this),
+          _Internal::refine_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kCancelRefine: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(26, _Internal::cancel_refine(this),
+          _Internal::cancel_refine(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kExchangeSpecialAbility: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(27, _Internal::exchange_special_ability(this),
+          _Internal::exchange_special_ability(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kCrystallizeItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(28, _Internal::crystallize_item(this),
+          _Internal::crystallize_item(this).GetCachedSize(), target, stream);
+      break;
+    }
     default: ;
   }
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -3240,6 +3880,76 @@ failure:
           *_impl_.intent_.accept_resurrect_);
       break;
     }
+    // .nightfall.v1.EquipItemRequest equip_item = 19;
+    case kEquipItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.equip_item_);
+      break;
+    }
+    // .nightfall.v1.UnequipItemRequest unequip_item = 20;
+    case kUnequipItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.unequip_item_);
+      break;
+    }
+    // .nightfall.v1.UseItemRequest use_item = 21;
+    case kUseItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.use_item_);
+      break;
+    }
+    // .nightfall.v1.DestroyItemRequest destroy_item = 22;
+    case kDestroyItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.destroy_item_);
+      break;
+    }
+    // .nightfall.v1.EnchantItemRequest enchant_item = 23;
+    case kEnchantItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.enchant_item_);
+      break;
+    }
+    // .nightfall.v1.ToggleAutoShotRequest toggle_auto_shot = 24;
+    case kToggleAutoShot: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.toggle_auto_shot_);
+      break;
+    }
+    // .nightfall.v1.RefineItemRequest refine_item = 25;
+    case kRefineItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.refine_item_);
+      break;
+    }
+    // .nightfall.v1.CancelRefineRequest cancel_refine = 26;
+    case kCancelRefine: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.cancel_refine_);
+      break;
+    }
+    // .nightfall.v1.ExchangeSpecialAbilityRequest exchange_special_ability = 27;
+    case kExchangeSpecialAbility: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.exchange_special_ability_);
+      break;
+    }
+    // .nightfall.v1.CrystallizeItemRequest crystallize_item = 28;
+    case kCrystallizeItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.crystallize_item_);
+      break;
+    }
     case INTENT_NOT_SET: {
       break;
     }
@@ -3309,6 +4019,56 @@ void ClientMessage::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::
     case kAcceptResurrect: {
       _this->_internal_mutable_accept_resurrect()->::nightfall::v1::AcceptResurrectRequest::MergeFrom(
           from._internal_accept_resurrect());
+      break;
+    }
+    case kEquipItem: {
+      _this->_internal_mutable_equip_item()->::nightfall::v1::EquipItemRequest::MergeFrom(
+          from._internal_equip_item());
+      break;
+    }
+    case kUnequipItem: {
+      _this->_internal_mutable_unequip_item()->::nightfall::v1::UnequipItemRequest::MergeFrom(
+          from._internal_unequip_item());
+      break;
+    }
+    case kUseItem: {
+      _this->_internal_mutable_use_item()->::nightfall::v1::UseItemRequest::MergeFrom(
+          from._internal_use_item());
+      break;
+    }
+    case kDestroyItem: {
+      _this->_internal_mutable_destroy_item()->::nightfall::v1::DestroyItemRequest::MergeFrom(
+          from._internal_destroy_item());
+      break;
+    }
+    case kEnchantItem: {
+      _this->_internal_mutable_enchant_item()->::nightfall::v1::EnchantItemRequest::MergeFrom(
+          from._internal_enchant_item());
+      break;
+    }
+    case kToggleAutoShot: {
+      _this->_internal_mutable_toggle_auto_shot()->::nightfall::v1::ToggleAutoShotRequest::MergeFrom(
+          from._internal_toggle_auto_shot());
+      break;
+    }
+    case kRefineItem: {
+      _this->_internal_mutable_refine_item()->::nightfall::v1::RefineItemRequest::MergeFrom(
+          from._internal_refine_item());
+      break;
+    }
+    case kCancelRefine: {
+      _this->_internal_mutable_cancel_refine()->::nightfall::v1::CancelRefineRequest::MergeFrom(
+          from._internal_cancel_refine());
+      break;
+    }
+    case kExchangeSpecialAbility: {
+      _this->_internal_mutable_exchange_special_ability()->::nightfall::v1::ExchangeSpecialAbilityRequest::MergeFrom(
+          from._internal_exchange_special_ability());
+      break;
+    }
+    case kCrystallizeItem: {
+      _this->_internal_mutable_crystallize_item()->::nightfall::v1::CrystallizeItemRequest::MergeFrom(
+          from._internal_crystallize_item());
       break;
     }
     case INTENT_NOT_SET: {
@@ -5409,6 +6169,14 @@ class WorldEvent::_Internal {
   static const ::nightfall::v1::SpGained& sp_gained(const WorldEvent* msg);
   static const ::nightfall::v1::SkillStateSync& skill_state_sync(const WorldEvent* msg);
   static const ::nightfall::v1::VitalsChanged& vitals_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::InventorySync& inventory_sync(const WorldEvent* msg);
+  static const ::nightfall::v1::InventoryChanged& inventory_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::EquipmentChanged& equipment_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::WeightChanged& weight_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::PenaltyChanged& penalty_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::EnchantResult& enchant_result(const WorldEvent* msg);
+  static const ::nightfall::v1::RefineResult& refine_result(const WorldEvent* msg);
+  static const ::nightfall::v1::ItemOperationResult& item_operation_result(const WorldEvent* msg);
 };
 
 const ::nightfall::v1::EntitySpawn&
@@ -5510,6 +6278,38 @@ WorldEvent::_Internal::skill_state_sync(const WorldEvent* msg) {
 const ::nightfall::v1::VitalsChanged&
 WorldEvent::_Internal::vitals_changed(const WorldEvent* msg) {
   return *msg->_impl_.event_.vitals_changed_;
+}
+const ::nightfall::v1::InventorySync&
+WorldEvent::_Internal::inventory_sync(const WorldEvent* msg) {
+  return *msg->_impl_.event_.inventory_sync_;
+}
+const ::nightfall::v1::InventoryChanged&
+WorldEvent::_Internal::inventory_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.inventory_changed_;
+}
+const ::nightfall::v1::EquipmentChanged&
+WorldEvent::_Internal::equipment_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.equipment_changed_;
+}
+const ::nightfall::v1::WeightChanged&
+WorldEvent::_Internal::weight_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.weight_changed_;
+}
+const ::nightfall::v1::PenaltyChanged&
+WorldEvent::_Internal::penalty_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.penalty_changed_;
+}
+const ::nightfall::v1::EnchantResult&
+WorldEvent::_Internal::enchant_result(const WorldEvent* msg) {
+  return *msg->_impl_.event_.enchant_result_;
+}
+const ::nightfall::v1::RefineResult&
+WorldEvent::_Internal::refine_result(const WorldEvent* msg) {
+  return *msg->_impl_.event_.refine_result_;
+}
+const ::nightfall::v1::ItemOperationResult&
+WorldEvent::_Internal::item_operation_result(const WorldEvent* msg) {
+  return *msg->_impl_.event_.item_operation_result_;
 }
 void WorldEvent::set_allocated_spawn(::nightfall::v1::EntitySpawn* spawn) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
@@ -5886,6 +6686,198 @@ void WorldEvent::set_allocated_vitals_changed(::nightfall::v1::VitalsChanged* vi
   }
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.vitals_changed)
 }
+void WorldEvent::set_allocated_inventory_sync(::nightfall::v1::InventorySync* inventory_sync) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (inventory_sync) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(inventory_sync));
+    if (message_arena != submessage_arena) {
+      inventory_sync = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, inventory_sync, submessage_arena);
+    }
+    set_has_inventory_sync();
+    _impl_.event_.inventory_sync_ = inventory_sync;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.inventory_sync)
+}
+void WorldEvent::clear_inventory_sync() {
+  if (event_case() == kInventorySync) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.inventory_sync_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_inventory_changed(::nightfall::v1::InventoryChanged* inventory_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (inventory_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(inventory_changed));
+    if (message_arena != submessage_arena) {
+      inventory_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, inventory_changed, submessage_arena);
+    }
+    set_has_inventory_changed();
+    _impl_.event_.inventory_changed_ = inventory_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.inventory_changed)
+}
+void WorldEvent::clear_inventory_changed() {
+  if (event_case() == kInventoryChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.inventory_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_equipment_changed(::nightfall::v1::EquipmentChanged* equipment_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (equipment_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(equipment_changed));
+    if (message_arena != submessage_arena) {
+      equipment_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, equipment_changed, submessage_arena);
+    }
+    set_has_equipment_changed();
+    _impl_.event_.equipment_changed_ = equipment_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.equipment_changed)
+}
+void WorldEvent::clear_equipment_changed() {
+  if (event_case() == kEquipmentChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.equipment_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_weight_changed(::nightfall::v1::WeightChanged* weight_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (weight_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(weight_changed));
+    if (message_arena != submessage_arena) {
+      weight_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, weight_changed, submessage_arena);
+    }
+    set_has_weight_changed();
+    _impl_.event_.weight_changed_ = weight_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.weight_changed)
+}
+void WorldEvent::clear_weight_changed() {
+  if (event_case() == kWeightChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.weight_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_penalty_changed(::nightfall::v1::PenaltyChanged* penalty_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (penalty_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(penalty_changed));
+    if (message_arena != submessage_arena) {
+      penalty_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, penalty_changed, submessage_arena);
+    }
+    set_has_penalty_changed();
+    _impl_.event_.penalty_changed_ = penalty_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.penalty_changed)
+}
+void WorldEvent::clear_penalty_changed() {
+  if (event_case() == kPenaltyChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.penalty_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_enchant_result(::nightfall::v1::EnchantResult* enchant_result) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (enchant_result) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(enchant_result));
+    if (message_arena != submessage_arena) {
+      enchant_result = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, enchant_result, submessage_arena);
+    }
+    set_has_enchant_result();
+    _impl_.event_.enchant_result_ = enchant_result;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.enchant_result)
+}
+void WorldEvent::clear_enchant_result() {
+  if (event_case() == kEnchantResult) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.enchant_result_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_refine_result(::nightfall::v1::RefineResult* refine_result) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (refine_result) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(refine_result));
+    if (message_arena != submessage_arena) {
+      refine_result = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, refine_result, submessage_arena);
+    }
+    set_has_refine_result();
+    _impl_.event_.refine_result_ = refine_result;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.refine_result)
+}
+void WorldEvent::clear_refine_result() {
+  if (event_case() == kRefineResult) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.refine_result_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_item_operation_result(::nightfall::v1::ItemOperationResult* item_operation_result) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (item_operation_result) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(item_operation_result));
+    if (message_arena != submessage_arena) {
+      item_operation_result = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, item_operation_result, submessage_arena);
+    }
+    set_has_item_operation_result();
+    _impl_.event_.item_operation_result_ = item_operation_result;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.item_operation_result)
+}
+void WorldEvent::clear_item_operation_result() {
+  if (event_case() == kItemOperationResult) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.item_operation_result_;
+    }
+    clear_has_event();
+  }
+}
 WorldEvent::WorldEvent(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -6025,6 +7017,46 @@ WorldEvent::WorldEvent(const WorldEvent& from)
     case kVitalsChanged: {
       _this->_internal_mutable_vitals_changed()->::nightfall::v1::VitalsChanged::MergeFrom(
           from._internal_vitals_changed());
+      break;
+    }
+    case kInventorySync: {
+      _this->_internal_mutable_inventory_sync()->::nightfall::v1::InventorySync::MergeFrom(
+          from._internal_inventory_sync());
+      break;
+    }
+    case kInventoryChanged: {
+      _this->_internal_mutable_inventory_changed()->::nightfall::v1::InventoryChanged::MergeFrom(
+          from._internal_inventory_changed());
+      break;
+    }
+    case kEquipmentChanged: {
+      _this->_internal_mutable_equipment_changed()->::nightfall::v1::EquipmentChanged::MergeFrom(
+          from._internal_equipment_changed());
+      break;
+    }
+    case kWeightChanged: {
+      _this->_internal_mutable_weight_changed()->::nightfall::v1::WeightChanged::MergeFrom(
+          from._internal_weight_changed());
+      break;
+    }
+    case kPenaltyChanged: {
+      _this->_internal_mutable_penalty_changed()->::nightfall::v1::PenaltyChanged::MergeFrom(
+          from._internal_penalty_changed());
+      break;
+    }
+    case kEnchantResult: {
+      _this->_internal_mutable_enchant_result()->::nightfall::v1::EnchantResult::MergeFrom(
+          from._internal_enchant_result());
+      break;
+    }
+    case kRefineResult: {
+      _this->_internal_mutable_refine_result()->::nightfall::v1::RefineResult::MergeFrom(
+          from._internal_refine_result());
+      break;
+    }
+    case kItemOperationResult: {
+      _this->_internal_mutable_item_operation_result()->::nightfall::v1::ItemOperationResult::MergeFrom(
+          from._internal_item_operation_result());
       break;
     }
     case EVENT_NOT_SET: {
@@ -6214,6 +7246,54 @@ void WorldEvent::clear_event() {
     case kVitalsChanged: {
       if (GetArenaForAllocation() == nullptr) {
         delete _impl_.event_.vitals_changed_;
+      }
+      break;
+    }
+    case kInventorySync: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.inventory_sync_;
+      }
+      break;
+    }
+    case kInventoryChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.inventory_changed_;
+      }
+      break;
+    }
+    case kEquipmentChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.equipment_changed_;
+      }
+      break;
+    }
+    case kWeightChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.weight_changed_;
+      }
+      break;
+    }
+    case kPenaltyChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.penalty_changed_;
+      }
+      break;
+    }
+    case kEnchantResult: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.enchant_result_;
+      }
+      break;
+    }
+    case kRefineResult: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.refine_result_;
+      }
+      break;
+    }
+    case kItemOperationResult: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.item_operation_result_;
       }
       break;
     }
@@ -6466,6 +7546,78 @@ const char* WorldEvent::_InternalParse(const char* ptr, ::_pbi::ParseContext* ct
           goto handle_unusual;
         }
         continue;
+      // .nightfall.v1.InventorySync inventory_sync = 26;
+      case 26:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 210)) {
+          ptr = ctx->ParseMessage(_internal_mutable_inventory_sync(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.InventoryChanged inventory_changed = 27;
+      case 27:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 218)) {
+          ptr = ctx->ParseMessage(_internal_mutable_inventory_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EquipmentChanged equipment_changed = 28;
+      case 28:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 226)) {
+          ptr = ctx->ParseMessage(_internal_mutable_equipment_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.WeightChanged weight_changed = 29;
+      case 29:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 234)) {
+          ptr = ctx->ParseMessage(_internal_mutable_weight_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PenaltyChanged penalty_changed = 30;
+      case 30:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 242)) {
+          ptr = ctx->ParseMessage(_internal_mutable_penalty_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.EnchantResult enchant_result = 31;
+      case 31:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 250)) {
+          ptr = ctx->ParseMessage(_internal_mutable_enchant_result(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.RefineResult refine_result = 32;
+      case 32:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 2)) {
+          ptr = ctx->ParseMessage(_internal_mutable_refine_result(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ItemOperationResult item_operation_result = 33;
+      case 33:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr = ctx->ParseMessage(_internal_mutable_item_operation_result(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -6644,6 +7796,54 @@ failure:
       target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
         InternalWriteMessage(25, _Internal::vitals_changed(this),
           _Internal::vitals_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kInventorySync: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(26, _Internal::inventory_sync(this),
+          _Internal::inventory_sync(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kInventoryChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(27, _Internal::inventory_changed(this),
+          _Internal::inventory_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kEquipmentChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(28, _Internal::equipment_changed(this),
+          _Internal::equipment_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kWeightChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(29, _Internal::weight_changed(this),
+          _Internal::weight_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPenaltyChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(30, _Internal::penalty_changed(this),
+          _Internal::penalty_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kEnchantResult: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(31, _Internal::enchant_result(this),
+          _Internal::enchant_result(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kRefineResult: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(32, _Internal::refine_result(this),
+          _Internal::refine_result(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kItemOperationResult: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(33, _Internal::item_operation_result(this),
+          _Internal::item_operation_result(this).GetCachedSize(), target, stream);
       break;
     }
     default: ;
@@ -6840,6 +8040,62 @@ failure:
           *_impl_.event_.vitals_changed_);
       break;
     }
+    // .nightfall.v1.InventorySync inventory_sync = 26;
+    case kInventorySync: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.inventory_sync_);
+      break;
+    }
+    // .nightfall.v1.InventoryChanged inventory_changed = 27;
+    case kInventoryChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.inventory_changed_);
+      break;
+    }
+    // .nightfall.v1.EquipmentChanged equipment_changed = 28;
+    case kEquipmentChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.equipment_changed_);
+      break;
+    }
+    // .nightfall.v1.WeightChanged weight_changed = 29;
+    case kWeightChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.weight_changed_);
+      break;
+    }
+    // .nightfall.v1.PenaltyChanged penalty_changed = 30;
+    case kPenaltyChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.penalty_changed_);
+      break;
+    }
+    // .nightfall.v1.EnchantResult enchant_result = 31;
+    case kEnchantResult: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.enchant_result_);
+      break;
+    }
+    // .nightfall.v1.RefineResult refine_result = 32;
+    case kRefineResult: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.refine_result_);
+      break;
+    }
+    // .nightfall.v1.ItemOperationResult item_operation_result = 33;
+    case kItemOperationResult: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.item_operation_result_);
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -6988,6 +8244,46 @@ void WorldEvent::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PRO
           from._internal_vitals_changed());
       break;
     }
+    case kInventorySync: {
+      _this->_internal_mutable_inventory_sync()->::nightfall::v1::InventorySync::MergeFrom(
+          from._internal_inventory_sync());
+      break;
+    }
+    case kInventoryChanged: {
+      _this->_internal_mutable_inventory_changed()->::nightfall::v1::InventoryChanged::MergeFrom(
+          from._internal_inventory_changed());
+      break;
+    }
+    case kEquipmentChanged: {
+      _this->_internal_mutable_equipment_changed()->::nightfall::v1::EquipmentChanged::MergeFrom(
+          from._internal_equipment_changed());
+      break;
+    }
+    case kWeightChanged: {
+      _this->_internal_mutable_weight_changed()->::nightfall::v1::WeightChanged::MergeFrom(
+          from._internal_weight_changed());
+      break;
+    }
+    case kPenaltyChanged: {
+      _this->_internal_mutable_penalty_changed()->::nightfall::v1::PenaltyChanged::MergeFrom(
+          from._internal_penalty_changed());
+      break;
+    }
+    case kEnchantResult: {
+      _this->_internal_mutable_enchant_result()->::nightfall::v1::EnchantResult::MergeFrom(
+          from._internal_enchant_result());
+      break;
+    }
+    case kRefineResult: {
+      _this->_internal_mutable_refine_result()->::nightfall::v1::RefineResult::MergeFrom(
+          from._internal_refine_result());
+      break;
+    }
+    case kItemOperationResult: {
+      _this->_internal_mutable_item_operation_result()->::nightfall::v1::ItemOperationResult::MergeFrom(
+          from._internal_item_operation_result());
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -7055,6 +8351,9 @@ void EntitySpawn::clear_position() {
   if (_impl_.position_ != nullptr) _impl_.position_->Clear();
   _impl_._has_bits_[0] &= ~0x00000001u;
 }
+void EntitySpawn::clear_visible_equipment() {
+  _internal_mutable_visible_equipment()->Clear();
+}
 EntitySpawn::EntitySpawn(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -7067,6 +8366,7 @@ EntitySpawn::EntitySpawn(const EntitySpawn& from)
       decltype(_impl_._has_bits_){from._impl_._has_bits_}
     , /*decltype(_impl_._cached_size_)*/{}
     , decltype(_impl_.active_effects_){from._impl_.active_effects_}
+    , decltype(_impl_.visible_equipment_){from._impl_.visible_equipment_}
     , decltype(_impl_.entity_id_) {}
 
     , decltype(_impl_.name_) {}
@@ -7162,6 +8462,7 @@ inline void EntitySpawn::SharedCtor(::_pb::Arena* arena) {
       decltype(_impl_._has_bits_){}
     , /*decltype(_impl_._cached_size_)*/{}
     , decltype(_impl_.active_effects_){arena}
+    , decltype(_impl_.visible_equipment_){arena}
     , decltype(_impl_.entity_id_) {}
 
     , decltype(_impl_.name_) {}
@@ -7240,6 +8541,7 @@ EntitySpawn::~EntitySpawn() {
 inline void EntitySpawn::SharedDtor() {
   ABSL_DCHECK(GetArenaForAllocation() == nullptr);
   _internal_mutable_active_effects()->~RepeatedPtrField();
+  _internal_mutable_visible_equipment()->~RepeatedPtrField();
   _impl_.entity_id_.Destroy();
   _impl_.name_.Destroy();
   _impl_.template_id_.Destroy();
@@ -7259,6 +8561,7 @@ void EntitySpawn::Clear() {
   (void) cached_has_bits;
 
   _internal_mutable_active_effects()->Clear();
+  _internal_mutable_visible_equipment()->Clear();
   _impl_.entity_id_.ClearToEmpty();
   _impl_.name_.ClearToEmpty();
   _impl_.template_id_.ClearToEmpty();
@@ -7557,6 +8860,20 @@ const char* EntitySpawn::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
           goto handle_unusual;
         }
         continue;
+      // repeated .nightfall.v1.VisibleEquipment visible_equipment = 29;
+      case 29:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 234)) {
+          ptr -= 2;
+          do {
+            ptr += 2;
+            ptr = ctx->ParseMessage(_internal_add_visible_equipment(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<234>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -7788,6 +9105,14 @@ failure:
         28, this->_internal_status_flags(), target);
   }
 
+  // repeated .nightfall.v1.VisibleEquipment visible_equipment = 29;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_visible_equipment_size()); i < n; i++) {
+    const auto& repfield = this->_internal_visible_equipment(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(29, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -7807,6 +9132,13 @@ failure:
   // repeated .nightfall.v1.ActiveEffect active_effects = 24;
   total_size += 2UL * this->_internal_active_effects_size();
   for (const auto& msg : this->_internal_active_effects()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // repeated .nightfall.v1.VisibleEquipment visible_equipment = 29;
+  total_size += 2UL * this->_internal_visible_equipment_size();
+  for (const auto& msg : this->_internal_visible_equipment()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
@@ -7995,6 +9327,7 @@ void EntitySpawn::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
   (void) cached_has_bits;
 
   _this->_internal_mutable_active_effects()->MergeFrom(from._internal_active_effects());
+  _this->_internal_mutable_visible_equipment()->MergeFrom(from._internal_visible_equipment());
   if (!from._internal_entity_id().empty()) {
     _this->_internal_set_entity_id(from._internal_entity_id());
   }
@@ -8103,6 +9436,7 @@ void EntitySpawn::InternalSwap(EntitySpawn* other) {
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   _internal_mutable_active_effects()->InternalSwap(other->_internal_mutable_active_effects());
+  _internal_mutable_visible_equipment()->InternalSwap(other->_internal_mutable_visible_equipment());
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_id_, lhs_arena,
                                        &other->_impl_.entity_id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, lhs_arena,
@@ -10638,15 +11972,39 @@ class StatsChanged::_Internal {
   static void set_has_effective_stats(HasBits* has_bits) {
     (*has_bits)[0] |= 1u;
   }
+  static const ::nightfall::v1::ItemWeightState& item_weight(const StatsChanged* msg);
+  static void set_has_item_weight(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
+  static const ::nightfall::v1::ItemPenaltyState& item_penalties(const StatsChanged* msg);
+  static void set_has_item_penalties(HasBits* has_bits) {
+    (*has_bits)[0] |= 4u;
+  }
 };
 
 const ::nightfall::v1::EffectiveStats&
 StatsChanged::_Internal::effective_stats(const StatsChanged* msg) {
   return *msg->_impl_.effective_stats_;
 }
+const ::nightfall::v1::ItemWeightState&
+StatsChanged::_Internal::item_weight(const StatsChanged* msg) {
+  return *msg->_impl_.item_weight_;
+}
+const ::nightfall::v1::ItemPenaltyState&
+StatsChanged::_Internal::item_penalties(const StatsChanged* msg) {
+  return *msg->_impl_.item_penalties_;
+}
 void StatsChanged::clear_effective_stats() {
   if (_impl_.effective_stats_ != nullptr) _impl_.effective_stats_->Clear();
   _impl_._has_bits_[0] &= ~0x00000001u;
+}
+void StatsChanged::clear_item_weight() {
+  if (_impl_.item_weight_ != nullptr) _impl_.item_weight_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+void StatsChanged::clear_item_penalties() {
+  if (_impl_.item_penalties_ != nullptr) _impl_.item_penalties_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000004u;
 }
 StatsChanged::StatsChanged(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
@@ -10662,6 +12020,8 @@ StatsChanged::StatsChanged(const StatsChanged& from)
     , decltype(_impl_.entity_) {}
 
     , decltype(_impl_.effective_stats_){nullptr}
+    , decltype(_impl_.item_weight_){nullptr}
+    , decltype(_impl_.item_penalties_){nullptr}
     , decltype(_impl_.hp_) {}
 
     , decltype(_impl_.max_hp_) {}
@@ -10703,6 +12063,8 @@ StatsChanged::StatsChanged(const StatsChanged& from)
     , decltype(_impl_.baseline_) {}
 
     , decltype(_impl_.incarnation_) {}
+
+    , decltype(_impl_.inventory_revision_) {}
   };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -10716,9 +12078,15 @@ StatsChanged::StatsChanged(const StatsChanged& from)
   if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
     _this->_impl_.effective_stats_ = new ::nightfall::v1::EffectiveStats(*from._impl_.effective_stats_);
   }
+  if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    _this->_impl_.item_weight_ = new ::nightfall::v1::ItemWeightState(*from._impl_.item_weight_);
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000004u) != 0) {
+    _this->_impl_.item_penalties_ = new ::nightfall::v1::ItemPenaltyState(*from._impl_.item_penalties_);
+  }
   ::memcpy(&_impl_.hp_, &from._impl_.hp_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.incarnation_) -
-    reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.incarnation_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.inventory_revision_) -
+    reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.inventory_revision_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.StatsChanged)
 }
 
@@ -10730,6 +12098,8 @@ inline void StatsChanged::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.entity_) {}
 
     , decltype(_impl_.effective_stats_){nullptr}
+    , decltype(_impl_.item_weight_){nullptr}
+    , decltype(_impl_.item_penalties_){nullptr}
     , decltype(_impl_.hp_) { 0u }
 
     , decltype(_impl_.max_hp_) { 0u }
@@ -10772,6 +12142,8 @@ inline void StatsChanged::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.incarnation_) { 0u }
 
+    , decltype(_impl_.inventory_revision_) { ::uint64_t{0u} }
+
   };
   _impl_.entity_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -10792,6 +12164,8 @@ inline void StatsChanged::SharedDtor() {
   ABSL_DCHECK(GetArenaForAllocation() == nullptr);
   _impl_.entity_.Destroy();
   if (this != internal_default_instance()) delete _impl_.effective_stats_;
+  if (this != internal_default_instance()) delete _impl_.item_weight_;
+  if (this != internal_default_instance()) delete _impl_.item_penalties_;
 }
 
 void StatsChanged::SetCachedSize(int size) const {
@@ -10806,13 +12180,23 @@ void StatsChanged::Clear() {
 
   _impl_.entity_.ClearToEmpty();
   cached_has_bits = _impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000001u) {
-    ABSL_DCHECK(_impl_.effective_stats_ != nullptr);
-    _impl_.effective_stats_->Clear();
+  if (cached_has_bits & 0x00000007u) {
+    if (cached_has_bits & 0x00000001u) {
+      ABSL_DCHECK(_impl_.effective_stats_ != nullptr);
+      _impl_.effective_stats_->Clear();
+    }
+    if (cached_has_bits & 0x00000002u) {
+      ABSL_DCHECK(_impl_.item_weight_ != nullptr);
+      _impl_.item_weight_->Clear();
+    }
+    if (cached_has_bits & 0x00000004u) {
+      ABSL_DCHECK(_impl_.item_penalties_ != nullptr);
+      _impl_.item_penalties_->Clear();
+    }
   }
   ::memset(&_impl_.hp_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.incarnation_) -
-      reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.incarnation_));
+      reinterpret_cast<char*>(&_impl_.inventory_revision_) -
+      reinterpret_cast<char*>(&_impl_.hp_)) + sizeof(_impl_.inventory_revision_));
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -11033,6 +12417,33 @@ const char* StatsChanged::_InternalParse(const char* ptr, ::_pbi::ParseContext* 
           goto handle_unusual;
         }
         continue;
+      // .nightfall.v1.ItemWeightState item_weight = 24;
+      case 24:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 194)) {
+          ptr = ctx->ParseMessage(_internal_mutable_item_weight(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ItemPenaltyState item_penalties = 25;
+      case 25:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 202)) {
+          ptr = ctx->ParseMessage(_internal_mutable_item_penalties(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint64 inventory_revision = 26;
+      case 26:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 208)) {
+          _impl_.inventory_revision_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -11226,6 +12637,27 @@ failure:
         23, this->_internal_incarnation(), target);
   }
 
+  // .nightfall.v1.ItemWeightState item_weight = 24;
+  if (cached_has_bits & 0x00000002u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(24, _Internal::item_weight(this),
+        _Internal::item_weight(this).GetCachedSize(), target, stream);
+  }
+
+  // .nightfall.v1.ItemPenaltyState item_penalties = 25;
+  if (cached_has_bits & 0x00000004u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(25, _Internal::item_penalties(this),
+        _Internal::item_penalties(this).GetCachedSize(), target, stream);
+  }
+
+  // uint64 inventory_revision = 26;
+  if (this->_internal_inventory_revision() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        26, this->_internal_inventory_revision(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -11248,14 +12680,30 @@ failure:
                                     this->_internal_entity());
   }
 
-  // .nightfall.v1.EffectiveStats effective_stats = 20;
   cached_has_bits = _impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000001u) {
-    total_size += 2 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-        *_impl_.effective_stats_);
-  }
+  if (cached_has_bits & 0x00000007u) {
+    // .nightfall.v1.EffectiveStats effective_stats = 20;
+    if (cached_has_bits & 0x00000001u) {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.effective_stats_);
+    }
 
+    // .nightfall.v1.ItemWeightState item_weight = 24;
+    if (cached_has_bits & 0x00000002u) {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.item_weight_);
+    }
+
+    // .nightfall.v1.ItemPenaltyState item_penalties = 25;
+    if (cached_has_bits & 0x00000004u) {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.item_penalties_);
+    }
+
+  }
   // uint32 hp = 2;
   if (this->_internal_hp() != 0) {
     total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
@@ -11381,6 +12829,12 @@ failure:
                                     this->_internal_incarnation());
   }
 
+  // uint64 inventory_revision = 26;
+  if (this->_internal_inventory_revision() != 0) {
+    total_size += 2 + ::_pbi::WireFormatLite::UInt64Size(
+                                    this->_internal_inventory_revision());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -11402,9 +12856,20 @@ void StatsChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   if (!from._internal_entity().empty()) {
     _this->_internal_set_entity(from._internal_entity());
   }
-  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
-    _this->_internal_mutable_effective_stats()->::nightfall::v1::EffectiveStats::MergeFrom(
-        from._internal_effective_stats());
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000007u) {
+    if (cached_has_bits & 0x00000001u) {
+      _this->_internal_mutable_effective_stats()->::nightfall::v1::EffectiveStats::MergeFrom(
+          from._internal_effective_stats());
+    }
+    if (cached_has_bits & 0x00000002u) {
+      _this->_internal_mutable_item_weight()->::nightfall::v1::ItemWeightState::MergeFrom(
+          from._internal_item_weight());
+    }
+    if (cached_has_bits & 0x00000004u) {
+      _this->_internal_mutable_item_penalties()->::nightfall::v1::ItemPenaltyState::MergeFrom(
+          from._internal_item_penalties());
+    }
   }
   if (from._internal_hp() != 0) {
     _this->_internal_set_hp(from._internal_hp());
@@ -11469,6 +12934,9 @@ void StatsChanged::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   if (from._internal_incarnation() != 0) {
     _this->_internal_set_incarnation(from._internal_incarnation());
   }
+  if (from._internal_inventory_revision() != 0) {
+    _this->_internal_set_inventory_revision(from._internal_inventory_revision());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -11492,8 +12960,8 @@ void StatsChanged::InternalSwap(StatsChanged* other) {
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_, lhs_arena,
                                        &other->_impl_.entity_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.incarnation_)
-      + sizeof(StatsChanged::_impl_.incarnation_)
+      PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.inventory_revision_)
+      + sizeof(StatsChanged::_impl_.inventory_revision_)
       - PROTOBUF_FIELD_OFFSET(StatsChanged, _impl_.effective_stats_)>(
           reinterpret_cast<char*>(&_impl_.effective_stats_),
           reinterpret_cast<char*>(&other->_impl_.effective_stats_));

@@ -499,8 +499,9 @@ def closure(items,tables):
     return {sid:r for sid,r in items.items() if r['kind']!='EtcItem' or sid in etc}
 
 
-def capabilities(items,tables,skills):
+def capabilities(items,tables,skills,skill_files):
     skill_index={r['id']:r for r in skills}
+    skill_data={s['id']:s for s in (tomllib.loads(content) for content in skill_files.values())}
     def dependencies(refs):
         result=set()
         for ref in refs:
@@ -550,9 +551,35 @@ def capabilities(items,tables,skills):
         rows.append({'template_id':sid,'admitted':not b,
                      'storable':not bool(b & {'context:common','context:shadow','context:time_limited','context:npc_only','context:pet'}),'blockers':sorted(b),'use_blockers':sorted(b|use)})
     item_index={r['template_id']:r for r in rows}
+    consumables={}
+    for sid,item in sorted(items.items()):
+        required=[]
+        for ref in item['skills']+item['enchant4_skills']+set_by_chest.get(sid,[]):
+            skill=skill_data.get(ref['id'],{})
+            rank=ref['level']
+            if not 1<=rank<=skill.get('max_level',0):continue
+            for req in skill.get('item_consume',[]):
+                target=req['item_id'][rank-1] if isinstance(req['item_id'],list) else req['item_id']
+                count=req['count'][rank-1] if isinstance(req['count'],list) else req['count']
+                if target and count>0:
+                    required.append((target,f'consumable:skill:{ref["id"]}:{rank}:item:{target}'))
+        consumables[sid]=required
+    # D54: propagate deferral through consumed items, including self/cyclic costs.
+    changed=True
+    while changed:
+        changed=False
+        for row in rows:
+            b={blocker for target,blocker in consumables[row['template_id']]
+               if target not in item_index or not item_index[target]['storable'] or not item_index[target]['admitted']}
+            if b:
+                changed=changed or row['admitted']
+                row['admitted']=False
+                row['blockers']=sorted(set(row['blockers'])|b)
+                row['use_blockers']=sorted(set(row['use_blockers'])|b)
     recipes=[]
     for recipe in tables['sa_variants.toml']['recipes']:
-        b={'item:'+str(r['template_id']) for r in recipe['ingredients']+recipe['products'] if not item_index[r['template_id']]['admitted']}
+        b={'item:'+str(r['template_id']) for r in recipe['ingredients']+recipe['products']
+           if r['template_id'] not in item_index or not item_index[r['template_id']]['admitted'] or not item_index[r['template_id']]['storable']}
         recipes.append({'recipe_id':recipe['recipe_id'],'admitted':not b,'blockers':sorted(b)})
     return {'schema':1,'sources':[],'items':rows,'skills':skills,'options':option_rows,'augmentation':augment,'recipes':recipes}
 
@@ -636,7 +663,7 @@ def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
                 for sid in ids:
                     if sid and sid in all_items:items[sid]=all_items[sid]
         if set(items)==previous_ids:break
-    caps=capabilities(items,tables,skills);tables['capabilities.toml']=caps
+    caps=capabilities(items,tables,skills,skill_files);tables['capabilities.toml']=caps
     for kind,name in [('Weapon','weapons'),('Armor','armors'),('EtcItem','etc_items')]:
         rows=[r for sid,r in sorted(items.items()) if r['kind']==kind]
         tables[name+'.toml']={'schema':1,'sources':[source(G+'model/items/'+file+'.java',lines,'loader defaults',True) for file,lines in [('L2Item','157-218,252-255,352-353'),('L2Weapon','82-123'),('L2Armor','47-80'),('L2EtcItem','49-73')]],'items':rows}

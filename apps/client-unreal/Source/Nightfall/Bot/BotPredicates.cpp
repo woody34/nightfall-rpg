@@ -1,6 +1,7 @@
 #include "BotPredicates.h"
 #include "ClassBotPredicates.h"
 #include "SkillBotPredicates.h"
+#include "ItemBotPredicates.h"
 #include "BotFixtureData.h"
 #include "BotScenarioRunner.h"
 #include "Auth/AuthSubsystem.h"
@@ -1193,4 +1194,5 @@ void FBotPredicateRegistry::RegisterBuiltins()
 		Count([](const FBotObservations& O) { return O.LateSpawnHpBad; }));
 	ClassBotPredicates::Register(*this);
 	SkillBotPredicates::Register(*this);
+	ItemBotPredicates::Register(*this);
 }
