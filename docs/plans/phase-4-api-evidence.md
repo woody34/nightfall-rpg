@@ -17,7 +17,7 @@ The accepted E1 bundle is imported through `1ff2eb9`; no temporary runtime table
 | LearnSkill with items | Existing exact-rank SP/receipt checks retained; unified item writer accepts typed learning receipt in the same transaction | Existing Phase3 learning socket/actor suites remain required regressions | Typed optional receipt is retained in V6 pending checkpoint metadata; item+learning storage cost matrix remains to complete | Book eligibility/payment and item-cast hooks require the actual Z producer; Phase3-only passes do not close E3.4 |
 | V6 GetSkillCatalog composition | Canonical Phase3Rules epoch validation permits only published Deferred→Executable promotions; strict legacy constructor unchanged; wrong source metadata refuses | `phase4_grant_runtime.rs` reads the exact validated V6 SkillRegistry hash through real sockets | Immutable roots stay limited to the class catalogue, with actual compiled blockers | New catalogue context does not bypass item learning eligibility/payment gates |
 | WS intents19..28 | All ten normalize to canonical ItemCommand; account comes from server context; malformed slots/keys/widths/targets rejected | `interface/zone_mapping/items.rs` field/optional/width tests and `phase4_wire.rs` additive contracts | Actor preflight derives account from admitted identity; validates stored scope/body; records canonical Known/Conflict, then remeasures selection | Public decoder remains fenced pending tag41 enrichment and complete runtime admission |
-| WorldEvent31..33 | Enchant/Refine/ItemOperationResult typed frozen mapping, exact original tick/receipt/refunds/recipe | Mapping tests plus owner-only domain/replay result tests | Result is frozen in the same parent item transaction | Successful receipt mapping alone is not full live mutation coverage |
+| WorldEvent31..33 | D53 frozen key (UUID bytes16), operation, committed fingerprint plus existing exact tick/receipt/refunds/recipe | Mapping checks all operation/Enchant/Refine outcomes; exact additive tags and old bytes in phase4_wire; real Grant socket frozen correlation fields | Canonical FrozenItemResult.request_fingerprint7be9839 is part of stored payload, bound to enclosing receipt and Known context | accepted_client_seq is optional/absent until the original sequence is canonically retained; never the retry sequence. Public WS remains fenced |
 | WorldEvent26..30 and enriched public/owner outputs | Z owns canonical InventorySync/Changed/EquipmentChanged/Weight/Penalty producers | Canonical view commits408b608/976afc1/09a35f5/fc1c831 are integrated; domain/replay and exact WS26–30 mapper checks pass; tag41 enrichment still pending | Private checkpoint40 is excluded from observer/AOI/WS output | Do not synthesize live baselines from retained SQL rows or lift WS fence from DTO availability |
 
 ## Durability and recovery
@@ -52,8 +52,8 @@ Per-run logs and commit receipts are in the worker's `api-progress.md` coordinat
 E3.5 remains a named TODO for `4-starter-kit.nfs`, `4-potion.nfs`, `4-escape-scroll.nfs`,
 `4-resurrection-scroll-a.nfs`, `4-resurrection-scroll-b.nfs`, `4-item-skill-learn.nfs` and
 `4-grant-item-denied.nfs` (including required `.allow` sidecars). D40 assigns received-message
-grammar and fixture names to E6. The harness has now published its offline handoff at
-`e4948d9`, with canonical scenarios/packs and the D46 frozen evidence contract. E3 will
-consume that handoff after the low-range typed admission, actual exporter and runtime
-are ready. No invented predicate, scenario receipt, skipped required-live pass or E3
+grammar and fixture names to E6. The harness is final and accepted at `89918f8`, including canonical
+scenarios/packs and the D46 frozen evidence contract. E3 will import that handoff when
+touching scenarios or the evidence producer, after typed admission, actual exporter and
+runtime are ready. No invented predicate, scenario receipt, skipped required-live pass or E3
 Done When closure is recorded here.

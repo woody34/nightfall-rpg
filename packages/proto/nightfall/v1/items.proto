@@ -314,6 +314,11 @@ message EnchantResult {
   EnchantOutcome outcome = 9;
   repeated ItemRefund refunds = 10;
   uint32 announcement_tier = 11;
+  // Frozen original request identity; retries retain these values.
+  bytes request_key = 12;
+  ItemOperation operation = 13;
+  string request_fingerprint = 14;
+  optional uint64 accepted_client_seq = 15;
 }
 
 // Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
@@ -326,6 +331,11 @@ message RefineResult {
   uint64 target_instance_id = 6;
   optional uint32 augment_id = 7;
   RefineOutcome outcome = 8;
+  // Frozen original request identity; retries retain these values.
+  bytes request_key = 9;
+  ItemOperation operation = 10;
+  string request_fingerprint = 11;
+  optional uint64 accepted_client_seq = 12;
 }
 
 // Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
@@ -338,6 +348,10 @@ message ItemOperationResult {
   ItemOperation operation = 6;
   repeated uint64 affected_instance_ids = 7;
   optional uint64 recipe_id = 8;
+  // operation6 already carries the immutable operation scope.
+  bytes request_key = 9;
+  string request_fingerprint = 10;
+  optional uint64 accepted_client_seq = 11;
 }
 
 message ItemStatDescription {
