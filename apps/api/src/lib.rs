@@ -38,6 +38,8 @@ pub const DEFAULT_WS_PUBLIC_URL: &str = "ws://localhost:3000/ws";
 /// The ports the server needs, already bound to adapters.
 #[derive(Clone)]
 pub struct Dependencies {
+    /// Exact startup `AUTH_DEV_TOKENS=1` gate, independent of catalogue/runtime availability.
+    pub dev_item_grants: bool,
     /// Prevalidated V6 metadata; None keeps `GetItemCatalog` fail closed.
     pub item_catalogue: Option<Arc<dyn application::ports::ItemCataloguePort>>,
     /// Same adapter as character persistence; None refuses detached inventory reads.
@@ -84,6 +86,7 @@ impl Dependencies {
     pub fn in_memory() -> Self {
         let characters = Arc::new(infrastructure::memory::InMemoryCharacterRepository::default());
         Self {
+            dev_item_grants: false,
             item_catalogue: None,
             item_inventory: Some(characters.clone()),
             learning: Some(characters.clone()),
@@ -143,6 +146,7 @@ pub fn build_grpc_services(deps: &Dependencies) -> anyhow::Result<GrpcServices> 
             ),
             TransferOptions::new(deps.characters.clone(), deps.class_transfers.clone()),
         )
+        .with_dev_item_grants(deps.dev_item_grants)
         .with_item_catalogue(application::use_cases::GetItemCatalog::new(
             deps.item_catalogue.clone(),
         )),

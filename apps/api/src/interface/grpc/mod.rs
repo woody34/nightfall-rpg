@@ -54,6 +54,7 @@ pub struct GameServiceImpl {
     phase3: Option<Phase3UseCases>,
     get_item_catalog: crate::application::use_cases::GetItemCatalog,
     get_inventory: Option<crate::application::use_cases::GetInventory>,
+    dev_item_grants: bool,
 }
 
 /// Phase 3 use cases shared by live composition and transport tests.
@@ -92,6 +93,7 @@ impl GameServiceImpl {
             phase3: None,
             get_item_catalog: crate::application::use_cases::GetItemCatalog::new(None),
             get_inventory: None,
+            dev_item_grants: false,
         }
     }
 
@@ -119,6 +121,13 @@ impl GameServiceImpl {
         use_case: crate::application::use_cases::GetInventory,
     ) -> Self {
         self.get_inventory = Some(use_case);
+        self
+    }
+
+    /// Shares the exact startup auth setting; a missing grant runtime still fails closed.
+    #[must_use]
+    pub fn with_dev_item_grants(mut self, enabled: bool) -> Self {
+        self.dev_item_grants = enabled;
         self
     }
 
@@ -163,6 +172,8 @@ impl GameService for GameServiceImpl {
         req: Request<pb::GrantItemRequest>,
     ) -> Result<Response<pb::GrantItemResponse>, Status> {
         auth::caller(&req)?;
+        crate::application::use_cases::grant_item::require_dev_grants(self.dev_item_grants)
+            .map_err(to_status)?;
         Err(to_status(AppError::Unavailable("item runtime is not yet available".into())))
     }
 

@@ -39,7 +39,11 @@ async fn absent_item_ports_require_authentication_and_write_nothing() {
                 .await
                 .unwrap_err()
                 .code(),
-            expected
+            if expected == Code::Unauthenticated {
+                expected
+            } else {
+                Code::FailedPrecondition
+            }
         );
     }
     assert_eq!(app.characters.staged_events(), before);
