@@ -125,6 +125,8 @@ impl ZoneState {
                     ) => {},
                     ObserverOutput::Event(ZoneEvent::StatsChanged { entity, .. })
                         if owner_baseline && entity == observer => {},
+                    ObserverOutput::Event(ZoneEvent::ItemView(view))
+                        if owner_baseline && view.entity == *observer && view.owner_only() => {},
                     ObserverOutput::Event(ZoneEvent::ItemResult(_)) => item_results.push(output),
                     ObserverOutput::Event(_) => ordinary.push(output),
                 }
@@ -135,7 +137,9 @@ impl ZoneState {
                     *observer,
                     Some(tick),
                 )?));
-                out.push(ObserverOutput::Event(self.owner_sync_v5(tick, *observer)?));
+                if self.phase4.is_none() {
+                    out.push(ObserverOutput::Event(self.owner_sync_v5(tick, *observer)?));
+                }
             }
             for id in &hydrate {
                 let Some(binding) = self.binding(*id) else {
@@ -234,6 +238,12 @@ impl ZoneState {
                         baseline: owner_baseline.then_some(tick),
                     }),
                 }));
+            }
+            if owner_baseline && self.phase4.is_some() && self.binding(*observer).is_some() {
+                out.push(ObserverOutput::Event(self.owner_sync_v5(tick, *observer)?));
+                if let Some(baseline) = self.item_baseline_v6(tick, *observer)? {
+                    out.push(ObserverOutput::Event(baseline));
+                }
             }
             out.extend(ordinary);
             for event in &filtered {

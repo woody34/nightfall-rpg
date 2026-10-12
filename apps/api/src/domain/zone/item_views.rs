@@ -282,6 +282,13 @@ impl ItemViewEvent {
                 }
                 validate_items(added, *inventory_revision)?;
                 validate_items(updated, *inventory_revision)?;
+                if added
+                    .iter()
+                    .chain(updated)
+                    .any(|item| item.revision != *inventory_revision)
+                {
+                    return Err(ItemError("changed item does not carry the final revision"));
+                }
                 validate_reuse(auto_shots, reuse)?;
                 if !strictly_ordered(removed.iter().copied()) {
                     return Err(ItemError("unordered removed items"));
@@ -362,7 +369,7 @@ fn validate_reuse(auto_shots: &[u32], reuse: &[ItemReuse]) -> Result<(), ItemErr
 }
 /// Shared validation for full spawn equipment and changed-slot tombstones.
 pub fn validate_visible(visible: &[VisibleEquipment], delta: bool) -> Result<(), ItemError> {
-    if !strictly_ordered(visible.iter().map(|entry| entry.slot)) {
+    if (delta && visible.is_empty()) || !strictly_ordered(visible.iter().map(|entry| entry.slot)) {
         return Err(ItemError("unordered visible equipment"));
     }
     for entry in visible {
@@ -480,9 +487,9 @@ pub fn equipment_delta(
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::panic)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
-    fn inventory() -> InventoryView {
+    pub(crate) fn inventory() -> InventoryView {
         InventoryView {
             inventory_revision: 1,
             items: vec![OwnedItem {

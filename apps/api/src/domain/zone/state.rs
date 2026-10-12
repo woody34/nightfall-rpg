@@ -9,6 +9,8 @@ mod digest;
 mod evidence_hooks;
 #[path = "state_item_commands.rs"]
 mod item_commands;
+#[path = "state_item_views.rs"]
+mod item_views;
 #[path = "state_items.rs"]
 mod items;
 #[path = "state_runtime.rs"]
@@ -1775,6 +1777,13 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
     let sees = |id: &EntityId| *id == observer || known.binary_search(id).is_ok();
     match event {
         ZoneEvent::ItemResult(result) => result.entity == observer,
+        ZoneEvent::ItemView(view) => {
+            if view.owner_only() {
+                view.entity == observer
+            } else {
+                sees(&view.entity)
+            }
+        },
         ZoneEvent::TargetChanged { entity, target, .. } => {
             *entity == observer && target.as_ref().is_none_or(sees)
         },
@@ -1865,6 +1874,7 @@ impl<'a> CellFacts<'a> {
         for (index, event) in events.iter().enumerate() {
             let (entity, other, private) = match event {
                 ZoneEvent::ItemResult(result) => (result.entity, None, true),
+                ZoneEvent::ItemView(view) => (view.entity, None, view.owner_only()),
                 ZoneEvent::TargetChanged { entity, target, .. } => (*entity, *target, true),
                 ZoneEvent::StatsChanged { entity, .. }
                 | ZoneEvent::XpGained { entity, .. }

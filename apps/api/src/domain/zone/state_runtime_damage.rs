@@ -4086,6 +4086,24 @@ mod tests {
         assert_eq!(player.inventory_revision, original.inventory_revision.checked_add(1).unwrap());
         assert_eq!(player.paperdoll, original.paperdoll);
         assert_ne!(player.equipment_sources, source_order);
+        let item_views: Vec<_> = applied
+            .events
+            .iter()
+            .filter_map(|e| {
+                if let ZoneEvent::ItemView(view) = e {
+                    Some(&view.detail)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert!(item_views.iter().any(|detail| matches!(detail,
+            crate::domain::zone::item_views::ItemViewDetail::InventoryChanged { updated, .. }
+            if updated.iter().any(|item| item.id == weapon))));
+        assert!(!item_views.iter().any(|detail| matches!(
+            detail,
+            crate::domain::zone::item_views::ItemViewDetail::EquipmentChanged { .. }
+        )));
         let checkpoints: Vec<_> = applied
             .events
             .iter()
@@ -4337,6 +4355,129 @@ mod tests {
         zone.item_command_v6(zone.next_tick, &unequip, &mut events, &mut receipts)
             .unwrap();
         assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Casting(cast));
+    }
+    #[test]
+    #[allow(clippy::too_many_lines)] // A session replacement and later equipment mutation exercise both owner boundaries.
+    fn v6_inventory_replacement_baseline_and_deltas_preserve_privacy_and_replay() {
+        use crate::domain::zone::item_views::{InventoryView, ItemViewDetail};
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (mut zone, owner, npc) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        start_cast(&mut zone, owner, npc);
+        let expected = InventoryView::from_player(
+            &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity],
+            zone.phase4.as_ref().unwrap().rules.hash(),
+        )
+        .unwrap();
+        let rng = zone.rng.get_word_pos();
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let draft = zone.draft(vec![ZoneInput::system(ZoneCommand::ReplaceSession {
+            entity: owner.entity,
+            generation: SessionGeneration(2),
+        })]);
+        let baseline = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(baseline, cold.run_tick(draft).unwrap());
+        assert!(baseline.dispositions.is_empty());
+        assert_eq!(zone.rng.get_word_pos(), rng);
+        let outputs = &baseline.outputs[&owner.entity];
+        let inventory_index = outputs
+            .iter()
+            .position(|output| {
+                matches!(output,
+            ObserverOutput::Event(ZoneEvent::ItemView(view))
+            if matches!(&view.detail, ItemViewDetail::InventorySync { inventory, baseline_tick }
+                if inventory == &expected && *baseline_tick == baseline.tick))
+            })
+            .unwrap();
+        let skill_index = outputs
+            .iter()
+            .position(|output| {
+                matches!(output, ObserverOutput::Event(ZoneEvent::SkillStateSync { .. }))
+            })
+            .unwrap();
+        assert!(skill_index < inventory_index);
+        for (index, output) in outputs.iter().enumerate() {
+            if matches!(
+                output,
+                ObserverOutput::Event(
+                    ZoneEvent::EntitySpawn { .. }
+                        | ZoneEvent::EffectApplied { .. }
+                        | ZoneEvent::SkillCastStarted { .. }
+                        | ZoneEvent::AttackStarted { .. }
+                )
+            ) {
+                assert!(index < skill_index);
+            }
+        }
+        for (observer, outputs) in &baseline.outputs {
+            if *observer != owner.entity {
+                assert!(!outputs.iter().any(|o| matches!(o, ObserverOutput::Event(ZoneEvent::ItemView(view)) if view.entity == owner.entity && view.owner_only())));
+            }
+        }
+        let command = item_intent(
+            &zone,
+            owner.entity,
+            123,
+            K::Unequip {
+                slot: EquipSlot::Rhand,
+            },
+        );
+        let draft = zone.draft(vec![ZoneInput::session(
+            owner.entity,
+            SessionGeneration(2),
+            1,
+            ZoneCommand::Item(Box::new(command)),
+        )]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert!(applied.dispositions.is_empty());
+        let mut observers = 0;
+        for (observer, outputs) in &applied.outputs {
+            let views: Vec<_> = outputs
+                .iter()
+                .filter_map(|o| {
+                    if let ObserverOutput::Event(ZoneEvent::ItemView(view)) = o {
+                        Some(view)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            assert!(views.iter().any(|view| matches!(&view.detail, ItemViewDetail::EquipmentChanged { visible }
+                if visible.iter().any(|entry| entry.slot == EquipSlot::Rhand && entry.template_id == 0 && entry.glow_tier == 0))));
+            if *observer == owner.entity {
+                assert!(views.iter().any(|view| matches!(&view.detail, ItemViewDetail::InventoryChanged { previous_revision, inventory_revision, .. }
+                    if *previous_revision == expected.inventory_revision && Some(*inventory_revision) == previous_revision.checked_add(1))));
+                let result = outputs
+                    .iter()
+                    .position(|o| matches!(o, ObserverOutput::Event(ZoneEvent::ItemResult(_))))
+                    .unwrap();
+                assert!(outputs
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, o)| matches!(o, ObserverOutput::Event(ZoneEvent::ItemView(_))))
+                    .all(|(index, _)| index < result));
+            } else {
+                observers += 1;
+                assert!(views.iter().all(|view| !view.owner_only()));
+            }
+        }
+        assert!(observers > 0);
+        for applied in [baseline, applied] {
+            let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+                zone.seed.zone,
+                &applied,
+            );
+            assert_eq!(
+                crate::application::replay_log::AppliedTickRecord::decode(&record.encode())
+                    .unwrap(),
+                record
+            );
+        }
     }
     #[test]
     #[allow(clippy::too_many_lines)] // Durable receipt retry after death must retain every original result field.

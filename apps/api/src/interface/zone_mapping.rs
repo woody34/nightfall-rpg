@@ -5,6 +5,7 @@
 //! D7). Inbound floats are rounded to the nearest 1/1000 tile once, at the edge, so everything
 //! downstream (including replay of the recorded inbound bytes) is integer and deterministic.
 
+mod item_views;
 mod items;
 pub use items::{frozen_item_result_to_pb, item_command_from_pb};
 mod hydration;
@@ -472,6 +473,9 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             tick: tick.0,
             session_generation: u32::try_from(generation.0).unwrap_or(u32::MAX),
         }))],
+        ZoneEvent::ItemView(view) => item_views::event_to_pb(view)
+            .map(|event| vec![world(event)])
+            .unwrap_or_default(),
         ZoneEvent::ItemResult(result) => items::frozen_item_result_to_pb(result)
             .map(|event| vec![world(event)])
             .unwrap_or_default(),

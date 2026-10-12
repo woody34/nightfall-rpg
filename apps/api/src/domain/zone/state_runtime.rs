@@ -148,7 +148,7 @@ impl ZoneState {
             .and_then(|p| p.canonical.entities.get_mut(&id))
             .ok_or_else(missing)
     }
-    fn binding(&self, id: EntityId) -> Option<TargetBinding> {
+    pub(super) fn binding(&self, id: EntityId) -> Option<TargetBinding> {
         self.entities
             .get(&id)?
             .combat
@@ -664,12 +664,16 @@ impl ZoneState {
     ) -> Result<AppliedTick, TickError> {
         self.check_draft(&draft)?;
         let mut candidate = self.clone();
-        let applied = candidate.execute_v5(draft)?;
+        let applied = candidate.execute_v5(draft, self.phase4.as_ref().map(|p| &p.canonical))?;
         *self = candidate;
         Ok(applied)
     }
     #[allow(clippy::too_many_lines)] // Ordered live phase barriers remain visible in one driver.
-    fn execute_v5(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
+    fn execute_v5(
+        &mut self,
+        draft: AppliedTickDraft,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+    ) -> Result<AppliedTick, TickError> {
         let tick = draft.tick;
         // A restored snapshot carries only canonical inputs. Warm missing sheets once;
         // subsequent reads share them until a modifier, level or class mutation rebuilds.
@@ -804,6 +808,7 @@ impl ZoneState {
                 }
             }
         }
+        self.final_items_v6(tick, before_items, &mut events)?;
         self.freeze_items_v6(tick, &mut events)?;
         self.freeze_learning_v5(tick, &mut events)?;
         self.freeze_transfers_v5(&mut events)?;
@@ -2417,7 +2422,7 @@ impl ZoneState {
         }
         Ok(())
     }
-    fn owner_stats_v5(
+    pub(super) fn owner_stats_v5(
         &self,
         tick: Tick,
         id: EntityId,
