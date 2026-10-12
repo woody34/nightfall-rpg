@@ -93,7 +93,7 @@ def source():return oracle.Source()
 # for enchant_outcome but boolean for enchant_valid).
 BOOLEAN_REQUIRED = {
     'crystal_count': {'weapon'}, 'failure_refund': {'weapon'},
-    'bow_launch': {'miss'}, 'resurrection_scroll': {'dead','repeat','restore_hp'},
+    'bow_launch': {'miss'}, 'resurrection_scroll': {'dead','repeat'},
     'learned_item_cost': {'repeat'}, 'dual_plan': {'second_valid'},
     'enchant_safe': {'fullarmor'}, 'retail_draw_contract': {'accessory'},
     'item_regen_status': {'dead','stunned'},
@@ -172,6 +172,8 @@ def input_domains(name,inputs):
             number=oracle.exact(number)
             if number<0 or key in POSITIVE_INPUTS.get(name,()) and number==0:
                 raise ValueError('formula numeric outside domain: '+key)
+            if name=='resurrection_scroll' and key=='restore_hp' and number>1:
+                raise ValueError('restoration ratio outside domain')
     bounds={'enchant_outcome': {'residue':99999}, 'enchant_safe': {'residue':99999},
             'blow_success': {'residue':999}, 'lethal': {'full_residue':999,'half_residue':999},
             'shield': {'perfect_residue':99,'normal_residue':99},
@@ -190,9 +192,10 @@ def input_domains(name,inputs):
             elif set(value)!={'numerator','denominator'}:
                 for child_key,child in value.items():nested(child,child_key)
         elif isinstance(value,list):
-            for child in value:nested(child,key)
-        elif value is not None and key in ('count','enchant','tick','start_tick','expires_at','created_at','sequence','hit_time_ms','reuse_delay_ms','item_consume_count','mp_cost','reduced_cost','spread_radius','crystal_count'):
-            bounded(value,0,2**32-1 if key=='enchant' else 2**63-1)
+            for child in value:nested(child)
+        elif value is not None and key in ('count','enchant','tick','start_tick','expires_at','created_at','created_tick','revision','charges','sequence','hit_time_ms','reuse_delay_ms','item_consume_count','mp_cost','reduced_cost','spread_radius','crystal_count','instance_id','template_id'):
+            bounded(value,1 if key in ('instance_id','template_id') else 0,
+                    2**32-1 if key in ('enchant','template_id') else 2**63-1)
     nested(inputs)
     for template,enchant,slot,sequence in inputs.get('equipment',[]):
         bounded(template,1,2**32-1);bounded(enchant,0,2**32-1);bounded(sequence)

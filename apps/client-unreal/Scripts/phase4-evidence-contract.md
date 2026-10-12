@@ -82,6 +82,17 @@ coordinates and additive stat modifiers remain signed. Canonical template IDs mu
 exist, including dormant starters; auto-shot IDs additionally require an admitted
 SHOT with a supported SoulShots/SpiritShot/BlessedSpiritShot handler in E1.
 
+Revision 4 distinguishes inventory count maps from item-record lists; numeric
+record fields are bounded individually while grade/kind metadata is preserved.
+The full consumer positive control uses bow13, arrow17 ×2 and MP10: a hit consumes
+one arrow and leaves MP9. Source: DP@3ca488dd stats/items/00000-00099.xml:274-295,
+368-380; E1 item_behavior_oracle.py::bow_definition/arrow_stack/bow_launch.
+Negative/overflow counts still fail even with oracle-consistent mutated output.
+`resurrection_scroll.restore_hp` is an exact numeric ratio in [0,1], not a boolean.
+GAME@abfde049 config/character.properties:41 specifies RespawnRestoreHP=0.65;
+scroll737 with max HP101 restores exactly 1313/20 using 13/20. The full consumer
+positive probe and invalid ratio mutations exercise the same E1 resurrection oracle.
+
 The `equipment` phase selector maps concrete slots to templates (null means absent).
 The active incomplete armour admission requires chest58, shield628, starter legs461,
 absent head47 and retained provider3543. All three armour workloads reconnect there
