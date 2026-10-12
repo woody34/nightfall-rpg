@@ -65,8 +65,9 @@ lrhand weapon; chest for onepiece). Numeric comparisons support == != >= <= > <.
 
 `nf.MarkItemState` takes no arguments/key. It saves a complete received owner
 inventory revision, effective sheet and whole maxima; missing carriers fail.
-Reset on account/character/new incarnation, but retain this comparison snapshot
-across DropSocket/reconnect of the same character/incarnation. Current projections
+Reset the reference mark on account/character change. Retain this comparison
+snapshot across DropSocket/re-admission of the same authenticated character,
+including a changed incarnation; it is a comparison reference, never live state. Current projections
 remain UNKNOWN until the fresh baseline/stats arrive. It makes no mechanics prediction.
 CancelRefine requires `refine_outcome == removed`, a new inventory revision, and
 `refine_result_consistent`; the join proves that augment_id is absent.
