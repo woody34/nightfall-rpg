@@ -155,18 +155,19 @@ fn export_cause(cause: &ItemAuditEvidence) -> anyhow::Result<Value> {
 }
 
 fn attach_consume_causes(row: &mut Value, delta: &ItemDeltaPlan) -> anyhow::Result<()> {
+    // Both sides are D66-normalized; ordinals differ only in namespace (the sidecar chain is
+    // zero-based, the engine keeps tick-local logical ordinals).
     for (key, expected) in [
         ("instance", serde_json::to_value(delta.instance)?),
         ("before", serde_json::to_value(&delta.before)?),
         ("after", serde_json::to_value(&delta.after)?),
         ("count_delta", json!(delta.count_delta)),
-        ("operation_ordinal", json!(delta.operation_ordinal)),
     ] {
         if row.get(key) != Some(&expected) {
             bail!("observed consume {key} differs from verified checkpoint");
         }
     }
-    if delta.operation != ItemOperation::Consume || delta.operation_ordinal != 0 {
+    if delta.operation != ItemOperation::Consume {
         bail!("consume checkpoint identity mismatch");
     }
     let causes = delta
@@ -404,6 +405,7 @@ fn export_tick(
 ) -> anyhow::Result<Vec<ItemEvidenceFact>> {
     let bounds = chain_bounds(&facts)?;
     let mut facts = group_tick(facts)?;
+    normalize_d66(&mut facts, &bounds)?;
     for fact in &mut facts {
         let ItemEvidenceData::Delta(row) = &mut fact.fact else {
             continue;
@@ -436,7 +438,6 @@ fn export_tick(
         }
         attach_consume_causes(row, delta)?;
     }
-    normalize_d66(&mut facts, &bounds)?;
     Ok(facts)
 }
 
@@ -715,14 +716,7 @@ mod tests {
             {"cause":"item_cast:cast:7","count_delta":-2},
             {"cause":reference,"count_delta":-1}]))
         );
-        for key in [
-            "instance",
-            "before",
-            "after",
-            "count_delta",
-            "operation_ordinal",
-            "receipt_refs",
-        ] {
+        for key in ["instance", "before", "after", "count_delta", "receipt_refs"] {
             let mut corrupt = consume_observation(&plan)?;
             corrupt
                 .as_object_mut()

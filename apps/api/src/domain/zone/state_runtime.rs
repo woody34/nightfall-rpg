@@ -887,6 +887,12 @@ impl ZoneState {
                 }
             }
         }
+        // D66: canonical per-instance ledger order is fixed once, at the tick boundary.
+        for event in &mut events {
+            if let ZoneEvent::ItemCheckpoint(projection) = event {
+                projection.normalize_d66().map_err(invariant)?;
+            }
+        }
         self.final_items_v6(tick, before_items, &mut events)?;
         self.freeze_items_v6(tick, &mut events)?;
         self.freeze_learning_v5(tick, &mut events)?;
