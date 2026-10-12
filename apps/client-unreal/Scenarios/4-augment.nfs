@@ -17,10 +17,15 @@ nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.WaitFor blacksmith_known 3
 nf.Refine 72 8723
-nf.WaitFor refined 72 3
+nf.WaitFor refine_outcome == applied 3
+nf.WaitFor refine_result_consistent 3
+nf.Expect refined 72
 nf.Expect inventory_has 8723 == 0
+nf.MarkItemState
 nf.CancelRefine 72
-nf.WaitFor item_operation == cancel_refine 3
+nf.WaitFor refine_outcome == removed 3
+nf.WaitFor inventory_revision_since_mark >= 1 3
+nf.WaitFor refine_result_consistent 3
 nf.Expect equipped rhand == 6
 # Total budget: sum of declared conservative waits +30s exit grace.
-nf.Within 72
+nf.Within 81
