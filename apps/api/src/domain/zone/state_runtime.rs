@@ -329,7 +329,7 @@ impl ZoneState {
         Ok(())
     }
     #[allow(clippy::too_many_lines)] // Paused admission reconstructs once without replaying hooks.
-    fn attach_v5(
+    pub(super) fn attach_v5(
         &mut self,
         tick: Tick,
         id: EntityId,
@@ -992,8 +992,9 @@ impl ZoneState {
         ) {
             self.refuse_dead_actor(command.source, &command.command)?;
         }
-        if let ZoneCommand::Despawn { entity } | ZoneCommand::ReplaceSession { entity, .. } =
-            command.command
+        if let ZoneCommand::SpawnPlayer { entity, .. }
+        | ZoneCommand::Despawn { entity }
+        | ZoneCommand::ReplaceSession { entity, .. } = command.command
         {
             if events.iter().any(|event| matches!(event, ZoneEvent::SkillLearned { entity: learned, .. } | ZoneEvent::ClassTransfer { entity: learned, .. } if *learned == entity) || matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == entity)) {
                 return Err(RejectReason::InCombat);
@@ -1105,6 +1106,9 @@ impl ZoneState {
                     })
                     .map_err(cast_reject)?;
             },
+            ZoneCommand::MaterializePendingItems(grant) => {
+                self.grant_item_v6(tick, grant, events, &mut staged.item_receipts)?;
+            },
             ZoneCommand::ExtendItemRange { range } => {
                 self.phase4
                     .as_mut()
@@ -1160,6 +1164,7 @@ impl ZoneState {
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
                     | ZoneCommand::Item(_)
+                    | ZoneCommand::MaterializePendingItems(_)
                     | ZoneCommand::ExtendItemRange { .. }
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnPlayer { .. }
@@ -1204,7 +1209,10 @@ impl ZoneState {
         *self = candidate;
         Ok(events)
     }
-    fn validate_paused_load_v5(&self, load: Option<&PlayerLoad>) -> Result<(), RejectReason> {
+    pub(super) fn validate_paused_load_v5(
+        &self,
+        load: Option<&PlayerLoad>,
+    ) -> Result<(), RejectReason> {
         if let Some(items) = &self.phase4 {
             let load = load.ok_or(RejectReason::InvalidLoad)?;
             load.validate_phase4()

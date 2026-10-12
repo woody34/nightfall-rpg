@@ -165,6 +165,7 @@ pub(super) fn reserve_recipients(recipients: &mut BTreeSet<EntityId>, input: &Zo
         | ZoneCommand::CancelCast { .. }
         | ZoneCommand::AcceptResurrect { .. }
         | ZoneCommand::LearnSkill { .. }
+        | ZoneCommand::MaterializePendingItems(_)
         | ZoneCommand::ExtendItemRange { .. }
         | ZoneCommand::Item(_)
         | ZoneCommand::ChangeClass { .. }
@@ -194,6 +195,7 @@ pub(super) fn failure(
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::LearnSkill { .. }
+            | ZoneCommand::MaterializePendingItems(_)
             | ZoneCommand::ExtendItemRange { .. }
             | ZoneCommand::Item(_)
             | ZoneCommand::ChangeClass { .. }

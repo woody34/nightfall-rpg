@@ -32,11 +32,5 @@ pub trait ItemGrantRuntime: Send + Sync {
 
 /// Account/operation key scope is separate; hash the complete body, excluding the key.
 pub fn grant_item_fingerprint(character: CharacterId, template: u32, count: u64) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hash = Sha256::new();
-    hash.update(b"nightfall.item.grant.1\0");
-    hash.update(character.as_uuid().as_bytes());
-    hash.update(template.to_be_bytes());
-    hash.update(count.to_be_bytes());
-    format!("{:x}", hash.finalize())
+    crate::domain::zone::item_grant::grant_fingerprint(character, template, count)
 }

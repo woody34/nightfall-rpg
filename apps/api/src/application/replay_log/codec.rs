@@ -90,7 +90,7 @@ mod item_views;
 #[path = "codec_items.rs"]
 mod items;
 pub(super) use item_views::from_json as item_view_from_json;
-pub(super) use items::result_from_json;
+pub(super) use items::{grant_from_json, result_from_json};
 #[path = "codec_phase3.rs"]
 mod phase3;
 
@@ -162,13 +162,15 @@ struct PbCommand {
     seq: Option<u32>,
     #[prost(
         oneof = "PbCommandKind",
-        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31"
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31"
     )]
     kind: Option<PbCommandKind>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbCommandKind {
+    #[prost(bytes, tag = "30")]
+    MaterializePendingItems(Vec<u8>),
     #[prost(bytes, tag = "31")]
     ExtendItemRange(Vec<u8>),
     #[prost(bytes, tag = "20")]
@@ -810,6 +812,9 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             skill_id: skill_id.0,
             skill_level: *skill_level,
         }),
+        ZoneCommand::MaterializePendingItems(command) => {
+            PbCommandKind::MaterializePendingItems(canonical_json(command))
+        },
         ZoneCommand::ExtendItemRange { range } => {
             PbCommandKind::ExtendItemRange(canonical_json(range))
         },
@@ -1687,6 +1692,7 @@ fn source_from(s: Option<PbSession>) -> Result<CommandSource, CodecError> {
 
 fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
     let command = match c.kind {
+        Some(PbCommandKind::MaterializePendingItems(bytes)) => items::grant_from_json(&bytes)?,
         Some(PbCommandKind::ExtendItemRange(bytes)) => items::range_from_json(&bytes)?,
         Some(PbCommandKind::EquipItem(bytes)) => items::command_from_json(&bytes, 20)?,
         Some(PbCommandKind::UnequipItem(bytes)) => items::command_from_json(&bytes, 21)?,

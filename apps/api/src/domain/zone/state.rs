@@ -9,6 +9,8 @@ mod digest;
 mod evidence_hooks;
 #[path = "state_item_commands.rs"]
 mod item_commands;
+#[path = "state_item_grant.rs"]
+mod item_grant;
 #[path = "state_item_materialize.rs"]
 mod item_materialize;
 #[path = "state_item_views.rs"]
@@ -1267,7 +1269,11 @@ impl ZoneState {
     /// entity, and only while their generation is current; everything else is system-only.
     fn authorize(&self, source: CommandSource, cmd: &ZoneCommand) -> Result<(), RejectReason> {
         if (matches!(cmd, ZoneCommand::ChangeClass { .. })
-            || (cmd.requires_phase3() && !matches!(cmd, ZoneCommand::SpawnPlayer { .. })))
+            || (cmd.requires_phase3()
+                && !matches!(
+                    cmd,
+                    ZoneCommand::SpawnPlayer { .. } | ZoneCommand::MaterializePendingItems(_)
+                )))
             && source == CommandSource::System
         {
             return Err(RejectReason::NotPermitted);
@@ -1303,7 +1309,8 @@ impl ZoneState {
                     Some(_) | None => Ok(()),
                 }
             },
-            ZoneCommand::ExtendItemRange { .. }
+            ZoneCommand::MaterializePendingItems(_)
+            | ZoneCommand::ExtendItemRange { .. }
             | ZoneCommand::Item(_)
             | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
@@ -1332,7 +1339,8 @@ impl ZoneState {
         match &c.command {
             // Only the V5 dispatcher may execute these; legacy run_tick rejects the entire
             // draft before mutation. Keep this dispatcher exhaustive while rollout is fenced.
-            ZoneCommand::ExtendItemRange { .. }
+            ZoneCommand::MaterializePendingItems(_)
+            | ZoneCommand::ExtendItemRange { .. }
             | ZoneCommand::Item(_)
             | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
@@ -1505,6 +1513,7 @@ impl ZoneState {
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::ReplaceSession { .. }
             | ZoneCommand::AddAggro { .. }
+            | ZoneCommand::MaterializePendingItems(_)
             | ZoneCommand::ExtendItemRange { .. } => Ok(()),
         }
     }

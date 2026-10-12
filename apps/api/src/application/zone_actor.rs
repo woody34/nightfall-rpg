@@ -761,14 +761,16 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             },
         };
         let tick = record.tick;
-        if record
-            .commands
+        if record.commands.iter().any(|command| {
+            matches!(
+                command.command,
+                crate::domain::zone::ZoneCommand::Item(_)
+                    | crate::domain::zone::ZoneCommand::MaterializePendingItems(_)
+            )
+        }) || record
+            .events
             .iter()
-            .any(|command| matches!(command.command, crate::domain::zone::ZoneCommand::Item(_)))
-            || record
-                .events
-                .iter()
-                .any(|event| matches!(event, crate::domain::zone::ZoneEvent::ItemCheckpoint(_)))
+            .any(|event| matches!(event, crate::domain::zone::ZoneEvent::ItemCheckpoint(_)))
         {
             let enabled = match self.checkpoints.service() {
                 Some(service) => service.lock().await.items_enabled(),

@@ -86,6 +86,8 @@ impl ZoneInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ZoneCommand {
+    /// Server-only recorded direct grant; offline work carries its private paused owner.
+    MaterializePendingItems(Box<super::ItemGrantCommand>),
     /// Recorded server reservation; only replaces an exhausted V6 allocator range.
     ExtendItemRange {
         /// New globally reserved block, starting at its unused first identity.
@@ -242,6 +244,7 @@ impl ZoneCommand {
         matches!(
             self,
             Self::Item(_)
+                | Self::MaterializePendingItems(_)
                 | Self::CastSkill { .. }
                 | Self::CancelCast { .. }
                 | Self::AcceptResurrect { .. }
@@ -251,8 +254,10 @@ impl ZoneCommand {
 
     /// Item intents must never enter a pre-V6 replay epoch.
     pub const fn requires_phase4(&self) -> bool {
-        matches!(self, Self::Item(_) | Self::ExtendItemRange { .. })
-            || matches!(self, Self::SpawnPlayer { load: Some(load), .. } if load.phase4.is_some())
+        matches!(
+            self,
+            Self::Item(_) | Self::MaterializePendingItems(_) | Self::ExtendItemRange { .. }
+        ) || matches!(self, Self::SpawnPlayer { load: Some(load), .. } if load.phase4.is_some())
     }
 
     /// The entity the command is about. `None` for `SpawnNpc`, whose id is not known until the
@@ -261,6 +266,7 @@ impl ZoneCommand {
     pub const fn entity(&self) -> Option<EntityId> {
         match self {
             Self::Item(command) => Some(command.entity),
+            Self::MaterializePendingItems(command) => Some(command.entity),
             Self::CastSkill { entity, .. }
             | Self::CancelCast { entity, .. }
             | Self::AcceptResurrect { entity, .. }

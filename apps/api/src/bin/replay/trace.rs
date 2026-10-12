@@ -304,6 +304,7 @@ fn command_details(record: &AppliedTickRecord) -> String {
                 }
                 format!("{command:#?} (private admission load hidden)")
             },
+            ZoneCommand::MaterializePendingItems(_) => "Item grant (private owner hidden)".into(),
             ZoneCommand::ExtendItemRange { .. } => "Item allocator reservation (private range hidden)".into(),
             ZoneCommand::Item(command) => format!("Item intent for {} (private request hidden)", command.entity),
             ZoneCommand::LearnSkill { entity, skill_id, skill_level, .. } => format!(
