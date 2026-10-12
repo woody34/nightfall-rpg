@@ -120,7 +120,7 @@ impl ZoneState {
             .get(&stack.template_id)
             .ok_or(RejectReason::InvalidLoad)?
             .clone();
-        let shot = kind(&definition.handler).ok_or(RejectReason::ItemNotUsable)?;
+        kind(&definition.handler).ok_or(RejectReason::ItemNotUsable)?;
         if items
             .rules
             .parts()
@@ -173,10 +173,6 @@ impl ZoneState {
                 .filter(|r| i64::try_from(*r).is_ok())
                 .ok_or(RejectReason::InvalidLoad)?
         };
-        let operation_ordinal = previous
-            .as_ref()
-            .map_or(Ok(1), Phase4Projection::next_operation_ordinal)
-            .map_err(|_| RejectReason::InvalidLoad)?;
         let before_toggle = player.auto_shots.clone();
         if let Some(enabled) = enabled {
             if enabled {
@@ -185,6 +181,164 @@ impl ZoneState {
                 player.auto_shots.remove(&stack.template_id);
             }
         }
+        let phase = &self
+            .phase3
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical;
+        let checkpoint = self
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .checkpoint(id, tick, phase)
+            .map_err(invalid)?;
+        let mut projection = previous.unwrap_or_else(|| Phase4Projection {
+            enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
+            paused_core: None,
+            tick,
+            entity: id,
+            account,
+            checkpoint,
+            ledger: Vec::new(),
+            receipts: Vec::new(),
+            materializations: Vec::new(),
+            evidence: Vec::new(),
+        });
+        let mut affected = std::collections::BTreeSet::new();
+        let mut refusal = None;
+        if enabled != Some(false) {
+            let templates = if enabled == Some(true) {
+                player.auto_shots.iter().copied().collect::<Vec<_>>()
+            } else {
+                vec![stack.template_id]
+            };
+            for template in templates {
+                let selected = if enabled.is_none() {
+                    Some(stack.clone())
+                } else {
+                    player
+                        .inventory
+                        .values()
+                        .find(|item| {
+                            item.template_id == template && item.location == ItemLocation::Inventory
+                        })
+                        .cloned()
+                };
+                let Some(selected) = selected else {
+                    player.auto_shots.remove(&template);
+                    continue;
+                };
+                let resolution = if enabled.is_some() {
+                    format!("shot:{:?}:{}:{}", reference.operation, reference.key, template)
+                        .to_lowercase()
+                } else {
+                    format!("shot:{:?}:{}", reference.operation, reference.key).to_lowercase()
+                };
+                let (outcome, changed) = self.apply_shot_v6(
+                    subject,
+                    &mut player,
+                    &selected,
+                    InventoryBoundary { tick, revision },
+                    Some(reference),
+                    &resolution,
+                    &mut projection,
+                )?;
+                affected.extend(changed);
+                if enabled.is_none() {
+                    refusal = match outcome {
+                        ChargeOutcome::Unavailable | ChargeOutcome::WrongGrade => {
+                            Some(RejectReason::ItemNotUsable)
+                        },
+                        ChargeOutcome::Insufficient => Some(RejectReason::InsufficientItems),
+                        ChargeOutcome::AlreadyCharged | ChargeOutcome::Charged => None,
+                    };
+                }
+            }
+        }
+        if before_toggle != player.auto_shots {
+            player.inventory_revision = revision;
+        }
+        self.phase4
+            .as_mut()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .players
+            .insert(id, player);
+        self.rebuild_v5(id).map_err(invalid)?;
+        let phase = &self
+            .phase3
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical;
+        projection.checkpoint = self
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .checkpoint(id, tick, phase)
+            .map_err(invalid)?;
+        if refusal.is_none() {
+            let result = FrozenItemResult {
+                accepted_sequence: timing.accepted_sequence,
+                request_fingerprint: fingerprint.clone(),
+                entity: id,
+                incarnation: subject.incarnation,
+                tick,
+                inventory_revision: projection.checkpoint.inventory_revision,
+                receipt: reference.key,
+                detail: ItemResultDetail::Operation {
+                    operation: reference.operation,
+                    affected: affected.into_iter().collect(),
+                    recipe: None,
+                },
+            };
+            projection.receipts.push(ItemReceiptFact {
+                request_id: reference.key,
+                fingerprint,
+                result: result.clone(),
+            });
+            events.push(ZoneEvent::ItemResult(Box::new(result)));
+        }
+        projection
+            .validate_structure(
+                phase
+                    .checkpoint(id, tick)
+                    .map_err(invalid)?
+                    .modifier_install_order
+                    .len(),
+            )
+            .map_err(invalid)?;
+        // Only this fully validated attempt may publish its RNG/header when it refuses.
+        Ok((projection, refusal))
+    }
+
+    #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // Shared source attempt keeps draw, payment, charge and their durable causes together.
+    pub(super) fn apply_shot_v6(
+        &mut self,
+        subject: crate::domain::zone::effects::TargetBinding,
+        player: &mut crate::domain::zone::phase4::Phase4Player,
+        stack: &crate::domain::zone::ItemInstance,
+        boundary: InventoryBoundary,
+        reference: Option<ItemReceiptRef>,
+        resolution: &str,
+        projection: &mut Phase4Projection,
+    ) -> Result<
+        (ChargeOutcome, std::collections::BTreeSet<crate::domain::zone::ItemInstanceId>),
+        RejectReason,
+    > {
+        let InventoryBoundary { tick, revision } = boundary;
+        let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let definition = items
+            .rules
+            .parts()
+            .items
+            .get(&stack.template_id)
+            .ok_or(RejectReason::InvalidLoad)?
+            .clone();
+        let shot = kind(&definition.handler).ok_or(RejectReason::ItemNotUsable)?;
+        let operation_ordinal = projection.next_operation_ordinal().map_err(invalid)?;
         let weapon = player
             .paperdoll
             .get(&EquipSlot::Rhand)
@@ -227,40 +381,23 @@ impl ZoneState {
             reduction,
         };
         let toggle = player.auto_shots.contains(&stack.template_id);
-        let resolution = format!("shot:{:?}:{}", reference.operation, reference.key).to_lowercase();
         let mut residue = None;
         let mut draw = None;
-        let resolved = if enabled == Some(false) {
-            None
-        } else {
-            Some(
-                terms
-                    .resolve(|bound| {
-                        let before = self.rng.get_word_pos();
-                        let value = self.roll_below(bound);
-                        residue = Some(value);
-                        draw = Some((before, self.rng.get_word_pos(), bound, value));
-                        Ok(value)
-                    })
-                    .map_err(invalid)?,
-            )
-        };
-        if resolved.is_some_and(|result| result.disable_auto) {
+        let resolved = terms
+            .resolve(|bound| {
+                let before = self.rng.get_word_pos();
+                let value = self.roll_below(bound);
+                residue = Some(value);
+                draw = Some((before, self.rng.get_word_pos(), bound, value));
+                Ok(value)
+            })
+            .map_err(invalid)?;
+        if resolved.disable_auto {
             player.auto_shots.remove(&stack.template_id);
         }
-        let refusal = if enabled.is_some() {
-            None
-        } else {
-            match resolved.map(|result| result.outcome) {
-                Some(ChargeOutcome::Unavailable | ChargeOutcome::WrongGrade) => {
-                    Some(RejectReason::ItemNotUsable)
-                },
-                Some(ChargeOutcome::Insufficient) => Some(RejectReason::InsufficientItems),
-                _ => None,
-            }
-        };
         let mut changes = Vec::new();
-        if let Some(result) = resolved.filter(|result| result.outcome == ChargeOutcome::Charged) {
+        if resolved.outcome == ChargeOutcome::Charged {
+            let result = resolved;
             let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
             let payment = InventoryMutation::prepare(
                 &player.inventory,
@@ -270,7 +407,7 @@ impl ZoneState {
                     count: u64::from(result.consumed),
                 }],
                 &items.rules,
-                InventoryLimits::from_player(&player),
+                InventoryLimits::from_player(player),
                 InventoryBoundary { tick, revision },
             )
             .map_err(invalid)?;
@@ -288,16 +425,6 @@ impl ZoneState {
                 after: Some(after.clone()),
             });
         }
-        if !changes.is_empty() || before_toggle != player.auto_shots {
-            player.inventory_revision = revision;
-        }
-        self.phase4
-            .as_mut()
-            .ok_or(RejectReason::InvalidLoad)?
-            .canonical
-            .players
-            .insert(id, player);
-        self.rebuild_v5(id).map_err(invalid)?;
         if self.items_evidence_enabled() {
             if let Some((before, after, bound, value)) = draw {
                 self.item_evidence(
@@ -308,11 +435,12 @@ impl ZoneState {
                         word_after: after,
                         bound,
                         value,
-                        resolution_id: resolution.clone(),
+                        resolution_id: resolution.to_owned(),
                     },
                 );
             }
-            if let Some(result) = resolved {
+            {
+                let result = resolved;
                 let draws = residue
                     .map(|value| json!({"site":"soulshot_reduction","bound":100,"residue":value}))
                     .into_iter()
@@ -340,61 +468,44 @@ impl ZoneState {
                     } else {
                         operation_ordinal
                     },
-                    Some(reference),
-                    &resolution,
+                    reference,
+                    resolution,
                 );
             }
         }
-        let phase = &self
-            .phase3
-            .as_ref()
-            .ok_or(RejectReason::InvalidLoad)?
-            .canonical;
-        let checkpoint = self
-            .phase4
-            .as_ref()
-            .ok_or(RejectReason::InvalidLoad)?
-            .canonical
-            .checkpoint(id, tick, phase)
-            .map_err(invalid)?;
-        let mut projection = previous.unwrap_or_else(|| Phase4Projection {
-            enchant_attempts: Vec::new(),
-            exchanges: Vec::new(),
-            paused_core: None,
-            tick,
-            entity: id,
-            account,
-            checkpoint: checkpoint.clone(),
-            ledger: Vec::new(),
-            receipts: Vec::new(),
-            materializations: Vec::new(),
-            evidence: Vec::new(),
-        });
-        projection.checkpoint = checkpoint;
         let mut affected = std::collections::BTreeSet::new();
         for change in changes {
             let before = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?;
             affected.insert(before.id);
             if before.id == stack.id {
-                let count_delta = i64::from(resolved.ok_or(RejectReason::InvalidLoad)?.consumed)
+                let count_delta = i64::from(resolved.consumed)
                     .checked_neg()
                     .ok_or(RejectReason::InvalidLoad)?;
+                let mut fields = BTreeMap::from([
+                    ("operation_ordinal".into(), V::Unsigned(u64::from(operation_ordinal))),
+                    ("count_delta".into(), V::Signed(count_delta)),
+                    ("resolution_id".into(), V::Text(resolution.to_owned())),
+                ]);
+                if let Some(reference) = reference {
+                    fields.insert("receipt".into(), V::Text(reference.key.to_string()));
+                }
                 let cause = ItemAuditEvidence {
-                    family: if enabled.is_some() {
-                        "toggle_shot_payment"
+                    family: if let Some(reference) = reference {
+                        if reference.operation == ItemOperation::ToggleAutoShot {
+                            "toggle_shot_payment"
+                        } else if reference.operation == ItemOperation::Use {
+                            "manual_shot_payment"
+                        } else {
+                            return Err(RejectReason::InvalidLoad);
+                        }
                     } else {
-                        "manual_shot_payment"
+                        "auto_shot_payment"
                     }
                     .into(),
-                    fields: BTreeMap::from([
-                        ("receipt".into(), V::Text(reference.key.to_string())),
-                        ("operation_ordinal".into(), V::Unsigned(u64::from(operation_ordinal))),
-                        ("count_delta".into(), V::Signed(count_delta)),
-                        ("resolution_id".into(), V::Text(resolution.clone())),
-                    ]),
+                    fields,
                 };
                 super::item_commands::append_item_consumption(
-                    &mut projection,
+                    projection,
                     change,
                     count_delta,
                     cause,
@@ -407,7 +518,7 @@ impl ZoneState {
                     count_delta: 0,
                     before: change.before,
                     after: change.after,
-                    receipt: Some(reference),
+                    receipt: reference,
                     receipt_refs: Vec::new(),
                     causes: Vec::new(),
                 });
@@ -417,7 +528,7 @@ impl ZoneState {
             projection.evidence.push(ItemAuditEvidence {
                 family: "soulshot_reduction".into(),
                 fields: BTreeMap::from([
-                    ("resolution_id".into(), V::Text(resolution)),
+                    ("resolution_id".into(), V::Text(resolution.to_owned())),
                     ("word_before".into(), V::Text(before.to_string())),
                     ("word_after".into(), V::Text(after.to_string())),
                     ("bound".into(), V::Unsigned(u64::from(bound))),
@@ -425,38 +536,9 @@ impl ZoneState {
                 ]),
             });
         }
-        if refusal.is_none() {
-            let result = FrozenItemResult {
-                accepted_sequence: timing.accepted_sequence,
-                request_fingerprint: fingerprint.clone(),
-                entity: id,
-                incarnation: subject.incarnation,
-                tick,
-                inventory_revision: projection.checkpoint.inventory_revision,
-                receipt: reference.key,
-                detail: ItemResultDetail::Operation {
-                    operation: reference.operation,
-                    affected: affected.into_iter().collect(),
-                    recipe: None,
-                },
-            };
-            projection.receipts.push(ItemReceiptFact {
-                request_id: reference.key,
-                fingerprint,
-                result: result.clone(),
-            });
-            events.push(ZoneEvent::ItemResult(Box::new(result)));
+        if !affected.is_empty() {
+            player.inventory_revision = revision;
         }
-        projection
-            .validate_structure(
-                phase
-                    .checkpoint(id, tick)
-                    .map_err(invalid)?
-                    .modifier_install_order
-                    .len(),
-            )
-            .map_err(invalid)?;
-        // Only this fully validated attempt may publish its RNG/header when it refuses.
-        Ok((projection, refusal))
+        Ok((resolved.outcome, affected))
     }
 }

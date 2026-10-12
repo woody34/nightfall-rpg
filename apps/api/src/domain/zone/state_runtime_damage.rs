@@ -7578,6 +7578,177 @@ mod tests {
 
     #[test]
     #[allow(clippy::too_many_lines)]
+    fn v6_shot_enable_visits_every_toggle_once_in_template_order() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (mut zone, owner, _, ids) = use_fixture(&[1464, 2511, 3949, 1463]);
+        let items = zone.phase4.as_mut().unwrap();
+        let rules = Arc::clone(&items.rules);
+        let player = items.canonical.players.get_mut(&owner.entity).unwrap();
+        let weapon = player.paperdoll[&EquipSlot::Rhand];
+        let revision = player.inventory_revision;
+        // Retained toggles may outlive their stack or a previous charge/weapon.
+        player.auto_shots.extend([1464, 2511, 3949, 1835]);
+        let snapshot = zone.snapshot();
+        let mut cold = ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+        let mut observed = zone.clone();
+        observed.enable_items_replay_evidence().unwrap();
+        let input = |zone: &ZoneState, key, seq, kind| {
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                seq,
+                ZoneCommand::Item(Box::new(item_intent(zone, owner.entity, key, kind))),
+            )
+        };
+        let draft = zone.draft(vec![input(
+            &zone,
+            2400,
+            1,
+            K::ToggleAutoShot {
+                template: 1463,
+                enabled: true,
+            },
+        )]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft.clone()).unwrap());
+        assert_eq!(applied, observed.run_tick(draft).unwrap());
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_AUTO_ENABLE_RECORDING") {
+            use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: snapshot.seed.zone,
+                    epoch: snapshot.seed.epoch,
+                    records: 1,
+                    last_tick: Some(applied.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records: vec![AppliedTickRecord::from_applied(
+                    snapshot.seed.zone,
+                    &applied,
+                )],
+                snapshot,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory[&weapon].charges, 7);
+        assert_eq!(player.inventory_revision, revision + 1);
+        assert_eq!(
+            player.auto_shots.iter().copied().collect::<Vec<_>>(),
+            vec![1463, 1464, 2511, 3949]
+        );
+        for id in &ids[..3] {
+            assert_eq!(player.inventory[id].count, 1);
+        }
+        assert_eq!(player.inventory[&ids[3]].count, 3);
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|event| {
+                if let ZoneEvent::ItemCheckpoint(p) = event {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(projection.receipts.len(), 1);
+        let charges = projection
+            .ledger
+            .iter()
+            .filter(|row| row.operation == ItemOperation::Use)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            charges
+                .iter()
+                .map(|row| row.operation_ordinal)
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        assert_eq!(
+            charges
+                .iter()
+                .map(|row| row.after.as_ref().unwrap().charges)
+                .collect::<Vec<_>>(),
+            vec![1, 3, 7]
+        );
+        for row in projection
+            .ledger
+            .iter()
+            .filter(|row| row.operation == ItemOperation::Consume)
+        {
+            assert_eq!(row.receipt_refs.len(), 1);
+            assert_eq!(row.receipt_refs[0].operation, ItemOperation::ToggleAutoShot);
+            assert_eq!(row.count_delta, -2);
+        }
+        let formulas = observed
+            .take_items_replay_evidence()
+            .into_iter()
+            .filter_map(|fact| {
+                if let crate::domain::zone::evidence::ItemEvidenceData::Formula(value) = fact.fact {
+                    Some(value)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(formulas.len(), 4);
+        assert_eq!(
+            formulas
+                .iter()
+                .map(|value| value["actual"]["outcome"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["wrong_grade", "charged", "charged", "charged"]
+        );
+        // Unequip clears all charge; re-enabling must try every depleted matching stack.
+        let draft = zone.draft(vec![input(
+            &zone,
+            2401,
+            2,
+            K::Unequip {
+                slot: EquipSlot::Rhand,
+            },
+        )]);
+        let tick = zone.run_tick(draft.clone()).unwrap();
+        assert!(tick.dispositions.is_empty());
+        assert_eq!(tick, cold.run_tick(draft).unwrap());
+        let draft = zone.draft(vec![
+            input(
+                &zone,
+                2402,
+                3,
+                K::Equip {
+                    instance: weapon,
+                    preferred_slot: Some(EquipSlot::Rhand),
+                },
+            ),
+            input(
+                &zone,
+                2403,
+                4,
+                K::ToggleAutoShot {
+                    template: 1463,
+                    enabled: true,
+                },
+            ),
+        ]);
+        let tick = zone.run_tick(draft.clone()).unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert_eq!(tick, cold.run_tick(draft).unwrap());
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory[&weapon].charges, 0);
+        assert_eq!(player.auto_shots.iter().copied().collect::<Vec<_>>(), vec![1463]);
+        for id in &ids[..3] {
+            assert_eq!(player.inventory[id].count, 1);
+        }
+        assert_eq!(zone.snapshot(), cold.snapshot());
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
     fn v6_shot_manual_toggle_payment_duplicate_and_cold_replay() {
         use crate::domain::zone::phase4_projection::ItemOperation;
         use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
