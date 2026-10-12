@@ -967,5 +967,7 @@ async fn historical_checkpoint_policy_recovers_existing_keys_and_survives_snapsh
     assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), restored);
 }
 
+#[path = "phase3_live_checkpoint/flags.rs"]
+mod flags;
 #[path = "phase3_live_checkpoint/startup.rs"]
 mod startup;
