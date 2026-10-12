@@ -36,7 +36,7 @@ JSONL contract (schema version 1 of this sidecar):
   EnchantScroll.java:149-155). Its residue must equal the outcome input.
 - `item_delta`: `operation,instance,before,after,count_delta,operation_ordinal,resolution_id`,
   plus `receipt_refs,causes` for `operation=consume`, otherwise `receipt_ref`.
-  Consume is one aggregate row per instance per tick at ordinal0. Under D62,
+  Consume is one aggregate row per instance per tick at the final ordinal. Under D62,
   `causes` is a nonempty ordered list of `{cause,count_delta}` contributions.
   `cause` is `auto_shot:<attack resolution_id>`, `arrow:<attack resolution_id>`,
   `item_cast:<cast_id>`, or `receipt:<operation>:<key>`; every identity component
@@ -67,20 +67,22 @@ JSONL contract (schema version 1 of this sidecar):
   The old `receipt` field refuses.
   `before/after` are null or the complete canonical ItemInstance fields from
   `domain/zone/item.rs`, not partial count projections. Exact widths, identity,
-  real change, count conservation, duplicate logical rows and consume ordinal0
+  real change, count conservation, duplicate logical rows and the final Consume ordinal
   are checked. Pure toggles/reuse never fabricate a ledger instance (D28).
-  D64 fixes the canonical order per `(entity,incarnation,tick,instance)`:
-  the Consume aggregate comes FIRST at ordinal0. Its before is the tick-start
-  state; its after reduces that count by all negative causes. Positive rows
-  (`grant`, including refunds and Exchange grants) follow in cause order with
-  increasing ordinals. Every next before equals the preceding after; the last
-  after is the tick-end state. Validate
-  `tick_end_count = tick_start_count + sum(count_delta)` across all rows.
+  D66 amends D64: canonical order per `(entity,incarnation,tick,instance)` is
+  ALL positive rows (`grant`, including refunds/Exchange products, `starter`,
+  `backfill`) FIRST in cause order, then the single Consume aggregate LAST.
+  Ordinals are zero-based in this chain. The first before equals tick-start
+  state (null for a fresh allocation); each next before equals the preceding
+  after. Consume's before is the post-positive state and its after is tick-end.
+  Validate `tick_end_count = tick_start_count + sum(count_delta)` across all rows.
   Internal tick observations are not intermediate ledger endpoints (A3).
-  For example, runtime counts `3→2→5→4` export as Consume `3→1, -2`
-  followed by Grant `1→4, +3`. A positive row may increase an existing stack;
-  it preserves all canonical fields except count/revision. Fresh Exchange
-  products still require null before and a new product instance (D37/D52).
+  Runtime counts `3→2→5→4` export Grant `3→6, +3` then Consume `6→4, −2`.
+  Other controls: start1 exports Grant `1→4, +3` then Consume `4→2, −2`;
+  start absent exports Grant `null→3, +3` then Consume `3→2, −1`.
+  A positive row may increase an existing stack; it preserves all canonical
+  fields except count/revision. Fresh Exchange products still require null
+  before and a new product instance (D37/D52).
   ONE shared operation transition table applies to EVERY delta, independently of
   formula correlation. Revision is governed by D55 below; all other canonical
   fields outside the allowed set must remain identical:
@@ -146,7 +148,7 @@ E2 must implement these correlation additions before producer verification.
 Consume correlation uses `(entity,incarnation,tick,instance)`, rather than one
 resolution ID per debit. For each scroll/support stack, collect contributing
 `enchant_outcome.operation.receipt_ref` values in fact sequence order. The single
-ordinal0 aggregate's receipt causes must include each enchant contribution exactly
+final-ordinal aggregate's receipt causes must include each enchant contribution exactly
 once, in that same order, with `count_delta=-1`. A receipt in the enchant operation
 scope without a corresponding outcome refuses. Other client operation scopes and
 system causes may interleave; their deltas also contribute to the running count.
@@ -171,7 +173,7 @@ For example, two enchant debits can share a stack with an intervening item-cast 
 An automatic-only shot aggregate instead has
 `causes=[{"cause":"auto_shot:attack1","count_delta":-1}]`, `receipt_refs=[]`.
 
-D55–D57 and D62–D64 revise this same schema-version1 sidecar for the accepted producer:
+D55–D57 and D62–D67 revise this same schema-version1 sidecar for the accepted producer:
 same-tick enchant/consume/refund rows may share revisions, offline facts must
 emit the explicit top-level origin, and Consume aggregates emit ordered
 `receipt_refs` and `causes`; Exchange grants emit `receipt_ref` and their consumes

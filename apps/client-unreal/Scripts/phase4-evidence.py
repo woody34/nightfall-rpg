@@ -572,7 +572,7 @@ def validate(rows,recording,rules_hash):
     for key,value in {'zone':zone,'epoch':epoch,'last_tick':last}.items():same(watermark[key],value)
     if watermark['reason'] not in ('shutdown','epoch_closed'):raise ValueError('incomplete watermark')
     same(complete,dict(kind='complete',facts=len(rows)-2,ticks=ticks,last_tick=last))
-    previous=start;seen=set();cursor=None;instance_steps={}
+    previous=start;seen=set();cursor=None;instance_steps={};instance_rows={}
     for sequence,row in enumerate(rows[1:-1]):
         if set(row)-{'origin'}!= {'kind','entity','incarnation','tick','sequence','data'}:raise ValueError('missing/unknown raw item fields')
         if 'origin' in row and row['origin'] not in ('live','offline'):raise ValueError('unknown item fact origin')
@@ -662,20 +662,27 @@ def validate(rows,recording,rules_hash):
             if key in seen:raise ValueError('repeated ledger fact')
             seen.add(key)
             validate_transition(data)
-            if data['operation']=='consume':same(ordinal,0)
             if before is not None and after is not None and after['revision']<before['revision']:raise ValueError('item revision regressed')
             identity=(row['entity'],row['incarnation'],instance)
             prior=instance_steps.get(identity)
             if prior is not None and tick==prior[0] and ordinal<=prior[1]:raise ValueError('item operation ordinal did not increase within tick')
             instance_steps[identity]=(tick,ordinal)
+            instance_rows.setdefault((*identity,tick),[]).append(data)
         else:raise ValueError('unknown item raw fact kind')
+    for deltas in instance_rows.values():
+        consumes=[d for d in deltas if d['operation']=='consume']
+        if not consumes:continue
+        if len(consumes)!=1 or deltas[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last for its instance')
+        positives=deltas[:-1]
+        if any(d['operation'] not in ('grant','starter','backfill') for d in positives):raise ValueError('only positive rows may precede Consume')
+        for ordinal,delta in enumerate(deltas):same(delta['operation_ordinal'],ordinal)
     validate_exchanges(rows)
     inventory_history(rows)
     return manifest
 
 
 def inventory_history(rows,targets=None):
-    """D55/D64: one owner step, ordered continuity and conservation per tick."""
+    """D55/D66: one owner step, ordered continuity and conservation per tick."""
     groups={};owners={};steps={}
     for row in rows[1:-1]:
         groups.setdefault((row['entity'],row['incarnation'],row['tick']),[]).append(row)
