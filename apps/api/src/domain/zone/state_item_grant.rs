@@ -334,6 +334,7 @@ impl ZoneState {
             .checkpoint(id, tick, phase)
             .map_err(invalid)?;
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
+            enchant_attempts: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
