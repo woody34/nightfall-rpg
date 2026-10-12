@@ -13,6 +13,7 @@
 #[path = "common/pg.rs"]
 mod pg;
 use api::application::checkpoint::CheckpointService;
+use api::application::replay_log::{AppliedTickRecord, EventLog};
 use api::application::session::{PlayerSpawn, SessionCodec, SessionRegistry};
 use api::application::use_cases::{CreateCharacter, CreateCharacterInput};
 use api::application::zone_actor::{manual_ticks, TickOutcome};
@@ -33,6 +34,9 @@ use api::infrastructure::zone_data::{parse_zone, TEST_ZONE_TOML};
 use api::interface::ws::Phase3Codec;
 use api::zone_runtime::prepare_phase3_bootstrap;
 use nightfall_api as api;
+use sha2::{Digest, Sha256};
+use sqlx::Row;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -45,10 +49,13 @@ async fn eight_session_casting_runtime() {
         .with_ansi(false)
         .without_time()
         .init();
+    // Serialize this reserved benchmark namespace; no production subjects are purged.
+    let lock = std::fs::File::create("/tmp/nightfall-runtime-perf.lock").unwrap();
+    lock.lock().unwrap();
     let pool = pg::migrated_pool().await.expect("DATABASE_URL required");
     let metrics = Metrics::detached();
     let mut def = parse_zone(TEST_ZONE_TOML).unwrap();
-    def.zone = ZoneId(u32::try_from(Uuid::now_v7().as_u128() & 0x7fff_ffff).unwrap());
+    def.zone = ZoneId(2_147_483_000);
     // A pre-admission fixture keeps all eight casters alive and their target available.
     let mut source = Phase3DataSource::embedded();
     let text = source.profiles.npcs.get_mut("npcs/keltir.toml").unwrap();
@@ -83,16 +90,30 @@ async fn eight_session_casting_runtime() {
         .await
         .unwrap();
     let log = Arc::new(
-        JetStreamEventLog::connect(client, metrics.clone())
+        JetStreamEventLog::connect(client.clone(), metrics.clone())
             .await
             .unwrap(),
     );
+    if log.latest_epoch(def_zone()).await.unwrap().is_some() {
+        let mut stream = async_nats::jetstream::new(client)
+            .get_stream("NF_ZONES")
+            .await
+            .unwrap();
+        let dedup = stream.info().await.unwrap().config.duplicate_window;
+        stream
+            .purge()
+            .filter("nightfall.zone.2147483000.>")
+            .await
+            .unwrap();
+        // Purge does not clear the broker's message-id deduplication window.
+        tokio::time::sleep(dedup + Duration::from_secs(1)).await;
+    }
     let store = Arc::new(PgZoneSnapshotStore::new(pool.clone()));
     let (ticks, driver) = manual_ticks();
     let running = ZoneBootstrap::new(
         log.clone(),
         Some(store.clone()),
-        Arc::new(api::infrastructure::SystemClock),
+        Arc::new(api::infrastructure::memory::ManualClock::default()),
         Arc::new(metrics.clone()),
     )
     .with_rules(prepared.physical)
@@ -116,19 +137,30 @@ async fn eight_session_casting_runtime() {
     let mut players = Vec::new();
     let mut outputs = zone.subscribe();
     for i in 0..8_u8 {
-        let account = AccountId::from_uuid(Uuid::now_v7());
+        let account = AccountId::from_uuid(Uuid::from_u128(100 + u128::from(i)));
         pg::insert_account(&pool, account.as_uuid()).await;
-        let c = CreateCharacter::new(repo.clone(), prepared.classes.registry.clone())
-            .execute(CreateCharacterInput {
-                idempotency_key: IdempotencyKey::new(),
-                account_id: account,
-                name: format!("PerfMage{}", char::from(b'A'.saturating_add(i))),
-                race: Race::Human,
-                base_class_id: Some(ClassId(10)),
-                appearance: CharacterAppearance::default(),
-            })
-            .await
-            .unwrap();
+        let mut c = CreateCharacter::new(
+            Arc::new(api::infrastructure::memory::InMemoryCharacterRepository::default()),
+            prepared.classes.registry.clone(),
+        )
+        .execute(CreateCharacterInput {
+            idempotency_key: IdempotencyKey::new(),
+            account_id: account,
+            name: format!("PerfMage{}", char::from(b'A'.saturating_add(i))),
+            race: Race::Human,
+            base_class_id: Some(ClassId(10)),
+            appearance: CharacterAppearance::default(),
+        })
+        .await
+        .unwrap();
+        c.id = api::domain::CharacterId::from_uuid(Uuid::from_u128(200 + u128::from(i)));
+        repo.create_idempotent(
+            &IdempotencyKey::from_uuid(Uuid::from_u128(300 + u128::from(i))),
+            "benchmark-seed",
+            &c,
+        )
+        .await
+        .unwrap();
         // Seed only before admission; no live mutation.
         sqlx::query("UPDATE characters SET pos_x=100, pos_y=100 WHERE id=$1")
             .bind(c.id.as_uuid())
@@ -139,7 +171,7 @@ async fn eight_session_casting_runtime() {
         registry
             .admit(
                 zone,
-                SessionId::new(),
+                SessionId::from_uuid(Uuid::from_u128(400 + u128::from(i))),
                 SessionGeneration(1),
                 &PlayerSpawn {
                     entity,
@@ -169,7 +201,7 @@ async fn eight_session_casting_runtime() {
     assert!(ticks > 0);
     let interval = std::env::var("PERF_INTERVAL_MS").map_or(100, |s| s.parse::<u64>().unwrap());
     let mut durations = Vec::new();
-    let mut casts = 0_usize;
+    let mut casts = BTreeMap::<EntityId, usize>::new();
     let mut frames = 0_usize;
     for tick in 1..=ticks {
         let started = Instant::now();
@@ -202,13 +234,13 @@ async fn eight_session_casting_runtime() {
         durations.push(zone.stats().borrow().duration_micros);
         let mapping = Instant::now();
         while let Ok(record) = outputs.try_recv() {
-            casts = casts.saturating_add(
-                record
-                    .events
-                    .iter()
-                    .filter(|e| matches!(e, ZoneEvent::SkillCastStarted { .. }))
-                    .count(),
-            );
+            for event in &record.events {
+                if let ZoneEvent::SkillCastStarted { caster, .. } = event {
+                    *casts.entry(caster.entity).or_default() += 1;
+                }
+            }
+            let encoded = AppliedTickRecord::from_applied(def_zone(), &record).encode();
+            println!("FINGERPRINT tick={} record={:x}", record.tick.0, Sha256::digest(encoded));
             for entity in &players {
                 if let Some(output) = record.outputs.get(entity) {
                     frames = frames
@@ -228,13 +260,24 @@ async fn eight_session_casting_runtime() {
         durations
             .get(durations.len().saturating_mul(99) / 100)
             .unwrap(),
-        casts,
+        casts.values().sum::<usize>(),
         frames
     );
-    assert!(
-        casts >= usize::try_from(ticks / 60).unwrap().saturating_mul(6),
-        "driver must sustain eight-player casting"
-    );
+    for player in &players {
+        let count = casts.get(player).copied().unwrap_or_default();
+        println!("CASTS player={player} successful={count}");
+        assert!(
+            count
+                >= usize::try_from(ticks / 60)
+                    .unwrap()
+                    .saturating_sub(1)
+                    .max(1)
+        );
+    }
+    for row in sqlx::query("SELECT key, fingerprint, response FROM idempotency_keys WHERE operation='save_checkpoint' ORDER BY key")
+        .fetch_all(&pool).await.unwrap() {
+        println!("CHECKPOINT key={} fingerprint={} response={}", row.get::<Uuid, _>("key"), row.get::<String, _>("fingerprint"), row.get::<serde_json::Value, _>("response"));
+    }
     assert_eq!(
         zone.snapshot()
             .await
@@ -322,4 +365,8 @@ fn recorded_checkpoint_causes() {
         previous = snapshot;
     }
     println!("PERF recording checkpoint causes: {counts:?}");
+}
+
+fn def_zone() -> ZoneId {
+    ZoneId(2_147_483_000)
 }
