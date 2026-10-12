@@ -293,6 +293,8 @@ void UInventoryStateSubsystem::ApplyRejected(const FIntentRejected& R)
 {
  auto* Found=SequenceRequests.Find(R.Seq);if(!Found || Found->Status!=ERequestStatus::Pending)return;const FString Scope=Found->Scope;Found->Status=ERequestStatus::Rejected;
  if(auto* Sequences=Outstanding.Find(Scope)){Sequences->Remove(R.Seq);if(Sequences->IsEmpty())Outstanding.Remove(Scope);}
+ // Definitively rejected attempts do not commit a body; pending attempts and receipts keep their freeze.
+ if(!Outstanding.Contains(Scope) && !Receipts.Contains(Scope)){FrozenRequests.Remove(Scope);FrozenArguments.Remove(Scope);}
  StatusText=R.Detail;OnChanged.Broadcast();
 }
 void UInventoryStateSubsystem::FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op,const FClientMessage& Body)
