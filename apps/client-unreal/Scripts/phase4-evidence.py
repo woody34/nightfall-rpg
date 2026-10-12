@@ -451,6 +451,67 @@ def validate_instance(value):
         if augment>=2**32 or augment>>16==0 or augment&65535==0:raise ValueError('invalid packed option pair')
 
 
+# Revision is checked separately against the single owner/tick step (D55).
+ITEM_TRANSITIONS={
+    'consume':('consume',frozenset({'count'})),
+    'equip':('retain',frozenset({'slot','location'})),
+    'unequip':('retain',frozenset({'slot','location'})),
+    'enchant':('retain',frozenset({'enchant'})),
+    'refine':('retain',frozenset({'augment_id'})),
+    'cancel_refine':('retain',frozenset({'augment_id'})),
+    'destroy':('remove',frozenset()),
+    'crystallize':('remove',frozenset()),
+    'grant':('create',frozenset()),
+    'starter':('create',frozenset()),
+    'backfill':('create',frozenset()),
+}
+
+
+def validate_transition(data):
+    operation=data['operation'];shape,allowed=ITEM_TRANSITIONS[operation]
+    before,after=data['before'],data['after']
+    delta=data['count_delta']
+    if type(delta) is not int or not -(2**63)<delta<2**63:raise ValueError('signed-bigint count_delta required')
+    same(delta,(after['count'] if after else 0)-(before['count'] if before else 0))
+    if shape=='create':
+        if before is not None or after is None:raise ValueError(operation+' must create a canonical instance')
+    elif shape=='remove':
+        if before is None or after is not None:raise ValueError(operation+' must remove the instance')
+    elif shape=='consume':
+        if before is None or delta>=0:raise ValueError('consume must debit an existing instance')
+        remaining=before['count']+delta
+        if remaining<0 or (after is None)!=(remaining==0):raise ValueError('consume endpoint differs from remaining count')
+    elif before is None or after is None:raise ValueError(operation+' must retain the instance')
+    if before is not None and after is not None:
+        changed={key for key in before if key!='revision' and before[key]!=after[key]}
+        if not changed or changed-allowed:raise ValueError(operation+' changed forbidden canonical fields')
+    if operation=='equip' and after['location']!='paperdoll':raise ValueError('equip must enter paperdoll')
+    if operation=='unequip' and (before['location']!='paperdoll' or after['location']!='inventory'):raise ValueError('unequip must leave paperdoll')
+    if operation=='refine' and after['augment_id'] is None:raise ValueError('refine must install augmentation')
+    if operation=='cancel_refine' and (before['augment_id'] is None or after['augment_id'] is not None):raise ValueError('cancel_refine must remove augmentation')
+
+
+def validate_exchanges(rows):
+    """D52/D57: Exchange is a receipt linking consume(old) and grant(new)."""
+    exchanges={}
+    for row in rows[1:-1]:
+        if row['kind']!='item_delta':continue
+        data=row['data']
+        refs=data['receipt_refs'] if data['operation']=='consume' else [data['receipt_ref']]
+        for ref in refs:
+            if ref is None or not ref.startswith('receipt:exchange:'):continue
+            if not re.fullmatch(r'receipt:exchange:\S+',ref):raise ValueError('invalid Exchange receipt')
+            exchanges.setdefault((row['entity'],row['incarnation'],ref),[]).append(row)
+    for facts in exchanges.values():
+        consumes=[r for r in facts if r['data']['operation']=='consume']
+        grants=[r for r in facts if r['data']['operation']=='grant']
+        if len(grants)!=1 or not consumes or len(consumes)+len(grants)!=len(facts):raise ValueError('Exchange requires consume and one grant row')
+        grant=grants[0]
+        if not any(r['data']['after'] is None for r in consumes):raise ValueError('Exchange must consume the old instance')
+        if any(r['tick']!=grant['tick'] or r['sequence']>=grant['sequence'] or r['data']['instance']==grant['data']['instance'] for r in consumes):
+            raise ValueError('Exchange must grant a fresh instance after its same-tick consumes')
+
+
 def validate(rows,recording,rules_hash):
     if not isinstance(rows,list) or len(rows)<3:raise ValueError('manifest, facts and complete trailer required')
     manifest,complete=rows[0],rows[-1]
@@ -525,7 +586,7 @@ def validate(rows,recording,rules_hash):
             fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}
             if receipt_field=='receipt_refs':fields.add('causes')
             if set(data)!=fields:raise ValueError('unknown/missing ledger fields')
-            if data['operation'] not in {'grant','starter','backfill','equip','unequip','consume','enchant','destroy','crystallize','refine','cancel_refine','exchange','use'}:raise ValueError('unknown ledger operation')
+            if data['operation'] not in ITEM_TRANSITIONS:raise ValueError('unknown ledger operation')
             refs=data[receipt_field]
             if receipt_field=='receipt_refs':
                 if not isinstance(refs,list) or any(not isinstance(ref,str) or not ref for ref in refs):raise ValueError('ordered consume receipt_refs required')
@@ -540,7 +601,7 @@ def validate(rows,recording,rules_hash):
                 same(data['count_delta'],sum(c['count_delta'] for c in causes))
                 first=causes[0]['cause']
                 if not first.startswith('receipt:'):same(data['resolution_id'],first.split(':',1)[1])
-            elif refs is not None and (not isinstance(refs,str) or not refs) or data['operation']=='exchange' and refs is None:
+            elif refs is not None and (not isinstance(refs,str) or not refs):
                 raise ValueError('single ledger receipt_ref required')
             instance=integer(data['instance'],1)
             before,after=data['before'],data['after']
@@ -550,12 +611,11 @@ def validate(rows,recording,rules_hash):
                     # Canonical domain instances, not partial count-only projections.
                     validate_instance(value)
                     if value['id']!=instance:raise ValueError('ledger identity mismatch')
-            net=(after['count'] if after else 0)-(before['count'] if before else 0)
-            same(data['count_delta'],net)
             ordinal=integer(data['operation_ordinal'])
             key=(row['entity'],row['incarnation'],data['resolution_id'],instance,ordinal)
             if key in seen:raise ValueError('repeated ledger fact')
             seen.add(key)
+            validate_transition(data)
             if data['operation']=='consume':same(ordinal,0)
             if before is not None and after is not None and after['revision']<before['revision']:raise ValueError('item revision regressed')
             identity=(row['entity'],row['incarnation'],instance)
@@ -563,6 +623,7 @@ def validate(rows,recording,rules_hash):
             if prior is not None and tick==prior[0] and ordinal<=prior[1]:raise ValueError('item operation ordinal did not increase within tick')
             instance_steps[identity]=(tick,ordinal)
         else:raise ValueError('unknown item raw fact kind')
+    validate_exchanges(rows)
     inventory_history(rows)
     return manifest
 
@@ -734,12 +795,6 @@ def enchant_evidence(row, rows, steps=None,targets=None):
                 same(aggregate['resolution_id'],ref.split(':',1)[1])
             remaining+=cause['count_delta']
             if remaining<0:raise ValueError('insufficient enchant consume stack')
-        if remaining==0:same(aggregate['after'],None)
-        else:
-            after=aggregate['after']
-            if after is None:raise ValueError('missing enchant post-instance')
-            same({k:v for k,v in after.items() if k!='revision'},
-                 {k:v for k,v in (first|{'count':remaining}).items() if k!='revision'})
         if aggregate in deltas:required.append(aggregate)
     outcome=data['actual'];destroyed=outcome['destroyed']
     if destroyed:require(target['id'],'destroy',target,None)
@@ -757,10 +812,7 @@ def enchant_evidence(row, rows, steps=None,targets=None):
         if len(candidates)!=1 or candidates[0]['count_delta']!=refund:raise ValueError('missing exact enchant crystal refund')
         grant=candidates[0]
         same(grant['receipt_ref'],op['receipt_ref'])
-        if grant['before'] is not None:
-            before,after=grant['before'],grant['after']
-            same({k:v for k,v in before.items() if k not in ('count','revision')},{k:v for k,v in after.items() if k not in ('count','revision')})
-        elif grant['after']['location']!='inventory' or grant['after']['slot'] is not None:
+        if grant['after']['location']!='inventory' or grant['after']['slot'] is not None:
             raise ValueError('refund must enter inventory')
         required.append(grant)
     if len(required)!=len(deltas):raise ValueError('unexpected correlated enchant ledger row')

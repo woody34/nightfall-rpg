@@ -47,12 +47,33 @@ JSONL contract (schema version 1 of this sidecar):
   consumption has no fabricated receipt. System and client contributions may
   interleave within a tick in cause order (D62 amends D57). Other rows have a
   single `receipt_ref` (nullable for receipt-free facts);
-  Exchange rows require the single nonempty Exchange receipt (D52/D57), including
-  constituent rows whose operation is `exchange`. The old `receipt` field refuses.
+  Exchange is represented by `consume` constituents and one `grant` of a fresh
+  instance, linked by `receipt:exchange:<key>` (D52/D57). The consumes precede
+  the grant within the same owner/incarnation/tick; the old base is exhausted,
+  while ingredient stacks may remain. Each consume includes that receipt in its
+  causes and ordered receipt projection; the grant carries it in `receipt_ref`.
+  Missing/unlinked constituents and monolithic `operation=exchange` refuse.
+  The old `receipt` field refuses.
   `before/after` are null or the complete canonical ItemInstance fields from
   `domain/zone/item.rs`, not partial count projections. Exact widths, identity,
   real change, count conservation, duplicate logical rows and consume ordinal0
   are checked. Pure toggles/reuse never fabricate a ledger instance (D28).
+  ONE shared operation transition table applies to EVERY delta, independently of
+  formula correlation. Revision is governed by D55 below; all other canonical
+  fields outside the allowed set must remain identical:
+
+  | Operation | Required endpoints / allowed changes |
+  |---|---|
+  | consume | Existing before; only count changes by the strictly negative cause sum. Remaining count ≥0; after is null iff exhausted. |
+  | equip / unequip | Both endpoints; only slot/location change. Equip enters paperdoll; unequip leaves it for inventory. |
+  | enchant | Both endpoints; only enchant changes. Outcome correlation requires the exact source result; unchanged outcomes have no row. Destruction/refund uses separate destroy/grant rows. |
+  | refine / cancel_refine | Both endpoints; only augment_id changes. Refine installs a packed option pair; cancel removes it. |
+  | destroy / crystallize | Existing before; after is null. Refunds are separate grant rows. |
+  | grant / starter / backfill | Before is null; after is canonical. Existing-stack increments cannot masquerade as creation. |
+
+  `count_delta` is an exact signed-bigint integer equal to the endpoint count
+  difference for every operation. Revision-only rows and `operation=use` refuse;
+  item-use costs belong in Consume aggregates.
   Under D55, correlate deltas by `(resolution_id,instance,operation_ordinal)`
   within the owner/incarnation scope, independent of operation name. Derive ONE
   revision step per `(entity,incarnation,tick)` from the owner's baseline or
@@ -129,7 +150,8 @@ An automatic-only shot aggregate instead has
 D55–D57 and D62 revise this same schema-version1 sidecar for the accepted producer:
 same-tick enchant/consume/refund rows may share revisions, offline facts must
 emit the explicit top-level origin, and Consume aggregates emit ordered
-`receipt_refs` and `causes` while Exchange rows emit `receipt_ref`. Positive controls and
+`receipt_refs` and `causes`; Exchange grants emit `receipt_ref` and their consumes
+include the Exchange receipt in both lists. Positive controls and
 repaired-deletion/mutation probes cover multiple enchant deltas on one instance,
 revision/ordinal ordering, offline incarnation0 owner binding and two-receipt
 Consume aggregates. These checks do not attest a live producer.

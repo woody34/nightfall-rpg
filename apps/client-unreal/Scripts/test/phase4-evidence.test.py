@@ -12,6 +12,12 @@ SCRIPTS=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('evidence4',SCRIPTS/'phase4-evidence.py')
 gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(gate)
 OWNER='01970000-0000-7000-8000-000000000040';OTHER='01970000-0000-7000-8000-000000000041';HASH='a'*64
+# Independent operation expectations; never derive mutation coverage from the validator.
+ALLOWED_CHANGES={
+    'consume':{'count'},'equip':{'slot','location'},'unequip':{'slot','location'},
+    'enchant':{'enchant'},'refine':{'augment_id'},'cancel_refine':{'augment_id'},
+    'destroy':set(),'crystallize':set(),'grant':set(),'starter':set(),'backfill':set(),
+}
 
 
 def item(identity,count,template=17,slot=None):
@@ -39,6 +45,171 @@ class Evidence(unittest.TestCase):
         try:result=gate.evaluate(rows,self.recording,OWNER,gates,HASH)
         except ValueError:return
         self.assertFalse(result['passed'])
+
+    def transition_rows(self,operation,count=5,enchant=2,created_tick=0):
+        rows=copy.deepcopy(self.rows)
+        if operation!='consume':count=1
+        before=item(100,count,2509 if operation=='consume' else 71)|dict(enchant=enchant,created_tick=created_tick)
+        after=before|{'revision':1}
+        if operation=='consume':after['count']-=1
+        elif operation=='equip':after.update(slot='rhand',location='paperdoll')
+        elif operation=='unequip':before.update(slot='rhand',location='paperdoll')
+        elif operation=='enchant':after['enchant']+=1
+        elif operation=='refine':after['augment_id']=65537
+        elif operation=='cancel_refine':before['augment_id']=65537
+        elif operation in ('destroy','crystallize'):after=None
+        elif operation in ('grant','starter','backfill'):before=None
+        else:raise AssertionError(operation)
+        rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=0,instances=[copy.deepcopy(before)] if before else [],
+                      paperdoll={before['slot']:before['id']} if before and before['slot'] else {},auto_shots=[])))
+        delta=dict(operation=operation,instance=100,before=before,after=after,
+                   count_delta=(after['count'] if after else 0)-(before['count'] if before else 0),
+                   operation_ordinal=0,resolution_id='transition:1')
+        if operation=='consume':delta.update(receipt_refs=[],causes=[dict(cause='auto_shot:transition:1',count_delta=-1)])
+        else:delta['receipt_ref']=None
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=delta))
+        return self.repair(rows)
+
+    def corrupt_transition(self,rows,field,amount=1,delta_index=0):
+        delta=[r['data'] for r in rows if r['kind']=='item_delta'][delta_index]
+        # Creation/removal forbid an endpoint altogether, regardless of its scalars.
+        if delta['before'] is None:delta['before']=delta['after']|{'revision':0}
+        if delta['after'] is None:delta['after']=delta['before']|{'revision':1}
+        after=delta['after']
+        if field=='template_id':after[field]=2510 if after[field]==2509 else 71 if after[field]==72 else 72
+        elif field=='slot':after.update(slot='lhand',location='paperdoll')
+        elif field=='location':after.update(slot='lhand',location='paperdoll')
+        elif field=='augment_id':after[field]=65538 if after[field]==65537 else 65537
+        else:after[field]+=amount
+        # Repair conservation to ensure field drift cannot hide behind count checks.
+        delta['count_delta']=after['count']-delta['before']['count']
+
+    def test_every_operation_transition_and_disallowed_canonical_fields(self):
+        fields=('template_id','enchant','created_tick','slot','augment_id','id','count','charges','location')
+        probes=0
+        for operation,allowed in ALLOWED_CHANGES.items():
+            rows=self.transition_rows(operation)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'],operation)
+            for field in set(fields)-allowed:
+                with self.subTest(operation=operation,field=field):
+                    bad=copy.deepcopy(rows);self.corrupt_transition(bad,field)
+                    with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                    probes+=1
+            # Coherently rewriting all row identities still conflicts with the baseline.
+            bad=copy.deepcopy(rows);delta=next(r['data'] for r in bad if r['kind']=='item_delta')
+            delta['instance']=999
+            for endpoint in ('before','after'):
+                if delta[endpoint] is not None:delta[endpoint]['id']=999
+            if delta['before'] is not None:
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print(f'Operation transitions: {len(ALLOWED_CHANGES)} positive controls; {probes} forbidden-field mutations reject',flush=True)
+
+    def test_transition_endpoint_shapes_directions_and_exact_count_delta(self):
+        for operation in ALLOWED_CHANGES:
+            rows=self.transition_rows(operation)
+            for value in (False,True,'0',0.0,[],{},None,2**63,-2**63):
+                bad=copy.deepcopy(rows);bad[3]['data']['count_delta']=value
+                with self.assertRaises(ValueError,msg=(operation,value)):gate.validate(bad,self.recording,HASH)
+            if operation in ('equip','unequip','enchant','refine','cancel_refine'):
+                for endpoint in ('before','after'):
+                    bad=copy.deepcopy(rows);delta=bad[3]['data'];delta[endpoint]=None
+                    delta['count_delta']=(delta['after']['count'] if delta['after'] else 0)-(delta['before']['count'] if delta['before'] else 0)
+                    with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                bad=copy.deepcopy(rows);bad[3]['data']['after']=bad[3]['data']['before']|{'revision':1}
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # Canonical direction violations with otherwise permitted scalar changes.
+        for operation in ('equip','unequip','refine','cancel_refine'):
+            bad=self.transition_rows(operation);delta=bad[3]['data']
+            if operation in ('equip','unequip'):
+                delta['before'].update(slot='rhand',location='paperdoll')
+                delta['after'].update(slot='lhand',location='paperdoll')
+                if operation=='equip':delta['after'].update(slot=None,location='inventory')
+            elif operation=='refine':delta['before']['augment_id']=65537;delta['after']['augment_id']=None
+            else:delta['after']['augment_id']=65538
+            del bad[1];self.repair(bad)
+            with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        for operation in ('destroy','crystallize'):
+            rows=self.transition_rows(operation)
+            grant=self.transition_rows('grant')[3]
+            grant['data'].update(instance=101,after=item(101,3,1458)|{'revision':1},count_delta=3)
+            rows.insert(-1,grant);self.repair(rows);gate.validate(rows,self.recording,HASH)
+        bad=self.transition_rows('consume');bad[3]['data']['operation']='use'
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+
+    def test_system_shot_review11_field_drift_without_enchant_correlation(self):
+        rows=self.transition_rows('consume',enchant=0)
+        # Exercise the shared transition rule without baseline/history comparisons.
+        del rows[1];self.repair(rows)
+        delta=rows[2]['data'];delta['after']['count']=2;delta['count_delta']=-3
+        delta['causes']=[dict(cause='auto_shot:transition:1',count_delta=-3)]
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        for field in ('template_id','enchant','created_tick','slot','augment_id','id'):
+            bad=copy.deepcopy(rows);self.corrupt_transition(bad,field)
+            with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        exhausted=copy.deepcopy(rows);delta=exhausted[2]['data']
+        delta.update(after=None,count_delta=-5,causes=[dict(cause='auto_shot:transition:1',count_delta=-5)])
+        gate.validate(exhausted,self.recording,HASH)
+        for after,count_delta in ((None,-3),(item(100,1,2509)|{'revision':1},-5),(None,-6)):
+            bad=copy.deepcopy(rows);bad[2]['data'].update(after=after,count_delta=count_delta,
+                causes=[dict(cause='auto_shot:transition:1',count_delta=count_delta)])
+            with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+
+    def exchange_rows(self):
+        rows=self.transition_rows('consume',count=1)
+        consume=next(r['data'] for r in rows if r['kind']=='item_delta')
+        consume['before'].update(template_id=72,enchant=3)
+        rows[1]['data']['instances'][0].update(template_id=72,enchant=3)
+        consume.update(after=None,receipt_refs=['receipt:exchange:key'],
+                       causes=[dict(cause='receipt:exchange:key',count_delta=-1)])
+        grant=dict(operation='grant',instance=101,before=None,after=item(101,1,4682)|{'enchant':3,'revision':1},
+                   count_delta=1,operation_ordinal=0,resolution_id='exchange:1',receipt_ref='receipt:exchange:key')
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=grant))
+        return self.repair(rows)
+
+    def test_exchange_constituents_require_linked_consumption_and_fresh_grant(self):
+        rows=self.exchange_rows();gate.validate(rows,self.recording,HASH)
+        # A retained ingredient stack may share the Exchange receipt with the base.
+        ingredient=copy.deepcopy(rows[3]);ingredient['data'].update(instance=102,before=item(102,3,17),
+            after=item(102,2,17)|{'revision':1})
+        rows[1]['data']['instances'].append(item(102,3,17));rows.insert(-2,ingredient);self.repair(rows)
+        gate.validate(rows,self.recording,HASH)
+        for mutation in ('missing consume','missing grant','foreign receipt','foreign owner','fresh id','not exhausted','wrong operation','monolithic','reordered'):
+            with self.subTest(mutation=mutation):
+                bad=self.exchange_rows();consume=bad[3]['data'];grant=bad[4]['data']
+                if mutation=='missing consume':del bad[3]
+                elif mutation=='missing grant':del bad[4]
+                elif mutation=='foreign receipt':grant['receipt_ref']='receipt:exchange:other'
+                elif mutation=='foreign owner':bad[4]['entity']=OTHER
+                elif mutation=='fresh id':grant['instance']=100;grant['after']['id']=100
+                elif mutation=='not exhausted':
+                    bad[1]['data']['instances'][0]['count']=2;consume['before']['count']=2
+                    consume['after']=consume['before']|{'count':1,'revision':1}
+                elif mutation=='wrong operation':grant['operation']='starter'
+                elif mutation=='monolithic':grant['operation']='exchange'
+                else:bad[3],bad[4]=bad[4],bad[3]
+                self.repair(bad)
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+
+    def test_seeded_per_operation_field_corruptions_2000_cases(self):
+        rng=random.Random(0xE612);controls=corruptions=0
+        fields=('template_id','enchant','created_tick','slot','augment_id','id','count','charges','location')
+        for case in range(2000):
+            for operation,allowed in ALLOWED_CHANGES.items():
+                rows=self.transition_rows(operation,count=rng.randint(2,100),enchant=rng.randrange(30),created_tick=rng.randrange(100))
+                gate.validate(rows,self.recording,HASH);controls+=1
+                forbidden=[field for field in fields if field not in allowed]
+                field=forbidden[case%len(forbidden)]
+                self.corrupt_transition(rows,field,rng.randint(1,100))
+                with self.assertRaises(ValueError,msg=(case,operation,field)):gate.validate(rows,self.recording,HASH)
+                corruptions+=1
+            rows=self.exchange_rows();gate.validate(rows,self.recording,HASH);controls+=1
+            # Corrupt alternate constituent operations, keeping the Exchange link.
+            self.corrupt_transition(rows,fields[case%6],rng.randint(1,100),delta_index=case%2)
+            self.repair(rows)
+            with self.assertRaises(ValueError,msg=('exchange',case)):gate.validate(rows,self.recording,HASH)
+            corruptions+=1
+        print(f'Operation property check: seed=0xE612; {controls} controls pass; {corruptions} per-operation field corruptions reject',flush=True)
 
     def enchant_rows(self,base=100,residue=0,enchant=0,blessed=False,safe=False,entity=OWNER,target_id=8,scroll_id=7,support=False):
         rows=[copy.deepcopy(self.rows[0])]
@@ -343,8 +514,8 @@ class Evidence(unittest.TestCase):
         rows=copy.deepcopy(self.rows)
         first=item(70,2,951)|{'revision':1}
         facts=[dict(operation='grant',before=None,after=first,count_delta=2),
-               dict(operation='grant',before=first,after=first|{'count':3},count_delta=1),
-               dict(operation='destroy',before=first|{'count':3},after=None,count_delta=-3),
+               dict(operation='enchant',before=first,after=first|{'enchant':1},count_delta=0),
+               dict(operation='destroy',before=first|{'enchant':1},after=None,count_delta=-2),
                dict(operation='grant',before=None,after=first,count_delta=2)]
         for ordinal,data in enumerate(facts):
             rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
@@ -471,10 +642,11 @@ class Evidence(unittest.TestCase):
         next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['after']['revision']=0
         with self.assertRaisesRegex(ValueError,'revision regressed'):gate.validate(bad,self.recording,HASH)
         rows=self.enchant_rows(base=70,residue=99999,enchant=3)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)['passed'])
         refund=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='grant')
         refund['before']=refund['after']|{'count':5,'revision':1}
         refund['after']=refund['after']|{'count':5+refund['count_delta'],'revision':1}
-        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)['passed'])
+        with self.assertRaisesRegex(ValueError,'must create'):gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)
 
     def test_every_later_same_tick_post_revision_must_advance_and_share_step(self):
         rows=self.same_tick_enchants()
@@ -545,12 +717,13 @@ class Evidence(unittest.TestCase):
             with self.assertRaises(ValueError,msg=name):gate.validate(bad,self.recording,HASH)
         bad=copy.deepcopy(rows);bad.insert(-1,copy.deepcopy(bad[2]));bad[3]['data']['resolution_id']='other';self.repair(bad)
         with self.assertRaisesRegex(ValueError,'ordinal'):gate.validate(bad,self.recording,HASH)
-        rows[2]['data'].update(operation='exchange',receipt_ref='exchange:1');del rows[2]['data']['receipt_refs'];del rows[2]['data']['causes']
+        # Exchange is a receipt over consume/grant constituents, never a mutable row.
+        rows=self.exchange_rows()
         gate.validate(rows,self.recording,HASH)
         for value in (None,[],['exchange:1'],'',False):
-            bad=copy.deepcopy(rows);bad[2]['data']['receipt_ref']=value
+            bad=copy.deepcopy(rows);bad[4]['data']['receipt_ref']=value
             with self.assertRaises(ValueError,msg=value):gate.validate(bad,self.recording,HASH)
-        bad=copy.deepcopy(rows);bad[2]['data']['receipt_refs']=['exchange:1']
+        bad=copy.deepcopy(rows);bad[4]['data']['receipt_refs']=['exchange:1']
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
 
     def test_system_only_and_mixed_consume_causes(self):

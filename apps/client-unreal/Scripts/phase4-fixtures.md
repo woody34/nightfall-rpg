@@ -122,9 +122,20 @@ is exactly the ordered receipt-cause projection, possibly empty, nonempty iff an
 cause is a client receipt. Automatic costs have no fabricated receipts. Causes
 may interleave automatic and receipt-bound costs within a tick.
 Other rows emit the single `receipt_ref`, nullable for receipt-free facts.
-Exchange rows require the single Exchange receipt, including constituent
-exchange audit rows (D52); they never use the Consume receipt-list/cause fields.
+Exchange is a linked consume(old base / ingredients) + grant(new instance) audit
+plan, not a monolithic `operation=exchange` delta (D52/D57). Consumes include
+`receipt:exchange:<key>` in causes/receipt_refs; the fresh grant carries the same
+receipt_ref. The old base must be exhausted; ingredients may retain counts.
+Constituents share owner/incarnation/tick and consumes precede the grant.
 The old `receipt` field and a singular Consume `receipt_ref` refuse.
+
+Every delta uses the shared operation transition table: consume changes only
+count; equip/unequip only slot/location; enchant only enchant; refine/cancel_refine
+only augment_id. Destroy/crystallize end at null and use separate refund grants.
+Grant/starter/backfill start at null and materialize canonical instances. Other
+canonical fields remain identical, with revision governed by the owner/tick step.
+Counts and causes agree with endpoints; unchanged/revision-only and `use` rows
+refuse. See `phase4-evidence-contract.md` for the complete operation rules.
 
 Each enchant outcome's `operation` additionally binds the nonempty `receipt_ref`
 of its resolution, alongside canonical target/scroll/support before-states.
