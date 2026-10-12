@@ -94,7 +94,7 @@ private:
  void Gap();
  bool Validate(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate) const;
  void Publish(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate);
- void Remember(EGrpcNightfallV1ItemOperation Op, const FString& Key, const FString& Fingerprint, TOptional<uint64> AcceptedSeq, const TArray<uint8>& Payload);
+ void Remember(EGrpcNightfallV1ItemOperation Op, const FString& Key, const FString& Fingerprint, const TArray<uint8>& Payload);
  void FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op,const FClientMessage& Body,const FString& Arguments,const FString& Fingerprint);
  FString RequestScope(EGrpcNightfallV1ItemOperation Op,const FString& Key) const;
  void AuthenticationChanged();
@@ -127,7 +127,6 @@ private:
  TOptional<FStatsChanged> CurrentStats,MarkedStats;
  TOptional<uint64> MarkRevision;
  FString MarkOwner;
- TMap<FString,FSubmittedRequest> CommittedRequests;
  TMap<FString,FString> CommittedFingerprints;
  TMap<FString,TArray<TPair<uint32,bool>>> Hotbars;
  TOptional<EGrpcNightfallV1ItemOperation> Operation;

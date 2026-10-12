@@ -91,7 +91,7 @@ void UInventoryStateSubsystem::ClearOwner()
  ReceiptMatches.Reset(); DetachedViews.Reset(); OwnerTick=WeightTick=PenaltyTick=SyncTick=0; bBaseline=bResync=bRpcBusy=bRpcDone=false; StatusText.Reset();
 }
 void UInventoryStateSubsystem::AuthenticationChanged() { MarkedStats.Reset();MarkRevision.Reset();MarkOwner.Reset();Reset(); }
-void UInventoryStateSubsystem::Reset() { Outstanding.Reset();SequenceRequests.Reset();CommittedRequests.Reset();CommittedFingerprints.Reset();Receipts.Reset();ClearOwner(); ++CatalogSerial; bCatalog=false; Fence.Reset(); Equipment.Reset(); EquipmentTicks.Reset(); OnChanged.Broadcast(); }
+void UInventoryStateSubsystem::Reset() { Outstanding.Reset();SequenceRequests.Reset();CommittedFingerprints.Reset();Receipts.Reset();ClearOwner(); ++CatalogSerial; bCatalog=false; Fence.Reset(); Equipment.Reset(); EquipmentTicks.Reset(); OnChanged.Broadcast(); }
 void UInventoryStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 {
  if (!Fence.Spawn(S)) return;
@@ -226,7 +226,7 @@ FString UInventoryStateSubsystem::RequestScope(EGrpcNightfallV1ItemOperation Op,
  if(!Session || Session->AccountId().IsEmpty() || Normalized.IsEmpty() || !uint8(Op))return {};
  return Session->AccountId()+FString::Printf(TEXT(":%u:%s"),uint8(Op),*Normalized);
 }
-void UInventoryStateSubsystem::Remember(EGrpcNightfallV1ItemOperation Op,const FString& Key,const FString& Fingerprint,TOptional<uint64> AcceptedSeq,const TArray<uint8>& Payload)
+void UInventoryStateSubsystem::Remember(EGrpcNightfallV1ItemOperation Op,const FString& Key,const FString& Fingerprint,const TArray<uint8>& Payload)
 {
  const FString Scope=RequestScope(Op,Key);if(Scope.IsEmpty())return;
  if(const auto* First=Receipts.Find(Scope))ReceiptMatches=(*First==Payload);
@@ -238,8 +238,9 @@ void UInventoryStateSubsystem::Remember(EGrpcNightfallV1ItemOperation Op,const F
   if(auto* Sequences=Outstanding.Find(Scope)){
    for(auto It=Sequences->CreateIterator();It;++It){
     auto& Request=SequenceRequests.FindChecked(*It);
-    if(Request.Fingerprint==Fingerprint || (AcceptedSeq.IsSet() && *AcceptedSeq==*It)){
-     Request.Status=ERequestStatus::Committed;auto Committed=Request;Committed.Fingerprint=Fingerprint;CommittedRequests.Add(Scope,MoveTemp(Committed));It.RemoveCurrent();Completed=true;
+    // Known receipts retain a historical sequence that can collide after reconnect.
+    if(Request.Fingerprint==Fingerprint){
+     Request.Status=ERequestStatus::Committed;It.RemoveCurrent();Completed=true;
     }
    }
    if(Sequences->IsEmpty())Outstanding.Remove(Scope);
@@ -337,7 +338,8 @@ TOptional<FGrpcNightfallV1ItemTarget> UInventoryStateSubsystem::Target(const FSt
  else if (Selector==TEXT("target")) { auto* C=GetGameInstance()->GetSubsystem<UCombatStateSubsystem>(); Id=C?C->GetOwn().TargetId:FString(); }
  else if (Selector.IsEmpty()) { if (!bNpc) return {}; Id=Blacksmith(); }
  else if (Selector.StartsWith(TEXT("entity:"))) Id=Selector.Mid(7);
- const auto* I=Fence.Identities.Find(Id.ToLower()); if (!I || !I->LifeIncarnation || (bNpc && (I->Kind!=2 || I->bCombatant))) return {};
+ const auto* I=Fence.Identities.Find(Id.ToLower()); if (!I || (bNpc ? (I->Kind!=2 || I->bCombatant) : !I->LifeIncarnation)) return {};
+ // D58 noncombat NPCs use incarnation zero; the server binds entity id + radius-3 geometry.
  FGrpcNightfallV1ItemTarget T; T.EntityId=NightfallItems::UuidBytes(Id); T.Incarnation=I->LifeIncarnation; if (T.EntityId.Value.Num()!=16) return {}; return T;
 }
 void UInventoryStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetItemCatalogResponse& R)
@@ -403,21 +405,19 @@ bool UInventoryStateSubsystem::Execute(const TArray<FString>& Tokens)
  EGrpcNightfallV1ItemOperation Op=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED;for(uint8 I=1;I<UE_ARRAY_COUNT(CommandNames);++I)if(Name==CommandNames[I])Op=EGrpcNightfallV1ItemOperation(I);
  const FString Scope=RequestScope(Op,Key), Arguments=FString::Join(A,TEXT(" "));
  if(Scope.IsEmpty())return false;
- const FSubmittedRequest* PreviousRequest=CommittedRequests.Find(Scope);
- if(!PreviousRequest){
-  uint32 Latest=0,Matching=0;
-  for(const auto& P:SequenceRequests)if(P.Value.Scope==Scope && P.Value.Status==ERequestStatus::Pending){
-   if(P.Key>Latest)Latest=P.Key;
-   if(P.Value.Arguments==Arguments && P.Key>Matching)Matching=P.Key;
-  }
-  PreviousRequest=SequenceRequests.Find(Matching?Matching:Latest);
+ const auto* Committed=CommittedFingerprints.Find(Scope);
+ uint32 Latest=0,Matching=0;
+ for(const auto& P:SequenceRequests)if(P.Value.Scope==Scope && (Committed ? P.Value.Fingerprint==*Committed : P.Value.Status==ERequestStatus::Pending)){
+  if(P.Key>Latest)Latest=P.Key;
+  if(P.Value.Arguments==Arguments && P.Key>Matching)Matching=P.Key;
  }
+ const FSubmittedRequest* PreviousRequest=SequenceRequests.Find(Matching?Matching:Latest);
  const FClientMessage* Previous=PreviousRequest?&PreviousRequest->Body:nullptr;
  TArray<FString> Original;if(PreviousRequest)PreviousRequest->Arguments.ParseIntoArrayWS(Original);
  if(PreviousRequest && PreviousRequest->Arguments==Arguments){
   // Copy before FinishSend can grow the sequence map.
   const FClientMessage Body=PreviousRequest->Body;const FString Fingerprint=PreviousRequest->Fingerprint;
-  if(const auto* Committed=CommittedFingerprints.Find(Scope))if(*Committed!=Fingerprint){StatusText=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");OnChanged.Broadcast();return false;}
+  if(Committed && *Committed!=Fingerprint){StatusText=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");OnChanged.Broadcast();return false;}
   const uint32 Retry=Net->SendItemMessage(Body);FinishSend(Retry,Key,Op,Body,Arguments,Fingerprint);return Retry!=0;
  }
  auto ResolveAt=[&](int32 Index,const FString& Selector)->TOptional<uint64>{
@@ -467,7 +467,7 @@ bool UInventoryStateSubsystem::Execute(const TArray<FString>& Tokens)
   } else return false;
  }
  const FString Fingerprint=NightfallItems::RequestFingerprint(FrozenMessage,Net->GetOwnEntityId());
- if(const auto* Committed=CommittedFingerprints.Find(Scope))if(*Committed!=Fingerprint){StatusText=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");OnChanged.Broadcast();return false;}
+ if(Committed && *Committed!=Fingerprint){StatusText=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");OnChanged.Broadcast();return false;}
  const uint32 Seq=Net->SendItemMessage(FrozenMessage);
  FinishSend(Seq,Key,Op,FrozenMessage,Arguments,Fingerprint);return Seq!=0;
 }
@@ -508,9 +508,8 @@ void UInventoryStateSubsystem::ApplyReceiptPayload(const FWorldEvent& E)
   const FString Scope=RequestScope(Op,Key);if(Scope.IsEmpty())return;
   const bool Requested=Outstanding.Contains(Scope);
   if(!Accept(R.EntityId,R.Incarnation,R.Tick,R.InventoryRevision,true) && !Receipts.Contains(Scope) && !Requested)return;
-  TArray<uint8> Bytes=E.ItemReceiptPayload;if(Bytes.IsEmpty() && !E.bReceivedFromWire)NightfallWire::EncodeItemReceipt(R,Bytes);TOptional<uint64> AcceptedSeq;
-  if(uint8(R._accepted_client_seq._accepted_client_seqCase)==0)AcceptedSeq=R._accepted_client_seq.AcceptedClientSeq.Value;
-  Remember(Op,Key,R.RequestFingerprint,AcceptedSeq,Bytes);};
+  TArray<uint8> Bytes=E.ItemReceiptPayload;if(Bytes.IsEmpty() && !E.bReceivedFromWire)NightfallWire::EncodeItemReceipt(R,Bytes);
+  Remember(Op,Key,R.RequestFingerprint,Bytes);};
  if(E.ItemOperationResult.IsSet())Receive(*E.ItemOperationResult,E.ItemOperationResult->Operation);
  if(E.EnchantResult.IsSet())Receive(*E.EnchantResult,E.EnchantResult->Operation);
  if(E.RefineResult.IsSet())Receive(*E.RefineResult,E.RefineResult->Operation);
