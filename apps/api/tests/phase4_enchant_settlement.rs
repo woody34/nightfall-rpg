@@ -366,6 +366,20 @@ where
         })
         .unwrap();
     assert_eq!(projection.exchanges.len(), 2);
+    let references: Vec<_> = projection
+        .exchanges
+        .iter()
+        .map(|exchange| exchange.receipt)
+        .collect();
+    let shared: Vec<_> = projection
+        .ledger
+        .iter()
+        .filter(|row| row.receipt_refs.len() == 2)
+        .collect();
+    assert_eq!(shared.len(), 2);
+    assert!(shared
+        .iter()
+        .all(|row| row.receipt.is_none() && row.receipt_refs == references));
     let work = ItemCheckpointWork {
         zone,
         epoch: 1,
@@ -529,4 +543,10 @@ async fn owned_postgres_jetstream_actual_enchant_audit_survives_target_destructi
     assert!(exchanged
         .iter()
         .all(|fact| fact["causes"][0]["before"]["id"] != fact["causes"][0]["after"]["id"]));
+    let shared: Vec<serde_json::Value> = sqlx::query_scalar("SELECT delta FROM item_ledger WHERE character_id=$1 AND op='consume' AND jsonb_array_length(delta->'receipt_refs')=2")
+        .bind(id.as_uuid()).fetch_all(&pool).await.unwrap();
+    assert_eq!(shared.len(), 2);
+    assert!(shared.iter().all(
+        |row| row.get("receipt").is_none() && row["receipt_refs"][0] != row["receipt_refs"][1]
+    ));
 }
