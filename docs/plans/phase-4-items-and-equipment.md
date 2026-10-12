@@ -1,0 +1,438 @@
+# Phase 4 Plan: Items and Equipment
+
+**Status:** Planning; implementation and acceptance pending.
+
+Author: C (Codex, role `plan`). Architect: Claude. Independent review: Z. This document specifies executable work and evidence; it does not attest that any story or implementation gate has passed.
+
+## 1. Goal and locked decisions
+
+Deliver server-authoritative inventory, equipment and item use for the pinned H5 item families: all weapon kinds in the approved scope, armour, jewelry, shields, sets, grade/weight penalties, enchanting, shots, arrows, potions, scrolls, augmentation and SA exchange. Unreal submits intents and renders received state. Fixture inputs enable mechanics whose acquisition belongs to later phases.
+
+**§2 is the canonical contract section.** Stories reference it without introducing alternative mechanics. [Binding decisions](phase-4-architecture-decisions.md), including owner O1–O4, A1–A22 and latest §5 D1–D13, win over research. The architect-owned `phase-4-zone-design.md` companion must be reviewed and committed with the C13 binding-record/errata convention before engine implementation; until published, the preserved `item-design.md` is the design authority when present. All [Phase 3 decisions](phase-3-architecture-decisions.md) and [zone design](phase-3-zone-design.md) remain binding except the explicit additions below.
+
+| Decision | Authority | Plan reference |
+|---|---|---|
+| Equipment, augmentation, SA and soul-crystal stage data; raid absorb leveling deferred | O1/A13 | §2.4/§2.6/§8 |
+| Class-specific pinned starter kit, existing-character backfill, production-policy scenarios | O2/A11; Phase 3 C16 | §2.5/§2.6/§5 |
+| Source enchant groups, normal destruction/refund, blessed reset, lrhand pole bonus | O3/A6/A8 | §2.7 |
+| Fixture acquisition plus ownership-checked dev GrantItem | O4/A15/A22 | §2.5/§5 |
+| Zone single writer, integer/Q math, ordered collections, durable publication | A1/A3/A5 | §2.3/§2.5 |
+| Existing envelopes, additive tags, private inventory, public equipment subset | A2 | §2.1 |
+| Snapshot 10 / Record 8 / BinaryV6; separately hashed rules and version_two policy | A4 | §2.2 |
+| Complete fine-grained item/skill capability closure; computed counts | A6/A7; Phase 3 R13 | §2.4 |
+| Received-state predicates, verified replay export and independent oracle | A17/A21; Phase 3 C11/C14/C15 | §2.8/§5 |
+| Source caller corrections, retail-only augmentation, pending-kit backfill, range IDs and CrystallizeItem | §5 D1–D13 | §2.1–§2.7 |
+| Independent review and root-serialized Unreal activity | Decisions §2/§4; Phase 3 R15 | §3/§6 |
+
+No calendar estimates, invented tuning or completion marks. Numbers that describe Nightfall versions, tags, capacities of test workloads and gates are architect/API contracts, not claims about L2J. Every L2J numeric rule below cites the pinned source; exact decimal literals mean rational values, never runtime floating-point contracts.
+
+## 2. Source authority and canonical contracts
+
+Pinned repositories, verified at plan authoring:
+
+- `GJ/` = l2j-game `abfde0490ac52a2106e884b7242c0276c44cdf76`, `src/main/java/com/l2jserver/gameserver/`.
+- `GC/` = that game revision's `src/main/resources/config/`.
+- `DP/` = l2j-dp `3ca488dd2bd0bfaca43e378886a3c2e37968153a`, `src/main/resources/data/`.
+- `DH/` = that datapack revision's `src/main/java/com/l2jserver/datapack/handlers/`.
+
+Clones reside under `/home/matt-woodruff/.cache/nightfall/l2j/`; they are build-time provenance, never replay/runtime dependencies. Source ledgers must retain full revision, exact path, literal line range, symbol, input/output hashes and rounding sites. [04 research](../planning/04-items-and-equipment.md) is unpinned; its disagreements are enumerated in §2.7 and the preserved plan-progress notes. Engineering/API/database standards take precedence over its SQL, stream, UUID, actor and hot-reload sketches.
+
+**Phase 3 reconciliation:** A10 admits FAN for pole attacks and FatalBlow/Lethal where fully supported; A6 replaces constant SWORD/one starter weapon, admits real slot/weight conditions and masteries; A14/A11 admits consuming/learning item prerequisites. C16's live production policy advances to V6, while historical V5 replay remains exact. Chaotic drops and pet items previously named as Phase 4 dependencies move to Phase 5 and Phase 6 respectively under approved defaults. Every other prior exclusion/gate remains until specifically implemented and reviewed. C17 retained selection on AOI exit/re-entry and C18 received-swing-only players_attacking_me semantics remain unchanged. Phase4 decisions §5 D1–D13 supersede the earlier A9/A10 unified-shot/flat-shield wording, mixed augmentation branches, A5 sizing/global-ID assumption, A11 immediate DB backfill and missing crystallize intent; this is the plan’s explicit errata map, not an edit to the verbatim record.
+
+### 2.1 Additive wire allocation and visibility
+
+C publishes the first proto/RPC/error/idempotency contract; Z reviews before dependents. New types may live in `packages/proto/nightfall/v1/items.proto`; the existing ClientMessage, ServerMessage, WorldEvent and GameService remain the only envelopes/service channel. No SubscribeInventory or additional stream.
+
+| Tag space | Append-only allocation floor (A2/A4) | Contract |
+|---|---|---|
+| ClientMessage intent | 19 | EquipItem, UnequipItem, UseItem, DestroyItem, EnchantItem, ToggleAutoShot, RefineItem, CancelRefine, ExchangeSpecialAbility, CrystallizeItem (D9), in reviewed append order |
+| WorldEvent | 26 | InventorySync, InventoryChanged, EquipmentChanged, WeightChanged, PenaltyChanged, EnchantResult, RefineResult |
+| RejectReason | 25 | Typed item validation reasons; reuse existing reasons when their meanings apply |
+| StatsChanged fields | 24 | Owner equipment-derived stat/penalty extensions only |
+| EntitySpawn fields | 29 | Public visible-equipment baseline only |
+| Character fields / EffectiveStats fields | 15 / 11 | Owner inventory/checkpoint-derived summaries / effective stats |
+| GameService | after GetSkillCatalog | GetItemCatalog, GetInventory, GrantItem; no new mutation RPC duplicates of WS intents |
+| Replay PbOutput / PbCommandKind / PbPlayerLoad | 32 / 20 / 10 | Separate replay numbering; output 28 remains reserved and unused |
+
+These are allocation floors, not a fabricated final schema. The reviewed first proto commit supplies exact field numbers, enum values, nested types and rejection mapping. Prefix enum values (`ITEM_GRADE_NG`, `EQUIP_SLOT_RHAND`, `ITEM_LOCATION_INVENTORY`); unspecified required enums reject. Item instances use typed u64 identity, distinct from UUID character/account/entity identity; the proto owner documents this deliberate item-ID extension to API §5. Tick/deadline/baseline fields remain uint64 with checked arithmetic. No client stats, chance, grade, count-to-consume or RNG inputs are accepted as authority.
+
+| Carrier / fact | Owner | AOI observers |
+|---|---|---|
+| InventorySync (full items, paperdoll, weight, penalties, auto-shot set/charges) | Complete baseline following SkillStateSync | Never |
+| InventoryChanged (added/removed/updated by instance id), WeightChanged, PenaltyChanged | Exact committed deltas/summary | Never |
+| EnchantResult / RefineResult, receipts, counts, exact enchant, augment options | Exact committed result | Never |
+| EquipmentChanged / EntitySpawn visible_equipment | Full owner paperdoll through private state plus public projection | Weapon/armour template IDs and glow tier only; no instance IDs/counts/exact enchant/augments |
+| StatsChanged / GetInventory / Character owner extensions | Owner only | Never |
+| GetItemCatalog | Authenticated immutable catalogue | Callable independently of owning a character; no private instance state |
+| VitalsChanged / attacks / casts / public effects | Existing authoritative values | Existing recursively filtered public values; equipment adds no private attribution |
+
+Preserve C2/C2′/C4/C12: all identities precede reference hydration; InventorySync follows SkillStateSync with baseline_tick/incarnation/generation fencing, including idle replacement/reconnect. Known observers receive only the safe equipment subset. Do not publish hidden System penalty/augment metadata through effects. Baselines reset/upsert without animations or transition counts; ordinary stale deltas are rejected, same-tick baseline exceptions accepted. Same-ID resurrection still emits final VitalsChanged after EntityRespawned when required. Glow is placeholder presentation: server announcement thresholds are armour +6 and weapon +7/+15 (`GJ/network/clientpackets/RequestEnchantItem.java:174-177`), not a pinned client material-tier specification; actual material tiers require design disposition.
+
+### 2.2 Version matrix and legacy compatibility
+
+| Snapshot | Digest | Record | Rules / policy |
+|---|---|---|---|
+| 4,5 | JsonV1 | 3 | Historical Phase 1 validation unchanged |
+| 6..8 | JsonV1/BinaryV2 | 3/4 respectively | Existing no-class legal matrix unchanged |
+| 7 | BinaryV3 | 5 | Phase 2 before tokens |
+| 8 | BinaryV4 | 6 | Phase 2 tokens |
+| 9 | BinaryV5 | 7 | Valid Phase3 block/hash and version_one admission |
+| 10 | BinaryV6 | 8 | Valid Phase3 plus Phase4 block/rules/hash and version_two admission |
+
+A4 requires StateDigestVersion::BinaryV6, explicit codec schema dispatch and RECORD_SCHEMA_VERSION=8 while retaining every historical decoder. Reject mixed pairs and recursively reject **presence**, even empty/default Phase4 fields, in old loads/projections/receipts/outbox/commands/outputs/snapshots before permissive decoding drops it. Encode and digest-only reproduced outputs use the same validated context. Historical `.nfr` container and fixture bytes never change.
+
+`PHASE4_ENABLED`: unset selects V6 except historical simulation-fixture selection, `"0"` selects V5 behaviour, `"1"` selects V6, other values refuse boot (A4). **All live suites**, including older phases, explicitly use production V6 and the reviewed bundle under C16; the gate's historical-fixture exception is not permission to run old-policy live servers.
+
+Phase4Rules is validated, canonical and separately content-hashed: item registry, source defaults/types, enchant groups/scrolls/bonuses/HP, grades, sets, augmentation options/chances/skills, SA/stages, kits and capacities. Embed each immutable bundle once; snapshot and version_two admission record its hash. Preserve version_one byte layout and admission budget/FIFO/oversize/lost-ack rules. Before schema/fixture freeze, measure complete V6 snapshot against existing **1 MiB encoded NATS / 32 MiB decoded** C10 limits, including all item/options/skill closure, the D4-amended **8×200** instances (normal100 + quest100, `GC/character.properties:317-320`), paperdoll accounting and inherited full-effect synthetic **1,000-entity** workload. No truncation, external replay fetch or automatic limit increase.
+
+### 2.3 Engine state and in-tick ordering
+
+Zone-canonical Phase4Snapshot includes bounded inventories, instance allocator, paperdoll, set state, installed equipment/System source order, auto-shot toggles and charges, arrows, enchant/augment/SA state, weight/max load, overload and separate grade penalties (A5). D8: API assigns durable disjoint positive signed-bigint-safe allocator ranges per `(zone,epoch)` from `item_id_ranges` at admission; range bounds and next are recorded in snapshot/admission. Zone allocation is monotone within the range, consumes no RNG, and refuses exhaustion before publication. Fixture seeds declare a reserved low range. Block size is an architect design choice, not a literal invented here. Snapshots/digests retain every future-behaviour field; restored ranges are never reallocated or reused after crash. Derived indexes/stat caches rebuild and validate; no DB reads, clock or catalog hot reload during simulation.
+
+Use the complete Phase 3 §3 schedule with a separate V6 dispatcher. Z's companion fixes precise caller draws before engine freeze. The additions below preserve phase boundaries and within-phase ordering:
+
+| Phase 3 phase | Phase 4 insertion / required barrier |
+|---|---|
+| Commands, receive ordinal | Authenticate/fence and settle receipts before new work. Resolve immediate equip/unequip/destroy/crystallize/enchant/refine/cancel/SA and kit/grant against command-order inventory. Enchant/augment rolls occur here only after validation. Stage item casts with ordinary casts. Recompute sets/grade/load and rebuild/clamp before the next command reads stats. |
+| Spawn | Initialize/restore canonical item sidecar; first-admission kit/backfill commits before identity visibility. Fixture rows/allocator are normalized recorded inputs. |
+| Expiries | Existing effects/reuse/flags/offers first. Expiring item-source conditions rebuild immediately; no new wall-time shadow sweep. |
+| Periodic resources | Existing pulses then regen read actual gear/System penalties. Any supported itemConsume pulse follows its source lifecycle and shares the tick draft. |
+| Chase/movement | Movement updates deterministic last nonzero facing; idle retains facing. Launch/impact uses post-step facing/positions. Angular integer adaptation and initial facing must be fixed in the design/oracle. |
+| Cast launches/completions | Keep caster-ordinal/cast order. Recheck item availability; completion MP/HP and itemConsume precede handler effects. Use charged spirit/blessed state captured under the source caller lifecycle. Shield draws occur at their actual physical/magic/blow callsite, then ordinary handler draw/status/death order. Item cast results/scroll offers use the existing pipeline. |
+| Auto impacts | Keep attacker EntityId order. Recheck arrows/resources/life/incarnation/peace/range. Consume the bow arrow and appropriate charge under the reviewed accepted-shot lifecycle; damage resolves real weapon/position/shield inputs. Dual hits and pole recipients follow pinned caller order, not extra actor/DB writes. |
+| Hit bookkeeping | Unified landed-damage facts feed hate/AI once. Shot/arrow/consumable delta facts retain attribution privately. |
+| New starts | At accepted attack/cast start, auto-charge before timing/damage inputs that depend on charge. Bow validates arrows and MP, pays source MP/start reuse; no charge/spend on invalid start. Toggle/manual charge is deterministic actor state. |
+| AI | Existing ordered intentions/reselection and think staggering unchanged. |
+| Progression/output | Equip/unequip/level/learn recompute expertise; every weight/CON/weightLimit/weightPenalty change recomputes overload before a later read. Coalesce final inventory/equipment/weight/penalty/stats, net per-instance consumption ledger, receipts and outbox. Log ack → fenced checkpoint ack → output. |
+
+Equipment SET then ENCHANT funcs in XML order are order-0 builtins before passives; retain the Phase 3 canonical key `(stat, priority, source_install_sequence, effect_xml_ordinal, function_xml_ordinal)`. Equipment installation allocates shared sequences; cold rebuild/admission restores order without hooks/heals/cost/RNG. FuncEnchantHp priority40 is source-defined (`GJ/enums/StatFunction.java:28`). Dirty rebuild clamps reduced maxima and never heals increased maxima. Penalty/set/item/augment funcs use P-type System sources with data-driven stayAfterDeath; no finite buff-slot duplication.
+
+**Draw ledger gate:** command enchant/refine draws precede that tick's combat draws; target sampling stays at accepted collection, magic/physical/blow/shield/dual/pole recipient draws stay in pinned caller order. No shield draw without an eligible shield/facing, perfect-check precedes conditional normal-check (`GJ/model/stats/Formulas.java:1077-1104`). Invalid/canceled actions add no resolution draws; already paid accepted launch/start costs follow pinned nonrefund rules. Record callsite, bound, value/comparison and cursor in verified V6 evidence. D13 delegates shot toggle/bundle mismatch, dual timing adaptation, overload transition quirk, simultaneous potion lane and glow placeholder to numbered Z design rules; record these alongside angular ties and mixed equip/swing tick goldens before freeze.
+
+### 2.4 Generated data and capability manifest
+
+E1 generates `packages/data/tables-phase4/` through `gen_items.py` with `--check`, exact decimal strings/rationals, provenance headers, full DATAPACK_REVISION check, SOURCES.md registration and `check_all.py` integration. Proposed file contracts (data review may split files without changing semantic closure):
+
+| Files | Authoritative contents / closure |
+|---|---|
+| `weapons.toml`, `armors.toml`, `etc_items.toml`, `capabilities.toml` | All Weapon/Armor source templates; EtcItems reached by admitted shots/arrows/bolts/enchant scrolls/crystals/stones/gemstones/soul crystals/potions/elixirs/escape-resurrection scrolls/learn prerequisites/starter kits, then dependency closure. Copy literal funcs, flags, price/weight/crystal fields, shot counts, bow costs/reuse, ranges/damage_range and skill references. Imported does not imply executable. |
+| `weapon_types.toml`, `grades.toml`, `capacities.toml` | Type/trait/mask definitions (`GJ/model/items/type/WeaponType.java:27-50`), per-template numeric overrides; CrystalType (`GJ/model/items/type/CrystalType.java:26-33`); inventory/quest/weight defaults (`GC/character.properties:27,317-320`). WeaponType itself does not define the research speed table. |
+| `enchant_groups.toml`, `enchant_scrolls.toml`, `func_enchant.toml`, `enchant_hp.toml` | DP/enchantItemGroups.xml:4-90, DP/enchantItemData.xml, DP/enchantItemOptions.xml, GJ FuncEnchant/EnchantScroll, DP/stats/enchantHPBonus.xml; blacklist and allowed support/safe/max-enchant cases preserved. |
+| `armor_sets.toml` | Every DP/stats/armorsets XML set, source slot alternatives, required-piece/full/enchant skills; representative DP/stats/armorsets/b_grade.xml. |
+| `augmentation_options.toml`, `augmentation_chances.toml`, `augmentation_skills.toml` | DP/stats/options and DP/stats/augmentation/{augmentation_skillmap,retailchances,retailchances_accessory}.xml; source branch distinction and exact weights. D3 selects retail-only weapon runtime; the alternate offset algorithm is provenance-only, never executed or combined. Accessory runtime remains excluded unless approved. |
+| `sa_variants.toml`, `soul_crystals.toml` | Full selected multisell ingredient/output/maintainEnchantment semantics and stage linkage; DP/multisell/1005.xml:2503-2535; DP/levelUpCrystalData.xml:3-60. Include every recipe ingredient by closure, not only base weapon + crystal. |
+| `starter_kits.toml` | Every DP/stats/initialEquipment.xml:4-109 row/count/equipped flag, linked to existing playable base-class lineage; no universal fighter/mystic shortcut. |
+
+Pinned XML inventory was re-counted: **3,893 Weapon / 3,825 Armor / 11,481 EtcItem** (A7; aggregate of each `DP/stats/items/*.xml` `<item>` line, e.g. 00000-00099.xml:3/1407 and 00300-00399.xml:1481). Aggregate counts are derived evidence, not a source literal: E1 must emit an inventory ledger naming every file:line and its hash, reproduce totals and classify all imported/admitted/deferred items. Likewise reproduce armour-set inventory rather than use a directory-count estimate. No new final admitted EtcItem or skill total is invented in this plan.
+
+Closure adds System skills **4270/6209/6213/3599** (`DP/stats/skills/04200-04299.xml:1623`, `06200-06299.xml:324,343`, `03500-03599.xml:1695`), every admitted item_skill/set/enchant4/enchant6/augmentation skill and Crystallize prerequisite, all learn items and referenced skills. Validate every rank/parameter/stat/priority/condition/filter/section/reference with the Phase 3 fine-grained manifest. Unknown or unsupported dependency defers the whole usable item/skill, with a named blocker; D12 starter extras remain storable with explicitly deferred UseItem capability, preserving all kit counts rather than deleting an unsupported extra; do not strip a proc, active skill or XML condition and claim source fidelity.
+
+Phase 3 blockers becoming executable where the complete closure permits: itemConsume; LIGHT/MAGIC/HEAVY/SIGIL/SHIELD UsingKind, using slot, armour masteries **227/231/233** (`DP/stats/skills/00200-00299.xml:575,715,796`); sDef/rShld/shieldDefAngle; FatalBlow/Lethal/blowRate; weight/invSize/weightLimit/weightPenalty; FAN for polearm, positional hit-condition modifiers and spellbook learn prerequisites. D6 keeps Charges/EnergyAttack and skill-enchant routes deferred with named blockers. PARTY/PLEDGE, pets, spoil/sweep and remaining unsupported handlers retain previous exclusions.
+
+**E1.2 count GATE:** regenerate Phase 3 executable/deferred baseline from committed generator, then report Phase 4 tree and overall executable/deferred totals, item counts, blockers before→after and each changed definition. Expected new counts = computed reviewed baseline plus fully admitted capability/closure changes; there is no target total. Historical rejected Phase 3 counts are not acceptance criteria. No hand-edited status; generator --check alone does not prove valid TOML, source correctness, oracle independence or runtime coverage. Runtime embeds reviewed TOML via include_str!, validates hashes and serves GetItemCatalog `data_version=2` (A7).
+
+### 2.5 Persistence, recovery and idempotency
+
+**000010** adds SeaORM migrations for `item_instances` (bigint PK ItemInstanceId, character FK, location enum, optional smallint slot, template int, positive bigint count, nonnegative enchant smallint, optional augment bits/SA/mana, bound flag, created_tick/revision) and append-only `item_ledger` (identity bigint, character/zone/epoch/tick/revision/op/instance/net JSON delta/receipt ref), plus `characters.phase4` JSON checkpoint metadata (proposed A20 choice), `item_id_ranges` (D8 durable range ownership/bounds) and the pending-kit/request manifest needed by D7. Pending rows have deterministic identity/unique character-operation keys and consumed state, in the same fenced materialization transaction. Enforce numeric bounds, stackability, slot/location consistency and uniqueness; virtual slot occupancy belongs to validated paperdoll, not duplicated item rows. Generate entities via `apps/api/entities.sh --check` after regeneration. No SQLx-only parallel repository.
+
+Add deny_unknown_fields `Phase4Checkpoint` to CharacterCheckpoint and both memory/PostgreSQL adapters, admission loads, pending checkpoint snapshots, fingerprints and critical-work recovery detection. It holds canonical per-character item/paperdoll/toggle/charge/source-order state and kit/backfill marker with allocator admission contract. Preserve old fingerprints when phase4 absent. Validate DB and sidecar equality before admission; one final revision-fenced character transaction replaces child rows, appends ordered ledger, receipts and outbox atomically.
+
+**000011 (D7)** inserts a deterministic pending-kit manifest row per existing character, idempotently; it inserts **no item rows**. At first V6 admission the actor materializes the exact base-class kit using its assigned D8 range, records item rows plus `op=backfill` ledger and consumes the pending manifest atomically before any visible output. CreateCharacter and GrantItem use the same pending-request → admission materialization mechanism; unavailable out-of-world zone refuses GrantItem UNAVAILABLE. Durable pending markers and frozen receipts distinguish queued work from final visible item commitment; test crash/reconnect/retry before and after kit application. No DB-only random IDs, range reuse or duplicate grant on migration reruns.
+
+All mutations are critical: grant/kit/backfill/equip/unequip/consume/enchant/destroy/crystallize/refine/cancel/SA and auto-shot state. Shots/arrows aggregate one **net ledger delta per instance per tick**, not one DB write per hit (A3). No exemption from log→checkpoint→output for attack-time costs. Preserve ordinary legacy HP/XP cadence exception and all prior critical triggers.
+
+API-owned DomainEvent variants/outbox use `nightfall.item.{granted,equipped,unequipped,consumed,enchanted,destroyed,refined,exchanged}` (A20). Only the existing relay publishes. Coalesced consumption preserves operation attribution in delta payload; every removed/destroyed instance remains auditable after its row disappears. Stable transaction/outbox identities derive from zone/epoch/tick/ordinal, never wall-clock domain inputs.
+
+API §2 keys are required client UUIDs for every item intent and GrantItem: `(account_id, operation, key, versioned semantic fingerprint, frozen response)` in the same transaction. Retain **24 hours**, never research's **60 seconds** (`api-guidelines.md §2`). Fingerprint character/instance/scroll/target/count/slot/toggle/recipe semantic fields; exclude generated revision/tick/RNG/server result. Authenticate ownership before receipt lookup; lookup matching receipt before online/gameplay eligibility. Same request returns exact original outcome/tick/counts/stats even after enchant/destroy/disconnect; conflicting body fails FAILED_PRECONDITION. Failures create no success key/spend/ledger/outbox; an RNG failure enchant is a committed successful operation receipt, not a validation error. Same-key queued requests share one immutable settlement; different keys competing for one consumable serialize without overspending.
+
+| API §4 endpoint / transport matrix | Mandatory acceptance |
+|---|---|
+| GetItemCatalog unit + real gRPC | Authenticated immutable full response/version/status/blockers; no character dependency/write. Missing auth UNAUTHENTICATED; missing/rollout catalogue UNAVAILABLE. |
+| GetInventory unit + real gRPC | Owned **out-of-world** checkpoint view and explicit tick/revision; no speculative live DB read. Unknown NOT_FOUND, other account PERMISSION_DENIED, malformed ID INVALID_ARGUMENT; proposed online FAILED_PRECONDITION and unavailable UNAVAILABLE dispositions require Z contract review (progress-note QUESTION), and both are tested in the first contract. |
+| GrantItem unit + gRPC + adapter/actor | AUTH_DEV_TOKENS=1 and ownership; gate off FAILED_PRECONDITION, missing auth UNAUTHENTICATED, foreign PERMISSION_DENIED, missing NOT_FOUND, malformed/unknown template INVALID_ARGUMENT; unavailable zone UNAVAILABLE, capacity/bounds fail closed. Same-key/body frozen retry, conflict, queued duplicates and read-after-write. Gate-off creates no inventory/receipt/ledger/outbox. |
+| Each item WS intent + actor | Auth/session/generation/seq/rate/budget/size and every item reason; exactly one Ack or IntentRejected preserving seq. Rollout stub rejects NOT_YET_IMPLEMENTED without mutation. Accepted cast later cancels/results, never a second rejection. Retry protocol returns frozen item result, no second side effect. |
+| CreateCharacter / LearnSkill changes | Existing complete API §4 cases plus pending/committed kit and spellbook consume/SP/rank/receipt atomicity; retry after progression/disconnect preserves original receipt. |
+| Every new repository method | Memory/PostgreSQL parity, round trip, typed FK/check/uniqueness violations, injected child/receipt/outbox-step rollback, concurrent exactly-once retries. Infrastructure INTERNAL sanitized; oversize RESOURCE_EXHAUSTED and documented state errors exercised. |
+
+Freeze the immutable record/request/RNG/deltas/fingerprint/revision across append/checkpoint retry. Independently pause each ack and prove no output, success, next draft or incompatible snapshot. Crash before append/lost append ack/after log before DB/DB lost ack/before reply recovers one kit/grant/spend/refund/recipe/receipt/outbox. Stale generation/revision/permanent lane inconsistency fences; no rollback of acknowledged work. Snapshot restore preserves exact item charges and deadlines; fresh character admission reconstructs sources without hooks or RNG and respects paused Phase 3 retention thresholds.
+
+### 2.6 Domain rules
+
+**Equip validation order:** session/account/generation and receipt → living/action guards fixed by design → owned instance in inventory (already-equipped identical keyed transition is safe) → template admission/equipability/flags → template class/race/condition restrictions → slot/conflict/capacity validation → arrow/bow grade compatibility → atomic swap/install → sets/item skills/enchant/augment sources → grade and overload recompute → stat rebuild/clamp → durable output. Wrong armour type loses mastery; it is not an invented class prohibition. Above-expertise gear is permitted with penalty, not rejected.
+
+Pinned slot resolver (`GJ/model/itemcontainer/Inventory.java:556-605`): lrhand occupies rhand and excludes shield, except matching bow arrows/crossbow bolts in lhand; equipping shield removes incompatible lrhand weapon. Onepiece lives in chest and clears legs; equipping legs removes onepiece. Left ear/finger first, then right, otherwise replace left. Jewellery slots and set alternatives preserve distinct instance ownership; no duplicate virtual item rows. Equipping/unequipping can fail capacity atomically, without losing displaced gear. Retain shirt/belt/other source bodypart metadata and fail closed on unsupported runtime slots; D5 capability manifest distinguishes imported armour from admitted usable slots/kinds.
+
+**Penalties/capacity:** normal slots **80/100 Dwarf**, quest pool **100** (`GC/character.properties:317-320`); slots count all held instances including equipped ones: nonquest `_items.size()−questSlots`, separate quest count; existing stack adds no slot (`GJ/model/itemcontainer/PcInventory.java:746-776`). Weight is unitless source weight×count with checked arithmetic. MaxLoad and overload use §2.7, strict overloaded `load > maxLoad` and penalty levels are distinct. Expertise follows skill239 learned rank and the source weapon→armour else-branch quirk, arrows/bolts exempt (`GJ/model/actor/instance/L2PcInstance.java:1707-1745`); bonus defaults zero (`:574,1650-1655`). Changes on equip/unequip/level/learn and weight/CON modifiers rebuild System sources immediately; no duplicated timed debuffs.
+
+**Enchant/crystallize:** validate owned target/scroll/support, enchant_enabled/blacklist/category/grade/allowed list/maxEnchant and count before draws/consumption (`GJ/model/items/enchant/EnchantScroll.java:101-157`, AbstractEnchantItem). Consume accepted scroll/support atomically, roll source group/current-level chance, then success increments only when base group chance positive; safe failure unchanged, blessed unequips/resets, normal unequips/destroys/refunds only crystallizable crystal-bearing targets (`GJ/network/clientpackets/RequestEnchantItem.java:122-165,199-271`). Failure refund differs from intentional crystallization. DestroyItem never silently crystallizes; CrystallizeItem is a distinct appended intent under D9. Intentional crystallization requires learned Crystallize skill/rank sufficient for grade, excludes hero/shadow/time-limited/noncrystallizable targets and checks counts/manipulation before disarming and returning full crystalCount (`GJ/network/clientpackets/RequestCrystallizeItem.java:69-151,155-186`). Refund capacity must be validated/handled atomically before freeze; no dropped crystals. Armour groups stop at the pinned cutoff, weapons have no gameplay cap beyond representable source/DB bounds (§2.7).
+
+**Shots/bows:** grade-matched actual weapon; manual UseItem charges once, ToggleAutoShot sets selected template state. Preserve charge/count/toggle through snapshot/checkpoint. Match source soulshot versus spiritshot costs per template, not a universal per-grade default. Accepted auto-charge lifecycle and misses/dual/pole/cancel cases must be source-oracle covered under D13 numbered design rules; do not double-debit on charge and hit. Bows require matching lhand arrow, pay source MP and consume an arrow even on a launched miss; reuse_delay is source input and caller scaling must be preserved (§2.7). Counts and damage visible only after critical settlement.
+
+**Consumables:** admitted potions/elixirs/HP/MP/CP and scrolls execute their item_skill and itemConsume through Phase 3 lifecycle, reuse groups and guards; failure before acceptance spends nothing. Escape has source **20000 ms** hitTime (`DP/stats/skills/02000-02099.xml:163-187`), interrupts under reviewed source/A14 damage rules and goes to architect safe point **(126,126)**. Blessed Escape uses its own pinned skill. Resurrection uses explicit PC_BODY, ResurrectOffer consent and C12 baselines; no client forced revival or double refund. ManaPotion handler is in scope, not an Interlude inference. Item consumption unlocks learning only in the same atomic SP/rank/items/receipt transaction.
+
+**Augment/SA:** fixture blacksmith template `blacksmith`, design-chosen documented coordinate, radius **3** (A13); alive/engagement/distance/ownership/admission guard. Refine validates C+ eligibility, source life-stone level/grade and gemstone costs (`GJ/network/clientpackets/AbstractRefinePacket.java:189-225,281-412`), chooses both option IDs with pinned branch-specific integer adaptation, installs all admitted funcs/skills and returns owner result. Cancel uses pinned crystal-count-sensitive fee schedule, disarms/removes both options, returns no stone (`RequestRefineCancel.java:64-118`). SA uses the exact selected multisell ingredients/output and enchant-maintenance flags; exchange to separate template, no shortcut deleting gemstone/currency requirements. D11 admits adena57 (`DP/stats/items/00000-00099.xml:929`), ancient adena5575 (`DP/stats/items/05500-05599.xml:681`) and every recipe/cancel/refine ingredient as fixture-only ledgered inputs. Stage data and absorb hook exist; Phase 4 absorb has no raid progression or draws (O1). Unsupported augmentation skill branches are blockers, not inert successful options.
+
+**Kits/backfill/grant:** exact XML per class including Orc/Dwarf exceptions (`DP/stats/initialEquipment.xml:60-89`), starter counts/equipped flags and pending use capabilities retained. Descendants map to their base-class kit once, not their current mastery kit. Migration/recovery verifies old characters receive it once; production uses actual equipped weapon or fists at every formerly hard-coded SWORD/starter-profile site. Fixtures seed inventory/paperdoll/allocator before admission. GrantItem is ownership-checked actor work only behind AUTH_DEV_TOKENS=1; closed gate always refuses without a receipt or grant (A15).
+
+### 2.7 Enumerated formula and rounding ledger
+
+Production uses Q **1_000_000**, i64 stored/checked i128 intermediate (A1), rational immutable literals and ordered folds; no floats. Source decimal literals below are exact decimal strings. Java casts truncate toward zero, floor and Math.round sites remain separate. Damage truncates once at the existing whole boundary; irrational roots use inherited proven interval/refinement or exact bounded comparison, never changed expected answers.
+
+| Family | Pinned formula / rounding / independent vectors |
+|---|---|
+| F1 Equipment fold / slot subtraction | SET then ENCHANT source XML functions, followed by existing ordered fold. P.Def subtracts occupied slot bases, including legs for onepiece, then level modifier (`GJ/model/stats/functions/formulas/FuncPDefMod.java:48-70`); M.Def subtracts finger/ear/neck bases then MEN×level (`FuncMDefMod.java:48-66`). Preserve inherited RFINGER-base duplication. Cold/cache/restore and both equip orders must agree. |
+| F2 FuncEnchant | `b=min(e,3)`, `o=max(e−3,0)`; Def adds b+3o; MAtk coefficients S=(4,8), A/B/C=(3,6), D/NONE=(2,4). PAtk one-hand S/A/B-C/D-NG=(5,10)/(4,8)/(3,6)/(2,4); lrhand nonbow=(6,12)/(5,10)/(4,8)/(2,4); bow=(10,20)/(8,16)/(6,12)/(4,8). Poles use lrhand. S80/S84 map SPlus. All from `GJ/model/stats/functions/FuncEnchant.java:49-153`, not comments about retail spears. |
+| F3 Enchant HP | Per-grade e−1 lookup, cap to last source entry; onepiece multiplies by exact 3/2 then truncates (`GJ/data/xml/impl/EnchantItemHPBonusData.java:50,116-126`), priority40 (`GJ/enums/StatFunction.java:28`), pinned DP/stats/enchantHPBonus.xml:3-94. No inferred linear extrapolation. |
+| F4 Chance / RNG A8 | Normal armour current0..2=100%,3=66.67%,4=33.34%, then each literal through19=5.56%,20..65535=0%; full armour current0..3=100%,4=66.67%,19=5.89%,20..65535=0%; fighter3..14=70%,15+=35%; mage3..14=40%,15+=20% (`DP/enchantItemGroups.xml:4-59`). Include scroll/support exact additive bonus, cap100 (`GJ/model/items/enchant/EnchantScroll.java:147-157`). A8 adaptation `next_u32()%100_000 < chance_1e5`, percentage×1000; e.g. exact66.67→66670. Valid guaranteed success/failure still draws as source calculateSuccess does; invalid group/scroll draws none. Test comparison edges and modulo bias as documented adaptation, not universal nextDouble equivalence. |
+| F5 Crystal count / failure refund | Let C=base crystal count, B=grade bonus. e=0→C; e=1..3→C+B·e; e>3 weapon→C+B·(2e−3), armour/accessory→C+B·(3e−6) (`GJ/model/items/L2Item.java:405-419`; CrystalType.java:26-33). Normal failure `max(count(e)−trunc((C+1)/2),1)` only if crystal ID/nonzero and crystallizable (`RequestEnchantItem.java:259-271`). Intentional crystallization consumes whole crystalCount under `RequestCrystallizeItem.java`, not the half-base failure refund. |
+| F6 Grade / expertise | Crystal IDs/bonuses D1458(11,90), C1459(6,45), B1460(11,67), A1461(20,145), S/S80/S841462(25,250), grades0..7 (`GJ/model/items/type/CrystalType.java:26-33`). Source overgrade scan and else-branch quirk; subtract expertise+bonus, clamp0..4 (`L2PcInstance.java:1707-1745`). Weapon6209 exact crit multipliers0.9/0.8/0.7/0.6, acc−16, speeds/PAtk×0.9; armour6213 exact speeds0.8333/0.6944/0.5787/0.4823 and evasion−2.5/5/7.5/10 (`DP/stats/skills/06200-06299.xml:324-358`). Do not replace literals with powers of 1/1.2. |
+| F7 Weight / overload | `trunc(calcStat(weightLimit,floor(CONbonus·69000·WeightLimit)))`, pinned WeightLimit1 (`GJ/model/actor/instance/L2PcInstance.java:9427-9433`; GC/character.properties:27). bonusWeightPenalty starts1, not0. `trunc((load−bonus)·1000/maxLoad)` thresholds `<500,<666,<800,<1000` produce0..4; overloaded strictly load>maxLoad (`:1671-1692`). Skill4270 regen×0.5 all levels; speed1/0.5/0.5/0 (`DP/stats/skills/04200-04299.xml:1623-1638`). Test maxLoad equality separately from penalty4 and modifiers crossing boundaries. No weight clamp in source. |
+| F8 Shots, timing and healing | Auto PAtk shot×2 (`GJ/model/stats/Formulas.java:684-699`); ordinary physical skill77·(power+PAtk·shot)/Def with shot2 (`:763-774`); blow source uses exact1.458 (`:517-528`, D1 amendment). Magic MAtk×2/4 before sqrt91·sqrt(MAtk)/MDef·power (`:842-845`); cast time×exact3/5 before conditional500ms floor (`:1036-1042`). Heal staticShotBonus/mpConsume2 and mAtkMul branches must be ported individually (`DH/effecthandlers/instant/Heal.java:69-93`), not fixed coefficient2; magic crit/cap/order remains Phase 3. |
+| F9 Shield / positional | `rShld·DEXbonus`, no roll if ≤exact0.000001; angle=trunc(shieldDefAngle)+120, facing guard; bow rate×1.3 (`GJ/model/stats/Formulas.java:1083-1099`). Draw perfect first `100−configuredRate < roll100`, else `rShld > roll100` (`:1101-1104`), default perfect10 and ShieldBlocks=False (`GC/character.properties:136,140`). Pinned denominator-add/perfect1 branches at Formulas.java:670-678,749-756,817-826; D2 amendment. Front/side/back damage1/1.1/1.2 (`:682,761`); calcHitMiss uses hit-condition multiplier, truncating compound assignment then clamp200..980 and source comparison (`:1055-1063`). |
+| F10 Bows / dual / pole / blows | Bow source MP/rate checks (`GJ/model/actor/L2Character.java:718-758`), arrow debit and caller hit→shield→crit order (`:1015-1030`), reuse base1500 is scaled by speed/modifier (`:4347`), source template range500/cost4 for Bow of Peril (`DP/stats/items/00200-00299.xml:2253-2280`). Dual hits caller `L2Character.java:1132-1190`; pole item skill3599 adds atkCountMax4, not a hard max3 (`DP/stats/skills/03500-03599.xml:1695-1704`). Blow success DEX×position front1/side1.5/back2 with source rate funcs (`Formulas.java:1621-1640`); FatalBlow/Lethal parameters and full→conditional-half draws from `DH/effecthandlers/instant/{FatalBlow,Lethal}.java`. A8 per-mille adaptation needs boundary/cursor oracle coverage, preserving source exceptions. |
+| F11 Augmentation | Retail branch option12→colour→option34, DP retail chance rows by warrior/mage/stone/category (`GJ/datatables/AugmentationData.java:450-558`); weights55/35/7/3 (`GC/character.properties:399-402`) adapted A8 to5500/3500/700/300 on10000. Pack stat34<<16 OR stat12; bounds exact (`:558`). The level·91 and block3640 arithmetic belongs to the alternate non-retail branch (`:640-683`), not an extra retail transform (D3 amendment). Gemstone C20D/B30D/A20C/S25C/S80-S8436B (`AbstractRefinePacket.java:380-412`). Cancellation prices depend on **current crystal count** (`RequestRefineCancel.java:64-109`); generator/oracle imports entire schedule. |
+| F12 SA / consumables / sets | Exact recipe ingredients, output, maintained enchant and stage (`DP/multisell/1005.xml:2503-2535`), soul stages include0 and beyond16 (`DP/levelUpCrystalData.xml:4-21`); do not infer one recipe per grade. Item skill/reuse/itemConsume and set/enchant4/enchant6 handlers retain source whole casts and Phase 3 fractions; oracle covers source exclusions and no-draw rebuild. |
+
+**Research numeric corrections (every discovered disagreement with pinned sources):**
+
+| 04 location / number or numeric claim | Pinned correction / authority |
+|---|---|
+| §2.1 “~4,000”, every weapon of a type has one speed | Exact imported Weapon count3,893 (aggregate ledger, §2.4). Values are per template, not universal: Iron Canine277 (`DP/stats/items/02500-02599.xml:133`), Tears r1 dual433/crit12/random5 (`09600-09699.xml:458`), premium blunt/pole379 instead of325 (`20600-20699.xml:3`, `20800-20899.xml:1074`). Import overrides; do not force the reference defaults. |
+| §2.1 FIST325/crit4/random5 is universal | Orc Shaman Fist is379/8/10 (`DP/stats/items/00200-00299.xml:1315`); fists use real class/fist data, not a blanket item default. |
+| §2.1 approximate B dagger168/99 in the row naming Arthro Nail | Arthro Nail is DUALFIST213/91 (`DP/stats/items/00200-00299.xml:1683`); choose an actual dagger row for dagger vectors rather than this ambiguous example. |
+| §2.2 Tateossian earring +21MP | +31MP (`DP/stats/items/00800-00899.xml:698-713`); ring remains+21. |
+| §2.2 skill233 factors0.85/0.75/0.65 reduce critical damage | They modify `defCritRate` (critical chance received), not damage (`DP/stats/skills/00200-00299.xml:797,818-820`). |
+| §2.3 armour speeds are exactly1/1.2^n | Literal0.8333/0.6944/0.5787/0.4823 (`DP/stats/skills/06200-06299.xml:344`); rounded literals are the contract. |
+| §2.5/§6 crystal growth bonus·(e−3) | Positive low-enchant growth and high-enchant weapon2e−3/armour3e−6; F5. Refund formula's half-base subtraction is correct, its count input was wrong. |
+| §2.5/§4.2 full-body curve entirely shifted one step | Safe4 is correct; full armour at current19=5.89%, current20=0%, not a shifted5.56% at20 (`DP/enchantItemGroups.xml:43-45`). Literal group lookup wins over100/(n−1) shorthand. |
+| §2.5/§3.3 pole on 1H enchant row | lrhand pole uses two-hand coefficients; F2 / O3. |
+| §2.6 retail + flat1% base-stat/grade glow/level·91 block3640 | These describe separate non-retail branches. RetailTrue uses explicit retailchances and returns before those branches (`GJ/datatables/AugmentationData.java:450-558,605-683`; GC/character.properties:393). Preserve source branch, not a mixture. |
+| §2.6 life-stone levels end80/82/84 | Pinned LEVELS also includes85 (`GJ/network/clientpackets/AbstractRefinePacket.java:62-65`). |
+| §2.7 stage1..13 (H5 only to16) | Pinned linkage begins0 and includes16→17→18 (`DP/levelUpCrystalData.xml:4-21`). Import complete stage data; leveling remains Phase 6. |
+| §2.8 item `time` in seconds | Pinned constructor multiplies `getTime()` by60×1000, so the template time is minutes (`GJ/model/items/instance/L2ItemInstance.java:207,230`). Time-limited runtime remains excluded. |
+| §2.8 weight1/1000 units/1600=1.6kg; ~69000=69kg | No kilogram/gram conversion in pinned max-load or inventory total-weight contract (`GJ/model/actor/instance/L2PcInstance.java:9427-9438`); use unitless L2 weights. |
+| §2.8 floor(CONbonus·69000) then multiplier | Pinned floor includes WeightLimit **inside** the product, followed by weightLimit funcs and final truncation (`L2PcInstance.java:9428`). At default multiplier1 the distinction is latent; oracle tests modifier paths. |
+| §2.8/§7 threshold66.6%/66%, ≥100% always overloaded | Compare integer666 per-mille, not rounded66%; subtract bonusWeightPenalty whose base is1, and strictly overloaded load>maxLoad (`L2PcInstance.java:1671-1689,9433`). Penalty4 alone does not imply the overloaded flag. |
+| §4.2 Blue Wolf Breastplate id2380, PDef166 | Breastplate358/PDef166 (`DP/stats/items/00300-00399.xml:1481-1498`);2380 is Blue Wolf Gaiters/PDef104 (`02300-02399.xml:1076-1094`). |
+| §4.2 pole max_targets3 | Skill3599 adds atkCountMax4 to the source base; no fixed3 (`DP/stats/skills/03500-03599.xml:1703`). |
+| §2.1/§4.2 fixed bow delay1500ms |1500 is template/base input, not universal final delay; caller speed/reuse modifier applies (`GJ/model/actor/L2Character.java:4347`). |
+
+04's **60-second** receipts, **32-bit** item object IDs, proposed UUID instances, six-grade-only import and **14-slot** client sketch are research design contracts superseded by A2/A3/A5/A7/API §2; they are not pinned source bugs. Unverifiable Interlude percentages/warehouse/private-store/crystal-scroll defaults, retail glow +4/+7/+10/+13, client-crash approximations and estimated ratios are not Phase 4 contracts. Matching template examples, SA suffix counts, crystal bonuses, shot prices, capacities and reference life-stone prices were checked; unused vendor prices/era statistics are not copied into runtime rules. Any later E1 source disagreement extends this table/progress list before handoff.
+
+### 2.8 Canonical scenario matrix
+
+Files live under `apps/client-unreal/Scenarios/`. Middle cells give the **exact entire header** payload including `# covers:`; add `# fixture: phase4-<family>` next. No story tag is satisfied by a header alone. C11 asserts only received state; `export` below means verified C14 replay evidence checked by C15 item/skill oracle on actual inputs. First ship **4-equip-weapon** and **4-enchant-fail**. Each paired role has a distinct account/report/artifact namespace and matching fixture declaration.
+
+| File | Exact header | Authoritative assertions / fixture family |
+|---|---|---|
+| `4-starter-kit.nfs` | `# covers: 4 E1.2, 4 E1.6, 4 E2.1, 4 E2.6, 4 E2.9, 4 E3.3, 4 E3.5, 4 E5.1, 4 E5.4, 4 E5.5, 4 E6.5` | phase4-starter: inventory/equipped flags match class XML; reconnect/retry no second kit. New and backfilled base-class variants, including Orc/Dwarf; exact ledger/allocator via export/adapter. |
+| `4-equip-weapon.nfs` | `# covers: 4 E1.2, 4 E1.6, 4 E2.1, 4 E2.2, 4 E2.6, 4 E2.9, 4 E3.2, 4 E5.1, 4 E5.5, 4 E6.5` | phase4-equip: authenticated catalogue and seeded inventory, equip real weapon, received equipment/stats and authoritative damage match oracle. No pickup. Ring/onepiece/lrhand variants and keyed retry/no duplicate. |
+| `4-unequip-fists.nfs` | `# covers: 4 E1.3, 4 E1.6, 4 E2.2, 4 E2.6, 4 E2.9, 4 E5.1, 4 E5.5, 4 E6.5` | phase4-equip: weapon removed, fists stats/reach/conditions/damage from received state; export proves rebuild order/no repeated hooks. |
+| `4-armor-set.nfs` | `# covers: 4 E1.3, 4 E1.6, 4 E2.2, 4 E2.3, 4 E2.6, 4 E2.9, 4 E5.1, 4 E5.5, 4 E6.5` | phase4-armor: complete/broken/onepiece/mastery/enchant4/enchant6 fixture variants; received stats/maxima match oracle, no heal on rebuild. Export confirms System sources. |
+| `4-shield-block-a.nfs` | `# covers: 4 E1.4, 4 E1.6, 4 E4.2, 4 E4.6, 4 E6.5` | phase4-shield: attacker hits peer with controlled facing, received results/HP; export rolls and shield outcomes prove normal/perfect/no-block variants. |
+| `4-shield-block-b.nfs` | `# covers: 4 E4.2, 4 E4.6, 4 E5.4, 4 E5.5, 4 E6.5` | phase4-shield: peer equips shield; owner exact state, observer safe paperdoll only; rear/sigil/no-shield variants and privacy audit. |
+| `4-bow-arrows.nfs` | `# covers: 4 E1.4, 4 E1.6, 4 E2.4, 4 E2.6, 4 E2.9, 4 E4.3, 4 E4.6, 4 E5.3, 4 E5.5, 4 E6.5` | phase4-bow: lhand arrows grade/count, accepted shots consume and MP/reuse/result; no-arrow/mismatch/MP rejection, launched miss and last-arrow exhaustion. Export exact costs/cursor. |
+| `4-grade-penalty.nfs` | `# covers: 4 E1.3, 4 E1.6, 4 E2.3, 4 E2.6, 4 E2.9, 4 E5.1, 4 E5.5, 4 E6.5` | phase4-grade: equip overgrade weapon/armour, received distinct penalties and speed/stats; expertise/unequip variants clear exact sources, branch quirk via oracle/export. |
+| `4-overload.nfs` | `# covers: 4 E1.3, 4 E1.6, 4 E2.3, 4 E2.6, 4 E2.9, 4 E5.1, 4 E5.5, 4 E6.5` | phase4-overload: load/max/penalty received, destroy/use changes weight and movement/regen; equality and each threshold preseeded variant. Oracle/export separates level from strict flag. |
+| `4-crystallize.nfs` | `# covers: 4 E1.3, 4 E1.6, 4 E2.4, 4 E2.9, 4 E5.2, 4 E5.3, 4 E5.5, 4 E6.5` | phase4-crystallize: learned-grade prerequisite/refusal, received target removal/full crystal count and equipment/stat changes, keyed retry no duplicate; export verifies exact intentional versus failure refund and no RNG. |
+| `4-enchant-success.nfs` | `# covers: 4 E1.3, 4 E1.6, 4 E2.4, 4 E2.6, 4 E2.9, 4 E5.2, 4 E5.5, 4 E6.5` | phase4-enchant: safe successful EnchantResult, scroll debit/new level/stats, exact-key replay/reconnect; source-chance draw and bonus via export. |
+| `4-enchant-fail.nfs` | `# covers: 4 E1.3, 4 E1.6, 4 E2.4, 4 E2.6, 4 E2.9, 4 E5.2, 4 E5.5, 4 E6.5` | phase4-enchant: risk outcome remains RNG-dependent; client checks received outcome's actual success/destroy/reset/safe consequence. Seeded normal/blessed/safe vectors and export check exact roll/chance/refund; no expected-error allowlist for outcomes. |
+| `4-soulshot.nfs` | `# covers: 4 E1.4, 4 E1.6, 4 E2.4, 4 E2.6, 4 E2.9, 4 E4.1, 4 E4.6, 4 E5.3, 4 E5.5, 4 E6.5` | phase4-shots: received toggle/manual charge/count and physical hit result; depleted/mismatch/unequip/reconnect cases, exact counts/shot formula from export. |
+| `4-spiritshot.nfs` | `# covers: 4 E1.4, 4 E1.6, 4 E4.1, 4 E4.6, 4 E5.3, 4 E5.5, 4 E6.5` | phase4-shots: normal/blessed magic timing/damage/heal from received cast/results/resources; export charge lifecycle/static/nonstatic oracle branches. |
+| `4-potion.nfs` | `# covers: 4 E1.5, 4 E1.6, 4 E2.4, 4 E2.6, 4 E2.9, 4 E3.4, 4 E3.5, 4 E5.3, 4 E5.5, 4 E6.5` | phase4-consumables: HP/MP/CP restoration and count/reuse from received state, low/full/dead fixtures; pulses/fractions/cost/no duplicate via export. |
+| `4-escape-scroll.nfs` | `# covers: 4 E1.5, 4 E1.6, 4 E3.4, 4 E3.5, 4 E5.3, 4 E5.5, 4 E6.5` | phase4-scrolls: actual start/cancel/completion/position/count, normal/Blessed variants; hostile NPC interruption via real combat, no live SQL. |
+| `4-resurrection-scroll-a.nfs` | `# covers: 4 E1.5, 4 E1.6, 4 E3.4, 4 E3.5, 4 E5.3, 4 E5.5, 4 E6.5` | phase4-resurrection: caster uses explicit dead peer, count debit/offer/result; competing/invalidated variants and source-filtered public revival. |
+| `4-resurrection-scroll-b.nfs` | `# covers: 4 E3.4, 4 E3.5, 4 E5.3, 4 E5.4, 4 E5.5, 4 E6.5` | phase4-resurrection: dead owner receives offer/id/baseline, accepts/declines/expires/reconnects; final vitals/XP observed, export exact one-time refund. |
+| `4-augment.nfs` | `# covers: 4 E1.5, 4 E1.6, 4 E2.5, 4 E2.6, 4 E2.9, 4 E5.2, 4 E5.5, 4 E6.5` | phase4-blacksmith: fixture stone/gemstones/currency, received RefineResult/options/stats; cancel removes once with exact fee, distance/level/insufficient cases, export source option draw order. |
+| `4-sa-exchange.nfs` | `# covers: 4 E1.5, 4 E1.6, 4 E2.5, 4 E2.6, 4 E2.9, 4 E5.2, 4 E5.5, 4 E6.5` | phase4-blacksmith: exact recipe inputs/output/equipped SA stats and preserved/reset fields as recipe specifies; wrong stage/ingredients refused, no absorb leveling. |
+| `4-item-skill-learn.nfs` | `# covers: 4 E1.2, 4 E1.6, 4 E3.2, 4 E3.4, 4 E3.5, 4 E5.3, 4 E5.5, 4 E6.5` | phase4-learn: initially missing book FAILED_PRECONDITION, gated actor GrantItem supplies the fixture-declared book with a received delta, exact-rank learn consumes book/SP once, frozen retry. `4-item-skill-learn.allow` declares expected RPC refusal only. |
+| `4-grant-item-denied.nfs` | `# covers: 4 E3.2, 4 E3.5, 4 E5.4, 4 E5.5, 4 E6.5` | phase4-grant-denied: separate authenticating fixture with AUTH_DEV_TOKENS gate off; FAILED_PRECONDITION, received inventory unchanged, adapter/export no grant. Required `4-grant-item-denied.allow`; do not turn on gate to authenticate this negative pack. |
+| `4-combat-kinds.nfs` | `# covers: 4 E1.4, 4 E1.6, 4 E4.4, 4 E4.5, 4 E4.6, 4 E6.5` | phase4-kinds: dual/dualfist/fist, pole multiple NPC recipients, dagger front/side/back blows/lethal with admitted skills; received attacks/casts/HP, full RNG/recipient/no-draw proof via export. |
+
+The extra combat-kinds and crystallize units close client-visible mechanics outside A17's minimum list. Privacy assertions requiring another human entity use named paired roles, never pretend a solo process observes its own private stream as a peer. Scenario variants/role manifests must cover replacement/idle reconnect/hidden sources and compare exported server facts rather than add always-UNKNOWN predicates.
+
+## 3. Engineering architecture, ownership and review gates
+
+Follow domain → application ports → infrastructure/interface separation. Proposed domain modules `item.rs`, `phase4.rs`, `state_items.rs`, equipment/penalty/enchant/augmentation/shot helpers extend existing zone types; Z publishes typed hooks, not a second actor. C's immutable item loader parallels skill_data_profiles.rs; API adds checkpoint/admission/receipt use cases and zone mappings. Register every production zone source in SOURCES and retain denied unwrap/expect/panic, floats, HashMap and wall-clock checks.
+
+- **Z = Codex gpt-6-astra/high:** item design, E2 zone/V6/replay/export, shared state.rs/state_combat.rs/command.rs/state_digest.rs and replay/snapshot codecs; E4 combat integration against those shared callers. E4 assigned Z here because A10 changes the same caller/RNG contracts; C reviews it, architect confirms at handoff.
+- **C = Codex gpt-6.1-sol/high:** this plan, E1 data/oracle, E3 proto/API/persistence/backfill, E5 Unreal/bot, E6 harness/scenarios/soak and E7 telemetry integration. C reviews Z; Z reviews C, especially data and durability.
+- **D = agy gemini-3.8-flash-high:** diagrams, placeholder icon atlas and outcome/docs/dashboard artifacts, each independently reviewed by Codex. No D plan revisions.
+- Root integrates reviewed commits, runs gates, merges/pushes and owns the lock for **all** Unreal build/run/cook activity. One proto editor; Z serializes shared zone/codec edits. Author never solely reviews own work.
+
+Design and plan reviews precede dependent contracts. Runtime/codec restore is reviewed independently before admission integration; E2 admission consumes E3 checkpoint/receipt adapters, avoiding a circular whole-epic dependency. Preserved review receipts remain referenced by path in outcome; implementation status is added only after named evidence passes.
+
+## 4. Epics, stories, models and Done When
+
+All stories are pending. Future completion prefix is `✅` in the title cell after independent review/evidence, never a documentation claim. Each client-facing epic ends with a simulation story naming its files; §2.8 supplies exact coverage/assertions. Model letters follow §3.
+
+### Epic 1: Data generation and independent oracle (C; Z review)
+
+| Story | Model | Work / Done When |
+|---|---|---|
+| 1.1 Source inventory, provenance and item oracle [required] | C | Build independent Fraction item_oracle.py and pinned inventory ledger / **Done When:** Full hashes/file:line literals, F1–F12 rounding and injected traces reviewed; at least24 gear vectors (A7) plus all chance/refund/load/HP boundaries; no Rust-authored expectations. |
+| 1.2 Template generator, closure and capability catalogue [client-visible] [required] | C | Generate §2.4 files, classes/skills closure and GetItemCatalog inputs / **Done When:** Valid TOML, --check/check_all/SOURCES, imported/admitted/deferred counts and exact new executable/deferred count GATE reviewed; runtime drift rejects; kit/learn/catalogue received assertions pass. |
+| 1.3 Equipment, sets, penalty and enchant oracle families [client-visible] [required] | C | Publish F1–F7 expectations, source quirks and cache/order vectors to Z / **Done When:** Equip/fists/set/penalty/enchant client outcomes and source-exact refund/HP/load boundaries agree with independent oracle; no hard-coded table shorthand. |
+| 1.4 Shot, shield, position and weapon caller vectors [client-visible] [required] | C | Publish F8–F10 draw/boundary evidence with Z's resolved design / **Done When:** Per-caller shot/shield/dual/pole/blow vectors and recorded outcomes agree, D1/D2 caller distinctions retained. |
+| 1.5 Consumable, augmentation and SA source closure [client-visible] [required] | C | Generate F11/F12 definitions/recipe/option dependencies / **Done When:** No dropped ingredients/procs/conditions, retail branch resolved, scroll/potion/refine/SA received outcomes and oracle evidence pass. |
+| 1.6 Simulation scenario(s) [client-visible] [required] | C | Supply oracle assertions for 4-starter-kit.nfs, 4-equip-weapon.nfs, 4-unequip-fists.nfs, 4-armor-set.nfs, 4-grade-penalty.nfs, 4-overload.nfs, 4-enchant-success.nfs, 4-enchant-fail.nfs, 4-crystallize.nfs, 4-shield-block-a.nfs, 4-bow-arrows.nfs, 4-soulshot.nfs, 4-spiritshot.nfs, 4-potion.nfs, 4-escape-scroll.nfs, 4-resurrection-scroll-a.nfs, 4-augment.nfs, 4-sa-exchange.nfs, 4-item-skill-learn.nfs, 4-combat-kinds.nfs / **Done When:** §2.8 mapped received assertions and actual-input oracle gates pass; foundation handoff precedes live completion. |
+
+### Epic 2: Zone engine, V6 boundary and replay (Z; C review)
+
+| Story | Model | Work / Done When |
+|---|---|---|
+| 2.1 Canonical instances, slots and inventory mutation [client-visible] [required] | Z | Implement typed state, monotone allocator, validation/swaps and kit admission hooks / **Done When:** §2.3/§2.6 slots/caps/ownership/overflow conservation, snapshot/hydration and starter/equip assertions pass; IDs never draw RNG. |
+| 2.2 Equipment fold and System source lifecycle [client-visible] [required] | Z | Replace all starter/SWORD sites, apply item/set/enchant/augment funcs / **Done When:** F1–F3 cold/cache/order/restore/slot subtraction and fists/set scenarios pass, rebuild clamps without heal or hook replay. |
+| 2.3 Grade and overload penalties [client-visible] [required] | Z | Recompute on all §2.3 triggers and install source-exact P System modifiers / **Done When:** F6/F7 quirks/equality/modifier cases and grade/overload/set runs pass, no private penalty effects leak. |
+| 2.4 Consumable/enchant critical drafts and net deltas [client-visible] [required] | Z | Resolve scroll/enchant/destroy/crystallize/charge/cost mutations and typed persistence facts / **Done When:** F4/F5 chance/refund/draw ordering plus bow/shot/potion/enchant runs pass, one net ledger delta/instance/tick, validation failure has no draw/spend. |
+| 2.5 Refine/cancel/SA actor mechanics [client-visible] [required] | Z | Implement blacksmith guards, retail options and exact exchanges/fees / **Done When:** F11/F12 option packing/skill closure/currency/recipe conservation and augment/SA runs pass; absorb hook no-op; D3/D10/D11 and numbered D13 design rules enforced. |
+| 2.6 Observer baselines and checkpoint admission [client-visible] [required] | Z | Implement §2.1 private sync/public equipment and restore using E3.1/E3.3 adapters / **Done When:** Owner/peer/reconnect/replacement/resurrection fences/privacy/no repeated kit/hook evidence passes; independent restore review before live admission. |
+| 2.7 V6 snapshot/digest/record and version_two byte admission [required] | Z | Implement §2.2 matrix, embedded hashes, sizing and legacy isolation / **Done When:** Recursive negative fixtures, every canonical-field digest mutation, byte replay/suffix recovery and full C10 size/pre-run FIFO/oversize gates pass before freeze. |
+| 2.8 Verified Phase 4 evidence producer [required] | Z | Extend nightfall-replay export for item/roll/refund/penalty/charge/recipe facts / **Done When:** C14 verified deterministic facts with complete draw cursor/inputs feed C15 consumers; missing/corrupt facts fail, old export/replay behavior retained. |
+| 2.9 Simulation scenario(s) [client-visible] [required] | Z | Author engine assertions in 4-starter-kit.nfs, 4-equip-weapon.nfs, 4-unequip-fists.nfs, 4-armor-set.nfs, 4-grade-penalty.nfs, 4-overload.nfs, 4-bow-arrows.nfs, 4-enchant-success.nfs, 4-enchant-fail.nfs, 4-crystallize.nfs, 4-soulshot.nfs, 4-potion.nfs, 4-augment.nfs, 4-sa-exchange.nfs / **Done When:** §2.8 cases plus paired observer/privacy and arbitrary checkpoint recovery evidence pass; C reviews Z outputs. |
+
+### Epic 3: API, persistence, RPCs and backfill (C; Z review)
+
+| Story | Model | Work / Done When |
+|---|---|---|
+| 3.1 Migrations, checkpoint adapters, ledger and outbox [required] | C | Implement000010/000011 and Phase4Checkpoint/ports/fingerprints/entities/recovery atomically / **Done When:** §2.5 schema parity/bounds/concurrent/rollback/ack/crash/fence and backfill evidence passes; publish adapters before E2.6 integration. |
+| 3.2 Additive proto, catalogue/inventory reads and gated GrantItem [client-visible] [required] | C | Freeze §2.1 concrete tags/IDs/errors/keys, implement RPCs and optional client catalogue bridge / **Done When:** Z contract review, full API §4 matrix and gate-off scenario pass; ownership/auth fail closed; buf additive checks/legacy bytes pass. |
+| 3.3 Starter kit and idempotent existing-character backfill [client-visible] [required] | C | Wire first-admission CreateCharacter kit/pending marker and migration kit path to Z hooks / **Done When:** Every playable lineage/Orc/Dwarf exception, migration rerun/resume/retry/crash applies item rows+backfill ledger once before visibility; 4-starter-kit.nfs passes. |
+| 3.4 Item-consuming casts and spellbook learning [client-visible] [required] | C | Extend item eligibility/consumption in LearnSkill/use cases and Z cast hooks / **Done When:** SP/book/rank/items/receipt atomic, full retry/error/race matrix; potion/scroll/resurrection/learning runs and actual-input oracle pass. |
+| 3.5 Simulation scenario(s) [client-visible] [required] | C | Author 4-starter-kit.nfs, 4-potion.nfs, 4-escape-scroll.nfs, 4-resurrection-scroll-a.nfs, 4-resurrection-scroll-b.nfs, 4-item-skill-learn.nfs, 4-grant-item-denied.nfs and named .allow sidecars / **Done When:** §2.8/§2.5 live wire assertions and precise adapter/actor retry/crash cases pass independently reviewed. |
+
+### Epic 4: Combat integration (Z; C review)
+
+| Story | Model | Work / Done When |
+|---|---|---|
+| 4.1 Physical/magic shots, casting and healing [client-visible] [required] | Z | Integrate charge lifecycle, weapon counts and F8 caller-specific terms / **Done When:** soul/spirit/blessed manual/auto/depleted/mismatch/cancel/reconnect vectors and received timing/damage/heal/counts pass without double consumption. |
+| 4.2 Shield block and positional facing [client-visible] [required] | Z | Implement F9 angle/rate/perfect branches and last-movement facing / **Done When:** Paired front/side/back/bow/sigil/no-shield cases, both source draws/negative boundaries and observer privacy pass; angular adaptation reviewed. |
+| 4.3 Bow arrows, MP, reach and reuse [client-visible] [required] | Z | Replace melee assumptions with actual bow/source costs and lhand rules / **Done When:** F10/no-arrow/mismatch/MP/exhaustion/miss/cancel and bow scenario pass with exact accepted-shot ledger and scaled reuse. |
+| 4.4 Dual/dualfist/fist and pole FAN targets [client-visible] [required] | Z | Implement real weapon constants, split-hit and source pole recipient order/cap / **Done When:** 4-combat-kinds.nfs plus oracle proves dual hits, primary/secondary pole targets/angle/protection and no extra RNG/cost from observing recipients. |
+| 4.5 Dagger FatalBlow/Lethal/blowRate capabilities [client-visible] [required] | Z | Execute admitted blow/lethal handlers source-exact with A8 per-mille adaptation / **Done When:** Full/half/no-lethal/immune/front-side-back/no-draw branches and exact cursor/CP/HP/death evidence pass; unknown dependencies still deferred. |
+| 4.6 Simulation scenario(s) [client-visible] [required] | Z | Author 4-soulshot.nfs, 4-spiritshot.nfs, 4-shield-block-a.nfs, 4-shield-block-b.nfs, 4-bow-arrows.nfs, 4-combat-kinds.nfs / **Done When:** Received outcomes plus export/oracle draw/cost/recipient gates pass under V6, legacy fight fixtures unchanged. |
+
+### Epic 5: Unreal client and bot (C; Z review, root Unreal lock)
+
+| Story | Model | Work / Done When |
+|---|---|---|
+| 5.1 Catalogue, inventory, paperdoll and weight UI [client-visible] [required] | C | Code-built grid/tooltips/equip/unequip/weight/penalty widgets from authoritative state / **Done When:** Equip/fists/set/grade/overload/starter runs, named reducer/input/widget automation and fail-closed catalogue loading pass; no formula authority in client. |
+| 5.2 Enchant, crystallize and blacksmith dialogs [client-visible] [required] | C | Scroll→target, crystallize and refine/cancel/SA controls reuse exact request key on retry / **Done When:** Received results/counts/error/pending states and enchant/augment/SA runs plus live dialog automation pass; no predicted random outcome. |
+| 5.3 Hotbar shots/consumables and bot DSL [client-visible] [required] | C | nf.Equip/Unequip/UseItem/Enchant/Crystallize/AutoShot/Refine/CancelRefine/ExchangeSA/GrantItem and received predicates; hotbar auto/manual items / **Done When:** Published §5 predicate mapping/parser/UNKNOWN/reset tests and bow/shots/potion/scroll/learn runs pass; UI/keybind automation separate. |
+| 5.4 Identity/hydration privacy, weapon presentation and art [client-visible] [required] | C | Apply tick/incarnation/generation fences, mesh swap and reviewed D atlas/material placeholders / **Done When:** Starter/reconnect/peer shield/resurrection/gate-denied runs, no private leakage, named rendering automation and zero-missing-reference cook pass; glow mapping documented as placeholder. |
+| 5.5 Simulation scenario(s) [client-visible] [required] | C | Run 4-starter-kit.nfs, 4-equip-weapon.nfs, 4-unequip-fists.nfs, 4-armor-set.nfs, 4-shield-block-b.nfs, 4-bow-arrows.nfs, 4-grade-penalty.nfs, 4-overload.nfs, 4-enchant-success.nfs, 4-enchant-fail.nfs, 4-crystallize.nfs, 4-soulshot.nfs, 4-spiritshot.nfs, 4-potion.nfs, 4-escape-scroll.nfs, 4-resurrection-scroll-a.nfs, 4-resurrection-scroll-b.nfs, 4-augment.nfs, 4-sa-exchange.nfs, 4-item-skill-learn.nfs, 4-grant-item-denied.nfs / **Done When:** Protocol evidence plus run-tests.sh --require-live-api zero skips and cooking prove rendering-only subscopes; .nfs alone never proves pixels. |
+
+### Epic 6: Harness, scenarios and soak (C; Z review)
+
+| Story | Model | Work / Done When |
+|---|---|---|
+| 6.1 Predicate mapping, Phase 4 packs and orchestration [required] | C | First publish received-message/reset/error grammar, then phase4-fixtures.py dispatcher, roles/seeders/overlays/hashes / **Done When:** A22 pre-admission inventory+ledger+allocator seed, no live mutation/host psql, paired-role artifact isolation and parser/stub tests pass before scenario implementation. |
+| 6.2 Export consumers, oracle gates, coverage and replay [required] | C | Consume E2.8 facts strictly, extend coverage preserving all previous fields/reachability / **Done When:** Missing/corrupt/repeated/baseline facts and actual-input Fraction gate tests pass; record-byte replay and unchanged old baselines verified; Z reviews consumers, C reviews producer. |
+| 6.3 Production-policy regression and backfill fixtures [required] | C | Run Phase0b–3 live units on V6 with explicit real kits/equipment / **Done When:** Every changed numeric expectation rederived/re-cited in header under C15/C16, no relaxed assertion/quarantine/allowlist; old replay fixtures untouched. |
+| 6.4 Benchmarks and eight-client packaged soak [required] | C | Consume C-reviewed Z measurements, extend packaged soak with gear swaps/auto-shots/enchant per client while retaining casting/long effects / **Done When:** §5.4 inherited CPU/actor/log/DB/memory/participation/replay/latency gates pass under root lock, no skipped clients or durability exception. |
+| 6.5 Simulation scenario(s) [client-visible] [required] | C | Execute every §2.8 file: 4-starter-kit.nfs, 4-equip-weapon.nfs, 4-unequip-fists.nfs, 4-armor-set.nfs, 4-shield-block-a.nfs, 4-shield-block-b.nfs, 4-bow-arrows.nfs, 4-grade-penalty.nfs, 4-overload.nfs, 4-enchant-success.nfs, 4-enchant-fail.nfs, 4-crystallize.nfs, 4-soulshot.nfs, 4-spiritshot.nfs, 4-potion.nfs, 4-escape-scroll.nfs, 4-resurrection-scroll-a.nfs, 4-resurrection-scroll-b.nfs, 4-augment.nfs, 4-sa-exchange.nfs, 4-item-skill-learn.nfs, 4-grant-item-denied.nfs, 4-combat-kinds.nfs / **Done When:** Every role/variant has nonvacuous assertions/JUnit/record/replay/export/oracle/trace/contract/coverage/cleanup verdict; zero required-live skips, no UNKNOWN allowlist. |
+
+### Epic 7: Documentation and bounded telemetry (C/D; independent Codex review)
+
+| Story | Model | Work / Done When |
+|---|---|---|
+| 7.1 Item metrics and live observability validator [required] | C | Instrument committed item operation/outcome/grade/kind counters/panels, update infra/scripts/verify-observability.sh / **Done When:** Controlled pre/active/post scrapes agree with replay commitments, no retry/hydration inflation, previous trace/log/OTLP/scrape checks preserved; no template/instance/account labels. |
+| 7.2 Diagrams, placeholder atlas manifest and operational docs [required] | D | Document final durable inventory/enchant/combat sequence, provenance/asset licences and runbooks / **Done When:** Codex review and render/link checks approve final implemented contracts, source/placeholder distinctions and preserved receipt paths; no proposal described as executed. |
+| 7.3 Outcome and limitations [required] | D | Fill §9 only after root acceptance and write companion outcome / **Done When:** Codex review verifies accepted commit/evidence links, measured sizes/counts/performance, unresolved limitations and no weakened prior gate. |
+
+## 5. Required acceptance evidence and fixtures
+
+**Planned, not executed.** Preserve all Phase 1–3 gates and the Phase 3 plan §5.1–§5.7 suites, including precise cast/effect/regen/PvP/death/resurrection/learning cases, timers, parity, ack/crash/fence/record-byte and privacy semantics. This phase adds equipment inputs rather than replacing their coverage.
+
+### 5.1 Data, oracle and formula evidence
+
+Independent `packages/data/scripts/item_oracle.py` uses Fraction over pinned literals, not Rust or generated Q outputs. At least **24** equipment vectors is A7's minimum, not complete acceptance. Cover F1–F12 across every admitted kind/grade/enchant/onepiece/lrhand, SET/ENCHANT XML order before STR/level/passive modifiers, armour/jewelry slot subtraction, source HP cap, exact chance+support/max base-chance-zero, low/high-enchant crystal counts, destruction/reset/safe/noncrystallizable, overload equality/bonus/modified CON and expertise scan quirk. Include retail option distributions/categories/mage-warrior/packing/fees, recipe maintenance and all shot/shield/position/bow/dual/pole/blow/Heal caller boundaries and no-draw exits.
+
+Oracle manifest records source revisions/file:line/symbol, actual inputs, injected roll values/bounds/order/cursor, rational intermediates, each whole/Q/binary32 rounding site, output and vector hashes. Existing skill_oracle.py continues to cover skill formulas/fractions; C15 consumers call committed oracle functions with **actual** fixture/resolution inputs. Unsupported input fails closed, no finite-vector lookup pretending universal coverage, no tolerance widening. Source comparison adaptations such as modulo bias/per-mille/angular boundaries must be explicit and independently reviewed.
+
+Generator checks parse emitted TOML independently, verify all source/default/override fields and dependency admission, reproduce counts/blocker differences and validate runtime extrema/checked products. Unknown skill/option/stat/reference defers complete parent; item sets and augmentation cannot execute half an effect. Catalogue item/string embedding size and full-rule snapshots measured before freeze.
+
+### 5.2 Endpoint, durability and migration evidence
+
+Implement the complete API §4 matrix in §2.5: in-memory use cases, real TestApp gRPC/WS and DATABASE_URL-gated PostgreSQL adapters. Trigger every reachable AppError/documented status, auth/ownership, rollout/key conflict, malformed/bounded input, no-write validation, read-after-write, same-key frozen retry and concurrent exactly-once operations. Test each item intent, GrantItem, changed CreateCharacter/LearnSkill and all new methods; skipped adapter tests are not passes.
+
+Add atomic swap/consume/enchant/refund/refine/SA transactions, full/quest/stack inventory limits, FK/slot/unique/bigint/smallint/packed augment bounds, identical memory/Postgres checkpoint fingerprints and historical fingerprints. Test ack withholding, immutable retries/lost acks, stale/permanent fences, disconnect/lifecycle conflicts, queued same/different keys, logged-before-DB crash reconciliation and append-only ledger/outbox exactly once. Each instance net delta/tick conserves counts and preserves full operation evidence; no per-hit transactions.
+
+Migration000011 fixtures contain every playable base lineage plus descendants and existing live/dead/never-admitted characters, rerun/resume at every commit boundary and missing-kit marker cases. Source-equipped flags/counts, allocator collision/exhaustion and pending grant visibility are explicit. Freeze backfill/range schema only after D7/D8 design review; do not invent UUID or reuse a range.
+
+### 5.3 Fixture packs, predicates and scenario receipts
+
+`phase4-fixtures.py` extends the existing phase2-fixture dispatcher; `infra/scripts/seed-phase4-*.py` migrate/seed using owned-container exec, no host psql. Packs `phase4-starter`, `phase4-equip`, `phase4-armor`, `phase4-shield`, `phase4-bow`, `phase4-grade`, `phase4-overload`, `phase4-enchant`, `phase4-crystallize`, `phase4-shots`, `phase4-consumables`, `phase4-scrolls`, `phase4-resurrection`, `phase4-blacksmith`, `phase4-learn`, `phase4-grant-denied`, `phase4-kinds` declare role/account/class/level/SP/skills/vitals/position/facing, inventory/paperdoll/enchant/augment/toggles, ledger seed and next_item_instance. All seed **before admission**, explicit normalized loads/rules/policy; retain binary/data/seeder/vector/input hashes and private token/port/cleanup safeguards. Denied GrantItem pack uses actual authenticated credentials with dev grant gate off.
+
+First harness deliverable is a parser-tested command/predicate→carrier map:
+
+| Command / predicate | Received authoritative evidence |
+|---|---|
+| nf.Equip/Unequip; `equipped <slot> == <template>` | Committed EquipmentChanged plus owner InventorySync/InventoryChanged; Ack alone insufficient |
+| `inventory_has <template> >= <n>`, `arrows_remaining` | Owner sync/delta counts keyed by instance/template; no live DB or predicted consumption |
+| nf.Enchant/nf.Crystallize; `enchant_level <slot> == <n>` | Received EnchantResult and owner item state; failure consequence matches actual result |
+| nf.AutoShot; `autoshot_on <template>` | Owner sync/toggle/charge state; not inferred from damage |
+| `weight_pct`, `overload_level`, `grade_penalty weapon\|armor` | Owner WeightChanged/PenaltyChanged/sync exact source values; pct formatting cannot round an assertion across a threshold |
+| nf.UseItem/Refine/ExchangeSA/GrantItem | Accepted intent plus result/count/equipment/cast/reuse/offer carriers, operation key/result scope |
+| Catalogue/tooltips/status | Authenticated GetItemCatalog version/content; owned GetInventory only for documented out-of-world scope |
+| Damage/vitals/MP/stat comparison | Existing results/owner StatsChanged/public VitalsChanged versus external oracle expectations |
+
+Apply C11: UNKNOWN until carrier received; reset/fence generation/incarnation/tick/item baseline; unsupported syntax fails. Never allow-list UNKNOWN or infer outcome from animation. Server-only RNG/ledger/allocator/refund-reconstruction/charge cause/penalty formula assertions go through C14 verified export and C15 independent actual-input oracle. For each file/role/variant retain manifests/logs/nonvacuous JUnit, .nfr/byte replay/export/trace/contract/coverage/pipeline verdict and cleanup. A header is structural traceability only. `.allow` declares precise expected rejection codes in named rejection units; enchant failure is gameplay, not an error allowance.
+
+Under C16 all Phase0b–3 live packs seed real Phase4 inventory/paperdoll and run production V6. Re-derive every legitimately changed damage/regen/timing expectation with oracle and pinned citations in its header; preserve assertion strength/quarantine/baselines. Keep historical recordings byte-exact. Required live UI automation via `run-tests.sh --require-live-api` has **zero skips**; cook/stage verifies assets separately. Root holds the Unreal lock for every build/run.
+
+### 5.4 Replay, size, performance, soak and telemetry
+
+Add verified V6 .nfr fixtures with multiple players/NPCs and inventory/charge/arrow/equip/set/penalty/enchant/refund/refine/SA/learning/scroll events, receipts and snapshot mid-action/pending-checkpoint recovery. Mutate each canonical item field and confirm digest divergence; rebuild indexes without divergence. Raw nested Phase4 injection into every legacy version rejects even default presence; byte corruption fails reproduced records even when final digest matches. Keep `bash apps/api/fixtures/sessions/replay-check.sh` historical fixtures unchanged.
+
+Retain coverage schema3 fields and Cartesian reachability; new item commitment/outcome/consumption facts count once zone-wide, no observer/hydration/retry inflation. Any schema addition/version change requires reviewed backwards handling, not resetting prior totals. Verified export includes roll/chance/refund, net inventory/ledger/penalty/charge/recipe and ordered source reconstruction facts; missing/wrong-version/hash/cursor input fails.
+
+Preserve pre-run normalized-command **256 KiB**, queued **1,024**/per-session **8**, record B−1/B/B+1, recipient reserve, FIFO suffix, oversized-head terminal rejection, deferred admission rebase and no-rerun retry gates (Phase 3 design §4.5/§8.1). version_two adds inventory/rules bounds; output-digest fallback alone cannot bound commands. §2.2 C10 full-rule/instances/1,000-full-pool snapshot size gate runs before freeze with exact compressed/decoded byte receipts, not an estimated fit.
+
+Inherited budgets (Phase 3 A20/design §7; Phase 4 A19): **1,000 NPC mean<2 ms**, **1,000 players/observers mean<10 ms**, **eight packaged clients tick p99<20 ms**. Preserve separate simulation/digest/encoding/actor/JetStream/DB measures and reference hardware/build/rules hash. Z supplies C-reviewed critical-write/resource/hydration/synchronized-pulse benchmarks before soak; no durable-mutation exception. Soak retains Phase 3 casting/long effects and adds each client's equip swaps, auto-shots and at least one enchant. Retain memory trend, panic/latency/replay/participation and cleanup evidence; duration remains documented test design, no new guessed threshold.
+
+Telemetry (A18) labels bounded item-kind/operation/outcome/grade only; no template/instance/account/entity identifiers, arbitrary errors or unbounded names. Update metric catalogue/dashboards and `infra/scripts/verify-observability.sh` with controlled pre/active/post scrapes correlated to committed export facts, no retry/hydration inflation. Preserve existing trace/log/OTLP/Prometheus/scrape checks; nonzero counters after soak alone are insufficient.
+
+## 6. Dependencies, order and integration gates
+
+Retain the Phase 3 gate sequence and every underlying Phase 1/2/1a acceptance requirement. No whole-epic circular gate:
+
+1. **Foundation:** reviewed Z item design and C plan → C additive proto/errors/keys/DTO contract reviewed Z; C data/oracle/capabilities reviewed Z; C predicate/parser/role/fixture foundation reviewed Z. Resolve blocking source/identity/closure design rules before respective schema/formula freeze, continue independent work meanwhile.
+2. **Runtime:** reviewed definitions/proto → Z E2/E4 hooks, V6 dispatcher/codec/export/snapshot and pre-run sizing reviewed C. Publish typed persistence/charge/damage hooks. Snapshot/pre-run budget measured before fixture/schema freeze, no live-admission prerequisite.
+3. **Adapters/gameplay:** C E3 migration/checkpoint/receipts/kit/learn adapters reviewed Z; E3.1/E3.3 precede E2.6 admission integration, whose restore/runtime review is separate. Serialize shared edits through Z. Full endpoint, atomicity, ack/crash/fence/recovery tests required.
+4. **Client/harness:** proto enables E5 skeleton; live requires reviewed engine/API/adapters. C E5/E6/E7 telemetry reviewed Z, Z producer/benchmarks reviewed C, D docs/art/dashboard reviewed Codex. First 4-equip-weapon and 4-enchant-fail, then complete §2.8/variants.
+5. **Live:** each scenario role/variant wrappers plus separate live UI/cook, V6 and historical byte replay, coverage/contract/traceability, strict export/actual-input oracle, endpoint/actor/adapter crash/concurrency and **all earlier phase live suites** complete stories. Missing receipts, privacy/compatibility/durability errors or UNKNOWN predicates block acceptance without baseline relaxation.
+6. **Close:** C reviews Z DB/log/CPU/size measurements before root-locked packaged soak/observability; root integrates only independently reviewed commits and runs complete repository/Phase1–3 gates plus Phase4 additions. `moon ci`, applicable data/proto/entities checks, Rust tests/source scan/strict clippy/fmt, legacy replay, sim-gates/contract/traceability, required-live zero-skip Unreal tests/cook, perf/soak/observability all remain required implementation evidence. Docs-only authoring is not an implementation-gate pass. Outcome links preserved reviews and actual receipts after root acceptance.
+
+## 7. Risks
+
+| Risk | Consequence | Mitigation / acceptance |
+|---|---|---|
+| Full item/options/skill embedding and snapshot size | Exceeds NATS/decoded/command bounds | Share canonical bundles once, compact typed encoding/dedupe, exact §2.2 worst-case byte measurements before freeze; no truncation/external replay fetch. |
+| Kit/backfill identity and existing characters | Duplicate/missing items, allocator collision, bad old stats | Resolve000011 actor allocation before migration; all lineage/Orc/Dwarf and pending/crash/rerun fixtures, source counts/equip flags and deterministic ledger. |
+| Re-justifying Phase 1–3 on real gear | Silently weakened assertions or bypassed production policy | C15 actual-input oracle citations per changed header, C16 V6 for every live suite, old .nfr byte equality and unchanged error/quarantine gates. |
+| Imported count versus executable closure | Partial augments/SA or unsupported template effects | Fine-grained manifest, item/skill dependency blockers and computed reviewed totals; no force target or silent omission. |
+| Added shield/enchant/augment RNG draws | Reordered future damage or changed historical replay | Separate V6, pinned caller/cursor/no-draw ledger, branch-specific oracle; enforce D1–D3 amendments and numbered design rules before implementation freeze. |
+| Per-hit critical persistence cost | Tick budget missed or outputs exposed before durable ack | Batch net instance deltas, one fenced checkpoint/character/tick; measure actor/log/DB and retain all ack/crash tests before soak. |
+| Owner inventory/public paperdoll projection | Private count/augment/exact enchant leak, stale UI | §2.1 explicit visibility, paired clients, identity-first baseline/replacement/hidden-source tests and final vitals rules. |
+| Unreal shared build/run state | Invalid evidence or content races | Root serialized lock, named automation/asset cooking receipts, independently reviewed D placeholder assets. |
+| Unpublished design / open scope questions | Competing mechanics or fabricated constants | D1–D13 resolve writer questions; preserve numbered D13 design/adaptation and independent review gates before dependent freeze. |
+
+## 8. Out of scope
+
+- **Phase 5:** ground pickup/drop generation (including chaotic death drops), vendors/buylists, trade/mail/escrow, crafting/spoil/sweep, live currency acquisition and private warehouse/freight. Preserve flags/price/crystals/can_accept/ordered ledger hooks for [economy §2.1–§2.8](../planning/05-economy-and-crafting.md); fixture recipe fees in this phase do not introduce shops.
+- **Phase 6:** pets/servitors/feed/collars/mounts/NPC shot runtime, raid soul-crystal absorb leveling/breakage and acquisition, broader travel/quests/world content ([world §2.4–§2.9/§3.5](../planning/06-world-and-content.md)). Phase 4 imports crystal stages and a no-op absorb hook; O1 binding qualification supersedes owner-note shorthand that says leveling in scope.
+- **Phase 7:** clan warehouse, party/clan loot/privilege, sieges/Olympiad enchant limit and live social scopes ([social §2.1/§2.4/§2.6/§2.7](../planning/07-social-systems.md)). Imported metadata is not runtime permission.
+- Elemental weapon attributes, Common/shadow use/expiry, durability/repair/binding and final art remain excluded by approved defaults; no floats, hot-reloaded rules or client-authoritative calculations. Charges/EnergyAttack/skill enchanting remain deferred under D6; unapproved special slots/kinds remain named blockers under D5. All remaining Phase 3 unsupported handlers/sections/scopes remain excluded unless §2.4 admits their complete implementation.
+
+## 9. Outcome
+
+| Field | Evidence / disposition |
+|---|---|
+| Accepted commits and independent reviews | |
+| Data/closure counts and source corrections | |
+| API/actor/adapter/recovery evidence | |
+| Client/scenario/legacy replay/oracle receipts | |
+| Snapshot/performance/soak/observability measurements | |
+| Limitations and architect dispositions | |
+| Root integration and phase acceptance | |
