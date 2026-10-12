@@ -11,8 +11,23 @@
 # item-gate: dual_timing
 # item-gate: pole_damage
 # item-gate: fist_spread
+# item-gate: physical_damage
+# item-gate: position
 # item-gate: blow_success
 # item-gate: lethal
+# D24 unarmed radius: GAME@abfde049 L2Character.java:5034-5044.
+# D25 pole recipients: GAME@abfde049 L2Character.java:1282-1283,1335-1338.
+# Blow/lethal closure is PENDING: phase4-packs.json combat_capability_dependencies.
+# E1 admits NONE of FatalBlow/Backstab/Lethal skills at this revision; do not seed deferred skills.
+# item-phase: {"name":"dual","formula":"dual_damage","context":{"weapon_template":1299}}
+# item-phase: {"name":"dualfist","formula":"dual_damage","context":{"weapon_template":253}}
+# item-phase: {"name":"pole-primary","formula":"pole_damage","context":{"weapon_template":15},"inputs":{"primary":true}}
+# item-phase: {"name":"pole-secondary","formula":"pole_damage","context":{"weapon_template":15},"inputs":{"primary":false}}
+# item-phase: {"name":"unarmed","formula":"fist_spread","context":{"weapon_template":0},"inputs":{"template_radius":null}}
+# Stationary targets retain initial east facing (zone design §6.2, A10).
+# item-phase: {"name":"dagger-front","formula":"physical_damage","context":{"weapon_template":10},"inputs":{"caller":"auto","proximity":"front"}}
+# item-phase: {"name":"dagger-side","formula":"physical_damage","context":{"weapon_template":10},"inputs":{"caller":"auto","proximity":"side"}}
+# item-phase: {"name":"dagger-back","formula":"physical_damage","context":{"weapon_template":10},"inputs":{"caller":"auto","proximity":"back"}}
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld
@@ -22,29 +37,56 @@ nf.Equip 1299
 nf.WaitFor equipped rhand == 1299 3
 nf.Target template:skill_target
 nf.WaitFor target != none 3
+nf.Mark
 nf.Attack
-nf.WaitFor damage_numbers >= 1 30
+nf.WaitFor target_hits_since_mark >= 1 30
 nf.StopAttack
 nf.Equip 253
 nf.WaitFor equipped rhand == 253 3
 nf.Target template:skill_target
 nf.WaitFor target != none 3
+nf.Mark
 nf.Attack
-nf.WaitFor damage_numbers >= 1 30
+nf.WaitFor target_hits_since_mark >= 1 30
 nf.StopAttack
 nf.Equip 15
 nf.WaitFor equipped rhand == 15 3
 nf.Target template:skill_target
 nf.WaitFor target != none 3
+nf.Mark
 nf.Attack
-nf.WaitFor damage_numbers >= 1 30
+nf.WaitFor target_hits_since_mark >= 1 30
 nf.StopAttack
 nf.Equip 10
 nf.WaitFor equipped rhand == 10 3
 nf.Target template:skill_target
 nf.WaitFor target != none 3
+# Controlled front position relative to target108,100 facing east.
+nf.ClickMove 109 100
+nf.WaitFor own_at 109 100 0.1 30
+nf.Mark
 nf.Attack
-nf.WaitFor damage_numbers >= 1 30
+nf.WaitFor target_hits_since_mark >= 1 30
+nf.StopAttack
+# Controlled side position relative to target108,100 facing east.
+nf.ClickMove 108 101
+nf.WaitFor own_at 108 101 0.1 30
+nf.Mark
+nf.Attack
+nf.WaitFor target_hits_since_mark >= 1 30
+nf.StopAttack
+# Controlled back position relative to target108,100 facing east.
+nf.ClickMove 107 100
+nf.WaitFor own_at 107 100 0.1 30
+nf.Mark
+nf.Attack
+nf.WaitFor target_hits_since_mark >= 1 30
+nf.StopAttack
+nf.Unequip rhand
+nf.WaitFor equipped rhand == 0 3
+nf.Mark
+nf.Attack
+nf.WaitFor target_hits_since_mark >= 1 30
 nf.StopAttack
 # Total budget: sum of declared conservative waits +30s exit grace.
-nf.Within 207
+nf.Within 390

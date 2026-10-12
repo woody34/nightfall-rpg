@@ -8430,8 +8430,8 @@
         "# item-gate: gear_stats",
         "# item-gate: set_shield_history",
         "# item-gate: clamp_no_heal",
-        "nf.Expect enchant_level chest == 4",
-        "nf.Expect inventory_has 43 == 1"
+        "nf.Expect inventory_has 59 == 1",
+        "nf.Expect enchant_level under == 4"
       ],
       "canonical": "4-armor-set.nfs",
       "execution": "pending E2/E3/E5",
@@ -8447,7 +8447,7 @@
         "# item-gate: set_shield_history",
         "# item-gate: clamp_no_heal",
         "nf.Expect enchant_level chest == 6",
-        "nf.Expect inventory_has 43 == 1"
+        "nf.Expect inventory_has 59 == 1"
       ],
       "canonical": "4-armor-set.nfs",
       "execution": "pending E2/E3/E5",
