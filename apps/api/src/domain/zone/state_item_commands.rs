@@ -258,10 +258,10 @@ impl ZoneState {
                 .filter(|r| i64::try_from(*r).is_ok())
                 .ok_or(RejectReason::InvalidLoad)?
         };
-        let operation_ordinal = u32::try_from(previous.as_ref().map_or(0, |p| p.receipts.len()))
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .ok_or(RejectReason::InvalidLoad)?;
+        let operation_ordinal = previous
+            .as_ref()
+            .map_or(Ok(1), Phase4Projection::next_operation_ordinal)
+            .map_err(|_| RejectReason::InvalidLoad)?;
         let mut enchant = None;
         let mut exchange = None;
         let mut exchange_formula = None;

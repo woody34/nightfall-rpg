@@ -331,10 +331,10 @@ impl ZoneState {
             operation: ItemOperation::Grant,
             key: command.request_id,
         };
-        let ordinal = u32::try_from(previous.as_ref().map_or(0, |p| p.receipts.len()))
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .ok_or(RejectReason::InvalidLoad)?;
+        let ordinal = previous
+            .as_ref()
+            .map_or(Ok(1), Phase4Projection::next_operation_ordinal)
+            .map_err(|_| RejectReason::InvalidLoad)?;
         if self.items_evidence_enabled() {
             let subject = self.binding(id).ok_or(RejectReason::InvalidLoad)?;
             for change in &mutation.changes {

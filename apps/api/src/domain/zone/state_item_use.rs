@@ -362,10 +362,9 @@ impl ZoneState {
             evidence: Vec::new(),
         });
         projection.checkpoint = checkpoint;
-        let operation_ordinal = u32::try_from(projection.receipts.len())
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .ok_or(RejectReason::InvalidLoad)?;
+        let operation_ordinal = projection
+            .next_operation_ordinal()
+            .map_err(|_| RejectReason::InvalidLoad)?;
         let mut affected = BTreeSet::new();
         for change in plan.payments.changes {
             let before = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?;

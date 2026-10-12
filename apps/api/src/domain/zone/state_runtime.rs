@@ -13,6 +13,8 @@ mod live_learning;
 mod live_life;
 #[path = "state_runtime_observe.rs"]
 mod live_observe;
+#[path = "state_runtime_shots.rs"]
+mod live_shots;
 
 use super::*;
 use crate::domain::zone::effective_stats::{EffectiveStats, NpcStatInputs, PlayerStatInputs};
@@ -788,7 +790,7 @@ impl ZoneState {
         events.extend(self.step(tick));
         // Binding V5 phases 5-9: completions, impacts, bookkeeping, starts, AI.
         // A due stun/lethal cast cancels a swing before any of its damage draws.
-        self.complete_casts_v5(tick, &mut events)?;
+        self.complete_casts_v5(tick, before_items, &mut events)?;
         if self.complete_runtime_v5() {
             self.land_autos_v5(tick, &mut events)?;
         }
@@ -1689,7 +1691,8 @@ impl ZoneState {
         let effective = self
             .effective(entry.caster.entity)
             .map_err(|_| RejectReason::InvalidLoad)?;
-        let terms = state_skill::cast_terms(
+        let (weapon, shots) = self.available_cast_shots_v6(entry.caster.entity, skill)?;
+        let mut terms = state_skill::cast_terms(
             skill,
             reference.rank,
             CastStatContext {
@@ -1727,6 +1730,19 @@ impl ZoneState {
             },
         )
         .map_err(cast_reject)?;
+        if skill.is_magic == 1 && shots & 6 != 0 {
+            let hit_time = u32::try_from(
+                *skill
+                    .hit_time_ms
+                    .at(reference.rank, skill.max_level)
+                    .ok_or(RejectReason::InvalidLoad)?,
+            )
+            .map_err(|_| RejectReason::InvalidLoad)?;
+            terms.animation = crate::domain::zone::effects::FrozenRatio::new(
+                skill_math::cast_animation(hit_time, effective.cast_speed, false, true, true)
+                    .map_err(|_| RejectReason::InvalidLoad)?,
+            );
+        }
         let mut side = self
             .sidecar(entry.caster.entity)
             .map_err(|_| RejectReason::InvalidLoad)?
@@ -1786,23 +1802,15 @@ impl ZoneState {
             .ok_or(RejectReason::InvalidLoad)?
             .canonical
             .next_cast_id = next_cast_id;
-        if let Some((origin, simultaneous)) = origin {
-            self.phase4
-                .as_mut()
-                .ok_or(RejectReason::InvalidLoad)?
-                .canonical
-                .item_casts
-                .insert(
-                    cast.id,
-                    crate::domain::zone::phase4::ItemCastState {
-                        caster: entry.caster,
-                        cast: retained_cast,
-                        origin: Some(origin),
-                        simultaneous,
-                        weapon: None,
-                        shots: 0,
-                    },
-                );
+        if origin.is_some() || shots != 0 {
+            self.bind_cast_shots_v6(crate::domain::zone::phase4::ItemCastState {
+                caster: entry.caster,
+                cast: retained_cast,
+                origin: origin.map(|(origin, _)| origin),
+                simultaneous,
+                weapon,
+                shots,
+            })?;
         }
         let c = self
             .entities
@@ -1821,6 +1829,27 @@ impl ZoneState {
                 self.note_hostility_v5(tick, entry.caster, *target)
                     .map_err(|_| RejectReason::InvalidLoad)?;
             }
+        }
+        if self.items_evidence_enabled() {
+            let speed = if skill.is_magic == 1 {
+                effective.cast_speed
+            } else {
+                u32::try_from(
+                    effective
+                        .physical
+                        .attack_speed()
+                        .raw()
+                        .checked_div(Q)
+                        .ok_or(RejectReason::InvalidLoad)?,
+                )
+                .map_err(|_| RejectReason::InvalidLoad)?
+            };
+            self.item_evidence(entry.caster, crate::domain::zone::evidence::ItemEvidenceData::Formula(serde_json::json!({
+                "formula":"cast_time", "inputs":{"hit_time":skill.hit_time_ms.at(reference.rank,skill.max_level).ok_or(RejectReason::InvalidLoad)?,
+                    "casting_speed":speed,"spirit":shots & 2 != 0,"blessed":shots & 4 != 0,"static":skill.is_magic==2,"is_magic":skill.is_magic==1},
+                "actual":u64::try_from(cast.animation.value().trunc().map_err(|_| RejectReason::InvalidLoad)?).map_err(|_| RejectReason::InvalidLoad)?,
+                "resolution_id":format!("cast:{}",cast.id.0),"baseline":false
+            })));
         }
         events.push(cast_started(tick, entry.caster.entity, &cast, None));
         if cast.reuse_until > tick {
@@ -1877,6 +1906,7 @@ impl ZoneState {
     fn complete_casts_v5(
         &mut self,
         tick: Tick,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
         self.refresh_schedule_v5()?;
@@ -2001,6 +2031,16 @@ impl ZoneState {
                     &mut results,
                 )?;
             }
+            self.discharge_cast_shots_v6(
+                tick,
+                work,
+                &skill,
+                !results.is_empty(),
+                before_items
+                    .and_then(|items| items.players.get(&work.caster))
+                    .map(|player| player.inventory_revision),
+                events,
+            )?;
             self.finish_cast_work_v6(work)?;
             events.push(ZoneEvent::SkillCastResult {
                 tick,
@@ -2031,6 +2071,11 @@ impl ZoneState {
         } else {
             serde_json::Value::Null
         };
+        let shots = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.item_casts.get(&cast_id))
+            .map_or(0, |context| context.shots);
         let result_start = results.len();
         let continuous = self.continuous_terms_v5(caster, target, skill, rank)?;
 
@@ -2054,11 +2099,6 @@ impl ZoneState {
                 continue;
             }
             if handler.name == "FatalBlow" {
-                let shots = self
-                    .phase4
-                    .as_ref()
-                    .and_then(|items| items.canonical.item_casts.get(&cast_id))
-                    .map_or(0, |context| context.shots);
                 results.push(
                     self.blow_handler_v6(
                         tick, caster, target, skill, rank, handler, shots, events,
@@ -2073,20 +2113,25 @@ impl ZoneState {
                 }
                 continue;
             }
-            let resolve = if handler.name == "Lethal" {
-                Self::lethal_handler_v6
-            } else if matches!(handler.name.as_str(), "DispelBySlot" | "DispelByCategory") {
-                Self::dispel_handler_v5
-            } else if matches!(handler.name.as_str(), "Heal" | "Hp" | "HpPerMax" | "Mp" | "Cp") {
-                Self::restore_handler_v5
-            } else if matches!(handler.name.as_str(), "GetAgro" | "AddHate") {
-                Self::agro_handler_v5
-            } else if handler.name == "PhysicalAttack" {
-                Self::physical_handler_v5
-            } else {
-                Self::magic_handler_v5
-            };
-            results.push(resolve(self, tick, caster, target, skill, rank, handler, events)?);
+            let resolved = match handler.name.as_str() {
+                "Lethal" => {
+                    self.lethal_handler_v6(tick, caster, target, skill, rank, handler, events)
+                },
+                "DispelBySlot" | "DispelByCategory" => {
+                    self.dispel_handler_v5(tick, caster, target, skill, rank, handler, events)
+                },
+                "Heal" | "Hp" | "HpPerMax" | "Mp" | "Cp" => self
+                    .restore_handler_v5(tick, caster, target, skill, rank, handler, shots, events),
+                "GetAgro" | "AddHate" => {
+                    self.agro_handler_v5(tick, caster, target, skill, rank, handler, events)
+                },
+                "PhysicalAttack" => self
+                    .physical_handler_v5(tick, caster, target, skill, rank, handler, shots, events),
+                _ => {
+                    self.magic_handler_v5(tick, caster, target, skill, rank, handler, shots, events)
+                },
+            }?;
+            results.push(resolved);
             if self
                 .entities
                 .get(&target.entity)

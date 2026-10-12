@@ -77,8 +77,64 @@ pub(super) fn payment_edits(
 }
 
 impl Phase4Snapshot {
+    fn validate_charge_bindings(&self) -> Result<(), ItemError> {
+        use super::phase4::{ItemActionBinding, ShotKind};
+        let mut previous = None;
+        for binding in &self.charge_bindings {
+            let key = (binding.weapon, binding.shot);
+            if previous.is_some_and(|previous| previous >= key) {
+                return Err(ItemError("duplicate or unordered charge binding"));
+            }
+            previous = Some(key);
+            let (owner, weapon, mask) = match binding.action {
+                ItemActionBinding::Cast { id } => {
+                    let lane = self
+                        .item_casts
+                        .get(&id)
+                        .ok_or(ItemError("charge binding lacks cast"))?;
+                    (lane.caster.entity, lane.weapon, lane.shots)
+                },
+                ItemActionBinding::Attack { attacker, start } => {
+                    let plan = self
+                        .attack_plans
+                        .get(&attacker)
+                        .filter(|plan| plan.start == start)
+                        .ok_or(ItemError("charge binding lacks attack"))?;
+                    (attacker, plan.weapon, plan.shots)
+                },
+            };
+            if weapon != Some(binding.weapon)
+                || mask & binding.shot.bit() == 0
+                || self.players.get(&owner).is_none_or(|player| {
+                    player.paperdoll.get(&EquipSlot::Rhand) != Some(&binding.weapon)
+                        || player
+                            .inventory
+                            .get(&binding.weapon)
+                            .is_none_or(|item| item.charges & binding.shot.bit() == 0)
+                })
+            {
+                return Err(ItemError("charge binding differs from paid weapon/action"));
+            }
+        }
+        for lane in self.item_casts.values() {
+            for shot in [ShotKind::Soul, ShotKind::Spirit, ShotKind::BlessedSpirit] {
+                if lane.shots & shot.bit() != 0
+                    && !self.charge_bindings.iter().any(|binding| {
+                        Some(binding.weapon) == lane.weapon
+                            && binding.shot == shot
+                            && binding.action == ItemActionBinding::Cast { id: lane.cast.id }
+                    })
+                {
+                    return Err(ItemError("cast charge lacks exclusive binding"));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Validate both lanes before allowing an unlearned main cast through Phase3 checks.
     /// A consumed last unit remains an origin fact; a still-held origin must match its owner.
+    #[allow(clippy::too_many_lines)] // Keep cast authority, payment and charge ownership validation together.
     pub(super) fn validate_casts(
         &self,
         rules: &Phase4Rules,
@@ -86,6 +142,7 @@ impl Phase4Snapshot {
         contexts: &BTreeMap<EntityId, Phase3EntityContext<'_>>,
     ) -> Result<BTreeMap<EntityId, SkillRef>, ItemError> {
         self.validate_allocations(rules, phase3)?;
+        self.validate_charge_bindings()?;
         let mut main = BTreeMap::new();
         let (start, next, end) = self.allocator.bounds();
         for lane in self.item_casts.values() {
@@ -97,6 +154,16 @@ impl Phase4Snapshot {
                 .players
                 .get(&lane.caster.entity)
                 .ok_or(ItemError("item cast has no owner"))?;
+            let skill = phase3
+                .rules
+                .skills()
+                .get(lane.cast.skill.id)
+                .ok_or(ItemError("unknown cast charge skill"))?;
+            let (spirit, soul) = super::item_shots::skill_kinds(skill);
+            let allowed = (if spirit { 6 } else { 0 }) | u8::from(soul);
+            if lane.shots & !allowed != 0 || lane.shots & 6 == 6 {
+                return Err(ItemError("cast binds an unused or duplicate magical kind"));
+            }
             if !context.player
                 || lane.caster.incarnation != context.incarnation
                 || lane.cast.caster_incarnation != context.incarnation

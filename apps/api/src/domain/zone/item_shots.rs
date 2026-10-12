@@ -2,6 +2,55 @@
 use super::phase4::ShotKind;
 use super::StatError;
 
+/// Skill.java:700–705: physical attack effect and magic flag select consumed kinds.
+pub(crate) fn skill_kinds(skill: &super::skill::SkillDef) -> (bool, bool) {
+    (
+        skill.is_magic == 1,
+        skill
+            .effects
+            .iter()
+            .any(|handler| matches!(handler.name.as_str(), "PhysicalAttack" | "FatalBlow")),
+    )
+}
+
+/// Heal.java:68–104: charged mage/NPC bonus, otherwise the held grade coefficient.
+pub(crate) fn heal_terms(
+    mage: bool,
+    npc: bool,
+    grade: Option<&str>,
+    shots: u8,
+    mp_end: super::skill_math::ExactRatio,
+    is_static: bool,
+) -> Result<(u32, super::skill_math::ExactRatio), StatError> {
+    use super::skill_math::ExactRatio;
+    if is_static {
+        return Ok((0, ExactRatio::whole(0)));
+    }
+    let blessed = shots & 4 != 0;
+    if shots & 6 != 0 && (mage || npc) {
+        return Ok((
+            if blessed || npc { 4 } else { 2 },
+            mp_end.checked_mul(if blessed || npc {
+                ExactRatio::new(12, 5)?
+            } else {
+                ExactRatio::whole(1)
+            })?,
+        ));
+    }
+    let base: u32 = match grade {
+        Some("S84") => 4,
+        Some("S80") => 2,
+        _ => 1,
+    };
+    let coefficient = if blessed {
+        base.checked_mul(4)
+    } else {
+        base.checked_add(1)
+    }
+    .ok_or(StatError::Overflow)?;
+    Ok((coefficient, ExactRatio::whole(0)))
+}
+
 /// Result of the source guards, before any inventory changes are published.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChargeOutcome {
@@ -211,5 +260,89 @@ mod tests {
             checked += 1;
         }
         assert_eq!(checked, 36);
+    }
+
+    #[test]
+    fn independent_heal_shot_terms_and_shared_bundle_vectors() {
+        use super::super::skill_math::ExactRatio;
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../../packages/data/fixtures/item-oracle.json"
+        ))
+        .unwrap();
+        let mut checked = 0;
+        for row in fixture["vectors"].as_array().unwrap() {
+            let id = row["id"].as_str().unwrap();
+            let p = &row["inputs"];
+            let expected = &row["expected"];
+            let flag = |key, default| p.get(key).and_then(Value::as_bool).unwrap_or(default);
+            let number = |key, default| {
+                p.get(key).map_or(ExactRatio::whole(default), |v| {
+                    if let Some(n) = v.as_i64() {
+                        ExactRatio::whole(n)
+                    } else if let Some(s) = v.as_str() {
+                        ExactRatio::parse_literal(s).unwrap()
+                    } else {
+                        ExactRatio::new(
+                            i128::from(v["numerator"].as_i64().unwrap()),
+                            i128::from(v["denominator"].as_i64().unwrap()),
+                        )
+                        .unwrap()
+                    }
+                })
+            };
+            if id.starts_with("heal-") {
+                let bits = if flag("is_magic", true) {
+                    (if flag("spirit", false) { 2 } else { 0 })
+                        | (if flag("blessed", false) { 4 } else { 0 })
+                } else {
+                    0
+                };
+                let (coefficient, bonus) = heal_terms(
+                    flag("mage", false),
+                    flag("npc", false),
+                    p.get("grade").and_then(Value::as_str),
+                    bits,
+                    number("mp_consume2", 0),
+                    flag("static", false),
+                )
+                .unwrap();
+                assert_eq!(
+                    u64::from(coefficient),
+                    expected["coefficient"]["numerator"].as_u64().unwrap(),
+                    "{id}"
+                );
+                assert_eq!(
+                    bonus.parts(),
+                    (
+                        i128::from(expected["static_bonus"]["numerator"].as_i64().unwrap()),
+                        i128::from(expected["static_bonus"]["denominator"].as_i64().unwrap())
+                    ),
+                    "{id}"
+                );
+            } else if id.starts_with("shot-bundle-") {
+                let frozen = mask(&p["charges"]);
+                let hits = p["hits"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|hit| hit.as_bool().unwrap() && !flag("canceled", false))
+                    .count();
+                let remaining = if flag("unequip", false) {
+                    0
+                } else {
+                    discharge(frozen, hits > 0, flag("use_spirit", false), flag("use_soul", false))
+                        .unwrap()
+                };
+                assert_eq!(
+                    json!({"recipient_charges":vec![names(frozen);hits],"after":names(remaining),"payments":0}),
+                    *expected,
+                    "{id}"
+                );
+            } else {
+                continue;
+            }
+            checked += 1;
+        }
+        assert_eq!(checked, 69);
     }
 }

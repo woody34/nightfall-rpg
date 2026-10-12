@@ -304,6 +304,19 @@ pub struct Phase4Projection {
     pub evidence: Vec<ItemAuditEvidence>,
 }
 impl Phase4Projection {
+    /// Logical rows share one tick-local ordinal space with receipt-free charge changes.
+    pub(crate) fn next_operation_ordinal(&self) -> Result<u32, ItemError> {
+        let receipts = u32::try_from(self.receipts.len())
+            .map_err(|_| ItemError("item operation ordinal overflow"))?;
+        self.ledger
+            .iter()
+            .map(|row| row.operation_ordinal)
+            .max()
+            .unwrap_or(0)
+            .max(receipts)
+            .checked_add(1)
+            .ok_or(ItemError("item operation ordinal overflow"))
+    }
     /// Enforce identity/version/order before the application can stage this private fact.
     pub fn validate_structure(&self, phase3_sources: usize) -> Result<(), ItemError> {
         if self.entity.as_uuid().is_nil()
