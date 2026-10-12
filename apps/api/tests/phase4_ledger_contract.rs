@@ -116,7 +116,7 @@ fn aggregate_scoped_receipts_preserve_order_and_cannot_claim_one_false_sql_refer
 }
 #[test]
 fn canonical_consume_endpoint_matches_debit_and_typed_roundtrip() {
-    // D64 emits the consumption endpoint before subsequent positive rows.
+    // D66 emits the Consume aggregate last; its endpoints match its net debit.
     let value = entry();
     value.validate().unwrap();
     let restored: ItemLedgerEntry =

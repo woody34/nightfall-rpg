@@ -280,6 +280,10 @@ impl ItemCheckpointWork {
             {
                 return Err(invalid("item_checkpoint_stackability"));
             }
+            // D68: every retained, endpoint and intermediate row state stays within the cap.
+            if i128::from(item.count) > pinned_count_cap(item.template_id, definition.stackable) {
+                return Err(invalid("item_count_cap"));
+            }
         }
         // Retained creation ticks belong to their origin epoch, whose clock may be ahead.
         for item in self
@@ -393,6 +397,7 @@ impl ItemCheckpointWork {
         for id in &changed_ids {
             let mut endpoint = old.get(id).copied();
             let mut ordinal = None;
+            let (mut consumed, mut debited) = (false, false);
             for delta in self
                 .projection
                 .ledger
@@ -402,8 +407,13 @@ impl ItemCheckpointWork {
                 if delta.before.as_ref() != endpoint {
                     return Err(invalid("item_ledger_scalar_continuity"));
                 }
-                if ordinal.is_some_and(|previous| delta.operation_ordinal <= previous)
-                    || (delta.operation == ItemOperation::Consume && ordinal.is_some())
+                // D66: positive rows first in cause order, then the single Consume aggregate as
+                // the instance's last row. The aggregate keeps the schema/domain ordinal-0 batch
+                // marker (item_ledger_consume_ordinal), so its position, not ordinal, orders it.
+                if consumed
+                    || (delta.operation != ItemOperation::Consume
+                        && ordinal.is_some_and(|previous| delta.operation_ordinal <= previous))
+                    || (debited && delta.count_delta > 0)
                 {
                     return Err(invalid("item_ledger_row_order"));
                 }
@@ -422,9 +432,13 @@ impl ItemCheckpointWork {
                 }
                 if delta.operation == ItemOperation::Consume {
                     validate_consumption(delta)?;
+                    consumed = true;
                 }
+                debited |= delta.count_delta < 0;
                 endpoint = delta.after.as_ref();
-                ordinal = Some(delta.operation_ordinal);
+                if delta.operation != ItemOperation::Consume {
+                    ordinal = Some(delta.operation_ordinal);
+                }
             }
             if endpoint != new.get(id).copied() {
                 return Err(invalid("item_ledger_final_scalar"));
@@ -755,6 +769,19 @@ fn ledger_operation(operation: ItemOperation) -> Result<ItemLedgerOperation, Che
         ItemOperation::ToggleAutoShot => return Err(invalid("item_ledger_owner_sidecar")),
     })
 }
+/// D68 pinned stack maxima. L2ItemInstance.java:422 caps adena (template 57) at `MaxAdena`
+/// (character.properties:671 = 99,900,000,000) and every other stack at `Integer.MAX_VALUE`;
+/// non-stackable templates hold exactly one instance.
+fn pinned_count_cap(template_id: u32, stackable: bool) -> i128 {
+    const ADENA_TEMPLATE: u32 = 57;
+    const MAX_ADENA: i128 = 99_900_000_000;
+    match (stackable, template_id) {
+        (false, _) => 1,
+        (true, ADENA_TEMPLATE) => MAX_ADENA,
+        (true, _) => i128::from(i32::MAX),
+    }
+}
+
 fn invalid(name: &str) -> CheckpointError {
     CheckpointError::Constraint(name.into())
 }
