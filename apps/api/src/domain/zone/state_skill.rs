@@ -289,11 +289,73 @@ impl StagedActions {
 #[allow(missing_docs)]
 pub struct CastStatContext<'a> {
     pub player_level: Option<u32>,
+    pub world: Option<CastWorldConditions<'a>>,
     pub calculator: &'a StatCalculator,
     pub conditions: FunctionConditions<'a>,
     pub attack_speed: u32,
     pub cast_speed: u32,
     pub flags: StatusFlags,
+}
+
+/// Authoritative V6 cast conditions; absent in historical cast callers.
+#[derive(Debug, Clone, Copy)]
+#[allow(missing_docs)]
+pub struct CastWorldConditions<'a> {
+    pub can_escape: bool,
+    pub inside_zone_ids: &'a [u32],
+}
+
+impl CastStatContext<'_> {
+    fn matches(
+        self,
+        condition: &super::skill::SkillCondition,
+        rank: u32,
+    ) -> Result<bool, StatError> {
+        use super::skill::SkillCondition as C;
+        let Some(world) = self.world else {
+            return self
+                .conditions
+                .matches_at_rank(condition, self.player_level, rank);
+        };
+        match condition {
+            C::PlayerCanEscape { value } => Ok(*value == world.can_escape),
+            C::PlayerInsideZoneIds { zone_ids } => {
+                Ok(zone_ids.iter().any(|id| world.inside_zone_ids.contains(id)))
+            },
+            C::And { conditions, .. } | C::Or { conditions, .. } => {
+                let and = matches!(condition, C::And { .. });
+                let mut matched = and;
+                for child in conditions {
+                    let value = self.matches(child, rank)?;
+                    if and {
+                        matched &= value;
+                    } else {
+                        matched |= value;
+                    }
+                }
+                Ok(matched)
+            },
+            C::Not { conditions, .. } if conditions.len() == 1 => self
+                .matches(conditions.first().ok_or(StatError::Overflow)?, rank)
+                .map(|v| !v),
+            C::PlayerLevelRange { .. }
+            | C::PlayerResting { .. }
+            | C::PlayerStanding { .. }
+            | C::PlayerMoving { .. }
+            | C::PlayerRunning { .. }
+            | C::PlayerFlyMounted { .. }
+            | C::UsingSlot { .. }
+            | C::PlayerWeight { .. }
+            | C::PlayerInventorySize { .. }
+            | C::UsingKind { .. }
+            | C::PlayerCanResurrect { .. }
+            | C::Not { .. }
+            | C::Unsupported { .. } => {
+                self.conditions
+                    .matches_at_rank(condition, self.player_level, rank)
+            },
+        }
+    }
 }
 
 /// Source getters before start validation. Completion recomputes MP2 from the current
@@ -391,10 +453,7 @@ pub fn cast_terms(
         return Err(CastError::Silenced);
     }
     for condition in &skill.conditions {
-        if !context
-            .conditions
-            .matches_at_rank(condition, context.player_level, rank)?
-        {
+        if !context.matches(condition, rank)? {
             return Err(CastError::Condition);
         }
     }
@@ -790,6 +849,7 @@ mod tests {
     }
     fn context(calc: &StatCalculator) -> CastStatContext<'_> {
         CastStatContext {
+            world: None,
             player_level: None,
             calculator: calc,
             conditions: FunctionConditions {
@@ -1122,5 +1182,29 @@ mod tests {
                 .unwrap();
             assert_eq!(sidecar.interrupt_cast(Tick(at), success, skill).is_some(), expected);
         }
+    }
+    #[test]
+    fn v6_escape_conditions_use_world_context_and_fail_closed_in_legacy() {
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        let skill = bundle.skills.skills().get(SkillId(2013)).unwrap();
+        let calc = StatCalculator::default();
+        let mut input = context(&calc);
+        assert!(cast_terms(skill, 1, input).is_err());
+        input.player_level = Some(1);
+        input.world = Some(CastWorldConditions {
+            can_escape: true,
+            inside_zone_ids: &[],
+        });
+        assert!(cast_terms(skill, 1, input).is_ok());
+        input.world = Some(CastWorldConditions {
+            can_escape: false,
+            inside_zone_ids: &[],
+        });
+        assert!(matches!(cast_terms(skill, 1, input), Err(CastError::Condition)));
+        input.world = Some(CastWorldConditions {
+            can_escape: true,
+            inside_zone_ids: &[10501],
+        });
+        assert!(matches!(cast_terms(skill, 1, input), Err(CastError::Condition)));
     }
 }
