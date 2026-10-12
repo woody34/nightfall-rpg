@@ -185,17 +185,19 @@ def input_domains(name,inputs):
     for key,maximum in bounds.get(name,{}).items():
         if inputs.get(key) is not None:bounded(inputs[key],1 if name=='pack_options' else 0,maximum)
     # Nested canonical operands, including inventories and gear enchant levels.
-    def nested(value,key=''):
-        if isinstance(value,dict):
+    def nested(value,key='',top_level=False):
+        # Shot formulas take charge-name lists; item records take scalar charges.
+        shot_charges=key=='charges' and top_level and name in ('charge_transition','shot_payment','shared_shot_bundle') and isinstance(value,list)
+        if key in ('count','enchant','tick','start_tick','expires_at','created_at','created_tick','revision','charges','sequence','hit_time_ms','reuse_delay_ms','item_consume_count','mp_cost','reduced_cost','spread_radius','crystal_count','instance_id','template_id') and not shot_charges:
+            bounded(value,1 if key in ('instance_id','template_id') else 0,
+                    2**32-1 if key in ('enchant','template_id') else 2**63-1)
+        elif isinstance(value,dict):
             if key in ('available','inventory','ingredients_before','ingredients_after','item_deadlines','skill_deadlines'):
                 for count in value.values():bounded(count)
             elif set(value)!={'numerator','denominator'}:
-                for child_key,child in value.items():nested(child,child_key)
+                for child_key,child in value.items():nested(child,child_key,value is inputs)
         elif isinstance(value,list):
             for child in value:nested(child)
-        elif value is not None and key in ('count','enchant','tick','start_tick','expires_at','created_at','created_tick','revision','charges','sequence','hit_time_ms','reuse_delay_ms','item_consume_count','mp_cost','reduced_cost','spread_radius','crystal_count','instance_id','template_id'):
-            bounded(value,1 if key in ('instance_id','template_id') else 0,
-                    2**32-1 if key in ('enchant','template_id') else 2**63-1)
     nested(inputs)
     for template,enchant,slot,sequence in inputs.get('equipment',[]):
         bounded(template,1,2**32-1);bounded(enchant,0,2**32-1);bounded(sequence)
