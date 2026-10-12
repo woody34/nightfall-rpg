@@ -91,6 +91,16 @@ JSONL contract (schema version 1 of this sidecar):
   with the last canonical metadata: exhausted IDs cannot be regranted, restored
   with a non-null before, or reintroduced by a later baseline. Genuinely fresh
   grants/refunds/Exchange products remain legal.
+  D69 extends identity continuity to EVERY observation of an ID: baseline
+  instances, enchant `target_before/scroll_before/support_before` bindings and
+  the `before` of every ledger operation (consume, equip, unequip, enchant,
+  refine, cancel_refine, destroy, crystallize, grant, ...). Each is compared
+  with the recorded identity before the record is updated: all canonical fields
+  except count/revision must be unchanged, and a live (non-exhausted) ID is
+  bound to the entity that first held it, so observing it under a different
+  entity refuses (Phase 4 has no transfer operation). The record advances from
+  `after` only once `before` has matched, so no row can launder drift. No field
+  resets at an incarnation boundary.
   ONE shared operation transition table applies to EVERY delta, independently of
   formula correlation. Revision is governed by D55 below; all other canonical
   fields outside the allowed set must remain identical:
@@ -124,8 +134,9 @@ JSONL contract (schema version 1 of this sidecar):
   aggregate must start at the established retained state, after recorded intervening
   changes; untouched canonical snapshots advance to the owner's revision at tick
   end. Creation starts from null and removal establishes absence. Incarnation
-  boundaries have independent state/revision histories; allocation freshness and
-  exhausted-ID tombstones are recording-wide.
+  boundaries have independent state/revision histories; allocation freshness,
+  exhausted-ID tombstones, single-owner binding and canonical identity fields
+  (D69) are recording-wide.
 - `item_baseline`: `inventory_revision,instances,paperdoll,auto_shots`. Complete
   canonical instances and valid paperdoll references bind an owner. A baseline
   cannot satisfy formula gates. Disabled GrantItem is rejected before actor
@@ -182,7 +193,7 @@ For example, two enchant debits can share a stack with an intervening item-cast 
 An automatic-only shot aggregate instead has
 `causes=[{"cause":"auto_shot:attack1","count_delta":-1}]`, `receipt_refs=[]`.
 
-D55–D57 and D62–D67 revise this same schema-version1 sidecar for the accepted producer:
+D55–D57 and D62–D69 revise this same schema-version1 sidecar for the accepted producer:
 same-tick enchant/consume/refund rows may share revisions, offline facts must
 emit the explicit top-level origin, and Consume aggregates emit ordered
 `receipt_refs` and `causes`; Exchange grants emit `receipt_ref` and their consumes

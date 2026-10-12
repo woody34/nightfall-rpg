@@ -559,16 +559,28 @@ def validate_exchanges(rows):
 
 
 def validate_instance_history(rows):
-    """D67: IDs are allocated once across every owner, tick and incarnation."""
-    canonical={};exhausted=set()
-    def observe(state):
+    """D67/D69: IDs are allocated once across every owner, tick and incarnation.
+
+    Every observation (baseline instance, enchant before binding, and the
+    `before` of every ledger operation) is compared against the recorded
+    identity: same owning entity while live, and every canonical field except
+    count/revision unchanged. Nothing resets at an incarnation boundary. The
+    stored record advances from `after` only once its `before` has matched.
+    """
+    canonical={};owners={};exhausted=set()
+    def strip(state):return {k:v for k,v in state.items() if k not in ('count','revision')}
+    def observe(state,entity):
         identity=state['id']
         if identity in exhausted:raise ValueError('exhausted instance reappeared')
-        canonical.setdefault(identity,state)
+        if identity in canonical:
+            if owners[identity]!=entity:raise ValueError('instance observed under two owners')
+            if strip(state)!=strip(canonical[identity]):raise ValueError('instance identity drifted between observations')
+        else:owners[identity]=entity
+        canonical[identity]=state
     for row in rows[1:-1]:
         data=row['data']
         if row['kind']=='item_baseline':
-            for state in data['instances']:observe(state)
+            for state in data['instances']:observe(state,row['entity'])
         elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':
             # Before bindings attest existing instances; formula outputs do not allocate.
             operation=data.get('operation',{})
@@ -577,16 +589,13 @@ def validate_instance_history(rows):
                 state=operation.get(field)
                 try:validate_instance(state)
                 except (ValueError,TypeError,KeyError):continue # Enchant correlation reports malformed bindings.
-                observe(state)
+                observe(state,row['entity'])
         elif row['kind']=='item_delta':
             identity=data['instance'];before,after=data['before'],data['after']
             if before is None:
                 if identity in canonical:raise ValueError('positive row must allocate a fresh instance ID')
-            else:
-                observe(before)
-                if data['operation'] in ('grant','starter','backfill'):
-                    same({k:v for k,v in before.items() if k not in ('count','revision')},
-                         {k:v for k,v in canonical[identity].items() if k not in ('count','revision')})
+                owners[identity]=row['entity']
+            else:observe(before,row['entity'])
             # Keep the last canonical metadata even after removal; absence is a tombstone.
             canonical[identity]=after if after is not None else before
             if after is None:exhausted.add(identity)

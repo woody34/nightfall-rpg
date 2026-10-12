@@ -452,6 +452,55 @@ class Evidence(unittest.TestCase):
         self.assert_rejected(bad,('sa_exchange',))
         print('Review13 Exchange: fresh product control passes; exhausted ingredient102/template4645 -> product2510 rejects',flush=True)
 
+    BOUNDARY_DRIFT=(('template_id',2510),('enchant',99),('created_tick',99),('augment_id',65537))
+
+    def boundary_rows(self,variant,field=None,value=None,template=2509,count=2):
+        """Review14 F1-F3: one live ID re-observed after an incarnation/owner boundary."""
+        rows=copy.deepcopy(self.rows);last=1
+        rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=0,instances=[item(100,count,template)],paperdoll={},auto_shots=[])))
+        seen=item(100,count,template)
+        if field:seen[field]=value
+        entity,incarnation=(OTHER,1) if variant in ('F2','F2b') else (OWNER,2)
+        def append(tick,kind,data):rows.insert(-1,dict(kind=kind,entity=entity,incarnation=incarnation,tick=tick,sequence=0,data=data))
+        if variant in ('control','F1','F1d','F2','F2b'):
+            append(1,'item_baseline',dict(inventory_revision=0,instances=[copy.deepcopy(seen)],paperdoll={},auto_shots=[]))
+        if variant in ('control','control-no-baseline','F1','F1b','F1d'):
+            append(1,'item_delta',dict(operation='consume',instance=100,before=copy.deepcopy(seen),after=seen|{'count':count-1,'revision':1},
+                count_delta=-1,operation_ordinal=0,resolution_id='attack:9',receipt_refs=[],causes=[dict(cause='auto_shot:attack:9',count_delta=-1)]))
+        if variant=='F1d':
+            before=seen|{'count':count-1,'revision':1}
+            append(2,'item_delta',dict(operation='grant',instance=100,before=before,after=before|{'count':count+3,'revision':2},
+                count_delta=4,operation_ordinal=0,resolution_id='grant:9',receipt_ref='receipt:grant:9'))
+            last=2
+        if variant=='F3':
+            append(1,'item_delta',dict(operation='refine',instance=100,before=copy.deepcopy(seen),after=seen|{'augment_id':65537,'revision':1},
+                count_delta=0,operation_ordinal=0,resolution_id='refine:9',receipt_ref='receipt:refine:9'))
+        rows[0]['watermark'].update(records=last+1,last_tick=last);rows[-1].update(ticks=last+1,last_tick=last)
+        return self.repair(rows)
+
+    def test_review14_identity_drift_across_incarnation_and_owner_boundaries(self):
+        # Controls: unchanged re-admission (with and without baseline) and distinct fresh IDs per owner.
+        for variant in ('control','control-no-baseline'):
+            self.assertTrue(gate.evaluate(self.boundary_rows(variant),self.recording,OWNER,['pole_damage'],HASH)['passed'],variant)
+        self.assertTrue(gate.evaluate(self.exhausted_then_fresh_grant(OTHER),self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        cases=0
+        for variant in ('F1','F1b','F1d','F2'):
+            for field,value in self.BOUNDARY_DRIFT:
+                with self.subTest(variant=variant,field=field):
+                    bad=self.boundary_rows(variant,field,value)
+                    self.assert_rejected(bad,('pole_damage',))
+                    with self.assertRaisesRegex(ValueError,'two owners' if variant=='F2' else 'identity drifted'):gate.validate_instance_history(bad)
+                    cases+=1
+        # F2b: identical metadata, but two live owners hold one ID at once.
+        bad=self.boundary_rows('F2b');self.assert_rejected(bad,('pole_damage',))
+        with self.assertRaisesRegex(ValueError,'two owners'):gate.validate_instance_history(bad)
+        # F3: retained refine whose before rewrites the template (71 -> 72).
+        self.assertTrue(gate.evaluate(self.boundary_rows('F3',template=71,count=1),self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        bad=self.boundary_rows('F3','template_id',72,template=71,count=1);self.assert_rejected(bad,('pole_damage',))
+        with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
+        print(f'Review14 F1/F1b/F1d/F2/F2b/F3: {cases+2} boundary identity drifts reject; unchanged re-admission and distinct-ID controls pass',flush=True)
+
     def test_seeded_d67_id_reuse_corruptions_2000_cases(self):
         rng=random.Random(0xD67);corruptions=0
         fields=((None,None),('template_id',2510),('enchant',99),('created_tick',99),('augment_id',65537))
@@ -463,12 +512,16 @@ class Evidence(unittest.TestCase):
             for field,value in fields:
                 bad=self.reuse_exhausted_id(copy.deepcopy(rows),field,value)
                 self.assert_rejected(bad,('pole_damage',));corruptions+=1
+            # Review14: identity drift at an incarnation/owner boundary, any observation kind.
+            variant=('F1','F1b','F1d','F2')[rng.randrange(4)];field,value=self.BOUNDARY_DRIFT[rng.randrange(4)]
+            self.assert_rejected(self.boundary_rows(variant,field,value,count=rng.randint(2,100)),('pole_damage',));corruptions+=1
+            self.assert_rejected(self.boundary_rows('F2b',count=rng.randint(2,100)),('pole_damage',));corruptions+=1
             exchange=self.exchange_rows(enchant=rng.randrange(30))
             self.assertTrue(gate.evaluate(exchange,self.recording,OWNER,['sa_exchange'],HASH)['passed'])
             exchange[-2]['data'].update(instance=102,operation_ordinal=1);exchange[-2]['data']['after']['id']=102
             exchange[2]['data']['inputs']['after_instance']['id']=102;exchange[2]['data']['actual']['new_instance_id']=102
             self.assert_rejected(exchange,('sa_exchange',));corruptions+=1
-        print(f'D67 property check: seed=0xD67; 4000 fresh grant/Exchange controls pass; {corruptions} ID/metadata reuse corruptions reject',flush=True)
+        print(f'D67/D69 property check: seed=0xD67; 4000 fresh grant/Exchange controls pass; {corruptions} ID/metadata reuse and boundary-drift corruptions reject',flush=True)
 
     def test_seeded_per_operation_field_corruptions_2000_cases(self):
         rng=random.Random(0xE612);controls=corruptions=0
@@ -568,7 +621,8 @@ class Evidence(unittest.TestCase):
             self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'],(count,support))
             for index in range(1,len(rows)-1):
                 bad=copy.deepcopy(rows);del bad[index];self.repair(bad)
-                self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'],(count,support,index))
+                # D69 identity continuity may reject a deleted enchant step outright.
+                self.assert_rejected(bad,('enchant_outcome','enchant_chance'))
 
     def test_shared_scroll_stack_rejects_contribution_order_and_total_mutations(self):
         rows=self.shared_stack_enchants()
@@ -590,7 +644,7 @@ class Evidence(unittest.TestCase):
         for field,value in (('entity',OTHER),('incarnation',2)):
             bad=copy.deepcopy(rows)
             next(r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')[field]=value
-            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+            self.assert_rejected(bad) # Foreign owner now fails D69 single-owner identity.
         bad=copy.deepcopy(rows)
         del bad[1]['data']['operation']['receipt_ref']
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
@@ -613,7 +667,7 @@ class Evidence(unittest.TestCase):
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'])
         for index in range(1,len(rows)-1):
             bad=copy.deepcopy(rows);del bad[index];self.repair(bad)
-            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'],index)
+            self.assert_rejected(bad,('enchant_outcome','enchant_chance'))
         for ordinal in (0,):
             bad=copy.deepcopy(rows)
             targets=[r['data'] for r in bad if r['kind']=='item_delta' and r['data']['instance']==8]
