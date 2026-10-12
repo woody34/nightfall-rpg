@@ -98,10 +98,11 @@ class Revision4Tests(unittest.TestCase):
         self.assertEqual(len([n for n in self.required if n.startswith('soul-')]), len(soul))
         retail_count = sum(len(self.src.xml(oracle.D+'stats/augmentation/'+file).findall('weapon/stone/variation/category'))
                            for file in ['retailchances.xml', 'retailchances_accessory.xml'])
-        self.assertEqual(len([n for n in self.required if n.startswith('retail-')]), retail_count)
+        self.assertEqual(len([n for n in self.required if n.startswith(('retail-weapon-', 'retail-accessory-'))]), retail_count)
         self.assertEqual(len([n for n in self.required if n.startswith('system-')]),
                          4*sum(int(self.src.skills[s][1].get('levels')) for s in [4270, 6209, 6213, 3599]))
-        self.assertEqual({self.required[n]['inputs']['enchant'] for n in self.required if n.startswith('enchant-')},
+        self.assertEqual({self.required[n]['inputs']['enchant'] for n in self.required
+                          if n.startswith('enchant-') and self.required[n]['family'] == 'F2'},
                          {0, 3, 4, 19, 20, 65535, 4294967295})
         for level, radius in [(1, 6), (3, 6), (4, 7), (8, 7), (9, 8), (15, 8), (16, 9)]:
             for path in ['unequip', 'level_change', 'restore_weapon']:

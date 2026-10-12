@@ -904,3 +904,51 @@ and the existing slot/stat formulas. Both Kamael kits are source-only evidence,
 remaining deferred. `ClassId.java:185-186` contains mixed-case hex IDs, now parsed
 without dropping the female starter row. Angle vectors are part of `make_vectors`
 so every coverage caller sees the same mandatory positional evidence.
+
+Data review revision 5: `scripts/item_behavior_oracle.py` adds the missing
+§12.1 state-transition evidence, with separately enumerated source/input domains
+in `item_coverage.py`. Bow definitions bind actual XML `mp_consume`,
+`reduced_mp_consume` and random-damage radius (`L2Weapon.java:90-106`). Arrow
+search collapses S80/S84 to S (`Inventory.java:679-694`, `L2Item.java:387-391`);
+occupied LHAND is trusted by the pinned source (`L2PcInstance.java:5334-5360`).
+Wrong-grade refill rejects; the additional occupied-wrong-grade row deliberately
+records that source quirk, not permission to bypass V6 equipment validation.
+Arrow availability/reuse precede reduction RNG, and MP insufficiency retains the
+attempt draw (`L2Character.java:724-757`). Each accepted hit/miss consumes one
+arrow; exhausting a stack clears LHAND (`:1012-1021`, `L2PcInstance.java:5280-5323`).
+V6 moves projectile payment to accepted start (§2.1); the vectors identify this
+scheduling adaptation. The isolated hit cases use shieldless, noncritical,
+neutral-spread caller inputs, with hit equality retained (`Formulas.java:1054-1063`).
+
+Scroll737 binds skill2014 (`data/stats/skills/02000-02099.xml:189-211`), 15000ms
+static completion and itemConsume737×1. Its Resurrection effect omits power;
+`Resurrection.java:37-41` defaults to zero, which bypasses WIT scaling
+(`Formulas.java:1367-1382`). The scroll is consumed once before offering and
+never refunded on decline/expiry (§8). The 600-tick offer lifetime, first-valid
+retention, offer-ID/death-incarnation fence and duplicate rejection come from
+`docs/plans/phase-3-zone-design.md:132`, not a claimed Java timeout.
+Acceptance uses `character.properties:41` HP65%, with source MP/CP configuration
+zero and unchanged MP/CP (`L2Character.java:2098-2132`); Q conversion is the P3
+resource representation. Tutorial5588 and scrolls10650/12753 retain exact counts
+from `initialEquipment.xml:4-109` but reject their broader tutorial/teleport
+capabilities without inventory, allocator, reuse, paperdoll or RNG mutation
+(D12, §9.1). Both unsupported Kamael classes remain source census only.
+
+The line-by-line audit additionally requires safe+3/fullarmor+4 source rates
+(`enchantItemGroups.xml:4-59`), exhaustive quantized chance comparisons, weight
+limit modifiers, every paperdoll slot's expertise/clamp, speed-dependent bow
+reuse, dual canonical second resolution, pole count bounds, blow minimum/caller
+rounding, retail-only draw contracts, all option function/active/passive and
+attack/critical/magic trigger forms (`Options.java:61-74,136-178`), learned
+skill1401's itemConsume3031×1, and regeneration/status/HP-potion ordering.
+Potion1540's source amount435 is read from skill2038; `Hp.java:60-89` supplies
+its dead/status guard and recoverable-HP clamp. Regeneration uses class XML,
+CON bonus, posture and overload modifiers (`Formulas.java:263-351`,
+skill4270 at `04200-04299.xml:1623-1639`) before item restoration under §2.1.
+Every new family/boundary and all required input dimensions have deletion/value
+mutations; existing revision-4 tests also visit every new required case.
+Explicit Escape timing vectors compute normal/blessed source animation, launch,
+completion and interrupt cutoff at two casting speeds, retaining resources and
+incarnation at destination(126,126) (`L2Character.java:1625-1643,4577-4581`, §8).
+Additional HP-potion interaction cases preserve regeneration while skipping the
+item's restoration for invulnerability and HP-blocked status (`Hp.java:60-89`).
