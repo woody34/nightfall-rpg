@@ -363,6 +363,13 @@ impl ZoneHandle {
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
+    pub(crate) fn inventory_available(&self) -> Result<(), super::AppError> {
+        if self.is_paused() || self.commands.is_closed() || self.persistence_failed() {
+            return Err(super::AppError::Unavailable("inventory zone is unavailable".into()));
+        }
+        Ok(())
+    }
+
     pub(crate) fn final_snapshot(&self) -> Option<ZoneSnapshot> {
         self.final_snapshot.read().clone()
     }

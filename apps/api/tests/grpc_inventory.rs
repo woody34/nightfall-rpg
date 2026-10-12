@@ -648,3 +648,129 @@ async fn nonpositive_retained_maximum_projects_zero_and_preserves_overload_histo
     }
     assert!(app.bus.published().is_empty());
 }
+
+#[tokio::test]
+async fn withheld_log_ack_bounds_inventory_refusal_without_reads_and_releases_lifecycle() {
+    use nightfall_api::application::zone_actor::{manual_ticks, GateError, TickGate, ZoneActor};
+    use nightfall_api::domain::zone::{AppliedTick, EntityId};
+    use std::time::Duration;
+    use tokio::sync::{watch, Notify};
+
+    struct WithheldAck {
+        entered: Arc<Notify>,
+        release: Arc<Notify>,
+        paused: watch::Receiver<bool>,
+    }
+    impl TickGate for WithheldAck {
+        async fn admit(&self, _: &AppliedTick) -> Result<(), GateError> {
+            self.entered.notify_one();
+            self.release.notified().await;
+            Ok(())
+        }
+        fn paused(&self) -> watch::Receiver<bool> {
+            self.paused.clone()
+        }
+    }
+    let (ticks, driver) = manual_ticks();
+    let entered = Arc::new(Notify::new());
+    let release = Arc::new(Notify::new());
+    let (pause, paused) = watch::channel(false);
+    let zone = ZoneActor::spawn_gated(
+        common::fixture_zone(),
+        ticks,
+        WithheldAck {
+            entered: entered.clone(),
+            release: release.clone(),
+            paused,
+        },
+    );
+    let (repo, character, inventory) = fixture();
+    let admitted = Character::create(
+        character.account_id,
+        CharacterName::new("AdmittedRead").unwrap(),
+        Race::Human,
+    );
+    repo.insert_for_test(admitted.clone());
+    let data = inventory.clone();
+    let app = tokio::time::timeout(
+        Duration::from_secs(5),
+        TestApp::spawn_with_handle(
+            move |deps| {
+                deps.characters = repo;
+                deps.item_inventory = Some(data);
+                deps.item_catalogue = Some(catalogue());
+            },
+            zone,
+        ),
+    )
+    .await
+    .unwrap();
+    app.lifecycle
+        .admit(
+            &app.zone,
+            nightfall_api::domain::SessionId::new(),
+            nightfall_api::domain::zone::SessionGeneration(1),
+            &nightfall_api::application::session::PlayerSpawn {
+                entity: EntityId::from_uuid(admitted.id.as_uuid()),
+                name: "AdmittedRead".into(),
+                pos: nightfall_api::domain::zone::Vec2Fixed::from_tiles(10, 10),
+                speed: nightfall_api::domain::zone::Speed::DEFAULT,
+                load: None,
+            },
+        )
+        .await
+        .unwrap();
+    // Refuse the registered owner before requesting a snapshot which needs a tick drain.
+    let error = tokio::time::timeout(
+        Duration::from_millis(500),
+        app.grpc.clone().get_inventory(request(&admitted)),
+    )
+    .await
+    .unwrap()
+    .unwrap_err();
+    assert_eq!(error.code(), Code::FailedPrecondition);
+    assert_eq!(inventory.reads.load(Ordering::SeqCst), 0);
+    let beat = tokio::spawn(async move { driver.step().await });
+    tokio::time::timeout(Duration::from_secs(5), entered.notified())
+        .await
+        .unwrap();
+    // The actor has entered the log gate but has not yet announced a pause.
+    let error = tokio::time::timeout(
+        Duration::from_secs(4),
+        app.grpc.clone().get_inventory(request(&character)),
+    )
+    .await
+    .unwrap()
+    .unwrap_err();
+    assert_eq!(error.code(), Code::Unavailable);
+    assert_eq!(inventory.reads.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        tokio::time::timeout(Duration::from_millis(500), app.lifecycle.len())
+            .await
+            .unwrap(),
+        1
+    );
+    // A known pause must refuse immediately, without another draining snapshot wait.
+    pause.send(true).unwrap();
+    let error = tokio::time::timeout(
+        Duration::from_millis(500),
+        app.grpc.clone().get_inventory(request(&character)),
+    )
+    .await
+    .unwrap()
+    .unwrap_err();
+    assert_eq!(error.code(), Code::Unavailable);
+    assert_eq!(inventory.reads.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        tokio::time::timeout(Duration::from_millis(500), app.lifecycle.len())
+            .await
+            .unwrap(),
+        1
+    );
+    release.notify_one();
+    tokio::time::timeout(Duration::from_secs(5), beat)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+}
