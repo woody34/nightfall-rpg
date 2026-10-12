@@ -170,6 +170,39 @@ class Evidence(unittest.TestCase):
             self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['bow_launch'],HASH)['passed'])
             with self.assertRaises(ValueError):gate.input_domains('learned_item_cost',dict(inventory={'17':count}))
 
+    def test_item_record_scalar_substitutions_through_evaluate(self):
+        vectors=gate.oracle.make_vectors(gate.source())
+        learned=next(v for v in vectors if v['id']=='learned-item-consume-complete-1')
+        dormant=next(v for v in vectors if v['id'].startswith('dormant-starter-use-'))
+        for name,vector in [('learned_item_cost',learned),('dormant_use',dormant)]:
+            inputs=copy.deepcopy(vector['inputs'])
+            if name=='dormant_use':
+                inputs['properties']={k:v for k,v in inputs['properties'].items() if k in ('handler','item_skill')}
+            inputs['inventory'].append(dict(instance_id=3,template_id=57,count=10,
+                                           enchant=0,charges=0,grade='NONE',kind='ADENA',augment_id=None))
+            function=getattr(gate.oracle.behavior,name)
+            rows=copy.deepcopy(self.rows)
+            rows[1]['data'].update(formula=name,inputs=inputs,
+                actual=gate.oracle.rational(function(**gate.oracle.decode_rationals(inputs))))
+            control=gate.evaluate(rows,self.recording,OWNER,[name],HASH)
+            self.assertTrue(control['passed'],control)
+            for field in ('count','enchant','charges'):
+                for value in ([-1],[2**63],{'bad':-1},None,-1,2**63,True,{'numerator':1,'denominator':1}):
+                    with self.subTest(formula=name,field=field,value=value):
+                        bad=copy.deepcopy(rows)
+                        bad_inputs=bad[1]['data']['inputs']
+                        bad_inputs['inventory'][-1][field]=value
+                        bad[1]['data']['actual']=gate.oracle.rational(function(**gate.oracle.decode_rationals(bad_inputs)))
+                        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,[name],HASH)['passed'])
+
+    def test_shot_charge_lists_through_evaluate(self):
+        for name,inputs in [('charge_transition',dict(charges=['soul','spirit'],use_soul=True)),
+                            ('shot_payment',dict(charges=['spirit'],kind='soul',count=1,available=2,weapon_grade='D',shot_grade='D')),
+                            ('shared_shot_bundle',dict(charges=['soul'],hits=[True,False],use_soul=True))]:
+            rows=copy.deepcopy(self.rows)
+            rows[1]['data'].update(formula=name,inputs=inputs,actual=gate.oracle.rational(getattr(gate.oracle,name)(**inputs)))
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'],name)
+
     def test_source_resurrection_restore_ratio_through_evaluate(self):
         import re
         config=gate.source().read('src/main/resources/config/character.properties',True)
