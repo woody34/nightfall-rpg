@@ -521,6 +521,90 @@ fn item_grade_to_pb(grade: &str) -> anyhow::Result<pb::ItemGrade> {
     }
 }
 
+/// Detached zero-origin projection. A live WS baseline always has a positive incarnation.
+pub(super) fn detached_inventory_to_pb(
+    output: &crate::application::use_cases::GetInventoryOutput,
+) -> Result<pb::InventorySync, crate::application::AppError> {
+    use crate::domain::zone::{phase4_checkpoint::ItemReuseKey, ItemLocation};
+    let cp = &output.checkpoint;
+    if cp.max_load <= 0 {
+        return Err(anyhow::anyhow!("retained inventory max load is invalid").into());
+    }
+    let per_mille = i128::from(cp.weight)
+        .checked_mul(1000)
+        .and_then(|weight| weight.checked_div(i128::from(cp.max_load)))
+        .ok_or_else(|| anyhow::anyhow!("retained weight projection overflow"))?;
+    Ok(pb::InventorySync {
+        entity_id: output.character_id.as_uuid().as_bytes().to_vec(),
+        incarnation: 0,
+        tick: 0,
+        inventory_revision: cp.inventory_revision,
+        baseline_tick: 0,
+        baseline: true,
+        items: cp
+            .instances
+            .iter()
+            .map(|item| pb::OwnedItem {
+                instance_id: item.id.get(),
+                template_id: item.template_id,
+                count: item.count,
+                enchant: item.enchant,
+                augment_id: item.augment_id,
+                location: match item.location {
+                    ItemLocation::Inventory => pb::ItemLocation::Inventory,
+                    ItemLocation::Paperdoll => pb::ItemLocation::Paperdoll,
+                }
+                .into(),
+                slot: item
+                    .slot
+                    .map_or(0, |slot| i32::from(slot as u8).saturating_add(1)),
+                charge_bits: u32::from(item.charges),
+                revision: item.revision,
+            })
+            .collect(),
+        paperdoll: cp
+            .paperdoll
+            .iter()
+            .map(|(slot, id)| pb::PaperdollEntry {
+                slot: i32::from(*slot as u8).saturating_add(1),
+                instance_id: id.get(),
+            })
+            .collect(),
+        auto_shot_templates: cp.auto_shots.iter().copied().collect(),
+        weight: Some(pb::ItemWeightState {
+            weight: cp.weight,
+            max_load: cp.max_load,
+            penalty_bonus: cp.weight_penalty_bonus,
+            per_mille: i64::try_from(per_mille).map_err(anyhow::Error::from)?,
+        }),
+        penalties: Some(pb::ItemPenaltyState {
+            expertise: u32::from(cp.expertise),
+            weapon_level: u32::from(cp.weapon_penalty),
+            armor_level: u32::from(cp.armor_penalty),
+            overload_level: u32::from(cp.overload_level),
+            overloaded: cp.overloaded,
+        }),
+        reuse: cp
+            .item_reuse_remainders
+            .iter()
+            .map(|reuse| {
+                let (kind, key) = match reuse.key {
+                    ItemReuseKey::Template(key) => (pb::ItemReuseKind::Template, key),
+                    ItemReuseKey::SharedGroup(key) => (pb::ItemReuseKind::SharedGroup, key),
+                };
+                pb::ItemReuseState {
+                    kind: kind.into(),
+                    key,
+                    until_tick: reuse.remaining_ticks,
+                }
+            })
+            .collect(),
+        rules_hash: cp.rules_hash.to_vec(),
+        ordinary_capacity: output.ordinary_capacity,
+        quest_capacity: output.quest_capacity,
+    })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {

@@ -53,6 +53,7 @@ pub struct GameServiceImpl {
     transfer_options: TransferOptions,
     phase3: Option<Phase3UseCases>,
     get_item_catalog: crate::application::use_cases::GetItemCatalog,
+    get_inventory: Option<crate::application::use_cases::GetInventory>,
 }
 
 /// Phase 3 use cases shared by live composition and transport tests.
@@ -90,6 +91,7 @@ impl GameServiceImpl {
             transfer_options,
             phase3: None,
             get_item_catalog: crate::application::use_cases::GetItemCatalog::new(None),
+            get_inventory: None,
         }
     }
 
@@ -107,6 +109,16 @@ impl GameServiceImpl {
         use_case: crate::application::use_cases::GetItemCatalog,
     ) -> Self {
         self.get_item_catalog = use_case;
+        self
+    }
+
+    /// Installs retained reads through the same lifecycle barrier used by live sessions.
+    #[must_use]
+    pub fn with_get_inventory(
+        mut self,
+        use_case: crate::application::use_cases::GetInventory,
+    ) -> Self {
+        self.get_inventory = Some(use_case);
         self
     }
 
@@ -133,10 +145,17 @@ impl GameService for GameServiceImpl {
         &self,
         req: Request<pb::GetInventoryRequest>,
     ) -> Result<Response<pb::GetInventoryResponse>, Status> {
-        auth::caller(&req)?;
-        crate::application::use_cases::get_inventory::require_out_of_world(false, false, false)
+        let caller = auth::caller(&req)?;
+        let use_case = self.get_inventory.as_ref().ok_or_else(|| {
+            to_status(AppError::Unavailable("inventory zone is unavailable".into()))
+        })?;
+        let result = use_case
+            .execute(caller, &req.get_ref().character_id)
+            .await
             .map_err(to_status)?;
-        Err(to_status(AppError::Unavailable("item runtime is not yet available".into())))
+        Ok(Response::new(pb::GetInventoryResponse {
+            inventory: Some(mapping::detached_inventory_to_pb(&result).map_err(to_status)?),
+        }))
     }
 
     async fn grant_item(

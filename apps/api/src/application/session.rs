@@ -1256,3 +1256,27 @@ impl super::ports::LearnReceiptRepository for SessionContext {
         service.learn_receipt_lookup(caller, key, fingerprint).await
     }
 }
+
+#[async_trait::async_trait]
+impl super::ports::ItemInventoryRuntime for SessionContext {
+    async fn detached_inventory(
+        &self,
+        character: crate::domain::CharacterId,
+        repository: &dyn super::ports::ItemInventoryRepository,
+    ) -> Result<Option<super::ports::RetainedInventory>, super::AppError> {
+        let live = self.registry.live.lock().await;
+        self.zone
+            .snapshot()
+            .await
+            .map_err(|_| super::AppError::Unavailable("inventory zone is unavailable".into()))?;
+        super::use_cases::get_inventory::require_out_of_world(
+            true,
+            true,
+            live.contains_key(&EntityId::from_uuid(character.as_uuid())),
+        )?;
+        // Keep admission and final-save/departure behind this parent-locked retained read.
+        let result = repository.retained_inventory(character).await?;
+        drop(live);
+        Ok(result)
+    }
+}
