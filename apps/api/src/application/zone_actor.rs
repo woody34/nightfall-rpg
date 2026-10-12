@@ -888,13 +888,15 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     /// Drafts and runs the next tick, consuming its inputs from `pending`.
     #[allow(clippy::too_many_lines)] // Receipt preflight and lifecycle saves must stay before the single draft mutation.
     async fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
-        self.preflight_item_allocation().await?;
         let admitted = loop {
             let selected = self.select_admitted();
             if self.preflight_grants(&selected).await? {
                 continue;
             }
             if self.preflight_items(&selected).await? {
+                continue;
+            }
+            if self.preflight_item_allocation(&selected).await? {
                 continue;
             }
             if self.preflight_learning(&selected).await? {
@@ -1254,7 +1256,10 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         })
     }
 
-    async fn preflight_item_allocation(&mut self) -> Result<(), (Tick, TickError)> {
+    async fn preflight_item_allocation(
+        &mut self,
+        selected: &[usize],
+    ) -> Result<bool, (Tick, TickError)> {
         use crate::domain::zone::{ItemInstanceRange, ZoneCommand};
         if !self.item_range_exhausted()
             || self
@@ -1262,9 +1267,41 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 .iter()
                 .any(|queued| matches!(queued.input.command, ZoneCommand::ExtendItemRange { .. }))
         {
-            return Ok(());
+            return Ok(false);
         }
         let fence = (self.state.next_tick(), TickError::PersistenceFence);
+        let mut required = false;
+        for index in selected {
+            let queued = self.pending.get(*index).ok_or(fence)?;
+            if let ZoneCommand::MaterializePendingItems(grant) = &queued.input.command {
+                required |= grant.known.is_none() && grant.conflict.is_none();
+            } else if let ZoneCommand::SpawnPlayer {
+                load: Some(load), ..
+            } = &queued.input.command
+            {
+                required |= load
+                    .phase4
+                    .as_ref()
+                    .is_some_and(|items| !items.pending.is_empty());
+            } else if let ZoneCommand::Item(command) = &queued.input.command {
+                let CommandSource::Session { entity, generation } = queued.input.source else {
+                    return Err(fence);
+                };
+                let account = command.authenticated_account().map_err(|_| fence)?;
+                required |= self.state.class_player(entity, account, generation).is_ok()
+                    && command.known_result().map_err(|_| fence)?.is_none()
+                    && command.receipt_conflict().map_err(|_| fence)?.is_none()
+                    && matches!(
+                        command.kind,
+                        crate::domain::zone::ItemCommandKind::Enchant { .. }
+                            | crate::domain::zone::ItemCommandKind::Crystallize { .. }
+                            | crate::domain::zone::ItemCommandKind::ExchangeSpecialAbility { .. }
+                    );
+            }
+        }
+        if !required {
+            return Ok(false);
+        }
         if !self.gate.durable() || self.pending.len() >= PENDING_LIMIT {
             return Err(fence);
         }
@@ -1299,7 +1336,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             trace: None,
             reply: None,
         });
-        Ok(())
+        Ok(true)
     }
 
     /// Indices into `pending`, ascending, of the inputs that fit this tick's budgets.

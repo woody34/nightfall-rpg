@@ -2,13 +2,9 @@
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::too_many_lines)]
 use super::*;
 use crate::application::ports::{ItemAdmissionRepository, ItemIdRange, PendingItemRequest};
-use crate::application::{CharacterRepository, CheckpointError};
-use crate::domain::zone::{
-    AppliedTickDraft, ItemInstanceRange, Vec2Fixed, ZoneBounds, ZoneCommand, ZoneId, ZoneSeed,
-};
+use crate::application::CheckpointError;
+use crate::domain::zone::{AppliedTickDraft, ItemInstanceRange, ZoneCommand, ZoneId};
 use crate::domain::CharacterId;
-use crate::infrastructure::memory::{InMemoryCharacterRepository, InMemorySessionAudit};
-use crate::infrastructure::{class_data, item_data, rules_data, telemetry::Metrics};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct Reservations {
@@ -69,54 +65,48 @@ impl TickGate for HeldGate {
 
 #[tokio::test]
 async fn automatic_allocator_extension_shares_queue_budget_and_retries_exact_record() {
-    let bundle = item_data::embedded_phase4_bundle().unwrap();
-    let repo = Arc::new(
-        InMemoryCharacterRepository::default()
-            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
-            .unwrap(),
-    );
     let start = 1_u64 << 32;
     let end = start.checked_add(10).unwrap();
-    let initial = ZoneState::new_phase4(
-        ZoneSeed {
-            zone: ZoneId(92),
-            epoch: 7,
-        },
-        ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256)).unwrap(),
-        0,
-        rules_data::load_rules(&rules_data::RulesSource::embedded())
-            .unwrap()
-            .rules,
-        class_data::load_classes(&class_data::ClassSource::embedded())
-            .unwrap()
-            .registry,
-        (*bundle.skills).clone(),
-        bundle.items,
-        ItemInstanceRange::new(start, end, end).unwrap(),
-    )
-    .unwrap()
-    .snapshot();
-    for mode in 0..3 {
+    for mode in 0..4 {
+        let (repo, service, mut initial, owner, known) =
+            super::super::checkpoint::item_tests::allocator_fixture().await;
+        let ledger_count = repo.item_ledger_for_test().len();
+        initial.phase4.as_mut().unwrap().allocator =
+            ItemInstanceRange::new(start, end, end).unwrap();
         let reservations = Arc::new(Reservations {
             calls: AtomicUsize::new(0),
-            mode,
+            mode: if mode == 3 { 1 } else { mode },
         });
         let attempts = Arc::new(parking_lot::Mutex::new(Vec::new()));
         let state = crate::application::replay_log::restore_snapshot(initial.clone()).unwrap();
         let (ticks, driver) = manual_ticks();
         let handle = ZoneActor::spawn_gated(state, ticks, HeldGate(attempts.clone()));
-        handle.checkpoints.install(
-            super::super::checkpoint::CheckpointService::new(
-                repo.clone() as Arc<dyn CharacterRepository>,
-                Arc::new(InMemorySessionAudit::default()),
-                Arc::new(Metrics::detached()),
-            )
-            .with_items(repo.clone())
-            .with_item_admission(reservations.clone()),
-        );
+        handle
+            .checkpoints
+            .install(service.with_item_admission(reservations.clone()));
         let mut outputs = handle.subscribe();
+        let command = if mode == 3 {
+            known
+        } else {
+            crate::domain::zone::ItemCommand::new(
+                owner,
+                uuid::Uuid::now_v7(),
+                crate::domain::zone::ItemCommandKind::Crystallize {
+                    instance: crate::domain::zone::ItemInstanceId::new(99_999).unwrap(),
+                },
+            )
+            .unwrap()
+        };
+        handle
+            .send(ZoneInput::session(
+                owner,
+                crate::domain::zone::SessionGeneration(1),
+                99,
+                ZoneCommand::Item(Box::new(command)),
+            ))
+            .unwrap();
         if mode == 0 {
-            for index in 0..COMMAND_QUEUE {
+            for index in 1..COMMAND_QUEUE {
                 handle
                     .send(ZoneInput::system(ZoneCommand::StopMove {
                         entity: EntityId::from_uuid(uuid::Uuid::from_u128(
@@ -127,9 +117,9 @@ async fn automatic_allocator_extension_shares_queue_budget_and_retries_exact_rec
             }
         }
         assert_eq!(driver.step().await.unwrap(), TickOutcome::Held(initial.tick));
-        assert_eq!(reservations.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(reservations.calls.load(Ordering::SeqCst), usize::from(mode != 3));
         assert!(outputs.try_recv().is_err());
-        if mode != 0 {
+        if mode == 1 || mode == 2 {
             handle.stopped().await;
             assert!(handle.persistence_failed());
             assert!(attempts.lock().is_empty());
@@ -137,11 +127,35 @@ async fn automatic_allocator_extension_shares_queue_budget_and_retries_exact_rec
         }
         assert_eq!(driver.step().await.unwrap(), TickOutcome::Ran(initial.tick));
         let first = outputs.recv().await.unwrap();
+        if mode == 3 {
+            assert_eq!(repo.item_ledger_for_test().len(), ledger_count);
+            assert_eq!(first.commands.len(), 1);
+            assert!(
+                matches!(&first.commands[0].command, ZoneCommand::Item(item) if item.known_result().unwrap().is_some())
+            );
+            let mut cold =
+                crate::application::replay_log::restore_snapshot(initial.clone()).unwrap();
+            assert_eq!(
+                *first,
+                cold.run_tick(AppliedTickDraft {
+                    epoch: first.epoch,
+                    tick: first.tick,
+                    commands: first.commands.clone()
+                })
+                .unwrap()
+            );
+            assert_eq!(cold.item_instance_range().unwrap().bounds(), (start, end, end));
+            assert_eq!(reservations.calls.load(Ordering::SeqCst), 0);
+            drop(driver);
+            handle.stopped().await;
+            assert!(!handle.persistence_failed());
+            continue;
+        }
         assert_eq!(first.commands.len(), PENDING_LIMIT);
         assert!(matches!(first.commands[0].command, ZoneCommand::ExtendItemRange { .. }));
-        for (index, command) in first.commands.iter().skip(1).enumerate() {
+        for (index, command) in first.commands.iter().skip(2).enumerate() {
             assert!(matches!(command.command, ZoneCommand::StopMove { entity }
-                if entity.as_uuid().as_u128() == u128::try_from(index).unwrap().checked_add(1).unwrap()));
+                if entity.as_uuid().as_u128() == u128::try_from(index).unwrap().checked_add(2).unwrap()));
         }
         {
             let calls = attempts.lock();
@@ -154,7 +168,7 @@ async fn automatic_allocator_extension_shares_queue_budget_and_retries_exact_rec
         assert!(
             matches!(tail.commands[0].command, ZoneCommand::StopMove { entity } if entity.as_uuid().as_u128() == u128::try_from(COMMAND_QUEUE).unwrap())
         );
-        assert_eq!(reservations.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(reservations.calls.load(Ordering::SeqCst), usize::from(mode != 3));
         let mut cold = crate::application::replay_log::restore_snapshot(initial.clone()).unwrap();
         for applied in [first, tail] {
             assert_eq!(

@@ -23,6 +23,85 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tokio::sync::Notify;
 
 type Attempt = (CharacterCheckpoint, Vec<DomainEvent>, ItemCheckpointWork);
+pub(crate) async fn allocator_fixture() -> (
+    Arc<InMemoryCharacterRepository>,
+    CheckpointService,
+    ZoneSnapshot,
+    EntityId,
+    ItemCommand,
+) {
+    let mut harness = Harness::new().await;
+    let applied = harness.equipment_tick();
+    harness
+        .service
+        .admitted(&applied, &harness.state.snapshot())
+        .await
+        .unwrap();
+    let grant = harness
+        .state
+        .run_tick(harness.state.draft(vec![ZoneInput::system(
+            ZoneCommand::MaterializePendingItems(Box::new(crate::domain::zone::ItemGrantCommand {
+                entity: harness.entity,
+                account: harness.account,
+                request_id: Uuid::now_v7(),
+                template_id: 22227,
+                count: 1,
+                fingerprint: crate::domain::zone::item_grant::grant_fingerprint(
+                    CharacterId::from_uuid(harness.entity.as_uuid()),
+                    22227,
+                    1,
+                ),
+                rules_hash: harness.state.snapshot().phase4.unwrap().rules_hash,
+                paused: None,
+                known: None,
+                conflict: None,
+            })),
+        )]))
+        .unwrap();
+    assert!(grant.dispositions.is_empty());
+    harness
+        .service
+        .admitted(&grant, &harness.state.snapshot())
+        .await
+        .unwrap();
+    let items = harness.state.snapshot().phase4.unwrap();
+    let player = &items.players[&harness.entity];
+    let command = ItemCommand::new(
+        harness.entity,
+        Uuid::now_v7(),
+        ItemCommandKind::Enchant {
+            target: player.paperdoll[&EquipSlot::Rhand],
+            scroll: player
+                .inventory
+                .values()
+                .find(|item| item.template_id == 22227)
+                .unwrap()
+                .id,
+            support: None,
+        },
+    )
+    .unwrap()
+    .with_account(harness.account)
+    .unwrap();
+    let enchanted = harness
+        .state
+        .run_tick(harness.state.draft(vec![ZoneInput::session(
+            harness.entity,
+            SessionGeneration(1),
+            4,
+            ZoneCommand::Item(Box::new(command.clone())),
+        )]))
+        .unwrap();
+    assert!(enchanted.dispositions.is_empty());
+    harness
+        .service
+        .admitted(&enchanted, &harness.state.snapshot())
+        .await
+        .unwrap();
+    let mut snapshot = harness.state.snapshot();
+    harness.service.snapshot(&mut snapshot);
+    (harness.repo, harness.service, snapshot, harness.entity, command)
+}
 struct Harness {
     repo: Arc<InMemoryCharacterRepository>,
     audit: Arc<InMemorySessionAudit>,

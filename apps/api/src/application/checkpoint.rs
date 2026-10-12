@@ -1249,7 +1249,7 @@ mod phase3_tests;
 
 #[cfg(test)]
 #[path = "checkpoint_items_tests.rs"]
-mod item_tests;
+pub(crate) mod item_tests;
 
 #[allow(clippy::manual_let_else)] // Exhaustive item/non-item metadata match.
 fn item_events(
