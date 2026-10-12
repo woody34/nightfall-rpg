@@ -232,12 +232,21 @@ impl ItemCheckpointWork {
         &self,
         rules: &crate::domain::zone::Phase4Rules,
     ) -> Result<(), CheckpointError> {
-        for item in self.projection.checkpoint.instances.iter().chain(
+        for item in
             self.projection
-                .ledger
+                .checkpoint
+                .instances
                 .iter()
-                .flat_map(|delta| delta.before.iter().chain(delta.after.iter())),
-        ) {
+                .chain(
+                    self.projection
+                        .ledger
+                        .iter()
+                        .flat_map(|delta| delta.before.iter().chain(delta.after.iter())),
+                )
+                .chain(self.projection.enchant_attempts.iter().flat_map(|attempt| {
+                    std::iter::once(&attempt.before).chain(attempt.after.iter())
+                }))
+        {
             let definition = rules
                 .parts()
                 .items
@@ -402,6 +411,37 @@ impl ItemCheckpointWork {
             .revision_seen
             .checked_add(1)
             .ok_or_else(|| invalid("characters_revision"))?;
+        let enchant_facts: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let DomainEvent::ItemEnchanted { fact } = event {
+                    Some(fact)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if enchant_facts.len() != self.projection.enchant_attempts.len() {
+            return Err(invalid("item_enchant_outbox_count"));
+        }
+        for attempt in &self.projection.enchant_attempts {
+            let causes = vec![serde_json::to_value(attempt).map_err(anyhow::Error::from)?];
+            if enchant_facts
+                .iter()
+                .filter(|fact| {
+                    fact.instance_id == attempt.target
+                        && fact.template_id == attempt.template
+                        && fact.before.as_ref() == Some(&attempt.before)
+                        && fact.after == attempt.after
+                        && fact.count_delta == if attempt.after.is_none() { -1 } else { 0 }
+                        && fact.causes == causes
+                })
+                .count()
+                != 1
+            {
+                return Err(invalid("item_enchant_outbox_attempt"));
+            }
+        }
         for event in events {
             let fact = match event {
                 DomainEvent::ItemGranted { fact }

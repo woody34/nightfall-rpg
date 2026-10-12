@@ -17,7 +17,8 @@ use nightfall_api::domain::zone::{
     Phase4Projection, Tick, ZoneId,
 };
 use nightfall_api::domain::{
-    AccountId, Character, CharacterName, DomainEvent, EventMetadata, ItemEventFact, Position, Race,
+    AccountId, Character, CharacterId, CharacterName, DomainEvent, EventMetadata, ItemEventFact,
+    Position, Race,
 };
 use nightfall_api::infrastructure::{
     item_data::{embedded_phase4_bundle, Phase4RuleBundle},
@@ -956,4 +957,193 @@ async fn postgres_rejects_unconserved_counts_wrong_initial_scalar_owner_and_stal
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
         .unwrap();
     rejected_contract(&repo, &bundle).await;
+}
+
+#[allow(clippy::too_many_lines)] // Shared memory/Pg atomic unchanged-attempt contract.
+async fn unchanged_enchant_contract<
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository,
+>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+) -> CharacterId {
+    use nightfall_api::domain::zone::{EnchantAttempt, ItemInstanceId};
+    let (character, mut cp, mut work, facts) = fixture(repo, bundle, "SafeAudit").await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let retained = repo.retained_inventory(character.id).await.unwrap();
+    cp.revision_seen = 1;
+    cp.idempotency.1 = IdempotencyKey::new();
+    cp.phase4.as_mut().unwrap().inventory_revision = 2;
+    work.projection.tick = Tick(74);
+    work.projection.checkpoint = cp.phase4.clone().unwrap();
+    work.projection.ledger.clear();
+    work.projection.materializations.clear();
+    let target = work
+        .projection
+        .checkpoint
+        .instances
+        .iter()
+        .find(|item| item.count == 1)
+        .unwrap()
+        .clone();
+    let receipt = &mut work.projection.receipts[0];
+    receipt.request_id = Uuid::now_v7();
+    receipt.fingerprint = "b".repeat(64);
+    receipt.result.receipt = receipt.request_id;
+    receipt.result.tick = Tick(74);
+    receipt.result.inventory_revision = 2;
+    receipt.result.detail = ItemResultDetail::Enchant {
+        target: target.id,
+        old_enchant: target.enchant,
+        new_enchant: target.enchant,
+        outcome: ItemEnchantOutcome::SafeFailed,
+        refunds: vec![],
+        announcement_tier: 0,
+    };
+    let request = receipt.clone();
+    let attempt = EnchantAttempt {
+        operation_ordinal: 1,
+        receipt: receipt.reference(),
+        target: target.id,
+        template: target.template_id,
+        old_enchant: target.enchant,
+        new_enchant: target.enchant,
+        outcome: ItemEnchantOutcome::SafeFailed,
+        before: target.clone(),
+        after: Some(target.clone()),
+        scroll: ItemInstanceId::new(99).unwrap(),
+        scroll_template: 951,
+        chance_1e5: 0,
+        raw_draw: 199_999,
+        draw: 99_999,
+        cause: ItemAuditEvidence {
+            family: "enchant".into(),
+            fields: BTreeMap::new(),
+        },
+    };
+    work.projection.enchant_attempts = vec![attempt.clone()];
+    let fact = DomainEvent::ItemEnchanted {
+        fact: ItemEventFact {
+            metadata: EventMetadata {
+                event_id: Uuid::now_v7(),
+                sequence: (2, 0),
+            },
+            character_id: character.id,
+            instance_id: target.id,
+            template_id: target.template_id,
+            count_delta: 0,
+            before: Some(target.clone()),
+            after: Some(target),
+            causes: vec![serde_json::to_value(attempt).unwrap()],
+        },
+    };
+    assert!(matches!(
+        repo.checkpoint_items(&cp, &[], &work, None).await,
+        Err(CheckpointError::Constraint(_))
+    ));
+    assert_eq!(repo.retained_inventory(character.id).await.unwrap(), retained);
+    let key = IdempotencyKey::from_uuid(request.request_id);
+    assert_eq!(
+        repo.item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::EnchantItem,
+            &key,
+            &request.fingerprint
+        )
+        .await
+        .unwrap(),
+        ItemReceiptLookup::Unknown
+    );
+    let events = vec![fact];
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Replayed(2)
+    );
+    let ItemReceiptLookup::Known(stored) = repo
+        .item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::EnchantItem,
+            &key,
+            &request.fingerprint,
+        )
+        .await
+        .unwrap()
+    else {
+        panic!("missing enchant receipt");
+    };
+    assert_eq!(stored.result, request.result);
+    let saved = repo
+        .retained_inventory(character.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        saved.checkpoint.unwrap().instances,
+        retained.unwrap().checkpoint.unwrap().instances
+    );
+    character.id
+}
+
+#[tokio::test]
+async fn memory_unchanged_enchant_audit_is_atomic_without_phantom_ledger() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    unchanged_enchant_contract(&repo, &bundle).await;
+    assert!(repo
+        .item_ledger_for_test()
+        .iter()
+        .all(|row| row.operation != ItemLedgerOperation::Enchant));
+    assert_eq!(
+        repo.staged_events()
+            .iter()
+            .filter(|event| matches!(event, DomainEvent::ItemEnchanted { .. }))
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn postgres_unchanged_enchant_audit_is_atomic_without_phantom_ledger() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let id = unchanged_enchant_contract(&repo, &bundle).await;
+    let ledger: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM item_ledger WHERE character_id=$1 AND op='enchant'",
+    )
+    .bind(id.as_uuid())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(ledger, 0);
+    let outbox: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM outbox WHERE payload->'fact'->>'character_id'=$1 AND subject='nightfall.item.enchanted'",
+    )
+    .bind(id.to_string())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(outbox, 1);
 }

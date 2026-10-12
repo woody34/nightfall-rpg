@@ -1245,69 +1245,122 @@ mod phase3_tests;
 #[path = "checkpoint_items_tests.rs"]
 mod item_tests;
 
+#[allow(clippy::manual_let_else)] // Exhaustive item/non-item metadata match.
 fn item_events(
     cp: &CharacterCheckpoint,
     work: &super::ports::ItemCheckpointWork,
     offset: usize,
 ) -> anyhow::Result<Vec<DomainEvent>> {
     use crate::domain::zone::phase4_projection::ItemOperation;
-    work.projection
-        .ledger
-        .iter()
+    let mut facts = Vec::new();
+    for delta in &work.projection.ledger {
+        // D49: enchant attempts have their own captured audit, including unchanged results.
+        if delta.operation == ItemOperation::Enchant && delta.after.is_some() {
+            continue;
+        }
+        let fact = crate::domain::ItemEventFact {
+            metadata: EventMetadata {
+                event_id: Uuid::nil(),
+                sequence: (0, 0),
+            },
+            character_id: cp.character_id,
+            instance_id: delta.instance,
+            template_id: delta.template()?,
+            count_delta: delta.count_delta,
+            before: delta.before.clone(),
+            after: delta.after.clone(),
+            causes: delta
+                .causes
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<Result<_, _>>()?,
+        };
+        let event = match delta.operation {
+            ItemOperation::Grant | ItemOperation::Starter | ItemOperation::Backfill => {
+                DomainEvent::ItemGranted { fact }
+            },
+            ItemOperation::Equip => DomainEvent::ItemEquipped { fact },
+            ItemOperation::Unequip => DomainEvent::ItemUnequipped { fact },
+            ItemOperation::Consume | ItemOperation::Use => DomainEvent::ItemConsumed { fact },
+            ItemOperation::Enchant | ItemOperation::Destroy | ItemOperation::Crystallize => {
+                DomainEvent::ItemDestroyed { fact }
+            },
+            ItemOperation::Refine | ItemOperation::CancelRefine => {
+                DomainEvent::ItemRefined { fact }
+            },
+            ItemOperation::Exchange => DomainEvent::ItemExchanged { fact },
+            ItemOperation::ToggleAutoShot => {
+                anyhow::bail!("pure owner toggle cannot fabricate an item audit row")
+            },
+        };
+        facts.push((delta.operation_ordinal, 1_u8, event));
+    }
+    for attempt in &work.projection.enchant_attempts {
+        facts.push((
+            attempt.operation_ordinal,
+            0,
+            DomainEvent::ItemEnchanted {
+                fact: crate::domain::ItemEventFact {
+                    metadata: EventMetadata {
+                        event_id: Uuid::nil(),
+                        sequence: (0, 0),
+                    },
+                    character_id: cp.character_id,
+                    instance_id: attempt.target,
+                    template_id: attempt.template,
+                    count_delta: if attempt.after.is_none() { -1 } else { 0 },
+                    before: Some(attempt.before.clone()),
+                    after: attempt.after.clone(),
+                    causes: vec![serde_json::to_value(attempt)?],
+                },
+            },
+        ));
+    }
+    facts.sort_by_key(|(operation, kind, _)| (*operation, *kind));
+    facts
+        .into_iter()
         .enumerate()
-        .map(|(index, delta)| {
+        .map(|(index, (_, _, mut event))| {
             let ordinal = u64::try_from(
                 offset
                     .checked_add(index)
                     .ok_or_else(|| anyhow::anyhow!("item event ordinal overflow"))?,
             )?;
-            let fact = crate::domain::ItemEventFact {
-                metadata: EventMetadata {
-                    event_id: stable_id(
-                        work.projection.entity,
-                        work.zone,
-                        work.epoch,
-                        work.projection.tick,
-                        Some(ordinal),
-                    ),
-                    sequence: (
-                        cp.revision_seen
-                            .checked_add(1)
-                            .ok_or_else(|| anyhow::anyhow!("checkpoint revision overflow"))?,
-                        ordinal,
-                    ),
+            let fact = match &mut event {
+                DomainEvent::ItemGranted { fact }
+                | DomainEvent::ItemEquipped { fact }
+                | DomainEvent::ItemUnequipped { fact }
+                | DomainEvent::ItemConsumed { fact }
+                | DomainEvent::ItemEnchanted { fact }
+                | DomainEvent::ItemDestroyed { fact }
+                | DomainEvent::ItemRefined { fact }
+                | DomainEvent::ItemExchanged { fact } => fact,
+                DomainEvent::CharacterCreated { .. }
+                | DomainEvent::CharacterLeveled { .. }
+                | DomainEvent::CharacterClassChanged { .. }
+                | DomainEvent::CharacterSkillLearned { .. }
+                | DomainEvent::CharacterDied { .. }
+                | DomainEvent::CharacterTokenGranted { .. } => {
+                    anyhow::bail!("non-item audit event")
                 },
-                character_id: cp.character_id,
-                instance_id: delta.instance,
-                template_id: delta.template()?,
-                count_delta: delta.count_delta,
-                before: delta.before.clone(),
-                after: delta.after.clone(),
-                causes: delta
-                    .causes
-                    .iter()
-                    .map(serde_json::to_value)
-                    .collect::<Result<_, _>>()?,
             };
-            Ok(match delta.operation {
-                ItemOperation::Grant | ItemOperation::Starter | ItemOperation::Backfill => {
-                    DomainEvent::ItemGranted { fact }
-                },
-                ItemOperation::Equip => DomainEvent::ItemEquipped { fact },
-                ItemOperation::Unequip => DomainEvent::ItemUnequipped { fact },
-                ItemOperation::Consume | ItemOperation::Use => DomainEvent::ItemConsumed { fact },
-                ItemOperation::Enchant => DomainEvent::ItemEnchanted { fact },
-                ItemOperation::Destroy | ItemOperation::Crystallize => {
-                    DomainEvent::ItemDestroyed { fact }
-                },
-                ItemOperation::Refine | ItemOperation::CancelRefine => {
-                    DomainEvent::ItemRefined { fact }
-                },
-                ItemOperation::Exchange => DomainEvent::ItemExchanged { fact },
-                ItemOperation::ToggleAutoShot => {
-                    anyhow::bail!("pure owner toggle cannot fabricate an item audit row")
-                },
-            })
+            fact.metadata = EventMetadata {
+                event_id: stable_id(
+                    work.projection.entity,
+                    work.zone,
+                    work.epoch,
+                    work.projection.tick,
+                    Some(ordinal),
+                ),
+                sequence: (
+                    cp.revision_seen
+                        .checked_add(1)
+                        .ok_or_else(|| anyhow::anyhow!("checkpoint revision overflow"))?,
+                    ordinal,
+                ),
+            };
+            fact.validate()?;
+            Ok(event)
         })
         .collect()
 }
