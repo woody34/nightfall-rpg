@@ -210,12 +210,8 @@ fn attach_consume_causes(row: &mut Value, delta: &ItemDeltaPlan) -> anyhow::Resu
     {
         bail!("consume causes do not match observed and durable contributions");
     }
-    let before = delta.before.as_ref().map_or(0, |item| item.count);
-    let after = delta.after.as_ref().map_or(0, |item| item.count);
-    if i128::from(after).checked_sub(i128::from(before)) != Some(i128::from(total)) {
-        // Positive intervening mutations cannot be represented by D63's debit-only aggregate.
-        bail!("D63 cannot represent consumption spanning an intervening count increase");
-    }
+    // Endpoint conservation is enforced on the D66-normalized chain, where any intervening
+    // positive rows have been moved ahead of this aggregate.
     let first = causes
         .first()
         .and_then(|cause| cause.get("cause"))
@@ -233,10 +229,180 @@ fn attach_consume_causes(row: &mut Value, delta: &ItemDeltaPlan) -> anyhow::Resu
     Ok(())
 }
 
+type ChainKey = (nightfall_api::domain::zone::EntityId, u32, bool, u64, u64);
+
+fn chain_key(fact: &ItemEvidenceFact) -> Option<(ChainKey, &Value)> {
+    let ItemEvidenceData::Delta(row) = &fact.fact else {
+        return None;
+    };
+    let instance = row.get("instance").and_then(Value::as_u64)?;
+    Some((
+        (
+            fact.entity,
+            fact.incarnation,
+            fact.origin == nightfall_api::domain::zone::evidence::ItemEvidenceOrigin::Offline,
+            fact.tick.0,
+            instance,
+        ),
+        row,
+    ))
+}
+
+/// Observed tick-start (first before) and tick-end (last after) per instance chain.
+fn chain_bounds(
+    facts: &[ItemEvidenceFact],
+) -> anyhow::Result<std::collections::BTreeMap<ChainKey, (Value, Value)>> {
+    let mut bounds = std::collections::BTreeMap::new();
+    for fact in facts {
+        let Some((key, row)) = chain_key(fact) else {
+            continue;
+        };
+        let before = row.get("before").context("delta before")?.clone();
+        let after = row.get("after").context("delta after")?.clone();
+        bounds
+            .entry(key)
+            .and_modify(|(_, end): &mut (Value, Value)| *end = after.clone())
+            .or_insert((before, after));
+    }
+    Ok(bounds)
+}
+
+fn json_count(state: &Value) -> anyhow::Result<i128> {
+    if state.is_null() {
+        return Ok(0);
+    }
+    Ok(i128::from(
+        state
+            .get("count")
+            .and_then(Value::as_u64)
+            .context("canonical state count")?,
+    ))
+}
+
+fn set(row: &mut Value, key: &str, value: Value) -> anyhow::Result<()> {
+    row.as_object_mut()
+        .context("canonical object")?
+        .insert(key.into(), value);
+    Ok(())
+}
+
+/// Canonical fields other than count/revision must survive a positive or Consume row (D67).
+fn same_identity(left: &Value, right: &Value) -> bool {
+    let strip = |value: &Value| {
+        let mut value = value.clone();
+        if let Some(object) = value.as_object_mut() {
+            object.remove("count");
+            object.remove("revision");
+        }
+        value
+    };
+    strip(left) == strip(right)
+}
+
+/// D66: per (owner, life, tick, instance) export every positive row first in cause order, then
+/// the single Consume aggregate last. Rows are rebuilt from the observed tick-start state and
+/// the actual net deltas only; the engine ledger and record bytes are untouched.
+fn normalize_d66(
+    facts: &mut [ItemEvidenceFact],
+    bounds: &std::collections::BTreeMap<ChainKey, (Value, Value)>,
+) -> anyhow::Result<()> {
+    let mut chains: std::collections::BTreeMap<ChainKey, Vec<usize>> =
+        std::collections::BTreeMap::new();
+    for (index, fact) in facts.iter().enumerate() {
+        if let Some((key, _)) = chain_key(fact) {
+            chains.entry(key).or_default().push(index);
+        }
+    }
+    for (key, slots) in chains {
+        let operation = |index: usize| -> anyhow::Result<String> {
+            let Some((_, row)) = facts.get(index).and_then(chain_key) else {
+                bail!("chain slot is not a delta");
+            };
+            Ok(row
+                .get("operation")
+                .and_then(Value::as_str)
+                .context("delta operation")?
+                .to_owned())
+        };
+        let mut positives = Vec::new();
+        let mut consumes = Vec::new();
+        let mut others = 0_usize;
+        for &index in &slots {
+            match operation(index)?.as_str() {
+                "grant" | "starter" | "backfill" => positives.push(index),
+                "consume" => consumes.push(index),
+                _ => others = others.saturating_add(1),
+            }
+        }
+        let [consume] = consumes.as_slice() else {
+            if consumes.is_empty() {
+                continue;
+            }
+            bail!("D66 chain has more than one Consume aggregate");
+        };
+        if others != 0 {
+            // Equip/enchant/etc. on a consumed instance in one tick has no D66 canonical order.
+            bail!("D66 cannot order a Consume chain that also changes non-count fields");
+        }
+        let (start, end) = bounds.get(&key).context("D66 chain bounds")?;
+        let mut rows = Vec::with_capacity(slots.len());
+        let mut state = start.clone();
+        for (ordinal, &index) in positives.iter().enumerate() {
+            let mut fact = facts.get(index).context("positive slot")?.clone();
+            let ItemEvidenceData::Delta(row) = &mut fact.fact else {
+                bail!("positive slot is not a delta");
+            };
+            let delta = row
+                .get("count_delta")
+                .and_then(Value::as_i64)
+                .filter(|delta| *delta > 0)
+                .context("positive row lacks a positive count delta")?;
+            let observed = row.get("after").context("positive after")?;
+            if observed.is_null() || (!state.is_null() && !same_identity(&state, observed)) {
+                bail!("D66 positive row changes instance identity");
+            }
+            let count = json_count(&state)?
+                .checked_add(i128::from(delta))
+                .and_then(|count| u64::try_from(count).ok())
+                .context("D66 positive count overflow")?;
+            let mut after = observed.clone();
+            set(&mut after, "count", json!(count))?;
+            set(row, "before", state.clone())?;
+            set(row, "after", after.clone())?;
+            set(row, "operation_ordinal", json!(ordinal))?;
+            state = after;
+            rows.push(fact);
+        }
+        let mut fact = facts.get(*consume).context("consume slot")?.clone();
+        let ItemEvidenceData::Delta(row) = &mut fact.fact else {
+            bail!("consume slot is not a delta");
+        };
+        let delta = row
+            .get("count_delta")
+            .and_then(Value::as_i64)
+            .context("consume count delta")?;
+        if state.is_null()
+            || json_count(end)?.checked_sub(json_count(&state)?) != Some(i128::from(delta))
+            || (!end.is_null() && !same_identity(&state, end))
+        {
+            bail!("D66 Consume aggregate does not conserve the post-positive state");
+        }
+        set(row, "before", state)?;
+        set(row, "after", end.clone())?;
+        set(row, "operation_ordinal", json!(positives.len()))?;
+        rows.push(fact);
+        for (slot, row) in slots.iter().zip(rows) {
+            *facts.get_mut(*slot).context("chain slot")? = row;
+        }
+    }
+    Ok(())
+}
+
 fn export_tick(
     facts: Vec<ItemEvidenceFact>,
     events: &[ZoneEvent],
 ) -> anyhow::Result<Vec<ItemEvidenceFact>> {
+    let bounds = chain_bounds(&facts)?;
     let mut facts = group_tick(facts)?;
     for fact in &mut facts {
         let ItemEvidenceData::Delta(row) = &mut fact.fact else {
@@ -270,6 +436,7 @@ fn export_tick(
         }
         attach_consume_causes(row, delta)?;
     }
+    normalize_d66(&mut facts, &bounds)?;
     Ok(facts)
 }
 
@@ -577,9 +744,16 @@ mod tests {
         let mut corrupt = plan.clone();
         corrupt.causes.first_mut().context("cause")?.family = "unknown_payment".into();
         assert!(attach_consume_causes(&mut consume_observation(&corrupt)?, &corrupt).is_err());
+        // Endpoint conservation moved to the D66 chain: causes attach, the chain refuses.
         let mut corrupt = plan;
         corrupt.after.as_mut().context("after")?.count = 4;
-        assert!(attach_consume_causes(&mut consume_observation(&corrupt)?, &corrupt).is_err());
+        let mut row = consume_observation(&corrupt)?;
+        attach_consume_causes(&mut row, &corrupt)?;
+        let mut fact = delta(1, &Value::Null, 5);
+        fact.fact = ItemEvidenceData::Delta(row);
+        let mut facts = vec![fact];
+        let bounds = chain_bounds(&facts)?;
+        assert!(normalize_d66(&mut facts, &bounds).is_err());
         Ok(())
     }
 
@@ -614,6 +788,117 @@ mod tests {
             object.insert("receipt".into(), Value::Null);
         }
         assert!(export_tick(vec![fact], &[]).is_err());
+        Ok(())
+    }
+
+    fn stack(count: u64, revision: u64) -> Value {
+        json!({"id":1,"template_id":1835,"count":count,"location":"inventory","slot":null,
+            "enchant":0,"augment_id":null,"charges":0,"created_tick":0,"revision":revision})
+    }
+
+    fn observed(operation: &str, before: Option<u64>, after: Option<u64>) -> ItemEvidenceFact {
+        let state =
+            |count: Option<u64>, revision| count.map_or(Value::Null, |c| stack(c, revision));
+        let mut fact = delta(1, &Value::Null, 1);
+        let change = i128::from(after.unwrap_or(0)).saturating_sub(i128::from(before.unwrap_or(0)));
+        fact.fact = ItemEvidenceData::Delta(json!({
+            "operation":operation, "instance":1, "operation_ordinal":0,
+            "before":state(before, 1), "after":state(after, 2), "count_delta":change,
+            "receipt":null, "resolution_id":format!("{operation}:{before:?}")
+        }));
+        fact
+    }
+
+    fn d66(observations: Vec<ItemEvidenceFact>) -> anyhow::Result<Vec<Value>> {
+        let bounds = chain_bounds(&observations)?;
+        let mut facts = group_tick(observations)?;
+        normalize_d66(&mut facts, &bounds)?;
+        let mut rows = Vec::new();
+        for fact in facts {
+            let ItemEvidenceData::Delta(row) = fact.fact else {
+                bail!("delta");
+            };
+            rows.push(json!({
+                "operation":row.get("operation"), "ordinal":row.get("operation_ordinal"),
+                "before":row.pointer("/before/count"), "after":row.pointer("/after/count"),
+                "delta":row.get("count_delta")}));
+        }
+        Ok(rows)
+    }
+
+    #[test]
+    fn d66_exports_positive_rows_first_then_the_final_consume_aggregate() -> anyhow::Result<()> {
+        // 3 -> 2 -> 5 -> 4 exports grant(3->6, +3) then consume(6->4, -2).
+        let interleaved = d66(vec![
+            observed("consume", Some(3), Some(2)),
+            observed("grant", Some(2), Some(5)),
+            observed("consume", Some(5), Some(4)),
+        ])?;
+        assert_eq!(
+            interleaved,
+            vec![
+                json!({"operation":"grant","ordinal":0,"before":3,"after":6,"delta":3}),
+                json!({"operation":"consume","ordinal":1,"before":6,"after":4,"delta":-2}),
+            ]
+        );
+        // Start 1, grant +3, consume 2 exports grant(1->4) then consume(4->2).
+        let restock = d66(vec![
+            observed("grant", Some(1), Some(4)),
+            observed("consume", Some(4), Some(2)),
+        ])?;
+        assert_eq!(
+            restock,
+            vec![
+                json!({"operation":"grant","ordinal":0,"before":1,"after":4,"delta":3}),
+                json!({"operation":"consume","ordinal":1,"before":4,"after":2,"delta":-2}),
+            ]
+        );
+        // Start absent, grant 3, consume 1 exports grant(None->3) then consume(3->2).
+        let fresh = d66(vec![
+            observed("grant", None, Some(3)),
+            observed("consume", Some(3), Some(2)),
+        ])?;
+        assert_eq!(
+            fresh,
+            vec![
+                json!({"operation":"grant","ordinal":0,"before":null,"after":3,"delta":3}),
+                json!({"operation":"consume","ordinal":1,"before":3,"after":2,"delta":-1}),
+            ]
+        );
+        // A plain aggregate keeps ordinal 0 and its own endpoints.
+        let plain = d66(vec![
+            observed("consume", Some(3), Some(2)),
+            observed("consume", Some(2), None),
+        ])?;
+        assert_eq!(
+            plain,
+            vec![json!({"operation":"consume","ordinal":0,"before":3,"after":null,"delta":-3})]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn d66_refuses_unconserved_or_unorderable_consume_chains() -> anyhow::Result<()> {
+        let mut broken = observed("consume", Some(5), Some(4));
+        if let ItemEvidenceData::Delta(row) = &mut broken.fact {
+            row["count_delta"] = json!(-2);
+        }
+        assert!(d66(vec![observed("grant", Some(2), Some(5)), broken]).is_err());
+        let mut equip = observed("equip", Some(3), Some(3));
+        if let ItemEvidenceData::Delta(row) = &mut equip.fact {
+            *row.pointer_mut("/after/location").context("location")? = json!("paperdoll");
+        }
+        assert!(d66(vec![equip, observed("consume", Some(3), Some(2))]).is_err());
+        let mut relabelled = observed("grant", Some(2), Some(5));
+        if let ItemEvidenceData::Delta(row) = &mut relabelled.fact {
+            *row.pointer_mut("/after/template_id").context("template")? = json!(1463);
+        }
+        assert!(d66(vec![
+            observed("consume", Some(3), Some(2)),
+            relabelled,
+            observed("consume", Some(5), Some(4)),
+        ])
+        .is_err());
         Ok(())
     }
 
