@@ -92,6 +92,7 @@ impl ZoneState {
                 cast_id: cast.id,
                 reason: CastCancelReason::Damage,
             });
+            self.cancel_item_casts_v6(tick, target.entity, None, CastCancelReason::Damage, events);
         }
         Ok(())
     }
@@ -5500,18 +5501,12 @@ mod tests {
             assert_eq!(zone.phase3.as_ref().unwrap().canonical, phase3);
         }
     }
-    #[test]
-    #[allow(clippy::too_many_lines)] // Synthetic retained-state boundary test; actual Use producer is a separate gate.
-    fn v6_item_cast_snapshot_requires_exact_paid_source_and_preserves_both_lanes() {
+    fn item_cast_fixture() -> (ZoneState, TargetBinding, crate::domain::zone::CastId) {
         use crate::domain::zone::phase4::{ItemCastState, ItemPayment};
-        use crate::domain::zone::{
-            skill::{SkillId, SkillRef},
-            ItemInstanceId,
-        };
+        use crate::domain::zone::{skill::SkillId, ItemInstanceId};
         let (mut zone, owner, _) = equipment_fixture();
         zone.run_tick(zone.draft(Vec::new())).unwrap();
-        let now = Tick(zone.next_tick.0 - 1);
-        let cursor = zone.rng.get_word_pos();
+        let now = Tick(zone.next_tick.0.checked_sub(1).unwrap());
         let rules = Arc::clone(&zone.phase3.as_ref().unwrap().canonical.rules);
         let mut next = zone.phase3.as_ref().unwrap().canonical.next_cast_id;
         let mut main = None;
@@ -5582,7 +5577,20 @@ mod tests {
         let main_id = main.id;
         let phase = &mut zone.phase3.as_mut().unwrap().canonical;
         phase.next_cast_id = next;
-        phase.entities.get_mut(&owner.entity).unwrap().cast = CastState::Casting(main.clone());
+        phase.entities.get_mut(&owner.entity).unwrap().cast = CastState::Casting(main);
+        (zone, owner, main_id)
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // Synthetic retained-state boundary test; actual Use producer is a separate gate.
+    fn v6_item_cast_snapshot_requires_exact_paid_source_and_preserves_both_lanes() {
+        use crate::domain::zone::skill::{SkillId, SkillRef};
+        let (zone, owner, main_id) = item_cast_fixture();
+        let now = Tick(zone.next_tick.0.checked_sub(1).unwrap());
+        let cursor = zone.rng.get_word_pos();
+        let CastState::Casting(main) = zone.sidecar(owner.entity).unwrap().cast.clone() else {
+            unreachable!()
+        };
         // The item skill must never be inserted into the permanent class ledger.
         let CombatRole::Player {
             progression: Some(player),
@@ -5646,5 +5654,130 @@ mod tests {
             .unwrap();
         simultaneous.cast.complete_at = now;
         assert!(ZoneState::from_snapshot_with_items(invalid, Some(item_rules)).is_err());
+    }
+    #[test]
+    fn v6_item_cast_auxiliary_completes_once_without_replacing_main_and_cold_replays() {
+        let (mut zone, owner, main_id) = item_cast_fixture();
+        let main = zone.sidecar(owner.entity).unwrap().cast.clone();
+        let auxiliary = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .item_casts
+            .values()
+            .find(|lane| lane.simultaneous)
+            .unwrap()
+            .cast
+            .id;
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            unreachable!()
+        };
+        player.class_state.cp = 0;
+        zone.sidecar_mut(owner.entity).unwrap().fractions.cp = 0;
+        let expected = zone.effective(owner.entity).unwrap().max_cp.min(50);
+        let cursor = zone.rng.get_word_pos();
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let draft = zone.draft(Vec::new());
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        let results: Vec<_> = applied
+            .events
+            .iter()
+            .filter_map(|event| match event {
+                ZoneEvent::SkillCastResult {
+                    cast_id, targets, ..
+                } if *cast_id == auxiliary => Some(targets),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(results.len(), 1);
+        // Public heal counts expose HP only; CP restoration stays in owner resources.
+        assert_eq!(results[0][0].heal, 0);
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+        else {
+            unreachable!()
+        };
+        assert_eq!(player.class_state.cp, expected);
+        assert_eq!(zone.sidecar(owner.entity).unwrap().cast, main);
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        assert_eq!(
+            zone.phase4
+                .as_ref()
+                .unwrap()
+                .canonical
+                .item_casts
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![main_id]
+        );
+        zone.validate_runtime_v5().unwrap();
+        let restored = ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+        assert_eq!(zone.snapshot(), restored.snapshot());
+        let next = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert!(!next.events.iter().any(|event| matches!(event, ZoneEvent::SkillCastResult { cast_id, .. } if *cast_id == auxiliary)));
+    }
+
+    #[test]
+    fn v6_item_cast_stop_cancels_both_lanes_and_lost_main_target_removes_its_context() {
+        let (mut zone, owner, main_id) = item_cast_fixture();
+        let mut stopped = zone.clone();
+        let tick = stopped
+            .run_tick(stopped.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                1,
+                ZoneCommand::StopMove {
+                    entity: owner.entity,
+                },
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty());
+        let cancelled = tick.events.iter().filter(|event| matches!(event, ZoneEvent::SkillCastCancelled { caster, reason: CastCancelReason::Moved, .. } if *caster == owner)).count();
+        assert_eq!(cancelled, 2);
+        assert_eq!(stopped.sidecar(owner.entity).unwrap().cast, CastState::Idle);
+        assert!(stopped
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .item_casts
+            .is_empty());
+        stopped.validate_runtime_v5().unwrap();
+        // The retained resurrection binding has become living, a legal stale target at admission.
+        let launch = zone.phase4.as_ref().unwrap().canonical.item_casts[&main_id]
+            .cast
+            .launch_at;
+        while zone.next_tick < launch {
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert_eq!(tick.events.iter().filter(|event| matches!(event, ZoneEvent::SkillCastCancelled { cast_id, .. } if *cast_id == main_id)).count(), 1);
+        assert!(zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .item_casts
+            .is_empty());
+        assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Idle);
+        zone.validate_runtime_v5().unwrap();
     }
 }
