@@ -353,7 +353,14 @@ impl ZoneState {
                     allocator,
                     &command.kind,
                     rank,
-                    crate::domain::zone::item_inventory::InventoryBoundary { tick, revision },
+                    crate::domain::zone::item_inventory::InventoryBoundary {
+                        tick,
+                        revision,
+                        origin: crate::domain::zone::ItemCreationOrigin {
+                            zone: self.seed.zone,
+                            epoch: self.seed.epoch,
+                        },
+                    },
                 )?;
                 allocator = next;
                 plan
@@ -377,7 +384,14 @@ impl ZoneState {
                     &items.rules,
                     allocator,
                     &command.kind,
-                    crate::domain::zone::item_inventory::InventoryBoundary { tick, revision },
+                    crate::domain::zone::item_inventory::InventoryBoundary {
+                        tick,
+                        revision,
+                        origin: crate::domain::zone::ItemCreationOrigin {
+                            zone: self.seed.zone,
+                            epoch: self.seed.epoch,
+                        },
+                    },
                     reference,
                     operation_ordinal,
                 )?;
@@ -402,7 +416,14 @@ impl ZoneState {
                     allocator,
                     target,
                     recipe,
-                    crate::domain::zone::item_inventory::InventoryBoundary { tick, revision },
+                    crate::domain::zone::item_inventory::InventoryBoundary {
+                        tick,
+                        revision,
+                        origin: crate::domain::zone::ItemCreationOrigin {
+                            zone: self.seed.zone,
+                            epoch: self.seed.epoch,
+                        },
+                    },
                     reference,
                     operation_ordinal,
                 )?;

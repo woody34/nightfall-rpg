@@ -310,7 +310,14 @@ impl ZoneState {
             }],
             &items.rules,
             InventoryLimits::from_player(player),
-            InventoryBoundary { tick, revision },
+            InventoryBoundary {
+                tick,
+                revision,
+                origin: crate::domain::zone::ItemCreationOrigin {
+                    zone: self.seed.zone,
+                    epoch: self.seed.epoch,
+                },
+            },
         )
         .map_err(|_| RejectReason::InventoryFull)?;
         let items = &mut self

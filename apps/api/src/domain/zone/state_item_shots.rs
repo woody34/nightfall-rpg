@@ -240,7 +240,14 @@ impl ZoneState {
                     subject,
                     &mut player,
                     &selected,
-                    InventoryBoundary { tick, revision },
+                    InventoryBoundary {
+                        tick,
+                        revision,
+                        origin: crate::domain::zone::ItemCreationOrigin {
+                            zone: self.seed.zone,
+                            epoch: self.seed.epoch,
+                        },
+                    },
                     Some(reference),
                     &resolution,
                     &mut projection,
@@ -328,7 +335,7 @@ impl ZoneState {
         (ChargeOutcome, std::collections::BTreeSet<crate::domain::zone::ItemInstanceId>),
         RejectReason,
     > {
-        let InventoryBoundary { tick, revision } = boundary;
+        let InventoryBoundary { revision, .. } = boundary;
         let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
         let definition = items
             .rules
@@ -408,7 +415,7 @@ impl ZoneState {
                 }],
                 &items.rules,
                 InventoryLimits::from_player(player),
-                InventoryBoundary { tick, revision },
+                boundary,
             )
             .map_err(invalid)?;
             player.inventory = payment.inventory;

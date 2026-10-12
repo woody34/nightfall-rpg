@@ -7579,6 +7579,108 @@ mod tests {
     }
 
     #[test]
+    fn v6_retained_creation_clock_survives_equip_shot_consume_and_fresh_grant_in_another_epoch() {
+        use crate::domain::zone::item_grant::grant_fingerprint;
+        use crate::domain::zone::{
+            EquipSlot, ItemCommandKind as K, ItemCreationOrigin, ItemGrantCommand, ZoneId,
+        };
+        use crate::domain::CharacterId;
+        let (mut zone, owner, _, ids) = use_fixture(&[1464]);
+        let old = ItemCreationOrigin {
+            zone: ZoneId(99),
+            epoch: 1,
+        };
+        let items = zone.phase4.as_mut().unwrap();
+        let rules = Arc::clone(&items.rules);
+        let player = items.canonical.players.get_mut(&owner.entity).unwrap();
+        let weapon = player.paperdoll[&EquipSlot::Rhand];
+        for item in player.inventory.values_mut() {
+            item.created_tick = Tick(900);
+            item.creation_origin = Some(old);
+        }
+        let initial = player.inventory.clone();
+        let current = ItemCreationOrigin {
+            zone: zone.seed.zone,
+            epoch: zone.seed.epoch,
+        };
+        assert_ne!(old, current);
+        assert!(zone.next_tick < Tick(900));
+        // A cold retained snapshot keeps the old namespace while using the new zone clock.
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let command = |kind, key, seq| {
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                seq,
+                ZoneCommand::Item(Box::new(item_intent(&zone, owner.entity, key, kind))),
+            )
+        };
+        let grant = ItemGrantCommand {
+            entity: owner.entity,
+            account: item_intent(
+                &zone,
+                owner.entity,
+                2504,
+                K::Unequip {
+                    slot: EquipSlot::Rhand,
+                },
+            )
+            .authenticated_account()
+            .unwrap(),
+            request_id: Uuid::from_u128(2503),
+            template_id: 57,
+            count: 10,
+            fingerprint: grant_fingerprint(CharacterId::from_uuid(owner.entity.as_uuid()), 57, 10),
+            rules_hash: rules.hash(),
+            paused: None,
+            known: None,
+            conflict: None,
+        };
+        let draft = zone.draft(vec![
+            command(
+                K::Unequip {
+                    slot: EquipSlot::Rhand,
+                },
+                2500,
+                1,
+            ),
+            command(
+                K::Equip {
+                    instance: weapon,
+                    preferred_slot: Some(EquipSlot::Rhand),
+                },
+                2501,
+                2,
+            ),
+            use_input(&zone, owner, 2502, 3, ids[0], None),
+            ZoneInput::system(ZoneCommand::MaterializePendingItems(Box::new(grant))),
+        ]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory[&weapon].charges, 1);
+        assert_eq!(player.inventory[&ids[0]].count, 1);
+        for (id, before) in &initial {
+            let after = &player.inventory[id];
+            assert_eq!(after.created_tick, before.created_tick);
+            assert_eq!(after.creation_origin, before.creation_origin);
+        }
+        let fresh = player
+            .inventory
+            .values()
+            .find(|item| !initial.contains_key(&item.id))
+            .unwrap();
+        assert_eq!(fresh.template_id, 57);
+        assert_eq!(fresh.creation_origin, Some(current));
+        assert_eq!(fresh.created_tick, applied.tick);
+        assert_eq!(zone.snapshot(), cold.snapshot());
+        let restored = ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+        assert_eq!(restored.state_digest(), zone.state_digest());
+    }
+
+    #[test]
     fn v6_item_creation_provenance_changes_digest_and_round_trips() {
         use crate::domain::zone::{EquipSlot, ItemCreationOrigin, ZoneId};
         let (zone, owner, _) = equipment_fixture();
