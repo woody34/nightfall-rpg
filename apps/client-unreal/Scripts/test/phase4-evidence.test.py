@@ -153,6 +153,43 @@ class Evidence(unittest.TestCase):
             except ValueError:actual=None
             rows[1]['data'].update(formula=name,inputs=inputs,actual=gate.oracle.rational(actual))
             self.assertFalse(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'],(name,inputs))
+
+    def test_source_bow_launch_inventory_records_and_count_maps(self):
+        inputs=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
+                    inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],
+                    lhand=None,mp=10,mp_modifier=1,reduction_residue=0,miss=False,
+                    hit_chance=800,hit_residue=800)
+        actual=gate.oracle.behavior.bow_launch(**inputs)
+        self.assertEqual((actual['arrows_consumed'],actual['inventory'][0]['count'],actual['mp']),(1,1,9))
+        rows=copy.deepcopy(self.rows)
+        rows[1]['data'].update(formula='bow_launch',inputs=inputs,actual=gate.oracle.rational(actual))
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['bow_launch'],HASH)['passed'])
+        for count in (-1,2**63):
+            bad=copy.deepcopy(rows);bad[1]['data']['inputs']['inventory'][0]['count']=count
+            bad[1]['data']['actual']=gate.oracle.rational(gate.oracle.behavior.bow_launch(**bad[1]['data']['inputs']))
+            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['bow_launch'],HASH)['passed'])
+            with self.assertRaises(ValueError):gate.input_domains('learned_item_cost',dict(inventory={'17':count}))
+
+    def test_source_resurrection_restore_ratio_through_evaluate(self):
+        import re
+        config=gate.source().read('src/main/resources/config/character.properties',True)
+        ratio=gate.oracle.F(re.search(r'^RespawnRestoreHP\s*=\s*(\S+)',config,re.M)[1])
+        self.assertEqual(ratio,gate.oracle.F(13,20))
+        definition=gate.oracle.consumable_definition(gate.source(),737)
+        inputs=dict(definition=definition,start_tick=10,available=2,death_incarnation=7,
+                    current_incarnation=7,dead=True,response='accept',response_tick=160,
+                    response_offer_id=1,existing_offer=None,repeat=False,hp=0,max_hp=101,
+                    mp=13,cp=17,recoverable_xp=101,restore_percent=0,restore_hp=ratio)
+        actual=gate.oracle.behavior.resurrection_scroll(**inputs)
+        self.assertEqual(actual['hp'],gate.oracle.F(1313,20))
+        rows=copy.deepcopy(self.rows)
+        rows[1]['data'].update(formula='resurrection_scroll',inputs=gate.oracle.rational(inputs),actual=gate.oracle.rational(actual))
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['resurrection_scroll'],HASH)['passed'])
+        for value in (True,{'numerator':-13,'denominator':20}, {'numerator':21,'denominator':20}, {'numerator':13,'denominator':0}):
+            bad=copy.deepcopy(rows);bad[1]['data']['inputs']['restore_hp']=value
+            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['resurrection_scroll'],HASH)['passed'])
+
+    def test_signed_formula_controls(self):
         for name,inputs in [('grade_penalties',dict(equipped=[],expertise=0,bonus=-2)),
                             ('max_load',dict(con_bonus=1,add=-10)),
                             ('bow_damage',dict(formula='100',dx_milli=-12500,dy_milli=0))]:
