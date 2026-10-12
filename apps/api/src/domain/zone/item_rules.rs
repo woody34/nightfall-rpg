@@ -148,12 +148,18 @@ record!(StarterKitItem {
 record!(StarterKitRule { class_id: u32, items: Vec<StarterKitItem> });
 record!(CertifiedAngle { degrees: u32, special: String, cos_lower: AngleRatio, cos_upper: AngleRatio,
     cos2_lower: AngleRatio, cos2_upper: AngleRatio, certified: bool, blockers: Vec<String> });
+record!(ClassSlotRule {
+    base_class_id: u32, key: String,
+    p_def_slots: BTreeMap<super::EquipSlot, u32>,
+    m_def_slots_xml: BTreeMap<super::EquipSlot, u32>,
+    m_def_slots: BTreeMap<super::EquipSlot, u32>
+});
 record!(ItemRulesParts {
     formula_revision: u32, phase3_hash: [u8; 32], items: BTreeMap<u32, ItemDefinition>,
     capabilities: BTreeMap<u32, ItemCapability>,
     skill_capabilities: BTreeMap<u32, ItemSkillCapability>, option_capabilities: BTreeMap<u32, OptionCapability>,
     augment_capabilities: Vec<AugmentCapability>, recipe_capabilities: BTreeMap<u64, RecipeCapability>,
-    weapon_types: Vec<WeaponTypeRule>, grades: Vec<ItemGradeRule>,
+    weapon_types: Vec<WeaponTypeRule>, grades: Vec<ItemGradeRule>, class_slots: Vec<ClassSlotRule>,
     capacities: ItemCapacityRules, enchant_rates: Vec<EnchantRates>, enchant_bindings: Vec<EnchantBinding>,
     enchant_scrolls: BTreeMap<u32, EnchantScrollRule>, enchant_supports: BTreeMap<u32, EnchantScrollRule>,
     enchant_blacklist: Vec<u32>, enchant_options: BTreeMap<u32, Vec<EnchantOptionLevel>>,
@@ -192,6 +198,16 @@ impl Phase4Rules {
     pub fn validate_phase3(&self, rules: &super::Phase3Rules) -> Result<(), String> {
         if self.parts.phase3_hash != rules.hash() {
             return Err("Phase4 skill/profile hash mismatch".into());
+        }
+        for profile in rules.profiles().classes.values() {
+            if !self
+                .parts
+                .class_slots
+                .iter()
+                .any(|row| row.base_class_id == profile.base_class_id.0)
+            {
+                return Err("missing class defence slots".into());
+            }
         }
         for cap in self
             .parts
@@ -293,11 +309,52 @@ fn write_len(value: usize, bytes: &mut Vec<u8>) -> Result<(), String> {
 
 impl ItemRulesParts {
     fn validate(&self) -> Result<(), String> {
+        self.validate_class_slots()?;
         self.validate_items()?;
         self.validate_enchant()?;
         self.validate_references()?;
         self.validate_capabilities()?;
         self.validate_angles()
+    }
+
+    fn validate_class_slots(&self) -> Result<(), String> {
+        use super::EquipSlot::{
+            Chest, Cloak, Feet, Gloves, Head, Lear, Legs, Lfinger, Neck, Rear, Rfinger, Under,
+        };
+        let physical =
+            std::collections::BTreeSet::from([Chest, Legs, Head, Feet, Gloves, Under, Cloak]);
+        let magical = std::collections::BTreeSet::from([Rear, Lear, Rfinger, Lfinger, Neck]);
+        let mut previous = None;
+        if self.class_slots.is_empty() {
+            return Err("missing class defence slots".into());
+        }
+        for row in &self.class_slots {
+            let mut expected_magic = row.m_def_slots_xml.clone();
+            let finger = *expected_magic
+                .get(&Rfinger)
+                .ok_or("missing right finger base")?;
+            expected_magic.insert(Lfinger, finger);
+            if row.key.is_empty()
+                || previous.is_some_and(|id| id >= row.base_class_id)
+                || row
+                    .p_def_slots
+                    .keys()
+                    .copied()
+                    .collect::<std::collections::BTreeSet<_>>()
+                    != physical
+                || row
+                    .m_def_slots_xml
+                    .keys()
+                    .copied()
+                    .collect::<std::collections::BTreeSet<_>>()
+                    != magical
+                || row.m_def_slots != expected_magic
+            {
+                return Err("invalid class defence slots".into());
+            }
+            previous = Some(row.base_class_id);
+        }
+        Ok(())
     }
 
     fn validate_angles(&self) -> Result<(), String> {

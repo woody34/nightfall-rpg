@@ -129,6 +129,7 @@ fn load_items(
     for (file, source, target) in [
         ("weapon_types.toml", "types", "weapon_types"),
         ("grades.toml", "grades", "grades"),
+        ("class_slots.toml", "classes", "class_slots"),
         ("starter_kits.toml", "kits", "starter_kits"),
     ] {
         let mut table = read_table(directory, file, &[source])?;
@@ -324,6 +325,9 @@ impl ItemDataSource<'_> {
                 },
                 "capabilities.toml" => {
                     include_str!("../../../../packages/data/tables-phase4/capabilities.toml")
+                },
+                "class_slots.toml" => {
+                    include_str!("../../../../packages/data/tables-phase4/class_slots.toml")
                 },
                 "capacities.toml" => {
                     include_str!("../../../../packages/data/tables-phase4/capacities.toml")
