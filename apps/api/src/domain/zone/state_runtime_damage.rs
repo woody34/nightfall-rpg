@@ -40,6 +40,11 @@ impl ZoneState {
         };
         state_damage::projected_absorption(
             DamageResources {
+                hp_remainder_q: if self.phase4.is_some() {
+                    Some(self.sidecar(request.target.entity)?.fractions.hp)
+                } else {
+                    None
+                },
                 hp: c.hp,
                 mp: c.mp,
                 cp,
@@ -5539,6 +5544,7 @@ mod tests {
                     &mut next,
                     &mut mp,
                     zone.entities[&owner.entity].combat.as_ref().unwrap().hp,
+                    0,
                     CastStart {
                         now,
                         ordinal: Ordinal(1),
@@ -6265,13 +6271,13 @@ mod tests {
     #[test]
     fn v6_hp_potion_uses_source_cost_alias_and_plain_hp_without_heal_rng() {
         // 21040's source cost14701 is NPC-only/non-storable. It must refuse, not
-        // silently substitute the selected item; E1 closure correction is pending.
+        // silently substitute the selected item; accepted D54 defers it before payment.
         let (mut missing, owner, _, ids) = use_fixture(&[21040]);
         let cursor = missing.rng.get_word_pos();
         let rejected = missing
             .run_tick(missing.draft(vec![use_input(&missing, owner, 960, 1, ids[0], None)]))
             .unwrap();
-        assert_eq!(rejected.dispositions[0].reason, RejectReason::InsufficientItems);
+        assert_eq!(rejected.dispositions[0].reason, RejectReason::ItemCapabilityDeferred);
         assert_eq!(missing.sidecar(owner.entity).unwrap().cast, CastState::Idle);
         assert_eq!(
             missing.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]]
@@ -6950,5 +6956,159 @@ mod tests {
             assert_eq!(zone.snapshot(), snapshot, "case {case}");
             assert!(events.is_empty());
         }
+    }
+    #[test]
+    fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
+        use crate::domain::zone::item_combat::half_hp;
+        let (mut base, source, npc) = equipment_fixture();
+        base.run_tick(base.draft(Vec::new())).unwrap();
+        for original_hp in [1, 2, 3] {
+            let mut zone = base.clone();
+            let (whole, remainder) = half_hp(original_hp, 0).unwrap();
+            set_resources(&mut zone, npc, whole, 0);
+            zone.sidecar_mut(npc.entity).unwrap().fractions.hp = remainder;
+            let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+            let mut cold =
+                ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules)))
+                    .unwrap();
+            assert!(!cold.entities[&npc.entity].targeting.dead);
+            if original_hp == 1 {
+                for dead_flag in [false, true] {
+                    let mut invalid = zone.snapshot();
+                    if dead_flag {
+                        invalid
+                            .entities
+                            .iter_mut()
+                            .find(|e| e.id == npc.entity)
+                            .unwrap()
+                            .targeting
+                            .dead = true;
+                    } else {
+                        invalid
+                            .phase3
+                            .as_mut()
+                            .unwrap()
+                            .entities
+                            .get_mut(&npc.entity)
+                            .unwrap()
+                            .fractions
+                            .hp = 0;
+                    }
+                    assert!(ZoneState::from_snapshot_with_items(invalid, Some(Arc::clone(&rules)))
+                        .is_err());
+                }
+            }
+            let due = zone.sidecar(npc.entity).unwrap().regen.next_at.unwrap();
+            while zone.next_tick <= due {
+                let draft = zone.draft(Vec::new());
+                let actual = zone.run_tick(draft.clone()).unwrap();
+                assert_eq!(actual, cold.run_tick(draft).unwrap());
+            }
+            assert!(!zone.entities[&npc.entity].targeting.dead);
+            assert!(zone.entities[&npc.entity].combat.as_ref().unwrap().hp > whole);
+            assert_eq!(zone.snapshot(), cold.snapshot());
+        }
+        let mut zone = base;
+        set_resources(&mut zone, npc, 0, 0);
+        zone.sidecar_mut(npc.entity).unwrap().fractions.hp = Q / 2;
+        let mut events = Vec::new();
+        for damage in [0, 1] {
+            let result = zone
+                .apply_damage_rolled_v5(
+                    zone.next_tick,
+                    DamageRequest {
+                        source: zone.damage_source_v5(source).unwrap(),
+                        target: npc,
+                        cause: DamageCause::Direct,
+                        rolled_damage: damage,
+                    },
+                    &mut events,
+                    &mut scripted(&[], &mut Vec::new()),
+                )
+                .unwrap();
+            assert_eq!(result.lethal, damage == 1);
+            assert_eq!(zone.entities[&npc.entity].targeting.dead, damage == 1);
+        }
+        assert_eq!(zone.sidecar(npc.entity).unwrap().fractions, ResourceFractions::default());
+        assert!(zone.sidecar(npc.entity).unwrap().regen.next_at.is_none());
+        assert_eq!(
+            events
+                .iter()
+                .filter(
+                    |e| matches!(e, ZoneEvent::EntityDied { entity, .. } if *entity == npc.entity)
+                )
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn v6_fractional_hp_paused_admission_preserves_alive_zero_display() {
+        let (mut zone, owner, _) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        set_resources(&mut zone, owner, 0, 0);
+        zone.sidecar_mut(owner.entity).unwrap().fractions.hp = Q / 2;
+        let phase = &zone.phase3.as_ref().unwrap().canonical;
+        let checkpoint = phase.checkpoint(owner.entity, zone.next_tick).unwrap();
+        let items = &zone.phase4.as_ref().unwrap().canonical;
+        let item_checkpoint = items
+            .checkpoint(owner.entity, zone.next_tick, phase)
+            .unwrap();
+        let entity = &zone.entities[&owner.entity];
+        let combat = entity.combat.as_ref().unwrap();
+        let CombatRole::Player {
+            progression: Some(progression),
+            class,
+            xp,
+        } = &combat.role
+        else {
+            panic!("player")
+        };
+        let load = PlayerLoad {
+            phase4: Some(crate::domain::zone::Phase4PlayerLoad {
+                checkpoint: Some(item_checkpoint),
+                pending: Vec::new(),
+            }),
+            phase3: Some(checkpoint),
+            progression: Some(progression.clone()),
+            checkpoint_revision: Some(1),
+            class: class.clone(),
+            xp: *xp,
+            level: combat.sheet.level(),
+            hp: Some(0),
+            mp: Some(combat.mp),
+            alive: true,
+        };
+        let spawn = ZoneCommand::SpawnPlayer {
+            entity: owner.entity,
+            name: entity.name.clone(),
+            pos: entity.pos,
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(2),
+            load: Some(Box::new(load)),
+        };
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let draft = zone.draft(vec![
+            ZoneInput::system(ZoneCommand::Despawn {
+                entity: owner.entity,
+            }),
+            ZoneInput::system(spawn),
+        ]);
+        let actual = zone.run_tick(draft.clone()).unwrap();
+        assert!(actual.dispositions.is_empty(), "{:?}", actual.dispositions);
+        assert_eq!(actual, cold.run_tick(draft).unwrap());
+        assert!(!zone.entities[&owner.entity].targeting.dead);
+        assert_eq!(zone.entities[&owner.entity].combat.as_ref().unwrap().hp, 0);
+        assert_eq!(zone.sidecar(owner.entity).unwrap().fractions.hp, Q / 2);
+        assert!(zone.sidecar(owner.entity).unwrap().regen.next_at.is_some());
+        assert!(actual.events.iter().any(|event| matches!(event, ZoneEvent::EntitySpawn { entity, combat: Some(view), .. } if *entity == owner.entity && view.hp == 0 && !view.dead)));
+        assert_eq!(
+            zone.snapshot(),
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules))
+                .unwrap()
+                .snapshot()
+        );
     }
 }

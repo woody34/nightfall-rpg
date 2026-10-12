@@ -13,7 +13,7 @@ use super::{Phase3Rules, Tick, Q};
 use crate::domain::class::RuntimeSkillStatus;
 use crate::domain::subclass::LearnedSkill;
 
-/// Restoration credit only, never fractional damage. Each component is in [0,Q).
+/// Resource remainders in [0,Q). V6 HP includes the exact lethal half-kill setter (D59).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(missing_docs)]

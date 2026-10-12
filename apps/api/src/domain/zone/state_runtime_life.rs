@@ -24,7 +24,7 @@ impl ZoneState {
         self.note_progress(target.entity);
         let entity = self.entities.get_mut(&target.entity).ok_or_else(missing)?;
         let combat = entity.combat.as_ref().ok_or_else(missing)?;
-        if combat.hp == 0 || entity.kind != EntityKind::Player {
+        if entity.targeting.dead || entity.kind != EntityKind::Player {
             return Err(missing());
         }
         let hp = combat.hp;
@@ -430,7 +430,7 @@ impl ZoneState {
         let rules = Arc::clone(&self.phase3.as_ref().ok_or_else(missing)?.canonical.rules);
         let context = DeathContext {
             incarnation: target.incarnation,
-            was_alive: !recipient.targeting.dead && c.hp > 0,
+            was_alive: !recipient.targeting.dead,
             killer_kind: Some(match request.source.kind {
                 EffectSourceKind::Player => EntityKind::Player,
                 EffectSourceKind::Npc => EntityKind::Npc,

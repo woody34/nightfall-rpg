@@ -190,7 +190,7 @@ impl ZoneState {
                 speed: Speed::from_milli_tiles_per_tick(0),
                 generation: SessionGeneration::default(),
                 targeting: crate::domain::zone::TargetingState {
-                    dead: combat.hp == 0,
+                    dead: !core.load.alive,
                     ..Default::default()
                 },
                 combat: Some(combat),
@@ -245,7 +245,12 @@ impl ZoneState {
                 xp: *xp,
                 hp: Some(combat.hp),
                 mp: Some(combat.mp),
-                alive: combat.hp != 0,
+                alive: !self
+                    .entities
+                    .get(&id)
+                    .ok_or(RejectReason::InvalidLoad)?
+                    .targeting
+                    .dead,
             },
         })
     }

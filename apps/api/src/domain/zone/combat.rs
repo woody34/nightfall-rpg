@@ -104,7 +104,7 @@ pub struct CombatState {
     pub role: CombatRole,
     /// Derived stats; maxima come from here.
     pub sheet: StatSheet,
-    /// Current whole HP; 0 when dead.
+    /// Current whole HP; V6 may be alive at zero with a positive resource remainder.
     pub hp: u32,
     /// Current whole MP.
     pub mp: u32,

@@ -562,9 +562,13 @@ impl Phase3Entity {
         next_cast_id: &mut u64,
         mp: &mut u32,
         hp: u32,
+        hp_remainder_q: i64,
         start: CastStart,
     ) -> Result<CastInFlight, CastError> {
-        if hp == 0 {
+        if !(0..super::Q).contains(&hp_remainder_q) {
+            return Err(CastError::InvalidState);
+        }
+        if hp == 0 && hp_remainder_q == 0 {
             return Err(CastError::DeadActor);
         }
         if self.cast != CastState::Idle {
@@ -582,7 +586,7 @@ impl Phase3Entity {
         {
             return Err(CastError::InsufficientMp);
         }
-        if hp <= start.terms.hp_end {
+        if hp < start.terms.hp_end || (hp == start.terms.hp_end && hp_remainder_q == 0) {
             return Err(CastError::InsufficientHp);
         }
         let next_id = next_cast_id.checked_add(1).ok_or(CastError::InvalidState)?;
@@ -726,7 +730,7 @@ impl Phase3Entity {
         if cast.id != id {
             return Ok(None);
         }
-        let result = cast.pay_impact(now, mp, hp, mp_end, hp_end);
+        let result = cast.pay_impact(now, mp, hp, mp_end, hp_end, 0);
         if result.is_err() {
             self.cancel_cast(Some(id));
         }
@@ -747,6 +751,7 @@ impl CastInFlight {
 
     /// Source MP2-before-HP payment shared by both lanes. The owner removes this exact
     /// cast on error and keeps it visible through successful handlers, then finalizes it.
+    #[allow(clippy::too_many_arguments)] // Separate resource references include the V6 HP remainder.
     pub fn pay_impact(
         &self,
         now: Tick,
@@ -754,18 +759,22 @@ impl CastInFlight {
         hp: &mut u32,
         mp_end: u32,
         hp_end: u32,
+        hp_remainder_q: i64,
     ) -> Result<Option<Self>, CastCancelReason> {
         if !self.launched || self.complete_at > now {
             return Ok(None);
         }
-        if *hp == 0 {
+        if !(0..super::Q).contains(&hp_remainder_q) {
+            return Err(CastCancelReason::Resources);
+        }
+        if *hp == 0 && hp_remainder_q == 0 {
             return Err(CastCancelReason::CasterDied);
         }
         let Some(remaining_mp) = mp.checked_sub(mp_end) else {
             return Err(CastCancelReason::Resources);
         };
         *mp = remaining_mp;
-        if *hp <= hp_end {
+        if *hp < hp_end || (*hp == hp_end && hp_remainder_q == 0) {
             return Err(CastCancelReason::Resources);
         }
         *hp = hp.saturating_sub(hp_end);
@@ -949,7 +958,7 @@ mod tests {
         let mut sidecar = blank();
         let (mut next, mut mp) = (1, 10);
         let cast = sidecar
-            .begin_cast(&mut next, &mut mp, 100, start(terms(550, false), 10))
+            .begin_cast(&mut next, &mut mp, 100, 0, start(terms(550, false), 10))
             .unwrap();
         assert_eq!(
             (
@@ -969,16 +978,41 @@ mod tests {
         mp = 20;
         let before = sidecar.clone();
         assert_eq!(
-            sidecar.begin_cast(&mut next, &mut mp, 100, start(terms(550, false), 24)),
+            sidecar.begin_cast(&mut next, &mut mp, 100, 0, start(terms(550, false), 24)),
             Err(CastError::SkillCooldown)
         );
         assert_eq!(sidecar, before);
         assert_eq!((mp, next), (20, 2));
         let cast = sidecar
-            .begin_cast(&mut next, &mut mp, 100, start(terms(550, false), 25))
+            .begin_cast(&mut next, &mut mp, 100, 0, start(terms(550, false), 25))
             .unwrap();
         assert_eq!(cast.id, CastId(2));
         assert_eq!(mp, 17);
+    }
+
+    #[test]
+    fn v6_fractional_hp_allows_zero_whole_cast_and_pays_to_a_living_remainder() {
+        for hp_start in [0, 1] {
+            let mut side = blank();
+            let mut next = 1;
+            let mut mp = 100;
+            let mut terms = terms(550, false);
+            terms.hp_end = hp_start;
+            let mut cast = side
+                .begin_cast(&mut next, &mut mp, hp_start, super::super::Q / 2, start(terms, 10))
+                .unwrap();
+            assert!(cast.launch(cast.launch_at, |_| true));
+            let mut hp = hp_start;
+            assert!(cast
+                .pay_impact(cast.complete_at, &mut mp, &mut hp, 1, hp_start, super::super::Q / 2)
+                .unwrap()
+                .is_some());
+            assert_eq!(hp, 0);
+            assert_eq!(
+                cast.pay_impact(cast.complete_at, &mut mp, &mut hp, 0, 0, 0),
+                Err(CastCancelReason::CasterDied)
+            );
+        }
     }
 
     #[test]
@@ -995,7 +1029,7 @@ mod tests {
             let before = sidecar.clone();
             let (mut next, mut mp) = (next_id, initial_mp);
             assert_eq!(
-                sidecar.begin_cast(&mut next, &mut mp, hp, start(terms(550, false), at)),
+                sidecar.begin_cast(&mut next, &mut mp, hp, 0, start(terms(550, false), at)),
                 Err(expected)
             );
             assert_eq!((sidecar, next, mp), (before, next_id, initial_mp));
@@ -1017,7 +1051,7 @@ mod tests {
             let mut sidecar = blank();
             let (mut next, mut mp) = (1, 20);
             let cast = sidecar
-                .begin_cast(&mut next, &mut mp, 100, start(terms(animation, continuous), 10))
+                .begin_cast(&mut next, &mut mp, 100, 0, start(terms(animation, continuous), 10))
                 .unwrap();
             assert_eq!(
                 (cast.launch_at.0, cast.complete_at.0, cast.interrupt_until.0),
@@ -1063,7 +1097,7 @@ mod tests {
             let mut sidecar = blank();
             let (mut next, mut mp, mut hp) = (1, 20, hp);
             let cast = sidecar
-                .begin_cast(&mut next, &mut mp, 100, start(terms(0, false), 10))
+                .begin_cast(&mut next, &mut mp, 100, 0, start(terms(0, false), 10))
                 .unwrap();
             assert!(sidecar.launch_cast(Tick(10), cast.id, |_| true));
             mp = available_mp;
@@ -1178,7 +1212,7 @@ mod tests {
             let mut sidecar = blank();
             let (mut next, mut mp) = (1, 20);
             sidecar
-                .begin_cast(&mut next, &mut mp, 100, start(terms(550, false), 10))
+                .begin_cast(&mut next, &mut mp, 100, 0, start(terms(550, false), 10))
                 .unwrap();
             assert_eq!(sidecar.interrupt_cast(Tick(at), success, skill).is_some(), expected);
         }

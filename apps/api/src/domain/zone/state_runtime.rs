@@ -398,7 +398,8 @@ impl ZoneState {
             reuse: BTreeMap::new(),
             effects: EffectList::default(),
             modifier_install_order: sources,
-            regen: RegenSchedule::start(tick, c.hp != 0, p.rules.regen()).map_err(invariant)?,
+            regen: RegenSchedule::start(tick, !e.targeting.dead, p.rules.regen())
+                .map_err(invariant)?,
             fractions: ResourceFractions::default(),
             player: player.then_some(Phase3Player {
                 pvp: PvpState {
@@ -418,7 +419,7 @@ impl ZoneState {
                 .stage_restore(
                     &p.rules,
                     learned,
-                    c.hp != 0,
+                    !e.targeting.dead,
                     c.incarnation,
                     tick,
                     p.next_effect_id,
@@ -564,7 +565,7 @@ impl ZoneState {
                         Phase3EntityContext {
                             next_tick: self.next_tick,
                             incarnation: c.incarnation,
-                            alive: c.hp != 0,
+                            alive: !e.targeting.dead,
                             player: e.kind == EntityKind::Player,
                             learned,
                         },
@@ -653,7 +654,8 @@ impl ZoneState {
                         .map_err(|_| SnapshotError::CombatMismatch)?
                 || c.hp > c.sheet.max_hp()
                 || c.mp > c.sheet.max_mp()
-                || e.targeting.dead != (c.hp == 0)
+                || e.targeting.dead
+                    != (c.hp == 0 && (self.phase4.is_none() || side.fractions.hp == 0))
             {
                 return Err(SnapshotError::CombatMismatch);
             }
@@ -1318,6 +1320,28 @@ impl ZoneState {
             })
             .collect();
         for entity in spawned {
+            if candidate.phase4.is_some() {
+                if let Some(load) = load {
+                    candidate
+                        .entities
+                        .get_mut(&entity)
+                        .ok_or(RejectReason::InvalidLoad)?
+                        .targeting
+                        .dead = !load.alive;
+                    for event in &mut events {
+                        if let ZoneEvent::EntitySpawn {
+                            entity: id,
+                            combat: Some(view),
+                            ..
+                        } = event
+                        {
+                            if *id == entity {
+                                view.dead = !load.alive;
+                            }
+                        }
+                    }
+                }
+            }
             candidate
                 .attach_v5(tick, entity, load)
                 .map_err(|_| RejectReason::InvalidLoad)?;
@@ -1433,7 +1457,7 @@ impl ZoneState {
                 },
                 kind: e.kind,
                 pos: e.pos,
-                alive: c.hp != 0,
+                alive: !e.targeting.dead,
                 attackable: e.targeting.attackable,
                 protected: c.protected_until.is_some_and(|until| until > tick),
             })
@@ -1555,7 +1579,7 @@ impl ZoneState {
             .get(&entry.caster.entity)
             .ok_or(RejectReason::UnknownEntity)?;
         let c = e.combat.as_ref().ok_or(RejectReason::InvalidLoad)?;
-        if c.incarnation != entry.caster.incarnation || c.hp == 0 {
+        if c.incarnation != entry.caster.incarnation || e.targeting.dead {
             return Err(RejectReason::DeadActor);
         }
         let CombatRole::Player {
@@ -1600,7 +1624,7 @@ impl ZoneState {
             .get(&entry.caster.entity)
             .ok_or(RejectReason::UnknownEntity)?;
         let combat = caster.combat.as_ref().ok_or(RejectReason::NotAPlayer)?;
-        if combat.incarnation != entry.caster.incarnation || combat.hp == 0 {
+        if combat.incarnation != entry.caster.incarnation || caster.targeting.dead {
             return Err(RejectReason::DeadActor);
         }
         let simultaneous = origin
@@ -1719,11 +1743,17 @@ impl ZoneState {
             .and_then(|e| e.combat.as_ref())
             .ok_or(RejectReason::InvalidLoad)?;
         let mut mp = c.mp;
+        let hp_remainder_q = if self.phase4.is_some() {
+            side.fractions.hp
+        } else {
+            0
+        };
         let mut cast = side
             .begin_cast(
                 &mut next_cast_id,
                 &mut mp,
                 c.hp,
+                hp_remainder_q,
                 CastStart {
                     now: tick,
                     ordinal: entry.ordinal,
@@ -2137,7 +2167,7 @@ impl ZoneState {
             .peace_square(self.bounds)
             .map_err(invariant)?;
         if self.binding(victim.id) != Some(request.target)
-            || combat.hp == 0
+            || victim.targeting.dead
             || combat.protected_at(tick)
             || peace.contains(victim.pos)
             || (victim.kind == EntityKind::Npc
@@ -2278,6 +2308,7 @@ impl ZoneState {
         let mutation = state_damage::prepare_hp_reduction(
             &side,
             DamageResources {
+                hp_remainder_q: self.phase4.as_ref().map(|_| side.fractions.hp),
                 hp: c.hp,
                 mp: c.mp,
                 cp,
@@ -2330,7 +2361,7 @@ impl ZoneState {
         }
         self.note_hostility_v5(tick, source, target)?;
         self.damage_hate_v5(tick, request, events)?;
-        if mutation.hp_removed > 0 {
+        if mutation.hp_removed > 0 || mutation.lethal {
             self.phase3
                 .as_mut()
                 .ok_or_else(missing)?

@@ -110,12 +110,17 @@ impl ZoneState {
             .ok_or_else(missing)?
             .schedule_dirty
             .insert(work.caster);
+        let hp_remainder_q = if self.phase4.is_some() {
+            self.sidecar(work.caster)?.fractions.hp
+        } else {
+            0
+        };
         let combat = self
             .entities
             .get_mut(&work.caster)
             .and_then(|entity| entity.combat.as_mut())
             .ok_or_else(missing)?;
-        let result = cast.pay_impact(tick, &mut combat.mp, &mut combat.hp, mp, hp);
+        let result = cast.pay_impact(tick, &mut combat.mp, &mut combat.hp, mp, hp, hp_remainder_q);
         if result.is_err() {
             self.finish_cast_work_v6(work)?;
         }

@@ -244,7 +244,15 @@ impl ZoneState {
                 if !self.phase3_enabled() {
                     p.class_state.cp = p.class_state.cp.min(max_cp);
                 }
-                combat.hp = if self.phase3_enabled() && load.alive {
+                combat.hp = if self.phase4.is_some()
+                    && load.alive
+                    && load
+                        .phase3
+                        .as_ref()
+                        .is_some_and(|checkpoint| checkpoint.resource_fractions.hp > 0)
+                {
+                    load.hp.unwrap_or(sheet.max_hp())
+                } else if self.phase3_enabled() && load.alive {
                     load.hp.unwrap_or(sheet.max_hp()).max(1)
                 } else if load.alive {
                     load.hp.unwrap_or(sheet.max_hp()).clamp(1, sheet.max_hp())
@@ -316,7 +324,7 @@ impl ZoneState {
         let Some(class) = registry.get(target) else {
             return vec![RejectReason::TransferIneligible];
         };
-        if e.targeting.dead || c.hp == 0 {
+        if e.targeting.dead {
             unmet.push(RejectReason::DeadActor);
         }
         if !(1..=2).contains(&class.tier)
