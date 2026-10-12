@@ -1005,9 +1005,14 @@ ours (no engine tests). The live tests (`Nightfall.Login.EndToEnd`, `Nightfall.M
 and skip. With `-RequireLiveApi` the same condition is an error, so a down server cannot show green:
 
 ```bash
+Scripts/run-tests.sh offline              # local tests only; no authentication credentials
+Scripts/run-tests.sh --offline Nightfall.Item  # Phase 4 item tests
 Scripts/run-tests.sh                      # local: live tests skip with a warning when the API is down
 Scripts/run-tests.sh --require-live-api   # CI: a down API fails them (also on when CI=true)
 ```
+
+Phase 4 offline checks and pending integration gates are listed in
+[phase4-client-offline.md](Scripts/phase4-client-offline.md).
 
 ### Running simulations
 

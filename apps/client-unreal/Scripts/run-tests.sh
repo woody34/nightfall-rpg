@@ -17,7 +17,7 @@
 #
 # $RUN_TESTS_EXTRA_ARGS (word-split) is appended to the editor command line, e.g. an -ini: override.
 #
-# --offline defaults to Nightfall.Item and does not acquire auth credentials.
+# offline / --offline selects all local tests and does not acquire auth credentials.
 # Usage: Scripts/run-tests.sh [--offline|--require-live-api] [test filter, default "Nightfall"]
 set -euo pipefail
 : "${UE_ROOT:?UE_ROOT must point at the Unreal install}"
@@ -31,14 +31,30 @@ POSITIONAL=()
 for arg in "$@"; do
   case "$arg" in
     --require-live-api) REQUIRE_LIVE=1 ;;
-    --offline) OFFLINE=1 ;;
+    offline|--offline) OFFLINE=1 ;;
     -h|--help) sed -n '2,/^set -/p' "$0" | sed '$d'; exit 0 ;;
     *) POSITIONAL+=("$arg") ;;
   esac
 done
 if [[ "$OFFLINE" == 1 && "$REQUIRE_LIVE" == 1 ]]; then echo "offline and required-live modes conflict" >&2; exit 2; fi
 DEFAULT_FILTER=Nightfall
-[[ "$OFFLINE" == 1 ]] && DEFAULT_FILTER=Nightfall.Item
+if [[ "$OFFLINE" == 1 ]]; then
+  DEFAULT_FILTER="$(python3 - "$HERE/../Source/Nightfall/Tests" <<'PYFILTER'
+from pathlib import Path
+import re
+import sys
+names = set()
+for path in Path(sys.argv[1]).glob('*.cpp'):
+    names.update(re.findall(r'IMPLEMENT_(?:CUSTOM_)?SIMPLE_AUTOMATION_TEST\([^;]*?"(Nightfall\.[^"]+)"', path.read_text(), re.S))
+# Live API tests and the optional vendor import have separate integration gates.
+names = {name for name in names if not name.endswith(('.EndToEnd', '.LiveAdmission'))
+         and name not in {'Nightfall.Net.SessionClient.Ping', 'Nightfall.Content.VendorArt'}}
+if not names:
+    raise SystemExit('offline test registry is empty')
+print('+'.join('^' + name + '$' for name in sorted(names)))
+PYFILTER
+)"
+fi
 FILTER="${POSITIONAL[0]:-$DEFAULT_FILTER}"
 ISSUER="${OIDC_ISSUER:-http://localhost:8080/realms/nightfall}"
 
@@ -47,7 +63,8 @@ if [[ "$REQUIRE_LIVE" == 1 ]]; then
   EXTRA+=("-RequireLiveApi")
   echo "run-tests: CI mode, live tests fail when the API is unreachable" >&2
 fi
-TOKEN="${NIGHTFALL_DEV_TOKEN:-}"
+TOKEN=""
+[[ "$OFFLINE" == 0 ]] && TOKEN="${NIGHTFALL_DEV_TOKEN:-}"
 if [[ "$OFFLINE" == 0 && -z "$TOKEN" && "${AUTH_DEV_TOKENS:-}" == 1 ]]; then
   TOKEN="test:$(python3 -c 'import uuid; print(uuid.uuid4())')"
 fi
