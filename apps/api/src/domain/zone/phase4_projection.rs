@@ -210,6 +210,12 @@ pub struct Phase4Projection {
 impl Phase4Projection {
     /// Enforce identity/version/order before the application can stage this private fact.
     pub fn validate_structure(&self, phase3_sources: usize) -> Result<(), ItemError> {
+        if self.entity.as_uuid().is_nil()
+            || self.account.as_uuid().is_nil()
+            || i64::try_from(self.tick.0).is_err()
+        {
+            return Err(ItemError("invalid item projection owner or tick"));
+        }
         self.checkpoint.validate_structure(phase3_sources)?;
         if self.checkpoint.starter_kit_receipt.is_none() {
             return Err(ItemError("projection precedes kit materialization"));
@@ -340,10 +346,10 @@ impl FrozenItemResult {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
-mod tests {
+pub(crate) mod tests {
     use super::super::{phase4_checkpoint::StarterKitReceipt, ItemLocation};
     use super::*;
-    fn projection() -> Phase4Projection {
+    pub(crate) fn projection() -> Phase4Projection {
         let key = uuid::Uuid::from_u128(3);
         let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
         Phase4Projection {

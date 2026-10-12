@@ -541,6 +541,8 @@ pub enum SkillOutcome {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)] // names mirror the proto messages one to one
 pub enum ZoneEvent {
+    /// Private final-tick item settlement; never an observer or WebSocket event.
+    ItemCheckpoint(Box<super::Phase4Projection>),
     /// Final public flag/karma/counters, also used for identity bootstrap.
     #[allow(missing_docs)]
     PvpStateChanged {
@@ -938,6 +940,7 @@ impl ZoneEvent {
             | Self::AttackCancelled { tick, .. }
             | Self::HateChanged { tick, .. }
             | Self::NpcIntentionChanged { tick, .. } => *tick,
+            Self::ItemCheckpoint(p) => p.tick,
             Self::Progression(d) => d.tick,
         }
     }
@@ -971,6 +974,7 @@ impl ZoneEvent {
             | Self::LevelUp { entity, .. }
             | Self::TargetChanged { entity, .. }
             | Self::NpcIntentionChanged { entity, .. } => *entity,
+            Self::ItemCheckpoint(p) => p.entity,
             Self::Progression(d) => d.entity,
             Self::AttackResult { attacker, .. }
             | Self::AttackStarted { attacker, .. }

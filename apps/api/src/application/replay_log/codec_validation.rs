@@ -124,14 +124,16 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
             }
             command_kind_seen = true;
         }
-        let (expected, mut child, json) =
-            if schema >= 8 && node == "PbCommand" && (20..=29).contains(&tag) {
-                (2, None, false)
-            } else if schema >= 7 {
-                phase3_field(node, tag).map_or_else(|| field(node, tag), Ok)?
-            } else {
-                field(node, tag)?
-            };
+        let (expected, mut child, json) = if schema >= 8
+            && ((node == "PbCommand" && (20..=29).contains(&tag))
+                || (node == "PbOutput" && tag == 40))
+        {
+            (2, None, false)
+        } else if schema >= 7 {
+            phase3_field(node, tag).map_or_else(|| field(node, tag), Ok)?
+        } else {
+            field(node, tag)?
+        };
         if wire != expected && !(expected == 3 && (wire == 0 || wire == 2)) {
             return Err(CodecError(format!("wrong wire type for {node}.{tag}")));
         }
@@ -164,6 +166,23 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
                 .split_at_checked(len)
                 .ok_or_else(|| CodecError("truncated nested payload".into()))?;
             bytes = rest;
+            if schema >= 8
+                && node == "PbPlayerOutput"
+                && tag == 2
+                && super::codec::decode_outputs(payload)?.iter().any(|output| {
+                    matches!(
+                        output,
+                        crate::domain::zone::ObserverOutput::Event(
+                            crate::domain::zone::ZoneEvent::ItemCheckpoint(_)
+                        )
+                    )
+                })
+            {
+                return Err(CodecError("private item checkpoint in observer output".into()));
+            }
+            if schema >= 8 && node == "PbOutput" && tag == 40 {
+                super::codec::phase4_projection_from_json(payload)?;
+            }
             if let Some(child) = child {
                 message(payload, child, schema, digested)?;
             }

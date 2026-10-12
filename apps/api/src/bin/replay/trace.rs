@@ -63,6 +63,7 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         | ZoneEvent::LevelUp { .. }
         | ZoneEvent::EntitySpawn { .. }
         | ZoneEvent::EntityMove { .. }
+        | ZoneEvent::ItemCheckpoint(_)
         | ZoneEvent::Progression(_)
         | ZoneEvent::EntityDespawn { .. } => None,
     }
@@ -146,6 +147,7 @@ impl Projection {
             | ZoneEvent::XpGained { .. }
             | ZoneEvent::LevelUp { .. }
             | ZoneEvent::TargetChanged { .. }
+            | ZoneEvent::ItemCheckpoint(_)
             | ZoneEvent::Progression(_) => {},
         }
     }
@@ -234,6 +236,10 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
         ZoneEvent::Progression(delta) => format!(
             "Progression checkpoint: {} · tick {} (private state hidden)",
             delta.entity, delta.tick.0
+        ),
+        ZoneEvent::ItemCheckpoint(projection) => format!(
+            "Item checkpoint: {} · tick {} (private state hidden)",
+            projection.entity, projection.tick.0
         ),
         ZoneEvent::EffectApplied { .. }
         | ZoneEvent::EffectRemoved { .. }
