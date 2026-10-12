@@ -3,7 +3,8 @@
     missing_docs,
     clippy::unwrap_used,
     clippy::indexing_slicing,
-    clippy::panic
+    clippy::panic,
+    clippy::expect_used
 )]
 mod common;
 use nightfall_api::application::ports::*;
@@ -1146,4 +1147,147 @@ async fn postgres_unchanged_enchant_audit_is_atomic_without_phantom_ledger() {
     .await
     .unwrap();
     assert_eq!(outbox, 1);
+}
+
+#[allow(clippy::too_many_lines)] // Both adapters share exact archived cursor and repeat-reservation behavior.
+async fn range_extension_contract<
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository,
+>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+) {
+    let (_, mut cp, mut work, facts) = fixture(repo, bundle, "ArchivedRange").await;
+    let (start, _, end) = work.allocation.bounds();
+    assert!(matches!(repo.reserve_item_range_extension(ZoneId(1), 1, start).await,
+        Err(CheckpointError::Constraint(name)) if name == "item_id_ranges_not_exhausted"));
+    assert!(matches!(repo.reserve_item_range_extension(ZoneId(1), 2, start).await,
+        Err(CheckpointError::Constraint(name)) if name == "item_id_ranges_missing"));
+    // The acknowledged zone cursor includes other owners; no fabricated per-ID ledger rows.
+    work.allocation = ItemInstanceRange::new(start, end, end).unwrap();
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    assert_eq!(
+        repo.reserve_item_range(ZoneId(1), 1)
+            .await
+            .unwrap()
+            .next_reserved,
+        end
+    );
+    let (left, right) = tokio::join!(
+        repo.reserve_item_range_extension(ZoneId(1), 1, start),
+        repo.reserve_item_range_extension(ZoneId(1), 1, start)
+    );
+    let successor = left.unwrap();
+    assert_eq!(successor, right.unwrap());
+    assert!(successor.range_start >= end);
+    assert_eq!(successor.next_reserved, successor.range_start);
+    let other = repo.reserve_item_range(ZoneId(2), 1).await.unwrap();
+    assert!(other.range_start >= successor.range_end_exclusive);
+    assert!(
+        matches!(repo.reserve_item_range_extension(ZoneId(1), 1, successor.range_start).await,
+        Err(CheckpointError::Constraint(name)) if name == "item_id_ranges_not_exhausted")
+    );
+    cp.revision_seen = 1;
+    cp.idempotency.1 = IdempotencyKey::new();
+    let checkpoint = cp.phase4.as_mut().unwrap();
+    checkpoint.inventory_revision = 2;
+    checkpoint.auto_shots.insert(1463);
+    work.projection.tick = Tick(74);
+    work.projection.checkpoint = checkpoint.clone();
+    work.projection.ledger.clear();
+    work.projection.materializations.clear();
+    let key = Uuid::now_v7();
+    work.projection.receipts = vec![ItemReceiptFact {
+        request_id: key,
+        fingerprint: "c".repeat(64),
+        result: FrozenItemResult {
+            entity: work.projection.entity,
+            incarnation: 4,
+            tick: Tick(74),
+            inventory_revision: 2,
+            receipt: key,
+            detail: ItemResultDetail::Operation {
+                operation: ItemOperation::ToggleAutoShot,
+                affected: vec![],
+                recipe: None,
+            },
+        },
+    }];
+    work.allocation = ItemInstanceRange::new(
+        successor.range_start,
+        successor.range_end_exclusive,
+        successor.range_end_exclusive,
+    )
+    .unwrap();
+    assert_eq!(
+        repo.checkpoint_items(&cp, &[], &work, None).await.unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    let third = repo
+        .reserve_item_range_extension(ZoneId(1), 1, successor.range_start)
+        .await
+        .unwrap();
+    assert!(third.range_start >= other.range_end_exclusive);
+    assert_eq!(
+        repo.reserve_item_range_extension(ZoneId(1), 1, start)
+            .await
+            .unwrap(),
+        successor
+    );
+    assert_eq!(repo.reserve_item_range(ZoneId(1), 1).await.unwrap(), third);
+    assert_eq!(
+        repo.retained_inventory(cp.character_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .character_revision,
+        2
+    );
+}
+
+#[tokio::test]
+async fn memory_range_extensions_preserve_archived_blocks_and_frozen_repeat_identity() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    range_extension_contract(&repo, &bundle).await;
+}
+
+#[tokio::test]
+async fn postgres_range_extensions_preserve_archived_blocks_and_frozen_repeat_identity() {
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    range_extension_contract(&repo, &bundle).await;
+    let rows: Vec<(i64, i64)> = sqlx::query_as("SELECT next_reserved,range_end_exclusive FROM item_id_ranges WHERE zone_id=1 AND epoch=1 ORDER BY range_start").fetch_all(&pool).await.unwrap();
+    assert_eq!(rows.len(), 3);
+    assert_eq!(rows[0].0, rows[0].1);
+    assert_eq!(rows[1].0, rows[1].1);
+    assert!(rows[2].0 < rows[2].1);
+    // A legal final archived endpoint prevents any overflow reservation, atomically.
+    let top_start = i64::MAX.checked_sub(1_i64 << 32).unwrap();
+    sqlx::query("INSERT INTO item_id_ranges(zone_id,epoch,range_start,range_end_exclusive,next_reserved) VALUES(3,1,$1,$2,$2)")
+        .bind(top_start).bind(i64::MAX).execute(&pool).await.unwrap();
+    assert!(
+        matches!(repo.reserve_item_range_extension(ZoneId(3), 1, u64::try_from(top_start).unwrap()).await,
+        Err(CheckpointError::Constraint(name)) if name == "item_id_ranges_exhausted")
+    );
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM item_id_ranges")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 5);
 }

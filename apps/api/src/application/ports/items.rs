@@ -143,6 +143,14 @@ pub trait ItemAdmissionRepository: Send + Sync {
         zone: ZoneId,
         epoch: u64,
     ) -> Result<ItemIdRange, CheckpointError>;
+    /// Extend only an acknowledged exhausted block. Repeating the same old start returns
+    /// the original successor reservation (next=start), even after its cursor advances.
+    async fn reserve_item_range_extension(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        exhausted_range_start: u64,
+    ) -> Result<ItemIdRange, CheckpointError>;
     /// Reads both pending and completed manifests; completed ones prevent a second kit.
     async fn pending_item_requests(
         &self,

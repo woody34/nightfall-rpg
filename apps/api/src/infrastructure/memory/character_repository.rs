@@ -24,7 +24,7 @@ struct State {
     item_ledger: Vec<crate::application::ports::ItemLedgerEntry>,
     item_inventories: BTreeMap<CharacterId, crate::domain::zone::Phase4Checkpoint>,
     item_ranges:
-        BTreeMap<(crate::domain::zone::ZoneId, u64), crate::application::ports::ItemIdRange>,
+        BTreeMap<(crate::domain::zone::ZoneId, u64, u64), crate::application::ports::ItemIdRange>,
     pending_item_requests:
         BTreeMap<CharacterId, Vec<crate::application::ports::PendingItemRequest>>,
     names: HashMap<String, CharacterId>,
@@ -508,7 +508,7 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
         if end > 1_u64 << 32 {
             let range = staged
                 .item_ranges
-                .get_mut(&(work.zone, work.epoch))
+                .get_mut(&(work.zone, work.epoch, start))
                 .ok_or_else(|| CheckpointError::Constraint("item_checkpoint_reservation".into()))?;
             if range.range_start != start || range.range_end_exclusive != end {
                 return Err(CheckpointError::Constraint("item_checkpoint_reservation".into()));
@@ -761,7 +761,11 @@ impl crate::application::ports::ItemAdmissionRepository for InMemoryCharacterRep
             return Err(CheckpointError::Constraint("item_id_ranges_epoch".into()));
         }
         let mut state = self.state.lock();
-        if let Some(range) = state.item_ranges.get(&(zone, epoch)) {
+        if let Some((_, range)) = state
+            .item_ranges
+            .range((zone, epoch, 0)..=(zone, epoch, u64::MAX))
+            .next_back()
+        {
             return Ok(*range);
         }
         let start = state
@@ -782,7 +786,63 @@ impl crate::application::ports::ItemAdmissionRepository for InMemoryCharacterRep
             next_reserved: start,
         };
         range.validate()?;
-        state.item_ranges.insert((zone, epoch), range);
+        state.item_ranges.insert((zone, epoch, start), range);
+        Ok(range)
+    }
+    async fn reserve_item_range_extension(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+        epoch: u64,
+        exhausted_range_start: u64,
+    ) -> Result<crate::application::ports::ItemIdRange, CheckpointError> {
+        use crate::application::ports::ItemIdRange;
+        if i32::try_from(zone.0).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_zone".into()));
+        }
+        if i64::try_from(epoch).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_epoch".into()));
+        }
+        if i64::try_from(exhausted_range_start).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_bounds".into()));
+        }
+        let mut state = self.state.lock();
+        let old = state
+            .item_ranges
+            .get(&(zone, epoch, exhausted_range_start))
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_missing".into()))?;
+        old.validate()?;
+        if old.next_reserved != old.range_end_exclusive {
+            return Err(CheckpointError::Constraint("item_id_ranges_not_exhausted".into()));
+        }
+        if let Some((_, successor)) = state
+            .item_ranges
+            .range((zone, epoch, old.range_end_exclusive)..=(zone, epoch, u64::MAX))
+            .next()
+        {
+            return Ok(ItemIdRange {
+                next_reserved: successor.range_start,
+                ..*successor
+            });
+        }
+        let start = state
+            .item_ranges
+            .values()
+            .map(|range| range.range_end_exclusive)
+            .max()
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_missing".into()))?;
+        let end = start
+            .checked_add(1_u64 << 32)
+            .filter(|end| i64::try_from(*end).is_ok())
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_exhausted".into()))?;
+        let range = ItemIdRange {
+            zone_id: zone,
+            epoch,
+            range_start: start,
+            range_end_exclusive: end,
+            next_reserved: start,
+        };
+        range.validate()?;
+        state.item_ranges.insert((zone, epoch, start), range);
         Ok(range)
     }
     async fn pending_item_requests(
