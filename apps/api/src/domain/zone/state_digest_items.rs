@@ -150,6 +150,8 @@ impl Writer {
         }
         self.i64(p.weight);
         self.i64(p.max_load);
+        self.u32(p.ordinary_capacity);
+        self.u32(p.quest_capacity);
         self.i64(p.weight_penalty_bonus);
         self.u8(p.overload_level);
         self.bool(p.overloaded);
@@ -236,5 +238,26 @@ impl Writer {
         self.u32(c.mp_end);
         self.u32(c.hp_end);
         self.u64(c.reuse_until.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn both_retained_capacities_change_the_binary_layout() {
+        let mut player = crate::domain::zone::item_functions::tests::player();
+        let encode = |player: &Phase4Player| {
+            let mut writer = Writer(Vec::new());
+            writer.item_player(player);
+            writer.0
+        };
+        let original = encode(&player);
+        player.ordinary_capacity += 1;
+        assert_ne!(encode(&player), original);
+        player.ordinary_capacity -= 1;
+        player.quest_capacity += 1;
+        assert_ne!(encode(&player), original);
     }
 }

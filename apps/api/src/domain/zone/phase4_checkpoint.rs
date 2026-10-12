@@ -143,6 +143,8 @@ pub struct Phase4Checkpoint {
     pub active_sets: BTreeMap<u32, SetActivation>,
     pub weight: i64,
     pub max_load: i64,
+    pub ordinary_capacity: u32,
+    pub quest_capacity: u32,
     pub weight_penalty_bonus: i64,
     pub overload_level: u8,
     pub overloaded: bool,
@@ -160,6 +162,8 @@ impl Phase4Checkpoint {
             return Err(ItemError("unsupported Phase4 checkpoint policy"));
         }
         if self.inventory_revision > i64::MAX as u64
+            || self.ordinary_capacity > i32::MAX as u32
+            || self.quest_capacity > i32::MAX as u32
             || self.weight < 0
             || self.overload_level > 4
             || self.weapon_penalty > 4
@@ -376,6 +380,8 @@ mod tests {
             )]),
             weight: 1000,
             max_load: 1000,
+            ordinary_capacity: 80,
+            quest_capacity: 100,
             weight_penalty_bonus: 1,
             overload_level: 4,
             overloaded: true,
@@ -508,6 +514,8 @@ impl Phase4Snapshot {
             active_sets: player.active_sets.clone(),
             weight: player.weight,
             max_load: player.max_load,
+            ordinary_capacity: player.ordinary_capacity,
+            quest_capacity: player.quest_capacity,
             weight_penalty_bonus: player.weight_penalty_bonus,
             overload_level: player.overload_level,
             overloaded: player.overloaded,
@@ -592,6 +600,8 @@ impl Phase4Player {
                 active_sets: checkpoint.active_sets.clone(),
                 weight: checkpoint.weight,
                 max_load: checkpoint.max_load,
+                ordinary_capacity: checkpoint.ordinary_capacity,
+                quest_capacity: checkpoint.quest_capacity,
                 weight_penalty_bonus: checkpoint.weight_penalty_bonus,
                 overload_level: checkpoint.overload_level,
                 overloaded: checkpoint.overloaded,
@@ -640,6 +650,8 @@ mod player_tests {
             active_sets: BTreeMap::new(),
             weight: 0,
             max_load: 1000,
+            ordinary_capacity: 80,
+            quest_capacity: 100,
             weight_penalty_bonus: 1,
             overload_level: 1,
             overloaded: true,

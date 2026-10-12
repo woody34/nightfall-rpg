@@ -208,16 +208,67 @@ impl ZoneState {
             .map(Arc::new)
             .map_err(invariant)
     }
+    fn refresh_items_for(
+        &self,
+        id: EntityId,
+    ) -> Result<Option<crate::domain::zone::item_refresh::RefreshedEquipment>, StatError> {
+        let Some(items) = &self.phase4 else {
+            return Ok(None);
+        };
+        let entity = self.entities.get(&id).ok_or(StatError::Overflow)?;
+        if entity.kind != EntityKind::Player {
+            return Ok(None);
+        }
+        let phase = self.phase3.as_ref().ok_or(StatError::Overflow)?;
+        crate::domain::zone::item_refresh::refresh_player(
+            self.rules.as_deref().ok_or(StatError::Overflow)?,
+            self.classes.as_deref().ok_or(StatError::Overflow)?,
+            &phase.canonical.rules,
+            entity,
+            phase
+                .canonical
+                .entities
+                .get(&id)
+                .ok_or(StatError::Overflow)?,
+            crate::domain::zone::effective_stats::EquipmentStatContext {
+                player: items
+                    .canonical
+                    .players
+                    .get(&id)
+                    .ok_or(StatError::Overflow)?,
+                rules: &items.rules,
+            },
+            phase.canonical.next_install_sequence,
+        )
+        .map(Some)
+    }
     fn rebuild_v5(&mut self, id: EntityId) -> Result<(), TickError> {
         let before = self.evidence.as_ref().map(|_| {
             serde_json::json!({
                 "entity": self.entities.get(&id), "word_cursor": self.rng.get_word_pos().to_string()
             })
         });
-        let effective = Arc::new(
+        let refreshed = self.refresh_items_for(id).map_err(invariant)?;
+        let effective = Arc::new(if let Some(refreshed) = &refreshed {
+            refreshed.effective.clone()
+        } else {
             self.effective_for(self.entities.get(&id).ok_or_else(missing)?, self.sidecar(id)?)
-                .map_err(invariant)?,
-        );
+                .map_err(invariant)?
+        });
+        let speed = effective.movement_speed().map_err(invariant)?;
+        if let Some(refreshed) = refreshed {
+            self.phase4
+                .as_mut()
+                .ok_or_else(missing)?
+                .canonical
+                .players
+                .insert(id, refreshed.player);
+            self.phase3
+                .as_mut()
+                .ok_or_else(missing)?
+                .canonical
+                .next_install_sequence = refreshed.next_sequence;
+        }
         self.phase3
             .as_mut()
             .ok_or_else(missing)?
@@ -240,7 +291,7 @@ impl ZoneState {
         c.hp = c.hp.min(effective.physical.max_hp());
         c.mp = c.mp.min(effective.physical.max_mp());
         c.sheet = effective.physical;
-        e.speed = effective.movement_speed().map_err(invariant)?;
+        e.speed = speed;
         let health_full = c.hp == c.sheet.max_hp();
         let mana_full = c.mp == c.sheet.max_mp();
         let mut combat_points_full = true;
@@ -494,6 +545,21 @@ impl ZoneState {
             let effective = self
                 .effective_for(e, side)
                 .map_err(|_| SnapshotError::CombatMismatch)?;
+            if let Some(refreshed) = self
+                .refresh_items_for(*id)
+                .map_err(|_| SnapshotError::CombatMismatch)?
+            {
+                let player = self
+                    .phase4
+                    .as_ref()
+                    .and_then(|items| items.canonical.players.get(id))
+                    .ok_or(SnapshotError::CombatMismatch)?;
+                if &refreshed.player != player
+                    || refreshed.next_sequence != phase.canonical.next_install_sequence
+                {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+            }
             if c.sheet != effective.physical
                 || e.speed
                     != effective

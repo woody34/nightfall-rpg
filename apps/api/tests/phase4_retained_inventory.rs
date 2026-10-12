@@ -62,6 +62,8 @@ fn retained() -> Phase4Checkpoint {
         )]),
         weight: 1000,
         max_load: 1000,
+        ordinary_capacity: 80,
+        quest_capacity: 100,
         weight_penalty_bonus: 1,
         overload_level: 0,
         overloaded: true,

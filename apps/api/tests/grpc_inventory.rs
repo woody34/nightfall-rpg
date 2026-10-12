@@ -127,6 +127,8 @@ fn cp(c: &Character) -> Phase4Checkpoint {
         active_sets: BTreeMap::new(),
         weight: 1000,
         max_load: 5000,
+        ordinary_capacity: 80,
+        quest_capacity: 100,
         weight_penalty_bonus: 42,
         overload_level: 1,
         overloaded: true,

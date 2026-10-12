@@ -12,6 +12,17 @@ pub struct InventoryLimits {
     max_weight: i64,
 }
 impl InventoryLimits {
+    /// Live mutations use retained, authoritatively folded capacities (D39).
+    pub fn from_player(player: &super::Phase4Player) -> Result<Self, ItemError> {
+        if player.max_load < 0 {
+            return Err(ItemError("negative inventory weight capacity"));
+        }
+        Ok(Self {
+            ordinary: player.ordinary_capacity,
+            quest: player.quest_capacity,
+            max_weight: player.max_load,
+        })
+    }
     /// Slot ceilings come from the immutable source policy; the effective load getter
     /// supplies the checked weight ceiling after attributes and modifiers have folded.
     pub fn from_rules(
@@ -33,6 +44,29 @@ impl InventoryLimits {
             max_weight,
         })
     }
+}
+
+/// `L2PcInstance.getInventoryLimit` adds `trunc(calcStat(INV_LIM, 0))` to the race
+/// base; quest inventory has its own configured ceiling and no stat modifier.
+pub fn computed_capacities(
+    calculator: &super::stat_functions::StatCalculator,
+    rules: &Phase4Rules,
+    dwarf: bool,
+    conditions: super::stat_functions::FunctionConditions<'_>,
+) -> Result<(u32, u32), super::StatError> {
+    let policy = &rules.parts().capacities;
+    let base = if dwarf {
+        policy.dwarf_inventory
+    } else {
+        policy.inventory
+    };
+    let bonus = calculator.fold("inventoryLimit", 0, conditions)? / super::Q;
+    let ordinary = i128::from(base)
+        .checked_add(i128::from(bonus))
+        .filter(|value| *value >= 0 && *value <= i128::from(i32::MAX))
+        .and_then(|value| u32::try_from(value).ok())
+        .ok_or(super::StatError::Overflow)?;
+    Ok((ordinary, policy.quest_inventory))
 }
 /// Canonical tick/revision shared by this staged mutation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -357,6 +391,53 @@ mod tests {
     }
     fn ordinary(rules: &Phase4Rules) -> InventoryLimits {
         InventoryLimits::from_rules(rules, false, i64::MAX).unwrap()
+    }
+    #[test]
+    fn retained_capacities_fold_bonus_from_zero_before_adding_race_base() {
+        use crate::domain::zone::stat_functions::{
+            FunctionConditions, FunctionKey, FunctionOp, StatCalculator, StatFunction,
+        };
+        use crate::domain::zone::Q;
+        let bundle = embedded_phase4_bundle().unwrap();
+        let conditions = FunctionConditions {
+            weapon_kind: "FIST",
+            can_resurrect: true,
+        };
+        let function = |priority, operation| StatFunction {
+            key: FunctionKey {
+                stat: "inventoryLimit".into(),
+                priority,
+                install_sequence: 1,
+                handler_ordinal: 0,
+                function_ordinal: 0,
+            },
+            operation,
+            conditions: Vec::new(),
+        };
+        let calculator = StatCalculator::try_new(vec![
+            function(1, FunctionOp::Add(3 * Q + Q / 4)),
+            function(2, FunctionOp::Mul(2 * Q)),
+        ])
+        .unwrap();
+        assert_eq!(
+            computed_capacities(&calculator, &bundle.items, false, conditions).unwrap(),
+            (86, 100)
+        );
+        assert_eq!(
+            computed_capacities(&calculator, &bundle.items, true, conditions).unwrap(),
+            (106, 100)
+        );
+        let negative =
+            StatCalculator::try_new(vec![function(1, FunctionOp::Set(-81 * Q))]).unwrap();
+        assert!(computed_capacities(&negative, &bundle.items, false, conditions).is_err());
+        let overflow =
+            StatCalculator::try_new(vec![function(1, FunctionOp::Set(i64::MAX))]).unwrap();
+        assert!(computed_capacities(&overflow, &bundle.items, false, conditions).is_err());
+        let mut player = crate::domain::zone::item_functions::tests::player();
+        player.ordinary_capacity = 86;
+        player.quest_capacity = 100;
+        let limits = InventoryLimits::from_player(&player).unwrap();
+        assert_eq!((limits.ordinary, limits.quest), (86, 100));
     }
     #[test]
     fn merges_lowest_identity_and_pays_preferred_then_id_without_reallocating() {

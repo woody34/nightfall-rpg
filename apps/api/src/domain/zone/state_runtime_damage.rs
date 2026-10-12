@@ -1796,7 +1796,56 @@ mod tests {
         });
         zone.rebuild_v5(source.entity).unwrap();
         zone.rebuild_v5(target.entity).unwrap();
+        add_overload_arrows(&mut zone, target.entity, &bundle.items);
         (zone, target, npc)
+    }
+
+    fn add_overload_arrows(
+        zone: &mut ZoneState,
+        target: EntityId,
+        rules: &crate::domain::zone::Phase4Rules,
+    ) {
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&target)
+            .unwrap();
+        let arrow_weight = i64::from(rules.parts().items[&17].weight);
+        let count = u64::try_from(
+            player
+                .max_load
+                .checked_mul(7)
+                .unwrap()
+                .checked_div(10)
+                .unwrap()
+                .checked_sub(player.weight)
+                .unwrap()
+                .checked_div(arrow_weight)
+                .unwrap(),
+        )
+        .unwrap();
+        let id = crate::domain::zone::ItemInstanceId::new(900).unwrap();
+        player.inventory.insert(
+            id,
+            crate::domain::zone::ItemInstance {
+                id,
+                template_id: 17,
+                count,
+                location: crate::domain::zone::ItemLocation::Inventory,
+                slot: None,
+                enchant: 0,
+                augment_id: None,
+                charges: 0,
+                created_tick: Tick(0),
+                revision: 1,
+            },
+        );
+        zone.rebuild_v5(target).unwrap();
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&target];
+        assert_eq!((player.weapon_penalty, player.armor_penalty, player.overload_level), (2, 1, 2));
     }
 
     #[test]
