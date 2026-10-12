@@ -5194,4 +5194,310 @@ mod tests {
             .inventory
             .contains_key(&arrows));
     }
+    fn enchant_fixture(
+        scroll_template: u32,
+        slot: crate::domain::zone::EquipSlot,
+        enchant: u32,
+    ) -> (
+        ZoneState,
+        TargetBinding,
+        crate::domain::zone::ItemInstanceId,
+        crate::domain::zone::ItemInstanceId,
+    ) {
+        use crate::domain::zone::{item_sources, ItemInstanceId};
+        let (mut zone, owner, _) = equipment_fixture();
+        let items = zone.phase4.as_mut().unwrap();
+        let player = items.canonical.players.get_mut(&owner.entity).unwrap();
+        let target = player.paperdoll[&slot];
+        player.inventory.get_mut(&target).unwrap().enchant = enchant;
+        let scroll = ItemInstanceId::new(901).unwrap();
+        let mut stack = player.inventory[&ItemInstanceId::new(900).unwrap()].clone();
+        stack.id = scroll;
+        stack.template_id = scroll_template;
+        stack.count = 3;
+        player.inventory.insert(scroll, stack);
+        player.active_sets = item_sources::reconcile_sets(player, &items.rules, None).unwrap();
+        item_sources::reconcile_sources(
+            player,
+            &items.rules,
+            &mut zone
+                .phase3
+                .as_mut()
+                .unwrap()
+                .canonical
+                .next_install_sequence,
+        )
+        .unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        zone.validate_runtime_v5().unwrap();
+        (zone, owner, target, scroll)
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // All source outcomes use the real command, private audit, and cold replay.
+    fn v6_enchant_outcomes_pay_once_draw_once_and_cold_replay() {
+        use crate::domain::zone::phase4_projection::{
+            ItemEnchantOutcome as O, ItemOperation, ItemResultDetail,
+        };
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        for (template, slot, enchant, chance, success, expected, refund) in [
+            (951, EquipSlot::Rhand, 4, 70_000, true, O::Success, 0),
+            (951, EquipSlot::Rhand, 4, 70_000, false, O::Destroyed, 577),
+            (22227, EquipSlot::Rhand, 4, 70_000, false, O::SafeFailed, 0),
+            (6573, EquipSlot::Rhand, 4, 70_000, false, O::BlessedReset, 0),
+            (22010, EquipSlot::Chest, 20, 10_000, true, O::SuccessNoIncrement, 0),
+            (956, EquipSlot::Chest, 0, 100_000, true, O::Success, 0),
+            (956, EquipSlot::Chest, 20, 0, false, O::Destroyed, 724),
+        ] {
+            let (mut zone, owner, target, scroll) = enchant_fixture(template, slot, enchant);
+            // Select a deterministic fixture stream before admission; production never retries a draw.
+            let raw = loop {
+                let raw = zone.rng.clone().next_u32();
+                if (raw % 100_000 < chance) == success {
+                    break raw;
+                }
+                zone.rng.next_u32();
+            };
+            let cursor = zone.rng.get_word_pos();
+            let original = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
+            let mut cold = ZoneState::from_snapshot_with_items(
+                zone.snapshot(),
+                Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+            )
+            .unwrap();
+            let intent = item_intent(
+                &zone,
+                owner.entity,
+                30,
+                K::Enchant {
+                    target,
+                    scroll,
+                    support: None,
+                },
+            );
+            let draft = zone.draft(
+                (1..=2)
+                    .map(|seq| {
+                        ZoneInput::session(
+                            owner.entity,
+                            SessionGeneration(1),
+                            seq,
+                            ZoneCommand::Item(Box::new(intent.clone())),
+                        )
+                    })
+                    .collect(),
+            );
+            let applied = zone.run_tick(draft.clone()).unwrap();
+            assert!(
+                applied.dispositions.is_empty(),
+                "scroll {template}: {:?}",
+                applied.dispositions
+            );
+            assert_eq!(applied, cold.run_tick(draft).unwrap());
+            assert_eq!(zone.rng.get_word_pos(), cursor + 1);
+            let projection = applied
+                .events
+                .iter()
+                .find_map(|event| {
+                    if let ZoneEvent::ItemCheckpoint(p) = event {
+                        Some(p)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap();
+            assert_eq!(projection.receipts.len(), 1);
+            assert_eq!(projection.enchant_attempts.len(), 1);
+            let attempt = &projection.enchant_attempts[0];
+            assert_eq!(
+                (attempt.raw_draw, attempt.draw, attempt.chance_1e5, attempt.outcome),
+                (raw, raw % 100_000, chance, expected)
+            );
+            assert_eq!(attempt.before, original.inventory[&target]);
+            let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+            assert_eq!(player.inventory[&scroll].count, 2);
+            assert_eq!(player.inventory_revision, original.inventory_revision + 1);
+            assert_eq!(attempt.after.as_ref(), player.inventory.get(&target));
+            if matches!(expected, O::SafeFailed | O::SuccessNoIncrement) {
+                assert_eq!(player.inventory[&target], original.inventory[&target]);
+            }
+            if matches!(expected, O::BlessedReset | O::Destroyed) {
+                assert!(!player.paperdoll.contains_key(&slot));
+            }
+            if expected == O::Success {
+                assert_eq!(player.inventory[&target].enchant, enchant + 1);
+            }
+            if expected == O::BlessedReset {
+                assert_eq!(player.inventory[&target].enchant, 0);
+            }
+            let ItemResultDetail::Enchant { refunds, .. } = &projection.receipts[0].result.detail
+            else {
+                unreachable!()
+            };
+            assert_eq!(refunds.iter().map(|r| r.count).sum::<u64>(), refund);
+            let consume = projection
+                .ledger
+                .iter()
+                .filter(|row| row.operation == ItemOperation::Consume)
+                .collect::<Vec<_>>();
+            assert_eq!(consume.len(), 1);
+            assert_eq!(
+                (consume[0].instance, consume[0].count_delta, consume[0].causes.len()),
+                (scroll, -1, 1)
+            );
+            assert_eq!(
+                applied
+                    .events
+                    .iter()
+                    .filter(|event| matches!(event, ZoneEvent::ItemResult(_)))
+                    .count(),
+                2
+            );
+            let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+                zone.seed.zone,
+                &applied,
+            );
+            assert_eq!(
+                crate::application::replay_log::AppliedTickRecord::decode(&record.encode())
+                    .unwrap(),
+                record
+            );
+            let restored = ZoneState::from_snapshot_with_items(
+                zone.snapshot(),
+                Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+            )
+            .unwrap();
+            assert_eq!(zone.snapshot(), restored.snapshot());
+        }
+    }
+
+    #[test]
+    fn v6_enchant_captures_each_attempt_before_later_destruction_and_aggregates_payments() {
+        use crate::domain::zone::phase4_projection::{
+            ItemEnchantOutcome as O, ItemOperation as Op,
+        };
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (mut zone, owner, target, scroll) = enchant_fixture(956, EquipSlot::Chest, 0);
+        let cursor = zone.rng.get_word_pos();
+        let draft = zone.draft(
+            [
+                K::Enchant {
+                    target,
+                    scroll,
+                    support: None,
+                },
+                K::Enchant {
+                    target,
+                    scroll,
+                    support: None,
+                },
+                K::Destroy {
+                    instance: target,
+                    count: 1,
+                },
+            ]
+            .into_iter()
+            .enumerate()
+            .map(|(index, kind)| {
+                ZoneInput::session(
+                    owner.entity,
+                    SessionGeneration(1),
+                    u32::try_from(index + 1).unwrap(),
+                    ZoneCommand::Item(Box::new(item_intent(
+                        &zone,
+                        owner.entity,
+                        u128::try_from(index + 1).unwrap(),
+                        kind,
+                    ))),
+                )
+            })
+            .collect(),
+        );
+        let applied = zone.run_tick(draft).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(zone.rng.get_word_pos(), cursor + 2);
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|event| {
+                if let ZoneEvent::ItemCheckpoint(p) = event {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(projection.receipts.len(), 3);
+        assert_eq!(projection.enchant_attempts.len(), 2);
+        assert!(!projection
+            .checkpoint
+            .instances
+            .iter()
+            .any(|item| item.id == target));
+        for (index, attempt) in projection.enchant_attempts.iter().enumerate() {
+            assert_eq!(attempt.outcome, O::Success);
+            assert_eq!(attempt.old_enchant, u32::try_from(index).unwrap());
+            assert_eq!(attempt.after.as_ref().unwrap().enchant, u32::try_from(index + 1).unwrap());
+        }
+        let consume = projection
+            .ledger
+            .iter()
+            .filter(|row| row.operation == Op::Consume)
+            .collect::<Vec<_>>();
+        assert_eq!(consume.len(), 1);
+        assert_eq!((consume[0].count_delta, consume[0].causes.len()), (-2, 2));
+        assert_eq!(consume[0].before.as_ref().unwrap().count, 3);
+        assert_eq!(consume[0].after.as_ref().unwrap().count, 1);
+    }
+
+    #[test]
+    fn v6_enchant_refuses_invalid_inputs_and_unpayable_refunds_without_draws() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K, ItemInstanceId};
+        for scenario in 0..4 {
+            let (mut zone, owner, target, scroll) = enchant_fixture(
+                if scenario == 0 {
+                    955
+                } else if scenario == 1 {
+                    22227
+                } else {
+                    951
+                },
+                EquipSlot::Rhand,
+                if scenario == 1 { 15 } else { 4 },
+            );
+            if scenario == 3 {
+                // Scroll remains a stack and destroying a held target frees one slot; weight alone blocks refund.
+                let player = zone
+                    .phase4
+                    .as_mut()
+                    .unwrap()
+                    .canonical
+                    .players
+                    .get_mut(&owner.entity)
+                    .unwrap();
+                player.max_load = -1;
+            }
+            let original = zone.phase4.as_ref().unwrap().canonical.clone();
+            let phase3 = zone.phase3.as_ref().unwrap().canonical.clone();
+            let cursor = zone.rng.get_word_pos();
+            let intent = item_intent(
+                &zone,
+                owner.entity,
+                40,
+                K::Enchant {
+                    target,
+                    scroll,
+                    support: (scenario == 2).then(|| ItemInstanceId::new(999).unwrap()),
+                },
+            );
+            let mut events = Vec::new();
+            let result = zone.item_command_v6(Tick(20), &intent, &mut events, &mut BTreeMap::new());
+            assert!(result.is_err(), "scenario {scenario}");
+            assert!(events.is_empty());
+            assert_eq!(zone.rng.get_word_pos(), cursor);
+            assert_eq!(zone.phase4.as_ref().unwrap().canonical, original);
+            assert_eq!(zone.phase3.as_ref().unwrap().canonical, phase3);
+        }
+    }
 }
