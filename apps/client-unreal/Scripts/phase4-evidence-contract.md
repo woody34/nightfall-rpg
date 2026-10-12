@@ -35,10 +35,18 @@ JSONL contract (schema version 1 of this sidecar):
   draw at callsite `enchant`, including guaranteed success (GAME@abfde049
   EnchantScroll.java:149-155). Its residue must equal the outcome input.
 - `item_delta`: `operation,instance,before,after,count_delta,operation_ordinal,resolution_id`,
-  plus `receipt_refs` for `operation=consume`, otherwise `receipt_ref`.
-  Consume is one aggregate row per instance per tick at ordinal0; `receipt_refs`
-  is an ordered list of ≥1 nonempty receipt references, in contribution order
-  (D57). Other rows have a single `receipt_ref` (nullable for receipt-free facts);
+  plus `receipt_refs,causes` for `operation=consume`, otherwise `receipt_ref`.
+  Consume is one aggregate row per instance per tick at ordinal0. Under D62,
+  `causes` is a nonempty ordered list of `{cause,count_delta}` contributions.
+  `cause` is `auto_shot:<attack resolution_id>`, `arrow:<attack resolution_id>`,
+  `item_cast:<cast_id>`, or `receipt:<operation>:<key>`; every identity component
+  is nonempty. Per-cause `count_delta` is a strictly negative signed-bigint integer;
+  the aggregate's net `count_delta` equals their sum and the endpoint count change.
+  `receipt_refs` is exactly the ordered projection of receipt causes, possibly
+  empty: it is nonempty iff at least one cause is a client receipt. Automatic
+  consumption has no fabricated receipt. System and client contributions may
+  interleave within a tick in cause order (D62 amends D57). Other rows have a
+  single `receipt_ref` (nullable for receipt-free facts);
   Exchange rows require the single nonempty Exchange receipt (D52/D57), including
   constituent rows whose operation is `exchange`. The old `receipt` field refuses.
   `before/after` are null or the complete canonical ItemInstance fields from
@@ -93,27 +101,35 @@ E2 must implement these correlation additions before producer verification.
 Consume correlation uses `(entity,incarnation,tick,instance)`, rather than one
 resolution ID per debit. For each scroll/support stack, collect contributing
 `enchant_outcome.operation.receipt_ref` values in fact sequence order. The single
-ordinal0 aggregate carries the first contributor's `resolution_id` and exactly
-that ordered `receipt_refs` list. Its canonical before-state equals the first
-bound scroll/support before-state; later bindings retain the same instance fields
-and reflect each preceding one-item debit. Receipt uniqueness is checked across
-all enchant outcomes in the owner/incarnation/tick scope before grouping by stack.
-Canonical contribution revisions never decrease; later bindings equal the tick's
-retained revision step, and no binding may exceed the aggregate's post-revision.
-Equal revisions are permitted. Exhausted stacks have no invented post-state;
-use the same verified owner step for every contribution, including exhausted
-stacks. First bindings agree with the aggregate's initial canonical state; later
-bindings account for ordered one-item debits and use the new owner revision.
-The aggregate's `count_delta` is minus the number of contributions; its after-state
-is the resulting stack or null when exhausted. Two same-tick resolutions may thus
-spend one shared stack via one `count_delta=-2` row with
-`receipt_refs=["receipt:1","receipt:2"]`. Missing, duplicated or reordered
-contributions, repaired deletion, and incorrect combined totals refuse.
+ordinal0 aggregate's receipt causes must include each enchant contribution exactly
+once, in that same order, with `count_delta=-1`. A receipt in the enchant operation
+scope without a corresponding outcome refuses. Other client operation scopes and
+system causes may interleave; their deltas also contribute to the running count.
+Each bound scroll/support before-state must equal the aggregate's canonical initial
+state after ALL preceding causes, including automatic costs. Missing, duplicated
+or reordered enchant contributions and incorrect combined totals refuse.
 
-D55–D57 revise this same schema-version1 sidecar for the accepted producer:
+The aggregate carries the first contributor's `resolution_id`: the bound enchant
+resolution for a first enchant receipt, or the system cause's attack resolution/cast
+ID for a first automatic cause. Its after-state is the resulting stack or null when
+exhausted. Receipt uniqueness is checked across all enchant outcomes in the
+owner/incarnation/tick scope before grouping by stack. Canonical contribution
+revisions never decrease; later bindings equal the tick's retained revision step,
+and no binding may exceed it. Equal revisions are permitted. Exhausted stacks
+have no invented post-state; use the verified owner step for every contribution.
+
+For example, two enchant debits can share a stack with an intervening item-cast cost:
+`causes=[{"cause":"receipt:enchant:key1","count_delta":-1},
+{"cause":"item_cast:cast1","count_delta":-2},
+{"cause":"receipt:enchant:key2","count_delta":-1}]`,
+`receipt_refs=["receipt:enchant:key1","receipt:enchant:key2"]`, `count_delta=-4`.
+An automatic-only shot aggregate instead has
+`causes=[{"cause":"auto_shot:attack1","count_delta":-1}]`, `receipt_refs=[]`.
+
+D55–D57 and D62 revise this same schema-version1 sidecar for the accepted producer:
 same-tick enchant/consume/refund rows may share revisions, offline facts must
 emit the explicit top-level origin, and Consume aggregates emit ordered
-`receipt_refs` while Exchange rows emit `receipt_ref`. Positive controls and
+`receipt_refs` and `causes` while Exchange rows emit `receipt_ref`. Positive controls and
 repaired-deletion/mutation probes cover multiple enchant deltas on one instance,
 revision/ordinal ordering, offline incarnation0 owner binding and two-receipt
 Consume aggregates. These checks do not attest a live producer.

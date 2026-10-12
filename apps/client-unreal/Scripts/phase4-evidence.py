@@ -522,11 +522,24 @@ def validate(rows,recording,rules_hash):
             if not isinstance(data['callsite'],str) or not data['callsite']:raise ValueError('RNG callsite required')
         elif row['kind']=='item_delta':
             receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
-            if set(data)!= {'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}:raise ValueError('unknown/missing ledger fields')
+            fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}
+            if receipt_field=='receipt_refs':fields.add('causes')
+            if set(data)!=fields:raise ValueError('unknown/missing ledger fields')
             if data['operation'] not in {'grant','starter','backfill','equip','unequip','consume','enchant','destroy','crystallize','refine','cancel_refine','exchange','use'}:raise ValueError('unknown ledger operation')
             refs=data[receipt_field]
             if receipt_field=='receipt_refs':
-                if not isinstance(refs,list) or not refs or any(not isinstance(ref,str) or not ref for ref in refs):raise ValueError('ordered nonempty consume receipt_refs required')
+                if not isinstance(refs,list) or any(not isinstance(ref,str) or not ref for ref in refs):raise ValueError('ordered consume receipt_refs required')
+                causes=data['causes']
+                if not isinstance(causes,list) or not causes:raise ValueError('ordered nonempty consume causes required')
+                for cause in causes:
+                    if not isinstance(cause,dict) or set(cause)!={'cause','count_delta'}:raise ValueError('complete consume cause required')
+                    if not isinstance(cause['cause'],str) or not re.fullmatch(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+',cause['cause']):raise ValueError('unknown/malformed consume cause')
+                    delta=cause['count_delta']
+                    if type(delta) is not int or not -(2**63)<delta<0:raise ValueError('negative signed-bigint consume cause delta required')
+                same(refs,[c['cause'] for c in causes if c['cause'].startswith('receipt:')])
+                same(data['count_delta'],sum(c['count_delta'] for c in causes))
+                first=causes[0]['cause']
+                if not first.startswith('receipt:'):same(data['resolution_id'],first.split(':',1)[1])
             elif refs is not None and (not isinstance(refs,str) or not refs) or data['operation']=='exchange' and refs is None:
                 raise ValueError('single ledger receipt_ref required')
             instance=integer(data['instance'],1)
@@ -691,25 +704,36 @@ def enchant_evidence(row, rows, steps=None,targets=None):
                     and r['data']['operation']=='consume' and r['data']['instance']==spent['id']]
         if len(aggregates)!=1:raise ValueError('missing/duplicate enchant consume row')
         aggregate=aggregates[0]
-        same(aggregate['resolution_id'],contributions[0][0])
-        same(aggregate['receipt_refs'],receipts)
-        first=contributions[0][2]
-        same(aggregate['before'],first)
-        tick_revision=tick_step
+        by_receipt={receipt:(resolution,before) for resolution,receipt,before in contributions}
+        receipt_operations={receipt.split(':',2)[1] for receipt in by_receipt}
+        causes=aggregate['causes']
+        matched=[c['cause'] for c in causes if c['cause'] in by_receipt]
+        same(matched,receipts)
+        for cause in causes:
+            ref=cause['cause']
+            if ref.startswith('receipt:') and ref.split(':',2)[1] in receipt_operations and ref not in by_receipt:
+                raise ValueError('missing enchant consume contribution')
+        first=aggregate['before']
+        if first is None:raise ValueError('missing enchant consume initial instance')
         if first['revision'] not in (previous_step,tick_step):raise ValueError('enchant contribution differs from owner revision step')
-        previous_revision=first['revision']
-        for index,(_,_,before) in enumerate(contributions):
-            same({k:v for k,v in before.items() if k!='revision'},
-                 {k:v for k,v in (first|{'count':first['count']-index}).items() if k!='revision'})
-            revision=before['revision']
-            if revision<previous_revision or tick_revision is not None and revision>tick_revision:
-                raise ValueError('enchant contribution revision regressed')
-            if index:
-                same(revision,tick_revision)
-            previous_revision=revision
-        same(aggregate['count_delta'],-len(contributions))
-        remaining=first['count']-len(contributions)
-        if remaining<0:raise ValueError('insufficient enchant consume stack')
+        remaining=first['count'];previous_revision=first['revision']
+        for index,cause in enumerate(causes):
+            ref=cause['cause']
+            if ref in by_receipt:
+                resolution,before=by_receipt[ref]
+                if index==0:same(aggregate['resolution_id'],resolution)
+                same(cause['count_delta'],-1)
+                validate_instance(before)
+                same({k:v for k,v in before.items() if k!='revision'},
+                     {k:v for k,v in (first|{'count':remaining}).items() if k!='revision'})
+                revision=before['revision']
+                if revision<previous_revision or revision>tick_step:raise ValueError('enchant contribution revision regressed')
+                if index:same(revision,tick_step)
+                previous_revision=revision
+            elif index==0 and not ref.startswith('receipt:'):
+                same(aggregate['resolution_id'],ref.split(':',1)[1])
+            remaining+=cause['count_delta']
+            if remaining<0:raise ValueError('insufficient enchant consume stack')
         if remaining==0:same(aggregate['after'],None)
         else:
             after=aggregate['after']

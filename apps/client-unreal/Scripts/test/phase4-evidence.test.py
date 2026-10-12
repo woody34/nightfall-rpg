@@ -51,21 +51,21 @@ class Evidence(unittest.TestCase):
             data['resolution_id']='enchant:1'
             rows.append(dict(kind=kind,entity=entity,incarnation=1,tick=0,sequence=len(rows)-1,data=data))
         append('item_formula',dict(formula='enchant_outcome',inputs=inputs,actual=result,baseline=False,
-               operation=dict(target_before=target,scroll_before=scroll,support_before=support_item,receipt_ref='receipt:1')))
+               operation=dict(target_before=target,scroll_before=scroll,support_before=support_item,receipt_ref='receipt:enchant:1')))
         chance_inputs={k:inputs[k] for k in ('base','bonus','support')}
         append('item_formula',dict(formula='enchant_chance',inputs=chance_inputs,actual=gate.oracle.enchant_chance(**chance_inputs),baseline=False))
         append('item_rng',dict(callsite='enchant',word_before=0,word_after=1,bound=100000,value=residue))
         for spent in (scroll,support_item):
-            if spent:append('item_delta',dict(operation='consume',instance=spent['id'],before=spent,after=None,count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:1']))
+            if spent:append('item_delta',dict(operation='consume',instance=spent['id'],before=spent,after=None,count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:enchant:1'],causes=[dict(cause='receipt:enchant:1',count_delta=-1)]))
         if result['destroyed'] or result['enchant']!=enchant:
             after=None if result['destroyed'] else target|dict(enchant=result['enchant'],revision=1)
-            append('item_delta',dict(operation='destroy' if result['destroyed'] else 'enchant',instance=target_id,before=target,after=after,count_delta=-1 if after is None else 0,operation_ordinal=0,receipt_ref='receipt:1'))
+            append('item_delta',dict(operation='destroy' if result['destroyed'] else 'enchant',instance=target_id,before=target,after=after,count_delta=-1 if after is None else 0,operation_ordinal=0,receipt_ref='receipt:enchant:1'))
         if result['destroyed']:
             definition=gate.item_tables()[71];grade=gate.source().grades[definition['grade']]
             refund_inputs=dict(base=definition['crystal_count'],bonus=grade['weapon_bonus'],enchant=enchant,weapon=True,crystallizable=definition['flags']['is_crystallizable'],crystal_id=grade['crystal_id'])
             refund=gate.oracle.failure_refund(**refund_inputs)
             append('item_formula',dict(formula='failure_refund',inputs=refund_inputs,actual=refund,baseline=False))
-            if refund:append('item_delta',dict(operation='grant',instance=10,before=None,after=item(10,refund,grade['crystal_id'])|{'revision':1},count_delta=refund,operation_ordinal=0,receipt_ref='receipt:1'))
+            if refund:append('item_delta',dict(operation='grant',instance=10,before=None,after=item(10,refund,grade['crystal_id'])|{'revision':1},count_delta=refund,operation_ordinal=0,receipt_ref='receipt:enchant:1'))
         rows.append(dict(kind='complete',facts=len(rows)-1,ticks=1,last_tick=0))
         return rows
 
@@ -74,13 +74,15 @@ class Evidence(unittest.TestCase):
         for index in range(2):
             attempt=self.enchant_rows(enchant=index,scroll_id=20+index)
             attempt[1]['data']['operation']['target_before']['revision']=min(index,1)
-            attempt[1]['data']['operation']['receipt_ref']=f'receipt:{index+1}'
+            attempt[1]['data']['operation']['receipt_ref']=f'receipt:enchant:{index+1}'
             for row in attempt[1:-1]:
                 row['data']['resolution_id']=f'enchant:{index+1}'
                 if row['kind']=='item_rng':row['data'].update(word_before=index,word_after=index+1)
                 if row['kind']=='item_delta':
-                    if row['data']['operation']=='consume':row['data']['receipt_refs']=[f'receipt:{index+1}']
-                    else:row['data']['receipt_ref']=f'receipt:{index+1}'
+                    if row['data']['operation']=='consume':
+                        row['data']['receipt_refs']=[f'receipt:enchant:{index+1}']
+                        row['data']['causes']=[dict(cause=f'receipt:enchant:{index+1}',count_delta=-1)]
+                    else:row['data']['receipt_ref']=f'receipt:enchant:{index+1}'
                     if row['data']['instance']==8:row['data']['operation_ordinal']=index
                 rows.append(row)
         rows.append(dict(kind='complete',facts=0,ticks=1,last_tick=0))
@@ -106,7 +108,8 @@ class Evidence(unittest.TestCase):
             rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
                 data=dict(operation='consume',instance=before['id'],before=before,
                           after=before|{'count':count-2,'revision':1} if count>2 else None,
-                          count_delta=-2,operation_ordinal=0,resolution_id='enchant:1',receipt_refs=['receipt:1','receipt:2'])))
+                          count_delta=-2,operation_ordinal=0,resolution_id='enchant:1',receipt_refs=['receipt:enchant:1','receipt:enchant:2'],
+                          causes=[dict(cause=ref,count_delta=-1) for ref in ('receipt:enchant:1','receipt:enchant:2')])))
         return self.repair(rows)
 
     def test_shared_scroll_stack_consumes_ordered_resolution_receipts(self):
@@ -119,19 +122,18 @@ class Evidence(unittest.TestCase):
 
     def test_shared_scroll_stack_rejects_contribution_order_and_total_mutations(self):
         rows=self.shared_stack_enchants()
-        for receipts in (['receipt:1'],['receipt:2'],['receipt:2','receipt:1'],['receipt:1','receipt:1'],['receipt:1','receipt:2','receipt:3']):
+        for receipts in (['receipt:enchant:1'],['receipt:enchant:2'],['receipt:enchant:2','receipt:enchant:1'],['receipt:enchant:1','receipt:enchant:1'],['receipt:enchant:1','receipt:enchant:2','receipt:enchant:3']):
             bad=copy.deepcopy(rows)
             next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['receipt_refs']=receipts
-            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],receipts)
+            self.assert_rejected(bad)
         for total in (1,3):
             bad=copy.deepcopy(rows)
             aggregate=next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')
             if total==1:aggregate['after']=aggregate['before']|{'count':1,'revision':1}
             else:aggregate['before']=aggregate['before']|{'count':3}
             aggregate['count_delta']=-total
-            gate.validate(bad,self.recording,HASH)
-            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],total)
-        for receipt in (None,'',[],{},False,'receipt:1','unrelated'):
+            self.assert_rejected(bad)
+        for receipt in (None,'',[],{},False,'receipt:enchant:1','unrelated'):
             bad=copy.deepcopy(rows)
             [r for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'][-1]['data']['operation']['receipt_ref']=receipt
             self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],receipt)
@@ -185,9 +187,10 @@ class Evidence(unittest.TestCase):
         bad=copy.deepcopy(rows)
         for row in bad[1:-1]:
             data=row['data']
-            if row['kind']=='item_formula' and data['formula']=='enchant_outcome':data['operation']['receipt_ref']='receipt:1'
+            if row['kind']=='item_formula' and data['formula']=='enchant_outcome':data['operation']['receipt_ref']='receipt:enchant:1'
             elif row['kind']=='item_delta':
-                data['receipt_refs' if data['operation']=='consume' else 'receipt_ref']=['receipt:1'] if data['operation']=='consume' else 'receipt:1'
+                data['receipt_refs' if data['operation']=='consume' else 'receipt_ref']=['receipt:enchant:1'] if data['operation']=='consume' else 'receipt:enchant:1'
+                if data['operation']=='consume':data['causes']=[dict(cause='receipt:enchant:1',count_delta=-1)]
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'])
 
     def test_shared_scroll_and_support_bindings_preserve_tick_revision(self):
@@ -210,19 +213,29 @@ class Evidence(unittest.TestCase):
     def generated_enchants(self,rng):
         ticks=rng.randint(2,3);stack_ids=rng.sample(range(20,40),rng.randint(1,3))
         plans=[[rng.choice(stack_ids) for _ in range(rng.randint(3,4))] for _ in range(ticks)]
+        automatic_counts=[[rng.randint(0,2) for _ in plan] for plan in plans]
         support=rng.choice((False,True));initial=rng.randint(0,20)
-        counts={identity:sum(plan.count(identity) for plan in plans)+rng.randint(0,3) for identity in stack_ids}
+        counts={identity:sum(plan.count(identity) for plan in plans)+rng.randint(0,3)+
+                sum(cost for plan,costs in zip(plans,automatic_counts) for spent,cost in zip(plan,costs) if spent==identity)
+                for identity in stack_ids}
         if support:counts[9]=sum(map(len,plans))+rng.randint(0,3)
         revisions={identity:initial for identity in counts}
         incarnation=rng.randint(1,5);start=rng.randint(0,30);cursor=0;levels={8:0,10:3}
         rows=[copy.deepcopy(self.rows[0])]
         baseline=[item(identity,count,12363 if identity==9 else 22227)|{'revision':initial} for identity,count in counts.items() if count]
         baseline.extend(item(identity,1,71)|{'revision':initial,'enchant':level} for identity,level in levels.items())
+        baseline.append(item(50,ticks*3+1,146)|{'revision':initial})
         rows.append(dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=start,sequence=0,
                          data=dict(inventory_revision=initial,instances=baseline,paperdoll={},auto_shots=[])))
         for tick,plan in enumerate(plans):
             revisions={identity:initial+tick for identity in counts}
             contributions={};ordinals={identity:rng.randint(0,4) for identity in levels};changed=set()
+            def automatic(identity,amount):
+                if not amount:return
+                resolution=f'cast:{cursor}:cost'
+                before=item(identity,counts[identity],22227)|{'revision':revisions[identity]}
+                contributions.setdefault(identity,[]).append((resolution,'item_cast:'+resolution,before,-amount))
+                counts[identity]-=amount;revisions[identity]=initial+tick+1
             for index,scroll_id in enumerate(plan):
                 target_id=8 if index in (0,2) else 10 if index==1 else rng.choice((8,10))
                 level=levels[target_id];target=item(target_id,1,71)|{'enchant':level}
@@ -231,16 +244,19 @@ class Evidence(unittest.TestCase):
                 attempt=self.enchant_rows(base=base,residue=99999 if no_change else 0,safe=True,
                                           enchant=level,target_id=target_id,scroll_id=scroll_id,support=support)
                 resolution=f'enchant:{rng.getrandbits(64):016x}:{cursor}'
-                receipt=f'receipt:{rng.getrandbits(64):016x}:{cursor}'
+                receipt=f'receipt:enchant:{rng.getrandbits(64):016x}:{cursor}'
                 operation=attempt[1]['data']['operation']
                 operation['receipt_ref']=receipt
                 operation['target_before']['revision']=initial+tick+int(target_id in changed)
+                auto_before=rng.choice((False,True));cost=automatic_counts[tick][index]
+                if auto_before:automatic(scroll_id,cost)
                 for key in ('scroll_before','support_before'):
                     before=operation[key]
                     if before is None:continue
                     identity=before['id'];before.update(count=counts[identity],revision=revisions[identity])
-                    contributions.setdefault(identity,[]).append((resolution,receipt,copy.deepcopy(before)))
+                    contributions.setdefault(identity,[]).append((resolution,receipt,copy.deepcopy(before),-1))
                     counts[identity]-=1;revisions[identity]=initial+tick+1
+                if not auto_before:automatic(scroll_id,cost)
                 for row in attempt[1:-1]:
                     data=row['data']
                     if row['kind']=='item_delta' and data['operation']=='consume':continue
@@ -254,12 +270,18 @@ class Evidence(unittest.TestCase):
                 ordinals[target_id]+=rng.randint(1,3);cursor+=1
                 if not no_change:changed.add(target_id);levels[target_id]+=1
             for identity,parts in contributions.items():
-                resolution,_,before=parts[0]
+                resolution,_,before,_=parts[0]
                 rows.append(dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=start+tick,sequence=0,
                     data=dict(operation='consume',instance=identity,before=copy.deepcopy(before),
                               after=before|{'count':counts[identity],'revision':initial+tick+1} if counts[identity] else None,
-                              count_delta=-len(parts),operation_ordinal=0,resolution_id=resolution,
-                              receipt_refs=[receipt for _,receipt,_ in parts])))
+                              count_delta=sum(delta for _,_,_,delta in parts),operation_ordinal=0,resolution_id=resolution,
+                              receipt_refs=[ref for _,ref,_,_ in parts if ref.startswith('receipt:')],
+                              causes=[dict(cause=ref,count_delta=delta) for _,ref,_,delta in parts])))
+            shot=item(50,(ticks-tick)*3+1,146)|{'revision':initial+tick}
+            rows.append(dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=start+tick,sequence=0,
+                data=dict(operation='consume',instance=50,before=shot,after=shot|{'count':shot['count']-3,'revision':initial+tick+1},
+                          count_delta=-3,operation_ordinal=0,resolution_id=f'attack:{tick}:0',receipt_refs=[],
+                          causes=[dict(cause=f'auto_shot:attack:{tick}:{index}',count_delta=-delta) for index,delta in enumerate((1,2))])))
         rows[0].update(snapshot_tick=start)
         rows[0]['watermark'].update(records=ticks,last_tick=start+ticks-1)
         rows.append(dict(kind='complete',facts=0,ticks=ticks,last_tick=start+ticks-1))
@@ -341,7 +363,8 @@ class Evidence(unittest.TestCase):
         mutations=('receipt reuse','swapped ordinals','cross-tick revision','wrong totals',
                    'missing contributions','duplicated aggregates','foreign-owner rows',
                    'per-instance revision drift','support/scroll endpoint mismatch','cross-owner contamination',
-                   'canonical count discontinuity','unchanged target revision','unchanged target missing','unchanged target id')
+                   'canonical count discontinuity','unchanged target revision','unchanged target missing','unchanged target id',
+                   'missing causes','orphan receipts','cause sum mismatch')
         def passes(rows):
             try:return all(gate.evaluate(rows,self.recording,entity,['enchant_outcome','enchant_chance'],HASH)['passed'] for entity in (OWNER,OTHER))
             except ValueError:return False
@@ -359,7 +382,10 @@ class Evidence(unittest.TestCase):
                         data=row['data']
                         if row['kind']=='item_formula' and data['formula']=='enchant_outcome' and data['operation']['receipt_ref']==old:data['operation']['receipt_ref']=new
                         elif row['kind']=='item_delta':
-                            if data['operation']=='consume':data['receipt_refs']=[new if ref==old else ref for ref in data['receipt_refs']]
+                            if data['operation']=='consume':
+                                data['receipt_refs']=[new if ref==old else ref for ref in data['receipt_refs']]
+                                for cause in data['causes']:
+                                    if cause['cause']==old:cause['cause']=new
                             elif data['receipt_ref']==old:data['receipt_ref']=new
                 elif mutation=='swapped ordinals':
                     a,b=next((a,b) for index,a in enumerate(targets) for b in targets[index+1:]
@@ -370,11 +396,11 @@ class Evidence(unittest.TestCase):
                     later['data']['after']['revision']=first['data']['after']['revision']
                 elif mutation=='wrong totals':rng.choice(aggregates)['data']['count_delta']-=1
                 elif mutation=='missing contributions':
-                    aggregate=next((r for r in aggregates if len(r['data']['receipt_refs'])>1),aggregates[0])
+                    aggregate=next(r for r in aggregates if r['data']['receipt_refs'])
                     aggregate['data']['receipt_refs']=aggregate['data']['receipt_refs'][:-1]
                 elif mutation=='duplicated aggregates':
                     aggregate=rng.choice(aggregates);bad.insert(bad.index(aggregate)+1,copy.deepcopy(aggregate));self.repair(bad)
-                elif mutation=='foreign-owner rows':rng.choice(aggregates)['entity']='01970000-0000-7000-8000-000000000042'
+                elif mutation=='foreign-owner rows':rng.choice([r for r in aggregates if r['data']['receipt_refs']])['entity']='01970000-0000-7000-8000-000000000042'
                 elif mutation=='per-instance revision drift':rng.choice(targets)['data']['after']['revision']+=10
                 elif mutation=='support/scroll endpoint mismatch':
                     aggregate=next(r for r in aggregates if r['data']['after'] is not None)
@@ -408,8 +434,13 @@ class Evidence(unittest.TestCase):
                     else:
                         baseline=next(r['data'] for r in bad if r['kind']=='item_baseline' and r['entity']==OWNER)
                         baseline['instances']=[s for s in baseline['instances'] if s['id']!=target['id']]
+                elif mutation in ('missing causes','orphan receipts','cause sum mismatch'):
+                    aggregate=rng.choice([r for r in aggregates if not r['data']['receipt_refs']])['data']
+                    if mutation=='missing causes':del aggregate['causes']
+                    elif mutation=='orphan receipts':aggregate['receipt_refs']=['receipt:use:orphan']
+                    else:aggregate['causes'][0]['count_delta']-=1
                 self.assertFalse(passes(bad),f'{mutation}, case {case}')
-        print('Aggregate property check: seed=0xE609; 2000 valid two-owner sets with no-change outcomes pass; 28000 corruptions reject',flush=True)
+        print('Aggregate property check: seed=0xE609; 2000 valid two-owner sets with no-change/system/mixed outcomes pass; 34000 corruptions reject',flush=True)
 
     def test_revisions_increase_across_ticks_with_ordinal_reset(self):
         rows=self.same_tick_enchants()
@@ -450,13 +481,15 @@ class Evidence(unittest.TestCase):
         for index in (2,3):
             attempt=self.enchant_rows(base=100 if index==2 else 70,enchant=index,scroll_id=20+index)
             attempt[1]['data']['operation']['target_before']['revision']=index-1
-            attempt[1]['data']['operation']['receipt_ref']=f'receipt:{index+1}'
+            attempt[1]['data']['operation']['receipt_ref']=f'receipt:enchant:{index+1}'
             for row in attempt[1:-1]:
                 row['tick']=1;row['data']['resolution_id']=f'enchant:{index+1}'
                 if row['kind']=='item_rng':row['data'].update(word_before=index,word_after=index+1)
                 if row['kind']=='item_delta':
-                    row['data']['receipt_refs' if row['data']['operation']=='consume' else 'receipt_ref']=[f'receipt:{index+1}'] if row['data']['operation']=='consume' else f'receipt:{index+1}'
-                    if row['data']['operation']=='consume':row['data']['before']['revision']=1
+                    row['data']['receipt_refs' if row['data']['operation']=='consume' else 'receipt_ref']=[f'receipt:enchant:{index+1}'] if row['data']['operation']=='consume' else f'receipt:enchant:{index+1}'
+                    if row['data']['operation']=='consume':
+                        row['data']['before']['revision']=1
+                        row['data']['causes']=[dict(cause=f'receipt:enchant:{index+1}',count_delta=-1)]
                 if row['kind']=='item_delta' and row['data']['instance']==8:
                     row['data']['after']['revision']=2;row['data']['operation_ordinal']=index-2
                 rows.insert(-1,row)
@@ -495,29 +528,83 @@ class Evidence(unittest.TestCase):
         rows=copy.deepcopy(self.rows)
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,
             data=dict(resolution_id=rows[1]['data']['resolution_id'],operation='consume',instance=7,
-                      before=item(7,3),after=item(7,1),count_delta=-2,operation_ordinal=0,receipt_refs=['receipt:2','receipt:1'])))
+                      before=item(7,3),after=item(7,1),count_delta=-2,operation_ordinal=0,receipt_refs=['receipt:enchant:2','receipt:enchant:1'],
+                      causes=[dict(cause=ref,count_delta=-1) for ref in ('receipt:enchant:2','receipt:enchant:1')])))
         self.repair(rows)
         phase=dict(name='consume-aggregate',formula='pole_damage',mutation=dict(operation='consume',template=17,slot=None))
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
-        self.assertEqual(rows[2]['data']['receipt_refs'],['receipt:2','receipt:1'])
+        self.assertEqual(rows[2]['data']['receipt_refs'],['receipt:enchant:2','receipt:enchant:1'])
         bad=copy.deepcopy(rows);del bad[2];self.repair(bad)
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
-        for value in ([],None,'receipt:1',{},[None],[''],[1],[False],[['receipt:1']]):
+        for value in ([],None,'receipt:enchant:1',{},[None],[''],[1],[False],[['receipt:enchant:1']]):
             bad=copy.deepcopy(rows);bad[2]['data']['receipt_refs']=value
             with self.assertRaises(ValueError,msg=value):gate.validate(bad,self.recording,HASH)
         for name in ('receipt','receipt_ref',None):
             bad=copy.deepcopy(rows);del bad[2]['data']['receipt_refs']
-            if name:bad[2]['data'][name]='receipt:1'
+            if name:bad[2]['data'][name]='receipt:enchant:1'
             with self.assertRaises(ValueError,msg=name):gate.validate(bad,self.recording,HASH)
         bad=copy.deepcopy(rows);bad.insert(-1,copy.deepcopy(bad[2]));bad[3]['data']['resolution_id']='other';self.repair(bad)
         with self.assertRaisesRegex(ValueError,'ordinal'):gate.validate(bad,self.recording,HASH)
-        rows[2]['data'].update(operation='exchange',receipt_ref='exchange:1');del rows[2]['data']['receipt_refs']
+        rows[2]['data'].update(operation='exchange',receipt_ref='exchange:1');del rows[2]['data']['receipt_refs'];del rows[2]['data']['causes']
         gate.validate(rows,self.recording,HASH)
         for value in (None,[],['exchange:1'],'',False):
             bad=copy.deepcopy(rows);bad[2]['data']['receipt_ref']=value
             with self.assertRaises(ValueError,msg=value):gate.validate(bad,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[2]['data']['receipt_refs']=['exchange:1']
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+
+    def test_system_only_and_mixed_consume_causes(self):
+        rows=copy.deepcopy(self.rows)
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(operation='consume',instance=50,before=item(50,5,146),after=item(50,2,146)|{'revision':1},
+                      count_delta=-3,operation_ordinal=0,resolution_id='attack:1',receipt_refs=[],
+                      causes=[dict(cause='auto_shot:attack:1',count_delta=-1),dict(cause='auto_shot:attack:2',count_delta=-2)])))
+        self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        for causes,refs in (
+            ([dict(cause='arrow:attack:1',count_delta=-3)],[]),
+            ([dict(cause='item_cast:cast:1',count_delta=-3)],[]),
+            ([dict(cause='auto_shot:attack:1',count_delta=-1),dict(cause='receipt:use:key',count_delta=-1),
+              dict(cause='item_cast:cast:1',count_delta=-1)],['receipt:use:key'])):
+            mixed=copy.deepcopy(rows);mixed[2]['data'].update(causes=causes,receipt_refs=refs)
+            mixed[2]['data']['resolution_id']=causes[0]['cause'].split(':',1)[1]
+            self.assertTrue(gate.evaluate(mixed,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        for causes in (None,[],{},['auto_shot:attack:1'],[{}],
+                       [dict(cause='unknown:1',count_delta=-3)],
+                       [dict(cause='auto_shot:',count_delta=-3)],
+                       [dict(cause='receipt:key',count_delta=-3)],
+                       [dict(cause='auto_shot:attack:1',count_delta=-2)]):
+            bad=copy.deepcopy(rows);bad[2]['data']['causes']=causes
+            self.assert_rejected(bad,['pole_damage'])
+        for value in (True,0,1,-2**63):
+            bad=copy.deepcopy(rows);bad[2]['data']['causes']=[dict(cause='auto_shot:attack:1',count_delta=value)]
+            self.assert_rejected(bad,['pole_damage'])
+        bad=copy.deepcopy(rows);del bad[2]['data']['causes'];self.assert_rejected(bad,['pole_damage'])
+        bad=copy.deepcopy(rows);bad[2]['data']['receipt_refs']=['receipt:use:key'];self.assert_rejected(bad,['pole_damage'])
+        bad=copy.deepcopy(rows);bad[2]['data']['causes']=[dict(cause='receipt:use:key',count_delta=-3)]
+        self.assert_rejected(bad,['pole_damage'])
+
+    def test_enchant_consume_causes_allow_interleaved_system_costs(self):
+        for first_system in (False,True):
+            rows=self.shared_stack_enchants(count=6)
+            outcomes=[r['data'] for r in rows if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome']
+            aggregate=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='consume')
+            causes=[dict(cause='receipt:enchant:1',count_delta=-1),dict(cause='item_cast:cast:middle',count_delta=-2),
+                    dict(cause='receipt:enchant:2',count_delta=-1),dict(cause='item_cast:cast:last',count_delta=-2)]
+            if first_system:
+                causes.insert(0,dict(cause='item_cast:cast:first',count_delta=-1));causes[-1]['count_delta']=-1
+                aggregate['resolution_id']='cast:first'
+                outcomes[0]['operation']['scroll_before']=aggregate['before']|{'count':5,'revision':1}
+            outcomes[1]['operation']['scroll_before'].update(count=2 if first_system else 3,revision=1)
+            aggregate.update(causes=causes,count_delta=-6,after=None)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'])
+            bad=copy.deepcopy(rows)
+            [r['data'] for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'][1]['operation']['scroll_before']['count']+=1
+            self.assert_rejected(bad)
+            bad=copy.deepcopy(rows)
+            data=next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')
+            data['causes'].reverse();data['receipt_refs'].reverse()
+            self.assert_rejected(bad)
 
     def test_enchant_requires_each_correlated_row_after_repaired_deletion(self):
         for rows in (self.enchant_rows(support=True),self.enchant_rows(base=70,residue=99999,enchant=3)):
@@ -990,7 +1077,7 @@ class Evidence(unittest.TestCase):
     def test_rng_and_ledger_conservation(self):
         rows=copy.deepcopy(self.rows)
         rows.insert(2,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='enchant:1',callsite='enchant',word_before=0,word_after=1,bound=100000,value=66670)))
-        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(resolution_id='enchant:1',operation='consume',instance=7,before=item(7,2),after=item(7,1),count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:1'])))
+        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(resolution_id='enchant:1',operation='consume',instance=7,before=item(7,2),after=item(7,1),count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:enchant:1'],causes=[dict(cause='receipt:enchant:1',count_delta=-1)])))
         rows[-1]['facts']=3;gate.validate(rows,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[3]['data']['count_delta']=0
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
