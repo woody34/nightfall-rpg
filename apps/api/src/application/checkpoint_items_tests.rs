@@ -114,6 +114,7 @@ struct Harness {
 impl Harness {
     async fn new() -> Self {
         let bundle = item_data::embedded_phase4_bundle().unwrap();
+        let rules = bundle.items.clone();
         let repo = Arc::new(
             InMemoryCharacterRepository::default()
                 .with_phase4_rules(bundle.items, bundle.skills)
@@ -121,6 +122,19 @@ impl Harness {
         );
         let (mut state, target, _) = ZoneState::item_checkpoint_fixture();
         state.run_tick(state.draft(Vec::new())).unwrap();
+        // Admission hydrates retained provenance from the birth ledger (D65); this fixture has
+        // no ledger, so give its retained items their explicit origin as admission would.
+        let mut seeded = state.snapshot();
+        let origin = crate::domain::zone::ItemCreationOrigin {
+            zone: seeded.seed.zone,
+            epoch: seeded.seed.epoch,
+        };
+        for player in seeded.phase4.as_mut().unwrap().players.values_mut() {
+            for item in player.inventory.values_mut() {
+                item.creation_origin.get_or_insert(origin);
+            }
+        }
+        let state = ZoneState::from_snapshot_with_items(seeded, Some(rules)).unwrap();
         let snapshot = state.snapshot();
         let audit = Arc::new(InMemorySessionAudit::default());
         let mut service =
