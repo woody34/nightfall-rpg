@@ -230,6 +230,9 @@ pub struct ItemMaterializationFact {
 #[serde(deny_unknown_fields)]
 #[allow(missing_docs)]
 pub struct Phase4Projection {
+    /// Every accepted attempt, including unchanged safe/bonus-only outcomes, in operation order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enchant_attempts: Vec<super::EnchantAttempt>,
     /// Complete final paused owner for direct offline settlement; absent for live owners.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub paused_core: Option<Box<super::ItemPausedCore>>,
@@ -308,6 +311,25 @@ impl Phase4Projection {
             .any(|id| !receipts.contains(&id))
         {
             return Err(ItemError("item ledger receipt is absent"));
+        }
+        let mut attempts = BTreeSet::new();
+        let mut previous_ordinal = 0;
+        for attempt in &self.enchant_attempts {
+            let receipt = self
+                .receipts
+                .iter()
+                .find(|r| r.reference() == attempt.receipt)
+                .ok_or(ItemError("enchant attempt receipt is absent"))?;
+            attempt.validate(receipt)?;
+            if attempt.operation_ordinal <= previous_ordinal || !attempts.insert(attempt.receipt) {
+                return Err(ItemError("duplicate or unordered enchant attempt"));
+            }
+            previous_ordinal = attempt.operation_ordinal;
+        }
+        if self.receipts.iter().any(|r| {
+            r.reference().operation == ItemOperation::Enchant && !attempts.contains(&r.reference())
+        }) {
+            return Err(ItemError("enchant receipt lacks its captured attempt"));
         }
         let mut pending = BTreeSet::new();
         for result in &self.materializations {
@@ -497,6 +519,7 @@ pub(crate) mod tests {
         let key = uuid::Uuid::from_u128(3);
         let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
         Phase4Projection {
+            enchant_attempts: Vec::new(),
             paused_core: None,
             tick: Tick(10),
             entity,
@@ -715,6 +738,135 @@ pub(crate) mod tests {
             .receipt
             .operation = ItemOperation::ToggleAutoShot;
         assert!(state.validate_structure(0).is_err());
+    }
+
+    fn attempted(outcome: ItemEnchantOutcome) -> Phase4Projection {
+        let mut state = projection();
+        let mut before = item(71);
+        before.enchant = 6;
+        let new_enchant = match outcome {
+            ItemEnchantOutcome::Success => 7,
+            ItemEnchantOutcome::SafeFailed | ItemEnchantOutcome::SuccessNoIncrement => 6,
+            ItemEnchantOutcome::BlessedReset | ItemEnchantOutcome::Destroyed => 0,
+        };
+        let mut after = before.clone();
+        after.enchant = new_enchant;
+        let receipt = state.receipts.first_mut().unwrap();
+        receipt.result.detail = ItemResultDetail::Enchant {
+            target: before.id,
+            old_enchant: 6,
+            new_enchant,
+            outcome,
+            refunds: Vec::new(),
+            announcement_tier: 0,
+        };
+        let success =
+            matches!(outcome, ItemEnchantOutcome::Success | ItemEnchantOutcome::SuccessNoIncrement);
+        state.enchant_attempts.push(super::super::EnchantAttempt {
+            operation_ordinal: 1,
+            receipt: receipt.reference(),
+            target: before.id,
+            template: before.template_id,
+            old_enchant: 6,
+            new_enchant,
+            outcome,
+            before,
+            after: (outcome != ItemEnchantOutcome::Destroyed).then_some(after),
+            scroll: ItemInstanceId::new(20).unwrap(),
+            scroll_template: 951,
+            chance_1e5: if success { 100_000 } else { 0 },
+            raw_draw: 199_999,
+            draw: 99_999,
+            cause: ItemAuditEvidence {
+                family: "enchant".into(),
+                fields: BTreeMap::new(),
+            },
+        });
+        state
+    }
+
+    #[test]
+    fn captured_enchant_attempt_survives_later_target_destruction() {
+        for outcome in [
+            ItemEnchantOutcome::Success,
+            ItemEnchantOutcome::SafeFailed,
+            ItemEnchantOutcome::BlessedReset,
+            ItemEnchantOutcome::Destroyed,
+            ItemEnchantOutcome::SuccessNoIncrement,
+        ] {
+            let mut state = attempted(outcome);
+            let attempt = state.enchant_attempts.first().unwrap().clone();
+            // Final inventory contains no target: audit still retains the exact attempt.
+            if let Some(after) = &attempt.after {
+                state.ledger.push(ItemDeltaPlan {
+                    operation: ItemOperation::Destroy,
+                    operation_ordinal: 2,
+                    instance: attempt.target,
+                    before: Some(after.clone()),
+                    after: None,
+                    count_delta: -1,
+                    receipt: None,
+                    causes: Vec::new(),
+                });
+            }
+            state.validate_structure(0).unwrap();
+            assert!(state.checkpoint.instances.is_empty());
+            let bytes = serde_json::to_vec(&state).unwrap();
+            assert_eq!(serde_json::from_slice::<Phase4Projection>(&bytes).unwrap(), state);
+            let event = super::super::ZoneEvent::ItemCheckpoint(Box::new(state));
+            let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+                super::super::ZoneId(1),
+                &super::super::AppliedTick {
+                    epoch: 1,
+                    tick: Tick(10),
+                    server_time_ms: 1000,
+                    commands: Vec::new(),
+                    dispositions: Vec::new(),
+                    events: vec![event],
+                    outputs: BTreeMap::new(),
+                    state_digest: [0; 32],
+                    digest_version: super::super::StateDigestVersion::BinaryV6,
+                },
+            );
+            assert_eq!(
+                crate::application::replay_log::AppliedTickRecord::decode(&record.encode())
+                    .unwrap(),
+                record
+            );
+        }
+    }
+
+    #[test]
+    fn enchant_attempt_requires_receipt_scalar_and_quantized_draw_identity() {
+        let state = attempted(ItemEnchantOutcome::SuccessNoIncrement);
+        for case in 0..10 {
+            let mut invalid = state.clone();
+            let attempt = invalid.enchant_attempts.first_mut().unwrap();
+            match case {
+                0 => attempt.draw = 100_000,
+                1 => attempt.chance_1e5 = 100_001,
+                2 => attempt.raw_draw = 0,
+                3 => attempt.after = None,
+                4 => attempt.before.template_id = 72,
+                5 => attempt.scroll = attempt.target,
+                6 => attempt.old_enchant = 5,
+                7 => attempt.receipt.key = uuid::Uuid::from_u128(99),
+                8 => attempt.cause.family.clear(),
+                _ => attempt.operation_ordinal = 0,
+            }
+            assert!(invalid.validate_structure(0).is_err(), "case {case}");
+        }
+        let mut absent = state.clone();
+        absent.enchant_attempts.clear();
+        assert!(absent.validate_structure(0).is_err());
+        let mut duplicate = state.clone();
+        duplicate
+            .enchant_attempts
+            .push(state.enchant_attempts.first().unwrap().clone());
+        assert!(duplicate.validate_structure(0).is_err());
+        let mut json = serde_json::to_value(state.enchant_attempts.first().unwrap()).unwrap();
+        *json.get_mut("draw").unwrap() = serde_json::from_str("0.5").unwrap();
+        assert!(serde_json::from_value::<super::super::EnchantAttempt>(json).is_err());
     }
 
     #[test]
