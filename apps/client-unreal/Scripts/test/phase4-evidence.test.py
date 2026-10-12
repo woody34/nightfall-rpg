@@ -239,6 +239,187 @@ class Evidence(unittest.TestCase):
             with self.assertRaises(ValueError):gate.formula('fist_spread',dict(level=14,residue=residue),{})
         gate.formula('pole_damage',dict(formula='100',primary=True),gate.oracle.rational(gate.oracle.pole_damage('100',primary=True)))
 
+    def formula_rows(self,name,inputs):
+        rows=copy.deepcopy(self.rows)
+        function=getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name,None)
+        try:actual=gate.oracle.rational(function(**gate.oracle.decode_rationals(inputs)))
+        except (TypeError,ValueError,KeyError,IndexError,ZeroDivisionError,AttributeError):actual=None
+        rows[1]['data'].update(formula=name,inputs=inputs,actual=actual)
+        return rows
+
+    def test_input_schema_completeness_matches_e1_registry_and_signatures(self):
+        import ast
+        import inspect
+        # Read E1's exposed registry independently; do not reuse the harness list.
+        tree=ast.parse(inspect.getsource(gate.oracle.verify_facts))
+        exposed=set()
+        for node in ast.walk(tree):
+            if isinstance(node,ast.List):
+                for entry in node.elts:
+                    if isinstance(entry,ast.Name):exposed.add(entry.id)
+                    elif isinstance(entry,ast.Attribute) and isinstance(entry.value,ast.Name) and entry.value.id=='behavior':
+                        exposed.add(entry.attr)
+        self.assertEqual(set(gate.INPUT_SCHEMAS),exposed|{'gear_stats','sa_exchange','grant_denied'})
+        self.assertEqual(set(gate.INPUT_SCHEMAS),gate.FORMULAS)
+        for name in exposed|{'gear_stats'}:
+            function=getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name,None)
+            with self.subTest(formula=name):
+                parameters=dict(inspect.signature(function).parameters);parameters.pop('src',None)
+                self.assertEqual(set(gate.INPUT_SCHEMAS[name]),set(parameters))
+                for key,param in parameters.items():
+                    if param.default is None:self.assertEqual(gate.INPUT_SCHEMAS[name][key][0],'nullable')
+                    elif type(param.default) is bool:self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.BOOL)
+
+    def test_signature_compatible_e1_vector_inputs_preserve_shapes(self):
+        import inspect
+        vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
+        controls=0;formulas=set()
+        for name,schema in gate.INPUT_SCHEMAS.items():
+            function=getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name,None)
+            if not function:continue
+            required={k for k,p in inspect.signature(function).parameters.items()
+                      if k!='src' and p.default is inspect.Parameter.empty}
+            for vector in vectors:
+                if not required<=set(vector['inputs']) or set(vector['inputs'])-set(schema):continue
+                inputs=copy.deepcopy(vector['inputs'])
+                # E1 expresses repeat as 0/1; the D46 flag is a JSON boolean.
+                if name=='resurrection_scroll':inputs['repeat']=bool(inputs['repeat'])
+                with self.subTest(formula=name,vector=vector['id']):gate.input_domains(name,inputs)
+                controls+=1;formulas.add(name)
+        self.assertGreaterEqual(controls,3202)
+        self.assertGreaterEqual(len(formulas),43)
+
+    def test_scalar_shape_mutations_on_perfect_block_branches(self):
+        # Recompute output: these oracle branches deliberately never read operands.
+        for name,inputs in [('physical_damage',dict(p_atk=10,defence=10,perfect=True)),
+                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True))]:
+            control=self.formula_rows(name,inputs)
+            self.assertTrue(gate.evaluate(control,self.recording,OWNER,[name],HASH)['passed'])
+            for key,kind in gate.INPUT_SCHEMAS[name].items():
+                if kind[0] not in ('exact-numeric','int','nonneg-int','u32'):continue
+                for value in ([],[1],None,{},True,1.0,'bad',2**63):
+                    with self.subTest(formula=name,parameter=key,value=value):
+                        bad=self.formula_rows(name,inputs|{key:value})
+                        result=gate.evaluate(bad,self.recording,OWNER,[name],HASH)
+                        self.assertFalse(result['passed'])
+                        errors=[error for row in result['gates'] for error in row['errors']]
+                        self.assertTrue(any('invalid formula input '+name+'.'+key in e for e in errors),errors)
+
+    def test_all_shapes_are_checked_before_numeric_bounds(self):
+        for p_atk in (2**63,{'numerator':2**63,'denominator':1}):
+            rows=self.formula_rows('physical_damage',dict(p_atk=p_atk,defence=10,perfect=[True]))
+            result=gate.evaluate(rows,self.recording,OWNER,['physical_damage'],HASH)
+            self.assertFalse(result['passed'])
+            errors=[e for r in result['gates'] for e in r['errors']]
+            self.assertTrue(any('physical_damage.perfect (bool)' in e for e in errors),errors)
+
+    def test_parameter_kinds_mutated_through_full_evaluate(self):
+        from unittest.mock import patch
+        cases=[
+            # kind, valid control, parameter, invalid shapes/types/bounds
+            ('pole_damage',dict(formula='499/10',percent=85,primary=False),'formula',
+             ([],[1],None,{},True,1.0,'bad',2**63,{'numerator':1,'denominator':0},
+              {'numerator':True,'denominator':1},{'numerator':1,'denominator':2**63})),
+            ('bow_reuse',dict(reuse_delay=100,attack_speed=300),'reuse_delay',
+             ([],[1],None,{},True,'1',-1,2**63)),
+            ('enchant_valid',dict(current=0,max_enchant=0),'current',
+             ([],[1],None,{},True,1.0,'0',-1,2**32)),
+            ('bow_damage',dict(formula=100,dx_milli=-12500,dy_milli=0),'dx_milli',
+             ([],[1],None,{},True,'0',-2**63-1,2**63)),
+            ('physical_damage',dict(p_atk=10,defence=10,perfect=True),'perfect',
+             ([],[True],None,{},0,1,'true')),
+            ('physical_damage',dict(p_atk=10,defence=10,perfect=True),'caller',
+             ([],['auto'],None,{},True,1,'bad')),
+            ('enchant_hp',dict(bonuses=[1,'3/2',{'numerator':2,'denominator':1}],enchant=0),'bonuses',
+             (None,1,'1',{},[None],[True],[1.0],['bad'],[[]],[-1],[2**63])),
+            ('shared_shot_bundle',dict(charges=['soul'],hits=[True,False]),'hits',
+             (None,True,1,{},[None],[1],['bad'],[[]])),
+            ('heal',dict(power=0,m_atk=0,recoverable_hp=None),'recoverable_hp',
+             ([],[1],{},True,'bad',-1,2**63)),
+            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=None),'is_pvp',
+             ([],[True],{},0,1,'bad')),
+            ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade=None,shot_grade='D'),
+             'weapon_grade',([],['D'],{},True,1,'bad')),
+            ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade='D',shot_grade='D',reduction=[]),
+             'reduction',(None,1,{},[1],[0,1,2],[None,1],[1,-1],[1,2**63],[101,1])),
+            ('dual_plan',dict(hits=[True,False],formulas=[10,'3/2'],second_valid=True,
+                             hit_residues=[800,801],hit_chance=800,spread_radius=6),'formulas',
+             (None,1,{},[],[1],[1,2,3],[True,1],[None,1],[[],1],[2**63,1])),
+            ('winning_providers',dict(providers=[dict(key='item:1',skill_id=1,rank=1,sequence=0)]),'providers',
+             (None,{},1,[None],[{}],[dict(key='item:1',skill_id=1,rank=1,sequence=0,unknown=1)],
+              [dict(key='item:1',skill_id=[],rank=1,sequence=0)])),
+            ('consumable_use',dict(definition=gate.oracle.consumable_definition(gate.source(),737),tick=10,
+                                  available={'737':2},condition_context={'canResurrect':True}),'available',
+             (None,[],1,{'737':None},{'737':[]},{'737':True},{'737':-1},{'737':2**63},{'bad':1})),
+            ('augmentation_provider',dict(option_id=1,option_xml='<option/>',event='install',other_provider=None,
+                                         hp=1,maximum=1,stat_baseline={}), 'option_xml', (None,[],{},1,True)),
+        ]
+        kinds=set()
+        for name,inputs,key,mutations in cases:
+            kinds.add(gate.INPUT_SCHEMAS[name][key][0])
+            control=self.formula_rows(name,inputs)
+            result=gate.evaluate(control,self.recording,OWNER,[name],HASH)
+            self.assertTrue(result['passed'],(name,key,result))
+            for value in mutations:
+                with self.subTest(formula=name,parameter=key,value=value):
+                    bad=self.formula_rows(name,inputs|{key:value})
+                    # Invalid inputs must reject before E1 is called, even if it
+                    # could return an oracle-consistent result for the bad shape.
+                    with patch.object(gate.oracle,'verify_facts',side_effect=AssertionError('oracle reached')):
+                        result=gate.evaluate(bad,self.recording,OWNER,[name],HASH)
+                    self.assertFalse(result['passed'])
+                    self.assertTrue(any('invalid formula input '+name+'.'+key in error
+                                        for row in result['gates'] for error in row['errors']),result)
+        self.assertEqual(kinds,{'exact-numeric','nonneg-int','u32','int','bool','enum','list','nullable','list-tuple','tuple','map','string'})
+
+    def test_shot_charge_members_and_unknown_parameters_through_evaluate(self):
+        for name,inputs in [('charge_transition',dict(charges=['soul','spirit','blessed'],use_soul=True)),
+                            ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade='D',shot_grade='D')),
+                            ('shared_shot_bundle',dict(charges=['soul'],hits=[True,False],use_soul=True))]:
+            for charges in ([],['soul'],['spirit'],['blessed'],['soul','spirit','blessed']):
+                control=self.formula_rows(name,inputs|{'charges':charges})
+                self.assertTrue(gate.evaluate(control,self.recording,OWNER,[name],HASH)['passed'])
+            for charges in (None,'soul',{},1,[-1],[2**63],[None],['bad'],[True],[[]],[{}]):
+                with self.subTest(formula=name,charges=charges):
+                    bad=self.formula_rows(name,inputs|{'charges':charges})
+                    result=gate.evaluate(bad,self.recording,OWNER,[name],HASH)
+                    self.assertFalse(result['passed'])
+                    self.assertTrue(any('invalid formula input '+name+'.charges' in e for r in result['gates'] for e in r['errors']),result)
+        for name,inputs in [('physical_damage',dict(p_atk=10,defence=10,perfect=True)),
+                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True)),
+                            ('charge_transition',dict(charges=[]))]:
+            control=self.formula_rows(name,inputs)
+            for key in ('unknown','src'):
+                bad=copy.deepcopy(control);bad[1]['data']['inputs'][key]=None
+                result=gate.evaluate(bad,self.recording,OWNER,[name],HASH)
+                self.assertFalse(result['passed'])
+                self.assertTrue(any('invalid formula input '+name in e for r in result['gates'] for e in r['errors']),result)
+
+    def test_schema_preserves_nullable_and_structured_controls(self):
+        cases=[('enchant_hp',dict(bonuses=[],enchant=0)),
+               ('heal',dict(power=1,m_atk=1,recoverable_hp='3/2')),
+               ('heal',dict(power=-1,m_atk=121,static=True)),
+               ('physical_damage',dict(p_atk=0,defence=80,power=-1,caller='blow')),
+               ('position',dict(facing=[1,0],relative=[-1,0])),
+               ('grade_penalties',dict(equipped=[dict(instance_id=1,slot=0,grade=7,weapon=False)],expertise=0)),
+               ('magic_damage',dict(power=1,m_atk=1,m_def=1,is_pvp=True,second_success=False)),
+               ('overload',dict(weight=0,maximum=-1)),
+               ('player_level_range',dict(condition={'kind':'player_level_range','ranges':[{'minimum':1,'maximum':84}]},rank=1,level=84))]
+        # E1 vectors supply genuine definition, map, and nullable offer operands.
+        vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
+        for prefix,name in [('bow-launch-NONE-equipped-False','bow_launch'),('resurrection-scroll-','resurrection_scroll'),
+                            ('consumable-escape-timing-','escape_timing'),('consumable-same-tick-lanes','consumable_cast_sequence'),
+                            ('dormant-starter-use-','dormant_use')]:
+            vector=next(v for v in vectors if v['id'].startswith(prefix))
+            inputs=copy.deepcopy(vector['inputs'])
+            if name=='resurrection_scroll':inputs['repeat']=bool(inputs['repeat'])
+            cases.append((name,inputs))
+        for name,inputs in cases:
+            with self.subTest(formula=name):
+                rows=self.formula_rows(name,inputs)
+                result=gate.evaluate(rows,self.recording,OWNER,[name],HASH)
+                self.assertTrue(result['passed'],result)
+
     def test_phase_binding_rejects_unrelated_weapon_or_deleted_mutation(self):
         rows=copy.deepcopy(self.rows);rows[1]['data']['context']={'weapon_template':15}
         phase=dict(name='secondary-pole',formula='pole_damage',context={'weapon_template':15},inputs={'primary':False})
