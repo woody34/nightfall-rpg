@@ -6514,22 +6514,27 @@ mod tests {
         let snapshot = live.snapshot();
         let mut observed = live.clone();
         observed.enable_items_replay_evidence().unwrap();
-        let intent = item_intent(
-            &live,
-            owner.entity,
-            950,
-            crate::domain::zone::ItemCommandKind::Enchant {
-                target,
-                scroll,
-                support: None,
-            },
+        let draft = live.draft(
+            (0_u32..2)
+                .map(|index| {
+                    ZoneInput::session(
+                        owner.entity,
+                        SessionGeneration(1),
+                        index + 1,
+                        ZoneCommand::Item(Box::new(item_intent(
+                            &live,
+                            owner.entity,
+                            950 + u128::from(index),
+                            crate::domain::zone::ItemCommandKind::Enchant {
+                                target,
+                                scroll,
+                                support: None,
+                            },
+                        ))),
+                    )
+                })
+                .collect(),
         );
-        let draft = live.draft(vec![ZoneInput::session(
-            owner.entity,
-            SessionGeneration(1),
-            1,
-            ZoneCommand::Item(Box::new(intent)),
-        )]);
         let applied = live.run_tick(draft.clone()).unwrap();
         assert!(applied.dispositions.is_empty());
         assert_eq!(applied, observed.run_tick(draft).unwrap());
@@ -6546,7 +6551,7 @@ mod tests {
                 .iter()
                 .filter(|f| matches!(f.fact, ItemEvidenceData::Delta(_)))
                 .count(),
-            2
+            4
         );
         let draws: Vec<_> = facts
             .iter()
@@ -6562,7 +6567,9 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(draws.len(), 1);
+        assert_eq!(draws.len(), 2);
+        assert_eq!(draws[1].0, draws[0].1);
+        assert_eq!(draws[1].1, draws[1].0 + 1);
         assert_eq!(draws[0].2, 100_000);
         assert_eq!(draws[0].4, "enchant");
         assert_eq!(draws[0].1, draws[0].0 + 1);
@@ -6573,11 +6580,15 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(formulas.len(), 2);
+        assert_eq!(formulas.len(), 4);
         assert_eq!(formulas[0]["actual"], 100_000);
         assert_eq!(formulas[1]["actual"]["enchant"], 1);
         assert_eq!(formulas[1]["operation"]["target_before"]["enchant"], 0);
         assert_eq!(formulas[1]["operation"]["scroll_before"]["count"], 3);
+        assert_eq!(formulas[3]["actual"]["enchant"], 2);
+        assert_eq!(formulas[3]["operation"]["target_before"]["enchant"], 1);
+        assert_eq!(formulas[3]["operation"]["scroll_before"]["count"], 2);
+        assert_ne!(formulas[1]["operation"]["receipt"], formulas[3]["operation"]["receipt"]);
         assert_eq!(live.snapshot(), observed.snapshot());
         // Manual CLI/consumer probe uses this exact generated recording, never a synthetic verdict.
         if let Ok(path) = std::env::var("NIGHTFALL_TEST_ITEM_EVIDENCE_RECORDING") {

@@ -242,7 +242,7 @@ impl ZoneState {
             "formula":"enchant_outcome","inputs":outcome_inputs,"actual":{
                 "outcome":outcome,"enchant":if attempt.outcome == ItemEnchantOutcome::Destroyed {attempt.old_enchant} else {attempt.new_enchant},
                 "destroyed":attempt.outcome == ItemEnchantOutcome::Destroyed},
-            "operation":{"target_before":attempt.before,"scroll_before":scroll,"support_before":support},
+            "operation":{"target_before":attempt.before,"scroll_before":scroll,"support_before":support,"receipt":attempt.receipt},
             "resolution_id":resolution,"baseline":false})));
         if let Some(fact) = refund_fact {
             self.item_evidence(subject, ItemEvidenceData::Formula(fact));
